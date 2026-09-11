@@ -2,6 +2,8 @@ import 'package:go_router/go_router.dart';
 
 import '../features/history/history_page.dart';
 import '../features/home/home_page.dart';
+import '../features/library/library_page.dart';
+import '../features/word_detail/word_detail_page.dart';
 import '../features/quiz/quiz_page.dart';
 import '../features/result/result_page.dart';
 import '../features/splash/splash_page.dart';
@@ -17,5 +19,11 @@ final appRouter = GoRouter(
     GoRoute(path: '/result', builder: (_, _) => const ResultPage()),
     GoRoute(path: '/stealth', builder: (_, _) => const StealthPage()),
     GoRoute(path: '/history', builder: (_, _) => const HistoryPage()),
+    GoRoute(path: '/library', builder: (_, _) => const LibraryPage()),
+    GoRoute(
+      path: '/word/:word',
+      builder: (_, state) =>
+          WordDetailPage(word: state.pathParameters['word'] ?? ''),
+    ),
   ],
 );
