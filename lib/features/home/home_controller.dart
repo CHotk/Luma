@@ -28,6 +28,8 @@ class HomeState {
 /// autoDispose：離開首頁就丟掉，回來時重新算，
 /// 這樣做完一輪回來數字一定是新的，不用手動通知。
 final homeStateProvider = FutureProvider.autoDispose<HomeState>((ref) async {
+  // 有寫入就重算，不然回到首頁看到的還是上一輪之前的數字。
+  ref.watch(dataRevisionProvider);
   final now = ref.watch(clockProvider)();
   final settings = ref.watch(settingsRepositoryProvider);
   final words = await ref.watch(wordRepositoryProvider).loadAll();

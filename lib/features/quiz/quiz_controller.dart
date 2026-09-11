@@ -168,6 +168,8 @@ class QuizController extends AutoDisposeAsyncNotifier<QuizState> {
         );
     // 對錯次數是從紀錄加總出來的，寫完就要讓單字庫重算。
     ref.read(wordRepositoryProvider).invalidate();
+    // 首頁是用 push 疊在下面的，不會自己重建，要靠這個號碼通知它重算。
+    ref.read(dataRevisionProvider.notifier).state++;
 
     if (s.isLast) {
       await _finish(answers);

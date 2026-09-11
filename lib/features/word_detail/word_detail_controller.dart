@@ -24,6 +24,7 @@ class WordDetail {
 /// 因為網址上放單字比較看得懂，分享出去也知道是哪個字。
 final wordDetailProvider = FutureProvider.autoDispose
     .family<WordDetail, String>((ref, word) async {
+      ref.watch(dataRevisionProvider);
       final all = await ref.watch(wordRepositoryProvider).loadAll();
       final rules = await ref.watch(settingsRepositoryProvider).loadRules();
       final history = await ref.watch(historyRepositoryProvider).forWord(word);

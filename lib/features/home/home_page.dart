@@ -92,12 +92,6 @@ class _Body extends StatelessWidget {
 
         const Spacer(),
         _StartButton(state: state),
-        const SizedBox(height: Gap.sm),
-        Text(
-          state.limitReached ? '明天早上再來' : '做完這輪還剩 ${state.roundsLeft - 1} 輪',
-          textAlign: TextAlign.center,
-          style: AppText.note,
-        ),
         const SizedBox(height: Gap.lg),
       ],
     );

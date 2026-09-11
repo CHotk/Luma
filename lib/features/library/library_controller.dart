@@ -31,6 +31,7 @@ class LibraryData {
 }
 
 final libraryProvider = FutureProvider.autoDispose<LibraryData>((ref) async {
+  ref.watch(dataRevisionProvider);
   final all = await ref.watch(wordRepositoryProvider).loadAll();
   final rules = await ref.watch(settingsRepositoryProvider).loadRules();
   final query = ref.watch(libraryQueryProvider).trim();

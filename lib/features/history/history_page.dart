@@ -63,6 +63,7 @@ final historyOverviewProvider =
     FutureProvider.autoDispose<({LifetimeStats stats, List<RoundLog> rounds})>((
       ref,
     ) async {
+      ref.watch(dataRevisionProvider);
       final repo = ref.watch(historyRepositoryProvider);
       return (stats: await repo.lifetime(), rounds: await repo.rounds());
     });

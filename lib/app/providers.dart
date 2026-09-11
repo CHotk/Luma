@@ -36,6 +36,13 @@ final historyRepositoryProvider = Provider<HistoryRepository>(
   ),
 );
 
+/// 資料版本號。任何寫入之後就加一。
+///
+/// 為什麼需要它：測驗頁是用 push 疊在首頁上面的，首頁並沒有被銷毀，
+/// 所以 autoDispose 不會觸發，回到首頁時看到的還是舊數字。
+/// 讓每個讀資料的 provider 都 watch 這個號碼，寫入後畫面就會自己重算。
+final dataRevisionProvider = StateProvider<int>((ref) => 0);
+
 /// 時間來源。測試時換掉這個就能固定「現在」。
 final clockProvider = Provider<DateTime Function()>((ref) => DateTime.now);
 
