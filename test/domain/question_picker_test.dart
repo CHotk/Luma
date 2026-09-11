@@ -43,7 +43,7 @@ void main() {
 
   const rules = RulesConfig();
 
-  test('一輪十題：七個新字、兩個待複習、一個回考', () {
+  test('一輪十題：六個新字、三個待複習、一個未確認', () {
     final picked = QuestionPicker(
       rules: rules,
       random: Random(1),
@@ -53,8 +53,8 @@ void main() {
     expect(picked.where((q) => q.isReview).length, 1);
 
     final words = picked.map((q) => q.word.word).toList();
-    expect(words.where((w) => w.startsWith('fresh')).length, 7);
-    expect(words.where((w) => w.startsWith('wrong')).length, 2);
+    expect(words.where((w) => w.startsWith('fresh')).length, 6);
+    expect(words.where((w) => w.startsWith('wrong')).length, 3);
   });
 
   test('待複習挑錯最多次的', () {
@@ -68,7 +68,7 @@ void main() {
         .where((w) => w.word.startsWith('wrong'))
         .map((w) => w.wrong)
         .toList();
-    expect(pending, containsAll([5, 4]), reason: '錯最多次的兩個沒被排進來');
+    expect(pending, containsAll([5, 4, 3]), reason: '錯最多次的三個沒被排進來');
   });
 
   test('新字不夠時用待複習補滿', () {

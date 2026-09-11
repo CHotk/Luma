@@ -29,7 +29,7 @@ enum QuizStyle {
 class RulesConfig {
   const RulesConfig({
     this.newPerRound = 9,
-    this.pendingPerRound = 2,
+    this.pendingPerRound = 3,
     this.reviewPerRound = 1,
     this.typeQuestions = 3,
     this.roundsPerDay = 5,

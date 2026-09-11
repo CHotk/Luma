@@ -88,9 +88,11 @@ class _Body extends StatelessWidget {
             children: [
               const PanelLabel('下一輪'),
               const SizedBox(height: Gap.sm),
-              _Row('沒考過的新字', '${state.rules.freshPerRound}'),
-              _Row('答錯過要回來的', '${state.rules.pendingPerRound}'),
-              _Row('回考已答對過的', '${state.rules.reviewPerRound}'),
+              _Row('新字', '${state.rules.freshPerRound}'),
+              _Row('待複習', '${state.rules.pendingPerRound}'),
+              // 這一格抽的是「未確認」：答對過、沒錯過、還沒到門檻的字。
+              // 不叫已掌握，因為已經掌握的字只有在前兩種都抽完時才會被拿來墊底。
+              _Row('未確認', '${state.rules.reviewPerRound}'),
               if (state.rules.effectiveTypeQuestions > 0)
                 _Row('要打字的題數', '${state.rules.effectiveTypeQuestions}'),
             ],
