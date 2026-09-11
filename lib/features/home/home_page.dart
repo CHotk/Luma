@@ -112,44 +112,54 @@ class _TopBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // IconButton 預設的點擊區是 48 見方，五顆排在一起會超出手機寬度，
+    // 最右邊那顆就被擠不見。這裡改成 36 並清掉內距。
+    final entries = <({IconData icon, String tip, VoidCallback tap})>[
+      (
+        icon: Icons.tips_and_updates_outlined,
+        tip: '用法地雷',
+        tap: () => context.push('/notes'),
+      ),
+      (
+        icon: Icons.menu_book_rounded,
+        tip: '單字庫',
+        tap: () => context.push('/library'),
+      ),
+      (
+        icon: Icons.bar_chart_rounded,
+        tip: '總紀錄',
+        tap: () => context.push('/history'),
+      ),
+      (
+        icon: Icons.terminal_rounded,
+        tip: '偽裝模式',
+        tap: () {
+          // 進偽裝模式前先掀旗標，出題時才知道要強制點選題。
+          ref.read(stealthModeProvider.notifier).state = true;
+          context.push('/stealth');
+        },
+      ),
+      (
+        icon: Icons.settings_outlined,
+        tip: '設定',
+        tap: () => context.push('/settings'),
+      ),
+    ];
+
     return Row(
       children: [
         const Text('今天', style: AppText.title),
         const Spacer(),
-        IconButton(
-          onPressed: () => context.push('/notes'),
-          icon: const Icon(Icons.tips_and_updates_outlined, size: 20),
-          color: AppColors.ink2,
-          tooltip: '用法地雷',
-        ),
-        IconButton(
-          onPressed: () => context.push('/library'),
-          icon: const Icon(Icons.menu_book_rounded, size: 20),
-          color: AppColors.ink2,
-          tooltip: '單字庫',
-        ),
-        IconButton(
-          onPressed: () => context.push('/history'),
-          icon: const Icon(Icons.bar_chart_rounded, size: 20),
-          color: AppColors.ink2,
-          tooltip: '總紀錄',
-        ),
-        IconButton(
-          onPressed: () {
-            // 進偽裝模式前先掀旗標，出題時才知道不要出打字題。
-            ref.read(stealthModeProvider.notifier).state = true;
-            context.push('/stealth');
-          },
-          icon: const Icon(Icons.terminal_rounded, size: 20),
-          color: AppColors.ink2,
-          tooltip: '偽裝模式',
-        ),
-        IconButton(
-          onPressed: () => context.push('/settings'),
-          icon: const Icon(Icons.settings_outlined, size: 20),
-          color: AppColors.ink2,
-          tooltip: '設定',
-        ),
+        for (final e in entries)
+          IconButton(
+            onPressed: e.tap,
+            icon: Icon(e.icon, size: 20),
+            color: AppColors.ink2,
+            tooltip: e.tip,
+            padding: EdgeInsets.zero,
+            visualDensity: VisualDensity.compact,
+            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+          ),
       ],
     );
   }

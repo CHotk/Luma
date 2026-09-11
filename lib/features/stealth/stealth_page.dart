@@ -76,8 +76,9 @@ class _StealthPageState extends ConsumerState<StealthPage> {
   void _exit() {
     ref.read(stealthModeProvider.notifier).state = false;
     // 沒做完就離開的話沒有成績可看，直接回首頁，不要丟到空的結果頁。
-    final hasResult = ref.read(lastRoundProvider) != null && _finished;
-    context.pushReplacement(hasResult ? '/result' : '/home');
+    final hasResult = _finished && ref.read(lastRoundProvider) != null;
+    // 用 go 不用 push：把堆疊重設掉，免得偽裝模式一直疊在後面回不去。
+    context.go(hasResult ? '/result' : '/home');
   }
 
   void _onKey(KeyEvent event) {
@@ -92,6 +93,11 @@ class _StealthPageState extends ConsumerState<StealthPage> {
     }
     if (event.logicalKey == LogicalKeyboardKey.keyY) _answer(true);
     if (event.logicalKey == LogicalKeyboardKey.keyN) _answer(false);
+    // 考到一半也要能走。答過的題目在作答當下就寫進紀錄了，不會掉。
+    if (event.logicalKey == LogicalKeyboardKey.keyQ ||
+        event.logicalKey == LogicalKeyboardKey.escape) {
+      _exit();
+    }
   }
 
   @override
@@ -118,7 +124,11 @@ class _StealthPageState extends ConsumerState<StealthPage> {
                 ),
               ),
               if (!_finished)
-                _Prompt(onYes: () => _answer(true), onNo: () => _answer(false))
+                _Prompt(
+                  onYes: () => _answer(true),
+                  onNo: () => _answer(false),
+                  onQuit: _exit,
+                )
               else
                 _DonePrompt(onAgain: _again, onExit: _exit),
             ],
@@ -264,10 +274,15 @@ class _Console extends StatelessWidget {
 
 /// 作答列。做成終端機提示字的樣子，點文字就等於按鍵。
 class _Prompt extends StatelessWidget {
-  const _Prompt({required this.onYes, required this.onNo});
+  const _Prompt({
+    required this.onYes,
+    required this.onNo,
+    required this.onQuit,
+  });
 
   final VoidCallback onYes;
   final VoidCallback onNo;
+  final VoidCallback onQuit;
 
   @override
   Widget build(BuildContext context) {
@@ -275,7 +290,6 @@ class _Prompt extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(8, 0, 8, 10),
       child: Row(
         children: [
-          const Text('resolve? ', style: TerminalTheme.body),
           Expanded(
             child: InkWell(
               onTap: onYes,
@@ -287,6 +301,11 @@ class _Prompt extends StatelessWidget {
               onTap: onNo,
               child: const Text('[n] skip', style: TerminalTheme.bodyBright),
             ),
+          ),
+          // 考到一半的離開出口。標題列的叉叉太小，這裡再給一個。
+          InkWell(
+            onTap: onQuit,
+            child: const Text('[q] quit', style: TerminalTheme.body),
           ),
         ],
       ),

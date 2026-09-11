@@ -205,6 +205,10 @@ class QuizController extends AutoDisposeAsyncNotifier<QuizState> {
         .read(historyRepositoryProvider)
         .finishRound(_round, _stopwatch.elapsed);
 
+    // 成績要先交出去。偽裝模式也要，它的結束畫面就是讀這個，
+    // 而且離開時要能跳到結果頁看中文。
+    ref.read(lastRoundProvider.notifier).state = result;
+
     // 偽裝模式不計入今日用量，也就不受每日上限管（使用者 2026-09-11 決定）。
     // 理由是上班很無聊，那段時間本來就想一直背。
     // 代價是首頁那個環只反映一般模式的份量，總量要看總紀錄頁。
@@ -218,7 +222,5 @@ class QuizController extends AutoDisposeAsyncNotifier<QuizState> {
         practiceSeconds: usage.practiceSeconds + _stopwatch.elapsed.inSeconds,
       ),
     );
-
-    ref.read(lastRoundProvider.notifier).state = result;
   }
 }
