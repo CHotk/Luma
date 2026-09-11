@@ -4,6 +4,8 @@ import '../features/history/history_page.dart';
 import '../features/history/round_detail_page.dart';
 import '../features/home/home_page.dart';
 import '../features/library/library_page.dart';
+import '../features/notes/note_detail_page.dart';
+import '../features/notes/notes_page.dart';
 import '../features/word_detail/word_detail_page.dart';
 import '../features/quiz/quiz_page.dart';
 import '../features/result/result_page.dart';
@@ -27,6 +29,12 @@ final appRouter = GoRouter(
       ),
     ),
     GoRoute(path: '/library', builder: (_, _) => const LibraryPage()),
+    GoRoute(path: '/notes', builder: (_, _) => const NotesPage()),
+    GoRoute(
+      path: '/notes/:no',
+      builder: (_, state) =>
+          NoteDetailPage(no: state.pathParameters['no'] ?? ''),
+    ),
     GoRoute(
       path: '/word/:word',
       builder: (_, state) =>

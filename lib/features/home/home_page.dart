@@ -117,6 +117,12 @@ class _TopBar extends ConsumerWidget {
         const Text('今天', style: AppText.title),
         const Spacer(),
         IconButton(
+          onPressed: () => context.push('/notes'),
+          icon: const Icon(Icons.tips_and_updates_outlined, size: 20),
+          color: AppColors.ink2,
+          tooltip: '用法地雷',
+        ),
+        IconButton(
           onPressed: () => context.push('/library'),
           icon: const Icon(Icons.menu_book_rounded, size: 20),
           color: AppColors.ink2,
