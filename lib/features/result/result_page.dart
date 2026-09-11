@@ -9,6 +9,8 @@ import '../../app/theme/typography.dart';
 import '../../domain/models/quiz.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/glass_card.dart';
+import '../home/home_controller.dart';
+import '../quiz/quiz_controller.dart';
 
 /// 結果頁。
 ///
@@ -153,18 +155,7 @@ class _Body extends StatelessWidget {
                 ),
         ),
 
-        FilledButton(
-          onPressed: () => context.go('/home'),
-          style: FilledButton.styleFrom(
-            backgroundColor: AppColors.glassFill,
-            foregroundColor: AppColors.accent,
-            padding: const EdgeInsets.symmetric(vertical: 15),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(Radii.button),
-            ),
-          ),
-          child: const Text('回首頁'),
-        ),
+        const _Actions(),
         const SizedBox(height: Gap.lg),
       ],
     );
@@ -174,6 +165,67 @@ class _Body extends StatelessWidget {
     final m = d.inMinutes.toString().padLeft(2, '0');
     final s = (d.inSeconds % 60).toString().padLeft(2, '0');
     return '$m:$s';
+  }
+}
+
+/// 結果頁底下的兩顆按鈕。
+///
+/// 做滿今天的份量就只剩回首頁，不留「再來一輪」讓人硬做。
+/// 那條上限本來就是拿來擋自己的。
+class _Actions extends ConsumerWidget {
+  const _Actions();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final home = ref.watch(homeStateProvider);
+    final blocked = home.valueOrNull?.limitReached ?? false;
+
+    final back = OutlinedButton(
+      onPressed: () => context.go('/home'),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AppColors.ink2,
+        side: const BorderSide(color: AppColors.glassEdge),
+        padding: const EdgeInsets.symmetric(vertical: 15),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Radii.button),
+        ),
+      ),
+      child: const Text('回首頁'),
+    );
+
+    if (blocked) {
+      return Column(
+        children: [
+          SizedBox(width: double.infinity, child: back),
+          const SizedBox(height: Gap.sm),
+          const Text('今天的份量做完了', style: AppText.note),
+        ],
+      );
+    }
+
+    return Row(
+      children: [
+        Expanded(child: back),
+        const SizedBox(width: Gap.sm),
+        Expanded(
+          child: FilledButton(
+            onPressed: () {
+              // 換成新的一輪，不要把結果頁疊在後面。
+              ref.invalidate(quizControllerProvider);
+              context.pushReplacement('/quiz');
+            },
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.accentSolid,
+              padding: const EdgeInsets.symmetric(vertical: 15),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(Radii.button),
+              ),
+            ),
+            child: const Text('再來一輪'),
+          ),
+        ),
+      ],
+    );
   }
 }
 
