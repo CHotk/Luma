@@ -18,7 +18,7 @@ void main() {
     word: w,
     pos: 'n.',
     zh: '測試',
-    grade: WordGrade.grade3,
+    grade: WordGrade.elementary,
     right: right,
     wrong: wrong,
   );

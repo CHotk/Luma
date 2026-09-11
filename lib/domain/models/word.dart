@@ -1,36 +1,26 @@
-/// 單字大概是哪個年級學的，對應題庫檔的最後一欄。
+/// 單字大概是哪個階段學的，對應題庫檔的最後一欄。
 ///
-/// 課綱只分「國小 300 字」和「國中 2000 字」兩段，再細下去沒有官方依據，
-/// 所以小一到國三這層是估計值，依字長與階段推出來的。
-/// 覺得某個字擺錯年級就直接改題庫檔那一欄，不用改程式。
+/// 只分四級。曾經細分到小一小六，但那層沒有官方依據，
+/// 課綱本身也只分國小與國中兩段，猜出來的年級只會讓人誤以為很準。
+/// 覺得某個字擺錯階段就直接改題庫檔那一欄，不用動程式。
 enum WordGrade {
-  grade1('小一'),
-  grade2('小二'),
-  grade3('小三'),
-  grade4('小四'),
-  grade5('小五'),
-  grade6('小六'),
-  junior1('國一'),
-  junior2('國二'),
-  junior3('國三'),
+  elementary('國小'),
+  junior('國中'),
   senior('高中'),
   college('大學');
 
   const WordGrade(this.label);
   final String label;
 
-  /// 國小階段。統計想分「國小學過的」和「國中以後的」時用這個。
-  bool get isElementary => index <= WordGrade.grade6.index;
-
   static WordGrade parse(String raw) {
     final text = raw.trim();
     for (final grade in values) {
       if (grade.label == text) return grade;
     }
-    // 舊資料只有兩級，遷移時對到該階段的第一年。
-    if (text == '國中') return WordGrade.junior1;
-    if (text == '國小') return WordGrade.grade3;
-    return WordGrade.grade3;
+    // 曾經用過的細分級，讀到就收斂回所屬階段。
+    if (text.startsWith('小')) return WordGrade.elementary;
+    if (text.startsWith('國')) return WordGrade.junior;
+    return WordGrade.elementary;
   }
 }
 
