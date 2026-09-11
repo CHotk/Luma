@@ -93,15 +93,26 @@ class _List extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final active = ref.watch(libraryFilterProvider);
+    final total = data.counts.values.fold(0, (sum, n) => sum + n);
+    final shown = data.words.length;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 2, bottom: Gap.sm),
+          child: Text(
+            // 有篩選或搜尋時兩個數字都要看得到，
+            // 只顯示一個會讓人以為單字庫變少了。
+            shown == total ? '共 $total 個字' : '顯示 $shown 個，共 $total 個字',
+            style: AppText.note,
+          ),
+        ),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
             children: [
-              _Chip(label: '全部', value: null, active: active == null),
+              _Chip(label: '全部 $total', value: null, active: active == null),
               for (final status in WordStatus.values)
                 _Chip(
                   label: '${status.label} ${data.counts[status] ?? 0}',
