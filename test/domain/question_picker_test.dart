@@ -43,17 +43,17 @@ void main() {
 
   const rules = RulesConfig();
 
-  test('一輪十一題：八個新字、兩個待複習、一個回考', () {
+  test('一輪十題：七個新字、兩個待複習、一個回考', () {
     final picked = QuestionPicker(
       rules: rules,
       random: Random(1),
     ).pick(library(), now: now);
 
-    expect(picked.length, 11);
+    expect(picked.length, 10);
     expect(picked.where((q) => q.isReview).length, 1);
 
     final words = picked.map((q) => q.word.word).toList();
-    expect(words.where((w) => w.startsWith('fresh')).length, 8);
+    expect(words.where((w) => w.startsWith('fresh')).length, 7);
     expect(words.where((w) => w.startsWith('wrong')).length, 2);
   });
 
@@ -69,6 +69,79 @@ void main() {
         .map((w) => w.wrong)
         .toList();
     expect(pending, containsAll([5, 4]), reason: '錯最多次的兩個沒被排進來');
+  });
+
+  test('新字不夠時用待複習補滿', () {
+    // 只有三個新字，待複習有八個。
+    final pool = [
+      for (var i = 0; i < 3; i++) word('fresh$i', id: i),
+      for (var i = 0; i < 8; i++) word('wrong$i', id: 100 + i, wrong: i + 1),
+    ];
+    final picked = QuestionPicker(
+      rules: rules,
+      random: Random(1),
+    ).pick(pool, now: now);
+
+    expect(picked.length, rules.newPerRound);
+    final words = picked.map((q) => q.word.word).toList();
+    expect(words.where((w) => w.startsWith('fresh')).length, 3);
+    expect(words.where((w) => w.startsWith('wrong')).length, 6);
+  });
+
+  test('會過但也錯過的字不會被丟在中間沒人理', () {
+    // 這批字 right>=1 而且 wrong>0，四個池子的條件以前都不收它們。
+    final pool = [
+      word('fresh0', id: 1),
+      for (var i = 0; i < 10; i++)
+        word('shaky$i', id: 100 + i, right: 1, wrong: i + 1),
+    ];
+    final picked = QuestionPicker(
+      rules: rules,
+      random: Random(1),
+    ).pick(pool, now: now);
+
+    expect(picked.length, rules.newPerRound);
+    expect(
+      picked.where((q) => q.word.word.startsWith('shaky')).length,
+      8,
+      reason: '卡在中間的字還是沒被抽到',
+    );
+  });
+
+  test('未確認的字排在已確認的前面', () {
+    final pool = [
+      word('shaky0', id: 1, right: 1, wrong: 2),
+      for (var i = 0; i < 10; i++)
+        word('done$i', id: 100 + i, right: 3, lastTest: DateTime(2026, 9, 1)),
+    ];
+    final picked = QuestionPicker(
+      rules: rules,
+      random: Random(1),
+    ).pick(pool, now: now);
+
+    expect(
+      picked.any((q) => q.word.word == 'shaky0'),
+      isTrue,
+      reason: '該先練的字被已確認的擠掉了',
+    );
+  });
+
+  test('新字和待複習都用完時補已確認的字', () {
+    // 一個新字、一個待複習，其餘都是已經確認會的。
+    final pool = [
+      word('fresh0', id: 1),
+      word('wrong0', id: 2, wrong: 1),
+      for (var i = 0; i < 10; i++)
+        word('done$i', id: 100 + i, right: 3, lastTest: DateTime(2026, 9, 1)),
+    ];
+    final picked = QuestionPicker(
+      rules: rules,
+      random: Random(1),
+    ).pick(pool, now: now);
+
+    expect(picked.length, rules.newPerRound, reason: '墊底的字沒補上來，一輪變少了');
+    final words = picked.map((q) => q.word.word).toList();
+    expect(words.where((w) => w.startsWith('done')).length, 7);
   });
 
   test('待複習不夠時用新字補滿，題數不能少', () {
@@ -89,7 +162,7 @@ void main() {
 
     final words = picked.map((q) => q.word.word).toList();
     expect(words.where((w) => w.startsWith('wrong')).length, 0);
-    expect(words.where((w) => w.startsWith('fresh')).length, 10);
+    expect(words.where((w) => w.startsWith('fresh')).length, 9);
   });
 
   test('只點選模式不出打字題', () {

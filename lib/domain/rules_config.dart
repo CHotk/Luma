@@ -28,7 +28,7 @@ enum QuizStyle {
 /// 設定頁改的是覆寫後的 [RulesConfig] 實例，不是改這個檔的預設值。
 class RulesConfig {
   const RulesConfig({
-    this.newPerRound = 10,
+    this.newPerRound = 9,
     this.pendingPerRound = 2,
     this.reviewPerRound = 1,
     this.typeQuestions = 3,
