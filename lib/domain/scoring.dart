@@ -5,27 +5,29 @@ import 'models/word.dart';
 /// 對錯次數的累加不在這裡：那是從作答紀錄加總出來的，
 /// 由 HistoryRepository 負責，這樣兩邊出的題才能合併而不互相覆蓋。
 abstract final class Scoring {
-  /// 統計三種狀態各有幾個字。首頁和統計頁的數字都從這裡來，不要各算各的。
-  static ({int total, int confirmed, int learning, int pending}) summarize(
+  /// 每種狀態各有幾個字。沒有的狀態也會是 0，畫面不用自己補。
+  static Map<WordStatus, int> countByStatus(
     Iterable<Word> words,
     int confirmRight,
   ) {
-    var confirmed = 0, learning = 0, pending = 0;
+    final counts = {for (final s in WordStatus.values) s: 0};
     for (final w in words) {
-      switch (w.statusWith(confirmRight)) {
-        case WordStatus.confirmed:
-          confirmed++;
-        case WordStatus.learning:
-          learning++;
-        case WordStatus.pending:
-          pending++;
-      }
+      final status = w.statusWith(confirmRight);
+      counts[status] = counts[status]! + 1;
     }
+    return counts;
+  }
+
+  /// 首頁要的三個數字。其餘地方請直接用 [countByStatus]。
+  static ({int total, int confirmed, int pending}) summarize(
+    Iterable<Word> words,
+    int confirmRight,
+  ) {
+    final counts = countByStatus(words, confirmRight);
     return (
-      total: confirmed + learning + pending,
-      confirmed: confirmed,
-      learning: learning,
-      pending: pending,
+      total: counts.values.fold(0, (sum, n) => sum + n),
+      confirmed: counts[WordStatus.confirmed] ?? 0,
+      pending: counts[WordStatus.pending] ?? 0,
     );
   }
 }

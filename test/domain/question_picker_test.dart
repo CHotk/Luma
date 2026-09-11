@@ -88,7 +88,7 @@ void main() {
     expect(words.where((w) => w.startsWith('wrong')).length, 6);
   });
 
-  test('會過但也錯過的字不會被丟在中間沒人理', () {
+  test('答對過但也錯過的字仍然算待複習，會被抽到', () {
     // 這批字 right>=1 而且 wrong>0，四個池子的條件以前都不收它們。
     final pool = [
       word('fresh0', id: 1),
@@ -104,11 +104,11 @@ void main() {
     expect(
       picked.where((q) => q.word.word.startsWith('shaky')).length,
       8,
-      reason: '卡在中間的字還是沒被抽到',
+      reason: '錯過的字沒被當成待複習',
     );
   });
 
-  test('未確認的字排在已確認的前面', () {
+  test('待複習排在已確認的前面', () {
     final pool = [
       word('shaky0', id: 1, right: 1, wrong: 2),
       for (var i = 0; i < 10; i++)

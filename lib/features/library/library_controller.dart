@@ -37,12 +37,7 @@ final libraryProvider = FutureProvider.autoDispose<LibraryData>((ref) async {
   final query = ref.watch(libraryQueryProvider).trim();
   final filter = ref.watch(libraryFilterProvider);
 
-  final summary = Scoring.summarize(all, rules.confirmRight);
-  final counts = {
-    WordStatus.confirmed: summary.confirmed,
-    WordStatus.learning: summary.learning,
-    WordStatus.pending: summary.pending,
-  };
+  final counts = Scoring.countByStatus(all, rules.confirmRight);
 
   final lower = query.toLowerCase();
   final filtered = all.where((w) {
@@ -53,11 +48,11 @@ final libraryProvider = FutureProvider.autoDispose<LibraryData>((ref) async {
     return w.word.toLowerCase().contains(lower) || w.zh.contains(query);
   }).toList();
 
-  // 待複習的排前面，那是最需要看的。其餘照原本的編號。
+  // 待複習的排前面，那是最需要看的。同一種狀態就照原本的編號。
   filtered.sort((a, b) {
-    final sa = a.statusWith(rules.confirmRight).index;
-    final sb = b.statusWith(rules.confirmRight).index;
-    if (sa != sb) return sb.compareTo(sa);
+    final sa = a.statusWith(rules.confirmRight).priority;
+    final sb = b.statusWith(rules.confirmRight).priority;
+    if (sa != sb) return sa.compareTo(sb);
     return a.id.compareTo(b.id);
   });
 

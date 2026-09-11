@@ -16,6 +16,7 @@ class StatusPill extends StatelessWidget {
       WordStatus.confirmed => AppColors.ok,
       WordStatus.learning => AppColors.mid,
       WordStatus.pending => AppColors.bad,
+      WordStatus.untested => AppColors.ink3,
     };
 
     return Container(

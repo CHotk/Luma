@@ -36,16 +36,10 @@ class QuestionPicker {
       need = target - fresh.length - pending.length;
     }
 
-    // 還缺就往下找。順序是「最需要練的先來」：
-    // 會過但也錯過的字（未確認）排在已確認的前面。
-    final filler = <Word>[];
-    if (need > 0) {
-      filler.addAll(_shakyPool(all).take(need));
-      need -= filler.length;
-    }
-    if (need > 0) {
-      filler.addAll(_confirmedPool(all).take(need));
-    }
+    // 還缺就拿已經確認會的來墊底。
+    final filler = need > 0
+        ? _confirmedPool(all).take(need).toList()
+        : <Word>[];
 
     final review = _pickReview(all);
     final words = [
@@ -73,28 +67,15 @@ class QuestionPicker {
   List<Word> _freshPool(List<Word> all) =>
       all.where((w) => w.isUntested).toList()..shuffle(_random);
 
-  /// 待複習：答錯過而且到現在還沒答對過的字。
+  /// 待複習：**錯過就算**，跟後來有沒有答對無關。
   ///
-  /// 這是使用者最需要的那批字。錯最多次的先回來，同樣次數就挑最久沒考的，
+  /// 使用者 2026-09-11 明確講過這條。以前寫成「還沒答對過」，
+  /// 結果 right=1 wrong=3 那種字兩邊都不收，永遠不會再出現。
+  ///
+  /// 錯最多次的先回來，同樣次數就挑最久沒考的，
   /// 不然同一個字會一直霸著位置，其他錯過的字永遠輪不到。
   List<Word> _pendingPool(List<Word> all) =>
-      all.where((w) => w.right == 0 && w.wrong > 0).toList()..sort((a, b) {
-        if (a.wrong != b.wrong) return b.wrong.compareTo(a.wrong);
-        final at = a.lastTest;
-        final bt = b.lastTest;
-        if (at == null && bt == null) return 0;
-        if (at == null) return -1;
-        if (bt == null) return 1;
-        return at.compareTo(bt);
-      });
-
-  /// 會過但也錯過的字。
-  ///
-  /// 這批以前沒有任何地方會抽到：新字要求沒考過、待複習要求沒答對過、
-  /// 回考要求沒錯過，這些字全部卡在中間，永遠不會再出現。
-  /// 錯最多次的先回來。
-  List<Word> _shakyPool(List<Word> all) =>
-      all.where((w) => w.right >= 1 && w.wrong > 0).toList()..sort((a, b) {
+      all.where((w) => w.wrong > 0).toList()..sort((a, b) {
         if (a.wrong != b.wrong) return b.wrong.compareTo(a.wrong);
         final at = a.lastTest;
         final bt = b.lastTest;
