@@ -146,9 +146,7 @@ class Word {
     pos: json['pos'] as String,
     zh: json['zh'] as String,
     // 舊版存的是 level 兩級分法，讀得到就沿用，讀不到才當國小。
-    grade: WordGrade.parse(
-      (json['grade'] ?? json['level']) as String? ?? '國小',
-    ),
+    grade: WordGrade.parse((json['grade'] ?? json['level']) as String? ?? '國小'),
     example: json['example'] as String? ?? '',
     added: _date(json['added']),
     imagePath: json['imagePath'] as String? ?? '',

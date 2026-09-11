@@ -62,7 +62,9 @@ class _StealthPageState extends ConsumerState<StealthPage> {
 
   Future<void> _answer(bool correct) async {
     if (_finished) return;
-    final done = await ref.read(quizControllerProvider.notifier).answer(correct);
+    final done = await ref
+        .read(quizControllerProvider.notifier)
+        .answer(correct);
     if (done) setState(() => _finished = true);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scroll.hasClients) {
@@ -142,9 +144,7 @@ class _StealthPageState extends ConsumerState<StealthPage> {
       final a = s.answers[i];
       final tag = a.correct ? '  ok ' : '  !! ';
       final verb = a.correct ? 'resolved' : 'unresolved';
-      lines.add(
-        "[${_stamp(i + 1)}]$tag $verb '${a.question.word.word}'",
-      );
+      lines.add("[${_stamp(i + 1)}]$tag $verb '${a.question.word.word}'");
     }
 
     lines
@@ -254,10 +254,7 @@ class _Console extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
       child: Align(
         alignment: Alignment.topLeft,
-        child: Text(
-          lines.join('\n'),
-          style: TerminalTheme.body,
-        ),
+        child: Text(lines.join('\n'), style: TerminalTheme.body),
       ),
     );
   }

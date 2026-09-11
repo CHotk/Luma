@@ -40,11 +40,13 @@ class HistoryPage extends ConsumerWidget {
                 const SizedBox(height: Gap.sm),
                 Expanded(
                   child: async.when(
-                    loading: () =>
-                        const Center(child: CircularProgressIndicator.adaptive()),
+                    loading: () => const Center(
+                      child: CircularProgressIndicator.adaptive(),
+                    ),
                     error: (e, _) =>
                         Center(child: Text('讀不到紀錄：$e', style: AppText.bodyDim)),
-                    data: (data) => _Body(stats: data.stats, rounds: data.rounds),
+                    data: (data) =>
+                        _Body(stats: data.stats, rounds: data.rounds),
                   ),
                 ),
               ],
@@ -57,11 +59,13 @@ class HistoryPage extends ConsumerWidget {
 }
 
 /// 這頁要的兩份資料一起抓，省掉畫面裡串兩個 future。
-final historyOverviewProvider = FutureProvider.autoDispose<
-    ({LifetimeStats stats, List<RoundLog> rounds})>((ref) async {
-  final repo = ref.watch(historyRepositoryProvider);
-  return (stats: await repo.lifetime(), rounds: await repo.rounds());
-});
+final historyOverviewProvider =
+    FutureProvider.autoDispose<({LifetimeStats stats, List<RoundLog> rounds})>((
+      ref,
+    ) async {
+      final repo = ref.watch(historyRepositoryProvider);
+      return (stats: await repo.lifetime(), rounds: await repo.rounds());
+    });
 
 class _Body extends StatelessWidget {
   const _Body({required this.stats, required this.rounds});
@@ -72,7 +76,9 @@ class _Body extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (stats.rounds == 0) {
-      return const Center(child: Text('還沒有紀錄，做完一輪就會出現', style: AppText.bodyDim));
+      return const Center(
+        child: Text('還沒有紀錄，做完一輪就會出現', style: AppText.bodyDim),
+      );
     }
 
     // 新的排前面，看紀錄通常是想看最近做了什麼。
@@ -155,42 +161,47 @@ class _RoundRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 11),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppColors.glassEdge)),
-      ),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 46,
-            child: Text('R${log.round}', style: AppText.bodyDim),
-          ),
-          Expanded(
-            child: Text(
-              _Body._day(log.at),
-              style: AppText.note,
+    return InkWell(
+      // 點進去看這一輪出了什麼題、你怎麼答的。
+      onTap: () => context.push('/round/${log.round}'),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 11),
+        decoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: AppColors.glassEdge)),
+        ),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 46,
+              child: Text('R${log.round}', style: AppText.bodyDim),
             ),
-          ),
-          // 偽裝模式做的那幾輪標一下，自己看得懂就好。
-          if (log.stealth)
-            const Padding(
-              padding: EdgeInsets.only(right: Gap.sm),
-              child: Text('cmd', style: TextStyle(
-                fontSize: 10,
-                color: AppColors.ink3,
-                fontFamily: 'Consolas',
-              )),
+            Expanded(child: Text(_Body._day(log.at), style: AppText.note)),
+            // 偽裝模式做的那幾輪標一下，自己看得懂就好。
+            if (log.stealth)
+              const Padding(
+                padding: EdgeInsets.only(right: Gap.sm),
+                child: Text(
+                  'cmd',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: AppColors.ink3,
+                    fontFamily: 'Consolas',
+                  ),
+                ),
+              ),
+            Text(
+              '${log.right} / ${log.total}',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: log.right * 2 >= log.total
+                    ? AppColors.ok
+                    : AppColors.mid,
+              ),
             ),
-          Text(
-            '${log.right} / ${log.total}',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: log.right * 2 >= log.total ? AppColors.ok : AppColors.mid,
-            ),
-          ),
-        ],
+            const Icon(Icons.chevron_right, size: 16, color: AppColors.ink3),
+          ],
+        ),
       ),
     );
   }

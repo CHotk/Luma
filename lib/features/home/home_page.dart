@@ -29,9 +29,8 @@ class HomePage extends ConsumerWidget {
             child: state.when(
               loading: () =>
                   const Center(child: CircularProgressIndicator.adaptive()),
-              error: (e, _) => Center(
-                child: Text('讀不到資料：$e', style: AppText.bodyDim),
-              ),
+              error: (e, _) =>
+                  Center(child: Text('讀不到資料：$e', style: AppText.bodyDim)),
               data: (s) => _Body(state: s),
             ),
           ),
@@ -95,9 +94,7 @@ class _Body extends StatelessWidget {
         _StartButton(state: state),
         const SizedBox(height: Gap.sm),
         Text(
-          state.limitReached
-              ? '明天早上再來'
-              : '做完這輪還剩 ${state.roundsLeft - 1} 輪',
+          state.limitReached ? '明天早上再來' : '做完這輪還剩 ${state.roundsLeft - 1} 輪',
           textAlign: TextAlign.center,
           style: AppText.note,
         ),

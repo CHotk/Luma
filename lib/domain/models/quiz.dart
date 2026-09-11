@@ -35,10 +35,15 @@ class QuizAnswer {
     required this.correct,
     required this.answeredAt,
     required this.seconds,
+    this.input = '',
   });
 
   final QuizQuestion question;
   final bool correct;
+
+  /// 打字題實際打了什麼。點選題是空的。
+  /// 留著才翻得出當初拼錯在哪個字母。
+  final String input;
 
   /// 按下去的那一刻。
   final DateTime answeredAt;
@@ -69,6 +74,8 @@ class RoundResult {
   List<QuizAnswer> get missed => answers.where((a) => !a.correct).toList();
 
   int countOf({required bool review, required bool correctOnly}) => answers
-      .where((a) => a.question.isReview == review && (!correctOnly || a.correct))
+      .where(
+        (a) => a.question.isReview == review && (!correctOnly || a.correct),
+      )
       .length;
 }

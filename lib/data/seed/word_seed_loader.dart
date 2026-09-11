@@ -81,11 +81,15 @@ class WordSeedLoader implements SeedSource {
     return byWord.values.toList()..sort((a, b) => a.id.compareTo(b.id));
   }
 
-  /// 既有的測驗紀錄：date / round / word / result
+  /// 測驗紀錄：date / round / word / result [/ mode / input / seconds]
   ///
-  /// round 長得像 R12，result 只有 O 和 X。
-  /// 這份沒有每輪花多少時間，所以匯進來的舊輪次秒數一律是 0，
-  /// 總作答時間會少算掉 App 啟用前的部分，這是資料本身就沒有，不是 bug。
+  /// 前四欄是必要的：round 長得像 R12，result 只有 O 和 X。
+  /// 後三欄是後來才加的，舊資料沒有也讀得起來：
+  ///   mode    tap 或 type
+  ///   input   打字題實際打了什麼，點選題寫 -
+  ///   seconds 想了幾秒
+  ///
+  /// 早期的紀錄沒有時分也沒有秒數，那是資料本身就沒有，不是 bug。
   @override
   Future<List<HistoryEntry>> bundleHistory() async {
     final raw = await rootBundle.loadString('assets/data/history.txt');
@@ -96,12 +100,17 @@ class WordSeedLoader implements SeedSource {
       final at = DateTime.tryParse(cols[0]);
       final round = int.tryParse(cols[1].replaceFirst('R', ''));
       if (at == null || round == null) continue;
+
+      final input = cols.length > 5 ? cols[5].trim() : '';
       entries.add(
         HistoryEntry(
           round: round,
           word: cols[2],
           correct: cols[3].trim() == 'O',
           at: at,
+          typed: cols.length > 4 && cols[4].trim() == 'type',
+          input: input == '-' ? '' : input,
+          seconds: cols.length > 6 ? int.tryParse(cols[6].trim()) ?? 0 : 0,
         ),
       );
     }

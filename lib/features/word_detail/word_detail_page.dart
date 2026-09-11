@@ -197,8 +197,7 @@ class _HistoryRow extends StatelessWidget {
 
   static String _two(int n) => n.toString().padLeft(2, '0');
 
-  static String _day(DateTime d) =>
-      '${d.year}-${_two(d.month)}-${_two(d.day)}';
+  static String _day(DateTime d) => '${d.year}-${_two(d.month)}-${_two(d.day)}';
 
   static String _stamp(DateTime d) =>
       '${_day(d)} ${_two(d.hour)}:${_two(d.minute)}';

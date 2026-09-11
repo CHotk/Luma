@@ -41,10 +41,7 @@ void main() {
     });
 
     test('同一天不歸零', () {
-      final earlier = DailyUsage(
-        date: DateTime(2026, 9, 11, 9),
-        roundsDone: 3,
-      );
+      final earlier = DailyUsage(date: DateTime(2026, 9, 11, 9), roundsDone: 3);
       expect(DailyLimit.rollOver(earlier, today).roundsDone, 3);
     });
   });

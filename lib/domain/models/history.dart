@@ -9,6 +9,9 @@ class HistoryEntry {
     required this.correct,
     required this.at,
     this.seconds = 0,
+    this.typed = false,
+    this.input = '',
+    this.isReview = false,
   });
 
   /// 輪次編號，從 1 開始連號。
@@ -23,12 +26,27 @@ class HistoryEntry {
   /// 從 history.txt 匯進來的舊紀錄沒有這個資料，一律是 0。
   final int seconds;
 
+  /// 這題是不是打字題。點選題只按會或不會，打字題才有輸入內容。
+  final bool typed;
+
+  /// 打字題實際打了什麼。
+  ///
+  /// 留著是為了以後翻得出「當初是拼錯哪個字母」，
+  /// 光知道答錯沒有用，要知道錯在哪裡才學得到東西。
+  final String input;
+
+  /// 這題是不是回考的舊字。
+  final bool isReview;
+
   Map<String, dynamic> toJson() => {
     'round': round,
     'word': word,
     'correct': correct,
     'at': at.toIso8601String(),
     'seconds': seconds,
+    'typed': typed,
+    'input': input,
+    'isReview': isReview,
   };
 
   factory HistoryEntry.fromJson(Map<String, dynamic> json) => HistoryEntry(
@@ -37,6 +55,9 @@ class HistoryEntry {
     correct: json['correct'] as bool,
     at: DateTime.parse(json['at'] as String),
     seconds: json['seconds'] as int? ?? 0,
+    typed: json['typed'] as bool? ?? false,
+    input: json['input'] as String? ?? '',
+    isReview: json['isReview'] as bool? ?? false,
   );
 }
 

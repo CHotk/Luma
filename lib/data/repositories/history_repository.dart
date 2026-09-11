@@ -63,6 +63,9 @@ class HistoryRepository {
           correct: a.correct,
           at: a.answeredAt,
           seconds: a.seconds,
+          typed: a.question.mode == QuizMode.type,
+          input: a.input,
+          isReview: a.question.isReview,
         ),
     ]);
     await _writeRounds([
@@ -103,6 +106,14 @@ class HistoryRepository {
       stealthRounds: stealth,
       since: all.first.at,
     );
+  }
+
+  /// 某一輪的所有題目，照作答順序。
+  /// 總紀錄頁點某一輪進去就是看這個。
+  Future<List<HistoryEntry>> forRound(int round) async {
+    final all = await entries();
+    return all.where((e) => e.round == round).toList()
+      ..sort((a, b) => a.at.compareTo(b.at));
   }
 
   /// 某個字的所有作答紀錄，新的排前面。
@@ -200,8 +211,10 @@ class HistoryRepository {
     jsonEncode([for (final e in entries) e.toJson()]),
   );
 
-  Future<void> _writeRounds(List<RoundLog> rounds) =>
-      _store.write(_roundsKey, jsonEncode([for (final r in rounds) r.toJson()]));
+  Future<void> _writeRounds(List<RoundLog> rounds) => _store.write(
+    _roundsKey,
+    jsonEncode([for (final r in rounds) r.toJson()]),
+  );
 }
 
 /// 單一個字的加總結果。

@@ -118,8 +118,10 @@ class _List extends ConsumerWidget {
                   itemCount: data.words.length,
                   separatorBuilder: (_, _) =>
                       const Divider(height: 1, color: AppColors.glassEdge),
-                  itemBuilder: (context, i) =>
-                      _Row(word: data.words[i], confirmRight: data.confirmRight),
+                  itemBuilder: (context, i) => _Row(
+                    word: data.words[i],
+                    confirmRight: data.confirmRight,
+                  ),
                 ),
         ),
       ],

@@ -32,7 +32,9 @@ class _QuizPageState extends ConsumerState<QuizPage> {
   }
 
   Future<void> _answer(bool correct) async {
-    final done = await ref.read(quizControllerProvider.notifier).answer(correct);
+    final done = await ref
+        .read(quizControllerProvider.notifier)
+        .answer(correct);
     _input.clear();
     if (done && mounted) context.pushReplacement('/result');
   }
@@ -49,7 +51,8 @@ class _QuizPageState extends ConsumerState<QuizPage> {
             child: async.when(
               loading: () =>
                   const Center(child: CircularProgressIndicator.adaptive()),
-              error: (e, _) => Center(child: Text('出題失敗：$e', style: AppText.bodyDim)),
+              error: (e, _) =>
+                  Center(child: Text('出題失敗：$e', style: AppText.bodyDim)),
               data: (s) => Column(
                 children: [
                   const SizedBox(height: Gap.md),

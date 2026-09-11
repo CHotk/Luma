@@ -29,9 +29,7 @@ class SettingsRepository {
   Future<DailyUsage> loadUsage(DateTime now) async {
     final raw = await _store.read(_usageKey);
     if (raw == null) return DailyUsage(date: now);
-    final stored = DailyUsage.fromJson(
-      jsonDecode(raw) as Map<String, dynamic>,
-    );
+    final stored = DailyUsage.fromJson(jsonDecode(raw) as Map<String, dynamic>);
     return DailyLimit.rollOver(stored, now);
   }
 

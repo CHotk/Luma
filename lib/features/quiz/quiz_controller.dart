@@ -130,6 +130,7 @@ class QuizController extends AutoDisposeAsyncNotifier<QuizState> {
         correct: correct,
         answeredAt: now,
         seconds: now.difference(shown).inSeconds,
+        input: s.current.mode == QuizMode.type ? s.input.trim() : '',
       ),
     ];
 
