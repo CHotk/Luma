@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
+import '../../domain/models/history.dart';
 import '../../domain/models/quiz.dart';
 import '../../domain/question_picker.dart';
 import '../../domain/spell_judge.dart';
@@ -59,14 +60,18 @@ final quizControllerProvider =
 
 /// 一輪測驗的流程。
 ///
-/// 只管「這一輪」的事。成績寫回單字庫和今日用量是在 [finish] 一次做完，
-/// 中途離開就不算，這是刻意的：半途而廢不該留下紀錄。
+/// 紀錄是**每答一題就寫一次**，不是整輪結束才寫。
+/// 中途關掉瀏覽器或被系統收掉都不會掉資料，半輪也留得下來。
+/// 只有今日用量是整輪做完才計，因為那是「做完一輪」的概念。
 class QuizController extends AutoDisposeAsyncNotifier<QuizState> {
   /// 整輪的碼錶。
   final _stopwatch = Stopwatch();
 
   /// 這一題是什麼時候出現的。用來算每題想了幾秒。
   DateTime? _questionShownAt;
+
+  /// 這一輪的編號，開始時就決定好，之後每題都寫同一個。
+  int _round = 0;
 
   @override
   Future<QuizState> build() async {
@@ -80,6 +85,7 @@ class QuizController extends AutoDisposeAsyncNotifier<QuizState> {
         : rules;
 
     final questions = QuestionPicker(rules: effective).pick(words, now: now);
+    _round = await ref.read(historyRepositoryProvider).nextRoundNumber();
     _stopwatch
       ..reset()
       ..start();
@@ -115,6 +121,16 @@ class QuizController extends AutoDisposeAsyncNotifier<QuizState> {
     state = AsyncData(s.copyWith(judged: correct));
   }
 
+  /// 打字題按「不會」。
+  ///
+  /// 直接判錯並把答案揭開，不要逼人硬打一個錯的上去。
+  /// 打不出來跟打錯是同一件事，都算 wrong。
+  void giveUp() {
+    final s = state.valueOrNull;
+    if (s == null || s.judged != null) return;
+    state = AsyncData(s.copyWith(judged: false));
+  }
+
   /// 記下這題的結果並前進。最後一題會回傳 true，讓畫面知道該跳結果頁。
   Future<bool> answer(bool correct) async {
     final s = state.valueOrNull;
@@ -123,16 +139,34 @@ class QuizController extends AutoDisposeAsyncNotifier<QuizState> {
     final now = ref.read(clockProvider)();
     final shown = _questionShownAt ?? now;
 
-    final answers = [
-      ...s.answers,
-      QuizAnswer(
-        question: s.current,
-        correct: correct,
-        answeredAt: now,
-        seconds: now.difference(shown).inSeconds,
-        input: s.current.mode == QuizMode.type ? s.input.trim() : '',
-      ),
-    ];
+    final answered = QuizAnswer(
+      question: s.current,
+      correct: correct,
+      answeredAt: now,
+      seconds: now.difference(shown).inSeconds,
+      input: s.current.mode == QuizMode.type ? s.input.trim() : '',
+    );
+    final answers = [...s.answers, answered];
+
+    // 這一題馬上寫進紀錄。中途離開也不會掉。
+    final stealth = ref.read(stealthModeProvider);
+    await ref
+        .read(historyRepositoryProvider)
+        .appendAnswer(
+          HistoryEntry(
+            round: _round,
+            word: answered.question.word.word,
+            correct: answered.correct,
+            at: answered.answeredAt,
+            seconds: answered.seconds,
+            typed: answered.question.mode == QuizMode.type,
+            input: answered.input,
+            isReview: answered.question.isReview,
+          ),
+          stealth: stealth,
+        );
+    // 對錯次數是從紀錄加總出來的，寫完就要讓單字庫重算。
+    ref.read(wordRepositoryProvider).invalidate();
 
     if (s.isLast) {
       await _finish(answers);
@@ -165,12 +199,10 @@ class QuizController extends AutoDisposeAsyncNotifier<QuizState> {
 
     final stealth = ref.read(stealthModeProvider);
 
-    // 先寫紀錄，再讓單字庫重新加總。順序不能反，
-    // 因為對錯次數是從紀錄算出來的，不是自己累加的。
+    // 每一題在作答當下就寫過了，這裡只補上整輪實際花的時間。
     await ref
         .read(historyRepositoryProvider)
-        .appendRound(result, stealth: stealth);
-    ref.read(wordRepositoryProvider).invalidate();
+        .finishRound(_round, _stopwatch.elapsed);
 
     // 偽裝模式不計入今日用量，也就不受每日上限管（使用者 2026-09-11 決定）。
     // 理由是上班很無聊，那段時間本來就想一直背。

@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import '../../domain/models/history.dart';
-import '../../domain/models/quiz.dart';
 import '../seed/seed_source.dart';
 import '../storage/key_value_store.dart';
 
@@ -44,41 +43,63 @@ class HistoryRepository {
     return result;
   }
 
-  /// 一輪結束時追加。
+  /// 下一輪要用的編號，接在現有最大號之後。
   ///
-  /// 輪次編號接在現有最大號之後。兩邊可能剛好拿到同一個號碼，
-  /// 但那沒關係：編號只是顯示用，去重看的是內容。
-  Future<void> appendRound(RoundResult result, {required bool stealth}) async {
+  /// 兩邊可能剛好拿到同一個號碼，但那沒關係：
+  /// 編號只是顯示用，去重看的是內容。
+  Future<int> nextRoundNumber() async {
     final past = await rounds();
-    final roundNo = past.isEmpty
-        ? 1
-        : past.map((r) => r.round).reduce((a, b) => a > b ? a : b) + 1;
+    if (past.isEmpty) return 1;
+    return past.map((r) => r.round).reduce((a, b) => a > b ? a : b) + 1;
+  }
 
-    await _writeEntries([
-      ...await _readEntries(),
-      for (final a in result.answers)
-        HistoryEntry(
-          round: roundNo,
-          word: a.question.word.word,
-          correct: a.correct,
-          at: a.answeredAt,
-          seconds: a.seconds,
-          typed: a.question.mode == QuizMode.type,
-          input: a.input,
-          isReview: a.question.isReview,
-        ),
-    ]);
-    await _writeRounds([
-      ...await _readRounds(),
-      RoundLog(
-        round: roundNo,
-        at: result.finishedAt,
-        seconds: result.elapsed.inSeconds,
-        total: result.total,
-        right: result.rightCount,
-        stealth: stealth,
-      ),
-    ]);
+  /// 每答完一題就寫一次。
+  ///
+  /// 不等整輪結束才寫，是因為中途關掉瀏覽器或被系統收掉的話，
+  /// 那一輪的努力就全部不見了。寧可留下半輪，也不要留下空白。
+  Future<void> appendAnswer(HistoryEntry entry, {required bool stealth}) async {
+    final all = [...await entries(), entry];
+    await _writeEntries(all);
+
+    // 順手把這一輪的摘要更新到目前為止的狀態，半途中斷也看得出考到哪。
+    final mine = all.where((e) => e.round == entry.round).toList();
+    final summary = RoundLog(
+      round: entry.round,
+      at: mine.first.at,
+      seconds: mine.fold(0, (sum, e) => sum + e.seconds),
+      total: mine.length,
+      right: mine.where((e) => e.correct).length,
+      stealth: stealth,
+    );
+
+    final rounds = await _readRounds();
+    final index = rounds.indexWhere((r) => r.round == entry.round);
+    if (index >= 0) {
+      rounds[index] = summary;
+    } else {
+      rounds.add(summary);
+    }
+    await _writeRounds(rounds..sort((a, b) => a.round.compareTo(b.round)));
+  }
+
+  /// 一輪結束時把摘要補上真正的耗時。
+  ///
+  /// 每題累加的秒數只算「想的時間」，這裡改成整輪實際花的時間，
+  /// 含翻卡片、看答案、發呆那些。
+  Future<void> finishRound(int round, Duration elapsed) async {
+    final rounds = await _readRounds();
+    final index = rounds.indexWhere((r) => r.round == round);
+    if (index < 0) return;
+    final current = rounds[index];
+    rounds[index] = RoundLog(
+      round: current.round,
+      at: current.at,
+      seconds: elapsed.inSeconds,
+      total: current.total,
+      right: current.right,
+      stealth: current.stealth,
+    );
+    await _writeRounds(rounds);
   }
 
   /// 從第一天到現在的總計。即時算出來，不另外存一份。

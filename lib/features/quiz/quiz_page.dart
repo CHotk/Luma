@@ -204,7 +204,11 @@ class _TypeCard extends ConsumerWidget {
               child: judged == null
                   ? null
                   : Text(
-                      judged ? '對了' : '不對，答案是 ${word.word}',
+                      judged
+                          ? '對了'
+                          : controller.text.trim().isEmpty
+                          ? '答案是 ${word.word}'
+                          : '不對，答案是 ${word.word}',
                       style: TextStyle(
                         fontSize: 13,
                         color: judged ? AppColors.ok : AppColors.bad,
@@ -234,15 +238,47 @@ class _Actions extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     if (state.current.mode == QuizMode.type) {
       final judged = state.judged;
-      return SizedBox(
-        width: double.infinity,
-        child: FilledButton(
-          onPressed: judged == null
-              ? () => ref.read(quizControllerProvider.notifier).submitTyped()
-              : () => onAnswer(judged),
-          style: _filled,
-          child: Text(judged == null ? '送出' : '下一題'),
-        ),
+
+      // 判完之後只剩一顆「下一題」，不要留著讓人誤按。
+      if (judged != null) {
+        return SizedBox(
+          width: double.infinity,
+          child: FilledButton(
+            onPressed: () => onAnswer(judged),
+            style: _filled,
+            child: const Text('下一題'),
+          ),
+        );
+      }
+
+      // 還沒判定：打不出來就按「不會」，不要逼人硬湊一個錯的上去。
+      return Row(
+        children: [
+          Expanded(
+            child: OutlinedButton(
+              onPressed: () =>
+                  ref.read(quizControllerProvider.notifier).giveUp(),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.bad,
+                side: const BorderSide(color: AppColors.glassEdge),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(Radii.button),
+                ),
+              ),
+              child: const Text('不會'),
+            ),
+          ),
+          const SizedBox(width: Gap.sm),
+          Expanded(
+            child: FilledButton(
+              onPressed: () =>
+                  ref.read(quizControllerProvider.notifier).submitTyped(),
+              style: _filled,
+              child: const Text('送出'),
+            ),
+          ),
+        ],
       );
     }
 
