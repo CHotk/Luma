@@ -1,11 +1,11 @@
 {
-    "name": "lume",
-    "short_name": "lume",
+    "name": "Lume 微光",
+    "short_name": "Lume",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#0C0C13",
+    "theme_color": "#0C0C13",
+    "description": "一天一點未來光",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
