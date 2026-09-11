@@ -72,8 +72,10 @@ class QuestionPicker {
   }
 
   /// 決定哪幾題要打字。隨機散開，不要固定在最後幾題。
+  /// 要出幾題由 [RulesConfig.effectiveTypeQuestions] 決定，這裡不判斷模式。
   Set<int> _chooseTypeIndexes(int questionCount) {
-    final wanted = min(rules.typeQuestions, questionCount);
+    final wanted = min(rules.effectiveTypeQuestions, questionCount);
+    if (wanted <= 0) return const {};
     final indexes = List.generate(questionCount, (i) => i)..shuffle(_random);
     return indexes.take(wanted).toSet();
   }

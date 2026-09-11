@@ -26,12 +26,43 @@ class ResultPage extends ConsumerWidget {
         child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: Gap.screenSide),
-            child: result == null
-                ? const Center(child: Text('這輪沒有紀錄', style: AppText.bodyDim))
-                : _Body(result: result),
+            child: result == null ? const _Empty() : _Body(result: result),
           ),
         ),
       ),
+    );
+  }
+}
+
+/// 沒有成績可看的時候。
+///
+/// 會走到這裡通常是中途離開，那時候 lastRound 還是空的。
+/// 這頁一定要留一顆回首頁，不然就變成走不出去的死路。
+class _Empty extends StatelessWidget {
+  const _Empty();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Text('這輪沒有成績', style: AppText.bodyDim),
+        const SizedBox(height: Gap.xs),
+        const Text('答過的題目已經記下來了', style: AppText.note),
+        const SizedBox(height: Gap.lg),
+        FilledButton(
+          onPressed: () => context.go('/home'),
+          style: FilledButton.styleFrom(
+            backgroundColor: AppColors.glassFill,
+            foregroundColor: AppColors.accent,
+            padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 13),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(Radii.button),
+            ),
+          ),
+          child: const Text('回首頁'),
+        ),
+      ],
     );
   }
 }

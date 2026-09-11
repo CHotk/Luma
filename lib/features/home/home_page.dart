@@ -144,6 +144,12 @@ class _TopBar extends ConsumerWidget {
           color: AppColors.ink2,
           tooltip: '偽裝模式',
         ),
+        IconButton(
+          onPressed: () => context.push('/settings'),
+          icon: const Icon(Icons.settings_outlined, size: 20),
+          color: AppColors.ink2,
+          tooltip: '設定',
+        ),
       ],
     );
   }

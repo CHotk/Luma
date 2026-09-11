@@ -75,7 +75,9 @@ class _StealthPageState extends ConsumerState<StealthPage> {
 
   void _exit() {
     ref.read(stealthModeProvider.notifier).state = false;
-    context.pushReplacement('/result');
+    // 沒做完就離開的話沒有成績可看，直接回首頁，不要丟到空的結果頁。
+    final hasResult = ref.read(lastRoundProvider) != null && _finished;
+    context.pushReplacement(hasResult ? '/result' : '/home');
   }
 
   void _onKey(KeyEvent event) {

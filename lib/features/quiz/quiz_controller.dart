@@ -4,6 +4,7 @@ import '../../app/providers.dart';
 import '../../domain/models/history.dart';
 import '../../domain/models/quiz.dart';
 import '../../domain/question_picker.dart';
+import '../../domain/rules_config.dart';
 import '../../domain/spell_judge.dart';
 
 /// 測驗進行中的狀態。
@@ -79,9 +80,9 @@ class QuizController extends AutoDisposeAsyncNotifier<QuizState> {
     final rules = await ref.read(settingsRepositoryProvider).loadRules();
     final now = ref.read(clockProvider)();
 
-    // 偽裝模式全部用點選題，不出打字題。
+    // 偽裝模式一律點選題：跳出中文輸入法在辦公室很顯眼。
     final effective = ref.read(stealthModeProvider)
-        ? rules.copyWith(typeQuestions: 0)
+        ? rules.copyWith(quizStyle: QuizStyle.tapOnly)
         : rules;
 
     final questions = QuestionPicker(rules: effective).pick(words, now: now);
