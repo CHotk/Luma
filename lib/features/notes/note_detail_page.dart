@@ -153,6 +153,22 @@ class _Block extends StatelessWidget {
           ),
         ),
       ),
+      NoteQuote(:final text) => Container(
+        margin: const EdgeInsets.only(bottom: Gap.md),
+        padding: const EdgeInsets.fromLTRB(13, 2, 0, 2),
+        decoration: const BoxDecoration(
+          border: Border(left: BorderSide(color: AppColors.ink3, width: 2)),
+        ),
+        child: InlineText(
+          text,
+          style: const TextStyle(
+            fontSize: 14.5,
+            height: 1.7,
+            color: AppColors.ink3,
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+      ),
       NoteBullets(:final items) => Padding(
         padding: const EdgeInsets.only(bottom: Gap.md),
         child: Column(

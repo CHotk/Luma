@@ -119,6 +119,12 @@ class NoteLoader {
         continue;
       }
 
+      if (trimmed.startsWith('> ')) {
+        flushAll();
+        blocks.add(NoteQuote(trimmed.substring(2).trim()));
+        continue;
+      }
+
       if (trimmed.startsWith('- ')) {
         flushParagraph();
         flushTable();

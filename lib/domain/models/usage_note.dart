@@ -59,6 +59,13 @@ class NoteBullets extends NoteBlock {
   final List<String> items;
 }
 
+/// 引用，原本是 Markdown 的 >。
+/// 這份文件用它來擺「課本教的那句，但不要用」的例句。
+class NoteQuote extends NoteBlock {
+  const NoteQuote(this.text);
+  final String text;
+}
+
 /// 對照表。
 ///
 /// 原始資料是 Markdown 表格，但表格在手機上一定會擠成一團，
