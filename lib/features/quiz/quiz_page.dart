@@ -129,7 +129,7 @@ class _TapCard extends ConsumerWidget {
                   Text(word.pos, style: AppText.note),
                 ]
               : [
-                  const Text('點一下看答案，再點一下翻回來', style: AppText.note),
+                  const Text('想一下，點卡片看答案', style: AppText.note),
                   const SizedBox(height: Gap.sm),
                   Text(word.word, style: AppText.hero),
                   const SizedBox(height: Gap.xs),
@@ -246,13 +246,14 @@ class _Actions extends ConsumerWidget {
       );
     }
 
-    // 沒翻面之前不准作答，避免還沒想就手滑按下去。
-    final enabled = state.revealed;
+    // 兩顆都隨時能按（使用者 2026-09-11 決定）。
+    // 不知道就是不知道，知道也不用先翻開才准說知道，
+    // 翻不翻由自己決定，不要拿流程卡人。
     return Row(
       children: [
         Expanded(
           child: OutlinedButton(
-            onPressed: enabled ? () => onAnswer(false) : null,
+            onPressed: () => onAnswer(false),
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.bad,
               side: const BorderSide(color: AppColors.glassEdge),
@@ -267,7 +268,7 @@ class _Actions extends ConsumerWidget {
         const SizedBox(width: Gap.sm),
         Expanded(
           child: FilledButton(
-            onPressed: enabled ? () => onAnswer(true) : null,
+            onPressed: () => onAnswer(true),
             style: _filled,
             child: const Text('會'),
           ),
