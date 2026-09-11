@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/providers.dart';
+import '../../domain/daily_limit.dart';
 import '../quiz/quiz_controller.dart';
 import 'terminal_theme.dart';
 
@@ -23,16 +24,47 @@ class StealthPage extends ConsumerStatefulWidget {
 }
 
 class _StealthPageState extends ConsumerState<StealthPage> {
-  /// 假的時間戳從進入頁面那一刻起算，每行加兩秒，看起來才像真的在跑。
-  late final DateTime _base = DateTime.now();
+  /// 假的時間戳從這一輪開始那一刻起算，每行加兩秒，看起來才像真的在跑。
+  DateTime _base = DateTime.now();
   final _scroll = ScrollController();
   final _focus = FocusNode();
   bool _finished = false;
+
+  /// 今天的份量用完了。偽裝模式一樣受每日上限管，
+  /// 不然它就變成繞過限制的後門，跟整支 App 的主張相反。
+  bool _quotaReached = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _focus.requestFocus());
+    _refreshQuota();
+  }
+
+  /// 問一次今天還能不能做。回傳 true 代表已經到量。
+  Future<bool> _refreshQuota() async {
+    final settings = ref.read(settingsRepositoryProvider);
+    final now = ref.read(clockProvider)();
+    final rules = await settings.loadRules();
+    final usage = await settings.loadUsage(now);
+    final reached = DailyLimit.reached(usage, rules);
+    if (mounted && reached != _quotaReached) {
+      setState(() => _quotaReached = reached);
+    }
+    return reached;
+  }
+
+  /// 再來一輪，而且不離開偽裝模式。
+  ///
+  /// 上班時間關掉這頁再重開很顯眼，所以續做要能原地進行。
+  Future<void> _again() async {
+    if (await _refreshQuota()) return;
+    ref.invalidate(quizControllerProvider);
+    if (!mounted) return;
+    setState(() {
+      _finished = false;
+      _base = DateTime.now();
+    });
   }
 
   @override
@@ -51,7 +83,11 @@ class _StealthPageState extends ConsumerState<StealthPage> {
   Future<void> _answer(bool correct) async {
     if (_finished) return;
     final done = await ref.read(quizControllerProvider.notifier).answer(correct);
-    if (done) setState(() => _finished = true);
+    if (done) {
+      setState(() => _finished = true);
+      // 這一輪剛計入用量，順便看看是不是已經到量。
+      await _refreshQuota();
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scroll.hasClients) {
         _scroll.jumpTo(_scroll.position.maxScrollExtent);
@@ -67,7 +103,13 @@ class _StealthPageState extends ConsumerState<StealthPage> {
   void _onKey(KeyEvent event) {
     if (event is! KeyDownEvent) return;
     if (_finished) {
-      if (event.logicalKey == LogicalKeyboardKey.enter) _exit();
+      if (event.logicalKey == LogicalKeyboardKey.keyR && !_quotaReached) {
+        _again();
+      }
+      if (event.logicalKey == LogicalKeyboardKey.keyE ||
+          event.logicalKey == LogicalKeyboardKey.enter) {
+        _exit();
+      }
       return;
     }
     if (event.logicalKey == LogicalKeyboardKey.keyY) _answer(true);
@@ -100,7 +142,11 @@ class _StealthPageState extends ConsumerState<StealthPage> {
               if (!_finished)
                 _Prompt(onYes: () => _answer(true), onNo: () => _answer(false))
               else
-                _ExitPrompt(onExit: _exit),
+                _DonePrompt(
+                  canRepeat: !_quotaReached,
+                  onAgain: _again,
+                  onExit: _exit,
+                ),
             ],
           ),
         ),
@@ -157,6 +203,15 @@ class _StealthPageState extends ConsumerState<StealthPage> {
         lines.add("               ${a.question.word.word}");
       }
     }
+
+    // 到量的時候用終端機的口氣講，不要跳中文彈窗。
+    if (_quotaReached) {
+      lines
+        ..add('')
+        ..add('[${_stamp(total + 4)}] daily quota reached, queue closed')
+        ..add('[${_stamp(total + 4)}] next build window: tomorrow');
+    }
+
     return lines..addAll(['', r'C:\Users\temp9>']);
   }
 }
@@ -278,21 +333,48 @@ class _Prompt extends StatelessWidget {
   }
 }
 
-class _ExitPrompt extends StatelessWidget {
-  const _ExitPrompt({required this.onExit});
+/// 一輪跑完之後的提示列。
+///
+/// 續做要能原地進行，因為上班時關掉再開很顯眼。
+/// 到量之後只剩 exit，偽裝模式不是繞過每日上限的後門。
+class _DonePrompt extends StatelessWidget {
+  const _DonePrompt({
+    required this.canRepeat,
+    required this.onAgain,
+    required this.onExit,
+  });
 
+  final bool canRepeat;
+  final VoidCallback onAgain;
   final VoidCallback onExit;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(8, 0, 8, 10),
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: InkWell(
-          onTap: onExit,
-          child: const Text('exit', style: TerminalTheme.bodyBright),
-        ),
+      child: Row(
+        children: [
+          if (canRepeat) ...[
+            Expanded(
+              child: InkWell(
+                onTap: onAgain,
+                child: const Text(
+                  '[r] rebuild',
+                  style: TerminalTheme.bodyBright,
+                ),
+              ),
+            ),
+          ] else
+            const Expanded(
+              child: Text('queue closed', style: TerminalTheme.body),
+            ),
+          Expanded(
+            child: InkWell(
+              onTap: onExit,
+              child: const Text('[e] exit', style: TerminalTheme.bodyBright),
+            ),
+          ),
+        ],
       ),
     );
   }
