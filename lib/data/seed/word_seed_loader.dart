@@ -1,5 +1,6 @@
 import 'package:flutter/services.dart' show rootBundle;
 
+import '../../domain/models/history.dart';
 import '../../domain/models/word.dart';
 import 'seed_source.dart';
 
@@ -13,21 +14,13 @@ import 'seed_source.dart';
 /// 第一行的 `# seed-version: N` 是題庫版本，加了新字就要往上加。
 class WordSeedLoader implements SeedSource {
   static final _separator = RegExp(r' {2,}');
-  static final _versionLine = RegExp(r'^#\s*seed-version:\s*(\d+)');
 
+  /// 每次從 En 資料夾重新複製檔案進 assets 就要 +1。
+  /// 忘了加，App 就不會同步，然後你會以為程式壞了。
   @override
-  Future<int> version() async {
-    final raw = await rootBundle.loadString('assets/data/seed-words.txt');
-    for (final line in raw.split('\n').take(5)) {
-      final match = _versionLine.firstMatch(line.trim());
-      if (match != null) return int.parse(match.group(1)!);
-    }
-    // 沒寫版本就當第一版，避免舊檔讓整個升級流程卡住。
-    return 1;
-  }
+  int get bundleVersion => 2;
 
-  @override
-  Future<List<Word>> seedWords() async {
+  Future<List<Word>> _seedWords() async {
     final raw = await rootBundle.loadString('assets/data/seed-words.txt');
     final words = <Word>[];
     for (final line in _rows(raw)) {
@@ -47,8 +40,8 @@ class WordSeedLoader implements SeedSource {
   }
 
   @override
-  Future<List<Word>> initialImport() async {
-    final seeds = await seedWords();
+  Future<List<Word>> bundle() async {
+    final seeds = await _seedWords();
     final history = await _readExisting();
 
     // 用小寫當鍵比對，避免 Monday 這種大寫字重複收錄。
@@ -64,6 +57,8 @@ class WordSeedLoader implements SeedSource {
       final existing = byWord[entry.key];
       byWord[entry.key] = existing != null
           ? existing.copyWith(
+              example: entry.value.example,
+              added: entry.value.added,
               right: entry.value.right,
               wrong: entry.value.wrong,
               lastTest: entry.value.lastTest,
@@ -74,6 +69,8 @@ class WordSeedLoader implements SeedSource {
               pos: entry.value.pos,
               zh: entry.value.zh,
               level: WordLevel.elementary,
+              example: entry.value.example,
+              added: entry.value.added,
               right: entry.value.right,
               wrong: entry.value.wrong,
               lastTest: entry.value.lastTest,
@@ -81,6 +78,33 @@ class WordSeedLoader implements SeedSource {
     }
 
     return byWord.values.toList()..sort((a, b) => a.id.compareTo(b.id));
+  }
+
+  /// 既有的測驗紀錄：date / round / word / result
+  ///
+  /// round 長得像 R12，result 只有 O 和 X。
+  /// 這份沒有每輪花多少時間，所以匯進來的舊輪次秒數一律是 0，
+  /// 總作答時間會少算掉 App 啟用前的部分，這是資料本身就沒有，不是 bug。
+  @override
+  Future<List<HistoryEntry>> bundleHistory() async {
+    final raw = await rootBundle.loadString('assets/data/history.txt');
+    final entries = <HistoryEntry>[];
+    for (final line in _rows(raw)) {
+      final cols = line.split(_separator);
+      if (cols.length < 4) continue;
+      final at = DateTime.tryParse(cols[0]);
+      final round = int.tryParse(cols[1].replaceFirst('R', ''));
+      if (at == null || round == null) continue;
+      entries.add(
+        HistoryEntry(
+          round: round,
+          word: cols[2],
+          correct: cols[3].trim() == 'O',
+          at: at,
+        ),
+      );
+    }
+    return entries;
   }
 
   /// 既有紀錄：no / word / pos / zh / example / added / right / wrong / last_test
@@ -95,6 +119,8 @@ class WordSeedLoader implements SeedSource {
         word: word,
         pos: cols[2],
         zh: cols[3],
+        example: cols[4],
+        added: DateTime.tryParse(cols[5]),
         right: int.tryParse(cols[6]) ?? 0,
         wrong: int.tryParse(cols[7]) ?? 0,
         lastTest: cols.length > 8 ? DateTime.tryParse(cols[8]) : null,
@@ -116,14 +142,18 @@ class _Existing {
     required this.word,
     required this.pos,
     required this.zh,
+    required this.example,
     required this.right,
     required this.wrong,
+    this.added,
     this.lastTest,
   });
 
   final String word;
   final String pos;
   final String zh;
+  final String example;
+  final DateTime? added;
   final int right;
   final int wrong;
   final DateTime? lastTest;

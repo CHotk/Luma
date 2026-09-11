@@ -8,19 +8,27 @@ class HistoryEntry {
     required this.word,
     required this.correct,
     required this.at,
+    this.seconds = 0,
   });
 
   /// 輪次編號，從 1 開始連號。
   final int round;
   final String word;
   final bool correct;
+
+  /// 按下答案的那一刻，精確到秒。
   final DateTime at;
+
+  /// 這題想了幾秒。
+  /// 從 history.txt 匯進來的舊紀錄沒有這個資料，一律是 0。
+  final int seconds;
 
   Map<String, dynamic> toJson() => {
     'round': round,
     'word': word,
     'correct': correct,
     'at': at.toIso8601String(),
+    'seconds': seconds,
   };
 
   factory HistoryEntry.fromJson(Map<String, dynamic> json) => HistoryEntry(
@@ -28,6 +36,7 @@ class HistoryEntry {
     word: json['word'] as String,
     correct: json['correct'] as bool,
     at: DateTime.parse(json['at'] as String),
+    seconds: json['seconds'] as int? ?? 0,
   );
 }
 

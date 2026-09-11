@@ -1,411 +1,445 @@
-# no  word        pos        zh                example                          added       right  wrong  last_test
-1     rain        n./v.      雨、下雨          It will rain today.              2026-09-10  3      0      2026-09-10
-2     busy        adj.       忙碌的            I am busy today.                 2026-09-10  2      0      2026-09-10
-3     cat         n.         貓                The cat is sleeping.             2026-09-10  2      0      2026-09-10
-4     big         adj.       大的              That is a big dog.               2026-09-10  2      0      2026-09-10
-5     eat         v.         吃                I eat rice every day.            2026-09-10  2      0      2026-09-10
-6     red         adj./n.    紅色的、紅色      I have a red bag.                2026-09-10  2      0      2026-09-10
-7     open        v./adj.    打開、開著的      Please open the door.            2026-09-10  1      1      2026-09-11
-8     cold        adj.       冷的              The water is cold.               2026-09-10  2      0      2026-09-10
-9     book        n.         書                I read a book.                   2026-09-10  2      0      2026-09-10
-10    run         v.         跑                I run every day.                 2026-09-10  1      0      2026-09-10
-11    happy       adj.       開心的            She is happy today.              2026-09-10  3      0      2026-09-11
-12    name        n.         名字              What is your name?               2026-09-10  2      0      2026-09-10
-13    water       n.         水                I drink water every day.         2026-09-10  1      1      2026-09-10
-14    small       adj.       小的              It is a small box.               2026-09-10  1      2      2026-09-10
-15    door        n.         門                Close the door, please.          2026-09-10  2      0      2026-09-10
-16    friend      n.         朋友              He is my friend.                 2026-09-10  3      0      2026-09-10
-17    walk        v./n.      走、走路          I walk to school.                2026-09-10  2      0      2026-09-10
-18    new         adj.       新的              I have a new phone.              2026-09-10  2      0      2026-09-10
-19    money       n.         錢                I need some money.               2026-09-10  2      0      2026-09-10
-20    morning     n.         早上              Good morning!                    2026-09-10  2      0      2026-09-11
-21    fast        adj./adv.  快的、快速地      He runs fast.                    2026-09-10  1      0      2026-09-10
-22    hungry      adj.       餓的              I am hungry now.                 2026-09-10  1      0      2026-09-10
-23    give        v.         給                Give me your hand.               2026-09-10  3      1      2026-09-11
-24    listen      v.         聽                I listen to music.               2026-09-10  2      1      2026-09-11
-25    buy         v.         買                I buy a new bag.                 2026-09-10  2      0      2026-09-11
-26    tired       adj.       累的              I am tired today.                2026-09-10  2      0      2026-09-11
-27    clean       adj./v.    乾淨的、打掃      The room is clean.               2026-09-10  2      0      2026-09-11
-28    wait        v.         等                Please wait here.                2026-09-10  2      0      2026-09-11
-29    answer      n./v.      答案、回答        I know the answer.               2026-09-10  2      0      2026-09-11
-30    remember    v.         記得              I remember your name.            2026-09-10  1      0      2026-09-10
-31    angel       n.         天使              She looks like an angel.         2026-09-10  1      0      2026-09-10
-32    different   adj.       不同的            We are different.                2026-09-10  1      0      2026-09-10
-33    brown       adj./n.    棕色的、棕色      I have brown shoes.              2026-09-10  1      0      2026-09-10
-34    sea         n.         海                The sea is blue.                 2026-09-10  1      0      2026-09-10
-35    angry       adj.       生氣的            He is angry with me.             2026-09-10  1      2      2026-09-10
-36    difficult   adj.       困難的            This book is difficult.          2026-09-10  0      3      2026-09-10
-37    borrow      v.         借（借入）        Can I borrow your pen?           2026-09-10  0      4      2026-09-10
-38    weather     n.         天氣              The weather is nice today.       2026-09-10  0      4      2026-09-10
-39    quiet       adj.       安靜的            Please be quiet.                 2026-09-10  0      3      2026-09-10
-40    quite       adv.       相當、頗          It is quite cold.                2026-09-10  0      2      2026-09-10
-41    sell        v.         賣                They sell fruit here.            2026-09-10  0      1      2026-09-10
-42    heavy       adj.       重的              This bag is heavy.               2026-09-10  0      3      2026-09-10
-43    decide      v.         決定              I decide to go now.              2026-09-10  0      1      2026-09-10
-44    refuse      v.         拒絕              He refused my help.              2026-09-10  0      1      2026-09-10
-45    improve     v.         改善、進步        My English is improving.         2026-09-10  0      1      2026-09-10
-46    curious     adj.       好奇的            I am curious about it.           2026-09-10  0      1      2026-09-10
-47    appreciate  v.         感謝、欣賞        I appreciate your help.          2026-09-10  0      1      2026-09-10
-48    reluctant   adj.       不情願的          He was reluctant to go.          2026-09-10  0      1      2026-09-10
-49    mitigate    v.         減輕、緩解        Sunscreen mitigates sun damage.  2026-09-10  0      1      2026-09-10
-50    ready       adj.       準備好的          I am ready now.                  2026-09-10  1      0      2026-09-10
-51    safe        adj.       安全的            This place is safe.              2026-09-10  2      0      2026-09-10
-52    visit       v./n.      拜訪、參觀        I visit my grandma.              2026-09-10  1      0      2026-09-10
-53    bring       v.         帶來              Bring your book to school.       2026-09-10  0      1      2026-09-10
-54    strong      adj.       強壯的            He is very strong.               2026-09-10  0      1      2026-09-10
-55    worry       v./n.      擔心              Don't worry about it.            2026-09-10  0      1      2026-09-10
-56    holiday     n.         假日、節日        We have a holiday today.         2026-09-10  0      1      2026-09-10
-57    kitchen     n.         廚房              Mom is in the kitchen.           2026-09-10  0      1      2026-09-10
-58    dog         n.         狗                The dog is cute.                 2026-09-10  1      0      2026-09-10
-59    school      n.         學校              I go to school.                  2026-09-10  1      0      2026-09-10
-60    milk        n.         牛奶              I drink milk.                    2026-09-10  1      0      2026-09-10
-61    sleep       v.         睡覺              I sleep at ten.                  2026-09-10  1      0      2026-09-10
-62    night       n.         晚上              Good night!                      2026-09-10  1      0      2026-09-10
-63    jump        v.         跳                The cat can jump high.           2026-09-10  1      0      2026-09-10
-64    family      n.         家庭、家人        I love my family.                2026-09-10  1      0      2026-09-10
-65    help        v./n.      幫助              Can you help me?                 2026-09-10  2      0      2026-09-11
-66    play        v.         玩、打（球）      I play with my dog.              2026-09-10  2      0      2026-09-11
-67    music       n.         音樂              I like music.                    2026-09-10  1      0      2026-09-10
-68    hand        n.         手                Wash your hands.                 2026-09-10  1      1      2026-09-10
-69    chair       n.         椅子              Sit on the chair.                2026-09-10  0      1      2026-09-10
-70    table       n.         桌子              Put the book on the table.       2026-09-10  1      0      2026-09-10
-71    window      n.         窗戶              Open the window, please.         2026-09-10  2      0      2026-09-10
-72    brother     n.         兄弟              My brother is tall.              2026-09-10  1      0      2026-09-10
-73    teacher     n.         老師              She is my teacher.               2026-09-10  1      0      2026-09-10
-74    apple       n.         蘋果              I eat an apple.                  2026-09-10  1      0      2026-09-10
-75    green       adj./n.    綠色的、綠色      The tree is green.               2026-09-10  1      0      2026-09-10
-76    rice        n.         米、飯            I eat rice for lunch.            2026-09-10  1      0      2026-09-10
-77    letter      n.         信、字母          I write a letter to him.         2026-09-10  0      2      2026-09-10
-78    movie       n.         電影              We watch a movie.                2026-09-10  1      0      2026-09-10
-79    dance       v./n.      跳舞              I like to dance.                 2026-09-10  1      0      2026-09-10
-80    week        n.         星期、週          I see him every week.            2026-09-10  1      0      2026-09-10
-81    minute      n.         分鐘              Wait a minute.                   2026-09-10  1      0      2026-09-10
-82    breakfast   n.         早餐              I eat breakfast at seven.        2026-09-10  0      1      2026-09-10
-83    animal      n.         動物              A dog is an animal.              2026-09-10  1      0      2026-09-10
-84    always      adv.       總是、永遠        She is always happy.             2026-09-10  1      0      2026-09-10
-85    because     conj.      因為              I am late because of rain.       2026-09-10  0      1      2026-09-10
-86    hospital    n.         醫院              He is in the hospital.           2026-09-10  1      0      2026-09-10
-87    favorite    adj.       最喜歡的          Blue is my favorite color.       2026-09-10  0      1      2026-09-10
-88    dinner      n.         晚餐              We have dinner at six.           2026-09-10  1      0      2026-09-10
-89    library     n.         圖書館            I read in the library.           2026-09-10  1      0      2026-09-10
-90    birthday    n.         生日              Happy birthday to you!           2026-09-10  0      1      2026-09-10
-91    expensive   adj.       昂貴的            This bag is expensive.           2026-09-10  0      1      2026-09-10
-92    delicious   adj.       好吃的            The cake is delicious.           2026-09-10  0      1      2026-09-10
-93    umbrella    n.         雨傘              Take an umbrella today.          2026-09-10  0      1      2026-09-10
-94    bicycle     n.         腳踏車            I ride a bicycle to school.      2026-09-10  1      0      2026-09-10
-95    doctor      n.         醫生              The doctor is very kind.         2026-09-10  1      0      2026-09-10
-96    restaurant  n.         餐廳              We eat at a restaurant.          2026-09-10  0      1      2026-09-10
-97    vegetable   n.         蔬菜              I eat vegetables every day.      2026-09-10  0      1      2026-09-10
-98    weekend     n.         週末              I play ball on the weekend.      2026-09-10  1      0      2026-09-10
-99    homework    n.         家庭作業          I do my homework at night.       2026-09-10  1      0      2026-09-10
-100   lunch       n.         午餐              I eat lunch at noon.             2026-09-10  1      0      2026-09-10
-101   sister      n.         姊姊、妹妹        My sister is ten.                2026-09-10  1      0      2026-09-10
-102   student     n.         學生              I am a student.                  2026-09-10  1      0      2026-09-10
-103   bread       n.         麵包              I eat bread for breakfast.       2026-09-10  0      2      2026-09-11
-104   bird        n.         鳥                The bird can fly.                2026-09-10  1      0      2026-09-10
-105   tree        n.         樹                The tree is very tall.           2026-09-10  1      0      2026-09-10
-106   three       n./adj.    三                I have three cats.               2026-09-10  1      0      2026-09-10
-107   flower      n.         花                The flower is red.               2026-09-10  1      0      2026-09-10
-108   house       n.         房子              My house is small.               2026-09-10  1      0      2026-09-10
-109   hot         adj.       熱的              The soup is hot.                 2026-09-10  1      0      2026-09-10
-110   snow        n./v.      雪、下雪          It will snow tonight.            2026-09-10  1      0      2026-09-10
-111   bus         n.         公車、巴士        I go to school by bus.           2026-09-10  1      0      2026-09-10
-112   store       n./v.      商店、儲存        I buy milk at the store.         2026-09-10  0      1      2026-09-10
-113   park        n.         公園              We play in the park.             2026-09-10  1      0      2026-09-10
-114   river       n.         河                The river is long.               2026-09-10  2      0      2026-09-10
-115   paper       n.         紙                Give me a piece of paper.        2026-09-10  1      0      2026-09-10
-116   pencil      n.         鉛筆              I write with a pencil.           2026-09-10  1      0      2026-09-10
-117   later       adv.       稍後、後來        See you later!                   2026-09-10  1      0      2026-09-10
-118   train       n.         火車              I go by train.                   2026-09-10  1      0      2026-09-10
-119   clock       n.         時鐘              The clock is on the wall.        2026-09-10  1      0      2026-09-10
-120   shoes       n.         鞋子              My shoes are new.                2026-09-10  1      0      2026-09-10
-121   cook        v./n.      煮、廚師          My mom cooks dinner.             2026-09-10  0      1      2026-09-10
-122   corner      n.         角落、轉角        The cat is in the corner.        2026-09-10  0      1      2026-09-10
-123   floor       n.         地板              The floor is clean.              2026-09-10  0      1      2026-09-10
-124   flour       n.         麵粉              Bread is made of flour.          2026-09-10  0      1      2026-09-10
-125   grass       n.         草                The grass is green.              2026-09-10  0      2      2026-09-11
-126   glass       n.         玻璃、玻璃杯      I drink a glass of milk.         2026-09-10  0      1      2026-09-10
-127   bottle      n.         瓶子              Give me a bottle of water.       2026-09-10  0      1      2026-09-10
-128   spoon       n.         湯匙              I eat soup with a spoon.         2026-09-10  0      2      2026-09-10
-129   towel       n.         毛巾              Dry your hands with a towel.     2026-09-10  2      2      2026-09-11
-130   tower       n.         塔                The tower is very tall.          2026-09-10  0      1      2026-09-10
-131   beach       n.         海灘              We play on the beach.            2026-09-10  0      1      2026-09-10
-132   bridge      n.         橋                The bridge is long.              2026-09-10  0      1      2026-09-10
-133   cloud       n.         雲                The cloud is white.              2026-09-10  1      0      2026-09-10
-134   ground      n.         地面              Don't sit on the ground.         2026-09-10  0      1      2026-09-10
-135   cake        n.         蛋糕              I want a big cake.               2026-09-10  0      1      2026-09-10
-136   ball        n.         球                Let's play ball.                 2026-09-10  1      0      2026-09-10
-137   girl        n.         女孩              The girl is my sister.           2026-09-10  1      0      2026-09-10
-138   farm        n.         農場              We have a small farm.            2026-09-10  0      1      2026-09-10
-139   winter      n.         冬天              It is cold in winter.            2026-09-10  1      0      2026-09-10
-140   market      n.         市場              Mom is at the market.            2026-09-10  0      1      2026-09-10
-141   ticket      n.         票                I have two tickets.              2026-09-10  1      0      2026-09-10
-142   garden      n.         花園              Flowers are in the garden.       2026-09-10  0      1      2026-09-10
-143   exercise    n./v.      運動              I exercise every morning.        2026-09-10  0      1      2026-09-10
-144   careful     adj.       小心的            Be careful on the road.          2026-09-10  0      1      2026-09-10
-145   dangerous   adj.       危險的            This road is dangerous.          2026-09-10  0      1      2026-09-10
-146   invite      v.         邀請              I invite you to my party.        2026-09-10  0      1      2026-09-10
-147   hat         n.         帽子              He has a new hat.                2026-09-10  1      0      2026-09-10
-148   egg         n.         蛋                I eat an egg.                    2026-09-10  1      0      2026-09-10
-149   fish        n.         魚                The fish is big.                 2026-09-10  1      0      2026-09-10
-150   foot        n.         腳                My foot hurts.                   2026-09-10  1      0      2026-09-10
-151   star        n.         星星              I see many stars.                2026-09-10  0      1      2026-09-10
-152   moon        n.         月亮              The moon is bright.              2026-09-10  1      0      2026-09-10
-153   king        n.         國王              The king is old.                 2026-09-10  1      0      2026-09-10
-154   gift        n.         禮物              This is a gift for you.          2026-09-10  1      0      2026-09-10
-155   song        n.         歌                I like this song.                2026-09-10  1      0      2026-09-10
-156   duck        n.         鴨子              The duck is in the water.        2026-09-10  1      0      2026-09-10
-157   neck        n.         脖子              My neck hurts.                   2026-09-10  1      0      2026-09-10
-158   knee        n.         膝蓋              I hurt my knee.                  2026-09-10  0      1      2026-09-10
-159   spring      n.         春天              Flowers grow in spring.          2026-09-10  1      0      2026-09-10
-160   shirt       n.         襯衫              He wears a white shirt.          2026-09-10  0      1      2026-09-10
-161   skirt       n.         裙子              Her skirt is blue.               2026-09-10  0      1      2026-09-10
-162   socks       n.         襪子              Put on your socks.               2026-09-10  0      2      2026-09-10
-163   glove       n.         手套              I need warm gloves.              2026-09-10  0      1      2026-09-10
-164   autumn      n.         秋天              Leaves fall in autumn.           2026-09-10  0      1      2026-09-10
-165   bathroom    n.         浴室、廁所        The bathroom is clean.           2026-09-10  0      1      2026-09-10
-166   pocket      n.         口袋              My keys are in my pocket.        2026-09-10  0      1      2026-09-10
-167   rocket      n.         火箭              The rocket goes up.              2026-09-10  0      1      2026-09-10
-168   finger      n.         手指              I cut my finger.                 2026-09-10  0      1      2026-09-10
-169   beef        n.         牛肉              I like beef noodles.             2026-09-10  1      0      2026-09-10
-170   pork        n.         豬肉              We eat pork today.               2026-09-10  1      0      2026-09-10
-171   chicken     n.         雞、雞肉          The chicken is hot.              2026-09-10  0      1      2026-09-10
-172   soup        n.         湯                The soup is very hot.            2026-09-10  1      0      2026-09-10
-173   noodles     n.         麵                I eat noodles for lunch.         2026-09-10  0      1      2026-09-10
-174   juice       n.         果汁              I want apple juice.              2026-09-10  2      0      2026-09-11
-175   sugar       n.         糖                Put sugar in my tea.             2026-09-10  0      1      2026-09-10
-176   salt        n.         鹽                Add a little salt.               2026-09-10  0      1      2026-09-10
-177   plate       n.         盤子              The plate is on the table.       2026-09-10  0      1      2026-09-10
-178   knife       n.         刀子              Cut it with a knife.             2026-09-10  0      1      2026-09-10
-179   face        n.         臉                Wash your face.                  2026-09-10  1      0      2026-09-10
-180   hair        n.         頭髮              Her hair is long.                2026-09-10  1      0      2026-09-10
-181   mouth       n.         嘴巴              Open your mouth.                 2026-09-10  1      0      2026-09-10
-182   nose        n.         鼻子              My nose is cold.                 2026-09-10  1      0      2026-09-10
-183   ear         n.         耳朵              I have two ears.                 2026-09-10  1      0      2026-09-10
-184   tooth       n.         牙齒              My tooth hurts.                  2026-09-10  1      0      2026-09-10
-185   arm         n.         手臂              He has strong arms.              2026-09-10  0      1      2026-09-10
-186   leg         n.         腿                The dog has four legs.           2026-09-10  1      0      2026-09-10
-187   eye         n.         眼睛              Close your eyes.                 2026-09-10  1      0      2026-09-10
-188   head        n.         頭                My head hurts.                   2026-09-10  1      0      2026-09-10
-189   rock        n.         石頭              The rock is heavy.               2026-09-10  1      0      2026-09-10
-190   lock        n./v.      鎖                Lock the door.                   2026-09-10  1      0      2026-09-10
-191   chalk       n.         粉筆              Write it with chalk.             2026-09-10  0      1      2026-09-10
-192   shark       n.         鯊魚              The shark is in the sea.         2026-09-10  0      1      2026-09-10
-193   sheep       n.         綿羊              The sheep eats grass.            2026-09-10  1      0      2026-09-10
-194   sheet       n.         床單、一張（紙）  Give me a sheet of paper.        2026-09-10  0      1      2026-09-10
-195   wolf        n.         狼                The wolf is not a dog.           2026-09-10  1      0      2026-09-10
-196   wing        n.         翅膀              Birds have two wings.            2026-09-10  0      1      2026-09-10
-197   tail        n.         尾巴              The cat has a long tail.         2026-09-10  0      1      2026-09-10
-198   lamp        n.         檯燈              Turn on the lamp.                2026-09-10  0      1      2026-09-10
-199   lamb        n.         小羊              The lamb is white.               2026-09-10  0      1      2026-09-10
-200   cave        n.         洞穴              A bear lives in the cave.        2026-09-10  0      1      2026-09-10
-201   wave        n./v.      波浪、揮手        Wave your hand.                  2026-09-10  0      1      2026-09-10
-202   nail        n.         指甲、釘子        Cut your nails.                  2026-09-10  0      1      2026-09-10
-203   mail        n.         郵件              I get a mail today.              2026-09-10  1      0      2026-09-10
-204   coin        n.         硬幣              I have five coins.               2026-09-10  1      0      2026-09-10
-205   corn        n.         玉米              I like sweet corn.               2026-09-10  0      1      2026-09-10
-206   pin         n.         別針、大頭針      Use a pin to fix it.             2026-09-10  0      1      2026-09-10
-207   pan         n.         平底鍋            Cook the egg in a pan.           2026-09-10  0      1      2026-09-10
-208   bank        n.         銀行              I go to the bank.                2026-09-10  1      0      2026-09-10
-209   hotel       n.         旅館              We stay in a hotel.              2026-09-10  0      1      2026-09-10
-210   police      n.         警察              Call the police!                 2026-09-10  1      0      2026-09-10
-211   nurse       n.         護士              The nurse is kind.               2026-09-10  0      1      2026-09-10
-212   farmer      n.         農夫              The farmer has a farm.           2026-09-10  1      0      2026-09-10
-213   driver      n.         司機              He is a bus driver.              2026-09-10  0      1      2026-09-10
-214   singer      n.         歌手              She is a good singer.            2026-09-10  1      0      2026-09-10
-215   actor       n.         演員              The actor is famous.             2026-09-10  1      0      2026-09-10
-216   uncle       n.         叔叔、舅舅        My uncle is a doctor.            2026-09-10  1      0      2026-09-10
-217   cousin      n.         表兄弟姊妹        My cousin is ten.                2026-09-10  0      2      2026-09-11
-218   blue        adj./n.    藍色的、藍色      The sky is blue.                 2026-09-10  0      1      2026-09-10
-219   black       adj./n.    黑色的、黑色      I have a black cat.              2026-09-10  1      0      2026-09-10
-220   white       adj./n.    白色的、白色      Snow is white.                   2026-09-10  1      0      2026-09-10
-221   yellow      adj./n.    黃色的、黃色      The banana is yellow.            2026-09-10  1      0      2026-09-10
-222   pink        adj./n.    粉紅色的          She likes pink.                  2026-09-10  1      0      2026-09-10
-223   purple      adj./n.    紫色的            The flower is purple.            2026-09-10  0      1      2026-09-10
-224   orange      n./adj.    橘子、橘色的      I eat an orange.                 2026-09-10  1      0      2026-09-10
-225   gray        adj./n.    灰色的            The sky is gray today.           2026-09-10  0      1      2026-09-10
-226   gold        n./adj.    金、金色的        This ring is gold.               2026-09-10  1      0      2026-09-10
-227   silver      n./adj.    銀、銀色的        I want a silver pen.             2026-09-10  1      0      2026-09-10
-228   tiger       n.         老虎              The tiger is big.                2026-09-10  1      0      2026-09-10
-229   Monday      n.         星期一            I go to school on Monday.        2026-09-10  1      0      2026-09-10
-230   cheap       adj.       便宜的            This bag is cheap.               2026-09-10  0      1      2026-09-10
-231   bedroom     n.         臥室              My bedroom is small.             2026-09-10  1      0      2026-09-10
-232   horse       n.         馬                The horse runs fast.             2026-09-10  1      0      2026-09-10
-233   April       n.         四月              My birthday is in April.         2026-09-10  0      1      2026-09-10
-234   quick       adj.       快的              He is a quick runner.            2026-09-10  1      0      2026-09-10
-235   dolphin     n.         海豚              The dolphin can jump.            2026-09-10  0      1      2026-09-10
-236   Sunday      n.         星期日            I stay home on Sunday.           2026-09-10  0      1      2026-09-10
-237   sofa        n.         沙發              Sit on the sofa.                 2026-09-10  1      0      2026-09-10
-238   August      n.         八月              It is hot in August.             2026-09-10  0      1      2026-09-10
-239   rabbit      n.         兔子              The rabbit eats carrots.         2026-09-10  1      0      2026-09-10
-240   slow        adj.       慢的              The bus is slow today.           2026-09-10  1      0      2026-09-10
-241   pot         n.         鍋子              Cook the soup in a pot.          2026-09-10  0      1      2026-09-10
-242   Friday      n.         星期五            We have a test on Friday.        2026-09-10  1      0      2026-09-10
-243   monkey      n.         猴子              The monkey is funny.             2026-09-10  1      0      2026-09-10
-244   elephant    n.         大象              The elephant is very big.        2026-09-10  1      0      2026-09-10
-245   snake       n.         蛇                I am afraid of snakes.           2026-09-10  1      0      2026-09-10
-246   March       n.         三月              School starts in March.          2026-09-10  0      1      2026-09-10
-247   evening     n.         傍晚、晚上        Good evening!                    2026-09-10  0      1      2026-09-10
-248   mirror      n.         鏡子              Look in the mirror.              2026-09-10  0      1      2026-09-10
-249   butter      n.         奶油              I put butter on bread.           2026-09-10  0      1      2026-09-10
-250   cheese      n.         起司              I like cheese cake.              2026-09-10  0      1      2026-09-10
-251   dirty       adj.       髒的              Your hands are dirty.            2026-09-10  1      0      2026-09-10
-252   swim        v.         游泳              I swim in summer.                2026-09-10  0      1      2026-09-10
-253   climb       v.         爬                The cat climbs the tree.         2026-09-10  0      1      2026-09-10
-254   pig         n.         豬                The pig is fat.                  2026-09-10  1      0      2026-09-10
-255   cow         n.         牛                The cow gives us milk.           2026-09-10  1      0      2026-09-10
-256   tomorrow    n./adv.    明天              See you tomorrow.                2026-09-10  1      0      2026-09-10
-257   noon        n.         中午              I eat lunch at noon.             2026-09-10  0      1      2026-09-10
-258   roof        n.         屋頂              A cat is on the roof.            2026-09-10  0      1      2026-09-10
-259   wall        n.         牆                The clock is on the wall.        2026-09-10  0      1      2026-09-10
-260   candy       n.         糖果              Kids like candy.                 2026-09-10  1      0      2026-09-10
-261   sing        v.         唱歌              I sing a song.                   2026-09-10  0      1      2026-09-10
-262   tall        adj.       高的              He is very tall.                 2026-09-10  1      0      2026-09-10
-263   short       adj.       短的、矮的        Her hair is short.               2026-09-10  1      0      2026-09-10
-264   bear        n.         熊                The bear is sleeping.            2026-09-10  1      0      2026-09-10
-265   lion        n.         獅子              The lion is the king.            2026-09-10  1      0      2026-09-10
-266   hour        n.         小時              I wait for an hour.              2026-09-10  1      0      2026-09-10
-267   desk        n.         書桌              My book is on the desk.          2026-09-10  1      0      2026-09-10
-268   cookie      n.         餅乾              I eat two cookies.               2026-09-10  1      0      2026-09-10
-269   cry         v.         哭                The baby is crying.              2026-09-10  1      0      2026-09-10
-270   laugh       v.         笑                We laugh together.               2026-09-10  0      1      2026-09-10
-271   young       adj.       年輕的            She is very young.               2026-09-10  1      0      2026-09-10
-272   salad       n.         沙拉              I eat salad for lunch.           2026-09-10  0      1      2026-09-10
-273   shelf       n.         架子              Books are on the shelf.          2026-09-10  0      1      2026-09-10
-274   boy         n.         男孩              The boy is my brother.           2026-09-10  1      0      2026-09-10
-275   goat        n.         山羊              The goat eats grass.             2026-09-10  1      0      2026-09-10
-276   month       n.         月、月份          I will go next month.            2026-09-10  1      0      2026-09-10
-277   curtain     n.         窗簾              Open the curtain.                2026-09-10  0      1      2026-09-10
-278   onion       n.         洋蔥              I don't like onions.             2026-09-10  0      1      2026-09-10
-279   throw       v.         丟、投            Throw the ball to me.            2026-09-10  0      1      2026-09-10
-280   catch       v.         接住、抓住        Catch the ball!                  2026-09-10  0      1      2026-09-10
-281   old         adj.       老的、舊的        My car is old.                   2026-09-10  1      0      2026-09-10
-282   wet         adj.       濕的              My shoes are wet.                2026-09-10  0      1      2026-09-10
-283   clever      adj.       聰明的            She is a clever girl.            2026-09-10  0      1      2026-09-10
-284   frog        n.         青蛙              The frog is green.               2026-09-10  1      0      2026-09-10
-285   ant         n.         螞蟻              Ants are very small.             2026-09-10  1      0      2026-09-10
-286   year        n.         年                I am ten years old.              2026-09-10  1      0      2026-09-10
-287   key         n.         鑰匙              Where is my key?                 2026-09-10  1      0      2026-09-10
-288   box         n.         箱子、盒子        Put it in the box.               2026-09-10  1      0      2026-09-10
-289   cup         n.         杯子              I want a cup of tea.             2026-09-10  1      0      2026-09-10
-290   sit         v.         坐                Sit on the chair.                2026-09-10  0      1      2026-09-10
-291   stand       v.         站                Please stand up.                 2026-09-10  0      1      2026-09-10
-292   loud        adj.       大聲的            The music is too loud.           2026-09-10  0      1      2026-09-10
-293   thin        adj.       瘦的、薄的        The book is thin.                2026-09-10  0      1      2026-09-10
-294   push        v.         推                Push the door.                   2026-09-10  1      0      2026-09-10
-295   pull        v.         拉                Pull the rope hard.              2026-09-10  1      0      2026-09-10
-296   close       v./adj.    關、關閉          Close the window, please.        2026-09-10  1      0      2026-09-10
-297   July        n.         七月              It is hot in July.               2026-09-11  0      1      2026-09-11
-298   plant       n./v.      植物、種植        I water the plant.               2026-09-11  0      1      2026-09-11
-299   bowl        n.         碗                I eat rice from a bowl.          2026-09-11  0      1      2026-09-11
-300   carrot      n.         紅蘿蔔            Rabbits like carrots.            2026-09-11  0      1      2026-09-11
-301   spider      n.         蜘蛛              The spider has eight legs.       2026-09-11  1      0      2026-09-11
-302   warm        adj.       溫暖的            The water is warm.               2026-09-11  0      1      2026-09-11
-303   wash        v.         洗                Wash your hands.                 2026-09-11  0      1      2026-09-11
-304   wind        n.         風                The wind is strong.              2026-09-11  0      1      2026-09-11
-305   potato      n.         馬鈴薯            I like potato soup.              2026-09-11  1      0      2026-09-11
-306   sky         n.         天空              The sky is blue today.           2026-09-11  1      0      2026-09-11
-307   fork        n.         叉子              Eat it with a fork.              2026-09-11  1      0      2026-09-11
-308   jam         n.         果醬              I like strawberry jam.           2026-09-11  0      1      2026-09-11
-309   thirsty     adj.       口渴的            I am thirsty now.                2026-09-11  0      1      2026-09-11
-310   sad         adj.       難過的            Why are you sad?                 2026-09-11  1      0      2026-09-11
-311   afraid      adj.       害怕的            I am afraid of dogs.             2026-09-11  0      1      2026-09-11
-312   butterfly   n.         蝴蝶              The butterfly is pretty.         2026-09-11  1      0      2026-09-11
-313   pillow      n.         枕頭              My pillow is soft.               2026-09-11  0      1      2026-09-11
-314   blanket     n.         毯子              Put a blanket on the bed.        2026-09-11  0      1      2026-09-11
-315   garage      n.         車庫              The car is in the garage.        2026-09-11  0      1      2026-09-11
-316   ship        n.         船                The ship is very big.            2026-09-11  0      1      2026-09-11
-317   plane       n.         飛機              I go by plane.                   2026-09-11  0      1      2026-09-11
-318   ice         n.         冰                I want ice in my water.          2026-09-11  1      0      2026-09-11
-319   sun         n.         太陽              The sun is hot.                  2026-09-11  1      0      2026-09-11
-320   dream       n./v.      夢、夢想          I had a good dream.              2026-09-11  0      1      2026-09-11
-321   hope        v./n.      希望              I hope you are well.             2026-09-11  1      0      2026-09-11
-322   soap        n.         肥皂              Wash with soap.                  2026-09-11  0      1      2026-09-11
-323   comb        n./v.      梳子、梳          Comb your hair.                  2026-09-11  0      1      2026-09-11
-324   rose        n.         玫瑰              The rose is red.                 2026-09-11  1      0      2026-09-11
-325   grape       n.         葡萄              I eat grapes.                    2026-09-11  0      1      2026-09-11
-326   lemon       n.         檸檬              The lemon is sour.               2026-09-11  1      0      2026-09-11
-327   knock       v.         敲                Knock on the door.               2026-09-11  0      1      2026-09-11
-328   touch       v.         摸、碰            Don't touch it.                  2026-09-11  0      1      2026-09-11
-329   shout       v.         大喊              Don't shout at me.               2026-09-11  0      1      2026-09-11
-330   brave       adj.       勇敢的            He is a brave boy.               2026-09-11  0      1      2026-09-11
-331   lazy        adj.       懶惰的            The cat is lazy.                 2026-09-11  1      0      2026-09-11
-332   fever       n.         發燒              I have a fever.                  2026-09-11  0      1      2026-09-11
-333   summer      n.         夏天              It is hot in summer.             2026-09-11  0      1      2026-09-11
-334   island      n.         島                Taiwan is an island.             2026-09-11  0      1      2026-09-11
-335   desert      n.         沙漠              It is dry in the desert.         2026-09-11  0      1      2026-09-11
-336   insect      n.         昆蟲              An ant is an insect.             2026-09-11  0      1      2026-09-11
-337   wallet      n.         皮夾              My wallet is black.              2026-09-11  0      1      2026-09-11
-338   ruler       n.         尺                I need a ruler.                  2026-09-11  0      1      2026-09-11
-339   eraser      n.         橡皮擦            Can I use your eraser?           2026-09-11  0      1      2026-09-11
-340   stamp       n.         郵票              Put a stamp on it.               2026-09-11  0      1      2026-09-11
-341   basket      n.         籃子              The basket is full.              2026-09-11  0      1      2026-09-11
-342   ladder      n.         梯子              Climb up the ladder.             2026-09-11  0      1      2026-09-11
-343   honey       n.         蜂蜜              I like honey tea.                2026-09-11  1      0      2026-09-11
-344   bed         n.         床                I go to bed at ten.              2026-09-11  1      0      2026-09-11
-345   toy         n.         玩具              The baby likes toys.             2026-09-11  1      0      2026-09-11
-346   doll        n.         洋娃娃            She has a new doll.              2026-09-11  1      0      2026-09-11
-347   kite        n.         風箏              Let's fly a kite.                2026-09-11  0      1      2026-09-11
-348   read        v.         讀、看（書）      I read every night.              2026-09-11  1      0      2026-09-11
-349   write       v.         寫                Write your name here.            2026-09-11  1      0      2026-09-11
-350   draw        v.         畫                I draw a cat.                    2026-09-11  0      1      2026-09-11
-351   count       v.         數、計算          Count to ten.                    2026-09-11  1      0      2026-09-11
-352   baby        n.         嬰兒、寶貝        The baby is sleeping.            2026-09-11  1      0      2026-09-11
-353   zoo         n.         動物園            We go to the zoo.                2026-09-11  1      0      2026-09-11
-354   aunt        n.         阿姨、姑姑        My aunt lives here.              2026-09-11  0      1      2026-09-11
-355   niece       n.         姪女、外甥女      My niece is five.                2026-09-11  0      1      2026-09-11
-356   guest       n.         客人              We have three guests.            2026-09-11  0      1      2026-09-11
-357   neighbor    n.         鄰居              My neighbor is nice.             2026-09-11  0      1      2026-09-11
-358   village     n.         村莊              He lives in a village.           2026-09-11  0      1      2026-09-11
-359   queen       n.         皇后、女王        The queen is old.                2026-09-11  1      0      2026-09-11
-360   prince      n.         王子              The prince is young.             2026-09-11  0      1      2026-09-11
-361   forest      n.         森林              The forest is dark.              2026-09-11  0      1      2026-09-11
-362   mountain    n.         山                The mountain is high.            2026-09-11  0      1      2026-09-11
-363   lake        n.         湖                We swim in the lake.             2026-09-11  0      1      2026-09-11
-364   hill        n.         小山、山丘        I walk up the hill.              2026-09-11  0      1      2026-09-11
-365   field       n.         田野、場地        Cows are in the field.           2026-09-11  0      1      2026-09-11
-366   stone       n.         石頭              The stone is heavy.              2026-09-11  0      1      2026-09-11
-367   sand        n.         沙                The sand is hot.                 2026-09-11  0      1      2026-09-11
-368   seed        n.         種子              Put the seed in the soil.        2026-09-11  0      1      2026-09-11
-369   leaf        n.         葉子              The leaf is green.               2026-09-11  0      1      2026-09-11
-370   branch      n.         樹枝、分支、分店  Cut the branch off.              2026-09-11  1      0      2026-09-11
-371   man         n.         男人              The man is tall.                 2026-09-11  1      0      2026-09-11
-372   woman       n.         女人              The woman is my aunt.            2026-09-11  1      0      2026-09-11
-373   car         n.         車子              My car is old.                   2026-09-11  1      0      2026-09-11
-374   taxi        n.         計程車            Let's take a taxi.               2026-09-11  1      0      2026-09-11
-375   street      n.         街道              The street is busy.              2026-09-11  1      0      2026-09-11
-376   shop        n./v.      商店、購物        The shop is closed.              2026-09-11  1      0      2026-09-11
-377   city        n.         城市              I live in a big city.            2026-09-11  1      0      2026-09-11
-378   town        n.         城鎮              It is a small town.              2026-09-11  1      0      2026-09-11
-379   home        n.         家                I go home at six.                2026-09-11  1      0      2026-09-11
-380   phone       n.         電話、手機        Call me on my phone.             2026-09-11  1      0      2026-09-11
-381   airport     n.         機場              I go to the airport.             2026-09-11  0      1      2026-09-11
-382   station     n.         車站              Where is the station?            2026-09-11  0      1      2026-09-11
-383   office      n.         辦公室            My office is small.              2026-09-11  1      0      2026-09-11
-384   stairs      n.         樓梯              Go up the stairs.                2026-09-11  0      1      2026-09-11
-385   gate        n.         大門、登機門      The gate is open.                2026-09-11  0      1      2026-09-11
-386   seat        n.         座位              This seat is free.               2026-09-11  0      1      2026-09-11
-387   map         n.         地圖              I need a map.                    2026-09-11  1      0      2026-09-11
-388   road        n.         路                The road is long.                2026-09-11  1      0      2026-09-11
-389   sign        n./v.      標誌、招牌、簽名  Read the sign.                   2026-09-11  0      1      2026-09-11
-390   line        n.         線、隊伍          Stand in line.                   2026-09-11  1      0      2026-09-11
-391   tea         n.         茶                I drink tea every day.           2026-09-11  1      0      2026-09-11
-392   coffee      n.         咖啡              I want a cup of coffee.          2026-09-11  1      0      2026-09-11
-393   banana      n.         香蕉              The banana is yellow.            2026-09-11  1      0      2026-09-11
-394   chocolate   n.         巧克力            I love dark chocolate.           2026-09-11  0      1      2026-09-11
-395   sandwich    n.         三明治            I eat a sandwich.                2026-09-11  1      0      2026-09-11
-396   hamburger   n.         漢堡              The hamburger is big.            2026-09-11  1      0      2026-09-11
-397   pizza       n.         披薩              Let's order pizza.               2026-09-11  1      0      2026-09-11
-398   dumpling    n.         水餃              We eat dumplings.                2026-09-11  0      1      2026-09-11
-399   menu        n.         菜單              Can I see the menu?              2026-09-11  1      0      2026-09-11
-400   waiter      n.         服務生            The waiter is busy.              2026-09-11  0      1      2026-09-11
-401   fly         v.         飛                Birds can fly.                   2026-09-11  1      0      2026-09-11                
-402   fire        n.         火                The fire is hot.                 2026-09-11  1      0      2026-09-11                
-403   football    n.         足球、美式足球    We play football.                2026-09-11  1      0      2026-09-11                
-404   mock        v./adj.    嘲笑、模擬的      This is a mock test.             2026-09-11  1      0      2026-09-11                
-405   ghost       n.         鬼                I don't believe in ghosts.       2026-09-11  0      1      2026-09-11                
-406   magic       n.         魔法              I like magic shows.              2026-09-11  1      0      2026-09-11                
-407   robot       n.         機器人            The robot can walk.              2026-09-11  1      0      2026-09-11                
-408   alien       n.         外星人            Do you believe in aliens?        2026-09-11  0      1      2026-09-11                
-409   hero        n.         英雄              He is my hero.                   2026-09-11  1      0      2026-09-11                
-410   team        n.         團隊、隊伍        Our team is strong.              2026-09-11  1      0      2026-09-11                
+# no  word        pos        zh                  example                          added       right  wrong  last_test
+1     rain        n./v.      雨、下雨            It will rain today.              2026-09-10  3      0      2026-09-10
+2     busy        adj.       忙碌的              I am busy today.                 2026-09-10  2      0      2026-09-10
+3     cat         n.         貓                  The cat is sleeping.             2026-09-10  2      0      2026-09-10
+4     big         adj.       大的                That is a big dog.               2026-09-10  2      0      2026-09-10
+5     eat         v.         吃                  I eat rice every day.            2026-09-10  2      0      2026-09-10
+6     red         adj./n.    紅色的、紅色        I have a red bag.                2026-09-10  2      0      2026-09-10
+7     open        v./adj.    打開、開著的        Please open the door.            2026-09-10  1      1      2026-09-11
+8     cold        adj.       冷的                The water is cold.               2026-09-10  2      0      2026-09-10
+9     book        n.         書                  I read a book.                   2026-09-10  2      0      2026-09-10
+10    run         v.         跑                  I run every day.                 2026-09-10  1      0      2026-09-10
+11    happy       adj.       開心的              She is happy today.              2026-09-10  3      0      2026-09-11
+12    name        n.         名字                What is your name?               2026-09-10  2      0      2026-09-10
+13    water       n.         水                  I drink water every day.         2026-09-10  1      1      2026-09-10
+14    small       adj.       小的                It is a small box.               2026-09-10  1      2      2026-09-10
+15    door        n.         門                  Close the door, please.          2026-09-10  2      0      2026-09-10
+16    friend      n.         朋友                He is my friend.                 2026-09-10  3      0      2026-09-10
+17    walk        v./n.      走、走路            I walk to school.                2026-09-10  2      0      2026-09-10
+18    new         adj.       新的                I have a new phone.              2026-09-10  2      0      2026-09-10
+19    money       n.         錢                  I need some money.               2026-09-10  2      0      2026-09-10
+20    morning     n.         早上                Good morning!                    2026-09-10  2      0      2026-09-11
+21    fast        adj./adv.  快的、快速地        He runs fast.                    2026-09-10  1      0      2026-09-10
+22    hungry      adj.       餓的                I am hungry now.                 2026-09-10  1      0      2026-09-10
+23    give        v.         給                  Give me your hand.               2026-09-10  3      1      2026-09-11
+24    listen      v.         聽                  I listen to music.               2026-09-10  2      1      2026-09-11
+25    buy         v.         買                  I buy a new bag.                 2026-09-10  2      0      2026-09-11
+26    tired       adj.       累的                I am tired today.                2026-09-10  2      0      2026-09-11
+27    clean       adj./v.    乾淨的、打掃        The room is clean.               2026-09-10  2      0      2026-09-11
+28    wait        v.         等                  Please wait here.                2026-09-10  2      0      2026-09-11
+29    answer      n./v.      答案、回答          I know the answer.               2026-09-10  2      0      2026-09-11
+30    remember    v.         記得                I remember your name.            2026-09-10  2      0      2026-09-11
+31    angel       n.         天使                She looks like an angel.         2026-09-10  1      0      2026-09-10
+32    different   adj.       不同的              We are different.                2026-09-10  1      0      2026-09-10
+33    brown       adj./n.    棕色的、棕色        I have brown shoes.              2026-09-10  1      0      2026-09-10
+34    sea         n.         海                  The sea is blue.                 2026-09-10  1      0      2026-09-10
+35    angry       adj.       生氣的              He is angry with me.             2026-09-10  1      2      2026-09-10
+36    difficult   adj.       困難的              This book is difficult.          2026-09-10  0      3      2026-09-10
+37    borrow      v.         借（借入）          Can I borrow your pen?           2026-09-10  0      4      2026-09-10
+38    weather     n.         天氣                The weather is nice today.       2026-09-10  0      4      2026-09-10
+39    quiet       adj.       安靜的              Please be quiet.                 2026-09-10  0      3      2026-09-10
+40    quite       adv.       相當、頗            It is quite cold.                2026-09-10  0      2      2026-09-10
+41    sell        v.         賣                  They sell fruit here.            2026-09-10  0      1      2026-09-10
+42    heavy       adj.       重的                This bag is heavy.               2026-09-10  0      3      2026-09-10
+43    decide      v.         決定                I decide to go now.              2026-09-10  0      1      2026-09-10
+44    refuse      v.         拒絕                He refused my help.              2026-09-10  0      1      2026-09-10
+45    improve     v.         改善、進步          My English is improving.         2026-09-10  0      1      2026-09-10
+46    curious     adj.       好奇的              I am curious about it.           2026-09-10  0      1      2026-09-10
+47    appreciate  v.         感謝、欣賞          I appreciate your help.          2026-09-10  0      1      2026-09-10
+48    reluctant   adj.       不情願的            He was reluctant to go.          2026-09-10  0      1      2026-09-10
+49    mitigate    v.         減輕、緩解          Sunscreen mitigates sun damage.  2026-09-10  0      1      2026-09-10
+50    ready       adj.       準備好的            I am ready now.                  2026-09-10  1      0      2026-09-10
+51    safe        adj.       安全的              This place is safe.              2026-09-10  2      0      2026-09-10
+52    visit       v./n.      拜訪、參觀          I visit my grandma.              2026-09-10  1      0      2026-09-10
+53    bring       v.         帶來                Bring your book to school.       2026-09-10  0      1      2026-09-10
+54    strong      adj.       強壯的              He is very strong.               2026-09-10  0      1      2026-09-10
+55    worry       v./n.      擔心                Don't worry about it.            2026-09-10  0      1      2026-09-10
+56    holiday     n.         假日、節日          We have a holiday today.         2026-09-10  0      2      2026-09-11
+57    kitchen     n.         廚房                Mom is in the kitchen.           2026-09-10  0      1      2026-09-10
+58    dog         n.         狗                  The dog is cute.                 2026-09-10  1      0      2026-09-10
+59    school      n.         學校                I go to school.                  2026-09-10  2      1      2026-09-11
+60    milk        n.         牛奶                I drink milk.                    2026-09-10  1      0      2026-09-10
+61    sleep       v.         睡覺                I sleep at ten.                  2026-09-10  1      0      2026-09-10
+62    night       n.         晚上                Good night!                      2026-09-10  1      0      2026-09-10
+63    jump        v.         跳                  The cat can jump high.           2026-09-10  1      0      2026-09-10
+64    family      n.         家庭、家人          I love my family.                2026-09-10  1      0      2026-09-10
+65    help        v./n.      幫助                Can you help me?                 2026-09-10  2      0      2026-09-11
+66    play        v.         玩、打（球）        I play with my dog.              2026-09-10  2      0      2026-09-11
+67    music       n.         音樂                I like music.                    2026-09-10  1      0      2026-09-10
+68    hand        n.         手                  Wash your hands.                 2026-09-10  1      1      2026-09-10
+69    chair       n.         椅子                Sit on the chair.                2026-09-10  0      1      2026-09-10
+70    table       n.         桌子                Put the book on the table.       2026-09-10  1      0      2026-09-10
+71    window      n.         窗戶                Open the window, please.         2026-09-10  2      0      2026-09-10
+72    brother     n.         兄弟                My brother is tall.              2026-09-10  1      0      2026-09-10
+73    teacher     n.         老師                She is my teacher.               2026-09-10  1      0      2026-09-10
+74    apple       n.         蘋果                I eat an apple.                  2026-09-10  1      0      2026-09-10
+75    green       adj./n.    綠色的、綠色        The tree is green.               2026-09-10  1      0      2026-09-10
+76    rice        n.         米、飯              I eat rice for lunch.            2026-09-10  1      0      2026-09-10
+77    letter      n.         信、字母            I write a letter to him.         2026-09-10  0      2      2026-09-10
+78    movie       n.         電影                We watch a movie.                2026-09-10  1      0      2026-09-10
+79    dance       v./n.      跳舞                I like to dance.                 2026-09-10  1      0      2026-09-10
+80    week        n.         星期、週            I see him every week.            2026-09-10  1      0      2026-09-10
+81    minute      n.         分鐘                Wait a minute.                   2026-09-10  1      0      2026-09-10
+82    breakfast   n.         早餐                I eat breakfast at seven.        2026-09-10  0      1      2026-09-10
+83    animal      n.         動物                A dog is an animal.              2026-09-10  1      0      2026-09-10
+84    always      adv.       總是、永遠          She is always happy.             2026-09-10  1      0      2026-09-10
+85    because     conj.      因為                I am late because of rain.       2026-09-10  0      1      2026-09-10
+86    hospital    n.         醫院                He is in the hospital.           2026-09-10  1      0      2026-09-10
+87    favorite    adj.       最喜歡的            Blue is my favorite color.       2026-09-10  0      1      2026-09-10
+88    dinner      n.         晚餐                We have dinner at six.           2026-09-10  1      0      2026-09-10
+89    library     n.         圖書館              I read in the library.           2026-09-10  1      0      2026-09-10
+90    birthday    n.         生日                Happy birthday to you!           2026-09-10  0      1      2026-09-10
+91    expensive   adj.       昂貴的              This bag is expensive.           2026-09-10  0      1      2026-09-10
+92    delicious   adj.       好吃的              The cake is delicious.           2026-09-10  0      1      2026-09-10
+93    umbrella    n.         雨傘                Take an umbrella today.          2026-09-10  1      2      2026-09-11
+94    bicycle     n.         腳踏車              I ride a bicycle to school.      2026-09-10  1      0      2026-09-10
+95    doctor      n.         醫生                The doctor is very kind.         2026-09-10  1      0      2026-09-10
+96    restaurant  n.         餐廳                We eat at a restaurant.          2026-09-10  0      1      2026-09-10
+97    vegetable   n.         蔬菜                I eat vegetables every day.      2026-09-10  0      1      2026-09-10
+98    weekend     n.         週末                I play ball on the weekend.      2026-09-10  1      0      2026-09-10
+99    homework    n.         家庭作業            I do my homework at night.       2026-09-10  1      0      2026-09-10
+100   lunch       n.         午餐                I eat lunch at noon.             2026-09-10  1      0      2026-09-10
+101   sister      n.         姊姊、妹妹          My sister is ten.                2026-09-10  1      0      2026-09-10
+102   student     n.         學生                I am a student.                  2026-09-10  1      0      2026-09-10
+103   bread       n.         麵包                I eat bread for breakfast.       2026-09-10  0      2      2026-09-11
+104   bird        n.         鳥                  The bird can fly.                2026-09-10  1      0      2026-09-10
+105   tree        n.         樹                  The tree is very tall.           2026-09-10  1      0      2026-09-10
+106   three       n./adj.    三                  I have three cats.               2026-09-10  1      0      2026-09-10
+107   flower      n.         花                  The flower is red.               2026-09-10  1      0      2026-09-10
+108   house       n.         房子                My house is small.               2026-09-10  1      0      2026-09-10
+109   hot         adj.       熱的                The soup is hot.                 2026-09-10  1      0      2026-09-10
+110   snow        n./v.      雪、下雪            It will snow tonight.            2026-09-10  1      0      2026-09-10
+111   bus         n.         公車、巴士          I go to school by bus.           2026-09-10  1      0      2026-09-10
+112   store       n./v.      商店、儲存          I buy milk at the store.         2026-09-10  0      1      2026-09-10
+113   park        n.         公園                We play in the park.             2026-09-10  1      0      2026-09-10
+114   river       n.         河                  The river is long.               2026-09-10  2      0      2026-09-10
+115   paper       n.         紙                  Give me a piece of paper.        2026-09-10  1      0      2026-09-10
+116   pencil      n.         鉛筆                I write with a pencil.           2026-09-10  1      0      2026-09-10
+117   later       adv.       稍後、後來          See you later!                   2026-09-10  1      0      2026-09-10
+118   train       n.         火車                I go by train.                   2026-09-10  1      0      2026-09-10
+119   clock       n.         時鐘                The clock is on the wall.        2026-09-10  1      0      2026-09-10
+120   shoes       n.         鞋子                My shoes are new.                2026-09-10  1      0      2026-09-10
+121   cook        v./n.      煮、廚師            My mom cooks dinner.             2026-09-10  0      1      2026-09-10
+122   corner      n.         角落、轉角          The cat is in the corner.        2026-09-10  0      1      2026-09-10
+123   floor       n.         地板                The floor is clean.              2026-09-10  0      1      2026-09-10
+124   flour       n.         麵粉                Bread is made of flour.          2026-09-10  0      1      2026-09-10
+125   grass       n.         草                  The grass is green.              2026-09-10  0      2      2026-09-11
+126   glass       n.         玻璃、玻璃杯        I drink a glass of milk.         2026-09-10  0      1      2026-09-10
+127   bottle      n.         瓶子                Give me a bottle of water.       2026-09-10  0      1      2026-09-10
+128   spoon       n.         湯匙                I eat soup with a spoon.         2026-09-10  0      2      2026-09-10
+129   towel       n.         毛巾                Dry your hands with a towel.     2026-09-10  2      2      2026-09-11
+130   tower       n.         塔                  The tower is very tall.          2026-09-10  0      1      2026-09-10
+131   beach       n.         海灘                We play on the beach.            2026-09-10  0      1      2026-09-10
+132   bridge      n.         橋                  The bridge is long.              2026-09-10  0      1      2026-09-10
+133   cloud       n.         雲                  The cloud is white.              2026-09-10  2      0      2026-09-11
+134   ground      n.         地面                Don't sit on the ground.         2026-09-10  0      1      2026-09-10
+135   cake        n.         蛋糕                I want a big cake.               2026-09-10  0      1      2026-09-10
+136   ball        n.         球                  Let's play ball.                 2026-09-10  1      0      2026-09-10
+137   girl        n.         女孩                The girl is my sister.           2026-09-10  1      0      2026-09-10
+138   farm        n.         農場                We have a small farm.            2026-09-10  0      1      2026-09-10
+139   winter      n.         冬天                It is cold in winter.            2026-09-10  1      0      2026-09-10
+140   market      n.         市場                Mom is at the market.            2026-09-10  0      1      2026-09-10
+141   ticket      n.         票                  I have two tickets.              2026-09-10  1      0      2026-09-10
+142   garden      n.         花園                Flowers are in the garden.       2026-09-10  0      1      2026-09-10
+143   exercise    n./v.      運動                I exercise every morning.        2026-09-10  0      1      2026-09-10
+144   careful     adj.       小心的              Be careful on the road.          2026-09-10  0      1      2026-09-10
+145   dangerous   adj.       危險的              This road is dangerous.          2026-09-10  0      1      2026-09-10
+146   invite      v.         邀請                I invite you to my party.        2026-09-10  0      1      2026-09-10
+147   hat         n.         帽子                He has a new hat.                2026-09-10  1      0      2026-09-10
+148   egg         n.         蛋                  I eat an egg.                    2026-09-10  1      0      2026-09-10
+149   fish        n.         魚                  The fish is big.                 2026-09-10  1      0      2026-09-10
+150   foot        n.         腳                  My foot hurts.                   2026-09-10  1      0      2026-09-10
+151   star        n.         星星                I see many stars.                2026-09-10  0      1      2026-09-10
+152   moon        n.         月亮                The moon is bright.              2026-09-10  1      0      2026-09-10
+153   king        n.         國王                The king is old.                 2026-09-10  1      0      2026-09-10
+154   gift        n.         禮物                This is a gift for you.          2026-09-10  1      0      2026-09-10
+155   song        n.         歌                  I like this song.                2026-09-10  1      0      2026-09-10
+156   duck        n.         鴨子                The duck is in the water.        2026-09-10  1      0      2026-09-10
+157   neck        n.         脖子                My neck hurts.                   2026-09-10  1      0      2026-09-10
+158   knee        n.         膝蓋                I hurt my knee.                  2026-09-10  0      1      2026-09-10
+159   spring      n.         春天                Flowers grow in spring.          2026-09-10  2      0      2026-09-11
+160   shirt       n.         襯衫                He wears a white shirt.          2026-09-10  0      1      2026-09-10
+161   skirt       n.         裙子                Her skirt is blue.               2026-09-10  0      1      2026-09-10
+162   socks       n.         襪子                Put on your socks.               2026-09-10  0      2      2026-09-10
+163   glove       n.         手套                I need warm gloves.              2026-09-10  0      1      2026-09-10
+164   autumn      n.         秋天                Leaves fall in autumn.           2026-09-10  0      1      2026-09-10
+165   bathroom    n.         浴室、廁所          The bathroom is clean.           2026-09-10  0      1      2026-09-10
+166   pocket      n.         口袋                My keys are in my pocket.        2026-09-10  0      1      2026-09-10
+167   rocket      n.         火箭                The rocket goes up.              2026-09-10  0      1      2026-09-10
+168   finger      n.         手指                I cut my finger.                 2026-09-10  0      1      2026-09-10
+169   beef        n.         牛肉                I like beef noodles.             2026-09-10  1      0      2026-09-10
+170   pork        n.         豬肉                We eat pork today.               2026-09-10  1      0      2026-09-10
+171   chicken     n.         雞、雞肉            The chicken is hot.              2026-09-10  0      1      2026-09-10
+172   soup        n.         湯                  The soup is very hot.            2026-09-10  1      0      2026-09-10
+173   noodles     n.         麵                  I eat noodles for lunch.         2026-09-10  0      1      2026-09-10
+174   juice       n.         果汁                I want apple juice.              2026-09-10  2      0      2026-09-11
+175   sugar       n.         糖                  Put sugar in my tea.             2026-09-10  0      1      2026-09-10
+176   salt        n.         鹽                  Add a little salt.               2026-09-10  0      1      2026-09-10
+177   plate       n.         盤子                The plate is on the table.       2026-09-10  0      1      2026-09-10
+178   knife       n.         刀子                Cut it with a knife.             2026-09-10  0      1      2026-09-10
+179   face        n.         臉                  Wash your face.                  2026-09-10  1      0      2026-09-10
+180   hair        n.         頭髮                Her hair is long.                2026-09-10  1      0      2026-09-10
+181   mouth       n.         嘴巴                Open your mouth.                 2026-09-10  1      0      2026-09-10
+182   nose        n.         鼻子                My nose is cold.                 2026-09-10  1      0      2026-09-10
+183   ear         n.         耳朵                I have two ears.                 2026-09-10  1      0      2026-09-10
+184   tooth       n.         牙齒                My tooth hurts.                  2026-09-10  1      0      2026-09-10
+185   arm         n.         手臂                He has strong arms.              2026-09-10  0      1      2026-09-10
+186   leg         n.         腿                  The dog has four legs.           2026-09-10  1      0      2026-09-10
+187   eye         n.         眼睛                Close your eyes.                 2026-09-10  1      0      2026-09-10
+188   head        n.         頭                  My head hurts.                   2026-09-10  1      0      2026-09-10
+189   rock        n.         石頭                The rock is heavy.               2026-09-10  1      0      2026-09-10
+190   lock        n./v.      鎖                  Lock the door.                   2026-09-10  1      0      2026-09-10
+191   chalk       n.         粉筆                Write it with chalk.             2026-09-10  0      1      2026-09-10
+192   shark       n.         鯊魚                The shark is in the sea.         2026-09-10  0      1      2026-09-10
+193   sheep       n.         綿羊                The sheep eats grass.            2026-09-10  1      0      2026-09-10
+194   sheet       n.         床單、一張（紙）    Give me a sheet of paper.        2026-09-10  0      1      2026-09-10
+195   wolf        n.         狼                  The wolf is not a dog.           2026-09-10  1      0      2026-09-10
+196   wing        n.         翅膀                Birds have two wings.            2026-09-10  0      1      2026-09-10
+197   tail        n.         尾巴                The cat has a long tail.         2026-09-10  0      1      2026-09-10
+198   lamp        n.         檯燈                Turn on the lamp.                2026-09-10  0      1      2026-09-10
+199   lamb        n.         小羊                The lamb is white.               2026-09-10  0      1      2026-09-10
+200   cave        n.         洞穴                A bear lives in the cave.        2026-09-10  0      1      2026-09-10
+201   wave        n./v.      波浪、揮手          Wave your hand.                  2026-09-10  0      1      2026-09-10
+202   nail        n.         指甲、釘子          Cut your nails.                  2026-09-10  0      1      2026-09-10
+203   mail        n.         郵件                I get a mail today.              2026-09-10  1      0      2026-09-10
+204   coin        n.         硬幣                I have five coins.               2026-09-10  1      0      2026-09-10
+205   corn        n.         玉米                I like sweet corn.               2026-09-10  0      1      2026-09-10
+206   pin         n.         別針、大頭針        Use a pin to fix it.             2026-09-10  0      1      2026-09-10
+207   pan         n.         平底鍋              Cook the egg in a pan.           2026-09-10  0      1      2026-09-10
+208   bank        n.         銀行                I go to the bank.                2026-09-10  1      0      2026-09-10
+209   hotel       n.         旅館                We stay in a hotel.              2026-09-10  0      1      2026-09-10
+210   police      n.         警察                Call the police!                 2026-09-10  1      0      2026-09-10
+211   nurse       n.         護士                The nurse is kind.               2026-09-10  0      1      2026-09-10
+212   farmer      n.         農夫                The farmer has a farm.           2026-09-10  1      0      2026-09-10
+213   driver      n.         司機                He is a bus driver.              2026-09-10  0      1      2026-09-10
+214   singer      n.         歌手                She is a good singer.            2026-09-10  1      0      2026-09-10
+215   actor       n.         演員                The actor is famous.             2026-09-10  1      0      2026-09-10
+216   uncle       n.         叔叔、舅舅          My uncle is a doctor.            2026-09-10  1      0      2026-09-10
+217   cousin      n.         表兄弟姊妹          My cousin is ten.                2026-09-10  0      2      2026-09-11
+218   blue        adj./n.    藍色的、藍色        The sky is blue.                 2026-09-10  0      1      2026-09-10
+219   black       adj./n.    黑色的、黑色        I have a black cat.              2026-09-10  1      0      2026-09-10
+220   white       adj./n.    白色的、白色        Snow is white.                   2026-09-10  1      0      2026-09-10
+221   yellow      adj./n.    黃色的、黃色        The banana is yellow.            2026-09-10  1      0      2026-09-10
+222   pink        adj./n.    粉紅色的            She likes pink.                  2026-09-10  1      0      2026-09-10
+223   purple      adj./n.    紫色的              The flower is purple.            2026-09-10  0      1      2026-09-10
+224   orange      n./adj.    橘子、橘色的        I eat an orange.                 2026-09-10  1      0      2026-09-10
+225   gray        adj./n.    灰色的              The sky is gray today.           2026-09-10  0      1      2026-09-10
+226   gold        n./adj.    金、金色的          This ring is gold.               2026-09-10  1      0      2026-09-10
+227   silver      n./adj.    銀、銀色的          I want a silver pen.             2026-09-10  1      0      2026-09-10
+228   tiger       n.         老虎                The tiger is big.                2026-09-10  1      0      2026-09-10
+229   Monday      n.         星期一              I go to school on Monday.        2026-09-10  1      0      2026-09-10
+230   cheap       adj.       便宜的              This bag is cheap.               2026-09-10  0      1      2026-09-10
+231   bedroom     n.         臥室                My bedroom is small.             2026-09-10  1      0      2026-09-10
+232   horse       n.         馬                  The horse runs fast.             2026-09-10  1      0      2026-09-10
+233   April       n.         四月                My birthday is in April.         2026-09-10  0      1      2026-09-10
+234   quick       adj.       快的                He is a quick runner.            2026-09-10  1      0      2026-09-10
+235   dolphin     n.         海豚                The dolphin can jump.            2026-09-10  0      1      2026-09-10
+236   Sunday      n.         星期日              I stay home on Sunday.           2026-09-10  0      1      2026-09-10
+237   sofa        n.         沙發                Sit on the sofa.                 2026-09-10  1      0      2026-09-10
+238   August      n.         八月                It is hot in August.             2026-09-10  0      1      2026-09-10
+239   rabbit      n.         兔子                The rabbit eats carrots.         2026-09-10  1      0      2026-09-10
+240   slow        adj.       慢的                The bus is slow today.           2026-09-10  1      0      2026-09-10
+241   pot         n.         鍋子                Cook the soup in a pot.          2026-09-10  0      1      2026-09-10
+242   Friday      n.         星期五              We have a test on Friday.        2026-09-10  1      0      2026-09-10
+243   monkey      n.         猴子                The monkey is funny.             2026-09-10  1      0      2026-09-10
+244   elephant    n.         大象                The elephant is very big.        2026-09-10  1      0      2026-09-10
+245   snake       n.         蛇                  I am afraid of snakes.           2026-09-10  1      0      2026-09-10
+246   March       n.         三月                School starts in March.          2026-09-10  0      1      2026-09-10
+247   evening     n.         傍晚、晚上          Good evening!                    2026-09-10  0      1      2026-09-10
+248   mirror      n.         鏡子                Look in the mirror.              2026-09-10  0      1      2026-09-10
+249   butter      n.         奶油                I put butter on bread.           2026-09-10  0      1      2026-09-10
+250   cheese      n.         起司                I like cheese cake.              2026-09-10  0      1      2026-09-10
+251   dirty       adj.       髒的                Your hands are dirty.            2026-09-10  1      0      2026-09-10
+252   swim        v.         游泳                I swim in summer.                2026-09-10  0      1      2026-09-10
+253   climb       v.         爬                  The cat climbs the tree.         2026-09-10  0      1      2026-09-10
+254   pig         n.         豬                  The pig is fat.                  2026-09-10  1      0      2026-09-10
+255   cow         n.         牛                  The cow gives us milk.           2026-09-10  1      0      2026-09-10
+256   tomorrow    n./adv.    明天                See you tomorrow.                2026-09-10  1      0      2026-09-10
+257   noon        n.         中午                I eat lunch at noon.             2026-09-10  0      1      2026-09-10
+258   roof        n.         屋頂                A cat is on the roof.            2026-09-10  0      1      2026-09-10
+259   wall        n.         牆                  The clock is on the wall.        2026-09-10  0      1      2026-09-10
+260   candy       n.         糖果                Kids like candy.                 2026-09-10  1      0      2026-09-10
+261   sing        v.         唱歌                I sing a song.                   2026-09-10  0      1      2026-09-10
+262   tall        adj.       高的                He is very tall.                 2026-09-10  1      0      2026-09-10
+263   short       adj.       短的、矮的          Her hair is short.               2026-09-10  1      0      2026-09-10
+264   bear        n.         熊                  The bear is sleeping.            2026-09-10  1      0      2026-09-10
+265   lion        n.         獅子                The lion is the king.            2026-09-10  1      0      2026-09-10
+266   hour        n.         小時                I wait for an hour.              2026-09-10  1      0      2026-09-10
+267   desk        n.         書桌                My book is on the desk.          2026-09-10  1      0      2026-09-10
+268   cookie      n.         餅乾                I eat two cookies.               2026-09-10  1      0      2026-09-10
+269   cry         v.         哭                  The baby is crying.              2026-09-10  1      0      2026-09-10
+270   laugh       v.         笑                  We laugh together.               2026-09-10  0      1      2026-09-10
+271   young       adj.       年輕的              She is very young.               2026-09-10  1      0      2026-09-10
+272   salad       n.         沙拉                I eat salad for lunch.           2026-09-10  0      1      2026-09-10
+273   shelf       n.         架子                Books are on the shelf.          2026-09-10  0      1      2026-09-10
+274   boy         n.         男孩                The boy is my brother.           2026-09-10  1      0      2026-09-10
+275   goat        n.         山羊                The goat eats grass.             2026-09-10  1      0      2026-09-10
+276   month       n.         月、月份            I will go next month.            2026-09-10  1      0      2026-09-10
+277   curtain     n.         窗簾                Open the curtain.                2026-09-10  0      1      2026-09-10
+278   onion       n.         洋蔥                I don't like onions.             2026-09-10  0      1      2026-09-10
+279   throw       v.         丟、投              Throw the ball to me.            2026-09-10  0      1      2026-09-10
+280   catch       v.         接住、抓住          Catch the ball!                  2026-09-10  0      1      2026-09-10
+281   old         adj.       老的、舊的          My car is old.                   2026-09-10  1      0      2026-09-10
+282   wet         adj.       濕的                My shoes are wet.                2026-09-10  0      1      2026-09-10
+283   clever      adj.       聰明的              She is a clever girl.            2026-09-10  0      1      2026-09-10
+284   frog        n.         青蛙                The frog is green.               2026-09-10  1      0      2026-09-10
+285   ant         n.         螞蟻                Ants are very small.             2026-09-10  1      0      2026-09-10
+286   year        n.         年                  I am ten years old.              2026-09-10  1      0      2026-09-10
+287   key         n.         鑰匙                Where is my key?                 2026-09-10  1      0      2026-09-10
+288   box         n.         箱子、盒子          Put it in the box.               2026-09-10  1      0      2026-09-10
+289   cup         n.         杯子                I want a cup of tea.             2026-09-10  1      0      2026-09-10
+290   sit         v.         坐                  Sit on the chair.                2026-09-10  0      1      2026-09-10
+291   stand       v.         站                  Please stand up.                 2026-09-10  0      1      2026-09-10
+292   loud        adj.       大聲的              The music is too loud.           2026-09-10  0      1      2026-09-10
+293   thin        adj.       瘦的、薄的          The book is thin.                2026-09-10  0      1      2026-09-10
+294   push        v.         推                  Push the door.                   2026-09-10  1      0      2026-09-10
+295   pull        v.         拉                  Pull the rope hard.              2026-09-10  1      0      2026-09-10
+296   close       v./adj.    關、關閉            Close the window, please.        2026-09-10  1      0      2026-09-10
+297   July        n.         七月                It is hot in July.               2026-09-11  0      1      2026-09-11
+298   plant       n./v.      植物、種植          I water the plant.               2026-09-11  0      1      2026-09-11
+299   bowl        n.         碗                  I eat rice from a bowl.          2026-09-11  0      1      2026-09-11
+300   carrot      n.         紅蘿蔔              Rabbits like carrots.            2026-09-11  0      1      2026-09-11
+301   spider      n.         蜘蛛                The spider has eight legs.       2026-09-11  1      0      2026-09-11
+302   warm        adj.       溫暖的              The water is warm.               2026-09-11  0      1      2026-09-11
+303   wash        v.         洗                  Wash your hands.                 2026-09-11  0      1      2026-09-11
+304   wind        n.         風                  The wind is strong.              2026-09-11  0      1      2026-09-11
+305   potato      n.         馬鈴薯              I like potato soup.              2026-09-11  1      0      2026-09-11
+306   sky         n.         天空                The sky is blue today.           2026-09-11  1      0      2026-09-11
+307   fork        n.         叉子                Eat it with a fork.              2026-09-11  1      0      2026-09-11
+308   jam         n.         果醬                I like strawberry jam.           2026-09-11  0      1      2026-09-11
+309   thirsty     adj.       口渴的              I am thirsty now.                2026-09-11  0      1      2026-09-11
+310   sad         adj.       難過的              Why are you sad?                 2026-09-11  1      0      2026-09-11
+311   afraid      adj.       害怕的              I am afraid of dogs.             2026-09-11  0      1      2026-09-11
+312   butterfly   n.         蝴蝶                The butterfly is pretty.         2026-09-11  1      0      2026-09-11
+313   pillow      n.         枕頭                My pillow is soft.               2026-09-11  0      1      2026-09-11
+314   blanket     n.         毯子                Put a blanket on the bed.        2026-09-11  0      1      2026-09-11
+315   garage      n.         車庫                The car is in the garage.        2026-09-11  0      1      2026-09-11
+316   ship        n.         船                  The ship is very big.            2026-09-11  0      1      2026-09-11
+317   plane       n.         飛機                I go by plane.                   2026-09-11  0      1      2026-09-11
+318   ice         n.         冰                  I want ice in my water.          2026-09-11  1      0      2026-09-11
+319   sun         n.         太陽                The sun is hot.                  2026-09-11  1      0      2026-09-11
+320   dream       n./v.      夢、夢想            I had a good dream.              2026-09-11  0      1      2026-09-11
+321   hope        v./n.      希望                I hope you are well.             2026-09-11  1      0      2026-09-11
+322   soap        n.         肥皂                Wash with soap.                  2026-09-11  0      1      2026-09-11
+323   comb        n./v.      梳子、梳            Comb your hair.                  2026-09-11  0      1      2026-09-11
+324   rose        n.         玫瑰                The rose is red.                 2026-09-11  1      0      2026-09-11
+325   grape       n.         葡萄                I eat grapes.                    2026-09-11  0      1      2026-09-11
+326   lemon       n.         檸檬                The lemon is sour.               2026-09-11  1      0      2026-09-11
+327   knock       v.         敲                  Knock on the door.               2026-09-11  0      1      2026-09-11
+328   touch       v.         摸、碰              Don't touch it.                  2026-09-11  0      1      2026-09-11
+329   shout       v.         大喊                Don't shout at me.               2026-09-11  0      1      2026-09-11
+330   brave       adj.       勇敢的              He is a brave boy.               2026-09-11  0      1      2026-09-11
+331   lazy        adj.       懶惰的              The cat is lazy.                 2026-09-11  1      0      2026-09-11
+332   fever       n.         發燒                I have a fever.                  2026-09-11  0      1      2026-09-11
+333   summer      n.         夏天                It is hot in summer.             2026-09-11  0      1      2026-09-11
+334   island      n.         島                  Taiwan is an island.             2026-09-11  0      1      2026-09-11
+335   desert      n.         沙漠                It is dry in the desert.         2026-09-11  0      1      2026-09-11
+336   insect      n.         昆蟲                An ant is an insect.             2026-09-11  0      1      2026-09-11
+337   wallet      n.         皮夾                My wallet is black.              2026-09-11  0      1      2026-09-11
+338   ruler       n.         尺                  I need a ruler.                  2026-09-11  0      1      2026-09-11
+339   eraser      n.         橡皮擦              Can I use your eraser?           2026-09-11  0      1      2026-09-11
+340   stamp       n.         郵票                Put a stamp on it.               2026-09-11  0      1      2026-09-11
+341   basket      n.         籃子                The basket is full.              2026-09-11  0      1      2026-09-11
+342   ladder      n.         梯子                Climb up the ladder.             2026-09-11  0      1      2026-09-11
+343   honey       n.         蜂蜜                I like honey tea.                2026-09-11  1      0      2026-09-11
+344   bed         n.         床                  I go to bed at ten.              2026-09-11  1      0      2026-09-11
+345   toy         n.         玩具                The baby likes toys.             2026-09-11  1      0      2026-09-11
+346   doll        n.         洋娃娃              She has a new doll.              2026-09-11  1      0      2026-09-11
+347   kite        n.         風箏                Let's fly a kite.                2026-09-11  0      1      2026-09-11
+348   read        v.         讀、看（書）        I read every night.              2026-09-11  1      0      2026-09-11
+349   write       v.         寫                  Write your name here.            2026-09-11  1      0      2026-09-11
+350   draw        v.         畫                  I draw a cat.                    2026-09-11  0      1      2026-09-11
+351   count       v.         數、計算            Count to ten.                    2026-09-11  1      0      2026-09-11
+352   baby        n.         嬰兒、寶貝          The baby is sleeping.            2026-09-11  1      0      2026-09-11
+353   zoo         n.         動物園              We go to the zoo.                2026-09-11  1      0      2026-09-11
+354   aunt        n.         阿姨、姑姑          My aunt lives here.              2026-09-11  0      1      2026-09-11
+355   niece       n.         姪女、外甥女        My niece is five.                2026-09-11  0      1      2026-09-11
+356   guest       n.         客人                We have three guests.            2026-09-11  0      1      2026-09-11
+357   neighbor    n.         鄰居                My neighbor is nice.             2026-09-11  0      1      2026-09-11
+358   village     n.         村莊                He lives in a village.           2026-09-11  0      1      2026-09-11
+359   queen       n.         皇后、女王          The queen is old.                2026-09-11  1      0      2026-09-11
+360   prince      n.         王子                The prince is young.             2026-09-11  0      1      2026-09-11
+361   forest      n.         森林                The forest is dark.              2026-09-11  0      1      2026-09-11
+362   mountain    n.         山                  The mountain is high.            2026-09-11  0      1      2026-09-11
+363   lake        n.         湖                  We swim in the lake.             2026-09-11  0      1      2026-09-11
+364   hill        n.         小山、山丘          I walk up the hill.              2026-09-11  0      1      2026-09-11
+365   field       n.         田野、場地          Cows are in the field.           2026-09-11  0      1      2026-09-11
+366   stone       n.         石頭                The stone is heavy.              2026-09-11  0      1      2026-09-11
+367   sand        n.         沙                  The sand is hot.                 2026-09-11  0      1      2026-09-11
+368   seed        n.         種子                Put the seed in the soil.        2026-09-11  0      1      2026-09-11
+369   leaf        n.         葉子                The leaf is green.               2026-09-11  0      1      2026-09-11
+370   branch      n.         樹枝、分支、分店    Cut the branch off.              2026-09-11  1      0      2026-09-11
+371   man         n.         男人                The man is tall.                 2026-09-11  1      0      2026-09-11
+372   woman       n.         女人                The woman is my aunt.            2026-09-11  1      0      2026-09-11
+373   car         n.         車子                My car is old.                   2026-09-11  1      0      2026-09-11
+374   taxi        n.         計程車              Let's take a taxi.               2026-09-11  1      0      2026-09-11
+375   street      n.         街道                The street is busy.              2026-09-11  1      0      2026-09-11
+376   shop        n./v.      商店、購物          The shop is closed.              2026-09-11  1      0      2026-09-11
+377   city        n.         城市                I live in a big city.            2026-09-11  1      0      2026-09-11
+378   town        n.         城鎮                It is a small town.              2026-09-11  1      0      2026-09-11
+379   home        n.         家                  I go home at six.                2026-09-11  1      0      2026-09-11
+380   phone       n.         電話、手機          Call me on my phone.             2026-09-11  1      0      2026-09-11
+381   airport     n.         機場                I go to the airport.             2026-09-11  0      1      2026-09-11
+382   station     n.         車站                Where is the station?            2026-09-11  0      1      2026-09-11
+383   office      n.         辦公室              My office is small.              2026-09-11  1      0      2026-09-11
+384   stairs      n.         樓梯                Go up the stairs.                2026-09-11  0      1      2026-09-11
+385   gate        n.         大門、登機門        The gate is open.                2026-09-11  0      1      2026-09-11
+386   seat        n.         座位                This seat is free.               2026-09-11  0      1      2026-09-11
+387   map         n.         地圖                I need a map.                    2026-09-11  1      0      2026-09-11
+388   road        n.         路                  The road is long.                2026-09-11  1      0      2026-09-11
+389   sign        n./v.      標誌、招牌、簽名    Read the sign.                   2026-09-11  0      1      2026-09-11
+390   line        n.         線、隊伍            Stand in line.                   2026-09-11  1      0      2026-09-11
+391   tea         n.         茶                  I drink tea every day.           2026-09-11  1      0      2026-09-11
+392   coffee      n.         咖啡                I want a cup of coffee.          2026-09-11  1      0      2026-09-11
+393   banana      n.         香蕉                The banana is yellow.            2026-09-11  1      0      2026-09-11
+394   chocolate   n.         巧克力              I love dark chocolate.           2026-09-11  0      1      2026-09-11
+395   sandwich    n.         三明治              I eat a sandwich.                2026-09-11  1      0      2026-09-11
+396   hamburger   n.         漢堡                The hamburger is big.            2026-09-11  1      0      2026-09-11
+397   pizza       n.         披薩                Let's order pizza.               2026-09-11  1      0      2026-09-11
+398   dumpling    n.         水餃                We eat dumplings.                2026-09-11  0      1      2026-09-11
+399   menu        n.         菜單                Can I see the menu?              2026-09-11  1      0      2026-09-11
+400   waiter      n.         服務生              The waiter is busy.              2026-09-11  0      1      2026-09-11
+401   fly         v.         飛                  Birds can fly.                   2026-09-11  1      0      2026-09-11
+402   fire        n.         火                  The fire is hot.                 2026-09-11  1      0      2026-09-11
+403   football    n.         足球、美式足球      We play football.                2026-09-11  1      0      2026-09-11
+404   mock        v./adj.    嘲笑、模擬的        This is a mock test.             2026-09-11  1      0      2026-09-11
+405   ghost       n.         鬼                  I don't believe in ghosts.       2026-09-11  0      1      2026-09-11
+406   magic       n.         魔法                I like magic shows.              2026-09-11  1      0      2026-09-11
+407   robot       n.         機器人              The robot can walk.              2026-09-11  1      0      2026-09-11
+408   alien       n.         外星人              Do you believe in aliens?        2026-09-11  0      1      2026-09-11
+409   hero        n.         英雄                He is my hero.                   2026-09-11  1      0      2026-09-11
+410   team        n.         團隊、隊伍          Our team is strong.              2026-09-11  1      0      2026-09-11
+411   computer    n.         電腦                I use my computer every day.     2026-09-11  1      0      2026-09-11
+412   keyboard    n.         鍵盤                Type on the keyboard.            2026-09-11  1      0      2026-09-11
+413   mouse       n.         滑鼠、老鼠          Click with the mouse.            2026-09-11  1      0      2026-09-11
+414   screen      n.         螢幕                The screen is big.               2026-09-11  0      1      2026-09-11
+415   battery     n.         電池                The battery is low.              2026-09-11  0      1      2026-09-11
+416   cable       n.         線、電纜            Plug in the cable.               2026-09-11  0      1      2026-09-11
+417   button      n.         按鈕                Press the button.                2026-09-11  0      1      2026-09-11
+418   camera      n.         相機                I take photos with a camera.     2026-09-11  1      0      2026-09-11
+419   radio       n.         收音機、廣播        I listen to the radio.           2026-09-11  0      1      2026-09-11
+420   watch       v./n.      看、觀賞、手錶      I watch TV at night.             2026-09-11  1      0      2026-09-11
+421   sick        adj.       生病的              I am sick today.                 2026-09-11  1      0      2026-09-11
+422   medicine    n.         藥、醫學            Take your medicine.              2026-09-11  0      1      2026-09-11
+423   patient     n./adj.    病人、有耐心的      Be patient with him.             2026-09-11  0      1      2026-09-11
+424   healthy     adj.       健康的              Eat healthy food.                2026-09-11  0      1      2026-09-11
+425   illness     n.         疾病                It is a serious illness.         2026-09-11  0      1      2026-09-11
+426   cough       v./n.      咳嗽                I have a bad cough.              2026-09-11  0      1      2026-09-11
+427   rainbow     n.         彩虹                I see a rainbow.                 2026-09-11  0      1      2026-09-11
+428   storm       n.         暴風雨              A storm is coming.               2026-09-11  0      1      2026-09-11
+429   kind        n./adj.    種類、親切的        What kind of food?               2026-09-11  1      0      2026-09-11
+430   beautiful   adj.       漂亮的、美麗的      The flower is beautiful.         2026-09-11  1      0      2026-09-11
+431   ugly        adj.       醜的                The monster is ugly.             2026-09-11  0      1      2026-09-11
+432   smart       adj.       聰明的              She is a smart girl.             2026-09-11  1      0      2026-09-11
+433   boring      adj.       無聊的（形容東西）  This movie is boring.            2026-09-11  0      1      2026-09-11
+434   funny       adj.       好笑的、有趣的      The joke is funny.               2026-09-11  1      0      2026-09-11
+435   serious     adj.       嚴肅的、嚴重的      This is a serious problem.       2026-09-11  0      1      2026-09-11
+436   nervous     adj.       緊張的              I am nervous about the test.     2026-09-11  0      1      2026-09-11
+437   shy         adj.       害羞的              The boy is shy.                  2026-09-11  0      1      2026-09-11
+438   proud       adj.       驕傲的、自豪的      I am proud of you.               2026-09-11  0      1      2026-09-11
+439   jealous     adj.       嫉妒的              Don't be jealous.                2026-09-11  0      1      2026-09-11
+440   season      n.         季節                Summer is my favorite season.    2026-09-11  1      0      2026-09-11                
+441   vacation    n.         假期                I go to Japan on vacation.       2026-09-11  0      1      2026-09-11                
+442   calendar    n.         日曆                Look at the calendar.            2026-09-11  1      0      2026-09-11                
+443   date        n.         日期、約會          What is today's date?            2026-09-11  0      1      2026-09-11                
+444   event       n.         事件、活動          It was a big event.              2026-09-11  0      1      2026-09-11                

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/repositories/history_repository.dart';
 import '../data/repositories/settings_repository.dart';
 import '../data/repositories/word_repository.dart';
+import '../data/seed/word_seed_loader.dart';
 import '../data/storage/key_value_store.dart';
 import '../domain/models/quiz.dart';
 
@@ -24,7 +25,11 @@ final settingsRepositoryProvider = Provider<SettingsRepository>(
 );
 
 final historyRepositoryProvider = Provider<HistoryRepository>(
-  (ref) => HistoryRepository(ref.watch(keyValueStoreProvider)),
+  (ref) => HistoryRepository(
+    ref.watch(keyValueStoreProvider),
+    // 給了來源，第一次讀取時會把 En 資料夾那邊的舊紀錄搬進來。
+    seed: WordSeedLoader(),
+  ),
 );
 
 /// 時間來源。測試時換掉這個就能固定「現在」。

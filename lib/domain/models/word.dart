@@ -36,6 +36,8 @@ class Word {
     required this.pos,
     required this.zh,
     required this.level,
+    this.example = '',
+    this.added,
     this.right = 0,
     this.wrong = 0,
     this.lastTest,
@@ -46,6 +48,15 @@ class Word {
   final String pos;
   final String zh;
   final WordLevel level;
+
+  /// 例句。題庫的字還沒有例句，考過之後才補，所以可能是空字串。
+  ///
+  /// 這一欄現在畫面上用不到，但一定要留著：
+  /// words.txt 有這一欄，少了它匯出就會掉資料，兩邊格式也就對不起來。
+  final String example;
+
+  /// 首次加入的日期。同樣是為了能無損還原成 words.txt。
+  final DateTime? added;
 
   /// 累計答對次數。
   final int right;
@@ -67,13 +78,22 @@ class Word {
     return WordStatus.pending;
   }
 
-  Word copyWith({int? id, int? right, int? wrong, DateTime? lastTest}) {
+  Word copyWith({
+    int? id,
+    String? example,
+    DateTime? added,
+    int? right,
+    int? wrong,
+    DateTime? lastTest,
+  }) {
     return Word(
       id: id ?? this.id,
       word: word,
       pos: pos,
       zh: zh,
       level: level,
+      example: example ?? this.example,
+      added: added ?? this.added,
       right: right ?? this.right,
       wrong: wrong ?? this.wrong,
       lastTest: lastTest ?? this.lastTest,
@@ -86,6 +106,8 @@ class Word {
     'pos': pos,
     'zh': zh,
     'level': level.label,
+    'example': example,
+    'added': added?.toIso8601String(),
     'right': right,
     'wrong': wrong,
     'lastTest': lastTest?.toIso8601String(),
@@ -97,10 +119,13 @@ class Word {
     pos: json['pos'] as String,
     zh: json['zh'] as String,
     level: WordLevel.parse(json['level'] as String? ?? '國小'),
+    example: json['example'] as String? ?? '',
+    added: _date(json['added']),
     right: json['right'] as int? ?? 0,
     wrong: json['wrong'] as int? ?? 0,
-    lastTest: (json['lastTest'] as String?) == null
-        ? null
-        : DateTime.parse(json['lastTest'] as String),
+    lastTest: _date(json['lastTest']),
   );
+
+  static DateTime? _date(Object? raw) =>
+      raw is String ? DateTime.tryParse(raw) : null;
 }

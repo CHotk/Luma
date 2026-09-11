@@ -16,7 +16,7 @@ class WordRepository {
       _seed = seed ?? WordSeedLoader();
 
   static const _wordsKey = 'words.v1';
-  static const _seedVersionKey = 'seed.version.v1';
+  static const _bundleVersionKey = 'bundle.version.v1';
 
   final KeyValueStore _store;
   final SeedSource _seed;
@@ -34,9 +34,9 @@ class WordRepository {
 
     final raw = await _store.read(_wordsKey);
     if (raw == null) {
-      final seeded = await _seed.initialImport();
+      final seeded = await _seed.bundle();
       await _persist(seeded);
-      await _store.write(_seedVersionKey, '${await _seed.version()}');
+      await _store.write(_bundleVersionKey, '${_seed.bundleVersion}');
       return _cache = seeded;
     }
 
@@ -44,31 +44,51 @@ class WordRepository {
         .cast<Map<String, dynamic>>()
         .map(Word.fromJson)
         .toList();
-    return _cache = await _mergeNewSeedWords(stored);
+    return _cache = await _syncBundle(stored);
   }
 
-  /// 題庫升級。
+  /// 打包資料升級。
   ///
-  /// 題庫之後一定會再長（國中的 G 到 Z 還沒補完），
-  /// 但本機那份資料帶著使用者的成績，絕對不能整包覆蓋。
-  /// 所以這裡只做一件事：把本機沒有的字加進去，既有的一個都不動。
-  Future<List<Word>> _mergeNewSeedWords(List<Word> current) async {
-    final applied = int.tryParse(await _store.read(_seedVersionKey) ?? '') ?? 0;
-    final latest = await _seed.version();
-    if (latest <= applied) return current;
+  /// 兩種情況會用到：題庫長大（國中的 G 到 Z 還沒補完），
+  /// 或是 En 資料夾那邊的成績有更新。
+  ///
+  /// 合併規則說清楚，因為這段會動到成績：
+  ///   打包資料裡有的字 → 對錯次數以打包資料為準，直接覆蓋。
+  ///   打包資料沒有、App 裡有的字 → 完全不動。
+  ///   打包資料有、App 沒有的字 → 新增，編號接在最大號後面。
+  ///
+  /// 覆蓋是刻意的：切換到 App 之前，En 資料夾那邊才是權威。
+  /// 等到不再從那邊同步，[SeedSource.bundleVersion] 就不會再變，這段自然不會跑。
+  Future<List<Word>> _syncBundle(List<Word> current) async {
+    final applied =
+        int.tryParse(await _store.read(_bundleVersionKey) ?? '') ?? 0;
+    if (_seed.bundleVersion <= applied) return current;
 
-    final known = {for (final w in current) w.word.toLowerCase()};
+    final incoming = {
+      for (final w in await _seed.bundle()) w.word.toLowerCase(): w,
+    };
     var nextId = current.fold<int>(0, (max, w) => w.id > max ? w.id : max);
 
-    final additions = <Word>[];
-    for (final candidate in await _seed.seedWords()) {
-      if (known.contains(candidate.word.toLowerCase())) continue;
-      additions.add(candidate.copyWith(id: ++nextId));
+    final merged = <Word>[];
+    for (final local in current) {
+      final fresh = incoming.remove(local.word.toLowerCase());
+      merged.add(
+        fresh == null
+            ? local
+            : local.copyWith(
+                right: fresh.right,
+                wrong: fresh.wrong,
+                lastTest: fresh.lastTest,
+              ),
+      );
+    }
+    // 剩下的就是 App 還沒有的字，接在後面。
+    for (final added in incoming.values) {
+      merged.add(added.copyWith(id: ++nextId));
     }
 
-    final merged = [...current, ...additions];
     await _persist(merged);
-    await _store.write(_seedVersionKey, '$latest');
+    await _store.write(_bundleVersionKey, '${_seed.bundleVersion}');
     return merged;
   }
 
@@ -89,7 +109,7 @@ class WordRepository {
   Future<void> resetToSeed() async {
     _cache = null;
     await _store.remove(_wordsKey);
-    await _store.remove(_seedVersionKey);
+    await _store.remove(_bundleVersionKey);
   }
 
   Future<void> _persist(List<Word> words) async {

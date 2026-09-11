@@ -25,11 +25,26 @@ class QuizQuestion {
 }
 
 /// 一題的作答結果。
+///
+/// 時間記到每一題，不只記每一輪。
+/// 想很久才答對，跟一秒就答對，熟練度是兩回事，
+/// 這個差別要留下來，之後才分析得出哪些字其實還不熟。
 class QuizAnswer {
-  const QuizAnswer({required this.question, required this.correct});
+  const QuizAnswer({
+    required this.question,
+    required this.correct,
+    required this.answeredAt,
+    required this.seconds,
+  });
 
   final QuizQuestion question;
   final bool correct;
+
+  /// 按下去的那一刻。
+  final DateTime answeredAt;
+
+  /// 這題想了幾秒，從題目出現算到按下去。
+  final int seconds;
 }
 
 /// 一輪的成績。只存結果，不存過程。

@@ -62,7 +62,11 @@ final quizControllerProvider =
 /// 只管「這一輪」的事。成績寫回單字庫和今日用量是在 [finish] 一次做完，
 /// 中途離開就不算，這是刻意的：半途而廢不該留下紀錄。
 class QuizController extends AutoDisposeAsyncNotifier<QuizState> {
+  /// 整輪的碼錶。
   final _stopwatch = Stopwatch();
+
+  /// 這一題是什麼時候出現的。用來算每題想了幾秒。
+  DateTime? _questionShownAt;
 
   @override
   Future<QuizState> build() async {
@@ -79,6 +83,7 @@ class QuizController extends AutoDisposeAsyncNotifier<QuizState> {
     _stopwatch
       ..reset()
       ..start();
+    _questionShownAt = now;
 
     // 離開測驗頁時把碼錶停掉，不然背景會一直跑。
     ref.onDispose(_stopwatch.stop);
@@ -115,9 +120,17 @@ class QuizController extends AutoDisposeAsyncNotifier<QuizState> {
     final s = state.valueOrNull;
     if (s == null) return false;
 
+    final now = ref.read(clockProvider)();
+    final shown = _questionShownAt ?? now;
+
     final answers = [
       ...s.answers,
-      QuizAnswer(question: s.current, correct: correct),
+      QuizAnswer(
+        question: s.current,
+        correct: correct,
+        answeredAt: now,
+        seconds: now.difference(shown).inSeconds,
+      ),
     ];
 
     if (s.isLast) {
@@ -125,6 +138,8 @@ class QuizController extends AutoDisposeAsyncNotifier<QuizState> {
       return true;
     }
 
+    // 下一題的計時從這一刻重新起算。
+    _questionShownAt = now;
     state = AsyncData(
       s.copyWith(
         index: s.index + 1,
