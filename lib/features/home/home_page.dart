@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
@@ -53,7 +54,7 @@ class _Body extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const SizedBox(height: Gap.md),
-        const Text('今天', style: AppText.title),
+        const _TopBar(),
         const SizedBox(height: Gap.lg),
 
         GlassCard(
@@ -106,6 +107,39 @@ class _Body extends StatelessWidget {
   }
 }
 
+/// 首頁頂端。左邊標題，右邊兩個入口。
+///
+/// 偽裝模式放在最右邊，因為需要用到的時候通常很急。
+class _TopBar extends ConsumerWidget {
+  const _TopBar();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Row(
+      children: [
+        const Text('今天', style: AppText.title),
+        const Spacer(),
+        IconButton(
+          onPressed: () => context.push('/history'),
+          icon: const Icon(Icons.bar_chart_rounded, size: 20),
+          color: AppColors.ink2,
+          tooltip: '總紀錄',
+        ),
+        IconButton(
+          onPressed: () {
+            // 進偽裝模式前先掀旗標，出題時才知道不要出打字題。
+            ref.read(stealthModeProvider.notifier).state = true;
+            context.push('/stealth');
+          },
+          icon: const Icon(Icons.terminal_rounded, size: 20),
+          color: AppColors.ink2,
+          tooltip: '偽裝模式',
+        ),
+      ],
+    );
+  }
+}
+
 class _Row extends StatelessWidget {
   const _Row(this.label, this.value);
 
@@ -135,16 +169,22 @@ class _Row extends StatelessWidget {
 }
 
 /// 做滿上限就真的按不下去。這是防放棄機制的核心，不要改成只跳提示。
-class _StartButton extends StatelessWidget {
+class _StartButton extends ConsumerWidget {
   const _StartButton({required this.state});
 
   final HomeState state;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final blocked = state.limitReached;
     return FilledButton(
-      onPressed: blocked ? null : () => context.push('/quiz'),
+      onPressed: blocked
+          ? null
+          : () {
+              // 從首頁走一般流程，確保上一次的偽裝旗標不會殘留。
+              ref.read(stealthModeProvider.notifier).state = false;
+              context.push('/quiz');
+            },
       style: FilledButton.styleFrom(
         backgroundColor: AppColors.accentSolid,
         disabledBackgroundColor: AppColors.glassFill,

@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../data/repositories/history_repository.dart';
 import '../data/repositories/settings_repository.dart';
 import '../data/repositories/word_repository.dart';
 import '../data/storage/key_value_store.dart';
@@ -22,8 +23,16 @@ final settingsRepositoryProvider = Provider<SettingsRepository>(
   (ref) => SettingsRepository(ref.watch(keyValueStoreProvider)),
 );
 
+final historyRepositoryProvider = Provider<HistoryRepository>(
+  (ref) => HistoryRepository(ref.watch(keyValueStoreProvider)),
+);
+
 /// 時間來源。測試時換掉這個就能固定「現在」。
 final clockProvider = Provider<DateTime Function()>((ref) => DateTime.now);
+
+/// 偽裝模式。開著的時候這一輪不出打字題，
+/// 因為偽裝畫面要假裝成終端機，跳出中文輸入法就穿幫了。
+final stealthModeProvider = StateProvider<bool>((ref) => false);
 
 /// 剛結束那一輪的成績，給結果頁讀。
 /// 不用 autoDispose，因為從測驗頁跳到結果頁的過程中測驗頁會被銷毀。

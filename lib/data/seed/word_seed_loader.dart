@@ -1,59 +1,33 @@
 import 'package:flutter/services.dart' show rootBundle;
 
 import '../../domain/models/word.dart';
+import 'seed_source.dart';
 
 /// 把打包在 App 裡的題庫與既有紀錄讀進來。
-///
-/// 只在第一次開啟時用。之後資料以本機儲存為準，不再回頭讀這些檔。
 ///
 /// 兩個來源：
 ///   assets/data/seed-words.txt  題庫，還沒考過的候選字
 ///   assets/data/words.txt       使用者已經考過的字，帶著對錯次數
 ///
-/// 兩個檔的欄位都用「兩個以上空白」分隔，開頭是 # 的是表頭。
-class WordSeedLoader {
+/// 欄位都用「兩個以上空白」分隔，開頭是 # 的是註解或表頭。
+/// 第一行的 `# seed-version: N` 是題庫版本，加了新字就要往上加。
+class WordSeedLoader implements SeedSource {
   static final _separator = RegExp(r' {2,}');
+  static final _versionLine = RegExp(r'^#\s*seed-version:\s*(\d+)');
 
-  Future<List<Word>> load() async {
-    final seeds = await _readSeed();
-    final history = await _readExisting();
-
-    // 用小寫當鍵比對，避免 Monday 這種大寫字重複收錄。
-    final byWord = <String, Word>{};
-    for (final w in seeds) {
-      byWord[w.word.toLowerCase()] = w;
+  @override
+  Future<int> version() async {
+    final raw = await rootBundle.loadString('assets/data/seed-words.txt');
+    for (final line in raw.split('\n').take(5)) {
+      final match = _versionLine.firstMatch(line.trim());
+      if (match != null) return int.parse(match.group(1)!);
     }
-
-    // 已經考過的字覆蓋掉題庫那筆，成績才不會被洗掉。
-    // 題庫沒有但考過的字（例如當初隨口問的）也要留著。
-    var nextId = seeds.length;
-    for (final entry in history.entries) {
-      final existing = byWord[entry.key];
-      if (existing != null) {
-        byWord[entry.key] = existing.copyWith(
-          right: entry.value.right,
-          wrong: entry.value.wrong,
-          lastTest: entry.value.lastTest,
-        );
-      } else {
-        byWord[entry.key] = Word(
-          id: ++nextId,
-          word: entry.value.word,
-          pos: entry.value.pos,
-          zh: entry.value.zh,
-          level: WordLevel.elementary,
-          right: entry.value.right,
-          wrong: entry.value.wrong,
-          lastTest: entry.value.lastTest,
-        );
-      }
-    }
-
-    return byWord.values.toList()..sort((a, b) => a.id.compareTo(b.id));
+    // 沒寫版本就當第一版，避免舊檔讓整個升級流程卡住。
+    return 1;
   }
 
-  /// 題庫：no / word / pos / zh / level
-  Future<List<Word>> _readSeed() async {
+  @override
+  Future<List<Word>> seedWords() async {
     final raw = await rootBundle.loadString('assets/data/seed-words.txt');
     final words = <Word>[];
     for (final line in _rows(raw)) {
@@ -70,6 +44,43 @@ class WordSeedLoader {
       );
     }
     return words;
+  }
+
+  @override
+  Future<List<Word>> initialImport() async {
+    final seeds = await seedWords();
+    final history = await _readExisting();
+
+    // 用小寫當鍵比對，避免 Monday 這種大寫字重複收錄。
+    final byWord = <String, Word>{};
+    for (final w in seeds) {
+      byWord[w.word.toLowerCase()] = w;
+    }
+
+    // 已經考過的字覆蓋掉題庫那筆，成績才不會被洗掉。
+    // 題庫沒有但考過的字也要留著，那是使用者實際碰過的字。
+    var nextId = seeds.length;
+    for (final entry in history.entries) {
+      final existing = byWord[entry.key];
+      byWord[entry.key] = existing != null
+          ? existing.copyWith(
+              right: entry.value.right,
+              wrong: entry.value.wrong,
+              lastTest: entry.value.lastTest,
+            )
+          : Word(
+              id: ++nextId,
+              word: entry.value.word,
+              pos: entry.value.pos,
+              zh: entry.value.zh,
+              level: WordLevel.elementary,
+              right: entry.value.right,
+              wrong: entry.value.wrong,
+              lastTest: entry.value.lastTest,
+            );
+    }
+
+    return byWord.values.toList()..sort((a, b) => a.id.compareTo(b.id));
   }
 
   /// 既有紀錄：no / word / pos / zh / example / added / right / wrong / last_test
@@ -92,7 +103,7 @@ class WordSeedLoader {
     return result;
   }
 
-  /// 去掉表頭與空行，順便修掉行尾空白。
+  /// 去掉註解與空行，順便修掉行尾空白。
   Iterable<String> _rows(String raw) => raw
       .split('\n')
       .map((l) => l.trimRight())

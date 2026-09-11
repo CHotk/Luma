@@ -1,3 +1,4 @@
+# seed-version: 1
 # no  word               pos         zh                level
 1     a                  art.        一個              國小
 2     about              prep.       關於              國小

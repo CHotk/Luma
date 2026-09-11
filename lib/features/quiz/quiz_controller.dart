@@ -70,7 +70,12 @@ class QuizController extends AutoDisposeAsyncNotifier<QuizState> {
     final rules = await ref.read(settingsRepositoryProvider).loadRules();
     final now = ref.read(clockProvider)();
 
-    final questions = QuestionPicker(rules: rules).pick(words, now: now);
+    // 偽裝模式全部用點選題，不出打字題。
+    final effective = ref.read(stealthModeProvider)
+        ? rules.copyWith(typeQuestions: 0)
+        : rules;
+
+    final questions = QuestionPicker(rules: effective).pick(words, now: now);
     _stopwatch
       ..reset()
       ..start();
@@ -81,11 +86,11 @@ class QuizController extends AutoDisposeAsyncNotifier<QuizState> {
     return QuizState(questions: questions, index: 0, answers: const []);
   }
 
-  /// 點選題翻面。
-  void reveal() {
+  /// 點選題翻面。可以來回翻，看了中文想再確認一次英文很正常。
+  void toggleReveal() {
     final s = state.valueOrNull;
     if (s == null) return;
-    state = AsyncData(s.copyWith(revealed: true));
+    state = AsyncData(s.copyWith(revealed: !s.revealed));
   }
 
   void updateInput(String value) {
@@ -143,6 +148,11 @@ class QuizController extends AutoDisposeAsyncNotifier<QuizState> {
     );
 
     await ref.read(wordRepositoryProvider).applyRound(result);
+
+    // 總歷史只增不改。單字上的對錯次數要等於這份紀錄的加總。
+    await ref
+        .read(historyRepositoryProvider)
+        .appendRound(result, stealth: ref.read(stealthModeProvider));
 
     final settings = ref.read(settingsRepositoryProvider);
     final usage = await settings.loadUsage(now);

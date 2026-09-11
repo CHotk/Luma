@@ -67,9 +67,9 @@ class Word {
     return WordStatus.pending;
   }
 
-  Word copyWith({int? right, int? wrong, DateTime? lastTest}) {
+  Word copyWith({int? id, int? right, int? wrong, DateTime? lastTest}) {
     return Word(
-      id: id,
+      id: id ?? this.id,
       word: word,
       pos: pos,
       zh: zh,

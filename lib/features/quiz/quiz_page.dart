@@ -115,7 +115,7 @@ class _TapCard extends ConsumerWidget {
     return GlassCard(
       radius: 22,
       padding: const EdgeInsets.all(22),
-      onTap: () => ref.read(quizControllerProvider.notifier).reveal(),
+      onTap: () => ref.read(quizControllerProvider.notifier).toggleReveal(),
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -126,7 +126,7 @@ class _TapCard extends ConsumerWidget {
                   Text(word.pos, style: AppText.note),
                 ]
               : [
-                  const Text('點一下看答案', style: AppText.note),
+                  const Text('點一下看答案，再點一下翻回來', style: AppText.note),
                   const SizedBox(height: Gap.sm),
                   Text(word.word, style: AppText.hero),
                   const SizedBox(height: Gap.xs),
