@@ -85,6 +85,16 @@ class _ProgressBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
+        // 考到一半要能走。答過的題目在作答當下就寫進紀錄了，離開不會掉。
+        IconButton(
+          onPressed: () => Navigator.of(context).maybePop(),
+          icon: const Icon(Icons.close, size: 19),
+          color: AppColors.ink3,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+          tooltip: '離開這輪',
+        ),
+        const SizedBox(width: Gap.sm),
         Expanded(
           child: ClipRRect(
             borderRadius: BorderRadius.circular(99),
