@@ -5,6 +5,7 @@ import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
 import '../../domain/models/history.dart';
+import '../../domain/models/word.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/glass_card.dart';
 import '../../shared/widgets/status_pill.dart';
@@ -88,7 +89,7 @@ class _Body extends StatelessWidget {
                 ],
               ),
             ),
-            StatusPill(status: word.statusWith(detail.confirmRight)),
+            StatusPill(status: word.statusWith(detail.rules)),
           ],
         ),
         const SizedBox(height: Gap.md),
@@ -116,7 +117,10 @@ class _Body extends StatelessWidget {
               _Row('答對', '${word.right} 次'),
               _Row('答錯', '${word.wrong} 次'),
               _Row('階段', word.grade.label),
-              _Row('過關門檻', '答對 ${detail.confirmRight} 次且沒錯過'),
+              if (word.statusWith(detail.rules) == WordStatus.confirmed)
+                _Row('狀態', '已經掌握，次數繼續累計')
+              else
+                _Row('離掌握還差', '${word.rightNeededFor(detail.rules)} 次答對'),
             ],
           ),
         ),

@@ -22,7 +22,10 @@ class QuestionPicker {
     // 幾種來源互相補位，一輪的題數才固定：
     //   待複習不夠 → 補新字
     //   新字不夠   → 補待複習
-    //   兩邊都沒了 → 補已經確認會的字
+    //   兩邊都沒了 → 補已經掌握的字
+    //
+    // 四個池子都用 [Word.statusWith] 判斷，不要在這裡自己寫條件，
+    // 不然狀態的定義改了這裡會默默地跟不上。
     final target = rules.newPerRound;
     final pendingPool = _pendingPool(all);
     final freshPool = _freshPool(all);
@@ -65,7 +68,8 @@ class QuestionPicker {
   /// 沒考過的字。題庫順序本身是照字母排的，直接取會整輪都是同一個字母，
   /// 所以先洗牌再取。
   List<Word> _freshPool(List<Word> all) =>
-      all.where((w) => w.isUntested).toList()..shuffle(_random);
+      all.where((w) => w.statusWith(rules) == WordStatus.untested).toList()
+        ..shuffle(_random);
 
   /// 待複習：**錯過就算**，跟後來有沒有答對無關。
   ///
@@ -75,20 +79,21 @@ class QuestionPicker {
   /// 錯最多次的先回來，同樣次數就挑最久沒考的，
   /// 不然同一個字會一直霸著位置，其他錯過的字永遠輪不到。
   List<Word> _pendingPool(List<Word> all) =>
-      all.where((w) => w.wrong > 0).toList()..sort((a, b) {
-        if (a.wrong != b.wrong) return b.wrong.compareTo(a.wrong);
-        final at = a.lastTest;
-        final bt = b.lastTest;
-        if (at == null && bt == null) return 0;
-        if (at == null) return -1;
-        if (bt == null) return 1;
-        return at.compareTo(bt);
-      });
+      all.where((w) => w.statusWith(rules) == WordStatus.pending).toList()
+        ..sort((a, b) {
+          if (a.wrong != b.wrong) return b.wrong.compareTo(a.wrong);
+          final at = a.lastTest;
+          final bt = b.lastTest;
+          if (at == null && bt == null) return 0;
+          if (at == null) return -1;
+          if (bt == null) return 1;
+          return at.compareTo(bt);
+        });
 
   /// 已經確認會的字，最久沒考的排前面。
   /// 只有在新字和待複習都用完時才會動到這批。
   List<Word> _confirmedPool(List<Word> all) =>
-      all.where((w) => w.right >= rules.confirmRight && w.wrong == 0).toList()
+      all.where((w) => w.statusWith(rules) == WordStatus.confirmed).toList()
         ..sort((a, b) {
           final at = a.lastTest;
           final bt = b.lastTest;
@@ -102,12 +107,7 @@ class QuestionPicker {
   /// 挑最久沒被考的優先，這樣每個字都輪得到。
   List<({Word word, bool isReview})> _pickReview(List<Word> all) {
     final pool =
-        all
-            .where(
-              (w) =>
-                  w.right >= 1 && w.wrong == 0 && w.right < rules.confirmRight,
-            )
-            .toList()
+        all.where((w) => w.statusWith(rules) == WordStatus.learning).toList()
           ..sort((a, b) {
             final at = a.lastTest;
             final bt = b.lastTest;

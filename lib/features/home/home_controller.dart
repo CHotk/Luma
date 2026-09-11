@@ -35,7 +35,7 @@ final homeStateProvider = FutureProvider.autoDispose<HomeState>((ref) async {
   final words = await ref.watch(wordRepositoryProvider).loadAll();
   final rules = await settings.loadRules();
   final usage = await settings.loadUsage(now);
-  final summary = Scoring.summarize(words, rules.confirmRight);
+  final summary = Scoring.summarize(words, rules);
 
   return HomeState(
     rules: rules,

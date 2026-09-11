@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
 import '../../domain/models/word.dart';
+import '../../domain/rules_config.dart';
 import '../../domain/scoring.dart';
 
 /// 搜尋字串。英文和中文都能搜。
@@ -17,7 +18,7 @@ class LibraryData {
   const LibraryData({
     required this.words,
     required this.counts,
-    required this.confirmRight,
+    required this.rules,
   });
 
   /// 篩選與搜尋之後的結果。
@@ -27,7 +28,7 @@ class LibraryData {
   /// 不然篩選鈕上的數字會跟著搜尋跳動，很難用。
   final Map<WordStatus, int> counts;
 
-  final int confirmRight;
+  final RulesConfig rules;
 }
 
 final libraryProvider = FutureProvider.autoDispose<LibraryData>((ref) async {
@@ -37,11 +38,11 @@ final libraryProvider = FutureProvider.autoDispose<LibraryData>((ref) async {
   final query = ref.watch(libraryQueryProvider).trim();
   final filter = ref.watch(libraryFilterProvider);
 
-  final counts = Scoring.countByStatus(all, rules.confirmRight);
+  final counts = Scoring.countByStatus(all, rules);
 
   final lower = query.toLowerCase();
   final filtered = all.where((w) {
-    if (filter != null && w.statusWith(rules.confirmRight) != filter) {
+    if (filter != null && w.statusWith(rules) != filter) {
       return false;
     }
     if (query.isEmpty) return true;
@@ -50,15 +51,11 @@ final libraryProvider = FutureProvider.autoDispose<LibraryData>((ref) async {
 
   // 待複習的排前面，那是最需要看的。同一種狀態就照原本的編號。
   filtered.sort((a, b) {
-    final sa = a.statusWith(rules.confirmRight).priority;
-    final sb = b.statusWith(rules.confirmRight).priority;
+    final sa = a.statusWith(rules).priority;
+    final sb = b.statusWith(rules).priority;
     if (sa != sb) return sa.compareTo(sb);
     return a.id.compareTo(b.id);
   });
 
-  return LibraryData(
-    words: filtered,
-    counts: counts,
-    confirmRight: rules.confirmRight,
-  );
+  return LibraryData(words: filtered, counts: counts, rules: rules);
 });

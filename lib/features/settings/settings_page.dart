@@ -148,8 +148,8 @@ class _Body extends ConsumerWidget {
           child: Column(
             children: [
               _Stepper(
-                title: '算真的會的門檻',
-                note: '答對這麼多次而且沒錯過',
+                title: '沒錯過的字要答對幾次算掌握',
+                note: '從頭到尾沒錯過才走這條',
                 value: '${rules.confirmRight} 次',
                 onMinus: rules.confirmRight > 1
                     ? () => save(
@@ -159,6 +159,24 @@ class _Body extends ConsumerWidget {
                 onPlus: rules.confirmRight < 5
                     ? () => save(
                         rules.copyWith(confirmRight: rules.confirmRight + 1),
+                      )
+                    : null,
+              ),
+              const _Hair(),
+              _Stepper(
+                title: '錯過的字要答對幾倍才算掌握',
+                note:
+                    '錯 1 次要答對 ${rules.recoveryRatio} 次，'
+                    '錯 5 次就要 ${rules.recoveryRatio * 5} 次',
+                value: '${rules.recoveryRatio} 倍',
+                onMinus: rules.recoveryRatio > 1
+                    ? () => save(
+                        rules.copyWith(recoveryRatio: rules.recoveryRatio - 1),
+                      )
+                    : null,
+                onPlus: rules.recoveryRatio < 30
+                    ? () => save(
+                        rules.copyWith(recoveryRatio: rules.recoveryRatio + 1),
                       )
                     : null,
               ),

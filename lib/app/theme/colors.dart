@@ -19,10 +19,20 @@ abstract final class AppColors {
   static const accentSolid = Color(0xFF2E6BFF);
 
   /// 語意色。跟主色分開，不可互相借用。
-  /// 綠代表答對、黃代表未確認、紅代表答錯，標誌和裝飾都不准用這三個。
+  /// 綠代表答對、黃代表接近、紅代表答錯，標誌和裝飾都不准用這三個。
   static const ok = Color(0xFF5FE08D);
   static const mid = Color(0xFFF5C763);
   static const bad = Color(0xFFFF938B);
+
+  /// 單字四種狀態的標籤色。
+  ///
+  /// 待複習用棕色不用紅色：紅色是「答錯了」那一刻的顏色，
+  /// 待複習是一個狀態不是一個錯誤，用暖棕比較不焦慮。
+  /// 沒考過用灰色：它不是問題，只是還沒碰過，不該跟待複習搶注意力。
+  static const statusMastered = ok;
+  static const statusLearning = mid;
+  static const statusPending = Color(0xFFC9865A);
+  static const statusUntested = Color(0xFF7C7B90);
 
   // 毛玻璃面板
   static const glassFill = Color(0x13FFFFFF);

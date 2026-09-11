@@ -35,6 +35,7 @@ class RulesConfig {
     this.roundsPerDay = 5,
     this.minutesPerDay = 15,
     this.confirmRight = 3,
+    this.recoveryRatio = 10,
     this.quizStyle = QuizStyle.tapOnly,
   });
 
@@ -79,6 +80,12 @@ class RulesConfig {
   /// 調高之後，原本已確認但沒到新門檻的字會自動掉回未確認。
   final int confirmRight;
 
+  /// 錯過的字要翻身，答對次數得是答錯次數的幾倍。
+  ///
+  /// 預設十倍：錯五次就要答對五十次才算掌握，整個字總共會被考五十五次。
+  /// 這個數字刻意訂得重，錯過的字本來就該被多考幾次才能相信。
+  final int recoveryRatio;
+
   int get questionsPerRound => newPerRound + reviewPerRound;
 
   RulesConfig copyWith({
@@ -89,6 +96,7 @@ class RulesConfig {
     int? roundsPerDay,
     int? minutesPerDay,
     int? confirmRight,
+    int? recoveryRatio,
     QuizStyle? quizStyle,
   }) {
     return RulesConfig(
@@ -99,6 +107,7 @@ class RulesConfig {
       roundsPerDay: roundsPerDay ?? this.roundsPerDay,
       minutesPerDay: minutesPerDay ?? this.minutesPerDay,
       confirmRight: confirmRight ?? this.confirmRight,
+      recoveryRatio: recoveryRatio ?? this.recoveryRatio,
       quizStyle: quizStyle ?? this.quizStyle,
     );
   }
@@ -112,6 +121,7 @@ class RulesConfig {
     'roundsPerDay': roundsPerDay,
     'minutesPerDay': minutesPerDay,
     'confirmRight': confirmRight,
+    'recoveryRatio': recoveryRatio,
   };
 
   factory RulesConfig.fromJson(Map<String, dynamic> json) {
@@ -125,6 +135,7 @@ class RulesConfig {
       roundsPerDay: json['roundsPerDay'] as int? ?? d.roundsPerDay,
       minutesPerDay: json['minutesPerDay'] as int? ?? d.minutesPerDay,
       confirmRight: json['confirmRight'] as int? ?? d.confirmRight,
+      recoveryRatio: json['recoveryRatio'] as int? ?? d.recoveryRatio,
     );
   }
 }

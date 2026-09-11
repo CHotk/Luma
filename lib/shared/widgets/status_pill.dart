@@ -13,10 +13,10 @@ class StatusPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = switch (status) {
-      WordStatus.confirmed => AppColors.ok,
-      WordStatus.learning => AppColors.mid,
-      WordStatus.pending => AppColors.bad,
-      WordStatus.untested => AppColors.ink3,
+      WordStatus.confirmed => AppColors.statusMastered,
+      WordStatus.learning => AppColors.statusLearning,
+      WordStatus.pending => AppColors.statusPending,
+      WordStatus.untested => AppColors.statusUntested,
     };
 
     return Container(

@@ -6,6 +6,7 @@ import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
 import '../../domain/models/word.dart';
+import '../../domain/rules_config.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/status_pill.dart';
 import 'library_controller.dart';
@@ -118,10 +119,8 @@ class _List extends ConsumerWidget {
                   itemCount: data.words.length,
                   separatorBuilder: (_, _) =>
                       const Divider(height: 1, color: AppColors.glassEdge),
-                  itemBuilder: (context, i) => _Row(
-                    word: data.words[i],
-                    confirmRight: data.confirmRight,
-                  ),
+                  itemBuilder: (context, i) =>
+                      _Row(word: data.words[i], rules: data.rules),
                 ),
         ),
       ],
@@ -165,10 +164,10 @@ class _Chip extends ConsumerWidget {
 }
 
 class _Row extends StatelessWidget {
-  const _Row({required this.word, required this.confirmRight});
+  const _Row({required this.word, required this.rules});
 
   final Word word;
-  final int confirmRight;
+  final RulesConfig rules;
 
   @override
   Widget build(BuildContext context) {
@@ -199,7 +198,7 @@ class _Row extends StatelessWidget {
                 ],
               ),
             ),
-            StatusPill(status: word.statusWith(confirmRight)),
+            StatusPill(status: word.statusWith(rules)),
             const SizedBox(width: Gap.sm),
             SizedBox(
               width: 46,

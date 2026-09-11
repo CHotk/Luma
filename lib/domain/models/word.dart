@@ -1,3 +1,5 @@
+import '../rules_config.dart';
+
 /// 單字大概是哪個階段學的，對應題庫檔的最後一欄。
 ///
 /// 只分四級。曾經細分到小一小六，但那層沒有官方依據，
@@ -26,8 +28,11 @@ enum WordGrade {
 
 /// 一個字的四種狀態。判定規則寫在 [Word.statusWith]，不要在別處重算。
 enum WordStatus {
-  /// 答對次數達到門檻，而且從沒答錯過。
-  confirmed('已確認'),
+  /// 已經可以相信這個字真的會了。
+  ///
+  /// 兩種進法：從沒錯過而且答對達門檻，
+  /// 或是錯過但後來答對次數是答錯次數的好幾倍。
+  confirmed('掌握'),
 
   /// 會，但還沒到門檻。從沒錯過才算這一類。
   learning('未確認'),
@@ -36,7 +41,7 @@ enum WordStatus {
   ///
   /// 這條定義是使用者 2026-09-11 明確講的：
   /// 「待複習本身就是有答錯過的就算，而不是沒答對過」。
-  /// 所以 right=5 wrong=1 的字仍然是待複習，不會因為後來答對了就畢業。
+  /// 要離開這一類只有一條路：答對次數累積到答錯次數的 recoveryRatio 倍。
   pending('待複習'),
 
   /// 從來沒被考過。它不是待複習，因為你根本還沒碰過它。
@@ -111,12 +116,27 @@ class Word {
 
   /// 狀態要帶著門檻一起算，因為門檻是使用者可調的。
   /// 門檻調高之後，原本已確認的字會自動掉回未確認，這是刻意的行為。
-  WordStatus statusWith(int confirmRight) {
-    // 錯過就是待複習，這條優先於其他判斷。
-    if (wrong > 0) return WordStatus.pending;
-    if (right >= confirmRight) return WordStatus.confirmed;
+  WordStatus statusWith(RulesConfig rules) {
+    if (wrong > 0) {
+      // 錯過的字要翻身，答對次數得是答錯次數的好幾倍。
+      // 錯五次、倍率十，就是要答對五十次。訂得重是刻意的。
+      return right >= wrong * rules.recoveryRatio
+          ? WordStatus.confirmed
+          : WordStatus.pending;
+    }
+    if (right >= rules.confirmRight) return WordStatus.confirmed;
     if (right >= 1) return WordStatus.learning;
     return WordStatus.untested;
+  }
+
+  /// 這個字離掌握還差幾次答對。已經掌握就是 0，代表「不差了」。
+  ///
+  /// 注意：這只是算給畫面看的，對錯次數本身永遠繼續累加，
+  /// 不會因為掌握了就歸零或停止計數。
+  int rightNeededFor(RulesConfig rules) {
+    final target = wrong > 0 ? wrong * rules.recoveryRatio : rules.confirmRight;
+    final left = target - right;
+    return left < 0 ? 0 : left;
   }
 
   Word copyWith({
