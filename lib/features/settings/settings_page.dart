@@ -93,7 +93,7 @@ class _Body extends ConsumerWidget {
                       rules.copyWith(typeQuestions: rules.typeQuestions - 1),
                     )
                   : null,
-              onPlus: rules.typeQuestions < rules.questionsPerRound
+              onPlus: rules.typeQuestions < rules.roundSize
                   ? () => save(
                       rules.copyWith(typeQuestions: rules.typeQuestions + 1),
                     )
@@ -192,7 +192,7 @@ class _Body extends ConsumerWidget {
                         ),
                       )
                     : null,
-                onPlus: rules.pendingPerRound < rules.newPerRound
+                onPlus: rules.pendingPerRound < rules.roundSize
                     ? () => save(
                         rules.copyWith(
                           pendingPerRound: rules.pendingPerRound + 1,
@@ -203,19 +203,15 @@ class _Body extends ConsumerWidget {
               const _Hair(),
               _Stepper(
                 title: '每輪出題數',
-                note:
-                    '新字 ${rules.freshPerRound} 加待複習 ${rules.pendingPerRound}，'
-                    '另外回考 ${rules.reviewPerRound} 個',
-                value: '${rules.newPerRound} 題',
-                onMinus: rules.newPerRound > 3
-                    ? () => save(
-                        rules.copyWith(newPerRound: rules.newPerRound - 1),
-                      )
+
+                note: '新字 ${rules.freshPerRound} 加待複習 ${rules.pendingPerRound}',
+
+                value: '${rules.roundSize} 題',
+                onMinus: rules.roundSize > 3
+                    ? () => save(rules.copyWith(roundSize: rules.roundSize - 1))
                     : null,
-                onPlus: rules.newPerRound < 20
-                    ? () => save(
-                        rules.copyWith(newPerRound: rules.newPerRound + 1),
-                      )
+                onPlus: rules.roundSize < 20
+                    ? () => save(rules.copyWith(roundSize: rules.roundSize + 1))
                     : null,
               ),
             ],
@@ -224,7 +220,7 @@ class _Body extends ConsumerWidget {
 
         const SizedBox(height: Gap.md),
         Text(
-          '一輪共 ${rules.questionsPerRound} 題。'
+          '一輪共 ${rules.roundSize} 題。'
           '拼字判定不管大小寫，複數算錯，a 和 an 算不同的字。',
           textAlign: TextAlign.center,
           style: AppText.note,

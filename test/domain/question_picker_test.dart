@@ -43,18 +43,18 @@ void main() {
 
   const rules = RulesConfig();
 
-  test('一輪十題：六個新字、三個待複習、一個未確認', () {
+  test('一輪十題：六個新字、四個待複習', () {
     final picked = QuestionPicker(
       rules: rules,
       random: Random(1),
     ).pick(library(), now: now);
 
     expect(picked.length, 10);
-    expect(picked.where((q) => q.isReview).length, 1);
+    expect(picked.where((q) => q.isReview).length, 4);
 
     final words = picked.map((q) => q.word.word).toList();
     expect(words.where((w) => w.startsWith('fresh')).length, 6);
-    expect(words.where((w) => w.startsWith('wrong')).length, 3);
+    expect(words.where((w) => w.startsWith('wrong')).length, 4);
   });
 
   test('待複習挑錯最多次的', () {
@@ -68,7 +68,7 @@ void main() {
         .where((w) => w.word.startsWith('wrong'))
         .map((w) => w.wrong)
         .toList();
-    expect(pending, containsAll([5, 4, 3]), reason: '錯最多次的三個沒被排進來');
+    expect(pending, containsAll([5, 4, 3, 2]), reason: '錯最多次的四個沒被排進來');
   });
 
   test('新字不夠時用待複習補滿', () {
@@ -82,10 +82,10 @@ void main() {
       random: Random(1),
     ).pick(pool, now: now);
 
-    expect(picked.length, rules.newPerRound);
+    expect(picked.length, rules.roundSize);
     final words = picked.map((q) => q.word.word).toList();
     expect(words.where((w) => w.startsWith('fresh')).length, 3);
-    expect(words.where((w) => w.startsWith('wrong')).length, 6);
+    expect(words.where((w) => w.startsWith('wrong')).length, 7);
   });
 
   test('答對過但也錯過的字仍然算待複習，會被抽到', () {
@@ -100,10 +100,10 @@ void main() {
       random: Random(1),
     ).pick(pool, now: now);
 
-    expect(picked.length, rules.newPerRound);
+    expect(picked.length, rules.roundSize);
     expect(
       picked.where((q) => q.word.word.startsWith('shaky')).length,
-      8,
+      9,
       reason: '錯過的字沒被當成待複習',
     );
   });
@@ -139,9 +139,9 @@ void main() {
       random: Random(1),
     ).pick(pool, now: now);
 
-    expect(picked.length, rules.newPerRound, reason: '墊底的字沒補上來，一輪變少了');
+    expect(picked.length, rules.roundSize, reason: '墊底的字沒補上來，一輪變少了');
     final words = picked.map((q) => q.word.word).toList();
-    expect(words.where((w) => w.startsWith('done')).length, 7);
+    expect(words.where((w) => w.startsWith('done')).length, 8);
   });
 
   test('待複習不夠時用新字補滿，題數不能少', () {
@@ -151,7 +151,7 @@ void main() {
       random: Random(1),
     ).pick(onlyFresh, now: now);
 
-    expect(picked.length, rules.newPerRound, reason: '沒有回考的字，但新字要補滿');
+    expect(picked.length, rules.roundSize, reason: '沒有回考的字，但新字要補滿');
   });
 
   test('關掉待複習就全部出新字', () {
@@ -162,7 +162,7 @@ void main() {
 
     final words = picked.map((q) => q.word.word).toList();
     expect(words.where((w) => w.startsWith('wrong')).length, 0);
-    expect(words.where((w) => w.startsWith('fresh')).length, 9);
+    expect(words.where((w) => w.startsWith('fresh')).length, 10);
   });
 
   test('只點選模式不出打字題', () {

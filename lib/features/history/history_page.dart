@@ -45,8 +45,11 @@ class HistoryPage extends ConsumerWidget {
                     ),
                     error: (e, _) =>
                         Center(child: Text('讀不到紀錄：$e', style: AppText.bodyDim)),
-                    data: (data) =>
-                        _Body(stats: data.stats, rounds: data.rounds),
+                    data: (data) => _Body(
+                      stats: data.stats,
+                      rounds: data.rounds,
+                      activity: data.recent,
+                    ),
                   ),
                 ),
               ],
@@ -58,21 +61,34 @@ class HistoryPage extends ConsumerWidget {
   }
 }
 
-/// 這頁要的兩份資料一起抓，省掉畫面裡串兩個 future。
+/// 這頁要的三份資料一起抓，省掉畫面裡串好幾個 future。
 final historyOverviewProvider =
-    FutureProvider.autoDispose<({LifetimeStats stats, List<RoundLog> rounds})>((
-      ref,
-    ) async {
+    FutureProvider.autoDispose<
+      ({LifetimeStats stats, List<RoundLog> rounds, List<HistoryEntry> recent})
+    >((ref) async {
       ref.watch(dataRevisionProvider);
       final repo = ref.watch(historyRepositoryProvider);
-      return (stats: await repo.lifetime(), rounds: await repo.rounds());
+      final entries = await repo.entries();
+      return (
+        stats: await repo.lifetime(),
+        rounds: await repo.rounds(),
+        // 最近十筆活動，新的排前面。
+        recent: entries.reversed.take(10).toList(),
+      );
     });
 
 class _Body extends StatelessWidget {
-  const _Body({required this.stats, required this.rounds});
+  const _Body({
+    required this.stats,
+    required this.rounds,
+    required this.activity,
+  });
 
   final LifetimeStats stats;
   final List<RoundLog> rounds;
+
+  /// 最近十筆單題紀錄，像交易明細那樣一條一條列。
+  final List<HistoryEntry> activity;
 
   @override
   Widget build(BuildContext context) {
@@ -112,6 +128,13 @@ class _Body extends StatelessWidget {
             ],
           ),
         ),
+        if (activity.isNotEmpty) ...[
+          const SizedBox(height: Gap.lg),
+          const PanelLabel('最近活動'),
+          const SizedBox(height: Gap.xs),
+          for (final e in activity) _ActivityRow(entry: e),
+        ],
+
         const SizedBox(height: Gap.lg),
         const PanelLabel('每一輪'),
         const SizedBox(height: Gap.xs),
@@ -153,6 +176,78 @@ class _Tile extends StatelessWidget {
       ),
     );
   }
+}
+
+/// 最近活動的一行。像交易明細：什麼字、答對還答錯、什麼時候。
+class _ActivityRow extends StatelessWidget {
+  const _ActivityRow({required this.entry});
+
+  final HistoryEntry entry;
+
+  @override
+  Widget build(BuildContext context) {
+    final ok = entry.correct;
+    // 舊資料只有日期沒有時分，那就只顯示日期，不要假裝有時間。
+    final hasClock = entry.at.hour != 0 || entry.at.minute != 0;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppColors.glassEdge)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            margin: const EdgeInsets.only(right: 10),
+            decoration: BoxDecoration(
+              color: ok ? AppColors.ok : AppColors.statusPending,
+              shape: BoxShape.circle,
+            ),
+          ),
+          Expanded(
+            child: Text(
+              entry.word,
+              style: const TextStyle(
+                fontSize: 14.5,
+                fontWeight: FontWeight.w600,
+                color: AppColors.ink,
+              ),
+            ),
+          ),
+          Text(
+            ok ? '答對' : '答錯',
+            style: TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+              color: ok ? AppColors.ok : AppColors.statusPending,
+            ),
+          ),
+          const SizedBox(width: Gap.md),
+          SizedBox(
+            width: 96,
+            child: Text(
+              hasClock ? _stamp(entry.at) : _dayOnly(entry.at),
+              textAlign: TextAlign.right,
+              style: const TextStyle(
+                fontSize: 11.5,
+                color: AppColors.ink3,
+                fontFeatures: [FontFeature.tabularFigures()],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String _two(int n) => n.toString().padLeft(2, '0');
+
+  static String _dayOnly(DateTime d) => '${_two(d.month)}-${_two(d.day)}';
+
+  static String _stamp(DateTime d) =>
+      '${_two(d.month)}-${_two(d.day)} ${_two(d.hour)}:${_two(d.minute)}';
 }
 
 class _RoundRow extends StatelessWidget {

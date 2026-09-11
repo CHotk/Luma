@@ -28,34 +28,30 @@ enum QuizStyle {
 /// 設定頁改的是覆寫後的 [RulesConfig] 實例，不是改這個檔的預設值。
 class RulesConfig {
   const RulesConfig({
-    this.newPerRound = 9,
-    this.pendingPerRound = 3,
-    this.reviewPerRound = 1,
+    this.roundSize = 10,
+    this.pendingPerRound = 4,
     this.typeQuestions = 3,
     this.roundsPerDay = 5,
     this.minutesPerDay = 15,
     this.confirmRight = 3,
-    this.recoveryRatio = 10,
+    this.recoveryRatio = 7,
     this.quizStyle = QuizStyle.tapOnly,
   });
 
-  /// 每輪這一段有幾個題目。它不是「全新的字」的數量，
-  /// 其中有 [pendingPerRound] 個會改抽待複習的字。
-  final int newPerRound;
+  /// 一輪總共幾題。
+  final int roundSize;
 
-  /// 上面那幾題裡面，有幾題要抽答錯過又還沒答對的字。
-  /// 錯過的字不主動回來考，它就只會一直躺在清單裡。
+  /// 其中有幾題抽待複習的字，其餘出新字。
+  ///
+  /// 待複習是「考過但還沒掌握」的字，
+  /// 含答錯過的，也含答對過但還沒到門檻的。只有三種狀態，沒有中間類別。
   final int pendingPerRound;
 
   /// 真正沒考過的字要出幾題。
   int get freshPerRound {
-    final fresh = newPerRound - pendingPerRound;
+    final fresh = roundSize - pendingPerRound;
     return fresh < 0 ? 0 : fresh;
   }
-
-  /// 每輪回考幾個已經答對過的舊字。
-  /// 用來驗證是真的會還是猜中的，連續答對兩次才算真的會。
-  final int reviewPerRound;
 
   /// 混合模式下有幾題要打字。其他模式不看這個值。
   final int typeQuestions;
@@ -67,7 +63,7 @@ class RulesConfig {
   int get effectiveTypeQuestions => switch (quizStyle) {
     QuizStyle.tapOnly => 0,
     QuizStyle.mixed => typeQuestions,
-    QuizStyle.typeOnly => questionsPerRound,
+    QuizStyle.typeOnly => roundSize,
   };
 
   /// 每天最多幾輪。做滿就擋住，這是防止做過頭然後放棄的核心。
@@ -76,22 +72,19 @@ class RulesConfig {
   /// 每天最多幾分鐘。跟輪數哪個先到算哪個。
   final int minutesPerDay;
 
-  /// 算「真的會」的門檻：答對次數要達到這個值，而且從沒答錯過。
-  /// 調高之後，原本已確認但沒到新門檻的字會自動掉回未確認。
+  /// 從沒錯過的字要答對幾次才算掌握。
+  /// 調高之後，原本掌握但沒到新門檻的字會自動掉回待複習。
   final int confirmRight;
 
   /// 錯過的字要翻身，答對次數得是答錯次數的幾倍。
   ///
-  /// 預設十倍：錯五次就要答對五十次才算掌握，整個字總共會被考五十五次。
+  /// 預設七倍：錯五次就要答對三十五次才算掌握，整個字總共會被考四十次。
   /// 這個數字刻意訂得重，錯過的字本來就該被多考幾次才能相信。
   final int recoveryRatio;
 
-  int get questionsPerRound => newPerRound + reviewPerRound;
-
   RulesConfig copyWith({
-    int? newPerRound,
+    int? roundSize,
     int? pendingPerRound,
-    int? reviewPerRound,
     int? typeQuestions,
     int? roundsPerDay,
     int? minutesPerDay,
@@ -100,9 +93,8 @@ class RulesConfig {
     QuizStyle? quizStyle,
   }) {
     return RulesConfig(
-      newPerRound: newPerRound ?? this.newPerRound,
+      roundSize: roundSize ?? this.roundSize,
       pendingPerRound: pendingPerRound ?? this.pendingPerRound,
-      reviewPerRound: reviewPerRound ?? this.reviewPerRound,
       typeQuestions: typeQuestions ?? this.typeQuestions,
       roundsPerDay: roundsPerDay ?? this.roundsPerDay,
       minutesPerDay: minutesPerDay ?? this.minutesPerDay,
@@ -113,9 +105,8 @@ class RulesConfig {
   }
 
   Map<String, dynamic> toJson() => {
-    'newPerRound': newPerRound,
+    'roundSize': roundSize,
     'pendingPerRound': pendingPerRound,
-    'reviewPerRound': reviewPerRound,
     'typeQuestions': typeQuestions,
     'quizStyle': quizStyle.name,
     'roundsPerDay': roundsPerDay,
@@ -126,10 +117,16 @@ class RulesConfig {
 
   factory RulesConfig.fromJson(Map<String, dynamic> json) {
     const d = RulesConfig();
+    // 舊版把一輪拆成 newPerRound 加 reviewPerRound，讀到就併回 roundSize。
+    final legacyTotal =
+        (json['newPerRound'] as int? ?? 0) +
+        (json['reviewPerRound'] as int? ?? 0);
+
     return RulesConfig(
-      newPerRound: json['newPerRound'] as int? ?? d.newPerRound,
+      roundSize:
+          json['roundSize'] as int? ??
+          (legacyTotal > 0 ? legacyTotal : d.roundSize),
       pendingPerRound: json['pendingPerRound'] as int? ?? d.pendingPerRound,
-      reviewPerRound: json['reviewPerRound'] as int? ?? d.reviewPerRound,
       typeQuestions: json['typeQuestions'] as int? ?? d.typeQuestions,
       quizStyle: QuizStyle.parse(json['quizStyle'] as String?),
       roundsPerDay: json['roundsPerDay'] as int? ?? d.roundsPerDay,

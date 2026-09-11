@@ -22,8 +22,8 @@ void main() {
       expect(word().statusWith(rules), WordStatus.untested);
     });
 
-    test('答對過但沒到門檻是未確認', () {
-      expect(word(right: 2).statusWith(rules), WordStatus.learning);
+    test('答對過但沒到門檻也算待複習', () {
+      expect(word(right: 2).statusWith(rules), WordStatus.pending);
     });
 
     test('答對到門檻就掌握', () {
@@ -74,7 +74,7 @@ void main() {
     expect(w.statusWith(rules), WordStatus.confirmed);
     expect(
       w.statusWith(const RulesConfig(confirmRight: 5)),
-      WordStatus.learning,
+      WordStatus.pending,
       reason: '門檻變嚴就該重新驗證',
     );
   });

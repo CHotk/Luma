@@ -77,12 +77,14 @@ class _Body extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final missed = result.missed;
+    final correct = result.answers.where((a) => a.correct).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const SizedBox(height: Gap.md),
         Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.baseline,
           textBaseline: TextBaseline.alphabetic,
           children: [
@@ -113,7 +115,7 @@ class _Body extends StatelessWidget {
                     ' / ${result.countOf(review: false, correctOnly: false)}',
               ),
               _Row(
-                '回考舊字',
+                '待複習',
                 '${result.countOf(review: true, correctOnly: true)}'
                     ' / ${result.countOf(review: true, correctOnly: false)}',
               ),
@@ -123,36 +125,31 @@ class _Body extends StatelessWidget {
         ),
 
         const SizedBox(height: Gap.lg),
-        const PanelLabel('答錯與沒答出來'),
-        const SizedBox(height: Gap.xs),
+        // 答對的排前面，答錯的接在下面。
+        // 錯的那份是使用者要求一定要完整列出來的，不能截斷也不加記憶點。
         Expanded(
-          child: missed.isEmpty
-              ? const Center(child: Text('這輪全對', style: AppText.bodyDim))
-              : ListView.separated(
-                  itemCount: missed.length,
-                  separatorBuilder: (_, _) =>
-                      const Divider(height: 1, color: AppColors.glassEdge),
-                  itemBuilder: (context, i) {
-                    final w = missed[i].question.word;
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            w.word,
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.ink,
-                            ),
-                          ),
-                          Text(w.zh, style: AppText.bodyDim),
-                        ],
-                      ),
-                    );
-                  },
-                ),
+          child: ListView(
+            children: [
+              if (correct.isNotEmpty) ...[
+                const PanelLabel('答對'),
+                const SizedBox(height: Gap.xs),
+                for (final a in correct)
+                  _WordLine(answer: a, color: AppColors.ok),
+                const SizedBox(height: Gap.lg),
+              ],
+              const PanelLabel('答錯與沒答出來'),
+              const SizedBox(height: Gap.xs),
+              if (missed.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: Gap.md),
+                  child: Text('這輪全對', style: AppText.bodyDim),
+                )
+              else
+                for (final a in missed)
+                  _WordLine(answer: a, color: AppColors.statusPending),
+              const SizedBox(height: Gap.sm),
+            ],
+          ),
         ),
 
         const _Actions(),
@@ -225,6 +222,61 @@ class _Actions extends ConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// 結果清單的一行。左邊圓點的顏色區分答對答錯，右邊是中文。
+class _WordLine extends StatelessWidget {
+  const _WordLine({required this.answer, required this.color});
+
+  final QuizAnswer answer;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final word = answer.question.word;
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 9),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppColors.glassEdge)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            margin: const EdgeInsets.only(right: 10),
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          Text(
+            word.word,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: AppColors.ink,
+            ),
+          ),
+          const Spacer(),
+          // 打字題答錯時把當初打的內容留著，才看得出錯在哪個字母。
+          if (answer.question.mode == QuizMode.type &&
+              !answer.correct &&
+              answer.input.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(right: Gap.sm),
+              child: Text('你打了 ${answer.input}', style: AppText.note),
+            ),
+          Flexible(
+            child: Text(
+              word.zh,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.right,
+              style: AppText.bodyDim,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

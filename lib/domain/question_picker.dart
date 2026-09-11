@@ -26,7 +26,7 @@ class QuestionPicker {
     //
     // 四個池子都用 [Word.statusWith] 判斷，不要在這裡自己寫條件，
     // 不然狀態的定義改了這裡會默默地跟不上。
-    final target = rules.newPerRound;
+    final target = rules.roundSize;
     final pendingPool = _pendingPool(all);
     final freshPool = _freshPool(all);
 
@@ -44,14 +44,13 @@ class QuestionPicker {
         ? _confirmedPool(all).take(need).toList()
         : <Word>[];
 
-    final review = _pickReview(all);
     final words = [
-      for (final w in [...fresh, ...pending]) (word: w, isReview: false),
-      for (final w in filler) (word: w, isReview: true),
-      ...review,
+      for (final w in fresh) (word: w, isReview: false),
+      // 待複習和墊底的都算複習，結果頁才分得出新字與舊字。
+      for (final w in [...pending, ...filler]) (word: w, isReview: true),
     ];
 
-    // 新字和回考混在一起再洗牌，不然使用者一眼就知道最後一題是回考。
+    // 新字和複習混在一起再洗牌，不然使用者一眼就知道最後一題是複習。
     words.shuffle(_random);
 
     final typeIndexes = _chooseTypeIndexes(words.length);
@@ -102,25 +101,6 @@ class QuestionPicker {
           if (bt == null) return 1;
           return at.compareTo(bt);
         });
-
-  /// 回考的舊字：答對過但還沒到門檻，而且從沒答錯過。
-  /// 挑最久沒被考的優先，這樣每個字都輪得到。
-  List<({Word word, bool isReview})> _pickReview(List<Word> all) {
-    final pool =
-        all.where((w) => w.statusWith(rules) == WordStatus.learning).toList()
-          ..sort((a, b) {
-            final at = a.lastTest;
-            final bt = b.lastTest;
-            if (at == null && bt == null) return 0;
-            if (at == null) return -1; // 沒紀錄的最優先
-            if (bt == null) return 1;
-            return at.compareTo(bt);
-          });
-    return pool
-        .take(rules.reviewPerRound)
-        .map((w) => (word: w, isReview: true))
-        .toList();
-  }
 
   /// 決定哪幾題要打字。隨機散開，不要固定在最後幾題。
   /// 要出幾題由 [RulesConfig.effectiveTypeQuestions] 決定，這裡不判斷模式。

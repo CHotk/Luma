@@ -30,7 +30,7 @@ abstract final class AppColors {
   /// 待複習是一個狀態不是一個錯誤，用暖棕比較不焦慮。
   /// 沒考過用灰色：它不是問題，只是還沒碰過，不該跟待複習搶注意力。
   static const statusMastered = ok;
-  static const statusLearning = mid;
+
   static const statusPending = Color(0xFFC9865A);
   static const statusUntested = Color(0xFF7C7B90);
 

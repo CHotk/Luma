@@ -26,7 +26,11 @@ enum WordGrade {
   }
 }
 
-/// 一個字的四種狀態。判定規則寫在 [Word.statusWith]，不要在別處重算。
+/// 一個字的三種狀態。判定規則寫在 [Word.statusWith]，不要在別處重算。
+///
+/// 只有三類是使用者 2026-09-11 拍板的：沒有「未確認」這種中間狀態。
+/// 錯過的要回來，答對過但還沒到門檻的也要回來，
+/// 對使用者來說那就是同一件事，都叫待複習。
 enum WordStatus {
   /// 已經可以相信這個字真的會了。
   ///
@@ -34,18 +38,11 @@ enum WordStatus {
   /// 或是錯過但後來答對次數是答錯次數的好幾倍。
   confirmed('掌握'),
 
-  /// 會，但還沒到門檻。從沒錯過才算這一類。
-  learning('未確認'),
-
-  /// 錯過就算，跟後來有沒有答對無關。
-  ///
-  /// 這條定義是使用者 2026-09-11 明確講的：
-  /// 「待複習本身就是有答錯過的就算，而不是沒答對過」。
-  /// 要離開這一類只有一條路：答對次數累積到答錯次數的 recoveryRatio 倍。
+  /// 考過但還沒到掌握的字，全部算這一類。
   pending('待複習'),
 
   /// 從來沒被考過。它不是待複習，因為你根本還沒碰過它。
-  untested('沒考過');
+  untested('新字');
 
   const WordStatus(this.label);
   final String label;
@@ -53,9 +50,8 @@ enum WordStatus {
   /// 清單排序用。越需要看的排越前面。
   int get priority => switch (this) {
     WordStatus.pending => 0,
-    WordStatus.learning => 1,
-    WordStatus.untested => 2,
-    WordStatus.confirmed => 3,
+    WordStatus.untested => 1,
+    WordStatus.confirmed => 2,
   };
 }
 
@@ -125,7 +121,7 @@ class Word {
           : WordStatus.pending;
     }
     if (right >= rules.confirmRight) return WordStatus.confirmed;
-    if (right >= 1) return WordStatus.learning;
+    if (right >= 1) return WordStatus.pending;
     return WordStatus.untested;
   }
 

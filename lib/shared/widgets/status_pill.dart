@@ -14,7 +14,7 @@ class StatusPill extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = switch (status) {
       WordStatus.confirmed => AppColors.statusMastered,
-      WordStatus.learning => AppColors.statusLearning,
+
       WordStatus.pending => AppColors.statusPending,
       WordStatus.untested => AppColors.statusUntested,
     };
