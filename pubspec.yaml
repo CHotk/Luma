@@ -1,0 +1,27 @@
+name: lume
+description: "Lume 微光 — 一天一點未來光"
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.9.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # 狀態管理。每個 feature 的 provider 放自己的資料夾，不開全域大 provider。
+  flutter_riverpod: ^2.6.1
+  # 路由。所有路徑只在 app/router.dart 定義。
+  go_router: ^14.6.2
+  # v1 的儲存後端。之後換成 drift 時只要換掉 data/storage 這一層。
+  shared_preferences: ^2.3.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/data/
