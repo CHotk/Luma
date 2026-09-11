@@ -97,7 +97,7 @@
 96    restaurant  n.         餐廳                We eat at a restaurant.          2026-09-10  0      1      2026-09-10
 97    vegetable   n.         蔬菜                I eat vegetables every day.      2026-09-10  0      1      2026-09-10
 98    weekend     n.         週末                I play ball on the weekend.      2026-09-10  1      0      2026-09-10
-99    homework    n.         家庭作業            I do my homework at night.       2026-09-10  1      0      2026-09-10
+99    homework    n.         家庭作業            I do my homework at night.       2026-09-10  1      1      2026-09-11
 100   lunch       n.         午餐                I eat lunch at noon.             2026-09-10  1      0      2026-09-10
 101   sister      n.         姊姊、妹妹          My sister is ten.                2026-09-10  1      0      2026-09-10
 102   student     n.         學生                I am a student.                  2026-09-10  1      0      2026-09-10
@@ -438,8 +438,18 @@
 437   shy         adj.       害羞的              The boy is shy.                  2026-09-11  0      1      2026-09-11
 438   proud       adj.       驕傲的、自豪的      I am proud of you.               2026-09-11  0      1      2026-09-11
 439   jealous     adj.       嫉妒的              Don't be jealous.                2026-09-11  0      1      2026-09-11
-440   season      n.         季節                Summer is my favorite season.    2026-09-11  1      0      2026-09-11                
-441   vacation    n.         假期                I go to Japan on vacation.       2026-09-11  0      1      2026-09-11                
-442   calendar    n.         日曆                Look at the calendar.            2026-09-11  1      0      2026-09-11                
-443   date        n.         日期、約會          What is today's date?            2026-09-11  0      1      2026-09-11                
-444   event       n.         事件、活動          It was a big event.              2026-09-11  0      1      2026-09-11                
+440   season      n.         季節                Summer is my favorite season.    2026-09-11  1      0      2026-09-11
+441   vacation    n.         假期                I go to Japan on vacation.       2026-09-11  0      1      2026-09-11
+442   calendar    n.         日曆                Look at the calendar.            2026-09-11  1      0      2026-09-11
+443   date        n.         日期、約會          What is today's date?            2026-09-11  0      1      2026-09-11
+444   event       n.         事件、活動          It was a big event.              2026-09-11  0      1      2026-09-11
+445   weekday     n.         平日、工作日        I work on weekdays.              2026-09-11  0      1      2026-09-11
+446   schedule    n.         行程、時間表        Check the schedule.              2026-09-11  1      0      2026-09-11
+447   history     n.         歷史                I study history.                 2026-09-11  1      0      2026-09-11
+448   science     n.         科學                Science is interesting.          2026-09-11  0      1      2026-09-11
+449   math        n.         數學                I like math class.               2026-09-11  1      0      2026-09-11
+450   art         n.         藝術、美術          I have art class today.          2026-09-11  1      0      2026-09-11
+451   subject     n.         科目、主題          Math is my favorite subject.     2026-09-11  0      1      2026-09-11
+452   test        n./v.      測驗、考試          I have a test today.             2026-09-11  1      0      2026-09-11
+453   grade       n.         年級、成績          I am in fifth grade.             2026-09-11  0      1      2026-09-11
+454   lesson      n.         課、課程            This is lesson five.             2026-09-11  0      1      2026-09-11

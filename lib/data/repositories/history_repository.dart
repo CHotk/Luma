@@ -5,40 +5,56 @@ import '../../domain/models/quiz.dart';
 import '../seed/seed_source.dart';
 import '../storage/key_value_store.dart';
 
-/// 總歷史紀錄。
+/// 總歷史紀錄，也是整套資料的權威。
 ///
-/// 兩份資料：每一題的作答紀錄、每一輪的摘要。
-/// 兩份都是只增不改，任何情況都不准去改既有的項目，
-/// 因為單字上的對錯次數就是靠這裡加總出來的。
+/// 規矩只有一條：**只增不改**。
+/// 單字上的對錯次數不再自己累加，一律從這裡加總算出來，
+/// 所以兩邊（對話與 App）各自考完各自追加，合併時去重就不會有人的紀錄被吃掉。
 class HistoryRepository {
   HistoryRepository(this._store, {SeedSource? seed}) : _seed = seed;
 
   static const _entriesKey = 'history.entries.v1';
   static const _roundsKey = 'history.rounds.v1';
-  static const _importedKey = 'history.imported.v1';
+  static const _syncedKey = 'history.synced.version';
 
   final KeyValueStore _store;
 
-  /// 打包資料來源。給 null 就不做匯入，測試會這樣用。
+  /// 打包資料來源。給 null 就不做合併，測試會這樣用。
   final SeedSource? _seed;
 
   Future<List<HistoryEntry>> entries() async {
-    await _importOnce();
+    await _syncBundle();
     return _readEntries();
   }
 
   Future<List<RoundLog>> rounds() async {
-    await _importOnce();
+    await _syncBundle();
     return _readRounds();
   }
 
-  /// 一輪結束時追加。輪次編號自己接續，呼叫端不用管。
-  Future<void> appendRound(RoundResult result, {required bool stealth}) async {
-    await _importOnce();
-    final pastRounds = await _readRounds();
-    final roundNo = pastRounds.isEmpty ? 1 : pastRounds.last.round + 1;
+  /// 每個字的對錯次數與最後受測日期，一次算好給單字庫用。
+  /// 鍵是小寫的單字。
+  Future<Map<String, WordTally>> tally() async {
+    final result = <String, WordTally>{};
+    for (final e in await entries()) {
+      final key = e.word.toLowerCase();
+      final current = result[key] ?? const WordTally();
+      result[key] = current.plus(correct: e.correct, at: e.at);
+    }
+    return result;
+  }
 
-    final appended = [
+  /// 一輪結束時追加。
+  ///
+  /// 輪次編號接在現有最大號之後。兩邊可能剛好拿到同一個號碼，
+  /// 但那沒關係：編號只是顯示用，去重看的是內容。
+  Future<void> appendRound(RoundResult result, {required bool stealth}) async {
+    final past = await rounds();
+    final roundNo = past.isEmpty
+        ? 1
+        : past.map((r) => r.round).reduce((a, b) => a > b ? a : b) + 1;
+
+    await _writeEntries([
       ...await _readEntries(),
       for (final a in result.answers)
         HistoryEntry(
@@ -48,11 +64,9 @@ class HistoryRepository {
           at: a.answeredAt,
           seconds: a.seconds,
         ),
-    ];
-
-    await _writeEntries(appended);
+    ]);
     await _writeRounds([
-      ...pastRounds,
+      ...await _readRounds(),
       RoundLog(
         round: roundNo,
         at: result.finishedAt,
@@ -92,7 +106,6 @@ class HistoryRepository {
   }
 
   /// 某個字的所有作答紀錄，新的排前面。
-  /// 單字詳情頁要看「幾月幾日幾點考過、對還是錯」就是讀這個。
   Future<List<HistoryEntry>> forWord(String word) async {
     final key = word.toLowerCase();
     final all = await entries();
@@ -100,74 +113,68 @@ class HistoryRepository {
       ..sort((a, b) => b.at.compareTo(a.at));
   }
 
-  /// 把 En 資料夾那邊累積的紀錄搬進來，一輩子只做一次。
+  /// 把打包進來的紀錄合併進本機。
   ///
-  /// 輪次編號會撞號，因為兩邊都是從 1 開始編。
-  /// 處理方式是舊紀錄保留原本的編號，App 自己已經做過的輪次往後推。
-  /// 這是唯一一次會動到既有紀錄的地方，而且只動編號不動內容。
-  Future<void> _importOnce() async {
+  /// 每次打包版本變新就跑一次，不是只跑一次。
+  /// 對話那邊考完也是往同一份 history.txt 追加，所以這裡要能反覆合併。
+  ///
+  /// 去重看的是內容，不是編號：同一輪、同一個字、同一個時間點、同樣對錯，
+  /// 就算是同一筆。兩邊剛好用到同一個輪次編號也不會互相蓋掉。
+  Future<void> _syncBundle() async {
     final seed = _seed;
     if (seed == null) return;
-    if (await _store.read(_importedKey) != null) return;
+    final applied = int.tryParse(await _store.read(_syncedKey) ?? '') ?? 0;
+    if (seed.bundleVersion <= applied) return;
 
-    // 先插旗再匯入。就算中途出錯也不要無限重試，
-    // 重試只會把同一批紀錄灌進去兩次。
-    await _store.write(_importedKey, '1');
+    // 先插旗再合併。就算中途出錯也不要無限重試。
+    await _store.write(_syncedKey, '${seed.bundleVersion}');
 
     final incoming = await seed.bundleHistory();
     if (incoming.isEmpty) return;
 
-    final offset = incoming.fold<int>(
-      0,
-      (max, e) => e.round > max ? e.round : max,
-    );
-
-    final shiftedEntries = [
-      for (final e in await _readEntries())
-        HistoryEntry(
-          round: e.round + offset,
-          word: e.word,
-          correct: e.correct,
-          at: e.at,
-          seconds: e.seconds,
-        ),
+    final existing = await _readEntries();
+    final seen = {for (final e in existing) _fingerprint(e)};
+    final added = [
+      for (final e in incoming)
+        if (seen.add(_fingerprint(e))) e,
     ];
-    final shiftedRounds = [
-      for (final r in await _readRounds())
-        RoundLog(
-          round: r.round + offset,
-          at: r.at,
-          seconds: r.seconds,
-          total: r.total,
-          right: r.right,
-          stealth: r.stealth,
-        ),
-    ];
+    if (added.isEmpty) return;
 
-    await _writeEntries([...incoming, ...shiftedEntries]);
-    await _writeRounds([..._rebuildRounds(incoming), ...shiftedRounds]);
+    final merged = [...existing, ...added]
+      ..sort((a, b) => a.at.compareTo(b.at));
+    await _writeEntries(merged);
+    await _writeRounds(_rebuildRounds(merged, await _readRounds()));
   }
 
-  /// 舊紀錄只有一行一題，沒有每輪的摘要，所以要自己兜回來。
-  /// 秒數一律 0，因為 history.txt 本來就沒記時間。
-  List<RoundLog> _rebuildRounds(List<HistoryEntry> entries) {
+  static String _fingerprint(HistoryEntry e) =>
+      '${e.round}|${e.word.toLowerCase()}|${e.at.toIso8601String()}|${e.correct}';
+
+  /// 依合併後的紀錄重建每輪摘要。
+  ///
+  /// App 自己跑出來的輪次有秒數與偽裝標記，那些要留著；
+  /// 其餘從紀錄兜回來，秒數是 0，因為 history.txt 本來就沒有時間。
+  List<RoundLog> _rebuildRounds(
+    List<HistoryEntry> entries,
+    List<RoundLog> known,
+  ) {
     final byRound = <int, List<HistoryEntry>>{};
     for (final e in entries) {
       byRound.putIfAbsent(e.round, () => []).add(e);
     }
+    final keep = {for (final r in known) r.round: r};
 
-    final rounds = [
+    return [
       for (final entry in byRound.entries)
-        RoundLog(
-          round: entry.key,
-          at: entry.value.first.at,
-          seconds: 0,
-          total: entry.value.length,
-          right: entry.value.where((e) => e.correct).length,
-          stealth: false,
-        ),
+        keep[entry.key] ??
+            RoundLog(
+              round: entry.key,
+              at: entry.value.first.at,
+              seconds: 0,
+              total: entry.value.length,
+              right: entry.value.where((e) => e.correct).length,
+              stealth: false,
+            ),
     ]..sort((a, b) => a.round.compareTo(b.round));
-    return rounds;
   }
 
   Future<List<HistoryEntry>> _readEntries() async {
@@ -188,9 +195,29 @@ class HistoryRepository {
         .toList();
   }
 
-  Future<void> _writeEntries(List<HistoryEntry> entries) =>
-      _store.write(_entriesKey, jsonEncode([for (final e in entries) e.toJson()]));
+  Future<void> _writeEntries(List<HistoryEntry> entries) => _store.write(
+    _entriesKey,
+    jsonEncode([for (final e in entries) e.toJson()]),
+  );
 
   Future<void> _writeRounds(List<RoundLog> rounds) =>
       _store.write(_roundsKey, jsonEncode([for (final r in rounds) r.toJson()]));
+}
+
+/// 單一個字的加總結果。
+class WordTally {
+  const WordTally({this.right = 0, this.wrong = 0, this.lastTest});
+
+  final int right;
+  final int wrong;
+  final DateTime? lastTest;
+
+  WordTally plus({required bool correct, required DateTime at}) {
+    final latest = lastTest == null || at.isAfter(lastTest!) ? at : lastTest;
+    return WordTally(
+      right: correct ? right + 1 : right,
+      wrong: correct ? wrong : wrong + 1,
+      lastTest: latest,
+    );
+  }
 }

@@ -17,7 +17,11 @@ final keyValueStoreProvider = Provider<KeyValueStore>((ref) {
 });
 
 final wordRepositoryProvider = Provider<WordRepository>(
-  (ref) => WordRepository(store: ref.watch(keyValueStoreProvider)),
+  (ref) => WordRepository(
+    store: ref.watch(keyValueStoreProvider),
+    // 對錯次數是從紀錄加總出來的，所以單字庫依賴紀錄，不是反過來。
+    history: ref.watch(historyRepositoryProvider),
+  ),
 );
 
 final settingsRepositoryProvider = Provider<SettingsRepository>(

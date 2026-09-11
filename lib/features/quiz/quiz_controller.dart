@@ -164,12 +164,12 @@ class QuizController extends AutoDisposeAsyncNotifier<QuizState> {
 
     final stealth = ref.read(stealthModeProvider);
 
-    await ref.read(wordRepositoryProvider).applyRound(result);
-
-    // 總歷史只增不改，兩種模式都記。單字上的對錯次數要等於這份紀錄的加總。
+    // 先寫紀錄，再讓單字庫重新加總。順序不能反，
+    // 因為對錯次數是從紀錄算出來的，不是自己累加的。
     await ref
         .read(historyRepositoryProvider)
         .appendRound(result, stealth: stealth);
+    ref.read(wordRepositoryProvider).invalidate();
 
     // 偽裝模式不計入今日用量，也就不受每日上限管（使用者 2026-09-11 決定）。
     // 理由是上班很無聊，那段時間本來就想一直背。
