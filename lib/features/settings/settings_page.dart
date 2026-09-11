@@ -164,9 +164,31 @@ class _Body extends ConsumerWidget {
               ),
               const _Hair(),
               _Stepper(
-                title: '每輪新字',
-                note: '另外固定回考 ${rules.reviewPerRound} 個舊字',
-                value: '${rules.newPerRound} 個',
+                title: '每輪答錯過的字',
+                note: '從出題數裡挪出來，錯最多次的先回來',
+                value: '${rules.pendingPerRound} 題',
+                onMinus: rules.pendingPerRound > 0
+                    ? () => save(
+                        rules.copyWith(
+                          pendingPerRound: rules.pendingPerRound - 1,
+                        ),
+                      )
+                    : null,
+                onPlus: rules.pendingPerRound < rules.newPerRound
+                    ? () => save(
+                        rules.copyWith(
+                          pendingPerRound: rules.pendingPerRound + 1,
+                        ),
+                      )
+                    : null,
+              ),
+              const _Hair(),
+              _Stepper(
+                title: '每輪出題數',
+                note:
+                    '新字 ${rules.freshPerRound} 加待複習 ${rules.pendingPerRound}，'
+                    '另外回考 ${rules.reviewPerRound} 個',
+                value: '${rules.newPerRound} 題',
                 onMinus: rules.newPerRound > 3
                     ? () => save(
                         rules.copyWith(newPerRound: rules.newPerRound - 1),

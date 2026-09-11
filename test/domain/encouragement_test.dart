@@ -13,10 +13,7 @@ void main() {
     test('同一天永遠是同一句，不受時分秒影響', () {
       final morning = DateTime(2026, 9, 11, 7, 30);
       final night = DateTime(2026, 9, 11, 23, 59);
-      expect(
-        Encouragement.forDate(morning),
-        Encouragement.forDate(night),
-      );
+      expect(Encouragement.forDate(morning), Encouragement.forDate(night));
     });
 
     // 起點要對齊輪次的開頭，不然五十天會跨到下一輪去，

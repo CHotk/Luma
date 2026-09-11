@@ -88,9 +88,11 @@ class _Body extends StatelessWidget {
             children: [
               const PanelLabel('下一輪'),
               const SizedBox(height: Gap.sm),
-              _Row('沒考過的新字', '${state.rules.newPerRound}'),
-              _Row('回考已答對過的字', '${state.rules.reviewPerRound}'),
-              _Row('要打字的題數', '${state.rules.typeQuestions}'),
+              _Row('沒考過的新字', '${state.rules.freshPerRound}'),
+              _Row('答錯過要回來的', '${state.rules.pendingPerRound}'),
+              _Row('回考已答對過的', '${state.rules.reviewPerRound}'),
+              if (state.rules.effectiveTypeQuestions > 0)
+                _Row('要打字的題數', '${state.rules.effectiveTypeQuestions}'),
             ],
           ),
         ),

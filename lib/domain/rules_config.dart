@@ -29,16 +29,28 @@ enum QuizStyle {
 class RulesConfig {
   const RulesConfig({
     this.newPerRound = 10,
+    this.pendingPerRound = 2,
     this.reviewPerRound = 1,
     this.typeQuestions = 3,
     this.roundsPerDay = 5,
     this.minutesPerDay = 15,
-    this.confirmRight = 2,
+    this.confirmRight = 3,
     this.quizStyle = QuizStyle.tapOnly,
   });
 
-  /// 每輪的新字數量。
+  /// 每輪這一段有幾個題目。它不是「全新的字」的數量，
+  /// 其中有 [pendingPerRound] 個會改抽待複習的字。
   final int newPerRound;
+
+  /// 上面那幾題裡面，有幾題要抽答錯過又還沒答對的字。
+  /// 錯過的字不主動回來考，它就只會一直躺在清單裡。
+  final int pendingPerRound;
+
+  /// 真正沒考過的字要出幾題。
+  int get freshPerRound {
+    final fresh = newPerRound - pendingPerRound;
+    return fresh < 0 ? 0 : fresh;
+  }
 
   /// 每輪回考幾個已經答對過的舊字。
   /// 用來驗證是真的會還是猜中的，連續答對兩次才算真的會。
@@ -71,6 +83,7 @@ class RulesConfig {
 
   RulesConfig copyWith({
     int? newPerRound,
+    int? pendingPerRound,
     int? reviewPerRound,
     int? typeQuestions,
     int? roundsPerDay,
@@ -80,6 +93,7 @@ class RulesConfig {
   }) {
     return RulesConfig(
       newPerRound: newPerRound ?? this.newPerRound,
+      pendingPerRound: pendingPerRound ?? this.pendingPerRound,
       reviewPerRound: reviewPerRound ?? this.reviewPerRound,
       typeQuestions: typeQuestions ?? this.typeQuestions,
       roundsPerDay: roundsPerDay ?? this.roundsPerDay,
@@ -91,6 +105,7 @@ class RulesConfig {
 
   Map<String, dynamic> toJson() => {
     'newPerRound': newPerRound,
+    'pendingPerRound': pendingPerRound,
     'reviewPerRound': reviewPerRound,
     'typeQuestions': typeQuestions,
     'quizStyle': quizStyle.name,
@@ -103,6 +118,7 @@ class RulesConfig {
     const d = RulesConfig();
     return RulesConfig(
       newPerRound: json['newPerRound'] as int? ?? d.newPerRound,
+      pendingPerRound: json['pendingPerRound'] as int? ?? d.pendingPerRound,
       reviewPerRound: json['reviewPerRound'] as int? ?? d.reviewPerRound,
       typeQuestions: json['typeQuestions'] as int? ?? d.typeQuestions,
       quizStyle: QuizStyle.parse(json['quizStyle'] as String?),
