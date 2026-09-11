@@ -18,7 +18,7 @@ class WordSeedLoader implements SeedSource {
   /// 每次從 En 資料夾重新複製檔案進 assets 就要 +1。
   /// 忘了加，App 就不會同步，然後你會以為程式壞了。
   @override
-  int get bundleVersion => 2;
+  int get bundleVersion => 3;
 
   Future<List<Word>> _seedWords() async {
     final raw = await rootBundle.loadString('assets/data/seed-words.txt');
@@ -32,7 +32,7 @@ class WordSeedLoader implements SeedSource {
           word: cols[1],
           pos: cols[2],
           zh: cols[3],
-          level: WordLevel.parse(cols[4]),
+          grade: WordGrade.parse(cols[4]),
         ),
       );
     }
@@ -68,7 +68,8 @@ class WordSeedLoader implements SeedSource {
               word: entry.value.word,
               pos: entry.value.pos,
               zh: entry.value.zh,
-              level: WordLevel.elementary,
+              // words.txt 沒有年級欄位，考過的字先當小三，之後可以再修。
+              grade: WordGrade.grade3,
               example: entry.value.example,
               added: entry.value.added,
               right: entry.value.right,

@@ -1,13 +1,37 @@
-/// 單字的學習階段，對應題庫檔的最後一欄。
-enum WordLevel {
-  elementary('國小'),
-  junior('國中');
+/// 單字大概是哪個年級學的，對應題庫檔的最後一欄。
+///
+/// 課綱只分「國小 300 字」和「國中 2000 字」兩段，再細下去沒有官方依據，
+/// 所以小一到國三這層是估計值，依字長與階段推出來的。
+/// 覺得某個字擺錯年級就直接改題庫檔那一欄，不用改程式。
+enum WordGrade {
+  grade1('小一'),
+  grade2('小二'),
+  grade3('小三'),
+  grade4('小四'),
+  grade5('小五'),
+  grade6('小六'),
+  junior1('國一'),
+  junior2('國二'),
+  junior3('國三'),
+  senior('高中'),
+  college('大學');
 
-  const WordLevel(this.label);
+  const WordGrade(this.label);
   final String label;
 
-  static WordLevel parse(String raw) =>
-      raw.trim() == '國中' ? WordLevel.junior : WordLevel.elementary;
+  /// 國小階段。統計想分「國小學過的」和「國中以後的」時用這個。
+  bool get isElementary => index <= WordGrade.grade6.index;
+
+  static WordGrade parse(String raw) {
+    final text = raw.trim();
+    for (final grade in values) {
+      if (grade.label == text) return grade;
+    }
+    // 舊資料只有兩級，遷移時對到該階段的第一年。
+    if (text == '國中') return WordGrade.junior1;
+    if (text == '國小') return WordGrade.grade3;
+    return WordGrade.grade3;
+  }
 }
 
 /// 一個字的三種狀態。判定規則寫在 [Word.statusWith]，不要在別處重算。
@@ -35,9 +59,10 @@ class Word {
     required this.word,
     required this.pos,
     required this.zh,
-    required this.level,
+    required this.grade,
     this.example = '',
     this.added,
+    this.imagePath = '',
     this.right = 0,
     this.wrong = 0,
     this.lastTest,
@@ -47,7 +72,9 @@ class Word {
   final String word;
   final String pos;
   final String zh;
-  final WordLevel level;
+
+  /// 大概幾年級學的。估計值，改題庫檔就能修正。
+  final WordGrade grade;
 
   /// 例句。題庫的字還沒有例句，考過之後才補，所以可能是空字串。
   ///
@@ -57,6 +84,13 @@ class Word {
 
   /// 首次加入的日期。同樣是為了能無損還原成 words.txt。
   final DateTime? added;
+
+  /// 這個字的配圖檔名。空字串代表沒有圖。
+  ///
+  /// 欄位先留著，畫面之後才做。
+  /// 圖片本身不進資料庫，存在 App 的檔案目錄，這裡只放檔名，
+  /// 不然備份檔會被圖撐爆。
+  final String imagePath;
 
   /// 累計答對次數。
   final int right;
@@ -82,6 +116,7 @@ class Word {
     int? id,
     String? example,
     DateTime? added,
+    String? imagePath,
     int? right,
     int? wrong,
     DateTime? lastTest,
@@ -91,9 +126,10 @@ class Word {
       word: word,
       pos: pos,
       zh: zh,
-      level: level,
+      grade: grade,
       example: example ?? this.example,
       added: added ?? this.added,
+      imagePath: imagePath ?? this.imagePath,
       right: right ?? this.right,
       wrong: wrong ?? this.wrong,
       lastTest: lastTest ?? this.lastTest,
@@ -105,9 +141,10 @@ class Word {
     'word': word,
     'pos': pos,
     'zh': zh,
-    'level': level.label,
+    'grade': grade.label,
     'example': example,
     'added': added?.toIso8601String(),
+    'imagePath': imagePath,
     'right': right,
     'wrong': wrong,
     'lastTest': lastTest?.toIso8601String(),
@@ -118,9 +155,13 @@ class Word {
     word: json['word'] as String,
     pos: json['pos'] as String,
     zh: json['zh'] as String,
-    level: WordLevel.parse(json['level'] as String? ?? '國小'),
+    // 舊版存的是 level 兩級分法，讀得到就沿用，讀不到才當國小。
+    grade: WordGrade.parse(
+      (json['grade'] ?? json['level']) as String? ?? '國小',
+    ),
     example: json['example'] as String? ?? '',
     added: _date(json['added']),
+    imagePath: json['imagePath'] as String? ?? '',
     right: json['right'] as int? ?? 0,
     wrong: json['wrong'] as int? ?? 0,
     lastTest: _date(json['lastTest']),
