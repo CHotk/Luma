@@ -6,6 +6,7 @@ import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
+import '../../domain/encouragement.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/glass_card.dart';
 import '../../shared/widgets/ring_progress.dart';
@@ -69,7 +70,11 @@ class _Body extends StatelessWidget {
               ),
               const SizedBox(height: Gap.sm),
               Text(
-                state.limitReached ? '今天的份量做完了' : '做滿就停，明天再來',
+                // 做滿了就講做滿了，其餘時候給一句每天不一樣的話。
+                state.limitReached
+                    ? '今天的份量做完了'
+                    : Encouragement.forDate(state.usage.date),
+                textAlign: TextAlign.center,
                 style: AppText.bodyDim,
               ),
             ],
