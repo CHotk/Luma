@@ -192,7 +192,9 @@ class _Body extends ConsumerWidget {
                         ),
                       )
                     : null,
-                onPlus: rules.pendingPerRound < rules.roundSize
+                onPlus:
+                    rules.pendingPerRound + rules.masteredPerRound <
+                        rules.roundSize
                     ? () => save(
                         rules.copyWith(
                           pendingPerRound: rules.pendingPerRound + 1,
@@ -202,9 +204,33 @@ class _Body extends ConsumerWidget {
               ),
               const _Hair(),
               _Stepper(
+                title: '每輪回頭考已掌握的字',
+                note: '掌握不代表永遠不會忘，隔一陣子碰一次比較安心',
+                value: '${rules.masteredPerRound} 題',
+                onMinus: rules.masteredPerRound > 0
+                    ? () => save(
+                        rules.copyWith(
+                          masteredPerRound: rules.masteredPerRound - 1,
+                        ),
+                      )
+                    : null,
+                onPlus:
+                    rules.masteredPerRound + rules.pendingPerRound <
+                        rules.roundSize
+                    ? () => save(
+                        rules.copyWith(
+                          masteredPerRound: rules.masteredPerRound + 1,
+                        ),
+                      )
+                    : null,
+              ),
+              const _Hair(),
+              _Stepper(
                 title: '每輪出題數',
 
-                note: '新字 ${rules.freshPerRound} 加待複習 ${rules.pendingPerRound}',
+                note:
+                    '待複習 ${rules.pendingPerRound}、新字 ${rules.freshPerRound}、'
+                    '已掌握 ${rules.masteredPerRound}',
 
                 value: '${rules.roundSize} 題',
                 onMinus: rules.roundSize > 3

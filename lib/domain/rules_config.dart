@@ -29,7 +29,8 @@ enum QuizStyle {
 class RulesConfig {
   const RulesConfig({
     this.roundSize = 10,
-    this.pendingPerRound = 4,
+    this.pendingPerRound = 7,
+    this.masteredPerRound = 1,
     this.typeQuestions = 3,
     this.roundsPerDay = 5,
     this.minutesPerDay = 15,
@@ -47,9 +48,14 @@ class RulesConfig {
   /// 含答錯過的，也含答對過但還沒到門檻的。只有三種狀態，沒有中間類別。
   final int pendingPerRound;
 
-  /// 真正沒考過的字要出幾題。
+  /// 每輪固定回頭考幾個已經掌握的字。
+  ///
+  /// 掌握不代表永遠不會忘，隔一陣子碰一次才知道是不是真的還記得。
+  final int masteredPerRound;
+
+  /// 真正沒考過的字要出幾題。剩下的位置都給新字。
   int get freshPerRound {
-    final fresh = roundSize - pendingPerRound;
+    final fresh = roundSize - pendingPerRound - masteredPerRound;
     return fresh < 0 ? 0 : fresh;
   }
 
@@ -85,6 +91,7 @@ class RulesConfig {
   RulesConfig copyWith({
     int? roundSize,
     int? pendingPerRound,
+    int? masteredPerRound,
     int? typeQuestions,
     int? roundsPerDay,
     int? minutesPerDay,
@@ -95,6 +102,7 @@ class RulesConfig {
     return RulesConfig(
       roundSize: roundSize ?? this.roundSize,
       pendingPerRound: pendingPerRound ?? this.pendingPerRound,
+      masteredPerRound: masteredPerRound ?? this.masteredPerRound,
       typeQuestions: typeQuestions ?? this.typeQuestions,
       roundsPerDay: roundsPerDay ?? this.roundsPerDay,
       minutesPerDay: minutesPerDay ?? this.minutesPerDay,
@@ -107,6 +115,7 @@ class RulesConfig {
   Map<String, dynamic> toJson() => {
     'roundSize': roundSize,
     'pendingPerRound': pendingPerRound,
+    'masteredPerRound': masteredPerRound,
     'typeQuestions': typeQuestions,
     'quizStyle': quizStyle.name,
     'roundsPerDay': roundsPerDay,
@@ -127,6 +136,7 @@ class RulesConfig {
           json['roundSize'] as int? ??
           (legacyTotal > 0 ? legacyTotal : d.roundSize),
       pendingPerRound: json['pendingPerRound'] as int? ?? d.pendingPerRound,
+      masteredPerRound: json['masteredPerRound'] as int? ?? d.masteredPerRound,
       typeQuestions: json['typeQuestions'] as int? ?? d.typeQuestions,
       quizStyle: QuizStyle.parse(json['quizStyle'] as String?),
       roundsPerDay: json['roundsPerDay'] as int? ?? d.roundsPerDay,

@@ -43,18 +43,37 @@ void main() {
 
   const rules = RulesConfig();
 
-  test('一輪十題：六個新字、四個待複習', () {
+  test('題庫沒有已掌握的字時，配額讓給新字', () {
     final picked = QuestionPicker(
       rules: rules,
       random: Random(1),
     ).pick(library(), now: now);
 
     expect(picked.length, 10);
-    expect(picked.where((q) => q.isReview).length, 4);
+    expect(picked.where((q) => q.isReview).length, 7);
 
     final words = picked.map((q) => q.word.word).toList();
-    expect(words.where((w) => w.startsWith('fresh')).length, 6);
-    expect(words.where((w) => w.startsWith('wrong')).length, 4);
+    expect(words.where((w) => w.startsWith('fresh')).length, 3);
+    expect(words.where((w) => w.startsWith('wrong')).length, 5);
+  });
+
+  test('三種都夠的時候各拿各的配額：七待複習、兩新字、一已掌握', () {
+    final pool = [
+      for (var i = 0; i < 20; i++) word('fresh$i', id: i),
+      for (var i = 0; i < 20; i++) word('wrong$i', id: 100 + i, wrong: i + 1),
+      for (var i = 0; i < 5; i++)
+        word('done$i', id: 300 + i, right: 3, lastTest: DateTime(2026, 9, 1)),
+    ];
+    final picked = QuestionPicker(
+      rules: rules,
+      random: Random(1),
+    ).pick(pool, now: now);
+
+    final words = picked.map((q) => q.word.word).toList();
+    expect(picked.length, 10);
+    expect(words.where((w) => w.startsWith('wrong')).length, 7);
+    expect(words.where((w) => w.startsWith('fresh')).length, 2);
+    expect(words.where((w) => w.startsWith('done')).length, 1);
   });
 
   test('待複習挑錯最多次的', () {

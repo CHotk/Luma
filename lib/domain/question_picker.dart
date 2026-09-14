@@ -19,35 +19,42 @@ class QuestionPicker {
   ///
   /// [now] 由外面傳進來而不是自己抓，測試才能固定時間。
   List<QuizQuestion> pick(List<Word> all, {required DateTime now}) {
-    // 幾種來源互相補位，一輪的題數才固定：
-    //   待複習不夠 → 補新字
-    //   新字不夠   → 補待複習
-    //   兩邊都沒了 → 補已經掌握的字
+    // 一輪固定由三種來源組成，各有配額：待複習、新字、已掌握。
+    // 哪一種不夠就往下補，順序是「最需要練的先補」，
+    // 所以一輪的題數永遠是滿的。
     //
     // 四個池子都用 [Word.statusWith] 判斷，不要在這裡自己寫條件，
     // 不然狀態的定義改了這裡會默默地跟不上。
     final target = rules.roundSize;
     final pendingPool = _pendingPool(all);
     final freshPool = _freshPool(all);
+    final masteredPool = _confirmedPool(all);
 
+    // 先各拿各的配額。
     final pending = pendingPool.take(rules.pendingPerRound).toList();
-    final fresh = freshPool.take(target - pending.length).toList();
+    final mastered = masteredPool.take(rules.masteredPerRound).toList();
+    final fresh = freshPool
+        .take(target - pending.length - mastered.length)
+        .toList();
 
-    var need = target - fresh.length - pending.length;
-    if (need > 0) {
-      pending.addAll(pendingPool.skip(pending.length).take(need));
-      need = target - fresh.length - pending.length;
+    // 有人不夠就往下補，順序照「最需要練的先補」：
+    // 待複習 → 新字 → 已掌握。
+    int shortfall() => target - pending.length - mastered.length - fresh.length;
+
+    if (shortfall() > 0) {
+      pending.addAll(pendingPool.skip(pending.length).take(shortfall()));
     }
-
-    // 還缺就拿已經確認會的來墊底。
-    final filler = need > 0
-        ? _confirmedPool(all).take(need).toList()
-        : <Word>[];
+    if (shortfall() > 0) {
+      fresh.addAll(freshPool.skip(fresh.length).take(shortfall()));
+    }
+    if (shortfall() > 0) {
+      mastered.addAll(masteredPool.skip(mastered.length).take(shortfall()));
+    }
 
     final words = [
       for (final w in fresh) (word: w, isReview: false),
-      // 待複習和墊底的都算複習，結果頁才分得出新字與舊字。
-      for (final w in [...pending, ...filler]) (word: w, isReview: true),
+      // 待複習和已掌握都算複習，結果頁才分得出新字與舊字。
+      for (final w in [...pending, ...mastered]) (word: w, isReview: true),
     ];
 
     // 新字和複習混在一起再洗牌，不然使用者一眼就知道最後一題是複習。
