@@ -33,6 +33,7 @@ class WordSeedLoader implements SeedSource {
           pos: cols[2],
           zh: cols[3],
           grade: WordGrade.parse(cols[4]),
+          topic: cols.length > 5 ? WordTopic.parse(cols[5]) : WordTopic.none,
         ),
       );
     }

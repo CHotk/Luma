@@ -1,813 +1,813 @@
-# seed-version: 4
-# no               word               pos         zh                grade
-1                  a                  art.        一個              國小
-2                  about              prep.       關於              國小
-3                  after              prep.       在…之後           國小
-4                  afternoon          n.          下午              國小
-5                  again              adv.        再一次            國小
-6                  all                adj.        全部的            國小
-7                  always             adv.        總是              國小
-8                  and                conj.       和                國小
-9                  angry              adj.        生氣的            國小
-10                 animal             n.          動物              國小
-11                 answer             n./v.       答案、回答        國小
-12                 ant                n.          螞蟻              國小
-13                 apple              n.          蘋果              國小
-14                 April              n.          四月              國小
-15                 arm                n.          手臂              國小
-16                 art                n.          美術              國小
-17                 at                 prep.       在                國小
-18                 August             n.          八月              國小
-19                 aunt               n.          阿姨、姑姑        國小
-20                 baby               n.          嬰兒              國小
-21                 back               n./adv.     背部、回來        國小
-22                 bad                adj.        壞的              國小
-23                 bag                n.          袋子、書包        國小
-24                 ball               n.          球                國小
-25                 banana             n.          香蕉              國小
-26                 bank               n.          銀行              國小
-27                 baseball           n.          棒球              國小
-28                 basketball         n.          籃球              國小
-29                 bathroom           n.          浴室、廁所        國小
-30                 be                 v.          是                國小
-31                 beach              n.          海灘              國小
-32                 bear               n.          熊                國小
-33                 beautiful          adj.        美麗的            國小
-34                 bed                n.          床                國小
-35                 bedroom            n.          臥室              國小
-36                 beef               n.          牛肉              國小
-37                 before             prep.       在…之前           國小
-38                 big                adj.        大的              國小
-39                 bicycle            n.          腳踏車            國小
-40                 bird               n.          鳥                國小
-41                 birthday           n.          生日              國小
-42                 black              adj./n.     黑色的、黑色      國小
-43                 blue               adj./n.     藍色的、藍色      國小
-44                 boat               n.          小船              國小
-45                 body               n.          身體              國小
-46                 book               n.          書                國小
-47                 box                n.          盒子、箱子        國小
-48                 boy                n.          男孩              國小
-49                 bread              n.          麵包              國小
-50                 breakfast          n.          早餐              國小
-51                 brother            n.          兄弟              國小
-52                 brown              adj./n.     咖啡色的、咖啡色  國小
-53                 bus                n.          公車              國小
-54                 busy               adj.        忙碌的            國小
-55                 but                conj.       但是              國小
-56                 buy                v.          買                國小
-57                 cake               n.          蛋糕              國小
-58                 call               v.          打電話、叫        國小
-59                 can                aux.        能夠              國小
-60                 candy              n.          糖果              國小
-61                 cap                n.          鴨舌帽            國小
-62                 car                n.          汽車              國小
-63                 card               n.          卡片              國小
-64                 cat                n.          貓                國小
-65                 catch              v.          接住、抓住        國小
-66                 chair              n.          椅子              國小
-67                 cheap              adj.        便宜的            國小
-68                 cheese             n.          起司              國小
-69                 chicken            n.          雞、雞肉          國小
-70                 child              n.          小孩              國小
-71                 chocolate          n.          巧克力            國小
-72                 city               n.          城市              國小
-73                 class              n.          班級、課          國小
-74                 classmate          n.          同班同學          國小
-75                 classroom          n.          教室              國小
-76                 clean              adj./v.     乾淨的、打掃      國小
-77                 climb              v.          爬                國小
-78                 clock              n.          時鐘              國小
-79                 close              v./adj.     關上、靠近的      國小
-80                 clothes            n.          衣服              國小
-81                 cloud              n.          雲                國小
-82                 cloudy             adj.        多雲的            國小
-83                 coat               n.          外套              國小
-84                 coffee             n.          咖啡              國小
-85                 cold               adj.        冷的              國小
-86                 color              n.          顏色              國小
-87                 come               v.          來                國小
-88                 computer           n.          電腦              國小
-89                 cook               v./n.       煮、廚師          國小
-90                 cookie             n.          餅乾              國小
-91                 cool               adj.        涼的、酷的        國小
-92                 cousin             n.          表兄弟姊妹        國小
-93                 cow                n.          母牛              國小
-94                 crayon             n.          蠟筆              國小
-95                 cry                v.          哭                國小
-96                 cup                n.          杯子              國小
-97                 cut                v.          切、剪            國小
-98                 cute               adj.        可愛的            國小
-99                 dance              v./n.       跳舞              國小
-100                dark               adj.        暗的              國小
-101                daughter           n.          女兒              國小
-102                day                n.          天、日子          國小
-103                December           n.          十二月            國小
-104                desk               n.          書桌              國小
-105                dictionary         n.          字典              國小
-106                different          adj.        不同的            國小
-107                difficult          adj.        困難的            國小
-108                dinner             n.          晚餐              國小
-109                dirty              adj.        髒的              國小
-110                do                 v.          做                國小
-111                doctor             n.          醫生              國小
-112                dog                n.          狗                國小
-113                doll               n.          洋娃娃            國小
-114                door               n.          門                國小
-115                draw               v.          畫                國小
-116                dress              n.          洋裝              國小
-117                drink              v./n.       喝、飲料          國小
-118                dry                adj.        乾的              國小
-119                duck               n.          鴨子              國小
-120                ear                n.          耳朵              國小
-121                early              adj./adv.   早的、早          國小
-122                easy               adj.        容易的            國小
-123                eat                v.          吃                國小
-124                egg                n.          蛋                國小
-125                eight              n./adj.     八                國小
-126                elephant           n.          大象              國小
-127                English            n.          英文              國小
-128                eraser             n.          橡皮擦            國小
-129                evening            n.          傍晚              國小
-130                every              adj.        每一個            國小
-131                eye                n.          眼睛              國小
-132                face               n.          臉                國小
-133                family             n.          家庭              國小
-134                farm               n.          農場              國小
-135                farmer             n.          農夫              國小
-136                fast               adj./adv.   快的、快          國小
-137                fat                adj.        胖的              國小
-138                father             n.          父親              國小
-139                February           n.          二月              國小
-140                fifteen            n./adj.     十五              國小
-141                fifty              n./adj.     五十              國小
-142                find               v.          找到              國小
-143                fine               adj.        很好的            國小
-144                finger             n.          手指              國小
-145                fish               n.          魚                國小
-146                five               n./adj.     五                國小
-147                floor              n.          地板、樓層        國小
-148                flower             n.          花                國小
-149                fly                v.          飛                國小
-150                food               n.          食物              國小
-151                foot               n.          腳                國小
-152                fork               n.          叉子              國小
-153                forty              n./adj.     四十              國小
-154                four               n./adj.     四                國小
-155                fourteen           n./adj.     十四              國小
-156                Friday             n.          星期五            國小
-157                friend             n.          朋友              國小
-158                from               prep.       從                國小
-159                fruit              n.          水果              國小
-160                fun                n./adj.     樂趣、好玩的      國小
-161                game               n.          遊戲、比賽        國小
-162                garden             n.          花園              國小
-163                get                v.          得到              國小
-164                gift               n.          禮物              國小
-165                girl               n.          女孩              國小
-166                give               v.          給                國小
-167                glass              n.          玻璃杯            國小
-168                glove              n.          手套              國小
-169                go                 v.          去                國小
-170                goat               n.          山羊              國小
-171                gold               n./adj.     金色              國小
-172                good               adj.        好的              國小
-173                grandfather        n.          祖父              國小
-174                grandmother        n.          祖母              國小
-175                grape              n.          葡萄              國小
-176                grass              n.          草                國小
-177                gray               adj./n.     灰色的、灰色      國小
-178                green              adj./n.     綠色的、綠色      國小
-179                ground             n.          地面              國小
-180                hair               n.          頭髮              國小
-181                hand               n.          手                國小
-182                happy              adj.        快樂的            國小
-183                hat                n.          帽子              國小
-184                have               v.          有                國小
-185                he                 pron.       他                國小
-186                head               n.          頭                國小
-187                hear               v.          聽見              國小
-188                heavy              adj.        重的              國小
-189                hello              int.        哈囉              國小
-190                help               v./n.       幫忙              國小
-191                hen                n.          母雞              國小
-192                her                pron.       她的              國小
-193                here               adv.        這裡              國小
-194                high               adj.        高的              國小
-195                him                pron.       他                國小
-196                his                pron.       他的              國小
-197                home               n.          家                國小
-198                homework           n.          功課              國小
-199                honey              n.          蜂蜜              國小
-200                hope               v./n.       希望              國小
-201                horse              n.          馬                國小
-202                hospital           n.          醫院              國小
-203                hot                adj.        熱的              國小
-204                hour               n.          小時              國小
-205                house              n.          房子              國小
-206                how                adv.        如何              國小
-207                hungry             adj.        餓的              國小
-208                I                  pron.       我                國小
-209                ice                n.          冰                國小
-210                in                 prep.       在…裡面           國小
-211                it                 pron.       它                國小
-212                January            n.          一月              國小
-213                juice              n.          果汁              國小
-214                July               n.          七月              國小
-215                jump               v.          跳                國小
-216                June               n.          六月              國小
-217                key                n.          鑰匙              國小
-218                king               n.          國王              國小
-219                kitchen            n.          廚房              國小
-220                kite               n.          風箏              國小
-221                knee               n.          膝蓋              國小
-222                knife              n.          刀子              國小
-223                know               v.          知道              國小
-224                lamp               n.          檯燈              國小
-225                late               adj./adv.   遲的、晚          國小
-226                laugh              v.          笑                國小
-227                lazy               adj.        懶惰的            國小
-228                learn              v.          學習              國小
-229                leg                n.          腿                國小
-230                lemon              n.          檸檬              國小
-231                letter             n.          信、字母          國小
-232                library            n.          圖書館            國小
-233                light              n./adj.     燈、輕的          國小
-234                like               v.          喜歡              國小
-235                lion               n.          獅子              國小
-236                listen             v.          聽                國小
-237                little             adj.        小的              國小
-238                long               adj.        長的              國小
-239                look               v.          看                國小
-240                love               v./n.       愛                國小
-241                lunch              n.          午餐              國小
-242                mail               n./v.       郵件、寄          國小
-243                make               v.          製作              國小
-244                man                n.          男人              國小
-245                many               adj.        許多的            國小
-246                map                n.          地圖              國小
-247                March              n.          三月              國小
-248                market             n.          市場              國小
-249                math               n.          數學              國小
-250                May                n.          五月              國小
-251                meat               n.          肉                國小
-252                milk               n.          牛奶              國小
-253                minute             n.          分鐘              國小
-254                Monday             n.          星期一            國小
-255                money              n.          錢                國小
-256                monkey             n.          猴子              國小
-257                month              n.          月份              國小
-258                moon               n.          月亮              國小
-259                morning            n.          早上              國小
-260                mother             n.          母親              國小
-261                mountain           n.          山                國小
-262                mouse              n.          老鼠              國小
-263                mouth              n.          嘴巴              國小
-264                movie              n.          電影              國小
-265                music              n.          音樂              國小
-266                my                 pron.       我的              國小
-267                name               n.          名字              國小
-268                neck               n.          脖子              國小
-269                new                adj.        新的              國小
-270                night              n.          夜晚              國小
-271                nine               n./adj.     九                國小
-272                no                 adv.        不                國小
-273                noodles            n.          麵                國小
-274                noon               n.          中午              國小
-275                nose               n.          鼻子              國小
-276                notebook           n.          筆記本            國小
-277                November           n.          十一月            國小
-278                nurse              n.          護理師            國小
-279                October            n.          十月              國小
-280                old                adj.        老的、舊的        國小
-281                on                 prep.       在…上面           國小
-282                one                n./adj.     一                國小
-283                onion              n.          洋蔥              國小
-284                open               v./adj.     打開、開著的      國小
-285                orange             n./adj.     柳橙、橘色的      國小
-286                paper              n.          紙                國小
-287                parent             n.          父母其中一位      國小
-288                park               n.          公園              國小
-289                party              n.          派對              國小
-290                pen                n.          原子筆            國小
-291                pencil             n.          鉛筆              國小
-292                people             n.          人們              國小
-293                pet                n.          寵物              國小
-294                piano              n.          鋼琴              國小
-295                picture            n.          圖畫、照片        國小
-296                pig                n.          豬                國小
-297                pink               adj./n.     粉紅色的、粉紅色  國小
-298                pizza              n.          披薩              國小
-299                play               v.          玩、打球          國小
-300                please             adv.        請                國小
-301                police             n.          警察              國小
-302                pork               n.          豬肉              國小
-303                potato             n.          馬鈴薯            國小
-304                pretty             adj.        漂亮的            國小
-305                pull               v.          拉                國小
-306                purple             adj./n.     紫色的、紫色      國小
-307                push               v.          推                國小
-308                rabbit             n.          兔子              國小
-309                rain               n./v.       雨、下雨          國小
-310                rainy              adj.        下雨的            國小
-311                read               v.          讀                國小
-312                ready              adj.        準備好的          國小
-313                red                adj./n.     紅色的、紅色      國小
-314                restaurant         n.          餐廳              國小
-315                rice               n.          米飯              國小
-316                ride               v.          騎                國小
-317                river              n.          河流              國小
-318                road               n.          道路              國小
-319                rock               n.          岩石              國小
-320                room               n.          房間              國小
-321                rose               n.          玫瑰              國小
-322                ruler              n.          尺                國小
-323                run                v.          跑                國小
-324                sad                adj.        難過的            國小
-325                safe               adj.        安全的            國小
-326                salad              n.          沙拉              國小
-327                salt               n.          鹽                國小
-328                sandwich           n.          三明治            國小
-329                Saturday           n.          星期六            國小
-330                say                v.          說                國小
-331                school             n.          學校              國小
-332                sea                n.          海                國小
-333                season             n.          季節              國小
-334                see                v.          看見              國小
-335                sell               v.          賣                國小
-336                September          n.          九月              國小
-337                seven              n./adj.     七                國小
-338                she                pron.       她                國小
-339                sheep              n.          綿羊              國小
-340                ship               n.          船                國小
-341                shirt              n.          襯衫              國小
-342                shoe               n.          鞋子              國小
-343                shop               n./v.       商店、購物        國小
-344                short              adj.        短的、矮的        國小
-345                shoulder           n.          肩膀              國小
-346                shout              v.          大叫              國小
-347                sing               v.          唱歌              國小
-348                singer             n.          歌手              國小
-349                sister             n.          姊妹              國小
-350                sit                v.          坐                國小
-351                six                n./adj.     六                國小
-352                skirt              n.          裙子              國小
-353                sky                n.          天空              國小
-354                sleep              v.          睡覺              國小
-355                slow               adj.        慢的              國小
-356                small              adj.        小的              國小
-357                smile              v./n.       微笑              國小
-358                snake              n.          蛇                國小
-359                snow               n./v.       雪、下雪          國小
-360                soap               n.          肥皂              國小
-361                soccer             n.          足球              國小
-362                socks              n.          襪子              國小
-363                sofa               n.          沙發              國小
-364                son                n.          兒子              國小
-365                song               n.          歌曲              國小
-366                sorry              adj.        抱歉的            國小
-367                soup               n.          湯                國小
-368                spoon              n.          湯匙              國小
-369                spring             n.          春天              國小
-370                stand              v.          站                國小
-371                star               n.          星星              國小
-372                stop               v.          停止              國小
-373                store              n.          商店              國小
-374                story              n.          故事              國小
-375                strong             adj.        強壯的            國小
-376                student            n.          學生              國小
-377                study              v.          讀書              國小
-378                sugar              n.          糖                國小
-379                summer             n.          夏天              國小
-380                sun                n.          太陽              國小
-381                Sunday             n.          星期日            國小
-382                sunny              adj.        晴朗的            國小
-383                sweet              adj.        甜的              國小
-384                swim               v.          游泳              國小
-385                table              n.          桌子              國小
-386                tail               n.          尾巴              國小
-387                take               v.          拿                國小
-388                talk               v.          說話              國小
-389                tall               adj.        高的              國小
-390                taxi               n.          計程車            國小
-391                tea                n.          茶                國小
-392                teacher            n.          老師              國小
-393                telephone          n.          電話              國小
-394                television         n.          電視              國小
-395                tell               v.          告訴              國小
-396                ten                n./adj.     十                國小
-397                test               n.          測驗              國小
-398                thank              v.          謝謝              國小
-399                think              v.          想、認為          國小
-400                thirsty            adj.        口渴的            國小
-401                thirty             n./adj.     三十              國小
-402                three              n./adj.     三                國小
-403                Thursday           n.          星期四            國小
-404                ticket             n.          票                國小
-405                tiger              n.          老虎              國小
-406                time               n.          時間              國小
-407                tired              adj.        累的              國小
-408                today              n./adv.     今天              國小
-409                tomato             n.          番茄              國小
-410                tomorrow           n./adv.     明天              國小
-411                tooth              n.          牙齒              國小
-412                towel              n.          毛巾              國小
-413                town               n.          城鎮              國小
-414                toy                n.          玩具              國小
-415                train              n.          火車              國小
-416                tree               n.          樹                國小
-417                Tuesday            n.          星期二            國小
-418                twelve             n./adj.     十二              國小
-419                twenty             n./adj.     二十              國小
-420                two                n./adj.     二                國小
-421                umbrella           n.          雨傘              國小
-422                uncle              n.          叔叔、舅舅        國小
-423                under              prep.       在…下面           國小
-424                use                v.          使用              國小
-425                vegetable          n.          蔬菜              國小
-426                very               adv.        非常              國小
-427                visit              v.          拜訪              國小
-428                wait               v.          等待              國小
-429                walk               v.          走路              國小
-430                wall               n.          牆壁              國小
-431                want               v.          想要              國小
-432                warm               adj.        溫暖的            國小
-433                wash               v.          洗                國小
-434                watch              v./n.       看、手錶          國小
-435                water              n.          水                國小
-436                weather            n.          天氣              國小
-437                Wednesday          n.          星期三            國小
-438                week               n.          星期、週          國小
-439                weekend            n.          週末              國小
-440                welcome            v./adj.     歡迎              國小
-441                wet                adj.        濕的              國小
-442                what               pron.       什麼              國小
-443                when               adv.        何時              國小
-444                where              adv.        哪裡              國小
-445                white              adj./n.     白色的、白色      國小
-446                who                pron.       誰                國小
-447                why                adv.        為什麼            國小
-448                wind               n.          風                國小
-449                window             n.          窗戶              國小
-450                windy              adj.        有風的            國小
-451                winter             n.          冬天              國小
-452                wolf               n.          狼                國小
-453                woman              n.          女人              國小
-454                word               n.          單字              國小
-455                work               v./n.       工作              國小
-456                world              n.          世界              國小
-457                write              v.          寫                國小
-458                year               n.          年                國小
-459                yellow             adj./n.     黃色的、黃色      國小
-460                yes                adv.        是                國小
-461                yesterday          n./adv.     昨天              國小
-462                you                pron.       你                國小
-463                young              adj.        年輕的            國小
-464                zoo                n.          動物園            國小
-465                ability            n.          能力              國中
-466                able               adj.        能夠的            國中
-467                above              prep.       在…上方           國中
-468                abroad             adv.        在國外            國中
-469                accept             v.          接受              國中
-470                across             prep.       橫越              國中
-471                act                v./n.       行動、演出        國中
-472                action             n.          行動              國中
-473                active             adj.        活躍的            國中
-474                activity           n.          活動              國中
-475                actor              n.          男演員            國中
-476                actress            n.          女演員            國中
-477                add                v.          加                國中
-478                address            n.          地址              國中
-479                adult              n.          成人              國中
-480                afraid             adj.        害怕的            國中
-481                against            prep.       反對              國中
-482                age                n.          年紀              國中
-483                ago                adv.        以前              國中
-484                agree              v.          同意              國中
-485                air                n.          空氣              國中
-486                airplane           n.          飛機              國中
-487                airport            n.          機場              國中
-488                alive              adj.        活著的            國中
-489                allow              v.          允許              國中
-490                almost             adv.        幾乎              國中
-491                alone              adj./adv.   獨自的            國中
-492                along              prep.       沿著              國中
-493                already            adv.        已經              國中
-494                also               adv.        也                國中
-495                although           conj.       雖然              國中
-496                among              prep.       在…之中           國中
-497                amount             n.          數量              國中
-498                ancient            adj.        古代的            國中
-499                angel              n.          天使              國中
-500                another            adj./pron.  另一個            國中
-501                anybody            pron.       任何人            國中
-502                anyone             pron.       任何人            國中
-503                anything           pron.       任何事            國中
-504                anyway             adv.        無論如何          國中
-505                anywhere           adv.        任何地方          國中
-506                apartment          n.          公寓              國中
-507                appear             v.          出現              國中
-508                area               n.          地區              國中
-509                argue              v.          爭論              國中
-510                army               n.          軍隊              國中
-511                around             prep.       在…周圍           國中
-512                arrive             v.          抵達              國中
-513                artist             n.          藝術家            國中
-514                as                 conj.       當、如同          國中
-515                ask                v.          問                國中
-516                asleep             adj.        睡著的            國中
-517                attack             v./n.       攻擊              國中
-518                attention          n.          注意              國中
-519                audience           n.          觀眾              國中
-520                autumn             n.          秋天              國中
-521                available          adj.        可取得的          國中
-522                average            n./adj.     平均              國中
-523                avoid              v.          避免              國中
-524                awake              adj.        醒著的            國中
-525                away               adv.        離開              國中
-526                awful              adj.        糟糕的            國中
-527                bake               v.          烘烤              國中
-528                band               n.          樂團              國中
-529                bark               v.          吠叫              國中
-530                base               n.          基礎              國中
-531                basic              adj.        基本的            國中
-532                basket             n.          籃子              國中
-533                bat                n.          蝙蝠、球棒        國中
-534                bath               n.          洗澡              國中
-535                beat               v.          打敗              國中
-536                because            conj.       因為              國中
-537                become             v.          變成              國中
-538                bee                n.          蜜蜂              國中
-539                begin              v.          開始              國中
-540                behind             prep.       在…後面           國中
-541                believe            v.          相信              國中
-542                bell               n.          鈴                國中
-543                belong             v.          屬於              國中
-544                below              prep.       在…下方           國中
-545                belt               n.          皮帶              國中
-546                bench              n.          長椅              國中
-547                beside             prep.       在…旁邊           國中
-548                besides            adv.        此外              國中
-549                between            prep.       在…之間           國中
-550                bill               n.          帳單              國中
-551                bite               v.          咬                國中
-552                bitter             adj.        苦的              國中
-553                blackboard         n.          黑板              國中
-554                blank              n./adj.     空白              國中
-555                blanket            n.          毯子              國中
-556                bless              v.          祝福              國中
-557                blind              adj.        失明的            國中
-558                block              n.          街區              國中
-559                blood              n.          血                國中
-560                blouse             n.          女上衣            國中
-561                blow               v.          吹                國中
-562                board              n.          板子              國中
-563                boil               v.          煮沸              國中
-564                bone               n.          骨頭              國中
-565                bored              adj.        感到無聊的        國中
-566                boring             adj.        無聊的            國中
-567                born               adj.        出生的            國中
-568                borrow             v.          借入              國中
-569                boss               n.          老闆              國中
-570                both               adj.        兩者都            國中
-571                bother             v.          打擾              國中
-572                bottle             n.          瓶子              國中
-573                bottom             n.          底部              國中
-574                bowl               n.          碗                國中
-575                brain              n.          大腦              國中
-576                branch             n.          樹枝              國中
-577                brave              adj.        勇敢的            國中
-578                bridge             n.          橋                國中
-579                bright             adj.        明亮的            國中
-580                bring              v.          帶來              國中
-581                brush              n./v.       刷子、刷          國中
-582                build              v.          建造              國中
-583                building           n.          建築物            國中
-584                burn               v.          燃燒              國中
-585                business           n.          生意              國中
-586                butter             n.          奶油              國中
-587                butterfly          n.          蝴蝶              國中
-588                button             n.          鈕扣              國中
-589                by                 prep.       藉由              國中
-590                cage               n.          籠子              國中
-591                calendar           n.          月曆              國中
-592                camp               n./v.       露營              國中
-593                cancel             v.          取消              國中
-594                candle             n.          蠟燭              國中
-595                capital            n.          首都              國中
-596                care               v./n.       在乎、照顧        國中
-597                careful            adj.        小心的            國中
-598                careless           adj.        粗心的            國中
-599                carry              v.          攜帶              國中
-600                cartoon            n.          卡通              國中
-601                case               n.          情況              國中
-602                cash               n.          現金              國中
-603                castle             n.          城堡              國中
-604                cause              n./v.       原因、造成        國中
-605                ceiling            n.          天花板            國中
-606                celebrate          v.          慶祝              國中
-607                cent               n.          分                國中
-608                center             n.          中心              國中
-609                centimeter         n.          公分              國中
-610                century            n.          世紀              國中
-611                certain            adj.        確定的            國中
-612                chance             n.          機會              國中
-613                change             v./n.       改變、零錢        國中
-614                channel            n.          頻道              國中
-615                character          n.          性格、角色        國中
-616                chase              v.          追                國中
-617                cheat              v.          作弊              國中
-618                check              v./n.       檢查、帳單        國中
-619                cheer              v.          歡呼              國中
-620                chess              n.          西洋棋            國中
-621                choice             n.          選擇              國中
-622                choose             v.          選擇              國中
-623                chopsticks         n.          筷子              國中
-624                church             n.          教堂              國中
-625                circle             n.          圓圈              國中
-626                clear              adj.        清楚的            國中
-627                clerk              n.          店員              國中
-628                clever             adj.        聰明的            國中
-629                cloth              n.          布                國中
-630                club               n.          社團              國中
-631                coach              n.          教練              國中
-632                coast              n.          海岸              國中
-633                coin               n.          硬幣              國中
-634                cola               n.          可樂              國中
-635                collect            v.          收集              國中
-636                college            n.          大學              國中
-637                comb               n./v.       梳子、梳          國中
-638                comfortable        adj.        舒適的            國中
-639                comic              n.          漫畫              國中
-640                common             adj.        常見的            國中
-641                company            n.          公司              國中
-642                complain           v.          抱怨              國中
-643                concert            n.          演唱會            國中
-644                condition          n.          狀況              國中
-645                confident          adj.        有信心的          國中
-646                continue           v.          繼續              國中
-647                control            v./n.       控制              國中
-648                convenient         adj.        方便的            國中
-649                conversation       n.          對話              國中
-650                copy               v./n.       複製、影本        國中
-651                corner             n.          角落              國中
-652                correct            adj.        正確的            國中
-653                cost               v./n.       花費              國中
-654                cotton             n.          棉                國中
-655                cough              v.          咳嗽              國中
-656                count              v.          數                國中
-657                country            n.          國家              國中
-658                couple             n.          一對              國中
-659                course             n.          課程              國中
-660                court              n.          球場              國中
-661                cover              v.          覆蓋              國中
-662                crazy              adj.        瘋狂的            國中
-663                cream              n.          奶油              國中
-664                cross              v.          穿越              國中
-665                crowd              n.          人群              國中
-666                cruel              adj.        殘忍的            國中
-667                culture            n.          文化              國中
-668                curious            adj.        好奇的            國中
-669                curtain            n.          窗簾              國中
-670                customer           n.          顧客              國中
-671                daily              adj.        每日的            國中
-672                danger             n.          危險              國中
-673                dangerous          adj.        危險的            國中
-674                date               n.          日期              國中
-675                dead               adj.        死的              國中
-676                dear               adj.        親愛的            國中
-677                death              n.          死亡              國中
-678                decide             v.          決定              國中
-679                decision           n.          決定              國中
-680                decorate           v.          裝飾              國中
-681                deep               adj.        深的              國中
-682                delicious          adj.        美味的            國中
-683                dentist            n.          牙醫              國中
-684                depend             v.          依賴              國中
-685                desert             n.          沙漠              國中
-686                design             n./v.       設計              國中
-687                dessert            n.          甜點              國中
-688                diary              n.          日記              國中
-689                die                v.          死                國中
-690                diet               n.          飲食              國中
-691                difference         n.          不同              國中
-692                dig                v.          挖                國中
-693                direction          n.          方向              國中
-694                discover           v.          發現              國中
-695                discuss            v.          討論              國中
-696                dish               n.          盤子、菜餚        國中
-697                dolphin            n.          海豚              國中
-698                double             adj.        雙倍的            國中
-699                down               adv.        向下              國中
-700                downstairs         adv.        樓下              國中
-701                downtown           n.          市區              國中
-702                dozen              n.          一打              國中
-703                dragon             n.          龍                國中
-704                drama              n.          戲劇              國中
-705                dream              n./v.       夢                國中
-706                drive              v.          開車              國中
-707                driver             n.          司機              國中
-708                drop               v.          掉落              國中
-709                drum               n.          鼓                國中
-710                duty               n.          責任              國中
-711                during             prep.       在…期間           國中
-712                each               adj.        每一個            國中
-713                earn               v.          賺                國中
-714                earth              n.          地球              國中
-715                earthquake         n.          地震              國中
-716                east               n.          東方              國中
-717                education          n.          教育              國中
-718                eighteen           n./adj.     十八              國中
-719                eighty             n./adj.     八十              國中
-720                electric           adj.        電的              國中
-721                elementary school  n.          小學              國中
-722                eleven             n./adj.     十一              國中
-723                else               adv.        其他              國中
-724                e-mail             n.          電子郵件          國中
-725                empty              adj.        空的              國中
-726                end                n./v.       結束              國中
-727                enemy              n.          敵人              國中
-728                energy             n.          能量              國中
-729                engineer           n.          工程師            國中
-730                enjoy              v.          享受              國中
-731                enough             adj.        足夠的            國中
-732                enter              v.          進入              國中
-733                envelope           n.          信封              國中
-734                environment        n.          環境              國中
-735                especially         adv.        尤其              國中
-736                even               adv.        甚至              國中
-737                ever               adv.        曾經              國中
-738                everybody          pron.       每個人            國中
-739                everyone           pron.       每個人            國中
-740                everything         pron.       每件事            國中
-741                everywhere         adv.        到處              國中
-742                exam               n.          考試              國中
-743                example            n.          例子              國中
-744                excellent          adj.        優秀的            國中
-745                except             prep.       除了              國中
-746                excited            adj.        感到興奮的        國中
-747                exciting           adj.        令人興奮的        國中
-748                excuse             v./n.       原諒、藉口        國中
-749                exercise           n./v.       運動              國中
-750                exit               n.          出口              國中
-751                expect             v.          期待              國中
-752                expensive          adj.        昂貴的            國中
-753                experience         n.          經驗              國中
-754                explain            v.          解釋              國中
-755                fact               n.          事實              國中
-756                factory            n.          工廠              國中
-757                fail               v.          失敗              國中
-758                fair               adj.        公平的            國中
-759                fall               v./n.       落下、秋天        國中
-760                false              adj.        錯誤的            國中
-761                famous             adj.        有名的            國中
-762                fan                n.          電風扇、粉絲      國中
-763                far                adv.        遠                國中
-764                fault              n.          過錯              國中
-765                favorite           adj.        最喜愛的          國中
-766                fear               n.          恐懼              國中
-767                feed               v.          餵                國中
-768                feel               v.          感覺              國中
-769                feeling            n.          感覺              國中
-770                festival           n.          節日              國中
-771                fever              n.          發燒              國中
-772                few                adj.        很少的            國中
-773                field              n.          田野              國中
-774                fight              v./n.       打架              國中
-775                fill               v.          填滿              國中
-776                film               n.          電影              國中
-777                final              adj.        最後的            國中
-778                finish             v.          完成              國中
-779                fire               n.          火                國中
-780                fireman            n.          消防員            國中
-781                first              adj.        第一的            國中
-782                fit                v./adj.     適合              國中
-783                fix                v.          修理              國中
-784                flag               n.          旗子              國中
-785                flashlight         n.          手電筒            國中
-786                flat               adj.        平的              國中
-787                flight             n.          班機              國中
-788                flour              n.          麵粉              國中
-789                flu                n.          流行性感冒        國中
-790                fog                n.          霧                國中
-791                follow             v.          跟隨              國中
-792                football           n.          美式足球          國中
-793                for                prep.       為了              國中
-794                foreign            adj.        外國的            國中
-795                foreigner          n.          外國人            國中
-796                forest             n.          森林              國中
-797                forget             v.          忘記              國中
-798                forgive            v.          原諒              國中
-799                form               n.          表格              國中
-800                forward            adv.        向前              國中
-801                free               adj.        自由的、免費的    國中
-802                fresh              adj.        新鮮的            國中
-803                fried              adj.        油炸的            國中
-804                friendly           adj.        友善的            國中
-805                frog               n.          青蛙              國中
-806                front              n.          前面              國中
-807                full               adj.        滿的              國中
-808                funny              adj.        好笑的            國中
-809                furniture          n.          家具              國中
-810                future             n.          未來              國中
-811                beaver             n.          海狸              國中
+# seed-version: 5
+# no               word               pos         zh                grade  topic
+1                  a                  art.        一個              國小   -
+2                  about              prep.       關於              國小   -
+3                  after              prep.       在…之後           國小   -
+4                  afternoon          n.          下午              國小   -
+5                  again              adv.        再一次            國小   -
+6                  all                adj.        全部的            國小   -
+7                  always             adv.        總是              國小   -
+8                  and                conj.       和                國小   -
+9                  angry              adj.        生氣的            國小   -
+10                 animal             n.          動物              國小   -
+11                 answer             n./v.       答案、回答        國小   -
+12                 ant                n.          螞蟻              國小   -
+13                 apple              n.          蘋果              國小   食物
+14                 April              n.          四月              國小   -
+15                 arm                n.          手臂              國小   -
+16                 art                n.          美術              國小   -
+17                 at                 prep.       在                國小   -
+18                 August             n.          八月              國小   -
+19                 aunt               n.          阿姨、姑姑        國小   -
+20                 baby               n.          嬰兒              國小   -
+21                 back               n./adv.     背部、回來        國小   -
+22                 bad                adj.        壞的              國小   -
+23                 bag                n.          袋子、書包        國小   -
+24                 ball               n.          球                國小   -
+25                 banana             n.          香蕉              國小   食物
+26                 bank               n.          銀行              國小   -
+27                 baseball           n.          棒球              國小   -
+28                 basketball         n.          籃球              國小   -
+29                 bathroom           n.          浴室、廁所        國小   -
+30                 be                 v.          是                國小   -
+31                 beach              n.          海灘              國小   -
+32                 bear               n.          熊                國小   -
+33                 beautiful          adj.        美麗的            國小   -
+34                 bed                n.          床                國小   -
+35                 bedroom            n.          臥室              國小   -
+36                 beef               n.          牛肉              國小   食物
+37                 before             prep.       在…之前           國小   -
+38                 big                adj.        大的              國小   -
+39                 bicycle            n.          腳踏車            國小   -
+40                 bird               n.          鳥                國小   -
+41                 birthday           n.          生日              國小   -
+42                 black              adj./n.     黑色的、黑色      國小   -
+43                 blue               adj./n.     藍色的、藍色      國小   -
+44                 boat               n.          小船              國小   -
+45                 body               n.          身體              國小   -
+46                 book               n.          書                國小   -
+47                 box                n.          盒子、箱子        國小   -
+48                 boy                n.          男孩              國小   -
+49                 bread              n.          麵包              國小   食物
+50                 breakfast          n.          早餐              國小   食物
+51                 brother            n.          兄弟              國小   -
+52                 brown              adj./n.     咖啡色的、咖啡色  國小   -
+53                 bus                n.          公車              國小   -
+54                 busy               adj.        忙碌的            國小   -
+55                 but                conj.       但是              國小   -
+56                 buy                v.          買                國小   -
+57                 cake               n.          蛋糕              國小   食物
+58                 call               v.          打電話、叫        國小   -
+59                 can                aux.        能夠              國小   -
+60                 candy              n.          糖果              國小   食物
+61                 cap                n.          鴨舌帽            國小   -
+62                 car                n.          汽車              國小   -
+63                 card               n.          卡片              國小   -
+64                 cat                n.          貓                國小   -
+65                 catch              v.          接住、抓住        國小   -
+66                 chair              n.          椅子              國小   -
+67                 cheap              adj.        便宜的            國小   -
+68                 cheese             n.          起司              國小   食物
+69                 chicken            n.          雞、雞肉          國小   食物
+70                 child              n.          小孩              國小   -
+71                 chocolate          n.          巧克力            國小   食物
+72                 city               n.          城市              國小   -
+73                 class              n.          班級、課          國小   -
+74                 classmate          n.          同班同學          國小   -
+75                 classroom          n.          教室              國小   -
+76                 clean              adj./v.     乾淨的、打掃      國小   -
+77                 climb              v.          爬                國小   -
+78                 clock              n.          時鐘              國小   -
+79                 close              v./adj.     關上、靠近的      國小   -
+80                 clothes            n.          衣服              國小   -
+81                 cloud              n.          雲                國小   -
+82                 cloudy             adj.        多雲的            國小   -
+83                 coat               n.          外套              國小   -
+84                 coffee             n.          咖啡              國小   食物
+85                 cold               adj.        冷的              國小   -
+86                 color              n.          顏色              國小   -
+87                 come               v.          來                國小   -
+88                 computer           n.          電腦              國小   -
+89                 cook               v./n.       煮、廚師          國小   -
+90                 cookie             n.          餅乾              國小   食物
+91                 cool               adj.        涼的、酷的        國小   -
+92                 cousin             n.          表兄弟姊妹        國小   -
+93                 cow                n.          母牛              國小   -
+94                 crayon             n.          蠟筆              國小   -
+95                 cry                v.          哭                國小   -
+96                 cup                n.          杯子              國小   -
+97                 cut                v.          切、剪            國小   -
+98                 cute               adj.        可愛的            國小   -
+99                 dance              v./n.       跳舞              國小   -
+100                dark               adj.        暗的              國小   -
+101                daughter           n.          女兒              國小   -
+102                day                n.          天、日子          國小   -
+103                December           n.          十二月            國小   -
+104                desk               n.          書桌              國小   -
+105                dictionary         n.          字典              國小   -
+106                different          adj.        不同的            國小   -
+107                difficult          adj.        困難的            國小   -
+108                dinner             n.          晚餐              國小   食物
+109                dirty              adj.        髒的              國小   -
+110                do                 v.          做                國小   -
+111                doctor             n.          醫生              國小   -
+112                dog                n.          狗                國小   -
+113                doll               n.          洋娃娃            國小   -
+114                door               n.          門                國小   -
+115                draw               v.          畫                國小   -
+116                dress              n.          洋裝              國小   -
+117                drink              v./n.       喝、飲料          國小   -
+118                dry                adj.        乾的              國小   -
+119                duck               n.          鴨子              國小   -
+120                ear                n.          耳朵              國小   -
+121                early              adj./adv.   早的、早          國小   -
+122                easy               adj.        容易的            國小   -
+123                eat                v.          吃                國小   -
+124                egg                n.          蛋                國小   食物
+125                eight              n./adj.     八                國小   -
+126                elephant           n.          大象              國小   -
+127                English            n.          英文              國小   -
+128                eraser             n.          橡皮擦            國小   -
+129                evening            n.          傍晚              國小   -
+130                every              adj.        每一個            國小   -
+131                eye                n.          眼睛              國小   -
+132                face               n.          臉                國小   -
+133                family             n.          家庭              國小   -
+134                farm               n.          農場              國小   -
+135                farmer             n.          農夫              國小   -
+136                fast               adj./adv.   快的、快          國小   -
+137                fat                adj.        胖的              國小   -
+138                father             n.          父親              國小   -
+139                February           n.          二月              國小   -
+140                fifteen            n./adj.     十五              國小   -
+141                fifty              n./adj.     五十              國小   -
+142                find               v.          找到              國小   -
+143                fine               adj.        很好的            國小   -
+144                finger             n.          手指              國小   -
+145                fish               n.          魚                國小   食物
+146                five               n./adj.     五                國小   -
+147                floor              n.          地板、樓層        國小   -
+148                flower             n.          花                國小   -
+149                fly                v.          飛                國小   -
+150                food               n.          食物              國小   食物
+151                foot               n.          腳                國小   -
+152                fork               n.          叉子              國小   -
+153                forty              n./adj.     四十              國小   -
+154                four               n./adj.     四                國小   -
+155                fourteen           n./adj.     十四              國小   -
+156                Friday             n.          星期五            國小   -
+157                friend             n.          朋友              國小   -
+158                from               prep.       從                國小   -
+159                fruit              n.          水果              國小   食物
+160                fun                n./adj.     樂趣、好玩的      國小   -
+161                game               n.          遊戲、比賽        國小   -
+162                garden             n.          花園              國小   -
+163                get                v.          得到              國小   -
+164                gift               n.          禮物              國小   -
+165                girl               n.          女孩              國小   -
+166                give               v.          給                國小   -
+167                glass              n.          玻璃杯            國小   -
+168                glove              n.          手套              國小   -
+169                go                 v.          去                國小   -
+170                goat               n.          山羊              國小   -
+171                gold               n./adj.     金色              國小   -
+172                good               adj.        好的              國小   -
+173                grandfather        n.          祖父              國小   -
+174                grandmother        n.          祖母              國小   -
+175                grape              n.          葡萄              國小   食物
+176                grass              n.          草                國小   -
+177                gray               adj./n.     灰色的、灰色      國小   -
+178                green              adj./n.     綠色的、綠色      國小   -
+179                ground             n.          地面              國小   -
+180                hair               n.          頭髮              國小   -
+181                hand               n.          手                國小   -
+182                happy              adj.        快樂的            國小   -
+183                hat                n.          帽子              國小   -
+184                have               v.          有                國小   -
+185                he                 pron.       他                國小   -
+186                head               n.          頭                國小   -
+187                hear               v.          聽見              國小   -
+188                heavy              adj.        重的              國小   -
+189                hello              int.        哈囉              國小   -
+190                help               v./n.       幫忙              國小   -
+191                hen                n.          母雞              國小   -
+192                her                pron.       她的              國小   -
+193                here               adv.        這裡              國小   -
+194                high               adj.        高的              國小   -
+195                him                pron.       他                國小   -
+196                his                pron.       他的              國小   -
+197                home               n.          家                國小   -
+198                homework           n.          功課              國小   -
+199                honey              n.          蜂蜜              國小   食物
+200                hope               v./n.       希望              國小   -
+201                horse              n.          馬                國小   -
+202                hospital           n.          醫院              國小   -
+203                hot                adj.        熱的              國小   -
+204                hour               n.          小時              國小   -
+205                house              n.          房子              國小   -
+206                how                adv.        如何              國小   -
+207                hungry             adj.        餓的              國小   -
+208                I                  pron.       我                國小   -
+209                ice                n.          冰                國小   食物
+210                in                 prep.       在…裡面           國小   -
+211                it                 pron.       它                國小   -
+212                January            n.          一月              國小   -
+213                juice              n.          果汁              國小   食物
+214                July               n.          七月              國小   -
+215                jump               v.          跳                國小   -
+216                June               n.          六月              國小   -
+217                key                n.          鑰匙              國小   -
+218                king               n.          國王              國小   -
+219                kitchen            n.          廚房              國小   -
+220                kite               n.          風箏              國小   -
+221                knee               n.          膝蓋              國小   -
+222                knife              n.          刀子              國小   -
+223                know               v.          知道              國小   -
+224                lamp               n.          檯燈              國小   -
+225                late               adj./adv.   遲的、晚          國小   -
+226                laugh              v.          笑                國小   -
+227                lazy               adj.        懶惰的            國小   -
+228                learn              v.          學習              國小   -
+229                leg                n.          腿                國小   -
+230                lemon              n.          檸檬              國小   食物
+231                letter             n.          信、字母          國小   -
+232                library            n.          圖書館            國小   -
+233                light              n./adj.     燈、輕的          國小   -
+234                like               v.          喜歡              國小   -
+235                lion               n.          獅子              國小   -
+236                listen             v.          聽                國小   -
+237                little             adj.        小的              國小   -
+238                long               adj.        長的              國小   -
+239                look               v.          看                國小   -
+240                love               v./n.       愛                國小   -
+241                lunch              n.          午餐              國小   食物
+242                mail               n./v.       郵件、寄          國小   -
+243                make               v.          製作              國小   -
+244                man                n.          男人              國小   -
+245                many               adj.        許多的            國小   -
+246                map                n.          地圖              國小   -
+247                March              n.          三月              國小   -
+248                market             n.          市場              國小   -
+249                math               n.          數學              國小   -
+250                May                n.          五月              國小   -
+251                meat               n.          肉                國小   食物
+252                milk               n.          牛奶              國小   食物
+253                minute             n.          分鐘              國小   -
+254                Monday             n.          星期一            國小   -
+255                money              n.          錢                國小   -
+256                monkey             n.          猴子              國小   -
+257                month              n.          月份              國小   -
+258                moon               n.          月亮              國小   -
+259                morning            n.          早上              國小   -
+260                mother             n.          母親              國小   -
+261                mountain           n.          山                國小   -
+262                mouse              n.          老鼠              國小   -
+263                mouth              n.          嘴巴              國小   -
+264                movie              n.          電影              國小   -
+265                music              n.          音樂              國小   -
+266                my                 pron.       我的              國小   -
+267                name               n.          名字              國小   -
+268                neck               n.          脖子              國小   -
+269                new                adj.        新的              國小   -
+270                night              n.          夜晚              國小   -
+271                nine               n./adj.     九                國小   -
+272                no                 adv.        不                國小   -
+273                noodles            n.          麵                國小   食物
+274                noon               n.          中午              國小   -
+275                nose               n.          鼻子              國小   -
+276                notebook           n.          筆記本            國小   -
+277                November           n.          十一月            國小   -
+278                nurse              n.          護理師            國小   -
+279                October            n.          十月              國小   -
+280                old                adj.        老的、舊的        國小   -
+281                on                 prep.       在…上面           國小   -
+282                one                n./adj.     一                國小   -
+283                onion              n.          洋蔥              國小   食物
+284                open               v./adj.     打開、開著的      國小   -
+285                orange             n./adj.     柳橙、橘色的      國小   食物
+286                paper              n.          紙                國小   -
+287                parent             n.          父母其中一位      國小   -
+288                park               n.          公園              國小   -
+289                party              n.          派對              國小   -
+290                pen                n.          原子筆            國小   -
+291                pencil             n.          鉛筆              國小   -
+292                people             n.          人們              國小   -
+293                pet                n.          寵物              國小   -
+294                piano              n.          鋼琴              國小   -
+295                picture            n.          圖畫、照片        國小   -
+296                pig                n.          豬                國小   -
+297                pink               adj./n.     粉紅色的、粉紅色  國小   -
+298                pizza              n.          披薩              國小   食物
+299                play               v.          玩、打球          國小   -
+300                please             adv.        請                國小   -
+301                police             n.          警察              國小   -
+302                pork               n.          豬肉              國小   食物
+303                potato             n.          馬鈴薯            國小   食物
+304                pretty             adj.        漂亮的            國小   -
+305                pull               v.          拉                國小   -
+306                purple             adj./n.     紫色的、紫色      國小   -
+307                push               v.          推                國小   -
+308                rabbit             n.          兔子              國小   -
+309                rain               n./v.       雨、下雨          國小   -
+310                rainy              adj.        下雨的            國小   -
+311                read               v.          讀                國小   -
+312                ready              adj.        準備好的          國小   -
+313                red                adj./n.     紅色的、紅色      國小   -
+314                restaurant         n.          餐廳              國小   -
+315                rice               n.          米飯              國小   食物
+316                ride               v.          騎                國小   -
+317                river              n.          河流              國小   -
+318                road               n.          道路              國小   -
+319                rock               n.          岩石              國小   -
+320                room               n.          房間              國小   -
+321                rose               n.          玫瑰              國小   -
+322                ruler              n.          尺                國小   -
+323                run                v.          跑                國小   -
+324                sad                adj.        難過的            國小   -
+325                safe               adj.        安全的            國小   -
+326                salad              n.          沙拉              國小   食物
+327                salt               n.          鹽                國小   食物
+328                sandwich           n.          三明治            國小   食物
+329                Saturday           n.          星期六            國小   -
+330                say                v.          說                國小   -
+331                school             n.          學校              國小   -
+332                sea                n.          海                國小   -
+333                season             n.          季節              國小   -
+334                see                v.          看見              國小   -
+335                sell               v.          賣                國小   -
+336                September          n.          九月              國小   -
+337                seven              n./adj.     七                國小   -
+338                she                pron.       她                國小   -
+339                sheep              n.          綿羊              國小   -
+340                ship               n.          船                國小   -
+341                shirt              n.          襯衫              國小   -
+342                shoe               n.          鞋子              國小   -
+343                shop               n./v.       商店、購物        國小   -
+344                short              adj.        短的、矮的        國小   -
+345                shoulder           n.          肩膀              國小   -
+346                shout              v.          大叫              國小   -
+347                sing               v.          唱歌              國小   -
+348                singer             n.          歌手              國小   -
+349                sister             n.          姊妹              國小   -
+350                sit                v.          坐                國小   -
+351                six                n./adj.     六                國小   -
+352                skirt              n.          裙子              國小   -
+353                sky                n.          天空              國小   -
+354                sleep              v.          睡覺              國小   -
+355                slow               adj.        慢的              國小   -
+356                small              adj.        小的              國小   -
+357                smile              v./n.       微笑              國小   -
+358                snake              n.          蛇                國小   -
+359                snow               n./v.       雪、下雪          國小   -
+360                soap               n.          肥皂              國小   -
+361                soccer             n.          足球              國小   -
+362                socks              n.          襪子              國小   -
+363                sofa               n.          沙發              國小   -
+364                son                n.          兒子              國小   -
+365                song               n.          歌曲              國小   -
+366                sorry              adj.        抱歉的            國小   -
+367                soup               n.          湯                國小   食物
+368                spoon              n.          湯匙              國小   -
+369                spring             n.          春天              國小   -
+370                stand              v.          站                國小   -
+371                star               n.          星星              國小   -
+372                stop               v.          停止              國小   -
+373                store              n.          商店              國小   -
+374                story              n.          故事              國小   -
+375                strong             adj.        強壯的            國小   -
+376                student            n.          學生              國小   -
+377                study              v.          讀書              國小   -
+378                sugar              n.          糖                國小   食物
+379                summer             n.          夏天              國小   -
+380                sun                n.          太陽              國小   -
+381                Sunday             n.          星期日            國小   -
+382                sunny              adj.        晴朗的            國小   -
+383                sweet              adj.        甜的              國小   -
+384                swim               v.          游泳              國小   -
+385                table              n.          桌子              國小   -
+386                tail               n.          尾巴              國小   -
+387                take               v.          拿                國小   -
+388                talk               v.          說話              國小   -
+389                tall               adj.        高的              國小   -
+390                taxi               n.          計程車            國小   -
+391                tea                n.          茶                國小   食物
+392                teacher            n.          老師              國小   -
+393                telephone          n.          電話              國小   -
+394                television         n.          電視              國小   -
+395                tell               v.          告訴              國小   -
+396                ten                n./adj.     十                國小   -
+397                test               n.          測驗              國小   -
+398                thank              v.          謝謝              國小   -
+399                think              v.          想、認為          國小   -
+400                thirsty            adj.        口渴的            國小   -
+401                thirty             n./adj.     三十              國小   -
+402                three              n./adj.     三                國小   -
+403                Thursday           n.          星期四            國小   -
+404                ticket             n.          票                國小   -
+405                tiger              n.          老虎              國小   -
+406                time               n.          時間              國小   -
+407                tired              adj.        累的              國小   -
+408                today              n./adv.     今天              國小   -
+409                tomato             n.          番茄              國小   食物
+410                tomorrow           n./adv.     明天              國小   -
+411                tooth              n.          牙齒              國小   -
+412                towel              n.          毛巾              國小   -
+413                town               n.          城鎮              國小   -
+414                toy                n.          玩具              國小   -
+415                train              n.          火車              國小   -
+416                tree               n.          樹                國小   -
+417                Tuesday            n.          星期二            國小   -
+418                twelve             n./adj.     十二              國小   -
+419                twenty             n./adj.     二十              國小   -
+420                two                n./adj.     二                國小   -
+421                umbrella           n.          雨傘              國小   -
+422                uncle              n.          叔叔、舅舅        國小   -
+423                under              prep.       在…下面           國小   -
+424                use                v.          使用              國小   -
+425                vegetable          n.          蔬菜              國小   食物
+426                very               adv.        非常              國小   -
+427                visit              v.          拜訪              國小   -
+428                wait               v.          等待              國小   -
+429                walk               v.          走路              國小   -
+430                wall               n.          牆壁              國小   -
+431                want               v.          想要              國小   -
+432                warm               adj.        溫暖的            國小   -
+433                wash               v.          洗                國小   -
+434                watch              v./n.       看、手錶          國小   -
+435                water              n.          水                國小   食物
+436                weather            n.          天氣              國小   -
+437                Wednesday          n.          星期三            國小   -
+438                week               n.          星期、週          國小   -
+439                weekend            n.          週末              國小   -
+440                welcome            v./adj.     歡迎              國小   -
+441                wet                adj.        濕的              國小   -
+442                what               pron.       什麼              國小   -
+443                when               adv.        何時              國小   -
+444                where              adv.        哪裡              國小   -
+445                white              adj./n.     白色的、白色      國小   -
+446                who                pron.       誰                國小   -
+447                why                adv.        為什麼            國小   -
+448                wind               n.          風                國小   -
+449                window             n.          窗戶              國小   -
+450                windy              adj.        有風的            國小   -
+451                winter             n.          冬天              國小   -
+452                wolf               n.          狼                國小   -
+453                woman              n.          女人              國小   -
+454                word               n.          單字              國小   -
+455                work               v./n.       工作              國小   -
+456                world              n.          世界              國小   -
+457                write              v.          寫                國小   -
+458                year               n.          年                國小   -
+459                yellow             adj./n.     黃色的、黃色      國小   -
+460                yes                adv.        是                國小   -
+461                yesterday          n./adv.     昨天              國小   -
+462                you                pron.       你                國小   -
+463                young              adj.        年輕的            國小   -
+464                zoo                n.          動物園            國小   -
+465                ability            n.          能力              國中   -
+466                able               adj.        能夠的            國中   -
+467                above              prep.       在…上方           國中   -
+468                abroad             adv.        在國外            國中   -
+469                accept             v.          接受              國中   -
+470                across             prep.       橫越              國中   -
+471                act                v./n.       行動、演出        國中   -
+472                action             n.          行動              國中   -
+473                active             adj.        活躍的            國中   -
+474                activity           n.          活動              國中   -
+475                actor              n.          男演員            國中   -
+476                actress            n.          女演員            國中   -
+477                add                v.          加                國中   -
+478                address            n.          地址              國中   -
+479                adult              n.          成人              國中   -
+480                afraid             adj.        害怕的            國中   -
+481                against            prep.       反對              國中   -
+482                age                n.          年紀              國中   -
+483                ago                adv.        以前              國中   -
+484                agree              v.          同意              國中   -
+485                air                n.          空氣              國中   -
+486                airplane           n.          飛機              國中   -
+487                airport            n.          機場              國中   -
+488                alive              adj.        活著的            國中   -
+489                allow              v.          允許              國中   -
+490                almost             adv.        幾乎              國中   -
+491                alone              adj./adv.   獨自的            國中   -
+492                along              prep.       沿著              國中   -
+493                already            adv.        已經              國中   -
+494                also               adv.        也                國中   -
+495                although           conj.       雖然              國中   -
+496                among              prep.       在…之中           國中   -
+497                amount             n.          數量              國中   -
+498                ancient            adj.        古代的            國中   -
+499                angel              n.          天使              國中   -
+500                another            adj./pron.  另一個            國中   -
+501                anybody            pron.       任何人            國中   -
+502                anyone             pron.       任何人            國中   -
+503                anything           pron.       任何事            國中   -
+504                anyway             adv.        無論如何          國中   -
+505                anywhere           adv.        任何地方          國中   -
+506                apartment          n.          公寓              國中   -
+507                appear             v.          出現              國中   -
+508                area               n.          地區              國中   -
+509                argue              v.          爭論              國中   -
+510                army               n.          軍隊              國中   -
+511                around             prep.       在…周圍           國中   -
+512                arrive             v.          抵達              國中   -
+513                artist             n.          藝術家            國中   -
+514                as                 conj.       當、如同          國中   -
+515                ask                v.          問                國中   -
+516                asleep             adj.        睡著的            國中   -
+517                attack             v./n.       攻擊              國中   -
+518                attention          n.          注意              國中   -
+519                audience           n.          觀眾              國中   -
+520                autumn             n.          秋天              國中   -
+521                available          adj.        可取得的          國中   -
+522                average            n./adj.     平均              國中   -
+523                avoid              v.          避免              國中   -
+524                awake              adj.        醒著的            國中   -
+525                away               adv.        離開              國中   -
+526                awful              adj.        糟糕的            國中   -
+527                bake               v.          烘烤              國中   -
+528                band               n.          樂團              國中   -
+529                bark               v.          吠叫              國中   -
+530                base               n.          基礎              國中   -
+531                basic              adj.        基本的            國中   -
+532                basket             n.          籃子              國中   -
+533                bat                n.          蝙蝠、球棒        國中   -
+534                bath               n.          洗澡              國中   -
+535                beat               v.          打敗              國中   -
+536                because            conj.       因為              國中   -
+537                become             v.          變成              國中   -
+538                bee                n.          蜜蜂              國中   -
+539                begin              v.          開始              國中   -
+540                behind             prep.       在…後面           國中   -
+541                believe            v.          相信              國中   -
+542                bell               n.          鈴                國中   -
+543                belong             v.          屬於              國中   -
+544                below              prep.       在…下方           國中   -
+545                belt               n.          皮帶              國中   -
+546                bench              n.          長椅              國中   -
+547                beside             prep.       在…旁邊           國中   -
+548                besides            adv.        此外              國中   -
+549                between            prep.       在…之間           國中   -
+550                bill               n.          帳單              國中   -
+551                bite               v.          咬                國中   -
+552                bitter             adj.        苦的              國中   -
+553                blackboard         n.          黑板              國中   -
+554                blank              n./adj.     空白              國中   -
+555                blanket            n.          毯子              國中   -
+556                bless              v.          祝福              國中   -
+557                blind              adj.        失明的            國中   -
+558                block              n.          街區              國中   -
+559                blood              n.          血                國中   -
+560                blouse             n.          女上衣            國中   -
+561                blow               v.          吹                國中   -
+562                board              n.          板子              國中   -
+563                boil               v.          煮沸              國中   -
+564                bone               n.          骨頭              國中   -
+565                bored              adj.        感到無聊的        國中   -
+566                boring             adj.        無聊的            國中   -
+567                born               adj.        出生的            國中   -
+568                borrow             v.          借入              國中   -
+569                boss               n.          老闆              國中   -
+570                both               adj.        兩者都            國中   -
+571                bother             v.          打擾              國中   -
+572                bottle             n.          瓶子              國中   -
+573                bottom             n.          底部              國中   -
+574                bowl               n.          碗                國中   -
+575                brain              n.          大腦              國中   -
+576                branch             n.          樹枝              國中   -
+577                brave              adj.        勇敢的            國中   -
+578                bridge             n.          橋                國中   -
+579                bright             adj.        明亮的            國中   -
+580                bring              v.          帶來              國中   -
+581                brush              n./v.       刷子、刷          國中   -
+582                build              v.          建造              國中   -
+583                building           n.          建築物            國中   -
+584                burn               v.          燃燒              國中   -
+585                business           n.          生意              國中   -
+586                butter             n.          奶油              國中   食物
+587                butterfly          n.          蝴蝶              國中   -
+588                button             n.          鈕扣              國中   -
+589                by                 prep.       藉由              國中   -
+590                cage               n.          籠子              國中   -
+591                calendar           n.          月曆              國中   -
+592                camp               n./v.       露營              國中   -
+593                cancel             v.          取消              國中   -
+594                candle             n.          蠟燭              國中   -
+595                capital            n.          首都              國中   -
+596                care               v./n.       在乎、照顧        國中   -
+597                careful            adj.        小心的            國中   -
+598                careless           adj.        粗心的            國中   -
+599                carry              v.          攜帶              國中   -
+600                cartoon            n.          卡通              國中   -
+601                case               n.          情況              國中   -
+602                cash               n.          現金              國中   -
+603                castle             n.          城堡              國中   -
+604                cause              n./v.       原因、造成        國中   -
+605                ceiling            n.          天花板            國中   -
+606                celebrate          v.          慶祝              國中   -
+607                cent               n.          分                國中   -
+608                center             n.          中心              國中   -
+609                centimeter         n.          公分              國中   -
+610                century            n.          世紀              國中   -
+611                certain            adj.        確定的            國中   -
+612                chance             n.          機會              國中   -
+613                change             v./n.       改變、零錢        國中   -
+614                channel            n.          頻道              國中   -
+615                character          n.          性格、角色        國中   -
+616                chase              v.          追                國中   -
+617                cheat              v.          作弊              國中   -
+618                check              v./n.       檢查、帳單        國中   -
+619                cheer              v.          歡呼              國中   -
+620                chess              n.          西洋棋            國中   -
+621                choice             n.          選擇              國中   -
+622                choose             v.          選擇              國中   -
+623                chopsticks         n.          筷子              國中   -
+624                church             n.          教堂              國中   -
+625                circle             n.          圓圈              國中   -
+626                clear              adj.        清楚的            國中   -
+627                clerk              n.          店員              國中   -
+628                clever             adj.        聰明的            國中   -
+629                cloth              n.          布                國中   -
+630                club               n.          社團              國中   -
+631                coach              n.          教練              國中   -
+632                coast              n.          海岸              國中   -
+633                coin               n.          硬幣              國中   -
+634                cola               n.          可樂              國中   -
+635                collect            v.          收集              國中   -
+636                college            n.          大學              國中   -
+637                comb               n./v.       梳子、梳          國中   -
+638                comfortable        adj.        舒適的            國中   -
+639                comic              n.          漫畫              國中   -
+640                common             adj.        常見的            國中   -
+641                company            n.          公司              國中   -
+642                complain           v.          抱怨              國中   -
+643                concert            n.          演唱會            國中   -
+644                condition          n.          狀況              國中   -
+645                confident          adj.        有信心的          國中   -
+646                continue           v.          繼續              國中   -
+647                control            v./n.       控制              國中   -
+648                convenient         adj.        方便的            國中   -
+649                conversation       n.          對話              國中   -
+650                copy               v./n.       複製、影本        國中   -
+651                corner             n.          角落              國中   -
+652                correct            adj.        正確的            國中   -
+653                cost               v./n.       花費              國中   -
+654                cotton             n.          棉                國中   -
+655                cough              v.          咳嗽              國中   -
+656                count              v.          數                國中   -
+657                country            n.          國家              國中   -
+658                couple             n.          一對              國中   -
+659                course             n.          課程              國中   -
+660                court              n.          球場              國中   -
+661                cover              v.          覆蓋              國中   -
+662                crazy              adj.        瘋狂的            國中   -
+663                cream              n.          奶油              國中   食物
+664                cross              v.          穿越              國中   -
+665                crowd              n.          人群              國中   -
+666                cruel              adj.        殘忍的            國中   -
+667                culture            n.          文化              國中   -
+668                curious            adj.        好奇的            國中   -
+669                curtain            n.          窗簾              國中   -
+670                customer           n.          顧客              國中   -
+671                daily              adj.        每日的            國中   -
+672                danger             n.          危險              國中   -
+673                dangerous          adj.        危險的            國中   -
+674                date               n.          日期              國中   -
+675                dead               adj.        死的              國中   -
+676                dear               adj.        親愛的            國中   -
+677                death              n.          死亡              國中   -
+678                decide             v.          決定              國中   -
+679                decision           n.          決定              國中   -
+680                decorate           v.          裝飾              國中   -
+681                deep               adj.        深的              國中   -
+682                delicious          adj.        美味的            國中   -
+683                dentist            n.          牙醫              國中   -
+684                depend             v.          依賴              國中   -
+685                desert             n.          沙漠              國中   -
+686                design             n./v.       設計              國中   -
+687                dessert            n.          甜點              國中   食物
+688                diary              n.          日記              國中   -
+689                die                v.          死                國中   -
+690                diet               n.          飲食              國中   -
+691                difference         n.          不同              國中   -
+692                dig                v.          挖                國中   -
+693                direction          n.          方向              國中   -
+694                discover           v.          發現              國中   -
+695                discuss            v.          討論              國中   -
+696                dish               n.          盤子、菜餚        國中   -
+697                dolphin            n.          海豚              國中   -
+698                double             adj.        雙倍的            國中   -
+699                down               adv.        向下              國中   -
+700                downstairs         adv.        樓下              國中   -
+701                downtown           n.          市區              國中   -
+702                dozen              n.          一打              國中   -
+703                dragon             n.          龍                國中   -
+704                drama              n.          戲劇              國中   -
+705                dream              n./v.       夢                國中   -
+706                drive              v.          開車              國中   -
+707                driver             n.          司機              國中   -
+708                drop               v.          掉落              國中   -
+709                drum               n.          鼓                國中   -
+710                duty               n.          責任              國中   -
+711                during             prep.       在…期間           國中   -
+712                each               adj.        每一個            國中   -
+713                earn               v.          賺                國中   -
+714                earth              n.          地球              國中   -
+715                earthquake         n.          地震              國中   -
+716                east               n.          東方              國中   -
+717                education          n.          教育              國中   -
+718                eighteen           n./adj.     十八              國中   -
+719                eighty             n./adj.     八十              國中   -
+720                electric           adj.        電的              國中   -
+721                elementary school  n.          小學              國中   -
+722                eleven             n./adj.     十一              國中   -
+723                else               adv.        其他              國中   -
+724                e-mail             n.          電子郵件          國中   -
+725                empty              adj.        空的              國中   -
+726                end                n./v.       結束              國中   -
+727                enemy              n.          敵人              國中   -
+728                energy             n.          能量              國中   -
+729                engineer           n.          工程師            國中   -
+730                enjoy              v.          享受              國中   -
+731                enough             adj.        足夠的            國中   -
+732                enter              v.          進入              國中   -
+733                envelope           n.          信封              國中   -
+734                environment        n.          環境              國中   -
+735                especially         adv.        尤其              國中   -
+736                even               adv.        甚至              國中   -
+737                ever               adv.        曾經              國中   -
+738                everybody          pron.       每個人            國中   -
+739                everyone           pron.       每個人            國中   -
+740                everything         pron.       每件事            國中   -
+741                everywhere         adv.        到處              國中   -
+742                exam               n.          考試              國中   -
+743                example            n.          例子              國中   -
+744                excellent          adj.        優秀的            國中   -
+745                except             prep.       除了              國中   -
+746                excited            adj.        感到興奮的        國中   -
+747                exciting           adj.        令人興奮的        國中   -
+748                excuse             v./n.       原諒、藉口        國中   -
+749                exercise           n./v.       運動              國中   -
+750                exit               n.          出口              國中   -
+751                expect             v.          期待              國中   -
+752                expensive          adj.        昂貴的            國中   -
+753                experience         n.          經驗              國中   -
+754                explain            v.          解釋              國中   -
+755                fact               n.          事實              國中   -
+756                factory            n.          工廠              國中   -
+757                fail               v.          失敗              國中   -
+758                fair               adj.        公平的            國中   -
+759                fall               v./n.       落下、秋天        國中   -
+760                false              adj.        錯誤的            國中   -
+761                famous             adj.        有名的            國中   -
+762                fan                n.          電風扇、粉絲      國中   -
+763                far                adv.        遠                國中   -
+764                fault              n.          過錯              國中   -
+765                favorite           adj.        最喜愛的          國中   -
+766                fear               n.          恐懼              國中   -
+767                feed               v.          餵                國中   -
+768                feel               v.          感覺              國中   -
+769                feeling            n.          感覺              國中   -
+770                festival           n.          節日              國中   -
+771                fever              n.          發燒              國中   -
+772                few                adj.        很少的            國中   -
+773                field              n.          田野              國中   -
+774                fight              v./n.       打架              國中   -
+775                fill               v.          填滿              國中   -
+776                film               n.          電影              國中   -
+777                final              adj.        最後的            國中   -
+778                finish             v.          完成              國中   -
+779                fire               n.          火                國中   -
+780                fireman            n.          消防員            國中   -
+781                first              adj.        第一的            國中   -
+782                fit                v./adj.     適合              國中   -
+783                fix                v.          修理              國中   -
+784                flag               n.          旗子              國中   -
+785                flashlight         n.          手電筒            國中   -
+786                flat               adj.        平的              國中   -
+787                flight             n.          班機              國中   -
+788                flour              n.          麵粉              國中   食物
+789                flu                n.          流行性感冒        國中   -
+790                fog                n.          霧                國中   -
+791                follow             v.          跟隨              國中   -
+792                football           n.          美式足球          國中   -
+793                for                prep.       為了              國中   -
+794                foreign            adj.        外國的            國中   -
+795                foreigner          n.          外國人            國中   -
+796                forest             n.          森林              國中   -
+797                forget             v.          忘記              國中   -
+798                forgive            v.          原諒              國中   -
+799                form               n.          表格              國中   -
+800                forward            adv.        向前              國中   -
+801                free               adj.        自由的、免費的    國中   -
+802                fresh              adj.        新鮮的            國中   -
+803                fried              adj.        油炸的            國中   -
+804                friendly           adj.        友善的            國中   -
+805                frog               n.          青蛙              國中   -
+806                front              n.          前面              國中   -
+807                full               adj.        滿的              國中   -
+808                funny              adj.        好笑的            國中   -
+809                furniture          n.          家具              國中   -
+810                future             n.          未來              國中   -
+811                beaver             n.          海狸              國中   -

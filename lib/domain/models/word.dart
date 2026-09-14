@@ -26,6 +26,29 @@ enum WordGrade {
   }
 }
 
+/// 單字的主題分類，對應題庫檔的第六欄。
+///
+/// 目前只有食物一類，其餘都是未分類。要加新類別就兩步：
+/// 這裡加一個值，題庫檔那一欄填上同樣的中文。畫面不用改。
+enum WordTopic {
+  none('未分類'),
+  food('食物');
+
+  const WordTopic(this.label);
+  final String label;
+
+  /// 有沒有真的被分類過。未分類的不顯示標籤。
+  bool get isTagged => this != WordTopic.none;
+
+  static WordTopic parse(String? raw) {
+    final text = raw?.trim() ?? '';
+    for (final topic in values) {
+      if (topic != WordTopic.none && topic.label == text) return topic;
+    }
+    return WordTopic.none;
+  }
+}
+
 /// 一個字的三種狀態。判定規則寫在 [Word.statusWith]，不要在別處重算。
 ///
 /// 只有三類是使用者 2026-09-11 拍板的：沒有「未確認」這種中間狀態。
@@ -66,6 +89,7 @@ class Word {
     required this.pos,
     required this.zh,
     required this.grade,
+    this.topic = WordTopic.none,
     this.example = '',
     this.added,
     this.imagePath = '',
@@ -78,6 +102,9 @@ class Word {
   final String word;
   final String pos;
   final String zh;
+
+  /// 主題分類。改題庫檔第六欄就能改，不用動程式。
+  final WordTopic topic;
 
   /// 大概幾年級學的。估計值，改題庫檔就能修正。
   final WordGrade grade;
@@ -137,6 +164,7 @@ class Word {
 
   Word copyWith({
     int? id,
+    WordTopic? topic,
     String? example,
     DateTime? added,
     String? imagePath,
@@ -150,6 +178,7 @@ class Word {
       pos: pos,
       zh: zh,
       grade: grade,
+      topic: topic ?? this.topic,
       example: example ?? this.example,
       added: added ?? this.added,
       imagePath: imagePath ?? this.imagePath,
@@ -165,6 +194,7 @@ class Word {
     'pos': pos,
     'zh': zh,
     'grade': grade.label,
+    'topic': topic.label,
     'example': example,
     'added': added?.toIso8601String(),
     'imagePath': imagePath,
@@ -180,6 +210,7 @@ class Word {
     zh: json['zh'] as String,
     // 舊版存的是 level 兩級分法，讀得到就沿用，讀不到才當國小。
     grade: WordGrade.parse((json['grade'] ?? json['level']) as String? ?? '國小'),
+    topic: WordTopic.parse(json['topic'] as String?),
     example: json['example'] as String? ?? '',
     added: _date(json['added']),
     imagePath: json['imagePath'] as String? ?? '',

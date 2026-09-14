@@ -13,11 +13,17 @@ final libraryFilterProvider = StateProvider.autoDispose<WordStatus?>(
   (ref) => null,
 );
 
+/// 類別篩選。null 代表不篩。跟狀態是「且」的關係，兩個可以同時生效。
+final libraryTopicProvider = StateProvider.autoDispose<WordTopic?>(
+  (ref) => null,
+);
+
 /// 單字庫畫面要的資料。
 class LibraryData {
   const LibraryData({
     required this.words,
     required this.counts,
+    required this.topicCounts,
     required this.rules,
   });
 
@@ -28,6 +34,9 @@ class LibraryData {
   /// 不然篩選鈕上的數字會跟著搜尋跳動，很難用。
   final Map<WordStatus, int> counts;
 
+  /// 每個類別各有幾個字，給下拉選單顯示。
+  final Map<WordTopic, int> topicCounts;
+
   final RulesConfig rules;
 }
 
@@ -37,14 +46,23 @@ final libraryProvider = FutureProvider.autoDispose<LibraryData>((ref) async {
   final rules = await ref.watch(settingsRepositoryProvider).loadRules();
   final query = ref.watch(libraryQueryProvider).trim();
   final filter = ref.watch(libraryFilterProvider);
+  final topic = ref.watch(libraryTopicProvider);
 
   final counts = Scoring.countByStatus(all, rules);
+
+  // 有幾個字被分過類，決定要不要顯示類別下拉。
+  final topicCounts = <WordTopic, int>{};
+  for (final w in all) {
+    topicCounts[w.topic] = (topicCounts[w.topic] ?? 0) + 1;
+  }
 
   final lower = query.toLowerCase();
   final filtered = all.where((w) {
     if (filter != null && w.statusWith(rules) != filter) {
       return false;
     }
+    // 狀態和類別是「且」的關係：兩個都選就要同時符合。
+    if (topic != null && w.topic != topic) return false;
     if (query.isEmpty) return true;
     return w.word.toLowerCase().contains(lower) || w.zh.contains(query);
   }).toList();
@@ -57,5 +75,10 @@ final libraryProvider = FutureProvider.autoDispose<LibraryData>((ref) async {
     return a.id.compareTo(b.id);
   });
 
-  return LibraryData(words: filtered, counts: counts, rules: rules);
+  return LibraryData(
+    words: filtered,
+    counts: counts,
+    topicCounts: topicCounts,
+    rules: rules,
+  );
 });

@@ -9,6 +9,7 @@ import '../../domain/models/word.dart';
 import '../../domain/rules_config.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/status_pill.dart';
+import '../../shared/widgets/topic_tag.dart';
 import 'library_controller.dart';
 
 /// 單字庫。搜尋、篩狀態、點進去看某個字的詳情。
@@ -108,19 +109,33 @@ class _List extends ConsumerWidget {
             style: AppText.note,
           ),
         ),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              _Chip(label: '全部 $total', value: null, active: active == null),
-              for (final status in WordStatus.values)
-                _Chip(
-                  label: '${status.label} ${data.counts[status] ?? 0}',
-                  value: status,
-                  active: active == status,
+        // 狀態在左邊可以橫向滑，類別固定在右邊不會被滑走。
+        // 放這裡而不是塞進搜尋框：搜尋框留給打字，篩選集中在同一列比較好找。
+        Row(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _Chip(
+                      label: '全部 $total',
+                      value: null,
+                      active: active == null,
+                    ),
+                    for (final status in WordStatus.values)
+                      _Chip(
+                        label: '${status.label} ${data.counts[status] ?? 0}',
+                        value: status,
+                        active: active == status,
+                      ),
+                  ],
                 ),
-            ],
-          ),
+              ),
+            ),
+            const SizedBox(width: Gap.xs),
+            _TopicMenu(counts: data.topicCounts),
+          ],
         ),
         const SizedBox(height: Gap.sm),
         Expanded(
@@ -174,6 +189,66 @@ class _Chip extends ConsumerWidget {
   }
 }
 
+/// 類別下拉。跟狀態篩選是「且」的關係，兩個可以同時生效。
+class _TopicMenu extends ConsumerWidget {
+  const _TopicMenu({required this.counts});
+
+  final Map<WordTopic, int> counts;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selected = ref.watch(libraryTopicProvider);
+    final tagged = WordTopic.values.where((t) => t.isTagged).toList();
+
+    return PopupMenuButton<WordTopic?>(
+      tooltip: '類別',
+      color: const Color(0xFF1A1A24),
+      position: PopupMenuPosition.under,
+      onSelected: (value) =>
+          ref.read(libraryTopicProvider.notifier).state = value,
+      itemBuilder: (context) => [
+        const PopupMenuItem(value: null, child: Text('全部類別')),
+        for (final topic in tagged)
+          PopupMenuItem(
+            value: topic,
+            child: Text('${topic.label} ${counts[topic] ?? 0}'),
+          ),
+        PopupMenuItem(
+          value: WordTopic.none,
+          child: Text('未分類 ${counts[WordTopic.none] ?? 0}'),
+        ),
+      ],
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(11, 6, 7, 6),
+        decoration: BoxDecoration(
+          color: selected == null ? AppColors.glassFill : AppColors.accentSolid,
+          borderRadius: BorderRadius.circular(Radii.chip),
+          border: Border.all(
+            color: selected == null ? AppColors.glassEdge : Colors.transparent,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              selected?.label ?? '類別',
+              style: TextStyle(
+                fontSize: 11.5,
+                color: selected == null ? AppColors.ink2 : Colors.white,
+              ),
+            ),
+            Icon(
+              Icons.arrow_drop_down,
+              size: 16,
+              color: selected == null ? AppColors.ink3 : Colors.white,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _Row extends StatelessWidget {
   const _Row({required this.word, required this.rules});
 
@@ -200,11 +275,21 @@ class _Row extends StatelessWidget {
                       color: AppColors.ink,
                     ),
                   ),
-                  Text(
-                    word.zh,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppText.note,
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          word.zh,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppText.note,
+                        ),
+                      ),
+                      if (word.topic.isTagged) ...[
+                        const SizedBox(width: 6),
+                        TopicTag(topic: word.topic),
+                      ],
+                    ],
                   ),
                 ],
               ),
