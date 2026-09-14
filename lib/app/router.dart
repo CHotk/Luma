@@ -5,6 +5,7 @@ import '../features/history/round_detail_page.dart';
 import '../features/home/home_page.dart';
 import '../features/library/library_page.dart';
 import '../features/mastered/mastered_page.dart';
+import '../domain/models/note_collection.dart';
 import '../features/notes/note_detail_page.dart';
 import '../features/notes/notes_page.dart';
 import '../features/word_detail/word_detail_page.dart';
@@ -35,9 +36,11 @@ final appRouter = GoRouter(
     GoRoute(path: '/notes', builder: (_, _) => const NotesPage()),
     GoRoute(path: '/settings', builder: (_, _) => const SettingsPage()),
     GoRoute(
-      path: '/notes/:no',
-      builder: (_, state) =>
-          NoteDetailPage(no: state.pathParameters['no'] ?? ''),
+      path: '/notes/:collection/:no',
+      builder: (_, state) => NoteDetailPage(
+        collection: NoteCollection.parse(state.pathParameters['collection']),
+        no: state.pathParameters['no'] ?? '',
+      ),
     ),
     GoRoute(
       path: '/word/:word',

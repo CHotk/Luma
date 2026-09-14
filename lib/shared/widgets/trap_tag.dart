@@ -46,7 +46,7 @@ class TrapTag extends StatelessWidget {
 
     if (!tappable) return tag;
     return GestureDetector(
-      onTap: () => context.push('/notes/$noteNo'),
+      onTap: () => context.push('/notes/traps/$noteNo'),
       child: tag,
     );
   }

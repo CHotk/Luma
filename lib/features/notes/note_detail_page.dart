@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
+import '../../domain/models/note_collection.dart';
 import '../../domain/models/usage_note.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/inline_text.dart';
@@ -15,13 +16,16 @@ import 'notes_controller.dart';
 /// 排版的重點是好讀：行距放寬、段落之間留白、小標用細線帶出來。
 /// 對照表不畫成格子，改成一列一張卡，手機上才不會擠成一團。
 class NoteDetailPage extends ConsumerWidget {
-  const NoteDetailPage({super.key, required this.no});
+  const NoteDetailPage({super.key, required this.collection, required this.no});
+
+  /// 這一則屬於哪一本筆記。
+  final NoteCollection collection;
 
   final String no;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(usageNoteProvider(no));
+    final async = ref.watch(noteProvider((collection: collection, no: no)));
 
     return Scaffold(
       body: AmbientBackground(

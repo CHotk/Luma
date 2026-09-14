@@ -15,10 +15,13 @@ import '../../domain/models/usage_note.dart';
 /// 之所以自己拆而不用 Markdown 套件，是因為表格在手機上要改成一列一張卡，
 /// 通用渲染器做不到這件事。
 class NoteLoader {
-  static const _asset = 'assets/data/usage-notes.md';
+  const NoteLoader(this.asset);
+
+  /// 要讀哪一本。兩本格式一樣，只是內容主題不同。
+  final String asset;
 
   Future<List<UsageNote>> load() async {
-    final raw = await rootBundle.loadString(_asset);
+    final raw = await rootBundle.loadString(asset);
     final notes = <UsageNote>[];
 
     // 以 "## " 切成一則一則，第一段是整份檔案的前言，丟掉。

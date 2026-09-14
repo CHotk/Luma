@@ -1,19 +1,41 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/seed/note_loader.dart';
+import '../../domain/models/note_collection.dart';
 import '../../domain/models/usage_note.dart';
 
-/// 用法地雷是唯讀的，讀一次放著就好，不用 autoDispose。
-final usageNotesProvider = FutureProvider<List<UsageNote>>(
-  (ref) => NoteLoader().load(),
+/// 目前在看哪一本筆記。
+final noteCollectionProvider = StateProvider<NoteCollection>(
+  (ref) => NoteCollection.traps,
 );
+
+/// 某一本筆記的全部內容。唯讀，讀一次放著就好，不用 autoDispose。
+final notesProvider = FutureProvider.family<List<UsageNote>, NoteCollection>(
+  (ref, collection) => NoteLoader(collection.asset).load(),
+);
+
+/// 依編號取一則。找不到就回 null，讓畫面自己處理。
+final noteProvider = FutureProvider.autoDispose
+    .family<UsageNote?, ({NoteCollection collection, String no})>((
+      ref,
+      key,
+    ) async {
+      final all = await ref.watch(notesProvider(key.collection).future);
+      for (final note in all) {
+        if (note.no == key.no) return note;
+      }
+      return null;
+    });
 
 /// 哪些字是地雷字，以及它對應到第幾則筆記。鍵是小寫的單字。
 ///
 /// 資料來源就是每則筆記結尾的「相關單字」，不另外維護一份名單。
-/// 這樣只要寫了筆記，那幾個字就自動被標成地雷，不會忘記同步。
+/// 這樣只要寫了筆記，那幾個字就自動被標上，不會忘記同步。
+///
+/// 只看用法地雷那一本。近義字是「選哪個比較好」，不是「講了會出事」，
+/// 兩者混在同一個標記裡會讓警告失去意義。
 final trapWordsProvider = FutureProvider<Map<String, String>>((ref) async {
-  final notes = await ref.watch(usageNotesProvider.future);
+  final notes = await ref.watch(notesProvider(NoteCollection.traps).future);
   final map = <String, String>{};
   for (final note in notes) {
     for (final word in note.relatedWords) {
@@ -23,14 +45,3 @@ final trapWordsProvider = FutureProvider<Map<String, String>>((ref) async {
   }
   return map;
 });
-
-/// 依編號取一則。找不到就回 null，讓畫面自己處理。
-final usageNoteProvider = FutureProvider.autoDispose.family<UsageNote?, String>(
-  (ref, no) async {
-    final all = await ref.watch(usageNotesProvider.future);
-    for (final note in all) {
-      if (note.no == no) return note;
-    }
-    return null;
-  },
-);
