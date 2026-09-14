@@ -4,6 +4,7 @@ import '../../app/providers.dart';
 import '../../domain/models/history.dart';
 import '../../domain/models/word.dart';
 import '../../domain/rules_config.dart';
+import '../notes/notes_controller.dart';
 
 /// 單字詳情要的東西：字本身、它的作答歷史、目前的過關門檻。
 class WordDetail {
@@ -11,12 +12,16 @@ class WordDetail {
     required this.word,
     required this.history,
     required this.rules,
+    this.trapNote,
   });
 
   final Word word;
 
   /// 這個字被考過的每一次，新的排前面。
   final List<HistoryEntry> history;
+
+  /// 這個字是地雷字的話，對應到第幾則筆記。
+  final String? trapNote;
 
   final RulesConfig rules;
 }
@@ -29,6 +34,7 @@ final wordDetailProvider = FutureProvider.autoDispose
       final all = await ref.watch(wordRepositoryProvider).loadAll();
       final rules = await ref.watch(settingsRepositoryProvider).loadRules();
       final history = await ref.watch(historyRepositoryProvider).forWord(word);
+      final traps = await ref.watch(trapWordsProvider.future);
 
       final key = word.toLowerCase();
       final found = all.firstWhere(
@@ -36,5 +42,10 @@ final wordDetailProvider = FutureProvider.autoDispose
         orElse: () => throw StateError('單字庫裡沒有 $word'),
       );
 
-      return WordDetail(word: found, history: history, rules: rules);
+      return WordDetail(
+        word: found,
+        history: history,
+        rules: rules,
+        trapNote: traps[key],
+      );
     });

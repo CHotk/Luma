@@ -10,6 +10,7 @@ import '../../domain/rules_config.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/status_pill.dart';
 import '../../shared/widgets/topic_tag.dart';
+import '../../shared/widgets/trap_tag.dart';
 import 'library_controller.dart';
 
 /// 單字庫。搜尋、篩狀態、點進去看某個字的詳情。
@@ -145,8 +146,11 @@ class _List extends ConsumerWidget {
                   itemCount: data.words.length,
                   separatorBuilder: (_, _) =>
                       const Divider(height: 1, color: AppColors.glassEdge),
-                  itemBuilder: (context, i) =>
-                      _Row(word: data.words[i], rules: data.rules),
+                  itemBuilder: (context, i) => _Row(
+                    word: data.words[i],
+                    rules: data.rules,
+                    trapNote: data.traps[data.words[i].word.toLowerCase()],
+                  ),
                 ),
         ),
       ],
@@ -250,10 +254,13 @@ class _TopicMenu extends ConsumerWidget {
 }
 
 class _Row extends StatelessWidget {
-  const _Row({required this.word, required this.rules});
+  const _Row({required this.word, required this.rules, this.trapNote});
 
   final Word word;
   final RulesConfig rules;
+
+  /// 這個字是地雷字的話，對應到第幾則筆記。不是就是 null。
+  final String? trapNote;
 
   @override
   Widget build(BuildContext context) {
@@ -285,6 +292,10 @@ class _Row extends StatelessWidget {
                           style: AppText.note,
                         ),
                       ),
+                      if (trapNote != null) ...[
+                        const SizedBox(width: 6),
+                        TrapTag(noteNo: trapNote!),
+                      ],
                       if (word.topic.isTagged) ...[
                         const SizedBox(width: 6),
                         TopicTag(topic: word.topic),

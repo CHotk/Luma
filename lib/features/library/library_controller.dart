@@ -4,6 +4,7 @@ import '../../app/providers.dart';
 import '../../domain/models/word.dart';
 import '../../domain/rules_config.dart';
 import '../../domain/scoring.dart';
+import '../notes/notes_controller.dart';
 
 /// 搜尋字串。英文和中文都能搜。
 final libraryQueryProvider = StateProvider.autoDispose<String>((ref) => '');
@@ -24,6 +25,7 @@ class LibraryData {
     required this.words,
     required this.counts,
     required this.topicCounts,
+    required this.traps,
     required this.rules,
   });
 
@@ -37,6 +39,9 @@ class LibraryData {
   /// 每個類別各有幾個字，給下拉選單顯示。
   final Map<WordTopic, int> topicCounts;
 
+  /// 地雷字對應到第幾則筆記。鍵是小寫的單字。
+  final Map<String, String> traps;
+
   final RulesConfig rules;
 }
 
@@ -47,6 +52,7 @@ final libraryProvider = FutureProvider.autoDispose<LibraryData>((ref) async {
   final query = ref.watch(libraryQueryProvider).trim();
   final filter = ref.watch(libraryFilterProvider);
   final topic = ref.watch(libraryTopicProvider);
+  final traps = await ref.watch(trapWordsProvider.future);
 
   final counts = Scoring.countByStatus(all, rules);
 
@@ -79,6 +85,7 @@ final libraryProvider = FutureProvider.autoDispose<LibraryData>((ref) async {
     words: filtered,
     counts: counts,
     topicCounts: topicCounts,
+    traps: traps,
     rules: rules,
   );
 });

@@ -1,4 +1,4 @@
-# seed-version: 6
+# seed-version: 7
 # no               word               pos         zh                grade  topic
 1                  a                  art.        一個              國小   -
 2                  about              prep.       關於              國小   -
@@ -811,3 +811,5 @@
 809                furniture          n.          家具              國中   -
 810                future             n.          未來              國中   -
 811                beaver             n.          海狸              國中   -
+812                napkin             n.          餐巾、紙巾        國中   居家
+813                serviette          n.          餐巾紙（英式）    國中   居家

@@ -10,6 +10,7 @@ import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/glass_card.dart';
 import '../../shared/widgets/status_pill.dart';
 import '../../shared/widgets/topic_tag.dart';
+import '../../shared/widgets/trap_tag.dart';
 import 'word_detail_controller.dart';
 
 /// 單字詳情。目前有基本資料與作答歷史，
@@ -94,6 +95,10 @@ class _Body extends StatelessWidget {
                           style: AppText.bodyDim,
                         ),
                       ),
+                      if (detail.trapNote != null) ...[
+                        const SizedBox(width: Gap.sm),
+                        TrapTag(noteNo: detail.trapNote!, tappable: true),
+                      ],
                       if (word.topic.isTagged) ...[
                         const SizedBox(width: Gap.sm),
                         TopicTag(topic: word.topic),
