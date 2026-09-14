@@ -28,11 +28,12 @@ enum WordGrade {
 
 /// 單字的主題分類，對應題庫檔的第六欄。
 ///
-/// 目前只有食物一類，其餘都是未分類。要加新類別就兩步：
+/// 目前有食物與居家兩類，其餘都是未分類。要加新類別就兩步：
 /// 這裡加一個值，題庫檔那一欄填上同樣的中文。畫面不用改。
 enum WordTopic {
   none('未分類'),
-  food('食物');
+  food('食物'),
+  home('居家');
 
   const WordTopic(this.label);
   final String label;
