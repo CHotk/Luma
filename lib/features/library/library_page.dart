@@ -38,6 +38,17 @@ class LibraryPage extends ConsumerWidget {
                       color: AppColors.ink2,
                     ),
                     const Text('單字庫', style: AppText.title),
+                    const Spacer(),
+                    // 掌握的字另外有一頁攤開例句，入口放這裡最好找。
+                    IconButton(
+                      onPressed: () => context.push('/mastered'),
+                      icon: const Icon(
+                        Icons.workspace_premium_outlined,
+                        size: 20,
+                      ),
+                      color: AppColors.statusMastered,
+                      tooltip: '已經掌握',
+                    ),
                   ],
                 ),
                 const _SearchField(),

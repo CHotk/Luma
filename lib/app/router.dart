@@ -4,6 +4,7 @@ import '../features/history/history_page.dart';
 import '../features/history/round_detail_page.dart';
 import '../features/home/home_page.dart';
 import '../features/library/library_page.dart';
+import '../features/mastered/mastered_page.dart';
 import '../features/notes/note_detail_page.dart';
 import '../features/notes/notes_page.dart';
 import '../features/word_detail/word_detail_page.dart';
@@ -30,6 +31,7 @@ final appRouter = GoRouter(
       ),
     ),
     GoRoute(path: '/library', builder: (_, _) => const LibraryPage()),
+    GoRoute(path: '/mastered', builder: (_, _) => const MasteredPage()),
     GoRoute(path: '/notes', builder: (_, _) => const NotesPage()),
     GoRoute(path: '/settings', builder: (_, _) => const SettingsPage()),
     GoRoute(
