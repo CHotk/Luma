@@ -428,9 +428,9 @@ class _Row extends StatelessWidget {
                         const SizedBox(width: 6),
                         TrapTag(noteNo: trapNote!),
                       ],
-                      if (word.topic.isTagged) ...[
+                      if (word.topics.isNotEmpty) ...[
                         const SizedBox(width: 6),
-                        TopicTag(topic: word.topic),
+                        TopicTag(topics: word.topics),
                       ],
                       if (word.senseCount.isTagged) ...[
                         const SizedBox(width: 6),

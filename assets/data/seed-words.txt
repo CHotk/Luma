@@ -1,4 +1,4 @@
-# seed-version: 14
+# seed-version: 16
 # no                word                pos                zh                                                       grade  topic  sense  tags
 1                   a                   art.               一個                                                     國小   -      單義
 2                   about               prep.              關於                                                     國小   -      多義
@@ -12,7 +12,7 @@
 10                  animal              n.                 動物                                                     國小   -      單義
 11                  answer              n./v.              答案、回答                                               國小   -      多義
 12                  ant                 n.                 螞蟻                                                     國小   -      單義
-13                  apple               n.                 蘋果                                                     國小   食物   單義
+13                  apple               n.                 蘋果                                                     國小   食物、水果   單義
 14                  April               n.                 四月                                                     國小   月份      單義
 15                  arm                 n.                 手臂                                                     國小   -      多義
 16                  art                 n.                 美術                                                     國小   -      單義
@@ -24,7 +24,7 @@
 22                  bad                 adj.               壞的                                                     國小   -      多義
 23                  bag                 n.                 袋子、書包                                               國小   -      多義
 24                  ball                n.                 球                                                       國小   -      極多義
-25                  banana              n.                 香蕉                                                     國小   食物   單義
+25                  banana              n.                 香蕉                                                     國小   食物、水果   單義
 26                  bank                n.                 銀行                                                     國小   -      極多義
 27                  baseball            n.                 棒球                                                     國小   -      單義
 28                  basketball          n.                 籃球                                                     國小   -      單義
@@ -41,8 +41,8 @@
 39                  bicycle             n.                 腳踏車                                                   國小   -      單義
 40                  bird                n.                 鳥                                                       國小   -      多義
 41                  birthday            n.                 生日                                                     國小   -      單義
-42                  black               adj./n.            黑色的、黑色                                             國小   -      多義
-43                  blue                adj./n.            藍色的、藍色                                             國小   -      多義
+42                  black               adj./n.            黑色的、黑色                                             國小   顏色      多義
+43                  blue                adj./n.            藍色的、藍色                                             國小   顏色      多義
 44                  boat                n.                 小船                                                     國小   -      單義
 45                  body                n.                 身體                                                     國小   -      多義
 46                  book                n.                 書                                                       國小   -      極多義
@@ -51,7 +51,7 @@
 49                  bread               n.                 麵包                                                     國小   食物   多義
 50                  breakfast           n.                 早餐                                                     國小   食物   單義
 51                  brother             n.                 兄弟                                                     國小   -      多義
-52                  brown               adj./n.            咖啡色的、咖啡色                                         國小   -      單義
+52                  brown               adj./n.            咖啡色的、咖啡色                                         國小   顏色      單義
 53                  bus                 n.                 公車                                                     國小   -      單義
 54                  busy                adj.               忙碌的                                                   國小   -      多義
 55                  but                 conj.              但是                                                     國小   -      多義
@@ -170,14 +170,14 @@
 168                 glove               n.                 手套                                                     國小   -      單義
 169                 go                  v.                 去                                                       國小   -      極多義
 170                 goat                n.                 山羊                                                     國小   -      單義
-171                 gold                n./adj.            金色                                                     國小   -      多義
+171                 gold                n./adj.            金色                                                     國小   顏色      多義
 172                 good                adj.               好的                                                     國小   -      多義
 173                 grandfather         n.                 祖父                                                     國小   -      單義
 174                 grandmother         n.                 祖母                                                     國小   -      單義
-175                 grape               n.                 葡萄                                                     國小   食物   單義
+175                 grape               n.                 葡萄                                                     國小   食物、水果   單義
 176                 grass               n.                 草                                                       國小   -      多義
-177                 gray                adj./n.            灰色的、灰色                                             國小   -      單義
-178                 green               adj./n.            綠色的、綠色                                             國小   -      多義
+177                 gray                adj./n.            灰色的、灰色                                             國小   顏色      單義
+178                 green               adj./n.            綠色的、綠色                                             國小   顏色      多義
 179                 ground              n.                 地面                                                     國小   -      極多義
 180                 hair                n.                 頭髮                                                     國小   -      單義
 181                 hand                n.                 手                                                       國小   -      極多義
@@ -229,7 +229,7 @@
 227                 lazy                adj.               懶惰的                                                   國小   -      單義
 228                 learn               v.                 學習                                                     國小   -      單義
 229                 leg                 n.                 腿                                                       國小   -      多義
-230                 lemon               n.                 檸檬                                                     國小   食物   多義
+230                 lemon               n.                 檸檬                                                     國小   食物、水果   多義
 231                 letter              n.                 信、字母                                                 國小   -      多義
 232                 library             n.                 圖書館                                                   國小   -      單義
 233                 light               n./adj.            燈、輕的                                                 國小   -      極多義
@@ -284,7 +284,7 @@
 282                 one                 n./adj.            一                                                       國小   數字      多義
 283                 onion               n.                 洋蔥                                                     國小   食物   單義
 284                 open                v./adj.            打開、開著的                                             國小   -      多義
-285                 orange              n./adj.            柳橙、橘色的                                             國小   食物   單義
+285                 orange              n./adj.            柳橙、橘色的                                             國小   食物、水果、顏色   單義
 286                 paper               n.                 紙                                                       國小   -      多義
 287                 parent              n.                 父母其中一位                                             國小   -      單義
 288                 park                n.                 公園                                                     國小   -      多義
@@ -296,7 +296,7 @@
 294                 piano               n.                 鋼琴                                                     國小   -      單義
 295                 picture             n.                 圖畫、照片                                               國小   -      多義
 296                 pig                 n.                 豬                                                       國小   -      多義
-297                 pink                adj./n.            粉紅色的、粉紅色                                         國小   -      單義
+297                 pink                adj./n.            粉紅色的、粉紅色                                         國小   顏色      單義
 298                 pizza               n.                 披薩                                                     國小   食物   單義
 299                 play                v.                 玩、打球                                                 國小   -      極多義
 300                 please              adv.               請                                                       國小   -      單義
@@ -305,14 +305,14 @@
 303                 potato              n.                 馬鈴薯                                                   國小   食物   單義
 304                 pretty              adj.               漂亮的                                                   國小   -      多義
 305                 pull                v.                 拉                                                       國小   -      極多義
-306                 purple              adj./n.            紫色的、紫色                                             國小   -      單義
+306                 purple              adj./n.            紫色的、紫色                                             國小   顏色      單義
 307                 push                v.                 推                                                       國小   -      多義
 308                 rabbit              n.                 兔子                                                     國小   -      單義
 309                 rain                n./v.              雨、下雨                                                 國小   -      單義
 310                 rainy               adj.               下雨的                                                   國小   -      單義
 311                 read                v.                 讀                                                       國小   -      多義
 312                 ready               adj.               準備好的                                                 國小   -      單義
-313                 red                 adj./n.            紅色的、紅色                                             國小   -      多義
+313                 red                 adj./n.            紅色的、紅色                                             國小   顏色      多義
 314                 restaurant          n.                 餐廳                                                     國小   -      單義
 315                 rice                n.                 米飯                                                     國小   食物   單義
 316                 ride                v.                 騎                                                       國小   -      多義
@@ -444,7 +444,7 @@
 442                 what                pron.              什麼                                                     國小   -      單義
 443                 when                adv.               何時                                                     國小   -      單義
 444                 where               adv.               哪裡                                                     國小   -      單義
-445                 white               adj./n.            白色的、白色                                             國小   -      多義
+445                 white               adj./n.            白色的、白色                                             國小   顏色      多義
 446                 who                 pron.              誰                                                       國小   -      單義
 447                 why                 adv.               為什麼                                                   國小   -      單義
 448                 wind                n.                 風                                                       國小   -      多義
@@ -458,7 +458,7 @@
 456                 world               n.                 世界                                                     國小   -      多義
 457                 write               v.                 寫                                                       國小   -      單義
 458                 year                n.                 年                                                       國小   -      單義
-459                 yellow              adj./n.            黃色的、黃色                                             國小   -      多義
+459                 yellow              adj./n.            黃色的、黃色                                             國小   顏色      多義
 460                 yes                 adv.               是                                                       國小   -      單義
 461                 yesterday           n./adv.            昨天                                                     國小   -      單義
 462                 you                 pron.              你                                                       國小   -      單義
@@ -904,7 +904,7 @@
 913                 great               adj.               很棒的                                                   國小   -      未分類
 914                 group               n.                 團體                                                     國小   -      未分類
 915                 grow                v.                 種植                                                     國小   -      未分類
-916                 guava               n.                 番石榴                                                   國小   食物   未分類
+916                 guava               n.                 番石榴                                                   國小   食物、水果   未分類
 917                 guess               v.                 猜想                                                     國小   -      未分類
 918                 guitar              n.                 吉他                                                     國小   -      未分類
 919                 guy                 n.                 傢伙                                                     國小   -      未分類
@@ -1097,15 +1097,15 @@
 1113                paint               v./n.              繪畫                                                     國小   -      未分類
 1114                pair                n.                 一雙                                                     國小   -      未分類
 1115                pants               n.                 長褲                                                     國小   -      未分類
-1116                papaya              n.                 木瓜                                                     國小   食物   未分類
+1116                papaya              n.                 木瓜                                                     國小   食物、水果   未分類
 1117                part                n.                 部分                                                     國小   -      未分類
 1118                pass                v.                 通過                                                     國小   -      未分類
 1119                past                prep./n./adj.      經過                                                     國小   -      未分類
 1120                paste               n./v.              黏貼、漿糊                                               國小   -      未分類
 1121                pay                 v.                 付錢                                                     國小   -      未分類
 1122                PE                  n.                 體育（全稱 physical education）                          國小   -      未分類
-1123                peach               n.                 桃子                                                     國小   食物   未分類
-1124                pear                n.                 梨子                                                     國小   食物   未分類
+1123                peach               n.                 桃子                                                     國小   食物、水果   未分類
+1124                pear                n.                 梨子                                                     國小   食物、水果   未分類
 1125                perhaps             adv.               或許                                                     國小   -      未分類
 1126                person              n.                 人                                                       國小   -      未分類
 1127                pick                v.                 撿拾                                                     國小   -      未分類
@@ -1266,7 +1266,7 @@
 1284                straight            adj./adv.          直的                                                     國小   -      未分類
 1285                strange             adj.               奇怪的                                                   國小   -      未分類
 1286                stranger            n.                 陌生人                                                   國小   -      未分類
-1287                strawberry          n.                 草莓                                                     國小   食物   未分類
+1287                strawberry          n.                 草莓                                                     國小   食物、水果   未分類
 1288                street              n.                 街道                                                     國小   -      未分類
 1289                string              n.                 細繩                                                     國小   -      未分類
 1290                stupid              adj.               笨的                                                     國小   -      未分類
@@ -1355,7 +1355,7 @@
 1375                waitress            n.                 女服務生                                                 國小   -      未分類
 1376                wake                v.                 醒來                                                     國小   -      未分類
 1377                wallet              n.                 皮夾                                                     國小   -      未分類
-1378                watermelon          n.                 西瓜                                                     國小   食物   未分類
+1378                watermelon          n.                 西瓜                                                     國小   食物、水果   未分類
 1379                wave                n./v.              波浪                                                     國小   -      未分類
 1380                we                  pron.              我們（受格 us、所有格 our/ours、反身 ourselves）         國小   -      未分類
 1381                weak                adj.               弱的                                                     國小   -      未分類
@@ -1400,3 +1400,13 @@
 1430                reserve             v.                 預訂（動詞：訂位、訂房，跟 book 意思相近）               高中   -      多義   -
 1431                booking             n.                 預訂記錄（名詞，不是動詞，是「訂位這件事」本身）         高中   -      單義   -
 1432                retry               v.                 重試                                                     高中   -      單義   工程師
+1433                silver              n./adj.            銀色的、銀色；銀（金屬）                                 國小   顏色   多義   -
+1434                navy                n./adj.            海軍藍的、海軍藍；海軍                                   高中   顏色   多義   -
+1435                beige               n./adj.            米色的、米色                                             高中   顏色   單義   -
+1436                maroon              n./adj.            栗紅色的、栗紅色                                         高中   顏色   單義   -
+1437                turquoise           n./adj.            青綠色的、青綠色                                         高中   顏色   單義   -
+1438                mango               n.                 芒果                                                     國小   食物、水果   單義   -
+1439                pineapple           n.                 鳳梨                                                     國小   食物、水果   單義   -
+1440                kiwi                n.                 奇異果                                                   國中   食物、水果   單義   -
+1441                cherry              n.                 櫻桃                                                     國中   食物、水果   單義   -
+1442                coconut             n.                 椰子                                                     國中   食物、水果   單義   -

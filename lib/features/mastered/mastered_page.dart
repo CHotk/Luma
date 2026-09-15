@@ -211,7 +211,7 @@ class _Card extends StatelessWidget {
                   TrapTag(noteNo: trapNote!, tappable: true),
                   const SizedBox(width: 6),
                 ],
-                TopicTag(topic: word.topic),
+                TopicTag(topics: word.topics),
                 if (word.senseCount.isTagged) ...[
                   const SizedBox(width: 6),
                   SenseTag(senseCount: word.senseCount),

@@ -100,9 +100,9 @@ class _Body extends StatelessWidget {
                         const SizedBox(width: Gap.sm),
                         TrapTag(noteNo: detail.trapNote!, tappable: true),
                       ],
-                      if (word.topic.isTagged) ...[
+                      if (word.topics.isNotEmpty) ...[
                         const SizedBox(width: Gap.sm),
-                        TopicTag(topic: word.topic),
+                        TopicTag(topics: word.topics),
                       ],
                       if (word.senseCount.isTagged) ...[
                         const SizedBox(width: Gap.sm),

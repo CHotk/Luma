@@ -98,10 +98,18 @@ final libraryProvider = FutureProvider.autoDispose<LibraryData>((ref) async {
   final counts = Scoring.countByStatus(all, rules);
 
   // 有幾個字被分過類，決定要不要顯示類別下拉。
+  // 一個字可以同時屬於好幾類，所以是每個類別各自加總，不是互斥的單一計數，
+  // 全部類別加起來的數字會超過單字總數，這是預期的。
   final topicCounts = <WordTopic, int>{};
   final senseCounts = <WordSenseCount, int>{};
   for (final w in all) {
-    topicCounts[w.topic] = (topicCounts[w.topic] ?? 0) + 1;
+    if (w.topics.isEmpty) {
+      topicCounts[WordTopic.none] = (topicCounts[WordTopic.none] ?? 0) + 1;
+    } else {
+      for (final t in w.topics) {
+        topicCounts[t] = (topicCounts[t] ?? 0) + 1;
+      }
+    }
     senseCounts[w.senseCount] = (senseCounts[w.senseCount] ?? 0) + 1;
   }
 
@@ -111,7 +119,11 @@ final libraryProvider = FutureProvider.autoDispose<LibraryData>((ref) async {
       return false;
     }
     // 狀態、類別、詞義豐富度是「且」的關係：選了都要同時符合。
-    if (topic != null && w.topic != topic) return false;
+    // 類別篩選看的是「有沒有包含」，不是「剛好只有這一個」。
+    if (topic != null &&
+        !(topic == WordTopic.none ? w.topics.isEmpty : w.topics.contains(topic))) {
+      return false;
+    }
     if (sense != null && w.senseCount != sense) return false;
     if (query.isEmpty) return true;
     if (w.word.toLowerCase().contains(lower) || w.zh.contains(query)) {
