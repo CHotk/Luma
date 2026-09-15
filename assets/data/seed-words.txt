@@ -1,4 +1,4 @@
-# seed-version: 13
+# seed-version: 14
 # no                word                pos                zh                                                       grade  topic  sense  tags
 1                   a                   art.               一個                                                     國小   -      單義
 2                   about               prep.              關於                                                     國小   -      多義
@@ -1399,3 +1399,4 @@
 1421                commit              v.                 提交（版本控制）、承諾、犯（罪）                         高中   -      多義   工程師
 1430                reserve             v.                 預訂（動詞：訂位、訂房，跟 book 意思相近）               高中   -      多義   -
 1431                booking             n.                 預訂記錄（名詞，不是動詞，是「訂位這件事」本身）         高中   -      單義   -
+1432                retry               v.                 重試                                                     高中   -      單義   工程師
