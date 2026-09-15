@@ -69,6 +69,31 @@ void main() {
     });
   });
 
+  group('權重', () {
+    test('沒錯過的字，權重就是答對次數本身', () {
+      expect(word(right: 1).masteryWeight(rules), 1);
+      expect(word(right: 7).masteryWeight(rules), 7);
+    });
+
+    test('剛好打平掌握門檻時，不管走哪條路線權重都等於 confirmRight', () {
+      expect(word(right: 3).masteryWeight(rules), 3, reason: '沒錯過剛好答對門檻次數');
+      expect(
+        word(right: 10, wrong: 1).masteryWeight(rules),
+        3,
+        reason: '錯過但答對次數剛好是答錯的十倍',
+      );
+    });
+
+    test('還沒打平就是低於 confirmRight，打平之後就超過', () {
+      expect(word(right: 9, wrong: 1).masteryWeight(rules), 2, reason: '還差一次');
+      expect(word(right: 15, wrong: 1).masteryWeight(rules), 8, reason: '超過門檻，權重比 confirmRight 高');
+    });
+
+    test('權重不夾在 0，錯過沒補回來會是負的', () {
+      expect(word(wrong: 1).masteryWeight(rules), -7);
+    });
+  });
+
   test('門檻調高之後原本掌握的字會掉回去', () {
     final w = word(right: 3);
     expect(w.statusWith(rules), WordStatus.confirmed);

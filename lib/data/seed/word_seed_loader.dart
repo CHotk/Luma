@@ -6,9 +6,11 @@ import 'seed_source.dart';
 
 /// 把打包在 App 裡的題庫與既有紀錄讀進來。
 ///
-/// 兩個來源：
-///   assets/data/seed-words.txt  題庫，還沒考過的候選字
-///   assets/data/words.txt       使用者已經考過的字，帶著對錯次數
+/// 三個來源：
+///   assets/data/seed-words.txt    單字題庫，還沒考過的候選字
+///   assets/data/seed-phrases.txt  高頻固定搭配，跟單字題庫同一套欄位規則，
+///                                 讀完直接併進同一個池子，出題、篩選都跟單字一視同仁
+///   assets/data/words.txt         使用者已經考過的字，帶著對錯次數
 ///
 /// 欄位都用「兩個以上空白」分隔，開頭是 # 的是註解或表頭。
 /// 第一行的 `# seed-version: N` 是題庫版本，加了新字就要往上加。
@@ -18,11 +20,19 @@ class WordSeedLoader implements SeedSource {
   /// 每次從 En 資料夾重新複製檔案進 assets 就要 +1。
   /// 忘了加，App 就不會同步，然後你會以為程式壞了。
   @override
-  int get bundleVersion => 8;
+  int get bundleVersion => 18;
 
   Future<List<Word>> _seedWords() async {
-    final raw = await rootBundle.loadString('assets/data/seed-words.txt');
     final words = <Word>[];
+    await _loadWordFile('assets/data/seed-words.txt', words);
+    await _loadWordFile('assets/data/seed-phrases.txt', words);
+    return words;
+  }
+
+  /// 讀一份「單字題庫格式」的檔案，剖析結果直接接在 [words] 後面。
+  /// 單字題庫和固定搭配用同一個剖析器，欄位規則要保持一致。
+  Future<void> _loadWordFile(String asset, List<Word> words) async {
+    final raw = await rootBundle.loadString(asset);
     for (final line in _rows(raw)) {
       final cols = line.split(_separator);
       if (cols.length < 5) continue;
@@ -34,10 +44,13 @@ class WordSeedLoader implements SeedSource {
           zh: cols[3],
           grade: WordGrade.parse(cols[4]),
           topic: cols.length > 5 ? WordTopic.parse(cols[5]) : WordTopic.none,
+          senseCount: cols.length > 6
+              ? WordSenseCount.parse(cols[6])
+              : WordSenseCount.none,
+          tags: cols.length > 7 ? Word.parseTags(cols[7]) : const [],
         ),
       );
     }
-    return words;
   }
 
   @override
@@ -63,6 +76,9 @@ class WordSeedLoader implements SeedSource {
               right: entry.value.right,
               wrong: entry.value.wrong,
               lastTest: entry.value.lastTest,
+              // 題庫跟 words.txt 都有標籤時是合併不是誰蓋過誰，
+              // 不然題庫標的分類考過一次就會被洗掉。
+              tags: {...existing.tags, ...entry.value.tags}.toList(),
             )
           : Word(
               id: ++nextId,
@@ -76,6 +92,7 @@ class WordSeedLoader implements SeedSource {
               right: entry.value.right,
               wrong: entry.value.wrong,
               lastTest: entry.value.lastTest,
+              tags: entry.value.tags,
             );
     }
 
@@ -118,7 +135,7 @@ class WordSeedLoader implements SeedSource {
     return entries;
   }
 
-  /// 既有紀錄：no / word / pos / zh / example / added / right / wrong / last_test
+  /// 既有紀錄：no / word / pos / zh / example / added / right / wrong / last_test / tags
   Future<Map<String, _Existing>> _readExisting() async {
     final raw = await rootBundle.loadString('assets/data/words.txt');
     final result = <String, _Existing>{};
@@ -135,6 +152,7 @@ class WordSeedLoader implements SeedSource {
         right: int.tryParse(cols[6]) ?? 0,
         wrong: int.tryParse(cols[7]) ?? 0,
         lastTest: cols.length > 8 ? DateTime.tryParse(cols[8]) : null,
+        tags: cols.length > 9 ? Word.parseTags(cols[9]) : const [],
       );
     }
     return result;
@@ -158,6 +176,7 @@ class _Existing {
     required this.wrong,
     this.added,
     this.lastTest,
+    this.tags = const [],
   });
 
   final String word;
@@ -168,4 +187,5 @@ class _Existing {
   final int right;
   final int wrong;
   final DateTime? lastTest;
+  final List<String> tags;
 }

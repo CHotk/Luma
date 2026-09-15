@@ -14,11 +14,7 @@ abstract final class SpellJudge {
   /// 判定前的正規化。只做兩件事，不做字根還原也不做複數還原。
   static String normalize(String raw) => raw.trim().toLowerCase();
 
-  /// 提示用的遮罩，例如 weather 會變成 "w _ _ _ _ _ _"。
-  /// 只露出第一個字母，露太多就等於送分。
-  static String mask(String answer) {
-    if (answer.isEmpty) return '';
-    final rest = List.filled(answer.length - 1, '_').join(' ');
-    return rest.isEmpty ? answer[0] : '${answer[0]} $rest';
-  }
+  /// 打的字數已經跟答案一樣長，可以直接判定，不用等人按送出。
+  static bool isComplete({required String input, required String answer}) =>
+      input.trim().length >= answer.length;
 }

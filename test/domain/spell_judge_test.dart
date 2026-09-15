@@ -23,9 +23,10 @@ void main() {
       expect(SpellJudge.isCorrect(input: 'a', answer: 'an'), isFalse);
     });
 
-    test('遮罩只露出第一個字母', () {
-      expect(SpellJudge.mask('weather'), 'w _ _ _ _ _ _');
-      expect(SpellJudge.mask('a'), 'a');
+    test('打滿答案的長度才算打完，前後空白不算', () {
+      expect(SpellJudge.isComplete(input: 'towe', answer: 'towel'), isFalse);
+      expect(SpellJudge.isComplete(input: 'towel', answer: 'towel'), isTrue);
+      expect(SpellJudge.isComplete(input: ' towe ', answer: 'towel'), isFalse);
     });
   });
 }

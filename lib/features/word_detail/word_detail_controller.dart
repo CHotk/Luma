@@ -13,6 +13,7 @@ class WordDetail {
     required this.history,
     required this.rules,
     this.trapNote,
+    this.senseNote,
   });
 
   final Word word;
@@ -22,6 +23,9 @@ class WordDetail {
 
   /// 這個字是地雷字的話，對應到第幾則筆記。
   final String? trapNote;
+
+  /// 這個字有義項解析的話，對應到第幾則筆記。
+  final String? senseNote;
 
   final RulesConfig rules;
 }
@@ -35,6 +39,7 @@ final wordDetailProvider = FutureProvider.autoDispose
       final rules = await ref.watch(settingsRepositoryProvider).loadRules();
       final history = await ref.watch(historyRepositoryProvider).forWord(word);
       final traps = await ref.watch(trapWordsProvider.future);
+      final senses = await ref.watch(senseWordsProvider.future);
 
       final key = word.toLowerCase();
       final found = all.firstWhere(
@@ -47,5 +52,6 @@ final wordDetailProvider = FutureProvider.autoDispose
         history: history,
         rules: rules,
         trapNote: traps[key],
+        senseNote: senses[key],
       );
     });

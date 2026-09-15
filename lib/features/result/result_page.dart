@@ -119,6 +119,14 @@ class _Body extends StatelessWidget {
                 '${result.countOf(review: true, correctOnly: true)}'
                     ' / ${result.countOf(review: true, correctOnly: false)}',
               ),
+              // 已掌握的回考題不是每輪都有（題庫小或候選不夠時會被讓給待複習），
+              // 沒有就不顯示這一列，不要秀一個永遠是 0/0 的空列。
+              if (result.masteredCount(correctOnly: false) > 0)
+                _Row(
+                  '已掌握',
+                  '${result.masteredCount(correctOnly: true)}'
+                      ' / ${result.masteredCount(correctOnly: false)}',
+                ),
               _Row('花了', _mmss(result.elapsed)),
             ],
           ),

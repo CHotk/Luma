@@ -108,8 +108,10 @@ class WordRepository {
             : local.copyWith(
                 // 靜態欄位以打包資料為準：題庫改了中文或加了分類就會同步過來。
                 topic: fresh.topic,
+                senseCount: fresh.senseCount,
                 example: fresh.example,
                 added: fresh.added,
+                tags: fresh.tags,
               ),
       );
     }

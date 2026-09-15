@@ -40,10 +40,11 @@ class DailyUsage {
 
 /// 判斷今天還能不能再做一輪。
 abstract final class DailyLimit {
-  /// 輪數或時間，哪個先到算哪個。
+  /// 只看輪數。時間不當限制條件（使用者 2026-09-15 決定）：
+  /// 想多花時間在同一輪裡想清楚再答，不該因為想久了就被擋住。
+  /// `practiceSeconds` 還是照樣記，純粹給總紀錄頁看花了多久，不參與判斷。
   static bool reached(DailyUsage usage, RulesConfig rules) {
-    return usage.roundsDone >= rules.roundsPerDay ||
-        usage.practiceSeconds >= rules.minutesPerDay * 60;
+    return usage.roundsDone >= rules.roundsPerDay;
   }
 
   static int roundsLeft(DailyUsage usage, RulesConfig rules) {

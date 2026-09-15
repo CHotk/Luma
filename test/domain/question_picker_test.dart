@@ -76,18 +76,83 @@ void main() {
     expect(words.where((w) => w.startsWith('done')).length, 1);
   });
 
-  test('待複習挑錯最多次的', () {
+  test('待複習只從離掌握還差最多次的前 30 名候選裡抽，不會選到後段的', () {
+    // 50 個待複習字，rightNeededFor 只跟 wrong 成正比（right 都是 0），
+    // 前 30 名門檻是 wrong >= 21（wrong=50..21 共 30 個）。
+    // 但配額裡保留了一個名額給「最接近掌握」的字（wrong 最小的 wrong0），
+    // 那個名額本來就該來自候選池外，所以只檢查扣掉它之後剩下的。
+    final pool = [
+      for (var i = 0; i < 50; i++) word('wrong$i', id: 100 + i, wrong: i + 1),
+    ];
     final picked = QuestionPicker(
       rules: rules,
-      random: Random(1),
-    ).pick(library(), now: now);
+      random: Random(7),
+    ).pick(pool, now: now);
 
-    final pending = picked
-        .map((q) => q.word)
-        .where((w) => w.word.startsWith('wrong'))
-        .map((w) => w.wrong)
+    final wrongCounts = picked
+        .where((q) => q.isReview)
+        .map((q) => q.word.wrong)
         .toList();
-    expect(pending, containsAll([5, 4, 3, 2]), reason: '錯最多次的四個沒被排進來');
+    expect(wrongCounts, contains(1), reason: '沒有保留最接近掌握的那個字（wrong=1）');
+    final rest = wrongCounts.where((w) => w != 1);
+    expect(rest.every((w) => w >= 21), isTrue, reason: '選到了候選前 30 名以外的字');
+  });
+
+  test('候選池大小可以在設定調，不是寫死 30', () {
+    // 50 個待複習字，把候選池縮到 10：門檻變成 wrong >= 41（50..41 共 10 個）。
+    // 同樣要扣掉保留給「最接近掌握」的那個名額再檢查。
+    final pool = [
+      for (var i = 0; i < 50; i++) word('wrong$i', id: 100 + i, wrong: i + 1),
+    ];
+    final picked = QuestionPicker(
+      rules: rules.copyWith(pendingCandidatePoolSize: 10),
+      random: Random(7),
+    ).pick(pool, now: now);
+
+    final wrongCounts = picked
+        .where((q) => q.isReview)
+        .map((q) => q.word.wrong)
+        .toList();
+    expect(wrongCounts, contains(1), reason: '沒有保留最接近掌握的那個字（wrong=1）');
+    final rest = wrongCounts.where((w) => w != 1);
+    expect(rest.every((w) => w >= 41), isTrue, reason: '候選池大小沒有真的被設定值改掉');
+  });
+
+  test('待複習配額保留一個名額給最接近掌握的字', () {
+    // wrong0（wrong=1）離掌握最近，rightNeededFor 最小，就算它排不進
+    // 「離掌握最遠」的候選池（候選池只有 10 個，wrong0 排第 40 名），
+    // 也該被保留的那個名額直接抓到。
+    final pool = [
+      for (var i = 0; i < 40; i++) word('wrong$i', id: 100 + i, wrong: i + 1),
+    ];
+    final picked = QuestionPicker(
+      rules: rules.copyWith(pendingCandidatePoolSize: 10),
+      random: Random(3),
+    ).pick(pool, now: now);
+
+    expect(
+      picked.any((q) => q.word.word == 'wrong0'),
+      isTrue,
+      reason: '最接近掌握的字（wrong=1）沒有被保留的名額抓到',
+    );
+  });
+
+  test('待複習的候選池是隨機抽的，換個種子會抽到不同的字', () {
+    final pool = [
+      for (var i = 0; i < 40; i++) word('wrong$i', id: 100 + i, wrong: i + 1),
+    ];
+    Set<String> pendingOf(int seed) =>
+        QuestionPicker(rules: rules, random: Random(seed))
+            .pick(pool, now: now)
+            .where((q) => q.isReview)
+            .map((q) => q.word.word)
+            .toSet();
+
+    expect(
+      pendingOf(1),
+      isNot(equals(pendingOf(2))),
+      reason: '換個種子應該抽到不同的字，不然跟寫死前幾名沒兩樣',
+    );
   });
 
   test('新字不夠時用待複習補滿', () {
@@ -200,5 +265,61 @@ void main() {
     ).pick(library(), now: now);
 
     expect(picked.every((q) => q.mode == QuizMode.type), isTrue);
+  });
+
+  test('已掌握的回考題一律打字，就算是只點選模式', () {
+    final pool = [
+      for (var i = 0; i < 20; i++) word('fresh$i', id: i),
+      for (var i = 0; i < 20; i++) word('wrong$i', id: 100 + i, wrong: i + 1),
+      for (var i = 0; i < 5; i++)
+        word('done$i', id: 300 + i, right: 3, lastTest: DateTime(2026, 9, 1)),
+    ];
+    final picked = QuestionPicker(
+      rules: rules.copyWith(quizStyle: QuizStyle.tapOnly),
+      random: Random(1),
+    ).pick(pool, now: now);
+
+    final mastered = picked.where((q) => q.word.word.startsWith('done'));
+    expect(mastered.length, 1);
+    expect(mastered.every((q) => q.mode == QuizMode.type), isTrue);
+    // 其餘的字還是照只點選模式，不要被已掌握的強制規則波及。
+    final others = picked.where((q) => !q.word.word.startsWith('done'));
+    expect(others.every((q) => q.mode == QuizMode.tap), isTrue);
+  });
+
+  test('偽裝模式關掉已掌握強制打字', () {
+    final pool = [
+      for (var i = 0; i < 20; i++) word('fresh$i', id: i),
+      for (var i = 0; i < 20; i++) word('wrong$i', id: 100 + i, wrong: i + 1),
+      for (var i = 0; i < 5; i++)
+        word('done$i', id: 300 + i, right: 3, lastTest: DateTime(2026, 9, 1)),
+    ];
+    final picked = QuestionPicker(
+      rules: rules,
+      random: Random(1),
+    ).pick(pool, now: now, forceMasteredType: false);
+
+    expect(picked.every((q) => q.mode == QuizMode.tap), isTrue);
+  });
+
+  test('混合模式時，已掌握的強制打字要算進打字題總額，不會超過設定值', () {
+    final pool = [
+      for (var i = 0; i < 20; i++) word('fresh$i', id: i),
+      for (var i = 0; i < 20; i++) word('wrong$i', id: 100 + i, wrong: i + 1),
+      for (var i = 0; i < 5; i++)
+        word('done$i', id: 300 + i, right: 3, lastTest: DateTime(2026, 9, 1)),
+    ];
+    final picked = QuestionPicker(
+      rules: rules.copyWith(quizStyle: QuizStyle.mixed, typeQuestions: 3),
+      random: Random(1),
+    ).pick(pool, now: now);
+
+    expect(picked.where((q) => q.mode == QuizMode.type).length, 3);
+    expect(
+      picked
+          .where((q) => q.word.word.startsWith('done'))
+          .every((q) => q.mode == QuizMode.type),
+      isTrue,
+    );
   });
 }

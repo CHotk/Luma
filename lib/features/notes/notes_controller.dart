@@ -45,3 +45,18 @@ final trapWordsProvider = FutureProvider<Map<String, String>>((ref) async {
   }
   return map;
 });
+
+/// 哪些字有義項解析，以及對應到第幾則筆記。鍵是小寫的單字。
+///
+/// 跟 [trapWordsProvider] 同一套做法：資料來源是義項解析那本筆記結尾的
+/// 「相關單字」，不另外維護名單。這本是一則一個字，不會有一則對到多個字。
+final senseWordsProvider = FutureProvider<Map<String, String>>((ref) async {
+  final notes = await ref.watch(notesProvider(NoteCollection.senses).future);
+  final map = <String, String>{};
+  for (final note in notes) {
+    for (final word in note.relatedWords) {
+      map.putIfAbsent(word.toLowerCase(), () => note.no);
+    }
+  }
+  return map;
+});

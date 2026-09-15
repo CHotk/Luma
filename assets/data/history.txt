@@ -1,649 +1,1408 @@
-# date      round  word         result
-2026-09-10  R1     rain         O
-2026-09-10  R1     small        X
-2026-09-10  R1     busy         O
-2026-09-10  R1     borrow       X
-2026-09-10  R1     weather      X
-2026-09-10  R1     decide       X
-2026-09-10  R1     refuse       X
-2026-09-10  R1     improve      X
-2026-09-10  R1     curious      X
-2026-09-10  R1     appreciate   X
-2026-09-10  R1     reluctant    X
-2026-09-10  R1     mitigate     X
-2026-09-10  R2     cat          O
-2026-09-10  R2     big          O
-2026-09-10  R2     water        X
-2026-09-10  R2     eat          O
-2026-09-10  R2     red          O
-2026-09-10  R2     open         O
-2026-09-10  R2     cold         O
-2026-09-10  R2     book         O
-2026-09-10  R2     run          O
-2026-09-10  R2     happy        O
-2026-09-10  R2     small        X
-2026-09-10  R2     name         O
-2026-09-10  R3     water        O
-2026-09-10  R3     small        O
-2026-09-10  R3     door         O
-2026-09-10  R3     friend       O
-2026-09-10  R3     walk         O
-2026-09-10  R3     new          O
-2026-09-10  R3     money        O
-2026-09-10  R3     morning      O
-2026-09-10  R3     give         X
-2026-09-10  R3     fast         O
-2026-09-10  R3     hungry       O
-2026-09-10  R3     listen       X
-2026-09-10  R4     give         O
-2026-09-10  R4     listen       O
-2026-09-10  R4     buy          O
-2026-09-10  R4     tired        O
-2026-09-10  R4     clean        O
-2026-09-10  R4     wait         O
-2026-09-10  R4     answer       O
-2026-09-10  R4     angry        X
-2026-09-10  R4     remember     O
-2026-09-10  R4     difficult    X
-2026-09-10  R4     weather      X
-2026-09-10  R4     borrow       X
-2026-09-10  R5     angry        X
-2026-09-10  R5     angel        O
-2026-09-10  R5     difficult    X
-2026-09-10  R5     different    O
-2026-09-10  R5     borrow       X
-2026-09-10  R5     brown        O
-2026-09-10  R5     quiet        X
-2026-09-10  R5     quite        X
-2026-09-10  R5     sell         X
-2026-09-10  R5     sea          O
-2026-09-10  R5     heavy        X
-2026-09-10  R5     happy        O
-2026-09-10  R6     angry        O
-2026-09-10  R6     quiet        X
-2026-09-10  R6     heavy        X
-2026-09-10  R6     weather      X
-2026-09-10  R6     bring        X
-2026-09-10  R6     ready        O
-2026-09-10  R6     safe         O
-2026-09-10  R6     strong       X
-2026-09-10  R6     worry        X
-2026-09-10  R6     visit        O
-2026-09-10  R6     holiday      X
-2026-09-10  R6     kitchen      X
-2026-09-10  R7     dog          O
-2026-09-10  R7     school       O
-2026-09-10  R7     milk         O
-2026-09-10  R7     sleep        O
-2026-09-10  R7     night        O
-2026-09-10  R7     hand         X
-2026-09-10  R7     jump         O
-2026-09-10  R7     family       O
-2026-09-10  R7     help         O
-2026-09-10  R7     play         O
-2026-09-10  R7     chair        X
-2026-09-10  R7     music        O
-2026-09-10  R8     table        O
-2026-09-10  R8     window       O
-2026-09-10  R8     brother      O
-2026-09-10  R8     teacher      O
-2026-09-10  R8     apple        O
-2026-09-10  R8     green        O
-2026-09-10  R8     rice         O
-2026-09-10  R8     letter       X
-2026-09-10  R8     movie        O
-2026-09-10  R8     dance        O
-2026-09-10  R8     week         O
-2026-09-10  R8     minute       O
-2026-09-10  R9     weather      X
-2026-09-10  R9     borrow       X
-2026-09-10  R9     quiet        X
-2026-09-10  R9     quite        X
-2026-09-10  R9     heavy        X
-2026-09-10  R9     difficult    X
-2026-09-10  R9     breakfast    X
-2026-09-10  R9     animal       O
-2026-09-10  R9     always       O
-2026-09-10  R9     because      X
-2026-09-10  R9     hospital     O
-2026-09-10  R9     favorite     X
-2026-09-10  R10    dinner       O
-2026-09-10  R10    library      O
-2026-09-10  R10    birthday     X
-2026-09-10  R10    expensive    X
-2026-09-10  R10    delicious    X
-2026-09-10  R10    umbrella     X
-2026-09-10  R10    bicycle      O
-2026-09-10  R10    doctor       O
-2026-09-10  R10    restaurant   X
-2026-09-10  R10    vegetable    X
-2026-09-10  R10    weekend      O
-2026-09-10  R10    homework     O
-2026-09-10  R11    lunch        O
-2026-09-10  R11    sister       O
-2026-09-10  R11    student      O
-2026-09-10  R11    bread        X
-2026-09-10  R11    bird         O
-2026-09-10  R11    tree         O
-2026-09-10  R11    three        O
-2026-09-10  R11    flower       O
-2026-09-10  R11    house        O
-2026-09-10  R11    hot          O
-2026-09-10  R11    snow         O
-2026-09-10  R11    bus          O
-2026-09-10  R12    store        X
-2026-09-10  R12    park         O
-2026-09-10  R12    river        O
-2026-09-10  R12    paper        O
-2026-09-10  R12    pencil       O
-2026-09-10  R12    letter       X
-2026-09-10  R12    later        O
-2026-09-10  R12    train        O
-2026-09-10  R12    clock        O
-2026-09-10  R12    shoes        O
-2026-09-10  R12    cook         X
-2026-09-10  R12    corner       X
-2026-09-10  R13    floor        X
-2026-09-10  R13    flour        X
-2026-09-10  R13    grass        X
-2026-09-10  R13    glass        X
-2026-09-10  R13    bottle       X
-2026-09-10  R13    spoon        X
-2026-09-10  R13    towel        X
-2026-09-10  R13    tower        X
-2026-09-10  R13    beach        X
-2026-09-10  R13    bridge       X
-2026-09-10  R13    cloud        O
-2026-09-10  R13    ground       X
-2026-09-10  R14    cake         X
-2026-09-10  R14    ball         O
-2026-09-10  R14    girl         O
-2026-09-10  R14    farm         X
-2026-09-10  R14    winter       O
-2026-09-10  R14    market       X
-2026-09-10  R14    ticket       O
-2026-09-10  R14    garden       X
-2026-09-10  R14    exercise     X
-2026-09-10  R14    careful      X
-2026-09-10  R14    dangerous    X
-2026-09-10  R14    invite       X
-2026-09-10  R15    hat          O
-2026-09-10  R15    egg          O
-2026-09-10  R15    fish         O
-2026-09-10  R15    hand         O
-2026-09-10  R15    foot         O
-2026-09-10  R15    rain         O
-2026-09-10  R15    star         X
-2026-09-10  R15    moon         O
-2026-09-10  R15    king         O
-2026-09-10  R15    gift         O
-2026-09-10  R15    song         O
-2026-09-10  R15    duck         O
-2026-09-10  R16    neck         O
-2026-09-10  R16    knee         X
-2026-09-10  R16    spring       O
-2026-09-10  R16    shirt        X
-2026-09-10  R16    skirt        X
-2026-09-10  R16    socks        X
-2026-09-10  R16    glove        X
-2026-09-10  R16    autumn       X
-2026-09-10  R16    bathroom     X
-2026-09-10  R16    pocket       X
-2026-09-10  R16    rocket       X
-2026-09-10  R16    finger       X
-2026-09-10  R17    beef         O
-2026-09-10  R17    pork         O
-2026-09-10  R17    chicken      X
-2026-09-10  R17    soup         O
-2026-09-10  R17    noodles      X
-2026-09-10  R17    juice        O
-2026-09-10  R17    sugar        X
-2026-09-10  R17    salt         X
-2026-09-10  R17    plate        X
-2026-09-10  R17    knife        X
-2026-09-10  R17    busy         O
-2026-09-10  R18    face         O
-2026-09-10  R18    hair         O
-2026-09-10  R18    mouth        O
-2026-09-10  R18    nose         O
-2026-09-10  R18    ear          O
-2026-09-10  R18    tooth        O
-2026-09-10  R18    arm          X
-2026-09-10  R18    leg          O
-2026-09-10  R18    eye          O
-2026-09-10  R18    head         O
-2026-09-10  R18    cat          O
-2026-09-10  R19    rock         O
-2026-09-10  R19    socks        X
-2026-09-10  R19    lock         O
-2026-09-10  R19    chalk        X
-2026-09-10  R19    shark        X
-2026-09-10  R19    sheep        O
-2026-09-10  R19    sheet        X
-2026-09-10  R19    wolf         O
-2026-09-10  R19    wing         X
-2026-09-10  R19    tail         X
-2026-09-10  R19    big          O
-2026-09-10  R20    lamp         X
-2026-09-10  R20    lamb         X
-2026-09-10  R20    cave         X
-2026-09-10  R20    wave         X
-2026-09-10  R20    nail         X
-2026-09-10  R20    mail         O
-2026-09-10  R20    coin         O
-2026-09-10  R20    corn         X
-2026-09-10  R20    pin          X
-2026-09-10  R20    pan          X
-2026-09-10  R20    eat          O
-2026-09-10  R21    bank         O
-2026-09-10  R21    hotel        X
-2026-09-10  R21    police       O
-2026-09-10  R21    nurse        X
-2026-09-10  R21    farmer       O
-2026-09-10  R21    driver       X
-2026-09-10  R21    singer       O
-2026-09-10  R21    actor        O
-2026-09-10  R21    uncle        O
-2026-09-10  R21    cousin       X
-2026-09-10  R21    red          O
-2026-09-10  R22    blue         X
-2026-09-10  R22    black        O
-2026-09-10  R22    white        O
-2026-09-10  R22    yellow       O
-2026-09-10  R22    pink         O
-2026-09-10  R22    purple       X
-2026-09-10  R22    orange       O
-2026-09-10  R22    gray         X
-2026-09-10  R22    gold         O
-2026-09-10  R22    silver       O
-2026-09-10  R22    book         O
-2026-09-10  R23    tiger        O
-2026-09-10  R23    Monday       O
-2026-09-10  R23    spoon        X
-2026-09-10  R23    cheap        X
-2026-09-10  R23    bedroom      O
-2026-09-10  R23    horse        O
-2026-09-10  R23    April        X
-2026-09-10  R23    towel        X
-2026-09-10  R23    quick        O
-2026-09-10  R23    window       O
-2026-09-10  R23    cold         O
-2026-09-10  R24    dolphin      X
-2026-09-10  R24    Sunday       X
-2026-09-10  R24    towel        O
-2026-09-10  R24    sofa         O
-2026-09-10  R24    August       X
-2026-09-10  R24    rabbit       O
-2026-09-10  R24    slow         O
-2026-09-10  R24    pot          X
-2026-09-10  R24    Friday       O
-2026-09-10  R24    monkey       O
-2026-09-10  R24    give         O
-2026-09-10  R25    elephant     O
-2026-09-10  R25    snake        O
-2026-09-10  R25    March        X
-2026-09-10  R25    evening      X
-2026-09-10  R25    mirror       X
-2026-09-10  R25    butter       X
-2026-09-10  R25    cheese       X
-2026-09-10  R25    dirty        O
-2026-09-10  R25    swim         X
-2026-09-10  R25    climb        X
-2026-09-10  R25    friend       O
-2026-09-10  R26    pig          O
-2026-09-10  R26    cow          O
-2026-09-10  R26    tomorrow     O
-2026-09-10  R26    noon         X
-2026-09-10  R26    roof         X
-2026-09-10  R26    wall         X
-2026-09-10  R26    candy        O
-2026-09-10  R26    sing         X
-2026-09-10  R26    tall         O
-2026-09-10  R26    short        O
-2026-09-10  R26    walk         O
-2026-09-10  R27    bear         O
-2026-09-10  R27    lion         O
-2026-09-10  R27    hour         O
-2026-09-10  R27    desk         O
-2026-09-10  R27    cookie       O
-2026-09-10  R27    cry          O
-2026-09-10  R27    laugh        X
-2026-09-10  R27    young        O
-2026-09-10  R27    salad        X
-2026-09-10  R27    shelf        X
-2026-09-10  R27    door         O
-2026-09-10  R28    boy          O
-2026-09-10  R28    goat         O
-2026-09-10  R28    month        O
-2026-09-10  R28    curtain      X
-2026-09-10  R28    onion        X
-2026-09-10  R28    throw        X
-2026-09-10  R28    catch        X
-2026-09-10  R28    old          O
-2026-09-10  R28    wet          X
-2026-09-10  R28    clever       X
-2026-09-10  R28    new          O
-2026-09-10  R29    frog         O
-2026-09-10  R29    ant          O
-2026-09-10  R29    year         O
-2026-09-10  R29    key          O
-2026-09-10  R29    box          O
-2026-09-10  R29    cup          O
-2026-09-10  R29    sit          X
-2026-09-10  R29    stand        X
-2026-09-10  R29    loud         X
-2026-09-10  R29    thin         X
-2026-09-10  R29    money        O
-2026-09-10  R30    push         O
-2026-09-10  R30    pull         O
-2026-09-10  R30    safe         O
-2026-09-10  R30    river        O
-2026-09-10  R30    rain         O
-2026-09-10  R30    friend       O
-2026-09-10  R30    close        O
-2026-09-10  R30    name         O
-2026-09-11  R31    July         X
-2026-09-11  R31    plant        X
-2026-09-11  R31    bowl         X
-2026-09-11  R31    carrot       X
-2026-09-11  R31    spider       O
-2026-09-11  R31    warm         X
-2026-09-11  R31    wash         X
-2026-09-11  R31    wind         X
-2026-09-11  R31    potato       O
-2026-09-11  R31    morning      O
-2026-09-11  R32    sky          O
-2026-09-11  R32    fork         O
-2026-09-11  R32    jam          X
-2026-09-11  R32    thirsty      X
-2026-09-11  R32    sad          O
-2026-09-11  R32    afraid       X
-2026-09-11  R32    butterfly    O
-2026-09-11  R32    pillow       X
-2026-09-11  R32    blanket      X
-2026-09-11  R32    garage       X
-2026-09-11  R32    open         X
-2026-09-11  R33    ship         X
-2026-09-11  R33    plane        X
-2026-09-11  R33    ice          O
-2026-09-11  R33    sun          O
-2026-09-11  R33    dream        X
-2026-09-11  R33    hope         O
-2026-09-11  R33    soap         X
-2026-09-11  R33    comb         X
-2026-09-11  R33    towel        O
-2026-09-11  R33    cousin       X
-2026-09-11  R33    listen       O
-2026-09-11  R34    rose         O
-2026-09-11  R34    grape        X
-2026-09-11  R34    lemon        O
-2026-09-11  R34    knock        X
-2026-09-11  R34    touch        X
-2026-09-11  R34    shout        X
-2026-09-11  R34    brave        X
-2026-09-11  R34    lazy         O
-2026-09-11  R34    fever        X
-2026-09-11  R34    summer       X
-2026-09-11  R34    happy        O
-2026-09-11  R35    island       X
-2026-09-11  R35    desert       X
-2026-09-11  R35    insect       X
-2026-09-11  R35    wallet       X
-2026-09-11  R35    ruler        X
-2026-09-11  R35    eraser       X
-2026-09-11  R35    stamp        X
-2026-09-11  R35    basket       X
-2026-09-11  R35    ladder       X
-2026-09-11  R35    honey        O
-2026-09-11  R35    give         O
-2026-09-11  R36    bed          O
-2026-09-11  R36    toy          O
-2026-09-11  R36    doll         O
-2026-09-11  R36    kite         X
-2026-09-11  R36    read         O
-2026-09-11  R36    write        O
-2026-09-11  R36    draw         X
-2026-09-11  R36    count        O
-2026-09-11  R36    baby         O
-2026-09-11  R36    zoo          O
-2026-09-11  R36    tired        O
-2026-09-11  R37    aunt         X
-2026-09-11  R37    niece        X
-2026-09-11  R37    guest        X
-2026-09-11  R37    neighbor     X
-2026-09-11  R37    village      X
-2026-09-11  R37    queen        O
-2026-09-11  R37    prince       X
-2026-09-11  R37    bread        X
-2026-09-11  R37    grass        X
-2026-09-11  R37    juice        O
-2026-09-11  R37    clean        O
-2026-09-11  R38    forest       X
-2026-09-11  R38    mountain     X
-2026-09-11  R38    lake         X
-2026-09-11  R38    hill         X
-2026-09-11  R38    field        X
-2026-09-11  R38    stone        X
-2026-09-11  R38    sand         X
-2026-09-11  R38    seed         X
-2026-09-11  R38    leaf         X
-2026-09-11  R38    branch       O
-2026-09-11  R38    buy          O
-2026-09-11  R39    man          O
-2026-09-11  R39    woman        O
-2026-09-11  R39    car          O
-2026-09-11  R39    taxi         O
-2026-09-11  R39    street       O
-2026-09-11  R39    shop         O
-2026-09-11  R39    city         O
-2026-09-11  R39    town         O
-2026-09-11  R39    home         O
-2026-09-11  R39    phone        O
-2026-09-11  R39    help         O
-2026-09-11  R40    airport      X
-2026-09-11  R40    station      X
-2026-09-11  R40    office       O
-2026-09-11  R40    stairs       X
-2026-09-11  R40    gate         X
-2026-09-11  R40    seat         X
-2026-09-11  R40    map          O
-2026-09-11  R40    road         O
-2026-09-11  R40    sign         X
-2026-09-11  R40    line         O
-2026-09-11  R40    play         O
-2026-09-11  R41    tea          O
-2026-09-11  R41    coffee       O
-2026-09-11  R41    banana       O
-2026-09-11  R41    chocolate    X
-2026-09-11  R41    sandwich     O
-2026-09-11  R41    hamburger    O
-2026-09-11  R41    pizza        O
-2026-09-11  R41    dumpling     X
-2026-09-11  R41    menu         O
-2026-09-11  R41    waiter       X
-2026-09-11  R41    wait         O
-2026-09-11  R42    fly          O
-2026-09-11  R42    fire         O
-2026-09-11  R42    football     O
-2026-09-11  R42    mock         O
-2026-09-11  R42    ghost        X
-2026-09-11  R42    magic        O
-2026-09-11  R42    robot        O
-2026-09-11  R42    alien        X
-2026-09-11  R42    hero         O
-2026-09-11  R42    team         O
-2026-09-11  R42    answer       O
-2026-09-11  R43    computer     O
-2026-09-11  R43    keyboard     O
-2026-09-11  R43    mouse        O
-2026-09-11  R43    screen       X
-2026-09-11  R43    battery      X
-2026-09-11  R43    cable        X
-2026-09-11  R43    button       X
-2026-09-11  R43    camera       O
-2026-09-11  R43    radio        X
-2026-09-11  R43    watch        O
-2026-09-11  R43    remember     O
-2026-09-11  R44    sick         O
-2026-09-11  R44    medicine     X
-2026-09-11  R44    patient      X
-2026-09-11  R44    healthy      X
-2026-09-11  R44    illness      X
-2026-09-11  R44    cough        X
-2026-09-11  R44    rainbow      X
-2026-09-11  R44    storm        X
-2026-09-11  R44    cloud        O
-2026-09-11  R44    kind         O
-2026-09-11  R44    umbrella     X
-2026-09-11  R45    beautiful    O
-2026-09-11  R45    ugly         X
-2026-09-11  R45    smart        O
-2026-09-11  R45    boring       X
-2026-09-11  R45    funny        O
-2026-09-11  R45    serious      X
-2026-09-11  R45    nervous      X
-2026-09-11  R45    shy          X
-2026-09-11  R45    proud        X
-2026-09-11  R45    jealous      X
-2026-09-11  R45    school       X
-2026-09-11  R45    umbrella     O
-2026-09-11  R46    season       O
-2026-09-11  R46    spring       O
-2026-09-11  R46    holiday      X
-2026-09-11  R46    vacation     X
-2026-09-11  R46    calendar     O
-2026-09-11  R46    date         X
-2026-09-11  R46    event        X
-2026-09-11  R46    school       O
-2026-09-11  R47    weekday      X
-2026-09-11  R47    schedule     O
-2026-09-11  R47    history      O
-2026-09-11  R47    science      X
-2026-09-11  R47    math         O
-2026-09-11  R47    art          O
-2026-09-11  R47    subject      X
-2026-09-11  R47    test         O
-2026-09-11  R47    grade        X
-2026-09-11  R47    lesson       X
-2026-09-11  R47    homework     X
-2026-09-11  R1     bag          O
-2026-09-11  R1     pear         X
-2026-09-11  R1     watermelon   X
-2026-09-11  R1     strawberry   O
-2026-09-11  R1     mango        O
-2026-09-11  R1     tissue       X
-2026-09-11  R1     trash        X
-2026-09-11  R1     zebra        X
-2026-09-11  R1     owl          X
-2026-09-11  R1     cage         X
-2026-09-11  R1     recycle      X
-2026-09-11  R2     lettuce      X
-2026-09-11  R2     broccoli     X
-2026-09-11  R2     bee          O
-2026-09-11  R2     beetle       X
-2026-09-11  R2     squirrel     X
-2026-09-11  R2     shadow       X
-2026-09-11  R2     flag         O
-2026-09-11  R2     drum         X
-2026-09-11  R2     bell         X
-2026-09-11  R2     bubble       X
-2026-09-11  R2     bag          O
-2026-09-11  R3     cheek        X
-2026-09-11  R3     chin         X
-2026-09-11  R3     forehead     X
-2026-09-11  R3     elbow        X
-2026-09-11  R3     wrist        X
-2026-09-11  R3     ankle        X
-2026-09-11  R3     thumb        X
-2026-09-11  R3     palm         X
-2026-09-11  R3     beard        X
-2026-09-11  R3     mustache     X
-2026-09-11  R3     strawberry   O
-2026-09-11  R4     envelope     X
-2026-09-11  R4     stapler      X
-2026-09-11  R4     scissors     X
-2026-09-11  R4     glue         X
-2026-09-11  R4     tape         X
-2026-09-11  R4     folder       O
-2026-09-11  R4     notebook     O
-2026-09-11  R4     calculator   X
-2026-09-11  R4     backpack     X
-2026-09-11  R4     crayon       X
-2026-09-11  R4     mango        O
-2026-09-11  R5     thunder      X
-2026-09-11  R5     lightning    X
-2026-09-11  R5     fog          X
-2026-09-11  R5     drought      X
-2026-09-11  R5     flood        X
-2026-09-11  R5     temperature  X
-2026-09-11  R5     degree       X
-2026-09-11  R5     puddle       X
-2026-09-11  R5     breeze       X
-2026-09-11  R5     humid        X
-2026-09-11  R5     bee          O
-2026-09-11  R6     sock         X
-2026-09-11  R6     glove        X
-2026-09-11  R6     umbrella     O
-2026-09-11  R6     candle       X
-2026-09-11  R6     mirror       O
-2026-09-11  R6     brush        O
-2026-09-11  R6     comb         X
-2026-09-11  R6     soap         X
-2026-09-11  R6     towel        X
-2026-09-11  R6     blanket      X
-2026-09-11  R6     bag          O
-2026-09-11  R7     kettle       X
-2026-09-11  R7     fridge       X
-2026-09-11  R7     oven         X
-2026-09-11  R7     microwave    X
-2026-09-11  R7     sink         X
-2026-09-11  R7     faucet       X
-2026-09-11  R7     broom        X
-2026-09-11  R7     mop          X
-2026-09-11  R7     vacuum       X
-2026-09-11  R7     laundry      X
-2026-09-11  R7     umbrella     O
-2026-09-11  R8     bench        X
-2026-09-11  R8     kick         X
-2026-09-11  R8     jar          X
-2026-09-11  R8     rope         X
-2026-09-11  R8     yard         X
-2026-09-11  R8     nap          X
-2026-09-11  R8     pond         X
-2026-09-11  R8     fence        X
-2026-09-11  R8     swing        X
-2026-09-11  R8     slide        X
-2026-09-11  R8     sock         X
-2026-09-11  R9     sun          O
-2026-09-11  R9     moon         O
-2026-09-11  R9     jump         O
-2026-09-11  R9     swim         O
-2026-09-11  R9     fan          X
-2026-09-11  R9     cup          O
-2026-09-11  R9     ball         X
-2026-09-11  R9     pig          O
-2026-09-11  R9     cow          O
-2026-09-11  R9     duck         O
-2026-09-11  R9     folder       O
-2026-09-11  R10    hen          X
-2026-09-11  R10    goose        X
-2026-09-11  R10    nest         X
-2026-09-11  R10    web          O
-2026-09-11  R10    paw          X
-2026-09-11  R10    tail         X
-2026-09-11  R10    claw         X
-2026-09-11  R10    feather      X
-2026-09-11  R10    shell        X
-2026-09-11  R10    hop          X
-2026-09-11  R10    sun          O
-2026-09-11  R11    cliff        X
-2026-09-11  R11    valley       X
-2026-09-11  R11    wagon        X
-2026-09-11  R11    sled         X
-2026-09-11  R11    skate        X
-2026-09-11  R11    surf         X
-2026-09-11  R11    sail         X
-2026-09-11  R11    paddle       X
-2026-09-11  R11    anchor       X
-2026-09-11  R11    deck         X
-2026-09-11  R11    goose        O
+# date            round  word                  result  mode  input                 seconds
+2026-09-10        R1     rain                  O       type  -                     0
+2026-09-10        R1     small                 X       type  -                     0
+2026-09-10        R1     busy                  O       type  -                     0
+2026-09-10        R1     borrow                X       type  -                     0
+2026-09-10        R1     weather               X       type  -                     0
+2026-09-10        R1     decide                X       type  -                     0
+2026-09-10        R1     refuse                X       type  -                     0
+2026-09-10        R1     improve               X       type  -                     0
+2026-09-10        R1     curious               X       type  -                     0
+2026-09-10        R1     appreciate            X       type  -                     0
+2026-09-10        R1     reluctant             X       type  -                     0
+2026-09-10        R1     mitigate              X       type  -                     0
+2026-09-10        R2     cat                   O       type  -                     0
+2026-09-10        R2     big                   O       type  -                     0
+2026-09-10        R2     water                 X       type  -                     0
+2026-09-10        R2     eat                   O       type  -                     0
+2026-09-10        R2     red                   O       type  -                     0
+2026-09-10        R2     open                  O       type  -                     0
+2026-09-10        R2     cold                  O       type  -                     0
+2026-09-10        R2     book                  O       type  -                     0
+2026-09-10        R2     run                   O       type  -                     0
+2026-09-10        R2     happy                 O       type  -                     0
+2026-09-10        R2     small                 X       type  -                     0
+2026-09-10        R2     name                  O       type  -                     0
+2026-09-10        R3     water                 O       type  -                     0
+2026-09-10        R3     small                 O       type  -                     0
+2026-09-10        R3     door                  O       type  -                     0
+2026-09-10        R3     friend                O       type  -                     0
+2026-09-10        R3     walk                  O       type  -                     0
+2026-09-10        R3     new                   O       type  -                     0
+2026-09-10        R3     money                 O       type  -                     0
+2026-09-10        R3     morning               O       type  -                     0
+2026-09-10        R3     give                  X       type  -                     0
+2026-09-10        R3     fast                  O       type  -                     0
+2026-09-10        R3     hungry                O       type  -                     0
+2026-09-10        R3     listen                X       type  -                     0
+2026-09-10        R4     give                  O       type  -                     0
+2026-09-10        R4     listen                O       type  -                     0
+2026-09-10        R4     buy                   O       type  -                     0
+2026-09-10        R4     tired                 O       type  -                     0
+2026-09-10        R4     clean                 O       type  -                     0
+2026-09-10        R4     wait                  O       type  -                     0
+2026-09-10        R4     answer                O       type  -                     0
+2026-09-10        R4     angry                 X       type  -                     0
+2026-09-10        R4     remember              O       type  -                     0
+2026-09-10        R4     difficult             X       type  -                     0
+2026-09-10        R4     weather               X       type  -                     0
+2026-09-10        R4     borrow                X       type  -                     0
+2026-09-10        R5     angry                 X       type  -                     0
+2026-09-10        R5     angel                 O       type  -                     0
+2026-09-10        R5     difficult             X       type  -                     0
+2026-09-10        R5     different             O       type  -                     0
+2026-09-10        R5     borrow                X       type  -                     0
+2026-09-10        R5     brown                 O       type  -                     0
+2026-09-10        R5     quiet                 X       type  -                     0
+2026-09-10        R5     quite                 X       type  -                     0
+2026-09-10        R5     sell                  X       type  -                     0
+2026-09-10        R5     sea                   O       type  -                     0
+2026-09-10        R5     heavy                 X       type  -                     0
+2026-09-10        R5     happy                 O       type  -                     0
+2026-09-10        R6     angry                 O       type  -                     0
+2026-09-10        R6     quiet                 X       type  -                     0
+2026-09-10        R6     heavy                 X       type  -                     0
+2026-09-10        R6     weather               X       type  -                     0
+2026-09-10        R6     bring                 X       type  -                     0
+2026-09-10        R6     ready                 O       type  -                     0
+2026-09-10        R6     safe                  O       type  -                     0
+2026-09-10        R6     strong                X       type  -                     0
+2026-09-10        R6     worry                 X       type  -                     0
+2026-09-10        R6     visit                 O       type  -                     0
+2026-09-10        R6     holiday               X       type  -                     0
+2026-09-10        R6     kitchen               X       type  -                     0
+2026-09-10        R7     dog                   O       type  -                     0
+2026-09-10        R7     school                O       type  -                     0
+2026-09-10        R7     milk                  O       type  -                     0
+2026-09-10        R7     sleep                 O       type  -                     0
+2026-09-10        R7     night                 O       type  -                     0
+2026-09-10        R7     hand                  X       type  -                     0
+2026-09-10        R7     jump                  O       type  -                     0
+2026-09-10        R7     family                O       type  -                     0
+2026-09-10        R7     help                  O       type  -                     0
+2026-09-10        R7     play                  O       type  -                     0
+2026-09-10        R7     chair                 X       type  -                     0
+2026-09-10        R7     music                 O       type  -                     0
+2026-09-10        R8     table                 O       type  -                     0
+2026-09-10        R8     window                O       type  -                     0
+2026-09-10        R8     brother               O       type  -                     0
+2026-09-10        R8     teacher               O       type  -                     0
+2026-09-10        R8     apple                 O       type  -                     0
+2026-09-10        R8     green                 O       type  -                     0
+2026-09-10        R8     rice                  O       type  -                     0
+2026-09-10        R8     letter                X       type  -                     0
+2026-09-10        R8     movie                 O       type  -                     0
+2026-09-10        R8     dance                 O       type  -                     0
+2026-09-10        R8     week                  O       type  -                     0
+2026-09-10        R8     minute                O       type  -                     0
+2026-09-10        R9     weather               X       type  -                     0
+2026-09-10        R9     borrow                X       type  -                     0
+2026-09-10        R9     quiet                 X       type  -                     0
+2026-09-10        R9     quite                 X       type  -                     0
+2026-09-10        R9     heavy                 X       type  -                     0
+2026-09-10        R9     difficult             X       type  -                     0
+2026-09-10        R9     breakfast             X       type  -                     0
+2026-09-10        R9     animal                O       type  -                     0
+2026-09-10        R9     always                O       type  -                     0
+2026-09-10        R9     because               X       type  -                     0
+2026-09-10        R9     hospital              O       type  -                     0
+2026-09-10        R9     favorite              X       type  -                     0
+2026-09-10        R10    dinner                O       type  -                     0
+2026-09-10        R10    library               O       type  -                     0
+2026-09-10        R10    birthday              X       type  -                     0
+2026-09-10        R10    expensive             X       type  -                     0
+2026-09-10        R10    delicious             X       type  -                     0
+2026-09-10        R10    umbrella              X       type  -                     0
+2026-09-10        R10    bicycle               O       type  -                     0
+2026-09-10        R10    doctor                O       type  -                     0
+2026-09-10        R10    restaurant            X       type  -                     0
+2026-09-10        R10    vegetable             X       type  -                     0
+2026-09-10        R10    weekend               O       type  -                     0
+2026-09-10        R10    homework              O       type  -                     0
+2026-09-10        R11    lunch                 O       type  -                     0
+2026-09-10        R11    sister                O       type  -                     0
+2026-09-10        R11    student               O       type  -                     0
+2026-09-10        R11    bread                 X       type  -                     0
+2026-09-10        R11    bird                  O       type  -                     0
+2026-09-10        R11    tree                  O       type  -                     0
+2026-09-10        R11    three                 O       type  -                     0
+2026-09-10        R11    flower                O       type  -                     0
+2026-09-10        R11    house                 O       type  -                     0
+2026-09-10        R11    hot                   O       type  -                     0
+2026-09-10        R11    snow                  O       type  -                     0
+2026-09-10        R11    bus                   O       type  -                     0
+2026-09-10        R12    store                 X       type  -                     0
+2026-09-10        R12    park                  O       type  -                     0
+2026-09-10        R12    river                 O       type  -                     0
+2026-09-10        R12    paper                 O       type  -                     0
+2026-09-10        R12    pencil                O       type  -                     0
+2026-09-10        R12    letter                X       type  -                     0
+2026-09-10        R12    later                 O       type  -                     0
+2026-09-10        R12    train                 O       type  -                     0
+2026-09-10        R12    clock                 O       type  -                     0
+2026-09-10        R12    shoes                 O       type  -                     0
+2026-09-10        R12    cook                  X       type  -                     0
+2026-09-10        R12    corner                X       type  -                     0
+2026-09-10        R13    floor                 X       type  -                     0
+2026-09-10        R13    flour                 X       type  -                     0
+2026-09-10        R13    grass                 X       type  -                     0
+2026-09-10        R13    glass                 X       type  -                     0
+2026-09-10        R13    bottle                X       type  -                     0
+2026-09-10        R13    spoon                 X       type  -                     0
+2026-09-10        R13    towel                 X       type  -                     0
+2026-09-10        R13    tower                 X       type  -                     0
+2026-09-10        R13    beach                 X       type  -                     0
+2026-09-10        R13    bridge                X       type  -                     0
+2026-09-10        R13    cloud                 O       type  -                     0
+2026-09-10        R13    ground                X       type  -                     0
+2026-09-10        R14    cake                  X       type  -                     0
+2026-09-10        R14    ball                  O       type  -                     0
+2026-09-10        R14    girl                  O       type  -                     0
+2026-09-10        R14    farm                  X       type  -                     0
+2026-09-10        R14    winter                O       type  -                     0
+2026-09-10        R14    market                X       type  -                     0
+2026-09-10        R14    ticket                O       type  -                     0
+2026-09-10        R14    garden                X       type  -                     0
+2026-09-10        R14    exercise              X       type  -                     0
+2026-09-10        R14    careful               X       type  -                     0
+2026-09-10        R14    dangerous             X       type  -                     0
+2026-09-10        R14    invite                X       type  -                     0
+2026-09-10        R15    hat                   O       type  -                     0
+2026-09-10        R15    egg                   O       type  -                     0
+2026-09-10        R15    fish                  O       type  -                     0
+2026-09-10        R15    hand                  O       type  -                     0
+2026-09-10        R15    foot                  O       type  -                     0
+2026-09-10        R15    rain                  O       type  -                     0
+2026-09-10        R15    star                  X       type  -                     0
+2026-09-10        R15    moon                  O       type  -                     0
+2026-09-10        R15    king                  O       type  -                     0
+2026-09-10        R15    gift                  O       type  -                     0
+2026-09-10        R15    song                  O       type  -                     0
+2026-09-10        R15    duck                  O       type  -                     0
+2026-09-10        R16    neck                  O       type  -                     0
+2026-09-10        R16    knee                  X       type  -                     0
+2026-09-10        R16    spring                O       type  -                     0
+2026-09-10        R16    shirt                 X       type  -                     0
+2026-09-10        R16    skirt                 X       type  -                     0
+2026-09-10        R16    sock                  X       type  -                     0
+2026-09-10        R16    glove                 X       type  -                     0
+2026-09-10        R16    autumn                X       type  -                     0
+2026-09-10        R16    bathroom              X       type  -                     0
+2026-09-10        R16    pocket                X       type  -                     0
+2026-09-10        R16    rocket                X       type  -                     0
+2026-09-10        R16    finger                X       type  -                     0
+2026-09-10        R17    beef                  O       type  -                     0
+2026-09-10        R17    pork                  O       type  -                     0
+2026-09-10        R17    chicken               X       type  -                     0
+2026-09-10        R17    soup                  O       type  -                     0
+2026-09-10        R17    noodles               X       type  -                     0
+2026-09-10        R17    juice                 O       type  -                     0
+2026-09-10        R17    sugar                 X       type  -                     0
+2026-09-10        R17    salt                  X       type  -                     0
+2026-09-10        R17    plate                 X       type  -                     0
+2026-09-10        R17    knife                 X       type  -                     0
+2026-09-10        R17    busy                  O       type  -                     0
+2026-09-10        R18    face                  O       type  -                     0
+2026-09-10        R18    hair                  O       type  -                     0
+2026-09-10        R18    mouth                 O       type  -                     0
+2026-09-10        R18    nose                  O       type  -                     0
+2026-09-10        R18    ear                   O       type  -                     0
+2026-09-10        R18    tooth                 O       type  -                     0
+2026-09-10        R18    arm                   X       type  -                     0
+2026-09-10        R18    leg                   O       type  -                     0
+2026-09-10        R18    eye                   O       type  -                     0
+2026-09-10        R18    head                  O       type  -                     0
+2026-09-10        R18    cat                   O       type  -                     0
+2026-09-10        R19    rock                  O       type  -                     0
+2026-09-10        R19    sock                  X       type  -                     0
+2026-09-10        R19    lock                  O       type  -                     0
+2026-09-10        R19    chalk                 X       type  -                     0
+2026-09-10        R19    shark                 X       type  -                     0
+2026-09-10        R19    sheep                 O       type  -                     0
+2026-09-10        R19    sheet                 X       type  -                     0
+2026-09-10        R19    wolf                  O       type  -                     0
+2026-09-10        R19    wing                  X       type  -                     0
+2026-09-10        R19    tail                  X       type  -                     0
+2026-09-10        R19    big                   O       type  -                     0
+2026-09-10        R20    lamp                  X       type  -                     0
+2026-09-10        R20    lamb                  X       type  -                     0
+2026-09-10        R20    cave                  X       type  -                     0
+2026-09-10        R20    wave                  X       type  -                     0
+2026-09-10        R20    nail                  X       type  -                     0
+2026-09-10        R20    mail                  O       type  -                     0
+2026-09-10        R20    coin                  O       type  -                     0
+2026-09-10        R20    corn                  X       type  -                     0
+2026-09-10        R20    pin                   X       type  -                     0
+2026-09-10        R20    pan                   X       type  -                     0
+2026-09-10        R20    eat                   O       type  -                     0
+2026-09-10        R21    bank                  O       type  -                     0
+2026-09-10        R21    hotel                 X       type  -                     0
+2026-09-10        R21    police                O       type  -                     0
+2026-09-10        R21    nurse                 X       type  -                     0
+2026-09-10        R21    farmer                O       type  -                     0
+2026-09-10        R21    driver                X       type  -                     0
+2026-09-10        R21    singer                O       type  -                     0
+2026-09-10        R21    actor                 O       type  -                     0
+2026-09-10        R21    uncle                 O       type  -                     0
+2026-09-10        R21    cousin                X       type  -                     0
+2026-09-10        R21    red                   O       type  -                     0
+2026-09-10        R22    blue                  X       type  -                     0
+2026-09-10        R22    black                 O       type  -                     0
+2026-09-10        R22    white                 O       type  -                     0
+2026-09-10        R22    yellow                O       type  -                     0
+2026-09-10        R22    pink                  O       type  -                     0
+2026-09-10        R22    purple                X       type  -                     0
+2026-09-10        R22    orange                O       type  -                     0
+2026-09-10        R22    gray                  X       type  -                     0
+2026-09-10        R22    gold                  O       type  -                     0
+2026-09-10        R22    silver                O       type  -                     0
+2026-09-10        R22    book                  O       type  -                     0
+2026-09-10        R23    tiger                 O       type  -                     0
+2026-09-10        R23    Monday                O       type  -                     0
+2026-09-10        R23    spoon                 X       type  -                     0
+2026-09-10        R23    cheap                 X       type  -                     0
+2026-09-10        R23    bedroom               O       type  -                     0
+2026-09-10        R23    horse                 O       type  -                     0
+2026-09-10        R23    April                 X       type  -                     0
+2026-09-10        R23    towel                 X       type  -                     0
+2026-09-10        R23    quick                 O       type  -                     0
+2026-09-10        R23    window                O       type  -                     0
+2026-09-10        R23    cold                  O       type  -                     0
+2026-09-10        R24    dolphin               X       type  -                     0
+2026-09-10        R24    Sunday                X       type  -                     0
+2026-09-10        R24    towel                 O       type  -                     0
+2026-09-10        R24    sofa                  O       type  -                     0
+2026-09-10        R24    August                X       type  -                     0
+2026-09-10        R24    rabbit                O       type  -                     0
+2026-09-10        R24    slow                  O       type  -                     0
+2026-09-10        R24    pot                   X       type  -                     0
+2026-09-10        R24    Friday                O       type  -                     0
+2026-09-10        R24    monkey                O       type  -                     0
+2026-09-10        R24    give                  O       type  -                     0
+2026-09-10        R25    elephant              O       type  -                     0
+2026-09-10        R25    snake                 O       type  -                     0
+2026-09-10        R25    March                 X       type  -                     0
+2026-09-10        R25    evening               X       type  -                     0
+2026-09-10        R25    mirror                X       type  -                     0
+2026-09-10        R25    butter                X       type  -                     0
+2026-09-10        R25    cheese                X       type  -                     0
+2026-09-10        R25    dirty                 O       type  -                     0
+2026-09-10        R25    swim                  X       type  -                     0
+2026-09-10        R25    climb                 X       type  -                     0
+2026-09-10        R25    friend                O       type  -                     0
+2026-09-10        R26    pig                   O       type  -                     0
+2026-09-10        R26    cow                   O       type  -                     0
+2026-09-10        R26    tomorrow              O       type  -                     0
+2026-09-10        R26    noon                  X       type  -                     0
+2026-09-10        R26    roof                  X       type  -                     0
+2026-09-10        R26    wall                  X       type  -                     0
+2026-09-10        R26    candy                 O       type  -                     0
+2026-09-10        R26    sing                  X       type  -                     0
+2026-09-10        R26    tall                  O       type  -                     0
+2026-09-10        R26    short                 O       type  -                     0
+2026-09-10        R26    walk                  O       type  -                     0
+2026-09-10        R27    bear                  O       type  -                     0
+2026-09-10        R27    lion                  O       type  -                     0
+2026-09-10        R27    hour                  O       type  -                     0
+2026-09-10        R27    desk                  O       type  -                     0
+2026-09-10        R27    cookie                O       type  -                     0
+2026-09-10        R27    cry                   O       type  -                     0
+2026-09-10        R27    laugh                 X       type  -                     0
+2026-09-10        R27    young                 O       type  -                     0
+2026-09-10        R27    salad                 X       type  -                     0
+2026-09-10        R27    shelf                 X       type  -                     0
+2026-09-10        R27    door                  O       type  -                     0
+2026-09-10        R28    boy                   O       type  -                     0
+2026-09-10        R28    goat                  O       type  -                     0
+2026-09-10        R28    month                 O       type  -                     0
+2026-09-10        R28    curtain               X       type  -                     0
+2026-09-10        R28    onion                 X       type  -                     0
+2026-09-10        R28    throw                 X       type  -                     0
+2026-09-10        R28    catch                 X       type  -                     0
+2026-09-10        R28    old                   O       type  -                     0
+2026-09-10        R28    wet                   X       type  -                     0
+2026-09-10        R28    clever                X       type  -                     0
+2026-09-10        R28    new                   O       type  -                     0
+2026-09-10        R29    frog                  O       type  -                     0
+2026-09-10        R29    ant                   O       type  -                     0
+2026-09-10        R29    year                  O       type  -                     0
+2026-09-10        R29    key                   O       type  -                     0
+2026-09-10        R29    box                   O       type  -                     0
+2026-09-10        R29    cup                   O       type  -                     0
+2026-09-10        R29    sit                   X       type  -                     0
+2026-09-10        R29    stand                 X       type  -                     0
+2026-09-10        R29    loud                  X       type  -                     0
+2026-09-10        R29    thin                  X       type  -                     0
+2026-09-10        R29    money                 O       type  -                     0
+2026-09-10        R30    push                  O       type  -                     0
+2026-09-10        R30    pull                  O       type  -                     0
+2026-09-10        R30    safe                  O       type  -                     0
+2026-09-10        R30    river                 O       type  -                     0
+2026-09-10        R30    rain                  O       type  -                     0
+2026-09-10        R30    friend                O       type  -                     0
+2026-09-10        R30    close                 O       type  -                     0
+2026-09-10        R30    name                  O       type  -                     0
+2026-09-11        R31    July                  X       type  -                     0
+2026-09-11        R31    plant                 X       type  -                     0
+2026-09-11        R31    bowl                  X       type  -                     0
+2026-09-11        R31    carrot                X       type  -                     0
+2026-09-11        R31    spider                O       type  -                     0
+2026-09-11        R31    warm                  X       type  -                     0
+2026-09-11        R31    wash                  X       type  -                     0
+2026-09-11        R31    wind                  X       type  -                     0
+2026-09-11        R31    potato                O       type  -                     0
+2026-09-11        R31    morning               O       type  -                     0
+2026-09-11        R32    sky                   O       type  -                     0
+2026-09-11        R32    fork                  O       type  -                     0
+2026-09-11        R32    jam                   X       type  -                     0
+2026-09-11        R32    thirsty               X       type  -                     0
+2026-09-11        R32    sad                   O       type  -                     0
+2026-09-11        R32    afraid                X       type  -                     0
+2026-09-11        R32    butterfly             O       type  -                     0
+2026-09-11        R32    pillow                X       type  -                     0
+2026-09-11        R32    blanket               X       type  -                     0
+2026-09-11        R32    garage                X       type  -                     0
+2026-09-11        R32    open                  X       type  -                     0
+2026-09-11        R33    ship                  X       type  -                     0
+2026-09-11        R33    plane                 X       type  -                     0
+2026-09-11        R33    ice                   O       type  -                     0
+2026-09-11        R33    sun                   O       type  -                     0
+2026-09-11        R33    dream                 X       type  -                     0
+2026-09-11        R33    hope                  O       type  -                     0
+2026-09-11        R33    soap                  X       type  -                     0
+2026-09-11        R33    comb                  X       type  -                     0
+2026-09-11        R33    towel                 O       type  -                     0
+2026-09-11        R33    cousin                X       type  -                     0
+2026-09-11        R33    listen                O       type  -                     0
+2026-09-11        R34    rose                  O       type  -                     0
+2026-09-11        R34    grape                 X       type  -                     0
+2026-09-11        R34    lemon                 O       type  -                     0
+2026-09-11        R34    knock                 X       type  -                     0
+2026-09-11        R34    touch                 X       type  -                     0
+2026-09-11        R34    shout                 X       type  -                     0
+2026-09-11        R34    brave                 X       type  -                     0
+2026-09-11        R34    lazy                  O       type  -                     0
+2026-09-11        R34    fever                 X       type  -                     0
+2026-09-11        R34    summer                X       type  -                     0
+2026-09-11        R34    happy                 O       type  -                     0
+2026-09-11        R35    island                X       type  -                     0
+2026-09-11        R35    desert                X       type  -                     0
+2026-09-11        R35    insect                X       type  -                     0
+2026-09-11        R35    wallet                X       type  -                     0
+2026-09-11        R35    ruler                 X       type  -                     0
+2026-09-11        R35    eraser                X       type  -                     0
+2026-09-11        R35    stamp                 X       type  -                     0
+2026-09-11        R35    basket                X       type  -                     0
+2026-09-11        R35    ladder                X       type  -                     0
+2026-09-11        R35    honey                 O       type  -                     0
+2026-09-11        R35    give                  O       type  -                     0
+2026-09-11        R36    bed                   O       type  -                     0
+2026-09-11        R36    toy                   O       type  -                     0
+2026-09-11        R36    doll                  O       type  -                     0
+2026-09-11        R36    kite                  X       type  -                     0
+2026-09-11        R36    read                  O       type  -                     0
+2026-09-11        R36    write                 O       type  -                     0
+2026-09-11        R36    draw                  X       type  -                     0
+2026-09-11        R36    count                 O       type  -                     0
+2026-09-11        R36    baby                  O       type  -                     0
+2026-09-11        R36    zoo                   O       type  -                     0
+2026-09-11        R36    tired                 O       type  -                     0
+2026-09-11        R37    aunt                  X       type  -                     0
+2026-09-11        R37    niece                 X       type  -                     0
+2026-09-11        R37    guest                 X       type  -                     0
+2026-09-11        R37    neighbor              X       type  -                     0
+2026-09-11        R37    village               X       type  -                     0
+2026-09-11        R37    queen                 O       type  -                     0
+2026-09-11        R37    prince                X       type  -                     0
+2026-09-11        R37    bread                 X       type  -                     0
+2026-09-11        R37    grass                 X       type  -                     0
+2026-09-11        R37    juice                 O       type  -                     0
+2026-09-11        R37    clean                 O       type  -                     0
+2026-09-11        R38    forest                X       type  -                     0
+2026-09-11        R38    mountain              X       type  -                     0
+2026-09-11        R38    lake                  X       type  -                     0
+2026-09-11        R38    hill                  X       type  -                     0
+2026-09-11        R38    field                 X       type  -                     0
+2026-09-11        R38    stone                 X       type  -                     0
+2026-09-11        R38    sand                  X       type  -                     0
+2026-09-11        R38    seed                  X       type  -                     0
+2026-09-11        R38    leaf                  X       type  -                     0
+2026-09-11        R38    branch                O       type  -                     0
+2026-09-11        R38    buy                   O       type  -                     0
+2026-09-11        R39    man                   O       type  -                     0
+2026-09-11        R39    woman                 O       type  -                     0
+2026-09-11        R39    car                   O       type  -                     0
+2026-09-11        R39    taxi                  O       type  -                     0
+2026-09-11        R39    street                O       type  -                     0
+2026-09-11        R39    shop                  O       type  -                     0
+2026-09-11        R39    city                  O       type  -                     0
+2026-09-11        R39    town                  O       type  -                     0
+2026-09-11        R39    home                  O       type  -                     0
+2026-09-11        R39    phone                 O       type  -                     0
+2026-09-11        R39    help                  O       type  -                     0
+2026-09-11        R40    airport               X       type  -                     0
+2026-09-11        R40    station               X       type  -                     0
+2026-09-11        R40    office                O       type  -                     0
+2026-09-11        R40    stairs                X       type  -                     0
+2026-09-11        R40    gate                  X       type  -                     0
+2026-09-11        R40    seat                  X       type  -                     0
+2026-09-11        R40    map                   O       type  -                     0
+2026-09-11        R40    road                  O       type  -                     0
+2026-09-11        R40    sign                  X       type  -                     0
+2026-09-11        R40    line                  O       type  -                     0
+2026-09-11        R40    play                  O       type  -                     0
+2026-09-11        R41    tea                   O       type  -                     0
+2026-09-11        R41    coffee                O       type  -                     0
+2026-09-11        R41    banana                O       type  -                     0
+2026-09-11        R41    chocolate             X       type  -                     0
+2026-09-11        R41    sandwich              O       type  -                     0
+2026-09-11        R41    hamburger             O       type  -                     0
+2026-09-11        R41    pizza                 O       type  -                     0
+2026-09-11        R41    dumpling              X       type  -                     0
+2026-09-11        R41    menu                  O       type  -                     0
+2026-09-11        R41    waiter                X       type  -                     0
+2026-09-11        R41    wait                  O       type  -                     0
+2026-09-11        R42    fly                   O       type  -                     0
+2026-09-11        R42    fire                  O       type  -                     0
+2026-09-11        R42    football              O       type  -                     0
+2026-09-11        R42    mock                  O       type  -                     0
+2026-09-11        R42    ghost                 X       type  -                     0
+2026-09-11        R42    magic                 O       type  -                     0
+2026-09-11        R42    robot                 O       type  -                     0
+2026-09-11        R42    alien                 X       type  -                     0
+2026-09-11        R42    hero                  O       type  -                     0
+2026-09-11        R42    team                  O       type  -                     0
+2026-09-11        R42    answer                O       type  -                     0
+2026-09-11        R43    computer              O       type  -                     0
+2026-09-11        R43    keyboard              O       type  -                     0
+2026-09-11        R43    mouse                 O       type  -                     0
+2026-09-11        R43    screen                X       type  -                     0
+2026-09-11        R43    battery               X       type  -                     0
+2026-09-11        R43    cable                 X       type  -                     0
+2026-09-11        R43    button                X       type  -                     0
+2026-09-11        R43    camera                O       type  -                     0
+2026-09-11        R43    radio                 X       type  -                     0
+2026-09-11        R43    watch                 O       type  -                     0
+2026-09-11        R43    remember              O       type  -                     0
+2026-09-11        R44    sick                  O       type  -                     0
+2026-09-11        R44    medicine              X       type  -                     0
+2026-09-11        R44    patient               X       type  -                     0
+2026-09-11        R44    healthy               X       type  -                     0
+2026-09-11        R44    illness               X       type  -                     0
+2026-09-11        R44    cough                 X       type  -                     0
+2026-09-11        R44    rainbow               X       type  -                     0
+2026-09-11        R44    storm                 X       type  -                     0
+2026-09-11        R44    cloud                 O       type  -                     0
+2026-09-11        R44    kind                  O       type  -                     0
+2026-09-11        R44    umbrella              X       type  -                     0
+2026-09-11        R45    beautiful             O       type  -                     0
+2026-09-11        R45    ugly                  X       type  -                     0
+2026-09-11        R45    smart                 O       type  -                     0
+2026-09-11        R45    boring                X       type  -                     0
+2026-09-11        R45    funny                 O       type  -                     0
+2026-09-11        R45    serious               X       type  -                     0
+2026-09-11        R45    nervous               X       type  -                     0
+2026-09-11        R45    shy                   X       type  -                     0
+2026-09-11        R45    proud                 X       type  -                     0
+2026-09-11        R45    jealous               X       type  -                     0
+2026-09-11        R45    school                X       type  -                     0
+2026-09-11        R45    umbrella              O       type  -                     0
+2026-09-11        R46    season                O       type  -                     0
+2026-09-11        R46    spring                O       type  -                     0
+2026-09-11        R46    holiday               X       type  -                     0
+2026-09-11        R46    vacation              X       type  -                     0
+2026-09-11        R46    calendar              O       type  -                     0
+2026-09-11        R46    date                  X       type  -                     0
+2026-09-11        R46    event                 X       type  -                     0
+2026-09-11        R46    school                O       type  -                     0
+2026-09-11        R47    weekday               X       type  -                     0
+2026-09-11        R47    schedule              O       type  -                     0
+2026-09-11        R47    history               O       type  -                     0
+2026-09-11        R47    science               X       type  -                     0
+2026-09-11        R47    math                  O       type  -                     0
+2026-09-11        R47    art                   O       type  -                     0
+2026-09-11        R47    subject               X       type  -                     0
+2026-09-11        R47    test                  O       type  -                     0
+2026-09-11        R47    grade                 X       type  -                     0
+2026-09-11        R47    lesson                X       type  -                     0
+2026-09-11        R47    homework              X       type  -                     0
+2026-09-11        R1     bag                   O       type  -                     0
+2026-09-11        R1     pear                  X       type  -                     0
+2026-09-11        R1     watermelon            X       type  -                     0
+2026-09-11        R1     strawberry            O       type  -                     0
+2026-09-11        R1     mango                 O       type  -                     0
+2026-09-11        R1     tissue                X       type  -                     0
+2026-09-11        R1     trash                 X       type  -                     0
+2026-09-11        R1     zebra                 X       type  -                     0
+2026-09-11        R1     owl                   X       type  -                     0
+2026-09-11        R1     cage                  X       type  -                     0
+2026-09-11        R1     recycle               X       type  -                     0
+2026-09-11        R2     lettuce               X       type  -                     0
+2026-09-11        R2     broccoli              X       type  -                     0
+2026-09-11        R2     bee                   O       type  -                     0
+2026-09-11        R2     beetle                X       type  -                     0
+2026-09-11        R2     squirrel              X       type  -                     0
+2026-09-11        R2     shadow                X       type  -                     0
+2026-09-11        R2     flag                  O       type  -                     0
+2026-09-11        R2     drum                  X       type  -                     0
+2026-09-11        R2     bell                  X       type  -                     0
+2026-09-11        R2     bubble                X       type  -                     0
+2026-09-11        R2     bag                   O       type  -                     0
+2026-09-11        R3     cheek                 X       type  -                     0
+2026-09-11        R3     chin                  X       type  -                     0
+2026-09-11        R3     forehead              X       type  -                     0
+2026-09-11        R3     elbow                 X       type  -                     0
+2026-09-11        R3     wrist                 X       type  -                     0
+2026-09-11        R3     ankle                 X       type  -                     0
+2026-09-11        R3     thumb                 X       type  -                     0
+2026-09-11        R3     palm                  X       type  -                     0
+2026-09-11        R3     beard                 X       type  -                     0
+2026-09-11        R3     mustache              X       type  -                     0
+2026-09-11        R3     strawberry            O       type  -                     0
+2026-09-11        R4     envelope              X       type  -                     0
+2026-09-11        R4     stapler               X       type  -                     0
+2026-09-11        R4     scissors              X       type  -                     0
+2026-09-11        R4     glue                  X       type  -                     0
+2026-09-11        R4     tape                  X       type  -                     0
+2026-09-11        R4     folder                O       type  -                     0
+2026-09-11        R4     notebook              O       type  -                     0
+2026-09-11        R4     calculator            X       type  -                     0
+2026-09-11        R4     backpack              X       type  -                     0
+2026-09-11        R4     crayon                X       type  -                     0
+2026-09-11        R4     mango                 O       type  -                     0
+2026-09-11        R5     thunder               X       type  -                     0
+2026-09-11        R5     lightning             X       type  -                     0
+2026-09-11        R5     fog                   X       type  -                     0
+2026-09-11        R5     drought               X       type  -                     0
+2026-09-11        R5     flood                 X       type  -                     0
+2026-09-11        R5     temperature           X       type  -                     0
+2026-09-11        R5     degree                X       type  -                     0
+2026-09-11        R5     puddle                X       type  -                     0
+2026-09-11        R5     breeze                X       type  -                     0
+2026-09-11        R5     humid                 X       type  -                     0
+2026-09-11        R5     bee                   O       type  -                     0
+2026-09-11        R6     sock                  X       type  -                     0
+2026-09-11        R6     glove                 X       type  -                     0
+2026-09-11        R6     umbrella              O       type  -                     0
+2026-09-11        R6     candle                X       type  -                     0
+2026-09-11        R6     mirror                O       type  -                     0
+2026-09-11        R6     brush                 O       type  -                     0
+2026-09-11        R6     comb                  X       type  -                     0
+2026-09-11        R6     soap                  X       type  -                     0
+2026-09-11        R6     towel                 X       type  -                     0
+2026-09-11        R6     blanket               X       type  -                     0
+2026-09-11        R6     bag                   O       type  -                     0
+2026-09-11        R7     kettle                X       type  -                     0
+2026-09-11        R7     fridge                X       type  -                     0
+2026-09-11        R7     oven                  X       type  -                     0
+2026-09-11        R7     microwave             X       type  -                     0
+2026-09-11        R7     sink                  X       type  -                     0
+2026-09-11        R7     faucet                X       type  -                     0
+2026-09-11        R7     broom                 X       type  -                     0
+2026-09-11        R7     mop                   X       type  -                     0
+2026-09-11        R7     vacuum                X       type  -                     0
+2026-09-11        R7     laundry               X       type  -                     0
+2026-09-11        R7     umbrella              O       type  -                     0
+2026-09-11        R8     bench                 X       type  -                     0
+2026-09-11        R8     kick                  X       type  -                     0
+2026-09-11        R8     jar                   X       type  -                     0
+2026-09-11        R8     rope                  X       type  -                     0
+2026-09-11        R8     yard                  X       type  -                     0
+2026-09-11        R8     nap                   X       type  -                     0
+2026-09-11        R8     pond                  X       type  -                     0
+2026-09-11        R8     fence                 X       type  -                     0
+2026-09-11        R8     swing                 X       type  -                     0
+2026-09-11        R8     slide                 X       type  -                     0
+2026-09-11        R8     sock                  X       type  -                     0
+2026-09-11        R9     sun                   O       type  -                     0
+2026-09-11        R9     moon                  O       type  -                     0
+2026-09-11        R9     jump                  O       type  -                     0
+2026-09-11        R9     swim                  O       type  -                     0
+2026-09-11        R9     fan                   X       type  -                     0
+2026-09-11        R9     cup                   O       type  -                     0
+2026-09-11        R9     ball                  X       type  -                     0
+2026-09-11        R9     pig                   O       type  -                     0
+2026-09-11        R9     cow                   O       type  -                     0
+2026-09-11        R9     duck                  O       type  -                     0
+2026-09-11        R9     folder                O       type  -                     0
+2026-09-11        R10    hen                   X       type  -                     0
+2026-09-11        R10    goose                 X       type  -                     0
+2026-09-11        R10    nest                  X       type  -                     0
+2026-09-11        R10    web                   O       type  -                     0
+2026-09-11        R10    paw                   X       type  -                     0
+2026-09-11        R10    tail                  X       type  -                     0
+2026-09-11        R10    claw                  X       type  -                     0
+2026-09-11        R10    feather               X       type  -                     0
+2026-09-11        R10    shell                 X       type  -                     0
+2026-09-11        R10    hop                   X       type  -                     0
+2026-09-11        R10    sun                   O       type  -                     0
+2026-09-11        R11    cliff                 X       type  -                     0
+2026-09-11        R11    valley                X       type  -                     0
+2026-09-11        R11    wagon                 X       type  -                     0
+2026-09-11        R11    sled                  X       type  -                     0
+2026-09-11        R11    skate                 X       type  -                     0
+2026-09-11        R11    surf                  X       type  -                     0
+2026-09-11        R11    sail                  X       type  -                     0
+2026-09-11        R11    paddle                X       type  -                     0
+2026-09-11        R11    anchor                X       type  -                     0
+2026-09-11        R11    deck                  X       type  -                     0
+2026-09-11        R11    goose                 O       type  -                     0
+2026-09-14        R1     busy                  O       type  -                     0
+2026-09-14        R1     cat                   O       type  -                     0
+2026-09-14        R1     big                   X       type  -                     0
+2026-09-14        R1     eat                   O       type  -                     0
+2026-09-14        R1     napkin                X       type  -                     0
+2026-09-14        R1     straw                 X       type  -                     0
+2026-09-14        R1     dessert               X       type  -                     0
+2026-09-14        R1     appetizer             X       type  -                     0
+2026-09-14        R1     beverage              X       type  -                     0
+2026-09-14        R1     takeout               O       type  -                     0
+2026-09-14        R2     weather               X       type  -                     0
+2026-09-14        R2     borrow                X       type  -                     0
+2026-09-14        R2     towel                 O       type  -                     0
+2026-09-14        R2     quiet                 O       type  -                     0
+2026-09-14        R2     napkin                X       type  -                     0
+2026-09-14        R2     straw                 X       type  -                     0
+2026-09-14        R2     dessert               X       type  -                     0
+2026-09-14        R2     rain                  O       type  -                     0
+2026-09-14        R2     toothpick             X       type  -                     0
+2026-09-14        R2     plate                 X       type  -                     0
+2026-09-14        R3     quite                 X       type  -                     0
+2026-09-14        R3     heavy                 X       type  -                     0
+2026-09-14        R3     difficult             X       type  -                     0
+2026-09-14        R3     umbrella              O       type  -                     0
+2026-09-14        R3     tail                  X       type  -                     0
+2026-09-14        R3     sock                  X       type  -                     0
+2026-09-14        R3     napkin                O       type  -                     0
+2026-09-14        R3     bag                   O       type  -                     0
+2026-09-14        R3     fork                  O       type  -                     0
+2026-09-14        R3     knife                 O       type  -                     0
+2026-09-14T11:04  R4     weather               O       type  天氣                  0
+2026-09-14T11:04  R4     borrow                O       type  借                    0
+2026-09-14T11:04  R4     towel                 O       type  毛巾                  0
+2026-09-14T11:04  R4     tail                  X       type  告訴                  0
+2026-09-14T11:04  R4     quite                 X       type  -                     0
+2026-09-14T11:04  R4     quiet                 O       type  安靜                  0
+2026-09-14T11:04  R4     heavy                 X       type  -                     0
+2026-09-14T11:04  R4     difficult             X       type  -                     0
+2026-09-14T11:04  R4     bill                  X       type  -                     0
+2026-09-14T11:04  R4     server                O       type  伺服器                0
+2026-09-14T11:05  R5     weather               X       type  -                     0
+2026-09-14T11:05  R5     borrow                X       type  -                     0
+2026-09-14T11:05  R5     tail                  X       type  tailu3187             0
+2026-09-14T11:05  R5     quite                 O       type  相當                  0
+2026-09-14T11:05  R5     towel                 X       type  -                     0
+2026-09-14T11:05  R5     quiet                 O       type  安靜                  0
+2026-09-14T11:05  R5     heavy                 X       type  -                     0
+2026-09-14T11:05  R5     host                  X       type  -                     0
+2026-09-14T11:05  R5     receipt               X       type  -                     0
+2026-09-14T11:05  R5     tip                   X       type  -                     0
+2026-09-14T11:09  R6     weather               O       type  天氣                  0
+2026-09-14T11:09  R6     borrow                O       type  借入                  0
+2026-09-14T11:09  R6     tail                  O       type  尾巴                  0
+2026-09-14T11:09  R6     quite                 X       type  安靜                  0
+2026-09-14T11:09  R6     towel                 O       type  毛巾                  0
+2026-09-14T11:09  R6     quiet                 X       type  相當                  0
+2026-09-14T11:09  R6     heavy                 O       type  重的                  0
+2026-09-14T11:09  R6     friend                O       type  朋友                  0
+2026-09-14T11:09  R6     hot pot               O       type  火鍋                  0
+2026-09-14T11:09  R6     fries                 O       type  炸薯條                0
+2026-09-14T11:11  R7     weather               O       type  天氣                  0
+2026-09-14T11:11  R7     quite                 O       type  相當                  0
+2026-09-14T11:11  R7     borrow                X       type  -                     0
+2026-09-14T11:11  R7     tail                  O       type  尾巴                  0
+2026-09-14T11:11  R7     quiet                 O       type  安靜                  0
+2026-09-14T11:11  R7     towel                 X       type  -                     0
+2026-09-14T11:11  R7     heavy                 O       type  重的                  0
+2026-09-14T11:11  R7     happy                 O       type  開心                  0
+2026-09-14T11:11  R7     pudding               X       type  不知道                0
+2026-09-14T11:13  R8     weather               O       type  天氣                  0
+2026-09-14T11:13  R8     quite                 O       type  相當                  0
+2026-09-14T11:13  R8     borrow                O       type  介入(同音字，借入)    0
+2026-09-14T11:13  R8     tail                  O       type  尾巴                  0
+2026-09-14T11:13  R8     towel                 O       type  毛巾                  0
+2026-09-14T11:13  R8     heavy                 O       type  重的                  0
+2026-09-14T11:13  R8     sun                   O       type  太陽                  0
+2026-09-14T11:13  R8     fried                 X       type  炸薯條                0
+2026-09-14T11:13  R8     boba tea              X       type  -                     0
+2026-09-14T11:17  R9     weather               O       type  天氣                  0
+2026-09-14T11:17  R9     quite                 O       type  相當                  0
+2026-09-14T11:17  R9     borrow                X       type  -                     0
+2026-09-14T11:17  R9     tail                  O       type  尾巴                  0
+2026-09-14T11:17  R9     towel                 O       type  毛巾                  0
+2026-09-14T11:17  R9     heavy                 O       type  重的                  0
+2026-09-14T11:17  R9     bag                   O       type  背包                  0
+2026-09-14T11:17  R9     stinky tofu           O       type  臭豆腐                0
+2026-09-14T11:17  R9     meatball              O       type  肉丸                  0
+2026-09-14T11:20  R10    weather               O       type  天氣                  0
+2026-09-14T11:20  R10    quite                 O       type  相當                  0
+2026-09-14T11:20  R10    borrow                O       type  借入                  0
+2026-09-14T11:20  R10    tail                  O       type  尾巴                  0
+2026-09-14T11:20  R10    quiet                 O       type  安靜                  0
+2026-09-14T11:20  R10    towel                 O       type  毛巾                  0
+2026-09-14T11:20  R10    heavy                 O       type  重的                  0
+2026-09-14T11:20  R10    bag                   O       type  背包                  0
+2026-09-14T11:20  R10    burger                O       type  漢堡                  0
+2026-09-14T11:20  R10    spinach               X       type  阿災                  0
+2026-09-14T11:25  R11    weather               O       type  天氣                  0
+2026-09-14T11:25  R11    quite                 O       type  相當                  0
+2026-09-14T11:25  R11    borrow                O       type  借入                  0
+2026-09-14T11:25  R11    tail                  O       type  尾巴                  0
+2026-09-14T11:25  R11    quiet                 O       type  安靜                  0
+2026-09-14T11:25  R11    towel                 O       type  毛巾                  0
+2026-09-14T11:25  R11    heavy                 O       type  重的                  0
+2026-09-14T11:25  R11    bag                   O       type  背包                  0
+2026-09-14T11:25  R11    useful                O       type  有用                  0
+2026-09-14T11:25  R11    cabbage               O       type  甘藍菜                0
+2026-09-14T11:26  R12    weather               O       type  天氣                  0
+2026-09-14T11:26  R12    quite                 O       type  相當                  0
+2026-09-14T11:26  R12    borrow                O       type  借入                  0
+2026-09-14T11:26  R12    tail                  O       type  尾巴                  0
+2026-09-14T11:26  R12    quiet                 O       type  安靜                  0
+2026-09-14T11:26  R12    towel                 O       type  毛巾                  0
+2026-09-14T11:26  R12    heavy                 O       type  重的                  0
+2026-09-14T11:26  R12    bag                   O       type  背包                  0
+2026-09-14T11:26  R12    steak                 O       type  牛排                  0
+2026-09-14T11:26  R12    all-you-can-eat       O       type  吃到飽                0
+2026-09-14T11:27  R13    weather               O       type  天氣                  0
+2026-09-14T11:27  R13    quite                 O       type  相當                  0
+2026-09-14T11:27  R13    borrow                O       type  介入(同音字，借入)    0
+2026-09-14T11:27  R13    tail                  O       type  尾巴                  0
+2026-09-14T11:27  R13    quiet                 O       type  安靜                  0
+2026-09-14T11:27  R13    towel                 X       type  -                     0
+2026-09-14T11:27  R13    heavy                 O       type  重的                  0
+2026-09-14T11:27  R13    bag                   O       type  背包                  0
+2026-09-14T11:27  R13    Korean BBQ            O       type  燒烤店                0
+2026-09-14T11:27  R13    sausage               X       type  不知道                0
+2026-09-14T11:29  R14    neighbor              X       type  不知道                0
+2026-09-14T11:29  R14    healthy               X       type  不知道                0
+2026-09-14T11:29  R14    holiday               O       type  假日                  0
+2026-09-14T11:29  R14    open                  O       type  打開                  0
+2026-09-14T11:29  R14    sliced beef           O       type  切片牛肉              0
+2026-09-14T11:29  R14    grilled               O       type  烤(不確定哪種烤法)    0
+2026-09-14T11:29  R14    boba tea              O       type  珍奶                  0
+2026-09-14T11:29  R14    ice cream             O       type  冰淇淋                0
+2026-09-14T11:29  R14    meat                  O       type  肉                    0
+2026-09-14T11:29  R14    bag                   O       type  背包                  0
+2026-09-14T11:31  R15    weather               O       type  天氣                  0
+2026-09-14T11:31  R15    quite                 O       type  相當                  0
+2026-09-14T11:31  R15    borrow                O       type  借入                  0
+2026-09-14T11:31  R15    tail                  O       type  尾巴                  0
+2026-09-14T11:31  R15    quiet                 X       type  -                     0
+2026-09-14T11:31  R15    towel                 O       type  毛巾                  0
+2026-09-14T11:31  R15    heavy                 O       type  重的                  0
+2026-09-14T11:31  R15    bag                   O       type  背包                  0
+2026-09-14T11:31  R15    tomato                X       type  馬鈴薯                0
+2026-09-14T11:31  R15    oden                  X       type  不知道                0
+2026-09-14T11:33  R16    tail                  O       type  尾巴                  0
+2026-09-14T11:33  R16    soap                  X       type  不知道                0
+2026-09-14T11:33  R16    difficult             X       type  不知道                0
+2026-09-14T11:33  R16    healthy               O       type  健康                  0
+2026-09-14T11:33  R16    quiet                 X       type  -                     0
+2026-09-14T11:33  R16    holiday               X       type  -                     0
+2026-09-14T11:33  R16    glove                 X       type  -                     0
+2026-09-14T11:33  R16    happy                 X       type  -                     0
+2026-09-14T11:33  R16    fried chicken         O       type  炸雞                  0
+2026-09-14T11:33  R16    dumplings             X       type  不知道                0
+2026-09-14T11:36  R17    neighbor              O       type  鄰居                  0
+2026-09-14T11:36  R17    tail                  O       type  尾巴(先打錯後修正)    0
+2026-09-14T11:36  R17    quite                 O       type  相當                  0
+2026-09-14T11:36  R17    towel                 X       type  -                     0
+2026-09-14T11:36  R17    difficult             O       type  困難的                0
+2026-09-14T11:36  R17    healthy               O       type  健康                  0
+2026-09-14T11:36  R17    umbrella              O       type  雨傘                  0
+2026-09-14T11:36  R17    eat                   O       type  吃                    0
+2026-09-14T11:36  R17    sliced meat           O       type  切片肉                0
+2026-09-14T11:36  R17    hardly                X       type  不知道                0
+2026-09-14T11:38  R18    bread                 X       type  不知道                0
+2026-09-14T11:38  R18    holiday               O       type  假日                  0
+2026-09-14T11:38  R18    healthy               X       type  -                     0
+2026-09-14T11:38  R18    tail                  O       type  尾巴                  0
+2026-09-14T11:38  R18    quite                 O       type  相當                  0
+2026-09-14T11:38  R18    heavy                 O       type  重的                  0
+2026-09-14T11:38  R18    grass                 X       type  不知道                0
+2026-09-14T11:38  R18    eat                   O       type  吃                    0
+2026-09-14T11:38  R18    hardly useful         O       type  幾乎沒用              0
+2026-09-14T11:38  R18    seafood               O       type  海鮮                  0
+2026-09-14T11:41  R19    borrow                O       type  介入(同音字，借入)    0
+2026-09-14T11:41  R19    blanket               X       type  不知道                0
+2026-09-14T11:41  R19    weather               O       type  天氣                  0
+2026-09-14T11:41  R19    cousin                X       type  不知道                0
+2026-09-14T11:41  R19    soap                  O       type  肥皂                  0
+2026-09-14T11:41  R19    quiet                 O       type  安靜                  0
+2026-09-14T11:41  R19    towel                 O       type  毛巾                  0
+2026-09-14T11:41  R19    happy                 O       type  開心                  0
+2026-09-14T11:41  R19    grilled meat          O       type  烤肉                  0
+2026-09-14T11:41  R19    boil                  X       type  不知道                0
+2026-09-14T11:43  R20    quiet                 O       type  安靜                  0
+2026-09-14T11:43  R20    cousin                O       type  表兄弟姊妹            0
+2026-09-14T11:43  R20    glove                 X       type  不知道                0
+2026-09-14T11:43  R20    neighbor              O       type  鄰居                  0
+2026-09-14T11:43  R20    tail                  O       type  尾巴                  0
+2026-09-14T11:43  R20    grass                 O       type  草                    0
+2026-09-14T11:43  R20    holiday               O       type  假日                  0
+2026-09-14T11:43  R20    cat                   O       type  貓                    0
+2026-09-14T11:43  R20    fried rice            O       type  炒飯                  0
+2026-09-14T11:43  R20    cutlet                X       type  烤肉                  0
+2026-09-14T11:45  R21    healthy               O       type  健康                  0
+2026-09-14T11:45  R21    glove                 O       type  手套                  0
+2026-09-14T11:45  R21    comb                  X       type  不知道                0
+2026-09-14T11:45  R21    heavy                 O       type  重的                  0
+2026-09-14T11:45  R21    borrow                O       type  借入                  0
+2026-09-14T11:45  R21    sock                  X       type  不知道                0
+2026-09-14T11:45  R21    weather               O       type  天氣                  0
+2026-09-14T11:45  R21    busy                  O       type  忙碌                  0
+2026-09-14T11:45  R21    stir-fried            O       type  炒                    0
+2026-09-14T11:45  R21    roasted               X       type  不知道                0
+2026-09-14T11:47  R22    bread                 O       type  麵包                  0
+2026-09-14T11:47  R22    comb                  O       type  梳子                  0
+2026-09-14T11:47  R22    tail                  O       type  尾巴                  0
+2026-09-14T11:47  R22    soap                  O       type  肥皂                  0
+2026-09-14T11:47  R22    glove                 O       type  手套                  0
+2026-09-14T11:47  R22    cousin                X       type  不知道                0
+2026-09-14T11:47  R22    heavy                 O       type  重的                  0
+2026-09-14T11:47  R22    sun                   O       type  太陽                  0
+2026-09-14T11:47  R22    fried chicken cutlet  O       type  炸雞肉排              0
+2026-09-14T11:47  R22    broil                 X       type  不知道                0
+2026-09-14T11:47  R22    sock                  O       type  襪子(額外補答)        0
+2026-09-14T11:48  R23    weather               O       type  天氣                  0
+2026-09-14T11:48  R23    umbrella              O       type  雨傘                  0
+2026-09-14T11:48  R23    soap                  O       type  肥皂                  0
+2026-09-14T11:48  R23    sock                  O       type  襪子                  0
+2026-09-14T11:48  R23    difficult             O       type  困難的                0
+2026-09-14T11:48  R23    grass                 O       type  草                    0
+2026-09-14T11:48  R23    towel                 O       type  毛巾                  0
+2026-09-14T11:48  R23    cat                   O       type  貓                    0
+2026-09-14T11:48  R23    steamed               X       type  不知道                0
+2026-09-14T11:48  R23    boba                  O       type  波霸(珍奶)            0
+2026-09-14T11:49  R24    quiet                 O       type  安靜                  0
+2026-09-14T11:49  R24    tail                  O       type  尾巴                  0
+2026-09-14T11:49  R24    blanket               X       type  不知道                0
+2026-09-14T11:49  R24    sock                  O       type  襪子                  0
+2026-09-14T11:49  R24    towel                 O       type  毛巾                  0
+2026-09-14T11:49  R24    borrow                O       type  借入                  0
+2026-09-14T11:49  R24    comb                  O       type  梳子                  0
+2026-09-14T11:49  R24    rain                  O       type  雨                    0
+2026-09-14T11:49  R24    all you can eat       O       type  AYCE吃到飽            0
+2026-09-14T11:49  R24    barbecue              O       type  BBQ燒烤               0
+2026-09-14T12:26  R1     blanket               X       type  地毯                  0
+2026-09-14T12:26  R1     bread                 O       type  麵包                  0
+2026-09-14T12:26  R1     quite                 O       type  相當                  0
+2026-09-14T12:26  R1     borrow                O       type  借入                  0
+2026-09-14T12:26  R1     cousin                X       type  不知道                0
+2026-09-14T12:26  R1     healthy               O       type  健康                  0
+2026-09-14T12:26  R1     glove                 O       type  手套                  0
+2026-09-14T12:26  R1     bag                   O       type  背包                  0
+2026-09-14T12:26  R1     quiz                  O       type  小考                  0
+2026-09-14T12:26  R1     lend                  O       type  借出                  0
+2026-09-14T12:28  R2     tail                  O       type  尾巴                  0
+2026-09-14T12:28  R2     blanket               X       type  地毯                  0
+2026-09-14T12:28  R2     difficult             X       type  -                     0
+2026-09-14T12:28  R2     bread                 O       type  麵包                  0
+2026-09-14T12:28  R2     towel                 O       type  毛巾                  0
+2026-09-14T12:28  R2     umbrella              O       type  雨傘                  0
+2026-09-14T12:28  R2     sock                  O       type  襪子                  0
+2026-09-14T12:28  R2     cat                   O       type  貓咪                  0
+2026-09-14T12:28  R2     exam                  O       type  考試                  0
+2026-09-14T12:28  R2     bubble tea            O       type  珍奶                  0
+2026-09-14T13:34  R3     difficult             O       type  困難                  0
+2026-09-14T13:34  R3     bread                 O       type  麵包                  0
+2026-09-14T13:34  R3     quiet                 O       type  安靜                  0
+2026-09-14T13:34  R3     sock                  O       type  襪子                  0
+2026-09-14T13:34  R3     umbrella              O       type  雨傘                  0
+2026-09-14T13:34  R3     glove                 O       type  不知道(問用法)        0
+2026-09-14T13:34  R3     towel                 O       type  毛巾                  0
+2026-09-14T13:34  R3     sun                   O       type  太陽                  0
+2026-09-14T13:34  R3     smoke                 O       type  菸                    0
+2026-09-14T13:34  R3     boiled                O       type  水煮的                0
+2026-09-14T13:37  R4     difficult             O       type  困難                  0
+2026-09-14T13:37  R4     quiet                 O       type  安靜                  0
+2026-09-14T13:37  R4     comb                  X       type  -                     0
+2026-09-14T13:37  R4     blanket               O       type  毯子                  0
+2026-09-14T13:37  R4     umbrella              O       type  雨傘                  0
+2026-09-14T13:37  R4     sock                  O       type  襪子                  0
+2026-09-14T13:37  R4     weather               O       type  天氣                  0
+2026-09-14T13:37  R4     rain                  O       type  雨                    0
+2026-09-14T13:37  R4     smoked                O       type  煙燻的                0
+2026-09-14T13:37  R4     grill                 O       type  烤架烤的              0
+2026-09-15T10:54  R1     weather               O       type  天氣                  0
+2026-09-15T10:54  R1     quiet                 O       type  quiet                 0
+2026-09-15T10:54  R1     heavy                 O       type  重的                  0
+2026-09-15T10:54  R1     cousin                X       type  不知                  0
+2026-09-15T10:54  R1     grass                 O       type  草                    0
+2026-09-15T10:54  R1     soap                  O       type  soap                  0
+2026-09-15T10:54  R1     napkin                X       type  不知                  0
+2026-09-15T10:54  R1     friend                O       type  friend                0
+2026-09-15T10:54  R1     job                   O       type  工作                  0
+2026-09-15T10:54  R1     again                 X       type  agein                 0
+2026-09-15T10:59  R2     borrow                O       type  借入                  0
+2026-09-15T10:59  R2     towel                 O       type  towel                 0
+2026-09-15T10:59  R2     difficult             O       type  困難的                0
+2026-09-15T10:59  R2     tail                  O       type  tail                  0
+2026-09-15T10:59  R2     blanket               O       type  毯子                  0
+2026-09-15T10:59  R2     sock                  O       type  sock                  0
+2026-09-15T10:59  R2     quite                 O       type  相當                  0
+2026-09-15T10:59  R2     sun                   O       type  sun                   0
+2026-09-15T10:59  R2     spicy                 X       type  辣椒                  0
+2026-09-15T10:59  R2     make                  O       type  make                  0
+2026-09-15T11:12  R3     comb                  O       type  梳子                  0
+2026-09-15T11:12  R3     glove                 O       type  glove                 0
+2026-09-15T11:12  R3     holiday               O       type  假日                  0
+2026-09-15T11:12  R3     bread                 O       type  bread                 0
+2026-09-15T11:12  R3     healthy               O       type  健康                  0
+2026-09-15T11:12  R3     neighbor              X       type  不會拼                0
+2026-09-15T11:12  R3     weather               O       type  天氣                  0
+2026-09-15T11:12  R3     bag                   O       type  bag                   0
+2026-09-15T11:12  R3     cash                  O       type  現金                  0
+2026-09-15T11:12  R3     miss                  O       type  miss                  0
+2026-09-15T11:18  R4     difficult             O       type  困難的                0
+2026-09-15T11:18  R4     tail                  X       type  tailu381              0
+2026-09-15T11:18  R4     blanket               O       type  毯子                  0
+2026-09-15T11:18  R4     cat                   O       type  cat                   0
+2026-09-15T11:18  R4     cousin                O       type  表兄弟姊妹            0
+2026-09-15T11:18  R4     sock                  O       type  sock                  0
+2026-09-15T11:18  R4     napkin                X       type  不知道                0
+2026-09-15T11:18  R4     quite                 O       type  quite                 0
+2026-09-15T11:18  R4     solution              X       type  行程                  0
+2026-09-15T11:18  R4     prepare               X       type  redaey                0
+2026-09-15T11:24  R5     borrow                O       type  借入                  0
+2026-09-15T11:24  R5     towel                 O       type  towel                 0
+2026-09-15T11:24  R5     quiet                 O       type  安靜                  0
+2026-09-15T11:24  R5     heavy                 O       type  heavy                 0
+2026-09-15T11:24  R5     eat                   O       type  eat                   0
+2026-09-15T11:24  R5     glove                 O       type  手套                  0
+2026-09-15T11:24  R5     grass                 X       type  -                     0
+2026-09-15T11:24  R5     soap                  O       type  肥皂                  0
+2026-09-15T11:24  R5     teenager              X       type  beens                 0
+2026-09-15T11:24  R5     visitor               X       type  旅遊                  0
+2026-09-15T11:28  R6     weather               O       type  天氣                  0
+2026-09-15T11:28  R6     rain                  O       type  rain                  0
+2026-09-15T11:28  R6     difficult             O       type  困難的                0
+2026-09-15T11:28  R6     tail                  O       type  tail                  0
+2026-09-15T11:28  R6     blanket               O       type  毯子                  0
+2026-09-15T11:28  R6     sock                  O       type  sock                  0
+2026-09-15T11:28  R6     cousin                O       type  表兄弟姊妹            0
+2026-09-15T11:28  R6     holiday               O       type  holiday               0
+2026-09-15T11:28  R6     option                O       type  選項                  0
+2026-09-15T11:28  R6     creator               O       type  Creators              0
+2026-09-15T11:36  R7     healthy               O       type  健康                  0
+2026-09-15T11:36  R7     busy                  O       type  busy                  0
+2026-09-15T11:36  R7     soap                  O       type  肥皂                  0
+2026-09-15T11:36  R7     neighbor              X       type  nightbor              0
+2026-09-15T11:36  R7     glove                 O       type  手套                  0
+2026-09-15T11:36  R7     grass                 O       type  grass                 0
+2026-09-15T11:36  R7     difficult             O       type  困難的                0
+2026-09-15T11:36  R7     quite                 O       type  quite                 0
+2026-09-15T11:36  R7     action                O       type  行動                  0
+2026-09-15T11:36  R7     information           X       type  infomation            0
+2026-09-15T11:40  R8     borrow                O       type  借入                  0
+2026-09-15T11:40  R8     towel                 O       type  towel                 0
+2026-09-15T11:40  R8     tail                  O       type  尾巴                  0
+2026-09-15T11:40  R8     blanket               X       type  -                     0
+2026-09-15T11:40  R8     sock                  O       type  襪子                  0
+2026-09-15T11:40  R8     cousin                O       type  cousin                0
+2026-09-15T11:40  R8     bread                 X       type  -                     0
+2026-09-15T11:40  R8     friend                O       type  friend                0
+2026-09-15T11:40  R8     level                 O       type  等級                  0
+2026-09-15T11:40  R8     join                  O       type  join                  0
+2026-09-15T11:43  R8     blanket               O       type  毯子                  0
+2026-09-15T11:43  R8     bread                 O       type  麵包                  0
+2026-09-15T11:43  R9     weather               O       type  天氣                  0
+2026-09-15T11:43  R9     quiet                 O       type  quiet                 0
+2026-09-15T11:43  R9     heavy                 O       type  重的                  0
+2026-09-15T11:43  R9     sun                   O       type  sun                   0
+2026-09-15T11:43  R9     napkin                X       type  阿災                  0
+2026-09-15T11:43  R9     comb                  O       type  comb                  0
+2026-09-15T11:43  R9     holiday               O       type  假日                  0
+2026-09-15T11:43  R9     quite                 O       type  quite                 0
+2026-09-15T11:43  R9     database              O       type  資料庫                0
+2026-09-15T11:43  R9     easy                  O       type  easy                  0
+2026-09-15T11:47  R10    difficult             O       type  困難                  0
+2026-09-15T11:47  R10    neighbor              O       type  neighbor              0
+2026-09-15T11:47  R10    grass                 O       type  草                    0
+2026-09-15T11:47  R10    glove                 O       type  glove                 0
+2026-09-15T11:47  R10    soap                  O       type  肥皂                  0
+2026-09-15T11:47  R10    healthy               X       type  heathly               0
+2026-09-15T11:47  R10    sock                  O       type  襪子                  0
+2026-09-15T11:47  R10    bag                   O       type  bag                   0
+2026-09-15T11:47  R10    build                 O       type  構建                  0
+2026-09-15T11:47  R10    front                 X       type  不會                  0
+2026-09-15T11:53  R11    borrow                O       type  借入                  0
+2026-09-15T11:53  R11    towel                 O       type  towel                 0
+2026-09-15T11:53  R11    tail                  O       type  尾巴                  0
+2026-09-15T11:53  R11    blanket               X       type  -                     0
+2026-09-15T11:53  R11    cat                   O       type  cat                   0
+2026-09-15T11:53  R11    cousin                O       type  表兄弟姊妹            0
+2026-09-15T11:53  R11    bread                 O       type  bread                 0
+2026-09-15T11:53  R11    napkin                O       type  餐巾紙                0
+2026-09-15T11:53  R11    auto                  O       type  自動                  0
+2026-09-15T11:53  R11    state                 O       type  state                 0
+2026-09-15T11:56  R12    weather               O       type  天氣                  0
+2026-09-15T11:56  R12    quiet                 O       type  quiet                 0
+2026-09-15T11:56  R12    eat                   O       type  eat                   0
+2026-09-15T11:56  R12    heavy                 O       type  重的                  0
+2026-09-15T11:56  R12    quite                 O       type  quite                 0
+2026-09-15T11:56  R12    holiday               O       type  假日                  0
+2026-09-15T11:56  R12    comb                  O       type  comb                  0
+2026-09-15T11:56  R12    sock                  O       type  襪子                  0
+2026-09-15T11:56  R12    release               O       type  發布                  0
+2026-09-15T11:56  R12    debug                 O       type  debug                 0
+2026-09-15T14:01  R13    difficult             O       type  困難的                0
+2026-09-15T14:01  R13    healthy               X       type  hethlty               0
+2026-09-15T14:01  R13    neighbor              X       type  niethbor              0
+2026-09-15T14:01  R13    grass                 O       type  草                    0
+2026-09-15T14:01  R13    glove                 O       type  glove                 0
+2026-09-15T14:01  R13    rain                  O       type  rain                  0
+2026-09-15T14:01  R13    soap                  O       type  肥皂                  0
+2026-09-15T14:01  R13    tail                  O       type  尾巴                  0
+2026-09-15T14:01  R13    hard                  X       type  手                    0
+2026-09-15T14:01  R13    developer             X       type  不會                  0
+2026-09-15T14:10  R14    borrow                O       type  借入                  0
+2026-09-15T14:10  R14    blanket               X       type  blankit               0
+2026-09-15T14:10  R14    busy                  O       type  busy                  0
+2026-09-15T14:10  R14    towel                 O       type  毛巾                  0
+2026-09-15T14:10  R14    hello                 O       type  哈囉                  0
+2026-09-15T14:10  R14    simple                X       type  easy                  0
+2026-09-15T14:10  R14    expert                X       type  -                     0
+2026-09-15T14:10  R14    beginner              X       type  不知道                0
+2026-09-15T14:10  R14    normal                O       type  普通、一般            0
+2026-09-15T14:10  R14    impossible            X       type  impassble             0
+2026-09-15T14:16  R15    neighbor              O       type  鄰居                  0
+2026-09-15T14:16  R15    borrow                O       type  借入                  0
+2026-09-15T14:16  R15    noon                  O       type  正中午                0
+2026-09-15T14:16  R15    comb                  O       type  梳子                  0
+2026-09-15T14:16  R15    glove                 O       type  手套                  0
+2026-09-15T14:16  R15    bread                 O       type  麵包                  0
+2026-09-15T14:16  R15    tail                  O       type  尾巴                  0
+2026-09-15T14:16  R15    friend                O       type  friend                0
+2026-09-15T14:16  R15    refund                O       type  退款                  0
+2026-09-15T14:16  R15    good for you          O       type  I'm so happy for you  0
+2026-09-15T14:20  R16    spoon                 O       type  湯匙                  0
+2026-09-15T14:20  R16    angry                 O       type  生氣                  0
+2026-09-15T14:20  R16    plate                 O       type  盤子                  0
+2026-09-15T14:20  R16    soap                  O       type  肥皂                  0
+2026-09-15T14:20  R16    dessert               O       type  甜點                  0
+2026-09-15T14:20  R16    friend                O       type  friend                0
+2026-09-15T14:20  R16    borrow                O       type  借入                  0
+2026-09-15T14:22  R16    draft                 O       type  草稿                  0
+2026-09-15T14:22  R16    end                   O       type  結束                  0
+2026-09-15T14:25  R17    cousin                O       type  表手足                0
+2026-09-15T14:25  R17    blanket               O       type  毯子                  0
+2026-09-15T14:25  R17    angry                 O       type  生氣                  0
+2026-09-15T14:25  R17    nurse                 O       type  護士                  0
+2026-09-15T14:25  R17    napkin                O       type  餐巾紙                0
+2026-09-15T14:25  R17    grass                 O       type  草                    0
+2026-09-15T14:25  R17    difficult             O       type  困難的                0
+2026-09-15T14:25  R17    sun                   O       type  sun                   0
+2026-09-15T14:25  R17    bartender             O       type  酒保                  0
+2026-09-15T14:25  R17    win a prize           X       type  不知道                0
+2026-09-15T14:27  R18    comb                  O       type  梳子                  0
+2026-09-15T14:27  R18    difficult             O       type  困難的                0
+2026-09-15T14:27  R18    grass                 O       type  草                    0
+2026-09-15T14:27  R18    towel                 O       type  毛巾                  0
+2026-09-15T14:27  R18    straw                 O       type  稻草                  0
+2026-09-15T14:27  R18    angry                 O       type  生氣                  0
+2026-09-15T14:27  R18    weather               O       type  天氣                  0
+2026-09-15T14:27  R18    bag                   O       type  bag                   0
+2026-09-15T14:27  R18    rotisserie            X       type  -                     0
+2026-09-15T14:27  R18    base                  O       type  基礎                  0
+2026-09-15T14:31  R18    rotisserie            O       type  轉軸烤肉架(補改判)    0
+2026-09-15T14:31  R19    grass                 O       type  草                    0
+2026-09-15T14:31  R19    borrow                O       type  借入                  0
+2026-09-15T14:31  R19    dessert               O       type  甜點                  0
+2026-09-15T14:31  R19    soap                  O       type  肥皂                  0
+2026-09-15T14:31  R19    glove                 O       type  手套                  0
+2026-09-15T14:31  R19    weather               O       type  天氣                  0
+2026-09-15T14:31  R19    tail                  O       type  尾巴                  0
+2026-09-15T14:31  R19    cat                   O       type  cat                   0
+2026-09-15T14:31  R19    spatula               O       type  鍋鏟、抹刀            0
+2026-09-15T14:31  R19    craft                 X       type  不會                  0
+2026-09-15T14:34  R20    neighbor              O       type  neighbor              0
+2026-09-15T14:34  R20    difficult             O       type  困難的                0
+2026-09-15T14:34  R20    plate                 O       type  plate                 0
+2026-09-15T14:34  R20    cook                  O       type  廚師                  0
+2026-09-15T14:34  R20    weather               O       type  天氣                  0
+2026-09-15T14:34  R20    small                 O       type  小的                  0
+2026-09-15T14:34  R20    blanket               O       type  blanket               0
+2026-09-15T14:34  R20    eat                   O       type  eat                   0
+2026-09-15T14:34  R20    thirteen              O       type  十三                  0
+2026-09-15T14:34  R20    cooking               O       type  煮飯                  0
+2026-09-15T14:37  R21    quiet                 O       type  quiet                 0
+2026-09-15T14:37  R21    blanket               O       type  blanket               0
+2026-09-15T14:37  R21    angry                 O       type  生氣                  0
+2026-09-15T14:37  R21    glove                 O       type  glove                 0
+2026-09-15T14:37  R21    plate                 O       type  盤子                  0
+2026-09-15T14:37  R21    small                 O       type  小的                  0
+2026-09-15T14:37  R21    comb                  O       type  comb                  0
+2026-09-15T14:37  R21    rain                  O       type  rain                  0
+2026-09-15T14:37  R21    effortless            X       type  -                     0
+2026-09-15T14:37  R21    screw                 X       type  -                     0
+2026-09-15T15:31  R22    borrow                O       type  借入                  0
+2026-09-15T15:31  R22    angry                 O       type  生氣                  0
+2026-09-15T15:31  R22    napkin                X       type  napkit                0
+2026-09-15T15:31  R22    cousin                O       type  cousin                0
+2026-09-15T15:31  R22    spoon                 O       type  湯匙                  0
+2026-09-15T15:31  R22    healthy               O       type  healthy               0
+2026-09-15T15:31  R22    tail                  O       type  尾巴                  0
+2026-09-15T15:31  R22    busy                  O       type  busy                  0
+2026-09-15T15:31  R22    damn                  O       type  該死                  0
+2026-09-15T15:37  R1     straw                 O       type  straw                 0
+2026-09-15T15:37  R1     holiday               O       type  假日                  0
+2026-09-15T15:37  R1     small                 O       type  小的                  0
+2026-09-15T15:37  R1     letter                X       type  mail/word             0
+2026-09-15T15:37  R1     weather               O       type  天氣                  0
+2026-09-15T15:37  R1     comb                  O       type  comb                  0
+2026-09-15T15:37  R1     bathroom              O       type  浴室                  0
+2026-09-15T15:37  R1     friend                O       type  friend                0
+2026-09-15T15:37  R1     tongs                 X       type  忘了                  0
+2026-09-15T15:37  R1     checkbox              X       type  單選框                0
+2026-09-15T15:41  R2     dessert               O       type  dessert               0
+2026-09-15T15:41  R2     straw                 O       type  吸管                  0
+2026-09-15T15:41  R2     March                 X       type  阿災                  0
+2026-09-15T15:41  R2     quiet                 O       type  安靜                  0
+2026-09-15T15:41  R2     spoon                 O       type  spoon                 0
+2026-09-15T15:41  R2     neighbor              X       type  eightbor              0
+2026-09-15T15:41  R2     towel                 O       type  毛巾                  0
+2026-09-15T15:41  R2     rain                  O       type  rain                  0
+2026-09-15T15:41  R2     craft beer            O       type  精釀啤酒              0
+2026-09-15T15:41  R2     ceiling               O       type  天花板                0
+2026-09-15T15:46  R3     grass                 O       type  草                    0
+2026-09-15T15:46  R3     spoon                 O       type  spoon                 0
+2026-09-15T15:46  R3     borrow                O       type  借入                  0
+2026-09-15T15:46  R3     angry                 O       type  生氣                  0
+2026-09-15T15:46  R3     weather               O       type  天氣                  0
+2026-09-15T15:46  R3     cousin                O       type  cousin                0
+2026-09-15T15:46  R3     napkin                X       type  sinket?               0
+2026-09-15T15:46  R3     cat                   O       type  cat                   0
+2026-09-15T15:46  R3     interfere             O       type  干擾                  0
+2026-09-15T15:46  R3     usually               O       type  通常                  0
+2026-09-15T15:49  R4     neighbor              O       type  neighbor              0
+2026-09-15T15:49  R4     small                 O       type  小                    0
+2026-09-15T15:49  R4     sock                  O       type  sock                  0
+2026-09-15T15:49  R4     glove                 O       type  手套                  0
+2026-09-15T15:49  R4     grass                 O       type  grass                 0
+2026-09-15T15:49  R4     dolphin               O       type  海豚                  0
+2026-09-15T15:49  R4     spoon                 O       type  湯匙                  0
+2026-09-15T15:49  R4     eat                   O       type  eat                   0
+2026-09-15T15:49  R4     sliced pork           O       type  切片豬肉              0
+2026-09-15T15:49  R4     stubborn              X       type  昏厥                  0
+2026-09-15T15:51  R5     plate                 O       type  盤子                  0
+2026-09-15T15:51  R5     difficult             O       type  困難的                0
+2026-09-15T15:51  R5     tail                  O       type  尾巴                  0
+2026-09-15T15:51  R5     napkin                X       type  napkit                0
+2026-09-15T15:51  R5     borrow                O       type  borrow                0
+2026-09-15T15:51  R5     glove                 O       type  手套                  0
+2026-09-15T15:51  R5     letter                O       type  letter                0
+2026-09-15T15:51  R5     busy                  O       type  busy                  0
+2026-09-15T15:51  R5     awkward               X       type  不知                  0
+2026-09-15T15:51  R5     two                   O       type  二                    0
+2026-09-15T15:54  R6     quite                 X       type  安靜                  0
+2026-09-15T15:54  R6     March                 O       type  三月                  0
+2026-09-15T15:54  R6     dessert               O       type  甜點                  0
+2026-09-15T15:54  R6     climb                 O       type  爬                    0
+2026-09-15T15:54  R6     bread                 O       type  麵包                  0
+2026-09-15T15:54  R6     neighbor              O       type  鄰居                  0
+2026-09-15T15:54  R6     straw                 X       type  -                     0
+2026-09-15T15:54  R6     sun                   O       type  sun                   0
+2026-09-15T15:54  R6     certificate           O       type  證書                  0
+2026-09-15T15:54  R6     init                  O       type  初始化                0
+2026-09-15T15:58  R7     letter                O       type  letter                0
+2026-09-15T15:58  R7     bridge                O       type  橋                    0
+2026-09-15T15:58  R7     healthy               X       type  -                     0
+2026-09-15T15:58  R7     plate                 O       type  盤子                  0
+2026-09-15T15:58  R7     quite                 O       type  quite                 0
+2026-09-15T15:58  R7     difficult             O       type  困難                  0
+2026-09-15T15:58  R7     glove                 O       type  手套                  0
+2026-09-15T15:58  R7     bag                   O       type  bag                   0
+2026-09-15T15:58  R7     actually              O       type  其實                  0
+2026-09-15T15:58  R7     tricky                X       type  -                     0
+2026-09-15T16:00  R8     throw                 O       type  拋                    0
+2026-09-15T16:00  R8     tail                  O       type  尾巴                  0
+2026-09-15T16:00  R8     towel                 O       type  毛巾                  0
+2026-09-15T16:00  R8     small                 O       type  small                 0
+2026-09-15T16:00  R8     difficult             O       type  困難的                0
+2026-09-15T16:00  R8     grass                 X       type  -                     0
+2026-09-15T16:00  R8     spoon                 O       type  湯匙                  0
+2026-09-15T16:00  R8     friend                O       type  friend                0
+2026-09-15T16:00  R8     compact               X       type  摘要?                 0
+2026-09-15T16:02  R8     compact               O       type  精緻小的(補改判)      0
+2026-09-15T16:02  R9     healthy               O       type  健康                  0
+2026-09-15T16:02  R9     bread                 O       type  麵包                  0
+2026-09-15T16:02  R9     soap                  O       type  肥早                  0
+2026-09-15T16:02  R9     sock                  O       type  襪子                  0
+2026-09-15T16:02  R9     heavy                 O       type  重的                  0
+2026-09-15T16:02  R9     thin                  X       type  ??                    0
+2026-09-15T16:02  R9     small                 O       type  小的                  0
+2026-09-15T16:02  R9     rain                  O       type  rain                  0
+2026-09-15T16:02  R9     twelve                O       type  十二                  0
+2026-09-15T16:02  R9     probably              O       type  大概                  0
+2026-09-15T16:06  R10    straw                 O       type  straw                 0
+2026-09-15T16:06  R10    soap                  O       type  肥皂                  0
+2026-09-15T16:06  R10    grass                 O       type  草                    0
+2026-09-15T16:06  R10    bread                 O       type  麵包                  0
+2026-09-15T16:06  R10    neighbor              O       type  neighbor              0
+2026-09-15T16:06  R10    sock                  O       type  sock                  0
+2026-09-15T16:06  R10    heavy                 O       type  重的                  0
+2026-09-15T16:06  R10    cat                   O       type  cat                   0
+2026-09-15T16:06  R10    unhealthy             O       type  不健康                0
+2026-09-15T16:06  R10    get                   O       type  獲取                  0
+2026-09-15T16:10  R11    neighbor              O       type  鄰居                  0
+2026-09-15T16:10  R11    comb                  O       type  梳子                  0
+2026-09-15T16:10  R11    plate                 O       type  盤子                  0
+2026-09-15T16:10  R11    August                O       type  八月                  0
+2026-09-15T16:10  R11    tail                  O       type  尾巴                  0
+2026-09-15T16:10  R11    holiday               O       type  假日                  0
+2026-09-15T16:10  R11    spoon                 O       type  湯匙                  0
+2026-09-15T16:10  R11    eat                   O       type  eat                   0
+2026-09-15T16:10  R11    hotdog                O       type  熱狗                  0
+2026-09-15T16:10  R11    whiskey               O       type  威士忌                0
+2026-09-15T16:13  R12    blanket               O       type  毯子                  0
+2026-09-15T16:13  R12    healthy               O       type  healthy               0
+2026-09-15T16:13  R12    bread                 O       type  bread                 0
+2026-09-15T16:13  R12    shirt                 X       type  -                     0
+2026-09-15T16:13  R12    towel                 O       type  毛巾                  0
+2026-09-15T16:13  R12    tail                  O       type  尾巴                  0
+2026-09-15T16:13  R12    thin                  O       type  thin                  0
+2026-09-15T16:13  R12    busy                  O       type  busy                  0
+2026-09-15T16:13  R12    yes                   O       type  是                    0
+2026-09-15T16:13  R12    no                    O       type  否                    0
+2026-09-15T16:15  R13    dessert               O       type  甜點                  0
+2026-09-15T16:15  R13    comb                  O       type  梳子                  0
+2026-09-15T16:15  R13    holiday               O       type  holiday               0
+2026-09-15T16:15  R13    neighbor              O       type  neighbor              0
+2026-09-15T16:15  R13    borrow                O       type  借入                  0
+2026-09-15T16:15  R13    March                 O       type  March                 0
+2026-09-15T16:15  R13    grass                 O       type  草                    0
+2026-09-15T16:15  R13    sun                   O       type  sun                   0
+2026-09-15T16:15  R13    yes                   O       type  yes                   0
+2026-09-15T16:15  R13    no                    O       type  no                    0
+2026-09-15T16:17  R14    comb                  O       type  梳子                  0
+2026-09-15T16:17  R14    healthy               O       type  healthy               0
+2026-09-15T16:17  R14    letter                O       type  letter                0
+2026-09-15T16:17  R14    pot                   O       type  鍋子                  0
+2026-09-15T16:17  R14    difficult             O       type  困難的                0
+2026-09-15T16:17  R14    tail                  O       type  尾巴                  0
+2026-09-15T16:17  R14    dessert               O       type  dessert               0
+2026-09-15T16:17  R14    bag                   O       type  bag                   0
+2026-09-15T16:17  R14    yes                   O       type  是                    0
+2026-09-15T16:17  R14    no                    O       type  否                    0
+2026-09-15T16:23  R1     soap                  O       type  肥皂                  0
+2026-09-15T16:23  R1     quite                 O       type  quite                 0
+2026-09-15T16:23  R1     still                 O       type  仍然                  0
+2026-09-15T16:23  R1     neighbor              O       type  neighbor              0
+2026-09-15T16:23  R1     plate                 O       type  盤子                  0
+2026-09-15T16:23  R1     yes                   O       type  yes                   0
+2026-09-15T16:23  R1     grass                 O       type  grass                 0
+2026-09-15T16:23  R1     March                 O       type  三月                  0
+2026-09-15T16:23  R1     already               O       type  已經                  0
+2026-09-15T16:23  R1     holiday               O       type  holiday               0
+2026-09-15T16:27  R2     roof                  O       type  屋頂                  0
+2026-09-15T16:27  R2     quiet                 O       type  quiet                 0
+2026-09-15T16:27  R2     master                O       type  大師                  0
+2026-09-15T16:27  R2     shirt                 O       type  shirt                 0
+2026-09-15T16:27  R2     neighbor              O       type  鄰居                  0
+2026-09-15T16:27  R2     friend                O       type  friend                0
+2026-09-15T16:27  R2     glass                 X       type  草                    0
+2026-09-15T16:27  R2     napkin                X       type  napkit                0
+2026-09-15T16:27  R2     towel                 O       type  towel                 0
+2026-09-15T16:27  R2     stinky                O       type  臭的                  0
+2026-09-15T16:29  R3     straw                 O       type  吸管稻草              0
+2026-09-15T16:29  R3     borrow                O       type  borrow                0
+2026-09-15T16:29  R3     face wash             O       type  洗面乳                0
+2026-09-15T16:29  R3     neighbor              O       type  鄰居                  0
+2026-09-15T16:29  R3     healthy               O       type  healthy               0
+2026-09-15T16:29  R3     sun                   O       type  sun                   0
+2026-09-15T16:29  R3     March                 O       type  三月                  0
+2026-09-15T16:29  R3     letter                O       type  letter                0
+2026-09-15T16:29  R3     form                  X       type  來自                  0
+2026-09-15T16:29  R3     holiday               O       type  holiday               0
+2026-09-15T16:33  R4     sock                  O       type  襪子                  0
+2026-09-15T16:33  R4     cousin                O       type  cousin                0
+2026-09-15T16:33  R4     mouthwash             O       type  漱口水                0
+2026-09-15T16:33  R4     difficult             O       type  difficult             0
+2026-09-15T16:33  R4     borrow                O       type  借入                  0
+2026-09-15T16:33  R4     eat                   O       type  eat                   0
+2026-09-15T16:33  R4     thin                  O       type  薄的瘦的              0
+2026-09-15T16:33  R4     napkin                O       type  napkin                0
+2026-09-15T16:33  R4     beer                  O       type  啤酒                  0
+2026-09-15T16:33  R4     letter                O       type  信字母                0
+2026-09-15T16:44  R5     butter                O       type  奶油                  0
+2026-09-15T16:44  R5     grass                 O       type  grass                 0
+2026-09-15T16:44  R5     medium                O       type  中等                  0
+2026-09-15T16:44  R5     quiet                 O       type  安靜                  0
+2026-09-15T16:44  R5     sock                  O       type  sock                  0
+2026-09-15T16:44  R5     glove                 X       type  -                     0
+2026-09-15T16:44  R5     busy                  O       type  busy                  0
+2026-09-15T16:44  R5     favorite              O       type  favorite              0
+2026-09-15T16:44  R5     tough                 X       type  觸碰                  0
+2026-09-15T16:44  R5     holiday               O       type  假日                  0
+2026-09-15T16:49  R6     wet                   O       type  濕的                  0
+2026-09-15T16:49  R6     blanket               O       type  blanket               0
+2026-09-15T16:49  R6     makeup remover        O       type  卸妝水                0
+2026-09-15T16:49  R6     quite                 O       type  相當                  0
+2026-09-15T16:49  R6     letter                O       type  letter                0
+2026-09-15T16:49  R6     rain                  O       type  rain                  0
+2026-09-15T16:49  R6     towel                 O       type  毛巾                  0
+2026-09-15T16:49  R6     March                 O       type  March                 0
+2026-09-15T16:49  R6     ok                    O       type  好的 可以 沒問題      0
+2026-09-15T16:49  R6     napkin                O       type  餐巾紙                0
+2026-09-15T16:53  R7     blanket               O       type  毯子                  0
+2026-09-15T16:53  R7     answer                O       type  answer                0
+2026-09-15T16:53  R7     eleven                O       type  十一                  0
+2026-09-15T16:53  R7     letter                O       type  信 字母               0
+2026-09-15T16:53  R7     quite                 O       type  quite                 0
+2026-09-15T16:53  R7     cat                   O       type  cat                   0
+2026-09-15T16:53  R7     weather               O       type  天氣                  0
+2026-09-15T16:53  R7     straw                 O       type  straw                 0
+2026-09-15T16:53  R7     body lotion           O       type  身體乳                0
+2026-09-15T16:53  R7     grass                 O       type  草                    0
+2026-09-15T16:57  R8     clever                O       type  聰明                  0
+2026-09-15T16:57  R8     holiday               O       type  holiday               0
+2026-09-15T16:57  R8     with                  O       type  和                    0
+2026-09-15T16:57  R8     river                 O       type  河流                  0
+2026-09-15T16:57  R8     blanket               O       type  blanket               0
+2026-09-15T16:57  R8     bag                   O       type  bag                   0
+2026-09-15T16:57  R8     neighbor              O       type  neighbor              0
+2026-09-15T16:57  R8     onion                 O       type  洋蔥                  0
+2026-09-15T16:57  R8     pass                  O       type  通過 跳過             0
+2026-09-15T16:57  R8     borrow                O       type  借入                  0
+2026-09-15T17:00  R9     breakfast             O       type  早餐                  0
+2026-09-15T17:00  R9     grass                 O       type  grass                 0
+2026-09-15T17:00  R9     smoking               O       type  抽菸                  0
+2026-09-15T17:00  R9     cousin                O       type  表親                  0
+2026-09-15T17:00  R9     napkin                O       type  napkin                0
+2026-09-15T17:00  R9     no                    O       type  no                    0
+2026-09-15T17:00  R9     neighbor              O       type  鄰居                  0
+2026-09-15T17:00  R9     safe                  X       type  save                  0
+2026-09-15T17:00  R9     bacon                 O       type  培根                  0
+2026-09-15T17:00  R9     glass                 O       type  玻璃                  0
+2026-09-15T17:04  R10    shirt                 O       type  衣服 襯衫             0
+2026-09-15T17:04  R10    difficult             O       type  difficult             0
+2026-09-15T17:04  R10    congratulations       O       type  恭喜                  0
+2026-09-15T17:04  R10    blanket               O       type  毯子                  0
+2026-09-15T17:04  R10    healthy               O       type  healthy               0
+2026-09-15T17:04  R10    yes                   O       type  yes                   0
+2026-09-15T17:04  R10    weather               O       type  weather               0
+2026-09-15T17:04  R10    comb                  O       type  梳子                  0
+2026-09-15T17:04  R10    intervene             O       type  干涉 介入             0
+2026-09-15T17:04  R10    wait                  O       type  wait                  0
+2026-09-15T17:07  R11    thin                  O       type  薄 瘦                 0
+2026-09-15T17:07  R11    invite                O       type  invite                0
+2026-09-15T17:07  R11    drawer                X       type  -                     0
+2026-09-15T17:07  R11    glass                 O       type  glass                 0
+2026-09-15T17:07  R11    quite                 O       type  相當                  0
+2026-09-15T17:07  R11    friend                O       type  friend                0
+2026-09-15T17:07  R11    bread                 O       type  麵包                  0
+2026-09-15T17:07  R11    borrow                O       type  借入                  0
+2026-09-15T17:07  R11    messy                 O       type  凌亂                  0
+2026-09-15T17:07  R11    remember              O       type  remember              0
+2026-09-15T17:10  R12    dessert               O       type  甜點                  0
+2026-09-15T17:10  R12    neighbor              O       type  neighbor              0
+2026-09-15T17:10  R12    eggplant              O       type  茄子                  0
+2026-09-15T17:10  R12    heavy                 O       type  重的                  0
+2026-09-15T17:10  R12    soap                  O       type  soap                  0
+2026-09-15T17:10  R12    sun                   O       type  sun                   0
+2026-09-15T17:10  R12    shirt                 O       type  衣服 襯衫             0
+2026-09-15T17:10  R12    glass                 O       type  玻璃 玻璃杯           0
+2026-09-15T17:10  R12    begin                 O       type  開始                  0
+2026-09-15T17:10  R12    book                  O       type  book                  0

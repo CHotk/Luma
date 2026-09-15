@@ -15,6 +15,13 @@ enum NoteCollection {
     label: '近義字',
     subtitle: '長得像、意思也像，但用的場合不一樣',
     asset: 'assets/data/word-choices.md',
+  ),
+
+  /// 多義字的義項拆解，例如 back、hot、run 到底有哪些意思。
+  senses(
+    label: '義項解析',
+    subtitle: '多義、極多義的字，常見的意思一次看完',
+    asset: 'assets/data/sense-notes.md',
   );
 
   const NoteCollection({

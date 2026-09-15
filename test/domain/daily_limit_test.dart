@@ -20,13 +20,13 @@ void main() {
       expect(DailyLimit.roundsLeft(usage, rules), 0);
     });
 
-    test('時間先到也擋住', () {
+    test('時間不當限制，秒數再多也不會擋住', () {
       final usage = DailyUsage(
         date: today,
         roundsDone: 1,
-        practiceSeconds: 15 * 60,
+        practiceSeconds: 999 * 60,
       );
-      expect(DailyLimit.reached(usage, rules), isTrue);
+      expect(DailyLimit.reached(usage, rules), isFalse);
     });
 
     test('跨日自動歸零', () {

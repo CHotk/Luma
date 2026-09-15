@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -124,8 +126,8 @@ class _Body extends ConsumerWidget {
               ),
               const _Hair(),
               _Stepper(
-                title: '每天最多幾分鐘',
-                note: '跟輪數哪個先到算哪個',
+                title: '每天目標幾分鐘',
+                note: '只是首頁的參考數字，不會因為超過就擋住',
                 value: '${rules.minutesPerDay} 分',
                 onMinus: rules.minutesPerDay > 5
                     ? () => save(
@@ -198,6 +200,30 @@ class _Body extends ConsumerWidget {
                     ? () => save(
                         rules.copyWith(
                           pendingPerRound: rules.pendingPerRound + 1,
+                        ),
+                      )
+                    : null,
+              ),
+              const _Hair(),
+              _Stepper(
+                title: '待複習候選池大小',
+                note: '從離掌握最遠的這麼多個字裡隨機抽，不是死拿最前面幾個',
+                value: '${rules.pendingCandidatePoolSize} 個',
+                onMinus: rules.pendingCandidatePoolSize > rules.pendingPerRound
+                    ? () => save(
+                        rules.copyWith(
+                          pendingCandidatePoolSize: math.max(
+                            rules.pendingCandidatePoolSize - 5,
+                            rules.pendingPerRound,
+                          ),
+                        ),
+                      )
+                    : null,
+                onPlus: rules.pendingCandidatePoolSize < 100
+                    ? () => save(
+                        rules.copyWith(
+                          pendingCandidatePoolSize:
+                              rules.pendingCandidatePoolSize + 5,
                         ),
                       )
                     : null,

@@ -81,11 +81,14 @@ class QuizController extends AutoDisposeAsyncNotifier<QuizState> {
     final now = ref.read(clockProvider)();
 
     // 偽裝模式一律點選題：跳出中文輸入法在辦公室很顯眼。
-    final effective = ref.read(stealthModeProvider)
+    final stealth = ref.read(stealthModeProvider);
+    final effective = stealth
         ? rules.copyWith(quizStyle: QuizStyle.tapOnly)
         : rules;
 
-    final questions = QuestionPicker(rules: effective).pick(words, now: now);
+    final questions = QuestionPicker(
+      rules: effective,
+    ).pick(words, now: now, forceMasteredType: !stealth);
     _round = await ref.read(historyRepositoryProvider).nextRoundNumber();
     _stopwatch
       ..reset()
@@ -105,21 +108,28 @@ class QuizController extends AutoDisposeAsyncNotifier<QuizState> {
     state = AsyncData(s.copyWith(revealed: !s.revealed));
   }
 
-  void updateInput(String value) {
+  /// 更新打字內容。打滿答案的長度就直接判定，回傳判定結果；還沒判定回傳 null。
+  bool? updateInput(String value) {
     final s = state.valueOrNull;
-    if (s == null) return;
+    if (s == null || s.judged != null) return null;
     state = AsyncData(s.copyWith(input: value));
+    if (!SpellJudge.isComplete(input: value, answer: s.current.word.word)) {
+      return null;
+    }
+    return submitTyped();
   }
 
   /// 打字題送出。判定規則在 [SpellJudge]，這裡不自己比字串。
-  void submitTyped() {
+  /// 回傳判定結果，已經判過或沒有題目時回傳 null。
+  bool? submitTyped() {
     final s = state.valueOrNull;
-    if (s == null || s.judged != null) return;
+    if (s == null || s.judged != null) return null;
     final correct = SpellJudge.isCorrect(
       input: s.input,
       answer: s.current.word.word,
     );
     state = AsyncData(s.copyWith(judged: correct));
+    return correct;
   }
 
   /// 打字題按「不會」。

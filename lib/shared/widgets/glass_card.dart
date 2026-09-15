@@ -46,6 +46,58 @@ class GlassCard extends StatelessWidget {
   }
 }
 
+/// 主要動作的毛玻璃按鈕。跟 [GlassCard] 同一套做法，只是填色帶主色。
+///
+/// 不用實心藍：整塊不透明的藍放在玻璃面板旁邊很突兀，看起來像別的 App 的按鈕。
+class GlassButton extends StatelessWidget {
+  const GlassButton({super.key, required this.label, required this.onPressed});
+
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final shape = BorderRadius.circular(Radii.button);
+    return ClipRRect(
+      borderRadius: shape,
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: shape,
+            border: Border.all(color: AppColors.accentGlassEdge),
+            gradient: const LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [AppColors.accentGlassTop, AppColors.accentGlassBottom],
+            ),
+          ),
+          child: Material(
+            type: MaterialType.transparency,
+            child: InkWell(
+              onTap: onPressed,
+              borderRadius: shape,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                child: Center(
+                  child: Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.ink,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// 面板上方那行小標。全大寫加寬字距，只放短詞。
 class PanelLabel extends StatelessWidget {
   const PanelLabel(this.text, {super.key});

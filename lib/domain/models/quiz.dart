@@ -15,13 +15,21 @@ class QuizQuestion {
     required this.word,
     required this.mode,
     required this.isReview,
+    this.isMasteredReview = false,
   });
 
   final Word word;
   final QuizMode mode;
 
-  /// 是不是回考的舊字。結果頁要把新字和回考分開算。
+  /// 是不是回考的舊字（待複習或已掌握都算）。結果頁要把新字和回考分開算。
   final bool isReview;
+
+  /// 是不是回考「已掌握」的字，不是待複習。
+  ///
+  /// 待複習和已掌握都算 [isReview]，但結果頁要能分開顯示三種來源
+  /// （新字／待複習／已掌握），不然使用者看不出 `masteredPerRound`
+  /// 那一題去了哪裡，會以為沒抽到。
+  final bool isMasteredReview;
 }
 
 /// 一題的作答結果。
@@ -73,9 +81,22 @@ class RoundResult {
   /// 這是使用者明確要求過的，不要為了畫面好看而截斷。
   List<QuizAnswer> get missed => answers.where((a) => !a.correct).toList();
 
+  /// [review] 為 true 時只算待複習，不含已掌握的回考題——
+  /// 已掌握的回考題要用 [masteredCount] 另外算，這樣結果頁才能
+  /// 把新字、待複習、已掌握三種來源分開顯示。
   int countOf({required bool review, required bool correctOnly}) => answers
       .where(
-        (a) => a.question.isReview == review && (!correctOnly || a.correct),
+        (a) =>
+            a.question.isReview == review &&
+            !a.question.isMasteredReview &&
+            (!correctOnly || a.correct),
+      )
+      .length;
+
+  /// 已掌握的回考題有幾題，跟 [countOf] 分開算。
+  int masteredCount({required bool correctOnly}) => answers
+      .where(
+        (a) => a.question.isMasteredReview && (!correctOnly || a.correct),
       )
       .length;
 }

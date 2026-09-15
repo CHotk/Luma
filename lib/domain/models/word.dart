@@ -28,12 +28,14 @@ enum WordGrade {
 
 /// 單字的主題分類，對應題庫檔的第六欄。
 ///
-/// 目前有食物與居家兩類，其餘都是未分類。要加新類別就兩步：
+/// 目前有食物、居家、月份、數字四類，其餘都是未分類。要加新類別就兩步：
 /// 這裡加一個值，題庫檔那一欄填上同樣的中文。畫面不用改。
 enum WordTopic {
   none('未分類'),
   food('食物'),
-  home('居家');
+  home('居家'),
+  month('月份'),
+  number('數字');
 
   const WordTopic(this.label);
   final String label;
@@ -47,6 +49,33 @@ enum WordTopic {
       if (topic != WordTopic.none && topic.label == text) return topic;
     }
     return WordTopic.none;
+  }
+}
+
+/// 單字有幾個意思，對應題庫檔的第七欄。
+///
+/// 跟 [WordTopic] 是完全獨立的兩個分類軸，不要混在一起判斷。
+/// 判斷標準是查字典的義項數：1 個算單義，2 到 4 個算多義，
+/// 5 個以上算極多義。這是人工標記時要靠的標準，App 本身不會自動算，
+/// 沒標過的字一律是未分類。
+enum WordSenseCount {
+  none('未分類'),
+  single('單義'),
+  few('多義'),
+  many('極多義');
+
+  const WordSenseCount(this.label);
+  final String label;
+
+  /// 有沒有真的被標過。未分類的不顯示標籤。
+  bool get isTagged => this != WordSenseCount.none;
+
+  static WordSenseCount parse(String? raw) {
+    final text = raw?.trim() ?? '';
+    for (final sense in values) {
+      if (sense != WordSenseCount.none && sense.label == text) return sense;
+    }
+    return WordSenseCount.none;
   }
 }
 
@@ -91,12 +120,14 @@ class Word {
     required this.zh,
     required this.grade,
     this.topic = WordTopic.none,
+    this.senseCount = WordSenseCount.none,
     this.example = '',
     this.added,
     this.imagePath = '',
     this.right = 0,
     this.wrong = 0,
     this.lastTest,
+    this.tags = const [],
   });
 
   final int id;
@@ -106,6 +137,10 @@ class Word {
 
   /// 主題分類。改題庫檔第六欄就能改，不用動程式。
   final WordTopic topic;
+
+  /// 有幾個意思。改題庫檔第七欄就能改，不用動程式。
+  /// 跟 [topic] 是獨立的兩個分類軸。
+  final WordSenseCount senseCount;
 
   /// 大概幾年級學的。估計值，改題庫檔就能修正。
   final WordGrade grade;
@@ -135,6 +170,17 @@ class Word {
   /// 最後一次被考的日期。回考舊字時挑最舊的優先。
   final DateTime? lastTest;
 
+  /// 自由命名的分類標籤，方便之後搜尋用。改題庫檔最後一欄就能加，不用動程式。
+  /// 沒標的字是空清單，不是 `['-']`——那個 `-` 只是題庫檔裡「沒有」的寫法。
+  final List<String> tags;
+
+  /// 標籤用「、」分隔多個，題庫檔裡的 `-` 代表沒標，解析成空清單。
+  static List<String> parseTags(String? raw) {
+    final text = raw?.trim() ?? '';
+    if (text.isEmpty || text == '-') return const [];
+    return text.split('、').map((t) => t.trim()).where((t) => t.isNotEmpty).toList();
+  }
+
   /// 從沒被考過的字。出新題時只從這裡面挑。
   bool get isUntested => right == 0 && wrong == 0;
 
@@ -163,15 +209,30 @@ class Word {
     return left < 0 ? 0 : left;
   }
 
+  /// 對錯打平之後的權重，數字越高代表對得越多、越紮實。
+  ///
+  /// 跟 [rightNeededFor] 算的是同一套門檻，但不夾在 0：
+  /// 沒錯過的字，權重就是答對次數本身；錯過的字，答對次數先扣掉
+  /// 「錯的次數 × recoveryRatio」，再加回 confirmRight 校正基準，
+  /// 這樣兩條路線剛好打平掌握門檻時，權重都會落在同一個數字
+  /// （即 confirmRight）上，兩種字才排得進同一把尺，不會因為錯過而
+  /// 被算得比從沒錯過的字還吃虧或還划算。
+  int masteryWeight(RulesConfig rules) {
+    final target = wrong > 0 ? wrong * rules.recoveryRatio : rules.confirmRight;
+    return rules.confirmRight + right - target;
+  }
+
   Word copyWith({
     int? id,
     WordTopic? topic,
+    WordSenseCount? senseCount,
     String? example,
     DateTime? added,
     String? imagePath,
     int? right,
     int? wrong,
     DateTime? lastTest,
+    List<String>? tags,
   }) {
     return Word(
       id: id ?? this.id,
@@ -180,12 +241,14 @@ class Word {
       zh: zh,
       grade: grade,
       topic: topic ?? this.topic,
+      senseCount: senseCount ?? this.senseCount,
       example: example ?? this.example,
       added: added ?? this.added,
       imagePath: imagePath ?? this.imagePath,
       right: right ?? this.right,
       wrong: wrong ?? this.wrong,
       lastTest: lastTest ?? this.lastTest,
+      tags: tags ?? this.tags,
     );
   }
 
@@ -196,12 +259,14 @@ class Word {
     'zh': zh,
     'grade': grade.label,
     'topic': topic.label,
+    'senseCount': senseCount.label,
     'example': example,
     'added': added?.toIso8601String(),
     'imagePath': imagePath,
     'right': right,
     'wrong': wrong,
     'lastTest': lastTest?.toIso8601String(),
+    'tags': tags,
   };
 
   factory Word.fromJson(Map<String, dynamic> json) => Word(
@@ -212,12 +277,14 @@ class Word {
     // 舊版存的是 level 兩級分法，讀得到就沿用，讀不到才當國小。
     grade: WordGrade.parse((json['grade'] ?? json['level']) as String? ?? '國小'),
     topic: WordTopic.parse(json['topic'] as String?),
+    senseCount: WordSenseCount.parse(json['senseCount'] as String?),
     example: json['example'] as String? ?? '',
     added: _date(json['added']),
     imagePath: json['imagePath'] as String? ?? '',
     right: json['right'] as int? ?? 0,
     wrong: json['wrong'] as int? ?? 0,
     lastTest: _date(json['lastTest']),
+    tags: (json['tags'] as List?)?.map((t) => t as String).toList() ?? const [],
   );
 
   static DateTime? _date(Object? raw) =>

@@ -8,6 +8,7 @@ import '../../domain/models/history.dart';
 import '../../domain/models/word.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/glass_card.dart';
+import '../../shared/widgets/sense_tag.dart';
 import '../../shared/widgets/status_pill.dart';
 import '../../shared/widgets/topic_tag.dart';
 import '../../shared/widgets/trap_tag.dart';
@@ -102,6 +103,14 @@ class _Body extends StatelessWidget {
                       if (word.topic.isTagged) ...[
                         const SizedBox(width: Gap.sm),
                         TopicTag(topic: word.topic),
+                      ],
+                      if (word.senseCount.isTagged) ...[
+                        const SizedBox(width: Gap.sm),
+                        SenseTag(
+                          senseCount: word.senseCount,
+                          noteNo: detail.senseNote,
+                          tappable: true,
+                        ),
                       ],
                     ],
                   ),

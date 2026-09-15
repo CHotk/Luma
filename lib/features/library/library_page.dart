@@ -8,6 +8,7 @@ import '../../app/theme/typography.dart';
 import '../../domain/models/word.dart';
 import '../../domain/rules_config.dart';
 import '../../shared/widgets/ambient_background.dart';
+import '../../shared/widgets/sense_tag.dart';
 import '../../shared/widgets/status_pill.dart';
 import '../../shared/widgets/topic_tag.dart';
 import '../../shared/widgets/trap_tag.dart';
@@ -51,7 +52,13 @@ class LibraryPage extends ConsumerWidget {
                     ),
                   ],
                 ),
-                const _SearchField(),
+                Row(
+                  children: [
+                    const Expanded(child: _SearchField()),
+                    const SizedBox(width: Gap.xs),
+                    const _SortButton(),
+                  ],
+                ),
                 const SizedBox(height: Gap.sm),
                 Expanded(
                   child: async.when(
@@ -81,7 +88,7 @@ class _SearchField extends ConsumerWidget {
       autocorrect: false,
       style: const TextStyle(fontSize: 14, color: AppColors.ink),
       decoration: InputDecoration(
-        hintText: '搜尋單字或中文',
+        hintText: '搜尋單字、中文或標籤',
         hintStyle: const TextStyle(color: AppColors.ink3, fontSize: 14),
         prefixIcon: const Icon(Icons.search, size: 18, color: AppColors.ink3),
         isDense: true,
@@ -94,6 +101,58 @@ class _SearchField extends ConsumerWidget {
       ),
       onChanged: (value) =>
           ref.read(libraryQueryProvider.notifier).state = value,
+    );
+  }
+}
+
+/// 排序方式。只決定「同一種狀態裡面」怎麼排，不會打亂狀態分組。
+class _SortButton extends ConsumerWidget {
+  const _SortButton();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selected = ref.watch(librarySortProvider);
+
+    return PopupMenuButton<LibrarySort>(
+      tooltip: '排序方式',
+      color: const Color(0xFF1A1A24),
+      position: PopupMenuPosition.under,
+      onSelected: (value) =>
+          ref.read(librarySortProvider.notifier).state = value,
+      itemBuilder: (context) => [
+        for (final mode in LibrarySort.values)
+          PopupMenuItem(
+            value: mode,
+            child: Row(
+              children: [
+                Icon(
+                  mode == selected
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_unchecked,
+                  size: 16,
+                  color: mode == selected ? AppColors.accent : AppColors.ink3,
+                ),
+                const SizedBox(width: Gap.sm),
+                Text(mode.label),
+              ],
+            ),
+          ),
+      ],
+      child: Container(
+        width: 36,
+        height: 36,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: AppColors.glassFill,
+          borderRadius: BorderRadius.circular(Radii.button),
+          border: Border.all(color: AppColors.glassEdge),
+        ),
+        child: const Icon(
+          Icons.sort_rounded,
+          size: 18,
+          color: AppColors.ink2,
+        ),
+      ),
     );
   }
 }
@@ -147,6 +206,8 @@ class _List extends ConsumerWidget {
             ),
             const SizedBox(width: Gap.xs),
             _TopicMenu(counts: data.topicCounts),
+            const SizedBox(width: Gap.xs),
+            _SenseMenu(counts: data.senseCounts),
           ],
         ),
         const SizedBox(height: Gap.sm),
@@ -264,6 +325,66 @@ class _TopicMenu extends ConsumerWidget {
   }
 }
 
+/// 詞義豐富度下拉。跟狀態、類別都是「且」的關係，可以同時生效。
+class _SenseMenu extends ConsumerWidget {
+  const _SenseMenu({required this.counts});
+
+  final Map<WordSenseCount, int> counts;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selected = ref.watch(librarySenseProvider);
+    final tagged = WordSenseCount.values.where((s) => s.isTagged).toList();
+
+    return PopupMenuButton<WordSenseCount?>(
+      tooltip: '詞義豐富度',
+      color: const Color(0xFF1A1A24),
+      position: PopupMenuPosition.under,
+      onSelected: (value) =>
+          ref.read(librarySenseProvider.notifier).state = value,
+      itemBuilder: (context) => [
+        const PopupMenuItem(value: null, child: Text('全部詞義')),
+        for (final sense in tagged)
+          PopupMenuItem(
+            value: sense,
+            child: Text('${sense.label} ${counts[sense] ?? 0}'),
+          ),
+        PopupMenuItem(
+          value: WordSenseCount.none,
+          child: Text('未分類 ${counts[WordSenseCount.none] ?? 0}'),
+        ),
+      ],
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(11, 6, 7, 6),
+        decoration: BoxDecoration(
+          color: selected == null ? AppColors.glassFill : AppColors.accentSolid,
+          borderRadius: BorderRadius.circular(Radii.chip),
+          border: Border.all(
+            color: selected == null ? AppColors.glassEdge : Colors.transparent,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              selected?.label ?? '詞義',
+              style: TextStyle(
+                fontSize: 11.5,
+                color: selected == null ? AppColors.ink2 : Colors.white,
+              ),
+            ),
+            Icon(
+              Icons.arrow_drop_down,
+              size: 16,
+              color: selected == null ? AppColors.ink3 : Colors.white,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _Row extends StatelessWidget {
   const _Row({required this.word, required this.rules, this.trapNote});
 
@@ -310,6 +431,10 @@ class _Row extends StatelessWidget {
                       if (word.topic.isTagged) ...[
                         const SizedBox(width: 6),
                         TopicTag(topic: word.topic),
+                      ],
+                      if (word.senseCount.isTagged) ...[
+                        const SizedBox(width: 6),
+                        SenseTag(senseCount: word.senseCount),
                       ],
                     ],
                   ),

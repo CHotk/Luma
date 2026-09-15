@@ -18,6 +18,12 @@ abstract final class AppColors {
   static const accent = Color(0xFF7EA6FF);
   static const accentSolid = Color(0xFF2E6BFF);
 
+  /// 主色的毛玻璃按鈕。上濃下淡，透得出背景但藍色還是看得出來，
+  /// 太淡會跟一般面板分不出哪顆是主要動作。
+  static const accentGlassTop = Color(0x9E2E6BFF);
+  static const accentGlassBottom = Color(0x662E6BFF);
+  static const accentGlassEdge = Color(0x737EA6FF);
+
   /// 語意色。跟主色分開，不可互相借用。
   /// 綠代表答對、黃代表接近、紅代表答錯，標誌和裝飾都不准用這三個。
   static const ok = Color(0xFF5FE08D);

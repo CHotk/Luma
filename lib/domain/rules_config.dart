@@ -37,6 +37,7 @@ class RulesConfig {
     this.confirmRight = 3,
     this.recoveryRatio = 7,
     this.quizStyle = QuizStyle.tapOnly,
+    this.pendingCandidatePoolSize = 30,
   });
 
   /// 一輪總共幾題。
@@ -88,6 +89,12 @@ class RulesConfig {
   /// 這個數字刻意訂得重，錯過的字本來就該被多考幾次才能相信。
   final int recoveryRatio;
 
+  /// 待複習出題時，從「離掌握最遠」的前幾名候選裡隨機抽，這是候選池的大小。
+  ///
+  /// 不是直接拿排最前面的 `pendingPerRound` 個，是先圈出這麼多個最需要練的字，
+  /// 再從裡面完全隨機抽幾個出題，同一批最需要練的字才不會每輪都長一樣。
+  final int pendingCandidatePoolSize;
+
   RulesConfig copyWith({
     int? roundSize,
     int? pendingPerRound,
@@ -98,6 +105,7 @@ class RulesConfig {
     int? confirmRight,
     int? recoveryRatio,
     QuizStyle? quizStyle,
+    int? pendingCandidatePoolSize,
   }) {
     return RulesConfig(
       roundSize: roundSize ?? this.roundSize,
@@ -109,6 +117,8 @@ class RulesConfig {
       confirmRight: confirmRight ?? this.confirmRight,
       recoveryRatio: recoveryRatio ?? this.recoveryRatio,
       quizStyle: quizStyle ?? this.quizStyle,
+      pendingCandidatePoolSize:
+          pendingCandidatePoolSize ?? this.pendingCandidatePoolSize,
     );
   }
 
@@ -122,6 +132,7 @@ class RulesConfig {
     'minutesPerDay': minutesPerDay,
     'confirmRight': confirmRight,
     'recoveryRatio': recoveryRatio,
+    'pendingCandidatePoolSize': pendingCandidatePoolSize,
   };
 
   factory RulesConfig.fromJson(Map<String, dynamic> json) {
@@ -143,6 +154,9 @@ class RulesConfig {
       minutesPerDay: json['minutesPerDay'] as int? ?? d.minutesPerDay,
       confirmRight: json['confirmRight'] as int? ?? d.confirmRight,
       recoveryRatio: json['recoveryRatio'] as int? ?? d.recoveryRatio,
+      pendingCandidatePoolSize:
+          json['pendingCandidatePoolSize'] as int? ??
+          d.pendingCandidatePoolSize,
     );
   }
 }

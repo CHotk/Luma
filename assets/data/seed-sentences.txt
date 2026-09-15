@@ -1,0 +1,17 @@
+# seed-version: 1
+# 高頻句：整句就該直接背起來的常用短句，跟單字題庫是分開的兩份資料。
+# 欄位跟 seed-words.txt 同一套規則：兩個以上空白分隔，開頭 # 是註解或表頭。
+# 這份檔案目前只是先把句子存起來，還沒接上題型或紀錄，等之後決定「考單字
+# 還是考句子」的按鈕怎麼分配，才會真的讀進 App。
+#
+# no    sentence                 zh
+1       What do you mean?        你什麼意思？
+2       It doesn't matter.       沒關係。
+3       What happened?           發生什麼事？
+4       I already know.          我已經知道了。
+5       I'm still waiting.       我還在等。
+6       I just got home.         我剛到家。
+7       Is this enough?          這樣夠嗎？
+8       It seems fine.           看起來沒問題。
+9       I'll take it.            我要這個／我買了。
+10      I'll bring it.           我會把它帶來。
