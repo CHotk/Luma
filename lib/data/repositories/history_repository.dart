@@ -31,6 +31,31 @@ class HistoryRepository {
     return _readRounds();
   }
 
+  /// 匯出成跟 `history.txt` 同一種格式的文字，給使用者複製出去，
+  /// 之後可以貼給人工整理、合併回題庫的紀錄檔裡。
+  ///
+  /// 欄位跟 `history.txt` 一樣：date / round / word / result / mode / input / seconds，
+  /// 用兩個以上空白分隔（跟 `WordSeedLoader._separator` 同一套規則），
+  /// 這樣匯出的文字理論上也能直接被那個剖析器讀回去。
+  Future<String> exportText() async {
+    final all = await entries();
+    final buffer = StringBuffer()
+      ..writeln('# date        round  word  result  mode  input  seconds');
+    for (final e in all) {
+      final date =
+          '${e.at.year.toString().padLeft(4, '0')}-'
+          '${e.at.month.toString().padLeft(2, '0')}-'
+          '${e.at.day.toString().padLeft(2, '0')}';
+      final mode = e.typed ? 'type' : 'tap';
+      final input = e.input.trim().isEmpty ? '-' : e.input.trim();
+      buffer.writeln(
+        '$date  R${e.round}  ${e.word}  ${e.correct ? 'O' : 'X'}  '
+        '$mode  $input  ${e.seconds}',
+      );
+    }
+    return buffer.toString();
+  }
+
   /// 每個字的對錯次數與最後受測日期，一次算好給單字庫用。
   /// 鍵是小寫的單字。
   Future<Map<String, WordTally>> tally() async {

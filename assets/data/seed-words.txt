@@ -1,4 +1,4 @@
-# seed-version: 16
+# seed-version: 17
 # no                word                pos                zh                                                       grade  topic  sense  tags
 1                   a                   art.               一個                                                     國小   -      單義
 2                   about               prep.              關於                                                     國小   -      多義
@@ -1410,3 +1410,4 @@
 1440                kiwi                n.                 奇異果                                                   國中   食物、水果   單義   -
 1441                cherry              n.                 櫻桃                                                     國中   食物、水果   單義   -
 1442                coconut             n.                 椰子                                                     國中   食物、水果   單義   -
+1443                software            n.                 軟體                                                     高中   -      單義   工程師

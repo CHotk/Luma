@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -35,6 +36,15 @@ class HistoryPage extends ConsumerWidget {
                       color: AppColors.ink2,
                     ),
                     const Text('總紀錄', style: AppText.title),
+                    const Spacer(),
+                    // 手機跟電腦各自練的紀錄存在各自裝置裡，不會自動合併，
+                    // 這顆按鈕把紀錄匯出成文字，讓使用者自己拿去手動合併。
+                    IconButton(
+                      onPressed: () => _showExportDialog(context, ref),
+                      icon: const Icon(Icons.ios_share_rounded, size: 20),
+                      color: AppColors.ink2,
+                      tooltip: '匯出紀錄',
+                    ),
                   ],
                 ),
                 const SizedBox(height: Gap.sm),
@@ -59,6 +69,53 @@ class HistoryPage extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// 跳出匯出對話框，內容是跟 `history.txt` 同格式的文字，
+/// 可以複製出去，之後貼給人工整理、合併回題庫的紀錄檔裡。
+Future<void> _showExportDialog(BuildContext context, WidgetRef ref) async {
+  final text = await ref.read(historyRepositoryProvider).exportText();
+  if (!context.mounted) return;
+
+  showDialog<void>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      backgroundColor: const Color(0xFF1A1A24),
+      title: const Text('匯出紀錄', style: TextStyle(color: AppColors.ink)),
+      content: SizedBox(
+        width: double.maxFinite,
+        height: 320,
+        child: SingleChildScrollView(
+          child: SelectableText(
+            text,
+            style: const TextStyle(
+              fontSize: 11.5,
+              color: AppColors.ink2,
+              fontFamily: 'Consolas',
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(),
+          child: const Text('關閉'),
+        ),
+        FilledButton(
+          onPressed: () {
+            Clipboard.setData(ClipboardData(text: text));
+            ScaffoldMessenger.of(dialogContext).showSnackBar(
+              const SnackBar(content: Text('已複製到剪貼簿')),
+            );
+          },
+          style: FilledButton.styleFrom(
+            backgroundColor: AppColors.accentSolid,
+          ),
+          child: const Text('複製'),
+        ),
+      ],
+    ),
+  );
 }
 
 /// 這頁要的三份資料一起抓，省掉畫面裡串好幾個 future。
