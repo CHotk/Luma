@@ -3,30 +3,31 @@
 # Word 池，所以格式欄位數要跟 seed-words.txt 一樣，只是有些欄位對句子
 #沒意義就填 -：
 #   pos 統一填 sent.（不是真的詞性，只是佔位）
-#   topic 一定要有「句型」，出題規則靠這個把句子跟一般單字分開
+#   tags 一定要有「句型」，出題規則靠這個把句子跟一般單字分開（2026-09-16
+#   起不再用獨立的 topic 欄位，類別統一併進 tags，可以跟其他自由標籤
+#   用「、」並列，例如「句型、多益」）
 #   sense（詞義豐富度）對整句沒意義，填 -
-#   tags 自由分類，跟一般單字一樣可以用，沒有就填 -
-#   最後一欄是這句用到哪些學過的單字，用「、」分隔多個，是新加的欄位
+#   最後一欄是這句用到哪些學過的單字，用「、」分隔多個
 # id 接續 seed-words.txt / seed-phrases.txt 的編號，不要重疊。
 #
-# no      sentence                pos    zh                    grade  topic  sense  tags  words
-1444      I don't care.           sent.  我不在乎。            國中   句型   -      -     care
-1445      It's not fair.          sent.  這不公平。            國中   句型   -      -     fair
-1446      I'm not sure.           sent.  我不確定。            國中   句型   -      -     sure
-1447      Don't worry.            sent.  別擔心。              國小   句型   -      -     worry
-1448      You're right.           sent.  你說得對。            國小   句型   -      -     right
-1449      I miss you.             sent.  我想你。              國小   句型   -      -     miss
-1450      Never mind.             sent.  沒關係、別在意。      國小   句型   -      -     mind
-1451      That's too bad.         sent.  真可惜、太糟了。      國小   句型   -      -     bad
-1452      I feel sick.            sent.  我覺得不舒服。        國中   句型   -      -     feel、sick
-1453      It's too late.          sent.  太遲了。              國小   句型   -      -     late
-1454      Take your time.         sent.  慢慢來。              國小   句型   -      -     take、time
-1455      What's the matter?      sent.  怎麼了？              國中   句型   -      -     matter
-1456      You're welcome.         sent.  不客氣。              國小   句型   -      -     welcome
-1457      Excuse me.              sent.  不好意思、借過。      國中   句型   -      -     excuse
-1458      Good job!               sent.  做得好！              國小   句型   -      -     job
-1459      I need a break.         sent.  我需要休息一下。      國小   句型   -      -     need、break
-1460      This is boring.         sent.  這好無聊。            國中   句型   -      -     boring
-1461      I'm so excited!         sent.  我好興奮！            國中   句型   -      -     excited
-1462      No way!                 sent.  不會吧！／怎麼可能！  國小   句型   -      -     way
-1463      I'm scared.             sent.  我好害怕。            國小   句型   -      -     scared
+# no    sentence            pos    zh                    grade  sense  tags  words
+1444  I don't care.       sent.  我不在乎。            國中   -      句型  care
+1445  It's not fair.      sent.  這不公平。            國中   -      句型  fair
+1446  I'm not sure.       sent.  我不確定。            國中   -      句型  sure
+1447  Don't worry.        sent.  別擔心。              國小   -      句型  worry
+1448  You're right.       sent.  你說得對。            國小   -      句型  right
+1449  I miss you.         sent.  我想你。              國小   -      句型  miss
+1450  Never mind.         sent.  沒關係、別在意。      國小   -      句型  mind
+1451  That's too bad.     sent.  真可惜、太糟了。      國小   -      句型  bad
+1452  I feel sick.        sent.  我覺得不舒服。        國中   -      句型  feel、sick
+1453  It's too late.      sent.  太遲了。              國小   -      句型  late
+1454  Take your time.     sent.  慢慢來。              國小   -      句型  take、time
+1455  What's the matter?  sent.  怎麼了？              國中   -      句型  matter
+1456  You're welcome.     sent.  不客氣。              國小   -      句型  welcome
+1457  Excuse me.          sent.  不好意思、借過。      國中   -      句型  excuse
+1458  Good job!           sent.  做得好！              國小   -      句型  job
+1459  I need a break.     sent.  我需要休息一下。      國小   -      句型  need、break
+1460  This is boring.     sent.  這好無聊。            國中   -      句型  boring
+1461  I'm so excited!     sent.  我好興奮！            國中   -      句型  excited
+1462  No way!             sent.  不會吧！／怎麼可能！  國小   -      句型  way
+1463  I'm scared.         sent.  我好害怕。            國小   -      句型  scared

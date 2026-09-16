@@ -17,7 +17,7 @@ void main() {
     int right = 0,
     int wrong = 0,
     DateTime? lastTest,
-    List<WordTopic> topics = const [],
+    List<String> tags = const [],
   }) => Word(
     id: id,
     word: w,
@@ -27,7 +27,7 @@ void main() {
     right: right,
     wrong: wrong,
     lastTest: lastTest,
-    topics: topics,
+    tags: tags,
   );
 
   Word sentence(
@@ -42,7 +42,7 @@ void main() {
     right: right,
     wrong: wrong,
     lastTest: lastTest,
-    topics: const [WordTopic.sentence],
+    tags: const [sentenceTag],
   );
 
   /// 30 個沒考過、5 個答錯過還沒答對、3 個答對一次的字。

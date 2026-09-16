@@ -26,57 +26,20 @@ enum WordGrade {
   }
 }
 
-/// 單字的主題分類，對應題庫檔的第六欄。
-///
-/// 目前有食物、居家、月份、數字、顏色、水果、句型七類，其餘都是未分類。
-/// **句型比較特殊**：標了句型的 `Word` 其實是一整句英文（見
+/// 句子專用的標籤：標了這個標籤的 `Word` 其實是一整句英文（見
 /// `assets/data/sentences.txt`），不是單字，出題規則要另外開一個句型池，
 /// 不能跟一般單字混在待複習/新字/已掌握三個池子裡（見 `QuestionPicker`）。
-/// **一個字可以同時屬於好幾類**（使用者 2026-09-15 拍板）：例如 orange
-/// 同時是食物、水果、顏色，`Word.topics` 是清單不是單一值。
-/// 要加新類別就兩步：這裡加一個值，題庫檔那一欄填上同樣的中文，
-/// 多個類別用「、」分隔（跟 [Word.tags] 同一套分隔規則）。畫面不用改。
-enum WordTopic {
-  none('未分類'),
-  food('食物'),
-  home('居家'),
-  month('月份'),
-  number('數字'),
-  color('顏色'),
-  fruit('水果'),
-  sentence('句型');
-
-  const WordTopic(this.label);
-  final String label;
-
-  /// 有沒有真的被分類過。未分類的不顯示標籤。
-  bool get isTagged => this != WordTopic.none;
-
-  static WordTopic parse(String? raw) {
-    final text = raw?.trim() ?? '';
-    for (final topic in values) {
-      if (topic != WordTopic.none && topic.label == text) return topic;
-    }
-    return WordTopic.none;
-  }
-
-  /// 題庫檔第六欄可能是「食物、水果」這種多個類別，用「、」分隔。
-  /// `-` 或空字串代表沒有分類，解析成空清單，不是 `[none]`。
-  static List<WordTopic> parseList(String? raw) {
-    final text = raw?.trim() ?? '';
-    if (text.isEmpty || text == '-') return const [];
-    return text
-        .split('、')
-        .map((t) => parse(t))
-        .where((t) => t != WordTopic.none)
-        .toSet()
-        .toList();
-  }
-}
-
-/// 單字有幾個意思，對應題庫檔的第七欄。
 ///
-/// 跟 [WordTopic] 是完全獨立的兩個分類軸，不要混在一起判斷。
+/// 2026-09-16 之前類別（topic）是獨立的欄位跟 enum（食物、居家、月份、
+/// 數字、顏色、水果、句型），使用者決定拿掉這個分類軸，全部併進自由標籤
+/// [Word.tags]：類別本來就跟標籤一樣是「一個字可以貼好幾個」的自由分類，
+/// 沒必要另外開一個固定選項的 enum，單字庫的「類別」下拉現在直接對 tags
+/// 出現過的所有值，不是列舉這裡的常數。句型這個標籤比較特殊，是唯一一個
+/// 真正影響出題邏輯（而不是只給畫面篩選用）的標籤，才把字串常數留在這裡
+/// 而不是散在各處硬編碼。
+const sentenceTag = '句型';
+
+/// 單字有幾個意思，對應題庫檔的欄位。
 /// 判斷標準是查字典的義項數：1 個算單義，2 到 4 個算多義，
 /// 5 個以上算極多義。這是人工標記時要靠的標準，App 本身不會自動算，
 /// 沒標過的字一律是未分類。
@@ -141,7 +104,6 @@ class Word {
     required this.pos,
     required this.zh,
     required this.grade,
-    this.topics = const [],
     this.senseCount = WordSenseCount.none,
     this.example = '',
     this.added,
@@ -158,11 +120,7 @@ class Word {
   final String pos;
   final String zh;
 
-  /// 主題分類，可以同時屬於好幾類。改題庫檔第六欄就能改，不用動程式。
-  final List<WordTopic> topics;
-
-  /// 有幾個意思。改題庫檔第七欄就能改，不用動程式。
-  /// 跟 [topic] 是獨立的兩個分類軸。
+  /// 有幾個意思。改題庫檔那一欄就能改，不用動程式。
   final WordSenseCount senseCount;
 
   /// 大概幾年級學的。估計值，改題庫檔就能修正。
@@ -197,11 +155,11 @@ class Word {
   /// 沒標的字是空清單，不是 `['-']`——那個 `-` 只是題庫檔裡「沒有」的寫法。
   final List<String> tags;
 
-  /// 這個字用到哪些學過的單字，目前只有句型（`WordTopic.sentence`）會用到，
-  /// 存的是文字（單字本身），不是 id——文字好讀好編輯，代價是拼錯就對不上，
-  /// 這是使用者 2026-09-16 權衡過的決定。跟 [tags] 是不同欄位、不同語意：
-  /// tags 是自由分類（像多益、工程師），這個是「這句用到哪些字」的交叉參照，
-  /// 混在同一欄會分不出哪個是哪個。
+  /// 這個字用到哪些學過的單字，目前只有句型（標了 [sentenceTag] 的字）
+  /// 會用到，存的是文字（單字本身），不是 id——文字好讀好編輯，代價是
+  /// 拼錯就對不上，這是使用者 2026-09-16 權衡過的決定。跟 [tags] 是不同
+  /// 欄位、不同語意：tags 是自由分類（像多益、工程師、句型），這個是
+  /// 「這句用到哪些字」的交叉參照，混在同一欄會分不出哪個是哪個。
   final List<String> relatedWords;
 
   /// 標籤用「、」分隔多個，題庫檔裡的 `-` 代表沒標，解析成空清單。
@@ -255,7 +213,6 @@ class Word {
 
   Word copyWith({
     int? id,
-    List<WordTopic>? topics,
     WordSenseCount? senseCount,
     String? example,
     DateTime? added,
@@ -272,7 +229,6 @@ class Word {
       pos: pos,
       zh: zh,
       grade: grade,
-      topics: topics ?? this.topics,
       senseCount: senseCount ?? this.senseCount,
       example: example ?? this.example,
       added: added ?? this.added,
@@ -291,7 +247,6 @@ class Word {
     'pos': pos,
     'zh': zh,
     'grade': grade.label,
-    'topics': [for (final t in topics) t.label],
     'senseCount': senseCount.label,
     'example': example,
     'added': added?.toIso8601String(),
@@ -310,18 +265,6 @@ class Word {
     zh: json['zh'] as String,
     // 舊版存的是 level 兩級分法，讀得到就沿用，讀不到才當國小。
     grade: WordGrade.parse((json['grade'] ?? json['level']) as String? ?? '國小'),
-    // 舊版 topic 是單一值的字串，讀到就併成一格清單；
-    // 新版 topics 才是清單，兩種格式都要讀得起來。
-    topics: json['topics'] is List
-        ? [
-            for (final t in json['topics'] as List)
-              WordTopic.parse(t as String?),
-          ].where((t) => t != WordTopic.none).toSet().toList()
-        : (json['topic'] as String?) != null
-        ? [WordTopic.parse(json['topic'] as String?)]
-              .where((t) => t != WordTopic.none)
-              .toList()
-        : const [],
     senseCount: WordSenseCount.parse(json['senseCount'] as String?),
     example: json['example'] as String? ?? '',
     added: _date(json['added']),

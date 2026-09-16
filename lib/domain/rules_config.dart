@@ -55,7 +55,7 @@ class RulesConfig {
   /// 掌握不代表永遠不會忘，隔一陣子碰一次才知道是不是真的還記得。
   final int masteredPerRound;
 
-  /// 每輪固定出幾題句型（整句英文，見 `Word.topics` 的 `WordTopic.sentence`）。
+  /// 每輪固定出幾題句型（整句英文，標了 `sentenceTag`（「句型」）的字）。
   /// 使用者 2026-09-16 決定的：從新字的配額裡挪一題出來，不是額外加題數。
   final int sentencePerRound;
 

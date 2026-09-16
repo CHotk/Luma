@@ -10,7 +10,7 @@ import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/glass_card.dart';
 import '../../shared/widgets/sense_tag.dart';
 import '../../shared/widgets/status_pill.dart';
-import '../../shared/widgets/topic_tag.dart';
+import '../../shared/widgets/tag_badge.dart';
 import '../../shared/widgets/trap_tag.dart';
 import 'word_detail_controller.dart';
 
@@ -100,9 +100,9 @@ class _Body extends StatelessWidget {
                         const SizedBox(width: Gap.sm),
                         TrapTag(noteNo: detail.trapNote!, tappable: true),
                       ],
-                      if (word.topics.isNotEmpty) ...[
+                      if (word.tags.isNotEmpty) ...[
                         const SizedBox(width: Gap.sm),
-                        TopicTag(topics: word.topics),
+                        TagBadge(tags: word.tags),
                       ],
                       if (word.senseCount.isTagged) ...[
                         const SizedBox(width: Gap.sm),

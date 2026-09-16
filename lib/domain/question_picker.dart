@@ -142,7 +142,7 @@ class QuestionPicker {
 
   /// 是不是句型（一整句英文），不是一般單字。句型有自己獨立的四個池子，
   /// 不跟一般單字的待複習/新字/已掌握混在一起，所以三個主池子都要排除它。
-  bool _isSentence(Word w) => w.topics.contains(WordTopic.sentence);
+  bool _isSentence(Word w) => w.tags.contains(sentenceTag);
 
   /// 沒考過的字。題庫順序本身是照字母排的，直接取會整輪都是同一個字母，
   /// 所以先洗牌再取。

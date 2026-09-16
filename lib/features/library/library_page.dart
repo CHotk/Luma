@@ -10,7 +10,7 @@ import '../../domain/rules_config.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/sense_tag.dart';
 import '../../shared/widgets/status_pill.dart';
-import '../../shared/widgets/topic_tag.dart';
+import '../../shared/widgets/tag_badge.dart';
 import '../../shared/widgets/trap_tag.dart';
 import 'library_controller.dart';
 
@@ -180,7 +180,7 @@ class _List extends ConsumerWidget {
             style: AppText.note,
           ),
         ),
-        // 狀態在左邊可以橫向滑，類別固定在右邊不會被滑走。
+        // 狀態在左邊可以橫向滑，標籤固定在右邊不會被滑走。
         // 放這裡而不是塞進搜尋框：搜尋框留給打字，篩選集中在同一列比較好找。
         Row(
           children: [
@@ -205,7 +205,7 @@ class _List extends ConsumerWidget {
               ),
             ),
             const SizedBox(width: Gap.xs),
-            _TopicMenu(counts: data.topicCounts),
+            _TagMenu(counts: data.tagCounts),
             const SizedBox(width: Gap.xs),
             _SenseMenu(counts: data.senseCounts),
           ],
@@ -265,34 +265,38 @@ class _Chip extends ConsumerWidget {
   }
 }
 
-/// 類別下拉。跟狀態篩選是「且」的關係，兩個可以同時生效。
-class _TopicMenu extends ConsumerWidget {
-  const _TopicMenu({required this.counts});
+/// 標籤下拉。跟狀態篩選是「且」的關係，兩個可以同時生效。
+///
+/// 2026-09-16 之前這裡篩的是固定選項的「類別」（`WordTopic`），使用者決定
+/// 拿掉那個分類軸，下拉選單改成直接列出資料裡實際出現過的所有標籤
+/// （`data.tagCounts` 的鍵），不是列舉某個 enum——新增一種標籤完全不用
+/// 改這裡的程式，題庫檔多打一個字就會自動出現在下拉選單裡。
+class _TagMenu extends ConsumerWidget {
+  const _TagMenu({required this.counts});
 
-  final Map<WordTopic, int> counts;
+  final Map<String, int> counts;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final selected = ref.watch(libraryTopicProvider);
-    final tagged = WordTopic.values.where((t) => t.isTagged).toList();
+    final selected = ref.watch(libraryTagProvider);
+    final tags = counts.keys.toList()..sort();
 
-    return PopupMenuButton<WordTopic?>(
-      tooltip: '類別',
+    return PopupMenuButton<String?>(
+      tooltip: '標籤',
       color: const Color(0xFF1A1A24),
       position: PopupMenuPosition.under,
       onSelected: (value) =>
-          ref.read(libraryTopicProvider.notifier).state = value,
+          ref.read(libraryTagProvider.notifier).state = value,
       itemBuilder: (context) => [
-        const PopupMenuItem(value: null, child: Text('全部類別')),
-        for (final topic in tagged)
+        const PopupMenuItem(value: null, child: Text('全部標籤')),
+        for (final tag in tags)
+          if (tag != untaggedLabel)
+            PopupMenuItem(value: tag, child: Text('$tag ${counts[tag] ?? 0}')),
+        if (counts.containsKey(untaggedLabel))
           PopupMenuItem(
-            value: topic,
-            child: Text('${topic.label} ${counts[topic] ?? 0}'),
+            value: untaggedLabel,
+            child: Text('$untaggedLabel ${counts[untaggedLabel] ?? 0}'),
           ),
-        PopupMenuItem(
-          value: WordTopic.none,
-          child: Text('未分類 ${counts[WordTopic.none] ?? 0}'),
-        ),
       ],
       child: Container(
         padding: const EdgeInsets.fromLTRB(11, 6, 7, 6),
@@ -307,7 +311,7 @@ class _TopicMenu extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              selected?.label ?? '類別',
+              selected ?? '標籤',
               style: TextStyle(
                 fontSize: 11.5,
                 color: selected == null ? AppColors.ink2 : Colors.white,
@@ -325,7 +329,7 @@ class _TopicMenu extends ConsumerWidget {
   }
 }
 
-/// 詞義豐富度下拉。跟狀態、類別都是「且」的關係，可以同時生效。
+/// 詞義豐富度下拉。跟狀態、標籤都是「且」的關係，可以同時生效。
 class _SenseMenu extends ConsumerWidget {
   const _SenseMenu({required this.counts});
 
@@ -428,9 +432,9 @@ class _Row extends StatelessWidget {
                         const SizedBox(width: 6),
                         TrapTag(noteNo: trapNote!),
                       ],
-                      if (word.topics.isNotEmpty) ...[
+                      if (word.tags.isNotEmpty) ...[
                         const SizedBox(width: 6),
-                        TopicTag(topics: word.topics),
+                        TagBadge(tags: word.tags),
                       ],
                       if (word.senseCount.isTagged) ...[
                         const SizedBox(width: 6),

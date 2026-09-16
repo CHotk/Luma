@@ -11,7 +11,7 @@ import '../../domain/rules_config.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/glass_card.dart';
 import '../../shared/widgets/sense_tag.dart';
-import '../../shared/widgets/topic_tag.dart';
+import '../../shared/widgets/tag_badge.dart';
 import '../../shared/widgets/trap_tag.dart';
 import '../notes/notes_controller.dart';
 
@@ -211,7 +211,7 @@ class _Card extends StatelessWidget {
                   TrapTag(noteNo: trapNote!, tappable: true),
                   const SizedBox(width: 6),
                 ],
-                TopicTag(topics: word.topics),
+                TagBadge(tags: word.tags),
                 if (word.senseCount.isTagged) ...[
                   const SizedBox(width: 6),
                   SenseTag(senseCount: word.senseCount),

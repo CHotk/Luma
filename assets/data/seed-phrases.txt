@@ -2,12 +2,12 @@
 # 高頻固定搭配。欄位規則、剖析方式完全比照 seed-words.txt（同一個剖析器讀），
 # 不要另外發明格式：兩個以上空白分隔，開頭 # 是註解或表頭，id 接續
 # seed-words.txt 的編號往下排，不要重疊。
-# no    word                       pos    zh                              grade  topic  sense  tags
-1422    apply for a position       phr.   申請職位                        高中   -      單義   多益
-1423    meet the deadline          phr.   趕上／符合截止期限              大學   -      單義   多益
-1424    attend a meeting           phr.   參加會議                        國中   -      單義   多益
-1425    submit an application      phr.   提交申請                        大學   -      單義   多益
-1426    confirm a reservation      phr.   確認預約                        高中   -      單義   多益
-1427    provide information       phr.   提供資訊                        高中   -      單義   多益
-1428    reduce costs               phr.   降低成本                        高中   -      單義   多益
-1429    increase sales             phr.   增加銷售額                      高中   -      單義   多益
+# no    word                   pos   zh                  grade  sense  tags
+1422  apply for a position   phr.  申請職位            高中   單義   多益
+1423  meet the deadline      phr.  趕上／符合截止期限  大學   單義   多益
+1424  attend a meeting       phr.  參加會議            國中   單義   多益
+1425  submit an application  phr.  提交申請            大學   單義   多益
+1426  confirm a reservation  phr.  確認預約            高中   單義   多益
+1427  provide information    phr.  提供資訊            高中   單義   多益
+1428  reduce costs           phr.  降低成本            高中   單義   多益
+1429  increase sales         phr.  增加銷售額          高中   單義   多益

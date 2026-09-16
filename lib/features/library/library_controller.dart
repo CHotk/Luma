@@ -14,12 +14,19 @@ final libraryFilterProvider = StateProvider.autoDispose<WordStatus?>(
   (ref) => null,
 );
 
-/// 類別篩選。null 代表不篩。跟狀態是「且」的關係，兩個可以同時生效。
-final libraryTopicProvider = StateProvider.autoDispose<WordTopic?>(
-  (ref) => null,
-);
+/// 沒有任何標籤的字，在標籤下拉裡用這個字串代表，跟真正的標籤字串
+/// 用同一個 Map 存，是唯一保留的特殊值（等同以前 `WordTopic.none`
+/// 的「未分類」桶）。
+const untaggedLabel = '未分類';
 
-/// 詞義豐富度篩選。null 代表不篩。跟狀態、類別都是「且」的關係。
+/// 標籤篩選。null 代表不篩，[untaggedLabel] 代表只看沒有任何標籤的字，
+/// 其餘就是實際的標籤字串。跟狀態是「且」的關係，兩個可以同時生效。
+///
+/// 2026-09-16 之前這裡篩的是固定選項的類別（`WordTopic`），使用者決定
+/// 拿掉那個分類軸，類別跟標籤合併成同一件事——這裡直接篩 `Word.tags`。
+final libraryTagProvider = StateProvider.autoDispose<String?>((ref) => null);
+
+/// 詞義豐富度篩選。null 代表不篩。跟狀態、標籤都是「且」的關係。
 final librarySenseProvider = StateProvider.autoDispose<WordSenseCount?>(
   (ref) => null,
 );
@@ -59,7 +66,7 @@ class LibraryData {
   const LibraryData({
     required this.words,
     required this.counts,
-    required this.topicCounts,
+    required this.tagCounts,
     required this.senseCounts,
     required this.traps,
     required this.rules,
@@ -72,8 +79,8 @@ class LibraryData {
   /// 不然篩選鈕上的數字會跟著搜尋跳動，很難用。
   final Map<WordStatus, int> counts;
 
-  /// 每個類別各有幾個字，給下拉選單顯示。
-  final Map<WordTopic, int> topicCounts;
+  /// 每個標籤各有幾個字，給下拉選單顯示，鍵是標籤字串（含 [untaggedLabel]）。
+  final Map<String, int> tagCounts;
 
   /// 每個詞義豐富度各有幾個字，給下拉選單顯示。
   final Map<WordSenseCount, int> senseCounts;
@@ -90,24 +97,24 @@ final libraryProvider = FutureProvider.autoDispose<LibraryData>((ref) async {
   final rules = await ref.watch(settingsRepositoryProvider).loadRules();
   final query = ref.watch(libraryQueryProvider).trim();
   final filter = ref.watch(libraryFilterProvider);
-  final topic = ref.watch(libraryTopicProvider);
+  final tag = ref.watch(libraryTagProvider);
   final sense = ref.watch(librarySenseProvider);
   final sortBy = ref.watch(librarySortProvider);
   final traps = await ref.watch(trapWordsProvider.future);
 
   final counts = Scoring.countByStatus(all, rules);
 
-  // 有幾個字被分過類，決定要不要顯示類別下拉。
-  // 一個字可以同時屬於好幾類，所以是每個類別各自加總，不是互斥的單一計數，
-  // 全部類別加起來的數字會超過單字總數，這是預期的。
-  final topicCounts = <WordTopic, int>{};
+  // 有幾個字被貼過標籤，決定要不要顯示標籤下拉。
+  // 一個字可以同時貼好幾個標籤，所以是每個標籤各自加總，不是互斥的單一計數，
+  // 全部標籤加起來的數字會超過單字總數，這是預期的。
+  final tagCounts = <String, int>{};
   final senseCounts = <WordSenseCount, int>{};
   for (final w in all) {
-    if (w.topics.isEmpty) {
-      topicCounts[WordTopic.none] = (topicCounts[WordTopic.none] ?? 0) + 1;
+    if (w.tags.isEmpty) {
+      tagCounts[untaggedLabel] = (tagCounts[untaggedLabel] ?? 0) + 1;
     } else {
-      for (final t in w.topics) {
-        topicCounts[t] = (topicCounts[t] ?? 0) + 1;
+      for (final t in w.tags) {
+        tagCounts[t] = (tagCounts[t] ?? 0) + 1;
       }
     }
     senseCounts[w.senseCount] = (senseCounts[w.senseCount] ?? 0) + 1;
@@ -118,10 +125,10 @@ final libraryProvider = FutureProvider.autoDispose<LibraryData>((ref) async {
     if (filter != null && w.statusWith(rules) != filter) {
       return false;
     }
-    // 狀態、類別、詞義豐富度是「且」的關係：選了都要同時符合。
-    // 類別篩選看的是「有沒有包含」，不是「剛好只有這一個」。
-    if (topic != null &&
-        !(topic == WordTopic.none ? w.topics.isEmpty : w.topics.contains(topic))) {
+    // 狀態、標籤、詞義豐富度是「且」的關係：選了都要同時符合。
+    // 標籤篩選看的是「有沒有包含」，不是「剛好只有這一個」。
+    if (tag != null &&
+        !(tag == untaggedLabel ? w.tags.isEmpty : w.tags.contains(tag))) {
       return false;
     }
     if (sense != null && w.senseCount != sense) return false;
@@ -160,7 +167,7 @@ final libraryProvider = FutureProvider.autoDispose<LibraryData>((ref) async {
   return LibraryData(
     words: filtered,
     counts: counts,
-    topicCounts: topicCounts,
+    tagCounts: tagCounts,
     senseCounts: senseCounts,
     traps: traps,
     rules: rules,
