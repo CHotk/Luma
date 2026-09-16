@@ -195,7 +195,9 @@ class _Body extends ConsumerWidget {
                       )
                     : null,
                 onPlus:
-                    rules.pendingPerRound + rules.masteredPerRound <
+                    rules.pendingPerRound +
+                            rules.masteredPerRound +
+                            rules.sentencePerRound <
                         rules.roundSize
                     ? () => save(
                         rules.copyWith(
@@ -241,7 +243,9 @@ class _Body extends ConsumerWidget {
                       )
                     : null,
                 onPlus:
-                    rules.masteredPerRound + rules.pendingPerRound <
+                    rules.masteredPerRound +
+                            rules.pendingPerRound +
+                            rules.sentencePerRound <
                         rules.roundSize
                     ? () => save(
                         rules.copyWith(
@@ -252,11 +256,35 @@ class _Body extends ConsumerWidget {
               ),
               const _Hair(),
               _Stepper(
+                title: '每輪幾題句型',
+                note: '從新字的配額挪過來，不是額外加題數',
+                value: '${rules.sentencePerRound} 題',
+                onMinus: rules.sentencePerRound > 0
+                    ? () => save(
+                        rules.copyWith(
+                          sentencePerRound: rules.sentencePerRound - 1,
+                        ),
+                      )
+                    : null,
+                onPlus:
+                    rules.sentencePerRound +
+                            rules.pendingPerRound +
+                            rules.masteredPerRound <
+                        rules.roundSize
+                    ? () => save(
+                        rules.copyWith(
+                          sentencePerRound: rules.sentencePerRound + 1,
+                        ),
+                      )
+                    : null,
+              ),
+              const _Hair(),
+              _Stepper(
                 title: '每輪出題數',
 
                 note:
-                    '待複習 ${rules.pendingPerRound}、新字 ${rules.freshPerRound}、'
-                    '已掌握 ${rules.masteredPerRound}',
+                    '待複習 ${rules.pendingPerRound}、句型 ${rules.sentencePerRound}、'
+                    '新字 ${rules.freshPerRound}、已掌握 ${rules.masteredPerRound}',
 
                 value: '${rules.roundSize} 題',
                 onMinus: rules.roundSize > 3

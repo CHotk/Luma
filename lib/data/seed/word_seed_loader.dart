@@ -6,11 +6,14 @@ import 'seed_source.dart';
 
 /// 把打包在 App 裡的題庫與既有紀錄讀進來。
 ///
-/// 三個來源：
+/// 四個來源，前三個欄位格式完全一樣，共用同一個剖析器（`_loadWordFile`）：
 ///   assets/data/seed-words.txt    單字題庫，還沒考過的候選字
-///   assets/data/seed-phrases.txt  高頻固定搭配，跟單字題庫同一套欄位規則，
-///                                 讀完直接併進同一個池子，出題、篩選都跟單字一視同仁
-///   assets/data/words.txt         使用者已經考過的字，帶著對錯次數
+///   assets/data/seed-phrases.txt  高頻固定搭配，讀完直接併進同一個池子，
+///                                 出題、篩選都跟單字一視同仁
+///   assets/data/sentences.txt     句型，一整句英文，靠 `WordTopic.sentence`
+///                                 這個標記在出題規則裡跟一般單字分開
+///   assets/data/words.txt         使用者已經考過的字，帶著對錯次數，
+///                                 格式不一樣，有自己的剖析器（`_readExisting`）
 ///
 /// 欄位都用「兩個以上空白」分隔，開頭是 # 的是註解或表頭。
 /// 第一行的 `# seed-version: N` 是題庫版本，加了新字就要往上加。
@@ -20,17 +23,33 @@ class WordSeedLoader implements SeedSource {
   /// 每次從 En 資料夾重新複製檔案進 assets 就要 +1。
   /// 忘了加，App 就不會同步，然後你會以為程式壞了。
   @override
-  int get bundleVersion => 22;
+  int get bundleVersion => 25;
 
   Future<List<Word>> _seedWords() async {
     final words = <Word>[];
-    await _loadWordFile('assets/data/seed-words.txt', words);
-    await _loadWordFile('assets/data/seed-phrases.txt', words);
+    await _loadSeedWords(words);
+    await _loadPhrases(words);
+    await _loadSentences(words);
     return words;
   }
 
-  /// 讀一份「單字題庫格式」的檔案，剖析結果直接接在 [words] 後面。
-  /// 單字題庫和固定搭配用同一個剖析器，欄位規則要保持一致。
+  /// 讀 `seed-words.txt`：單字題庫，還沒考過的候選字。
+  Future<void> _loadSeedWords(List<Word> words) =>
+      _loadWordFile('assets/data/seed-words.txt', words);
+
+  /// 讀 `seed-phrases.txt`：高頻固定搭配，跟單字題庫同一套欄位規則，
+  /// 讀完直接併進同一個池子，出題、篩選都跟單字一視同仁。
+  Future<void> _loadPhrases(List<Word> words) =>
+      _loadWordFile('assets/data/seed-phrases.txt', words);
+
+  /// 讀 `sentences.txt`：句型，整句英文直接背，靠 `WordTopic.sentence`
+  /// 這個標記在出題規則裡跟一般單字分開（見 `QuestionPicker`）。
+  Future<void> _loadSentences(List<Word> words) =>
+      _loadWordFile('assets/data/sentences.txt', words);
+
+  /// 真正剖析檔案內容的地方，三個來源共用同一套欄位規則，剖析結果
+  /// 直接接在 [words] 後面。欄位規則要是哪天三個來源真的分岔了，
+  /// 才需要拆成三個獨立的剖析器，現在硬拆只會多維護三份幾乎一樣的程式碼。
   Future<void> _loadWordFile(String asset, List<Word> words) async {
     final raw = await rootBundle.loadString(asset);
     for (final line in _rows(raw)) {
@@ -48,6 +67,8 @@ class WordSeedLoader implements SeedSource {
               ? WordSenseCount.parse(cols[6])
               : WordSenseCount.none,
           tags: cols.length > 7 ? Word.parseTags(cols[7]) : const [],
+          // 第九欄，句型專用：這句用到哪些學過的單字，跟 tags 分開存。
+          relatedWords: cols.length > 8 ? Word.parseTags(cols[8]) : const [],
         ),
       );
     }
@@ -79,6 +100,13 @@ class WordSeedLoader implements SeedSource {
               // 題庫跟 words.txt 都有標籤時是合併不是誰蓋過誰，
               // 不然題庫標的分類考過一次就會被洗掉。
               tags: {...existing.tags, ...entry.value.tags}.toList(),
+              // topics 只有 seed-words.txt／seed-phrases.txt 會標，
+              // words.txt 沒有這欄，existing.topics 維持不動就好。
+              // 詞義豐富度只有一個值，不是清單，沒辦法取聯集：
+              // 題庫已經標過就以題庫為準，題庫沒標才讓 words.txt 補。
+              senseCount: existing.senseCount != WordSenseCount.none
+                  ? existing.senseCount
+                  : entry.value.senseCount,
             )
           : Word(
               id: ++nextId,
@@ -93,6 +121,7 @@ class WordSeedLoader implements SeedSource {
               wrong: entry.value.wrong,
               lastTest: entry.value.lastTest,
               tags: entry.value.tags,
+              senseCount: entry.value.senseCount,
             );
     }
 
@@ -135,7 +164,16 @@ class WordSeedLoader implements SeedSource {
     return entries;
   }
 
-  /// 既有紀錄：no / word / pos / zh / example / added / right / wrong / last_test / tags
+  /// 既有紀錄：no / word / pos / zh / example / added / right / wrong /
+  /// last_test / tags / sense
+  ///
+  /// 後兩欄是後來才加的，舊資料沒有也讀得起來。
+  /// **words.txt 沒有獨立的 topics 欄位**——2026-09-16 使用者跟這邊討論過
+  /// grade／topic 要不要也比照 sense 開欄位，結論是不用：grade、topic
+  /// 改用 tags 表示就好（例如標「國小」「食物」），只有 sense 跟「一字多義
+  /// 只記半個」這個已知弱點直接相關，才值得開專用欄位。所以這裡分類只從
+  /// tags 讀，topics 一律留空，考過的字的主題分類完全靠 seed-words.txt／
+  /// seed-phrases.txt 那邊的 topic 欄位。
   Future<Map<String, _Existing>> _readExisting() async {
     final raw = await rootBundle.loadString('assets/data/words.txt');
     final result = <String, _Existing>{};
@@ -153,6 +191,9 @@ class WordSeedLoader implements SeedSource {
         wrong: int.tryParse(cols[7]) ?? 0,
         lastTest: cols.length > 8 ? DateTime.tryParse(cols[8]) : null,
         tags: cols.length > 9 ? Word.parseTags(cols[9]) : const [],
+        senseCount: cols.length > 10
+            ? WordSenseCount.parse(cols[10])
+            : WordSenseCount.none,
       );
     }
     return result;
@@ -177,6 +218,7 @@ class _Existing {
     this.added,
     this.lastTest,
     this.tags = const [],
+    this.senseCount = WordSenseCount.none,
   });
 
   final String word;
@@ -188,4 +230,5 @@ class _Existing {
   final int wrong;
   final DateTime? lastTest;
   final List<String> tags;
+  final WordSenseCount senseCount;
 }

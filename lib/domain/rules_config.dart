@@ -38,6 +38,7 @@ class RulesConfig {
     this.recoveryRatio = 7,
     this.quizStyle = QuizStyle.tapOnly,
     this.pendingCandidatePoolSize = 30,
+    this.sentencePerRound = 1,
   });
 
   /// 一輪總共幾題。
@@ -54,9 +55,13 @@ class RulesConfig {
   /// 掌握不代表永遠不會忘，隔一陣子碰一次才知道是不是真的還記得。
   final int masteredPerRound;
 
-  /// 真正沒考過的字要出幾題。剩下的位置都給新字。
+  /// 每輪固定出幾題句型（整句英文，見 `Word.topics` 的 `WordTopic.sentence`）。
+  /// 使用者 2026-09-16 決定的：從新字的配額裡挪一題出來，不是額外加題數。
+  final int sentencePerRound;
+
+  /// 真正沒考過的字要出幾題。剩下的位置扣掉句型之後才是新字。
   int get freshPerRound {
-    final fresh = roundSize - pendingPerRound - masteredPerRound;
+    final fresh = roundSize - pendingPerRound - masteredPerRound - sentencePerRound;
     return fresh < 0 ? 0 : fresh;
   }
 
@@ -106,6 +111,7 @@ class RulesConfig {
     int? recoveryRatio,
     QuizStyle? quizStyle,
     int? pendingCandidatePoolSize,
+    int? sentencePerRound,
   }) {
     return RulesConfig(
       roundSize: roundSize ?? this.roundSize,
@@ -119,6 +125,7 @@ class RulesConfig {
       quizStyle: quizStyle ?? this.quizStyle,
       pendingCandidatePoolSize:
           pendingCandidatePoolSize ?? this.pendingCandidatePoolSize,
+      sentencePerRound: sentencePerRound ?? this.sentencePerRound,
     );
   }
 
@@ -133,6 +140,7 @@ class RulesConfig {
     'confirmRight': confirmRight,
     'recoveryRatio': recoveryRatio,
     'pendingCandidatePoolSize': pendingCandidatePoolSize,
+    'sentencePerRound': sentencePerRound,
   };
 
   factory RulesConfig.fromJson(Map<String, dynamic> json) {
@@ -157,6 +165,8 @@ class RulesConfig {
       pendingCandidatePoolSize:
           json['pendingCandidatePoolSize'] as int? ??
           d.pendingCandidatePoolSize,
+      sentencePerRound:
+          json['sentencePerRound'] as int? ?? d.sentencePerRound,
     );
   }
 }

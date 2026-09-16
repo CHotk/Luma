@@ -28,5 +28,32 @@ void main() {
       expect(SpellJudge.isComplete(input: 'towel', answer: 'towel'), isTrue);
       expect(SpellJudge.isComplete(input: ' towe ', answer: 'towel'), isFalse);
     });
+
+    test('標點符號不算數，句型才打得過（使用者 2026-09-16 決定）', () {
+      expect(
+        SpellJudge.isCorrect(input: 'I dont care', answer: "I don't care."),
+        isTrue,
+        reason: '漏打撇號、句號都不該算錯',
+      );
+      expect(
+        SpellJudge.isCorrect(input: "I don't care.", answer: "I don't care."),
+        isTrue,
+        reason: '有打標點符號當然也要算對，不是反過來要求不能打',
+      );
+    });
+
+    test('打滿的判斷也要用拿掉標點符號之後的長度', () {
+      // "I don't care." 拿掉標點符號、空白收成一個之後是 "i dont care"，11 字。
+      expect(
+        SpellJudge.isComplete(input: 'I dont care', answer: "I don't care."),
+        isTrue,
+        reason: '沒打標點符號也該算打完，不然打字的人永遠湊不滿原始字數',
+      );
+    });
+
+    test('拿掉標點符號不動大小寫，畫面的空格格數要用這個', () {
+      expect(SpellJudge.stripPunctuation("I don't care."), 'I dont care');
+      expect(SpellJudge.stripPunctuation('Weather'), 'Weather');
+    });
   });
 }

@@ -28,7 +28,10 @@ enum WordGrade {
 
 /// 單字的主題分類，對應題庫檔的第六欄。
 ///
-/// 目前有食物、居家、月份、數字、顏色、水果六類，其餘都是未分類。
+/// 目前有食物、居家、月份、數字、顏色、水果、句型七類，其餘都是未分類。
+/// **句型比較特殊**：標了句型的 `Word` 其實是一整句英文（見
+/// `assets/data/sentences.txt`），不是單字，出題規則要另外開一個句型池，
+/// 不能跟一般單字混在待複習/新字/已掌握三個池子裡（見 `QuestionPicker`）。
 /// **一個字可以同時屬於好幾類**（使用者 2026-09-15 拍板）：例如 orange
 /// 同時是食物、水果、顏色，`Word.topics` 是清單不是單一值。
 /// 要加新類別就兩步：這裡加一個值，題庫檔那一欄填上同樣的中文，
@@ -40,7 +43,8 @@ enum WordTopic {
   month('月份'),
   number('數字'),
   color('顏色'),
-  fruit('水果');
+  fruit('水果'),
+  sentence('句型');
 
   const WordTopic(this.label);
   final String label;
@@ -146,6 +150,7 @@ class Word {
     this.wrong = 0,
     this.lastTest,
     this.tags = const [],
+    this.relatedWords = const [],
   });
 
   final int id;
@@ -192,7 +197,15 @@ class Word {
   /// 沒標的字是空清單，不是 `['-']`——那個 `-` 只是題庫檔裡「沒有」的寫法。
   final List<String> tags;
 
+  /// 這個字用到哪些學過的單字，目前只有句型（`WordTopic.sentence`）會用到，
+  /// 存的是文字（單字本身），不是 id——文字好讀好編輯，代價是拼錯就對不上，
+  /// 這是使用者 2026-09-16 權衡過的決定。跟 [tags] 是不同欄位、不同語意：
+  /// tags 是自由分類（像多益、工程師），這個是「這句用到哪些字」的交叉參照，
+  /// 混在同一欄會分不出哪個是哪個。
+  final List<String> relatedWords;
+
   /// 標籤用「、」分隔多個，題庫檔裡的 `-` 代表沒標，解析成空清單。
+  /// [relatedWords] 也是同一套分隔規則，共用這個方法解析。
   static List<String> parseTags(String? raw) {
     final text = raw?.trim() ?? '';
     if (text.isEmpty || text == '-') return const [];
@@ -251,6 +264,7 @@ class Word {
     int? wrong,
     DateTime? lastTest,
     List<String>? tags,
+    List<String>? relatedWords,
   }) {
     return Word(
       id: id ?? this.id,
@@ -267,6 +281,7 @@ class Word {
       wrong: wrong ?? this.wrong,
       lastTest: lastTest ?? this.lastTest,
       tags: tags ?? this.tags,
+      relatedWords: relatedWords ?? this.relatedWords,
     );
   }
 
@@ -285,6 +300,7 @@ class Word {
     'wrong': wrong,
     'lastTest': lastTest?.toIso8601String(),
     'tags': tags,
+    'relatedWords': relatedWords,
   };
 
   factory Word.fromJson(Map<String, dynamic> json) => Word(
@@ -314,6 +330,9 @@ class Word {
     wrong: json['wrong'] as int? ?? 0,
     lastTest: _date(json['lastTest']),
     tags: (json['tags'] as List?)?.map((t) => t as String).toList() ?? const [],
+    relatedWords:
+        (json['relatedWords'] as List?)?.map((t) => t as String).toList() ??
+        const [],
   );
 
   static DateTime? _date(Object? raw) =>

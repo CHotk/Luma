@@ -17,6 +17,7 @@ void main() {
     int right = 0,
     int wrong = 0,
     DateTime? lastTest,
+    List<WordTopic> topics = const [],
   }) => Word(
     id: id,
     word: w,
@@ -26,6 +27,22 @@ void main() {
     right: right,
     wrong: wrong,
     lastTest: lastTest,
+    topics: topics,
+  );
+
+  Word sentence(
+    String w, {
+    required int id,
+    int right = 0,
+    int wrong = 0,
+    DateTime? lastTest,
+  }) => word(
+    w,
+    id: id,
+    right: right,
+    wrong: wrong,
+    lastTest: lastTest,
+    topics: const [WordTopic.sentence],
   );
 
   /// 30 個沒考過、5 個答錯過還沒答對、3 個答對一次的字。
@@ -321,5 +338,71 @@ void main() {
           .every((q) => q.mode == QuizMode.type),
       isTrue,
     );
+  });
+
+  group('句型', () {
+    test('句型不會混進一般單字的三個池子', () {
+      final pool = [
+        for (var i = 0; i < 10; i++) word('fresh$i', id: i),
+        sentence('I feel sick.', id: 900),
+      ];
+      final picked = QuestionPicker(
+        // 關掉句型配額，句型字就不該用任何身分被抽到。
+        rules: rules.copyWith(sentencePerRound: 0),
+        random: Random(1),
+      ).pick(pool, now: now);
+
+      expect(
+        picked.any((q) => q.word.word == 'I feel sick.'),
+        isFalse,
+        reason: '句型配額關掉時，句型字不該混進新字池被抽走',
+      );
+    });
+
+    test('句型用自己的配額，不占新字名額', () {
+      final pool = [
+        for (var i = 0; i < 10; i++) word('fresh$i', id: i),
+        sentence('I feel sick.', id: 900),
+      ];
+      final picked = QuestionPicker(
+        rules: rules, // 預設 sentencePerRound: 1
+        random: Random(1),
+      ).pick(pool, now: now);
+
+      expect(
+        picked.where((q) => q.word.word == 'I feel sick.').length,
+        1,
+        reason: '有可用的句型時，配額裡該有一句',
+      );
+      expect(picked.length, rules.roundSize);
+    });
+
+    test('句型也照優先序：待複習排在新字前面', () {
+      final pool = [
+        for (var i = 0; i < 10; i++) word('fresh$i', id: i),
+        sentence('I feel sick.', id: 900), // 新字（沒考過）
+        sentence('Never mind.', id: 901, wrong: 1), // 待複習
+      ];
+      final picked = QuestionPicker(
+        rules: rules,
+        random: Random(1),
+      ).pick(pool, now: now);
+
+      final pickedSentences = picked
+          .map((q) => q.word.word)
+          .where((w) => w == 'I feel sick.' || w == 'Never mind.')
+          .toList();
+      expect(pickedSentences, ['Never mind.'], reason: '待複習的句子沒有被優先選到');
+    });
+
+    test('沒有句型可挑時，名額退回新字，題數不會變少', () {
+      final pool = [for (var i = 0; i < 10; i++) word('fresh$i', id: i)];
+      final picked = QuestionPicker(
+        rules: rules, // 預設 sentencePerRound: 1，但這個題庫沒有句型字
+        random: Random(1),
+      ).pick(pool, now: now);
+
+      expect(picked.length, rules.roundSize, reason: '句型抽不到，名額該讓新字補滿');
+    });
   });
 }

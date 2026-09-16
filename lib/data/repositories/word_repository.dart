@@ -112,6 +112,7 @@ class WordRepository {
                 example: fresh.example,
                 added: fresh.added,
                 tags: fresh.tags,
+                relatedWords: fresh.relatedWords,
               ),
       );
     }

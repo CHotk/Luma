@@ -86,51 +86,45 @@ Future<void> _showExportDialog(BuildContext context, WidgetRef ref) async {
   final sizeLabel = _formatSize(utf8.encode(text).length);
   final filename = 'lume-history-${_todayStamp()}.txt';
 
+  // 內容只是給使用者確認「有抓到東西」，不是拿來預覽全部，
+  // 完整內容太長（成千上百行）沒必要整份塞進對話框，抓前三行示意就好。
+  final lines = text.split('\n');
+  final preview = lines.length > 3
+      ? '${lines.take(3).join('\n')}\n...'
+      : text;
+
   showDialog<void>(
     context: context,
     builder: (dialogContext) => AlertDialog(
       backgroundColor: const Color(0xFF1A1A24),
-      title: const Text('匯出紀錄', style: TextStyle(color: AppColors.ink)),
-      content: SizedBox(
-        width: double.maxFinite,
-        height: 320,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '$filename ・ 約 $sizeLabel',
-              style: const TextStyle(fontSize: 12, color: AppColors.ink3),
-            ),
-            const SizedBox(height: Gap.sm),
-            Expanded(
-              child: SingleChildScrollView(
-                child: SelectableText(
-                  text,
-                  style: const TextStyle(
-                    fontSize: 11.5,
-                    color: AppColors.ink2,
-                    fontFamily: 'Consolas',
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
+      title: const Text(
+        '匯出紀錄',
+        textAlign: TextAlign.center,
+        style: TextStyle(color: AppColors.ink),
       ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Text(
+            '$filename ・ 約 $sizeLabel',
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 12, color: AppColors.ink3),
+          ),
+          const SizedBox(height: Gap.sm),
+          Text(
+            preview,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 11.5,
+              color: AppColors.ink2,
+              fontFamily: 'Consolas',
+            ),
+          ),
+        ],
+      ),
+      actionsAlignment: MainAxisAlignment.center,
       actions: [
-        TextButton(
-          onPressed: () => Navigator.of(dialogContext).pop(),
-          child: const Text('關閉'),
-        ),
-        OutlinedButton(
-          onPressed: () {
-            Clipboard.setData(ClipboardData(text: text));
-            ScaffoldMessenger.of(dialogContext).showSnackBar(
-              const SnackBar(content: Text('已複製到剪貼簿')),
-            );
-          },
-          child: const Text('複製'),
-        ),
         FilledButton(
           onPressed: () {
             final ok = saveTextFile(filename, text);
@@ -144,6 +138,19 @@ Future<void> _showExportDialog(BuildContext context, WidgetRef ref) async {
             backgroundColor: AppColors.accentSolid,
           ),
           child: const Text('下載'),
+        ),
+        OutlinedButton(
+          onPressed: () {
+            Clipboard.setData(ClipboardData(text: text));
+            ScaffoldMessenger.of(dialogContext).showSnackBar(
+              const SnackBar(content: Text('已複製到剪貼簿')),
+            );
+          },
+          child: const Text('複製'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(),
+          child: const Text('關閉'),
         ),
       ],
     ),

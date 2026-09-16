@@ -11,6 +11,7 @@ import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
 import '../../domain/models/quiz.dart';
+import '../../domain/spell_judge.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/glass_card.dart';
 import 'quiz_controller.dart';
@@ -482,6 +483,9 @@ class _TypeCardState extends State<_TypeCard> {
     final state = widget.state;
     final word = state.current.word;
     final judged = state.judged;
+    // 標點符號不算數，空格列跟輸入框都只看字母和空白，
+    // 不然句型的句號、撇號會占掉一個格子，畫面跟判定就對不起來了。
+    final answer = SpellJudge.stripPunctuation(word.word);
 
     return GlassCard(
       radius: _cardRadius,
@@ -498,7 +502,7 @@ class _TypeCardState extends State<_TypeCard> {
               const SizedBox(height: Gap.xl),
               Stack(
                 children: [
-                  _LetterBoxes(answer: word.word, input: state.input),
+                  _LetterBoxes(answer: answer, input: state.input),
                   // 真正接收輸入的欄位藏在空格底下，字只顯示在空格上。
                   // 不吃觸控，拖曳才會交給滑卡，不會被輸入欄搶去選字。
                   Positioned.fill(
@@ -515,7 +519,12 @@ class _TypeCardState extends State<_TypeCard> {
                           showCursor: false,
                           textCapitalization: TextCapitalization.none,
                           inputFormatters: [
-                            LengthLimitingTextInputFormatter(word.word.length),
+                            // 標點符號不算數，乾脆不讓打，不然打出來的字元
+                            // 會占掉空格列的格子，跟拿掉標點符號後的答案對不齊。
+                            FilteringTextInputFormatter.allow(
+                              RegExp(r'[a-zA-Z\s]'),
+                            ),
+                            LengthLimitingTextInputFormatter(answer.length),
                           ],
                           decoration: const InputDecoration(
                             border: InputBorder.none,

@@ -38,6 +38,12 @@ class QuestionPicker {
     final freshPool = _freshPool(all);
     final masteredPool = _confirmedPool(all);
 
+    // 句型是獨立的第四個池子，配額從新字挪過來（使用者 2026-09-16 決定），
+    // 不跟一般單字混在待複習/新字/已掌握三個池子裡——句型的 Word 本來就
+    // 被排除在那三個池子外（見 _pendingPool/_freshPool/_confirmedPool），
+    // 這裡才是句型真正出場的地方。
+    final sentences = _pickSentences(all, rules.sentencePerRound);
+
     // 待複習配額裡先保留一個名額給「最接近掌握」的字：
     // pendingPool 排序是離掌握最遠在前面，所以最接近的就是排最後那個
     // （rightNeededFor 最小，但還沒到 0，不然狀態就不是待複習了）。
@@ -62,12 +68,15 @@ class QuestionPicker {
 
     final mastered = masteredPool.take(rules.masteredPerRound).toList();
     final fresh = freshPool
-        .take(target - pending.length - mastered.length)
+        .take(target - pending.length - mastered.length - sentences.length)
         .toList();
 
     // 有人不夠就往下補，順序照「最需要練的先補」：
-    // 待複習 → 新字 → 已掌握。
-    int shortfall() => target - pending.length - mastered.length - fresh.length;
+    // 待複習 → 新字 → 已掌握。句型不夠（例如句型庫被抽完）不特別處理，
+    // 上面算 fresh 時已經把 sentences 的缺額算進去了，新字會自動多補一題，
+    // 這個名額本來就是從新字挪過去的，缺額退回去很自然。
+    int shortfall() =>
+        target - pending.length - mastered.length - fresh.length - sentences.length;
 
     if (shortfall() > 0) {
       // 補額不用再隨機，直接照優先順序拿剩下最需要練的，
@@ -97,6 +106,15 @@ class QuestionPicker {
           forceType: forceMasteredType,
           isMastered: true,
         ),
+      // 句型沿用一樣的規則：已掌握的句子回考也強制打字，
+      // 看得懂一句話不代表打得出來。
+      for (final s in sentences)
+        (
+          word: s.word,
+          isReview: s.isReview,
+          forceType: s.isMastered && forceMasteredType,
+          isMastered: s.isMastered,
+        ),
     ];
 
     // 新字和複習混在一起再洗牌，不然使用者一眼就知道最後一題是複習。
@@ -122,10 +140,16 @@ class QuestionPicker {
     ];
   }
 
+  /// 是不是句型（一整句英文），不是一般單字。句型有自己獨立的四個池子，
+  /// 不跟一般單字的待複習/新字/已掌握混在一起，所以三個主池子都要排除它。
+  bool _isSentence(Word w) => w.topics.contains(WordTopic.sentence);
+
   /// 沒考過的字。題庫順序本身是照字母排的，直接取會整輪都是同一個字母，
   /// 所以先洗牌再取。
   List<Word> _freshPool(List<Word> all) =>
-      all.where((w) => w.statusWith(rules) == WordStatus.untested).toList()
+      all
+          .where((w) => !_isSentence(w) && w.statusWith(rules) == WordStatus.untested)
+          .toList()
         ..shuffle(_random);
 
   /// 待複習：**錯過就算**，跟後來有沒有答對無關。
@@ -139,31 +163,89 @@ class QuestionPicker {
   /// 離掌握還差最多次答對的排最前面。同樣差距的挑最久沒考的，
   /// 不然同一個字會一直霸著候選池的前段。
   List<Word> _pendingPool(List<Word> all) =>
-      all.where((w) => w.statusWith(rules) == WordStatus.pending).toList()
-        ..sort((a, b) {
-          final da = a.rightNeededFor(rules);
-          final db = b.rightNeededFor(rules);
-          if (da != db) return db.compareTo(da);
-          final at = a.lastTest;
-          final bt = b.lastTest;
-          if (at == null && bt == null) return 0;
-          if (at == null) return -1;
-          if (bt == null) return 1;
-          return at.compareTo(bt);
-        });
+      all
+          .where((w) => !_isSentence(w) && w.statusWith(rules) == WordStatus.pending)
+          .toList()
+        ..sort(_byRightNeededDesc);
 
   /// 已經確認會的字，最久沒考的排前面。
   /// 只有在新字和待複習都用完時才會動到這批。
   List<Word> _confirmedPool(List<Word> all) =>
-      all.where((w) => w.statusWith(rules) == WordStatus.confirmed).toList()
-        ..sort((a, b) {
-          final at = a.lastTest;
-          final bt = b.lastTest;
-          if (at == null && bt == null) return 0;
-          if (at == null) return -1;
-          if (bt == null) return 1;
-          return at.compareTo(bt);
-        });
+      all
+          .where((w) => !_isSentence(w) && w.statusWith(rules) == WordStatus.confirmed)
+          .toList()
+        ..sort(_byOldestLastTestFirst);
+
+  /// 句型版的待複習池，規則跟 [_pendingPool] 一模一樣，只是只看句型。
+  List<Word> _sentencePendingPool(List<Word> all) =>
+      all
+          .where((w) => _isSentence(w) && w.statusWith(rules) == WordStatus.pending)
+          .toList()
+        ..sort(_byRightNeededDesc);
+
+  /// 句型版的新字池，規則跟 [_freshPool] 一模一樣，只是只看句型。
+  List<Word> _sentenceFreshPool(List<Word> all) =>
+      all
+          .where((w) => _isSentence(w) && w.statusWith(rules) == WordStatus.untested)
+          .toList()
+        ..shuffle(_random);
+
+  /// 句型版的已掌握池，規則跟 [_confirmedPool] 一模一樣，只是只看句型。
+  List<Word> _sentenceConfirmedPool(List<Word> all) =>
+      all
+          .where((w) => _isSentence(w) && w.statusWith(rules) == WordStatus.confirmed)
+          .toList()
+        ..sort(_byOldestLastTestFirst);
+
+  /// 挑句型：跟主要三池同一套優先序「待複習 → 新字 → 已掌握」，
+  /// 只是資料來源是句型專屬的三個池子。回傳連同來源狀態一起標好，
+  /// 讓 [pick] 知道這句該算 isReview 還是 isMastered。
+  List<({Word word, bool isReview, bool isMastered})> _pickSentences(
+    List<Word> all,
+    int count,
+  ) {
+    if (count <= 0) return const [];
+
+    final picked = <({Word word, bool isReview, bool isMastered})>[];
+    final used = <Word>{};
+
+    void takeFrom(
+      List<Word> pool, {
+      required bool isReview,
+      required bool isMastered,
+    }) {
+      for (final w in pool) {
+        if (picked.length >= count) return;
+        if (!used.add(w)) continue;
+        picked.add((word: w, isReview: isReview, isMastered: isMastered));
+      }
+    }
+
+    takeFrom(_sentencePendingPool(all), isReview: true, isMastered: false);
+    if (picked.length < count) {
+      takeFrom(_sentenceFreshPool(all), isReview: false, isMastered: false);
+    }
+    if (picked.length < count) {
+      takeFrom(_sentenceConfirmedPool(all), isReview: true, isMastered: true);
+    }
+    return picked;
+  }
+
+  int _byRightNeededDesc(Word a, Word b) {
+    final da = a.rightNeededFor(rules);
+    final db = b.rightNeededFor(rules);
+    if (da != db) return db.compareTo(da);
+    return _byOldestLastTestFirst(a, b);
+  }
+
+  int _byOldestLastTestFirst(Word a, Word b) {
+    final at = a.lastTest;
+    final bt = b.lastTest;
+    if (at == null && bt == null) return 0;
+    if (at == null) return -1;
+    if (bt == null) return 1;
+    return at.compareTo(bt);
+  }
 
   /// 決定哪幾題要打字。隨機散開，不要固定在最後幾題。
   /// 要出幾題由 [RulesConfig.effectiveTypeQuestions] 決定，這裡不判斷模式，
