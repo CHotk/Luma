@@ -1406,3 +1406,80 @@
 2026-09-15T17:10  R12    glass                 O       type  玻璃 玻璃杯           0
 2026-09-15T17:10  R12    begin                 O       type  開始                  0
 2026-09-15T17:10  R12    book                  O       type  book                  0
+2026-09-15T17:22  R1     bread                 O       type  麵包                  0
+2026-09-15T17:22  R1     quiet                 O       type  quiet                 0
+2026-09-15T17:22  R1     soon                  O       type  快 快速 很快          0
+2026-09-15T17:22  R1     tail                  O       type  尾巴                  0
+2026-09-15T17:22  R1     cousin                O       type  cousin                0
+2026-09-15T17:22  R1     yes                   O       type  yes                   0
+2026-09-15T17:22  R1     blanket               O       type  毯子                  0
+2026-09-15T17:22  R1     stand                 X       type  戰力                  0
+2026-09-15T17:22  R1     ten                   O       type  十                    0
+2026-09-15T17:22  R1     juice                 O       type  juice                 0
+2026-09-15T17:25  R2     healthy               O       type  健康                  0
+2026-09-15T17:25  R2     sock                  O       type  sock                  0
+2026-09-15T17:25  R2     shampoo               X       type  沐浴乳                0
+2026-09-15T17:25  R2     quite                 O       type  相當                  0
+2026-09-15T17:25  R2     towel                 O       type  towel                 0
+2026-09-15T17:25  R2     no                    O       type  no                    0
+2026-09-15T17:25  R2     mitigate              O       type  緩解                  0
+2026-09-15T17:25  R2     borrow                O       type  借入                  0
+2026-09-15T17:25  R2     seal                  O       type  海豹                  0
+2026-09-15T17:25  R2     window                O       type  window                0
+2026-09-15T17:30  R3     napkin                O       type  餐巾紙                0
+2026-09-15T17:30  R3     heavy                 O       type  heavy                 0
+2026-09-15T17:30  R3     retry                 O       type  重試                  0
+2026-09-15T17:30  R3     glass                 O       type  玻璃玻璃杯            0
+2026-09-15T17:30  R3     glove                 O       type  glove                 0
+2026-09-15T17:30  R3     sun                   O       type  sun                   0
+2026-09-15T17:30  R3     weather               O       type  天氣                  0
+2026-09-15T17:30  R3     Sunday                O       type  周日                  0
+2026-09-15T17:30  R3     conditioner           O       type  護髮素                0
+2026-09-15T17:30  R3     mango                 O       type  mango                 0
+2026-09-15T17:33  R4     thin                  O       type  薄 瘦                 0
+2026-09-15T17:33  R4     healthy               O       type  健康                  0
+2026-09-15T17:33  R4     four                  O       type  四                    0
+2026-09-15T17:33  R4     letter                O       type  信 字母               0
+2026-09-15T17:33  R4     sell                  O       type  sell                  0
+2026-09-15T17:33  R4     rain                  O       type  rain                  0
+2026-09-15T17:33  R4     towel                 O       type  毛巾                  0
+2026-09-15T17:33  R4     bread                 O       type  麵包                  0
+2026-09-15T17:33  R4     six                   O       type  六                    0
+2026-09-15T17:33  R4     tired                 X       type  tried                 0
+2026-09-15T17:33  R5     tail                  O       type  尾巴                  0
+2026-09-15T17:33  R5     document              O       type  文件 文檔             0
+2026-09-15T17:33  R5     blanket               O       type  毯子                  0
+2026-09-15T17:33  R5     weather               X       type  -                     0
+2026-09-15T17:33  R5     wait                  O       type  wait                  0
+2026-09-15T17:33  R5     close                 O       type  close                 0
+2026-09-15T17:33  R5     credit card           O       type  信用卡                0
+2026-09-15T17:33  R5     cousin                O       type  表親                  0
+2026-09-15T17:35  R6     tail                  O       type  尾巴                  0
+2026-09-15T17:35  R6     thin                  O       type  thin                  0
+2026-09-15T17:35  R6     enough                O       type  足夠 夠了             0
+2026-09-15T17:35  R6     March                 O       type  三月                  0
+2026-09-15T17:35  R6     stand                 O       type  stand                 0
+2026-09-15T17:35  R6     answer                O       type  answer                0
+2026-09-15T17:35  R6     shirt                 O       type  襯衫 衣服             0
+2026-09-15T17:35  R6     grass                 O       type  grass                 0
+2026-09-15T17:35  R6     challenging           O       type  挑戰                  0
+2026-09-15T17:35  R6     clean                 X       type  clear                 0
+2026-09-15T17:38  R7     comb                  O       type  梳子                  0
+2026-09-15T17:38  R7     difficult             O       type  difficult             0
+2026-09-15T17:38  R7     much                  O       type  很多                  0
+2026-09-15T17:38  R7     sock                  O       type  襪子                  0
+2026-09-15T17:38  R7     letter                O       type  letter                0
+2026-09-15T17:38  R7     book                  O       type  book                  0
+2026-09-15T17:38  R7     thin                  O       type  瘦 薄                 0
+2026-09-15T17:38  R7     grass                 O       type  草                    0
+2026-09-15T17:38  R7     tag                   O       type  標籤                  0
+2026-09-15T17:38  R7     close                 O       type  close                 0
+2026-09-16T10:25  R8     stand                 O       type  站                    0
+2026-09-16T10:25  R8     bread                 O       type  bread                 0
+2026-09-16T10:25  R8     front-end developer   O       type  前端工程師            0
+2026-09-16T10:25  R8     healthy               O       type  健康                  0
+2026-09-16T10:25  R8     March                 O       type  March                 0
+2026-09-16T10:25  R8     busy                  O       type  busy                  0
+2026-09-16T10:25  R8     quite                 O       type  相當                  0
+2026-09-16T10:25  R8     appreciate            O       type  欣賞                  0
+2026-09-16T10:25  R8     strawberry            O       type  strawberry            0
