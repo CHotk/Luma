@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -8,6 +10,7 @@ import '../../app/theme/typography.dart';
 import '../../domain/models/word.dart';
 import '../../domain/rules_config.dart';
 import '../../shared/widgets/ambient_background.dart';
+import '../../shared/widgets/glass_card.dart';
 import '../../shared/widgets/sense_tag.dart';
 import '../../shared/widgets/status_pill.dart';
 import '../../shared/widgets/tag_badge.dart';
@@ -273,8 +276,10 @@ class _Chip extends ConsumerWidget {
 /// 改這裡的程式，題庫檔多打一個字就會自動出現在選單裡。
 ///
 /// **可以多選**（使用者 2026-09-16 決定）：`PopupMenuButton` 選一項就會
-/// 自動關掉選單，沒辦法勾好幾項，所以這裡改用 `showModalBottomSheet`，
-/// 勾選會即時套用篩選，但選單本身留著，直到使用者自己滑掉或點外面關掉。
+/// 自動關掉選單，沒辦法勾好幾項，所以改用 `showDialog` 彈出一個置中的
+/// 對話框，勾選會即時套用篩選，對話框本身留著，直到使用者按「完成」或
+/// 點外面才關。一開始做成從底部彈出的 bottom sheet，使用者覺得醜
+/// （2026-09-16 決定改成置中對話框，跟這頁其他對話框一致）。
 /// [multiTagLabel]（自己貼了兩個以上標籤的字）固定排在選單最下面，
 /// 用分隔線跟一般標籤隔開，因為它篩的是「標籤數量」而不是某個標籤本身，
 /// 混在字母排序裡容易被誤會成一個普通標籤。
@@ -297,7 +302,7 @@ class _TagMenu extends ConsumerWidget {
     }
 
     return GestureDetector(
-      onTap: () => _openSheet(context, ref, tags),
+      onTap: () => _openDialog(context, ref, tags),
       child: Container(
         padding: const EdgeInsets.fromLTRB(11, 6, 7, 6),
         decoration: BoxDecoration(
@@ -332,115 +337,197 @@ class _TagMenu extends ConsumerWidget {
     );
   }
 
-  void _openSheet(BuildContext context, WidgetRef ref, List<String> tags) {
-    showModalBottomSheet<void>(
+  /// 第一版是平的 `AlertDialog`、單一背景色，使用者嫌單調
+  /// （2026-09-16 決定）：改成跟 [GlassCard] 同一套毛玻璃處理（模糊、
+  /// 半透明、亮邊），每個標籤也從純文字+checkbox 改成跟頁面上方狀態篩選
+  /// 同款的膠囊型 chip（選到用主色實心填滿），整個對話框的視覺語言才會
+  /// 跟這頁其他篩選 UI 一致，不是自己另外發明一套。
+  void _openDialog(BuildContext context, WidgetRef ref, List<String> tags) {
+    showDialog<void>(
       context: context,
-      backgroundColor: const Color(0xFF1A1A24),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (sheetContext) => SafeArea(
-        child: Consumer(
-          builder: (context, ref, _) {
-            final selected = ref.watch(libraryTagProvider);
+      builder: (dialogContext) => Consumer(
+        builder: (context, ref, _) {
+          final selected = ref.watch(libraryTagProvider);
 
-            void toggle(String value) {
-              final next = {...selected};
-              if (!next.remove(value)) next.add(value);
-              ref.read(libraryTagProvider.notifier).state = next;
-            }
+          void toggle(String value) {
+            final next = {...selected};
+            if (!next.remove(value)) next.add(value);
+            ref.read(libraryTagProvider.notifier).state = next;
+          }
 
-            return ListView(
-              shrinkWrap: true,
-              padding: const EdgeInsets.symmetric(vertical: Gap.sm),
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: Gap.screenSide,
-                    vertical: Gap.xs,
+          return Dialog(
+            backgroundColor: Colors.transparent,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(Radii.card),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+                child: Container(
+                  constraints: const BoxConstraints(maxWidth: 360),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(Radii.card),
+                    border: Border.all(color: AppColors.glassEdge),
+                    gradient: const LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Color(0xCC22222E), Color(0xE615151D)],
+                    ),
                   ),
-                  child: Row(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Text('標籤（可複選）', style: AppText.note),
-                      const Spacer(),
-                      if (selected.isNotEmpty)
-                        GestureDetector(
-                          onTap: () =>
-                              ref.read(libraryTagProvider.notifier).state =
-                                  const {},
-                          child: const Text('清除', style: AppText.note),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                          Gap.lg,
+                          Gap.lg,
+                          Gap.lg,
+                          Gap.sm,
                         ),
+                        child: Row(
+                          children: [
+                            const Text(
+                              '標籤（可複選）',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.ink,
+                              ),
+                            ),
+                            const Spacer(),
+                            if (selected.isNotEmpty)
+                              GestureDetector(
+                                onTap: () =>
+                                    ref
+                                            .read(libraryTagProvider.notifier)
+                                            .state =
+                                        const {},
+                                child: const Text(
+                                  '清除',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: AppColors.accent,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      Flexible(
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: Gap.lg,
+                          ),
+                          child: Column(
+                            children: [
+                              if (counts.containsKey(untaggedLabel))
+                                _TagChip(
+                                  label: untaggedLabel,
+                                  count: counts[untaggedLabel] ?? 0,
+                                  selected: selected.contains(untaggedLabel),
+                                  onTap: () => toggle(untaggedLabel),
+                                ),
+                              for (final tag in tags)
+                                _TagChip(
+                                  label: tag,
+                                  count: counts[tag] ?? 0,
+                                  selected: selected.contains(tag),
+                                  onTap: () => toggle(tag),
+                                ),
+                              _TagChip(
+                                label: multiTagLabel,
+                                count: multiTagCount,
+                                selected: selected.contains(multiTagLabel),
+                                onTap: () => toggle(multiTagLabel),
+                                accentBorder: true,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.all(Gap.lg),
+                        child: GlassButton(
+                          label: '完成',
+                          onPressed: () => Navigator.of(dialogContext).pop(),
+                        ),
+                      ),
                     ],
                   ),
                 ),
-                if (counts.containsKey(untaggedLabel))
-                  _TagCheckRow(
-                    label: untaggedLabel,
-                    count: counts[untaggedLabel] ?? 0,
-                    checked: selected.contains(untaggedLabel),
-                    onTap: () => toggle(untaggedLabel),
-                  ),
-                for (final tag in tags)
-                  _TagCheckRow(
-                    label: tag,
-                    count: counts[tag] ?? 0,
-                    checked: selected.contains(tag),
-                    onTap: () => toggle(tag),
-                  ),
-                const Divider(height: Gap.lg, color: AppColors.glassEdge),
-                _TagCheckRow(
-                  label: multiTagLabel,
-                  count: multiTagCount,
-                  checked: selected.contains(multiTagLabel),
-                  onTap: () => toggle(multiTagLabel),
-                ),
-              ],
-            );
-          },
-        ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
 }
 
-class _TagCheckRow extends StatelessWidget {
-  const _TagCheckRow({
+/// 標籤選擇用的整排列，一行一個標籤，靠左標籤名、靠右數字，選到整排
+/// 用主色填滿。原本用 [Wrap] 排成一團膠囊 chip，長短不一排起來很亂
+/// （使用者 2026-09-16 嫌醜），改成單欄縱向排列，對齊乾淨很多。
+/// [accentBorder]：[multiTagLabel] 篩的是「標籤數量」不是某個標籤本身，
+/// 未選取時用主色細框跟一般標籤區分開，不用額外文字說明。
+class _TagChip extends StatelessWidget {
+  const _TagChip({
     required this.label,
     required this.count,
-    required this.checked,
+    required this.selected,
     required this.onTap,
+    this.accentBorder = false,
   });
 
   final String label;
   final int count;
-  final bool checked;
+  final bool selected;
   final VoidCallback onTap;
+  final bool accentBorder;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: Gap.screenSide,
-          vertical: 10,
-        ),
-        child: Row(
-          children: [
-            Icon(
-              checked ? Icons.check_box : Icons.check_box_outline_blank,
-              size: 18,
-              color: checked ? AppColors.accent : AppColors.ink3,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Gap.xs),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: selected ? AppColors.accentSolid : AppColors.glassFill,
+            borderRadius: BorderRadius.circular(Radii.button),
+            border: Border.all(
+              color: selected
+                  ? Colors.transparent
+                  : accentBorder
+                  ? AppColors.accent
+                  : AppColors.glassEdge,
             ),
-            const SizedBox(width: Gap.sm),
-            Expanded(
-              child: Text(
-                label,
-                style: const TextStyle(fontSize: 13.5, color: AppColors.ink),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                selected ? Icons.check_circle : Icons.circle_outlined,
+                size: 15,
+                color: selected ? Colors.white : AppColors.ink3,
               ),
-            ),
-            Text('$count', style: AppText.note),
-          ],
+              const SizedBox(width: Gap.sm),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: selected ? Colors.white : AppColors.ink,
+                  ),
+                ),
+              ),
+              Text(
+                '$count',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: selected ? Colors.white70 : AppColors.ink3,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

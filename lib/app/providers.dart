@@ -6,6 +6,7 @@ import '../data/repositories/word_repository.dart';
 import '../data/seed/word_seed_loader.dart';
 import '../data/storage/key_value_store.dart';
 import '../domain/models/quiz.dart';
+import '../domain/services/tts_service.dart';
 
 /// 全 App 共用的東西只有這幾個：儲存、兩個 repository、時間來源。
 /// 其餘狀態一律放各自 feature 的資料夾，不要往這裡塞。
@@ -45,6 +46,11 @@ final dataRevisionProvider = StateProvider<int>((ref) => 0);
 
 /// 時間來源。測試時換掉這個就能固定「現在」。
 final clockProvider = Provider<DateTime Function()>((ref) => DateTime.now);
+
+/// 發音。測驗頁跟單字詳情頁共用同一顆，不要每個畫面各自建一個
+/// `FlutterTts` 實例——同時有兩個實例在背景初始化，Web 上偶爾會搶著
+/// 註冊同一個瀏覽器 SpeechSynthesis 事件，聲音會怪怪的。
+final ttsServiceProvider = Provider<TtsService>((ref) => TtsService());
 
 /// 偽裝模式。開著的時候這一輪不出打字題，
 /// 因為偽裝畫面要假裝成終端機，跳出中文輸入法就穿幫了。

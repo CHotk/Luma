@@ -9,13 +9,14 @@ import '../../domain/models/word.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/glass_card.dart';
 import '../../shared/widgets/sense_tag.dart';
+import '../../shared/widgets/speaker_button.dart';
 import '../../shared/widgets/status_pill.dart';
 import '../../shared/widgets/tag_badge.dart';
 import '../../shared/widgets/trap_tag.dart';
 import 'word_detail_controller.dart';
 
-/// 單字詳情。目前有基本資料與作答歷史，
-/// 音標、自然拼讀拆解、發音、配圖排在之後做。
+/// 單字詳情。目前有基本資料、作答歷史跟發音，
+/// 音標、自然拼讀拆解、配圖排在之後做。
 class WordDetailPage extends ConsumerWidget {
   const WordDetailPage({super.key, required this.word});
 
@@ -78,14 +79,21 @@ class _Body extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    word.word,
-                    style: const TextStyle(
-                      fontSize: 30,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.8,
-                      color: AppColors.ink,
-                    ),
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          word.word,
+                          style: const TextStyle(
+                            fontSize: 30,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.8,
+                            color: AppColors.ink,
+                          ),
+                        ),
+                      ),
+                      SpeakerButton(text: word.word, size: 22),
+                    ],
                   ),
                   const SizedBox(height: 2),
                   Row(
@@ -166,7 +174,7 @@ class _Body extends StatelessWidget {
 
         const SizedBox(height: Gap.lg),
         const Text(
-          '音標、自然拼讀拆解、發音與配圖排在之後做',
+          '音標、自然拼讀拆解與配圖排在之後做',
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 11.5, color: AppColors.ink3),
         ),
@@ -194,6 +202,7 @@ class _HistoryRow extends StatelessWidget {
         border: Border(bottom: BorderSide(color: AppColors.glassEdge)),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
             width: 30,
@@ -207,13 +216,34 @@ class _HistoryRow extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: Text(
-              hasClock ? _stamp(entry.at) : _day(entry.at),
-              style: const TextStyle(
-                fontSize: 13,
-                color: AppColors.ink,
-                fontFeatures: [FontFeature.tabularFigures()],
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  hasClock ? _stamp(entry.at) : _day(entry.at),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.ink,
+                    fontFeatures: [FontFeature.tabularFigures()],
+                  ),
+                ),
+                // 打字題才有打了什麼，點選題只有會/不會，沒有輸入內容可看。
+                // 特別是答錯的時候，光知道錯了沒有用，要看到當初打的內容
+                // 才翻得出是哪個字母拼錯（見 HistoryEntry.input 的註解）。
+                if (entry.typed && entry.input.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      '打了：${entry.input}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: entry.correct
+                            ? AppColors.ink3
+                            : AppColors.bad,
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
           Text(

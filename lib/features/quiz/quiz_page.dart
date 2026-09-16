@@ -14,6 +14,7 @@ import '../../domain/models/quiz.dart';
 import '../../domain/spell_judge.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/glass_card.dart';
+import '../../shared/widgets/speaker_button.dart';
 import 'quiz_controller.dart';
 
 /// 測驗頁。
@@ -434,10 +435,22 @@ class _TapCard extends ConsumerWidget {
                 ? [
                     Text(word.zh, style: AppText.hero.copyWith(fontSize: 30)),
                     const SizedBox(height: Gap.xs),
-                    Text(word.pos, style: AppText.note),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(word.pos, style: AppText.note),
+                        SpeakerButton(text: word.word, size: 17),
+                      ],
+                    ),
                   ]
                 : [
-                    Text(word.word, style: AppText.hero),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(word.word, style: AppText.hero),
+                        SpeakerButton(text: word.word, size: 22),
+                      ],
+                    ),
                     const SizedBox(height: Gap.xs),
                     Text(word.pos, style: AppText.note),
                     const SizedBox(height: Gap.md),
@@ -544,16 +557,25 @@ class _TypeCardState extends State<_TypeCard> {
                 height: 20,
                 child: judged == null
                     ? null
-                    : Text(
-                        judged
-                            ? '對了'
-                            : state.input.trim().isEmpty
-                            ? '答案是 ${word.word}'
-                            : '不對，答案是 ${word.word}',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: judged ? AppColors.ok : AppColors.bad,
-                        ),
+                    : Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            judged
+                                ? '對了'
+                                : state.input.trim().isEmpty
+                                ? '答案是 ${word.word}'
+                                : '不對，答案是 ${word.word}',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: judged ? AppColors.ok : AppColors.bad,
+                            ),
+                          ),
+                          // 拼字題答對／答錯之前不給發音，不然聽音辨字
+                          // 等於變相洩題，違背這題型「不給提示」的設計
+                          // （使用者 2026-09-16 加發音功能時一併決定）。
+                          SpeakerButton(text: word.word, size: 17),
+                        ],
                       ),
               ),
             ],

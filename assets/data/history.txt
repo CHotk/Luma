@@ -1593,3 +1593,33 @@
 2026-09-16T15:21  R11    tail                  O       type  尾巴                  0
 2026-09-16T15:21  R11    put                   O       type  放                    0
 2026-09-16T15:21  R11    door                  O       type  door                  0
+2026-09-16T15:24  R1     stand                 O       type  站                    0
+2026-09-16T15:24  R1     worry                 O       type  worry                 0
+2026-09-16T15:24  R1     December              O       type  十二月                0
+2026-09-16T15:24  R1     napkin                O       type  餐巾紙                0
+2026-09-16T15:24  R1     comb                  O       type  梳子                  0
+2026-09-16T15:24  R1     answer                O       type  answer                0
+2026-09-16T15:24  R1     bottle                O       type  瓶子                  0
+2026-09-16T15:24  R1     letter                O       type  信 字母               0
+2026-09-16T15:24  R1     unless                O       type  除非                  0
+2026-09-16T15:24  R1     spring                O       type  spring                0
+2026-09-16T15:31  R2     healthy               X       type  -                     0
+2026-09-16T15:31  R2     napkin                O       type  napkin                0
+2026-09-16T15:31  R2     character set         X       type  特點                  0
+2026-09-16T15:31  R2     weather               O       type  天氣                  0
+2026-09-16T15:31  R2     towel                 O       type  towel                 0
+2026-09-16T15:31  R2     window                O       type  window                0
+2026-09-16T15:31  R2     difficult             O       type  困難的                0
+2026-09-16T15:31  R2     loud                  O       type  loud                  0
+2026-09-16T15:31  R2     interface             O       type  介面                  0
+2026-09-16T15:31  R2     name                  O       type  name                  0
+2026-09-16T15:36  R3     neighbor              O       type  鄰居                  0
+2026-09-16T15:36  R3     bring                 O       type  bring                 0
+2026-09-16T15:36  R3     test case             O       type  測試案例              0
+2026-09-16T15:36  R3     borrow                X       type  介入                  0
+2026-09-16T15:36  R3     arm                   O       type  arm                   0
+2026-09-16T15:36  R3     yes                   O       type  yes                   0
+2026-09-16T15:36  R3     quite                 O       type  相當 頗               0
+2026-09-16T15:36  R3     stand                 O       type  stand                 0
+2026-09-16T15:36  R3     November              O       type  十一月                0
+2026-09-16T15:36  R3     buy                   O       type  buy                   0

@@ -15,6 +15,9 @@ dependencies:
   go_router: ^14.6.2
   # v1 的儲存後端。之後換成 drift 時只要換掉 data/storage 這一層。
   shared_preferences: ^2.3.3
+  # 單字/句子發音。Web／Android／iOS 同一份 code，背後自動接瀏覽器的
+  # SpeechSynthesis 或系統原生 TTS 引擎，見 domain/services/tts_service.dart。
+  flutter_tts: ^4.2.5
 
 dev_dependencies:
   flutter_test:
