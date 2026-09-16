@@ -1,3 +1,5 @@
+import 'dart:convert' show utf8;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +9,7 @@ import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
+import '../../data/export/file_download.dart';
 import '../../domain/models/history.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/glass_card.dart';
@@ -71,11 +74,17 @@ class HistoryPage extends ConsumerWidget {
   }
 }
 
-/// 跳出匯出對話框，內容是跟 `history.txt` 同格式的文字，
-/// 可以複製出去，之後貼給人工整理、合併回題庫的紀錄檔裡。
+/// 跳出匯出對話框，內容是跟 `history.txt` 同格式的文字。
+///
+/// 主要動作是下載成檔案，網頁版跟手機瀏覽器打開同一個網頁版都是走瀏覽器
+/// 原生下載（見 `data/export/file_download.dart`），不用另外裝 App。
+/// 複製到剪貼簿留著當備用，下載萬一在某些瀏覽器環境不支援還有得用。
 Future<void> _showExportDialog(BuildContext context, WidgetRef ref) async {
   final text = await ref.read(historyRepositoryProvider).exportText();
   if (!context.mounted) return;
+
+  final sizeLabel = _formatSize(utf8.encode(text).length);
+  final filename = 'lume-history-${_todayStamp()}.txt';
 
   showDialog<void>(
     context: context,
@@ -85,15 +94,27 @@ Future<void> _showExportDialog(BuildContext context, WidgetRef ref) async {
       content: SizedBox(
         width: double.maxFinite,
         height: 320,
-        child: SingleChildScrollView(
-          child: SelectableText(
-            text,
-            style: const TextStyle(
-              fontSize: 11.5,
-              color: AppColors.ink2,
-              fontFamily: 'Consolas',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '$filename ・ 約 $sizeLabel',
+              style: const TextStyle(fontSize: 12, color: AppColors.ink3),
             ),
-          ),
+            const SizedBox(height: Gap.sm),
+            Expanded(
+              child: SingleChildScrollView(
+                child: SelectableText(
+                  text,
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    color: AppColors.ink2,
+                    fontFamily: 'Consolas',
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
       actions: [
@@ -101,21 +122,46 @@ Future<void> _showExportDialog(BuildContext context, WidgetRef ref) async {
           onPressed: () => Navigator.of(dialogContext).pop(),
           child: const Text('關閉'),
         ),
-        FilledButton(
+        OutlinedButton(
           onPressed: () {
             Clipboard.setData(ClipboardData(text: text));
             ScaffoldMessenger.of(dialogContext).showSnackBar(
               const SnackBar(content: Text('已複製到剪貼簿')),
             );
           },
+          child: const Text('複製'),
+        ),
+        FilledButton(
+          onPressed: () {
+            final ok = saveTextFile(filename, text);
+            ScaffoldMessenger.of(dialogContext).showSnackBar(
+              SnackBar(
+                content: Text(ok ? '已下載 $filename' : '這個平台還不支援下載，改用複製'),
+              ),
+            );
+          },
           style: FilledButton.styleFrom(
             backgroundColor: AppColors.accentSolid,
           ),
-          child: const Text('複製'),
+          child: const Text('下載'),
         ),
       ],
     ),
   );
+}
+
+/// 位元組數換算成好讀的大小，跟檔案總管一樣只到 KB／MB 這種常見單位。
+String _formatSize(int bytes) {
+  if (bytes < 1024) return '$bytes B';
+  final kb = bytes / 1024;
+  if (kb < 1024) return '${kb.toStringAsFixed(1)} KB';
+  return '${(kb / 1024).toStringAsFixed(1)} MB';
+}
+
+String _todayStamp() {
+  final now = DateTime.now();
+  String two(int n) => n.toString().padLeft(2, '0');
+  return '${now.year}${two(now.month)}${two(now.day)}';
 }
 
 /// 這頁要的三份資料一起抓，省掉畫面裡串好幾個 future。

@@ -70,7 +70,7 @@ class _Body extends ConsumerWidget {
       children: [
         const _SectionLabel('題型'),
         GlassCard(
-          padding: const EdgeInsets.symmetric(vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 4),
           child: Column(
             children: [
               for (final style in QuizStyle.values)
