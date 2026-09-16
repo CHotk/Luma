@@ -205,7 +205,7 @@ class _List extends ConsumerWidget {
               ),
             ),
             const SizedBox(width: Gap.xs),
-            _TagMenu(counts: data.tagCounts),
+            _TagMenu(counts: data.tagCounts, multiTagCount: data.multiTagCount),
             const SizedBox(width: Gap.xs),
             _SenseMenu(counts: data.senseCounts),
           ],
@@ -265,63 +265,181 @@ class _Chip extends ConsumerWidget {
   }
 }
 
-/// 標籤下拉。跟狀態篩選是「且」的關係，兩個可以同時生效。
+/// 標籤篩選按鈕。跟狀態篩選是「且」的關係，兩個可以同時生效。
 ///
 /// 2026-09-16 之前這裡篩的是固定選項的「類別」（`WordTopic`），使用者決定
-/// 拿掉那個分類軸，下拉選單改成直接列出資料裡實際出現過的所有標籤
+/// 拿掉那個分類軸，選單改成直接列出資料裡實際出現過的所有標籤
 /// （`data.tagCounts` 的鍵），不是列舉某個 enum——新增一種標籤完全不用
-/// 改這裡的程式，題庫檔多打一個字就會自動出現在下拉選單裡。
+/// 改這裡的程式，題庫檔多打一個字就會自動出現在選單裡。
+///
+/// **可以多選**（使用者 2026-09-16 決定）：`PopupMenuButton` 選一項就會
+/// 自動關掉選單，沒辦法勾好幾項，所以這裡改用 `showModalBottomSheet`，
+/// 勾選會即時套用篩選，但選單本身留著，直到使用者自己滑掉或點外面關掉。
+/// [multiTagLabel]（自己貼了兩個以上標籤的字）固定排在選單最下面，
+/// 用分隔線跟一般標籤隔開，因為它篩的是「標籤數量」而不是某個標籤本身，
+/// 混在字母排序裡容易被誤會成一個普通標籤。
 class _TagMenu extends ConsumerWidget {
-  const _TagMenu({required this.counts});
+  const _TagMenu({required this.counts, required this.multiTagCount});
 
   final Map<String, int> counts;
+  final int multiTagCount;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final selected = ref.watch(libraryTagProvider);
-    final tags = counts.keys.toList()..sort();
+    final tags = counts.keys.where((t) => t != untaggedLabel).toList()
+      ..sort();
 
-    return PopupMenuButton<String?>(
-      tooltip: '標籤',
-      color: const Color(0xFF1A1A24),
-      position: PopupMenuPosition.under,
-      onSelected: (value) =>
-          ref.read(libraryTagProvider.notifier).state = value,
-      itemBuilder: (context) => [
-        const PopupMenuItem(value: null, child: Text('全部標籤')),
-        for (final tag in tags)
-          if (tag != untaggedLabel)
-            PopupMenuItem(value: tag, child: Text('$tag ${counts[tag] ?? 0}')),
-        if (counts.containsKey(untaggedLabel))
-          PopupMenuItem(
-            value: untaggedLabel,
-            child: Text('$untaggedLabel ${counts[untaggedLabel] ?? 0}'),
-          ),
-      ],
+    String label() {
+      if (selected.isEmpty) return '標籤';
+      if (selected.length == 1) return selected.first;
+      return '標籤（${selected.length}）';
+    }
+
+    return GestureDetector(
+      onTap: () => _openSheet(context, ref, tags),
       child: Container(
         padding: const EdgeInsets.fromLTRB(11, 6, 7, 6),
         decoration: BoxDecoration(
-          color: selected == null ? AppColors.glassFill : AppColors.accentSolid,
+          color: selected.isEmpty
+              ? AppColors.glassFill
+              : AppColors.accentSolid,
           borderRadius: BorderRadius.circular(Radii.chip),
           border: Border.all(
-            color: selected == null ? AppColors.glassEdge : Colors.transparent,
+            color: selected.isEmpty
+                ? AppColors.glassEdge
+                : Colors.transparent,
           ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              selected ?? '標籤',
+              label(),
               style: TextStyle(
                 fontSize: 11.5,
-                color: selected == null ? AppColors.ink2 : Colors.white,
+                color: selected.isEmpty ? AppColors.ink2 : Colors.white,
               ),
             ),
             Icon(
               Icons.arrow_drop_down,
               size: 16,
-              color: selected == null ? AppColors.ink3 : Colors.white,
+              color: selected.isEmpty ? AppColors.ink3 : Colors.white,
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _openSheet(BuildContext context, WidgetRef ref, List<String> tags) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF1A1A24),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Consumer(
+          builder: (context, ref, _) {
+            final selected = ref.watch(libraryTagProvider);
+
+            void toggle(String value) {
+              final next = {...selected};
+              if (!next.remove(value)) next.add(value);
+              ref.read(libraryTagProvider.notifier).state = next;
+            }
+
+            return ListView(
+              shrinkWrap: true,
+              padding: const EdgeInsets.symmetric(vertical: Gap.sm),
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: Gap.screenSide,
+                    vertical: Gap.xs,
+                  ),
+                  child: Row(
+                    children: [
+                      const Text('標籤（可複選）', style: AppText.note),
+                      const Spacer(),
+                      if (selected.isNotEmpty)
+                        GestureDetector(
+                          onTap: () =>
+                              ref.read(libraryTagProvider.notifier).state =
+                                  const {},
+                          child: const Text('清除', style: AppText.note),
+                        ),
+                    ],
+                  ),
+                ),
+                if (counts.containsKey(untaggedLabel))
+                  _TagCheckRow(
+                    label: untaggedLabel,
+                    count: counts[untaggedLabel] ?? 0,
+                    checked: selected.contains(untaggedLabel),
+                    onTap: () => toggle(untaggedLabel),
+                  ),
+                for (final tag in tags)
+                  _TagCheckRow(
+                    label: tag,
+                    count: counts[tag] ?? 0,
+                    checked: selected.contains(tag),
+                    onTap: () => toggle(tag),
+                  ),
+                const Divider(height: Gap.lg, color: AppColors.glassEdge),
+                _TagCheckRow(
+                  label: multiTagLabel,
+                  count: multiTagCount,
+                  checked: selected.contains(multiTagLabel),
+                  onTap: () => toggle(multiTagLabel),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _TagCheckRow extends StatelessWidget {
+  const _TagCheckRow({
+    required this.label,
+    required this.count,
+    required this.checked,
+    required this.onTap,
+  });
+
+  final String label;
+  final int count;
+  final bool checked;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: Gap.screenSide,
+          vertical: 10,
+        ),
+        child: Row(
+          children: [
+            Icon(
+              checked ? Icons.check_box : Icons.check_box_outline_blank,
+              size: 18,
+              color: checked ? AppColors.accent : AppColors.ink3,
+            ),
+            const SizedBox(width: Gap.sm),
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(fontSize: 13.5, color: AppColors.ink),
+              ),
+            ),
+            Text('$count', style: AppText.note),
           ],
         ),
       ),

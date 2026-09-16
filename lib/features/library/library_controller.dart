@@ -19,12 +19,22 @@ final libraryFilterProvider = StateProvider.autoDispose<WordStatus?>(
 /// 的「未分類」桶）。
 const untaggedLabel = '未分類';
 
-/// 標籤篩選。null 代表不篩，[untaggedLabel] 代表只看沒有任何標籤的字，
-/// 其餘就是實際的標籤字串。跟狀態是「且」的關係，兩個可以同時生效。
+/// 標籤篩選，可以多選。空集合代表不篩，[untaggedLabel] 代表只看沒有
+/// 任何標籤的字，[multiTagLabel] 代表只看「自己貼了兩個以上標籤」的字，
+/// 其餘就是實際的標籤字串。跟狀態是「且」的關係，可以同時生效。
 ///
-/// 2026-09-16 之前這裡篩的是固定選項的類別（`WordTopic`），使用者決定
-/// 拿掉那個分類軸，類別跟標籤合併成同一件事——這裡直接篩 `Word.tags`。
-final libraryTagProvider = StateProvider.autoDispose<String?>((ref) => null);
+/// 多選之間是「或」的關係（選了食物、水果就是兩類都要看到），
+/// 跟狀態、詞義豐富度這些不同篩選軸之間的「且」不一樣，
+/// 不要混為一談（使用者 2026-09-16 決定要能多選）。
+final libraryTagProvider = StateProvider.autoDispose<Set<String>>(
+  (ref) => const {},
+);
+
+/// 只看有兩個以上標籤的字，跟 [untaggedLabel] 一樣是跟標籤字串共用同一個
+/// 下拉選單的特殊值，畫面上排在選單最下面（使用者 2026-09-16 決定）。
+/// 跟其他勾選的標籤是「且」的關係：選了食物又勾這個，代表「食物裡面
+/// 還額外貼了別的標籤」的字，不是「食物」跟「多標籤」取聯集。
+const multiTagLabel = '多標籤（2 個以上）';
 
 /// 詞義豐富度篩選。null 代表不篩。跟狀態、標籤都是「且」的關係。
 final librarySenseProvider = StateProvider.autoDispose<WordSenseCount?>(
@@ -67,6 +77,7 @@ class LibraryData {
     required this.words,
     required this.counts,
     required this.tagCounts,
+    required this.multiTagCount,
     required this.senseCounts,
     required this.traps,
     required this.rules,
@@ -81,6 +92,9 @@ class LibraryData {
 
   /// 每個標籤各有幾個字，給下拉選單顯示，鍵是標籤字串（含 [untaggedLabel]）。
   final Map<String, int> tagCounts;
+
+  /// 自己貼了兩個以上標籤的字有幾個，給 [multiTagLabel] 那個選項顯示。
+  final int multiTagCount;
 
   /// 每個詞義豐富度各有幾個字，給下拉選單顯示。
   final Map<WordSenseCount, int> senseCounts;
@@ -97,7 +111,7 @@ final libraryProvider = FutureProvider.autoDispose<LibraryData>((ref) async {
   final rules = await ref.watch(settingsRepositoryProvider).loadRules();
   final query = ref.watch(libraryQueryProvider).trim();
   final filter = ref.watch(libraryFilterProvider);
-  final tag = ref.watch(libraryTagProvider);
+  final tags = ref.watch(libraryTagProvider);
   final sense = ref.watch(librarySenseProvider);
   final sortBy = ref.watch(librarySortProvider);
   final traps = await ref.watch(trapWordsProvider.future);
@@ -109,6 +123,7 @@ final libraryProvider = FutureProvider.autoDispose<LibraryData>((ref) async {
   // 全部標籤加起來的數字會超過單字總數，這是預期的。
   final tagCounts = <String, int>{};
   final senseCounts = <WordSenseCount, int>{};
+  var multiTagCount = 0;
   for (final w in all) {
     if (w.tags.isEmpty) {
       tagCounts[untaggedLabel] = (tagCounts[untaggedLabel] ?? 0) + 1;
@@ -117,6 +132,7 @@ final libraryProvider = FutureProvider.autoDispose<LibraryData>((ref) async {
         tagCounts[t] = (tagCounts[t] ?? 0) + 1;
       }
     }
+    if (w.tags.length >= 2) multiTagCount++;
     senseCounts[w.senseCount] = (senseCounts[w.senseCount] ?? 0) + 1;
   }
 
@@ -126,10 +142,18 @@ final libraryProvider = FutureProvider.autoDispose<LibraryData>((ref) async {
       return false;
     }
     // 狀態、標籤、詞義豐富度是「且」的關係：選了都要同時符合。
-    // 標籤篩選看的是「有沒有包含」，不是「剛好只有這一個」。
-    if (tag != null &&
-        !(tag == untaggedLabel ? w.tags.isEmpty : w.tags.contains(tag))) {
-      return false;
+    // 標籤本身多選是「或」：勾選的一般標籤裡符合任何一個就算過；
+    // multiTagLabel 是額外的「且」條件，跟一般標籤分開處理。
+    if (tags.isNotEmpty) {
+      final wantsMultiTag = tags.contains(multiTagLabel);
+      final picked = tags.where((t) => t != multiTagLabel);
+      final matchesPicked =
+          picked.isEmpty ||
+          picked.any(
+            (t) => t == untaggedLabel ? w.tags.isEmpty : w.tags.contains(t),
+          );
+      if (!matchesPicked) return false;
+      if (wantsMultiTag && w.tags.length < 2) return false;
     }
     if (sense != null && w.senseCount != sense) return false;
     if (query.isEmpty) return true;
@@ -168,6 +192,7 @@ final libraryProvider = FutureProvider.autoDispose<LibraryData>((ref) async {
     words: filtered,
     counts: counts,
     tagCounts: tagCounts,
+    multiTagCount: multiTagCount,
     senseCounts: senseCounts,
     traps: traps,
     rules: rules,

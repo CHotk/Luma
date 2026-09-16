@@ -1,0 +1,21 @@
+# staging_sentences.txt — 句型暫存區。
+#
+# 要加新句子就在下面新增一行，欄位用「|」分隔：
+#   sentence | pos | zh | grade | sense | tags | relatedWords
+#
+# 只有 sentence 是必填（新句子還要填 zh，不然腳本會跳過那一行並警告）。
+# 其餘留空會套用預設值：
+#   pos           留空預設 sent.
+#   grade         留空預設 國小
+#   sense         留空預設 -
+#   tags          不用手動加「句型」，腳本一定會自動補上這個標籤
+#   relatedWords  這句用到哪些學過的單字，留空就是沒有，多個用「、」分隔
+#
+# 例：
+#   I need a hand.|sent.|我需要幫忙。|國小||need、hand
+#
+# 比對已存在的句子是看整句英文（小寫、去頭尾空白）是否相同，
+# 已存在就只合併 tags／relatedWords，不會動 pos/zh/grade/sense；
+# 不存在才新增一行，編號自動接續。
+#
+# 跑完 add_sentences.ps1 這個檔案會自動清空成只剩這段說明。
