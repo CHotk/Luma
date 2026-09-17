@@ -119,6 +119,7 @@ class _Body extends StatelessWidget {
                   ),
 
                   const Spacer(),
+                  const SizedBox(height: Gap.lg),
                   _StartButton(state: state),
                   const SizedBox(height: Gap.lg),
                 ],

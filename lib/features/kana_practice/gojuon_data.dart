@@ -16,3 +16,27 @@ const gojuonRows = <String, List<(String kana, String romaji)>>{
   'ら': [('ら', 'ra'), ('り', 'ri'), ('る', 'ru'), ('れ', 're'), ('ろ', 'ro')],
   'わ': [('わ', 'wa'), ('を', 'wo'), ('ん', 'n')],
 };
+
+/// 片假名版本，行的 key 跟羅馬拼音都跟 [gojuonRows] 一一對應，只是字換成
+/// 片假名（2026-09-17 使用者要求跟平假名一樣可以練，見
+/// `jp_review_state.dart` 的說明——排程從只算 46 個平假名改成連片假名
+/// 一起算）。
+const gojuonRowsKatakana = <String, List<(String kana, String romaji)>>{
+  'あ': [('ア', 'a'), ('イ', 'i'), ('ウ', 'u'), ('エ', 'e'), ('オ', 'o')],
+  'か': [('カ', 'ka'), ('キ', 'ki'), ('ク', 'ku'), ('ケ', 'ke'), ('コ', 'ko')],
+  'さ': [('サ', 'sa'), ('シ', 'shi'), ('ス', 'su'), ('セ', 'se'), ('ソ', 'so')],
+  'た': [('タ', 'ta'), ('チ', 'chi'), ('ツ', 'tsu'), ('テ', 'te'), ('ト', 'to')],
+  'な': [('ナ', 'na'), ('ニ', 'ni'), ('ヌ', 'nu'), ('ネ', 'ne'), ('ノ', 'no')],
+  'は': [('ハ', 'ha'), ('ヒ', 'hi'), ('フ', 'fu'), ('ヘ', 'he'), ('ホ', 'ho')],
+  'ま': [('マ', 'ma'), ('ミ', 'mi'), ('ム', 'mu'), ('メ', 'me'), ('モ', 'mo')],
+  'や': [('ヤ', 'ya'), ('ユ', 'yu'), ('ヨ', 'yo')],
+  'ら': [('ラ', 'ra'), ('リ', 'ri'), ('ル', 'ru'), ('レ', 're'), ('ロ', 'ro')],
+  'わ': [('ワ', 'wa'), ('ヲ', 'wo'), ('ン', 'n')],
+};
+
+/// 平假名／片假名。首頁預覽卡片跟練習頁都用同一個切換概念，行跟字表
+/// 分開放兩份資料，靠這個列舉決定現在要用哪一份。
+enum KanaScript { hiragana, katakana }
+
+Map<String, List<(String kana, String romaji)>> rowsFor(KanaScript script) =>
+    script == KanaScript.hiragana ? gojuonRows : gojuonRowsKatakana;

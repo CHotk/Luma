@@ -41,9 +41,10 @@ class KanaProgress {
 
 /// 把目前所有練習紀錄套到五十音清音表上，算出每個字的練習狀況。
 ///
-/// 只看清音表裡的 46 個字（[gojuonRows]）——手寫練習頁本來就只能從
-/// 這張表選字，「匯入既有圖片」進來的片假名紀錄不在這個排程範圍內，
-/// 這是刻意簡化，不是漏算。
+/// 看平假名＋片假名兩張表共 92 個字（[gojuonRows]／[gojuonRowsKatakana]）
+/// ——2026-09-17 之前這裡只算 46 個平假名，因為手寫練習頁那時候只能
+/// 選平假名；使用者要求兩邊都能練之後，片假名就跟平假名一樣正式排進
+/// 複習排程，不再是例外。
 List<KanaProgress> buildKanaProgress(List<KanaPracticeEntry> entries) {
   final byKana = <String, List<KanaPracticeEntry>>{};
   for (final e in entries) {
@@ -51,23 +52,24 @@ List<KanaProgress> buildKanaProgress(List<KanaPracticeEntry> entries) {
   }
 
   return [
-    for (final row in gojuonRows.values)
-      for (final (kana, romaji) in row)
-        KanaProgress(
-          kana: kana,
-          romaji: romaji,
-          practiceCount: (byKana[kana] ?? const []).length,
-          pureCount: (byKana[kana] ?? const [])
-              .where((e) => !e.assisted)
-              .length,
-          lastPracticedAt: (byKana[kana] ?? const []).fold<DateTime?>(
-            null,
-            (latest, e) =>
-                latest == null || e.savedAt.isAfter(latest)
-                    ? e.savedAt
-                    : latest,
+    for (final table in [gojuonRows, gojuonRowsKatakana])
+      for (final row in table.values)
+        for (final (kana, romaji) in row)
+          KanaProgress(
+            kana: kana,
+            romaji: romaji,
+            practiceCount: (byKana[kana] ?? const []).length,
+            pureCount: (byKana[kana] ?? const [])
+                .where((e) => !e.assisted)
+                .length,
+            lastPracticedAt: (byKana[kana] ?? const []).fold<DateTime?>(
+              null,
+              (latest, e) =>
+                  latest == null || e.savedAt.isAfter(latest)
+                      ? e.savedAt
+                      : latest,
+            ),
           ),
-        ),
   ];
 }
 

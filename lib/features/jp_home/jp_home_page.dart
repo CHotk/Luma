@@ -12,6 +12,7 @@ import '../../shared/widgets/glass_card.dart';
 import '../../shared/widgets/ring_progress.dart';
 import '../../shared/widgets/track_switcher.dart';
 import '../kana_practice/gojuon_data.dart';
+import '../kana_practice/kana_practice_page.dart';
 import 'jp_home_controller.dart';
 
 /// 日文軌道的首頁。配色是設計稿定案的「櫻」（見 `design-history/`），
@@ -129,6 +130,7 @@ class _Body extends StatelessWidget {
                   ),
 
                   const Spacer(),
+                  const SizedBox(height: Gap.lg),
                   FilledButton(
                     onPressed: () => context.push('/kana-practice'),
                     style: FilledButton.styleFrom(
@@ -198,9 +200,12 @@ class _TopBar extends StatelessWidget {
   }
 }
 
-/// 五十音手寫練習的預覽：選行、選字，右側是描摹格的縮小預覽。
-/// 這裡選的字只是預覽用，不會帶到真正的練習頁——那頁本來就有自己
-/// 一套選字狀態，這張卡片單純是「進去之前先看一眼」。
+/// 五十音手寫練習的預覽：選平／片假名、選行、選字，右側是描摹格的
+/// 縮小預覽。行跟字這兩排本身只換預覽（要先選行才看得到裡面有哪些
+/// 字，不能一點就跳走），但點下面放大預覽的那一塊（假名方塊＋說明
+/// 文字，不是那兩排 chip）會直接帶著目前選的字進真正的練習頁
+/// （2026-09-17 使用者回饋：原本整張卡都只是預覽，點了没反應，容易
+/// 誤會成壞掉）。
 class _KanaPreview extends StatefulWidget {
   const _KanaPreview();
 
@@ -209,41 +214,69 @@ class _KanaPreview extends StatefulWidget {
 }
 
 class _KanaPreviewState extends State<_KanaPreview> {
+  KanaScript _script = KanaScript.hiragana;
   String _row = gojuonRows.keys.first;
   (String, String) _selected = gojuonRows.values.first.first;
 
+  void _pickScript(KanaScript script) {
+    setState(() {
+      _script = script;
+      _row = rowsFor(script).keys.first;
+      _selected = rowsFor(script)[_row]!.first;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    final rows = rowsFor(_script);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const PanelLabel('五十音・手寫練習'),
+        Row(
+          children: [
+            const Expanded(child: PanelLabel('五十音・手寫練習')),
+            _RowTab(
+              label: '平',
+              selected: _script == KanaScript.hiragana,
+              onTap: () => _pickScript(KanaScript.hiragana),
+            ),
+            const SizedBox(width: 6),
+            _RowTab(
+              label: '片',
+              selected: _script == KanaScript.katakana,
+              onTap: () => _pickScript(KanaScript.katakana),
+            ),
+          ],
+        ),
+        const SizedBox(height: 2),
+        Text('先選一行，再選裡面的字', style: AppText.note),
         const SizedBox(height: Gap.sm),
         SizedBox(
-          height: 34,
+          height: 30,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
-            itemCount: gojuonRows.length,
+            itemCount: rows.length,
             separatorBuilder: (_, _) => const SizedBox(width: 6),
             itemBuilder: (_, i) {
-              final row = gojuonRows.keys.elementAt(i);
-              return _PreviewChip(
-                label: row,
+              final row = rows.keys.elementAt(i);
+              return _RowTab(
+                label: '$row行',
                 selected: row == _row,
                 onTap: () => setState(() {
                   _row = row;
-                  _selected = gojuonRows[row]!.first;
+                  _selected = rows[row]!.first;
                 }),
               );
             },
           ),
         ),
-        const SizedBox(height: Gap.sm),
+        const SizedBox(height: Gap.md),
         Wrap(
           spacing: 6,
           runSpacing: 6,
           children: [
-            for (final pair in gojuonRows[_row]!)
+            for (final pair in rows[_row]!)
               _PreviewChip(
                 label: pair.$1,
                 selected: pair == _selected,
@@ -252,47 +285,106 @@ class _KanaPreviewState extends State<_KanaPreview> {
           ],
         ),
         const SizedBox(height: Gap.md),
-        Row(
-          children: [
-            Container(
-              width: 76,
-              height: 76,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: AppColors.glassFill,
-                border: Border.all(color: AppColors.glassEdge),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                _selected.$1,
-                style: const TextStyle(
-                  fontSize: 42,
-                  color: AppColors.ink,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+        InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => context.push(
+            '/kana-practice',
+            extra: KanaPracticeInitial(
+              script: _script,
+              row: _row,
+              kana: _selected,
             ),
-            const SizedBox(width: Gap.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _selected.$2,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(
+              children: [
+                Container(
+                  width: 76,
+                  height: 76,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: AppColors.glassFill,
+                    border: Border.all(color: AppColors.glassEdge),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    _selected.$1,
                     style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 42,
                       color: AppColors.ink,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text('點進去可以真的用手指或滑鼠寫這個字', style: AppText.note),
-                ],
-              ),
+                ),
+                const SizedBox(width: Gap.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _selected.$2,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.ink,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text('點這裡直接進去寫這個字', style: AppText.note),
+                    ],
+                  ),
+                ),
+                const Icon(
+                  Icons.chevron_right,
+                  size: 20,
+                  color: AppColors.ink3,
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ],
+    );
+  }
+}
+
+/// 行選擇器（あ／か／さ……）。故意用底線膠囊而不是跟字格一樣的方塊
+/// 樣式——之前兩排都用 [_PreviewChip] 同一種外觀，使用者分不出哪排是
+/// 「選一整行」、哪排是「選行裡面哪個字」（2026-09-17 回饋）。
+class _RowTab extends StatelessWidget {
+  const _RowTab({required this.label, required this.selected, required this.onTap});
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        height: 30,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: selected ? JpHomePage._accent : Colors.transparent,
+          borderRadius: BorderRadius.circular(999),
+          border: selected
+              ? null
+              : Border.all(color: AppColors.glassEdge),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: selected ? const Color(0xFF241019) : AppColors.ink2,
+          ),
+        ),
+      ),
     );
   }
 }

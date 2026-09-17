@@ -28,10 +28,28 @@ import 'kana_paper.dart';
 /// 該是亮色，跟其餘畫面統一的暗色玻璃底不是同一件事，硬套 AppColors
 /// 會讓墨跡完全看不清楚。
 class KanaPracticePage extends ConsumerStatefulWidget {
-  const KanaPracticePage({super.key});
+  const KanaPracticePage({super.key, this.initial});
+
+  /// 從日文首頁的預覽卡片點進來時，帶著使用者當下選的行／字直接開始
+  /// 寫，不用進來再選一次（2026-09-17 使用者要求：點預覽卡片空白處
+  /// 要直接進練習，不是只換預覽畫面）。
+  final KanaPracticeInitial? initial;
 
   @override
   ConsumerState<KanaPracticePage> createState() => _KanaPracticePageState();
+}
+
+/// 從首頁預覽帶進來的起始選擇。
+class KanaPracticeInitial {
+  const KanaPracticeInitial({
+    required this.script,
+    required this.row,
+    required this.kana,
+  });
+
+  final KanaScript script;
+  final String row;
+  final (String, String) kana;
 }
 
 class _KanaPracticePageState extends ConsumerState<KanaPracticePage> {
@@ -47,8 +65,10 @@ class _KanaPracticePageState extends ConsumerState<KanaPracticePage> {
   /// 都要歸零，下一次落筆才會重新設定。
   DateTime? _sessionStart;
 
-  String _row = 'あ';
-  (String, String) _selected = gojuonRows['あ']!.first;
+  late KanaScript _script = widget.initial?.script ?? KanaScript.hiragana;
+  late String _row = widget.initial?.row ?? 'あ';
+  late (String, String) _selected =
+      widget.initial?.kana ?? rowsFor(_script)[_row]!.first;
   bool _assisted = true;
 
   @override
@@ -100,11 +120,22 @@ class _KanaPracticePageState extends ConsumerState<KanaPracticePage> {
   double _elapsedMs() =>
       DateTime.now().difference(_sessionStart!).inMicroseconds / 1000;
 
+  void _pickScript(KanaScript script) {
+    if (script == _script) return;
+    _autoSave();
+    setState(() {
+      _script = script;
+      _row = rowsFor(script).keys.first;
+      _selected = rowsFor(script)[_row]!.first;
+      _clearInk();
+    });
+  }
+
   void _pickRow(String row) {
     _autoSave();
     setState(() {
       _row = row;
-      _selected = gojuonRows[row]!.first;
+      _selected = rowsFor(_script)[row]!.first;
       _clearInk();
     });
   }
@@ -158,11 +189,18 @@ class _KanaPracticePageState extends ConsumerState<KanaPracticePage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      _ScriptToggle(script: _script, onChanged: _pickScript),
+                      const SizedBox(height: Gap.md),
                       const PanelLabel('選一行'),
                       const SizedBox(height: Gap.sm),
-                      _RowTabs(active: _row, onPick: _pickRow),
+                      _RowTabs(
+                        rows: rowsFor(_script),
+                        active: _row,
+                        onPick: _pickRow,
+                      ),
                       const SizedBox(height: Gap.md),
                       _KanaGrid(
+                        rows: rowsFor(_script),
                         row: _row,
                         selected: _selected,
                         onPick: _pickKana,
@@ -294,9 +332,36 @@ class _KanaPracticePageState extends ConsumerState<KanaPracticePage> {
   }
 }
 
-class _RowTabs extends StatelessWidget {
-  const _RowTabs({required this.active, required this.onPick});
+class _ScriptToggle extends StatelessWidget {
+  const _ScriptToggle({required this.script, required this.onChanged});
 
+  final KanaScript script;
+  final ValueChanged<KanaScript> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return SegmentedButton<KanaScript>(
+      segments: const [
+        ButtonSegment(value: KanaScript.hiragana, label: Text('平假名')),
+        ButtonSegment(value: KanaScript.katakana, label: Text('片假名')),
+      ],
+      selected: {script},
+      onSelectionChanged: (s) => onChanged(s.first),
+      style: SegmentedButton.styleFrom(
+        backgroundColor: AppColors.glassFill,
+        foregroundColor: AppColors.ink2,
+        selectedBackgroundColor: AppColors.accentSolid.withValues(alpha: 0.28),
+        selectedForegroundColor: AppColors.ink,
+        side: const BorderSide(color: AppColors.glassEdge),
+      ),
+    );
+  }
+}
+
+class _RowTabs extends StatelessWidget {
+  const _RowTabs({required this.rows, required this.active, required this.onPick});
+
+  final Map<String, List<(String, String)>> rows;
   final String active;
   final ValueChanged<String> onPick;
 
@@ -306,10 +371,10 @@ class _RowTabs extends StatelessWidget {
       height: 34,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        itemCount: gojuonRows.length,
+        itemCount: rows.length,
         separatorBuilder: (_, _) => const SizedBox(width: 6),
         itemBuilder: (_, i) {
-          final row = gojuonRows.keys.elementAt(i);
+          final row = rows.keys.elementAt(i);
           return _Chip(
             label: row,
             selected: row == active,
@@ -323,18 +388,20 @@ class _RowTabs extends StatelessWidget {
 
 class _KanaGrid extends StatelessWidget {
   const _KanaGrid({
+    required this.rows,
     required this.row,
     required this.selected,
     required this.onPick,
   });
 
+  final Map<String, List<(String, String)>> rows;
   final String row;
   final (String, String) selected;
   final ValueChanged<(String, String)> onPick;
 
   @override
   Widget build(BuildContext context) {
-    final chars = gojuonRows[row]!;
+    final chars = rows[row]!;
     return Wrap(
       spacing: 6,
       runSpacing: 6,

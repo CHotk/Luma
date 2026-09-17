@@ -45,7 +45,11 @@ final appRouter = GoRouter(
     GoRoute(path: '/library', builder: (_, _) => const LibraryPage()),
     GoRoute(
       path: '/kana-practice',
-      builder: (_, _) => const KanaPracticePage(),
+      // extra 是日文首頁預覽卡片點空白處帶進來的起始選擇（見
+      // jp_home_page.dart 的說明），沒有就是一般從按鈕進來，從第一行
+      // 開始選。
+      builder: (_, state) =>
+          KanaPracticePage(initial: state.extra as KanaPracticeInitial?),
     ),
     GoRoute(
       path: '/kana-practice/history',
