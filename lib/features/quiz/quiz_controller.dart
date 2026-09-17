@@ -71,8 +71,11 @@ class QuizController extends AutoDisposeAsyncNotifier<QuizState> {
   /// 這一題是什麼時候出現的。用來算每題想了幾秒。
   DateTime? _questionShownAt;
 
-  /// 這一輪的編號，開始時就決定好，之後每題都寫同一個。
-  int _round = 0;
+  /// 這一輪共用的識別時戳，開始時只取一次，之後每題都沿用同一個值
+  /// （2026-09-17 決定拿掉輪次編號，全部改用 at 識別／分組一輪——跟
+  /// 對話端整批寫入時只蓋一次系統時間是同一套邏輯，見
+  /// `history_repository.dart` 的說明）。
+  late DateTime _roundAt;
 
   @override
   Future<QuizState> build() async {
@@ -89,7 +92,7 @@ class QuizController extends AutoDisposeAsyncNotifier<QuizState> {
     final questions = QuestionPicker(
       rules: effective,
     ).pick(words, now: now, forceMasteredType: !stealth);
-    _round = await ref.read(historyRepositoryProvider).nextRoundNumber();
+    _roundAt = now;
     _stopwatch
       ..reset()
       ..start();
@@ -165,10 +168,11 @@ class QuizController extends AutoDisposeAsyncNotifier<QuizState> {
         .read(historyRepositoryProvider)
         .appendAnswer(
           HistoryEntry(
-            round: _round,
             word: answered.question.word.word,
             correct: answered.correct,
-            at: answered.answeredAt,
+            // 同一輪的每一題都寫同一個 at（_roundAt），不是這一題真正
+            // 按下去的那一刻——這是分組識別碼，不是這題的作答時刻。
+            at: _roundAt,
             seconds: answered.seconds,
             typed: answered.question.mode == QuizMode.type,
             input: answered.input,
@@ -215,7 +219,7 @@ class QuizController extends AutoDisposeAsyncNotifier<QuizState> {
     // 每一題在作答當下就寫過了，這裡只補上整輪實際花的時間。
     await ref
         .read(historyRepositoryProvider)
-        .finishRound(_round, _stopwatch.elapsed);
+        .finishRound(_roundAt, _stopwatch.elapsed);
 
     // 成績要先交出去。偽裝模式也要，它的結束畫面就是讀這個，
     // 而且離開時要能跳到結果頁看中文。

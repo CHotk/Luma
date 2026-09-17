@@ -21,9 +21,7 @@ void main() {
     String w, {
     required bool ok,
     required int day,
-    int round = 1,
   }) => HistoryEntry(
-    round: round,
     word: w,
     correct: ok,
     at: DateTime(2026, 9, day),
@@ -89,8 +87,8 @@ void main() {
     expect(rain.lastTest, DateTime(2026, 9, 3), reason: '最後受測日期要取最新的');
   });
 
-  test('兩邊用到同一個輪次編號也不會互相蓋掉', () async {
-    // App 自己先記了一輪，編號 1。
+  test('去重看內容不是編號：日期不同的紀錄不會被誤判成重複', () async {
+    // App 自己先記了一筆。
     final first = build(
       _FakeSeed(
         version: 1,
@@ -100,7 +98,7 @@ void main() {
     );
     await first.history.entries();
 
-    // 對話那邊也用編號 1 追加了一筆，字相同但日期不同。
+    // 對話那邊追加了一筆，字相同但日期（at）不同，不該被當成同一筆。
     final merged = build(
       _FakeSeed(
         version: 2,

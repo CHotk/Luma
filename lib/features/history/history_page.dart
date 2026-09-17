@@ -209,6 +209,12 @@ class _Body extends StatelessWidget {
     }
 
     // 新的排前面，看紀錄通常是想看最近做了什麼。
+    // rounds 本身已經照真實時間排好（見 history_repository.dart），
+    // 這裡按時間先後編出「第幾輪」給使用者看——一輪已經沒有編號了
+    // （2026-09-17 決定拿掉），只能用 at（那一輪共用的識別時戳）當鍵。
+    final sequence = {
+      for (var i = 0; i < rounds.length; i++) rounds[i].at: i + 1,
+    };
     final recent = rounds.reversed.toList();
 
     return ListView(
@@ -248,7 +254,7 @@ class _Body extends StatelessWidget {
         const SizedBox(height: Gap.lg),
         const PanelLabel('每一輪'),
         const SizedBox(height: Gap.xs),
-        for (final r in recent) _RoundRow(log: r),
+        for (final r in recent) _RoundRow(log: r, sequence: sequence[r.at]!),
         const SizedBox(height: Gap.lg),
       ],
     );
@@ -361,15 +367,22 @@ class _ActivityRow extends StatelessWidget {
 }
 
 class _RoundRow extends StatelessWidget {
-  const _RoundRow({required this.log});
+  const _RoundRow({required this.log, required this.sequence});
 
   final RoundLog log;
+
+  /// 按時間先後算出來的「第幾輪」，給使用者看的號碼——一輪已經沒有
+  /// 編號了，路由用的是 [log.at]（見 history_page.dart 頂部
+  /// `sequence` 的建構說明）。
+  final int sequence;
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      // 點進去看這一輪出了什麼題、你怎麼答的。
-      onTap: () => context.push('/round/${log.round}'),
+      // 點進去看這一輪出了什麼題、你怎麼答的。路由參數是 log.at
+      // 編碼過的字串（唯一識別碼），畫面上顯示的號碼是另外算的 sequence。
+      onTap: () =>
+          context.push('/round/${Uri.encodeComponent(log.at.toIso8601String())}'),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 11),
         decoration: const BoxDecoration(
@@ -379,7 +392,7 @@ class _RoundRow extends StatelessWidget {
           children: [
             SizedBox(
               width: 46,
-              child: Text('R${log.round}', style: AppText.bodyDim),
+              child: Text('R$sequence', style: AppText.bodyDim),
             ),
             Expanded(child: Text(_Body._day(log.at), style: AppText.note)),
             // 偽裝模式做的那幾輪標一下，自己看得懂就好。

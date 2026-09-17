@@ -250,8 +250,6 @@ class _HistoryRow extends StatelessWidget {
             entry.seconds > 0 ? '想了 ${entry.seconds} 秒' : '沒有計時',
             style: AppText.note,
           ),
-          const SizedBox(width: Gap.sm),
-          Text('R${entry.round}', style: AppText.note),
         ],
       ),
     );

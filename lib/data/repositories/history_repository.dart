@@ -15,6 +15,10 @@ class HistoryRepository {
   static const _entriesKey = 'history.entries.v1';
   static const _roundsKey = 'history.rounds.v1';
   static const _syncedKey = 'history.synced.version';
+  static const _formatVersionKey = 'history.format.version';
+
+  /// 目前的資料格式版本。見 [_migrateFormatIfNeeded]。
+  static const _currentFormatVersion = 3;
 
   final KeyValueStore _store;
 
@@ -35,13 +39,23 @@ class HistoryRepository {
   /// 之後可以貼給人工整理、合併回題庫的紀錄檔裡。
   ///
   /// 欄位跟 `history.txt` 一樣：date / round / word / result / mode / input / seconds，
-  /// 用兩個以上空白分隔（跟 `WordSeedLoader._separator` 同一套規則），
-  /// 這樣匯出的文字理論上也能直接被那個剖析器讀回去。
+  /// 用兩個以上空白分隔（跟 `WordSeedLoader._separator` 同一套規則）。
+  /// [HistoryEntry] 本身已經沒有 round 欄位了，這裡的 `R1`／`R2`……只是
+  /// 匯出當下依 [at] 分組現算出來的顯示用序號，純粹是為了跟
+  /// `history.txt` 的欄位格式對得起來、人眼看得懂分組，不代表任何存起來
+  /// 的識別碼——同一輪（共用同一個 at）的題目才會拿到一樣的號碼。
   Future<String> exportText() async {
-    final all = await entries();
+    final all = [...await entries()]..sort((a, b) => a.at.compareTo(b.at));
     final buffer = StringBuffer()
       ..writeln('# date        round  word  result  mode  input  seconds');
+
+    DateTime? lastAt;
+    var seq = 0;
     for (final e in all) {
+      if (lastAt == null || e.at != lastAt) {
+        seq++;
+        lastAt = e.at;
+      }
       final date =
           '${e.at.year.toString().padLeft(4, '0')}-'
           '${e.at.month.toString().padLeft(2, '0')}-'
@@ -49,7 +63,7 @@ class HistoryRepository {
       final mode = e.typed ? 'type' : 'tap';
       final input = e.input.trim().isEmpty ? '-' : e.input.trim();
       buffer.writeln(
-        '$date  R${e.round}  ${e.word}  ${e.correct ? 'O' : 'X'}  '
+        '$date  R$seq  ${e.word}  ${e.correct ? 'O' : 'X'}  '
         '$mode  $input  ${e.seconds}',
       );
     }
@@ -68,29 +82,24 @@ class HistoryRepository {
     return result;
   }
 
-  /// 下一輪要用的編號，接在現有最大號之後。
-  ///
-  /// 兩邊可能剛好拿到同一個號碼，但那沒關係：
-  /// 編號只是顯示用，去重看的是內容。
-  Future<int> nextRoundNumber() async {
-    final past = await rounds();
-    if (past.isEmpty) return 1;
-    return past.map((r) => r.round).reduce((a, b) => a > b ? a : b) + 1;
-  }
-
   /// 每答完一題就寫一次。
   ///
   /// 不等整輪結束才寫，是因為中途關掉瀏覽器或被系統收掉的話，
   /// 那一輪的努力就全部不見了。寧可留下半輪，也不要留下空白。
+  ///
+  /// 同一輪的所有題目共用同一個 [HistoryEntry.at]（呼叫端——
+  /// `quiz_controller.dart`——一輪開始時只取一次 `DateTime.now()`，之後
+  /// 每題都沿用這個值），這裡直接拿 `entry.at` 當這一輪的識別碼分組，
+  /// 不用再跟這個 repository 要一個獨立的輪次編號（使用者 2026-09-17
+  /// 決定拿掉 round，全部改用 at 識別）。
   Future<void> appendAnswer(HistoryEntry entry, {required bool stealth}) async {
     final all = [...await entries(), entry];
     await _writeEntries(all);
 
     // 順手把這一輪的摘要更新到目前為止的狀態，半途中斷也看得出考到哪。
-    final mine = all.where((e) => e.round == entry.round).toList();
+    final mine = all.where((e) => e.at == entry.at).toList();
     final summary = RoundLog(
-      round: entry.round,
-      at: mine.first.at,
+      at: entry.at,
       seconds: mine.fold(0, (sum, e) => sum + e.seconds),
       total: mine.length,
       right: mine.where((e) => e.correct).length,
@@ -98,26 +107,26 @@ class HistoryRepository {
     );
 
     final rounds = await _readRounds();
-    final index = rounds.indexWhere((r) => r.round == entry.round);
+    final index = rounds.indexWhere((r) => r.at == entry.at);
     if (index >= 0) {
       rounds[index] = summary;
     } else {
       rounds.add(summary);
     }
-    await _writeRounds(rounds..sort((a, b) => a.round.compareTo(b.round)));
+    await _writeRounds(rounds..sort((a, b) => a.at.compareTo(b.at)));
   }
 
-  /// 一輪結束時把摘要補上真正的耗時。
+  /// 一輪結束時把摘要補上真正的耗時。[at] 是那一輪共用的識別時戳，
+  /// 呼叫端存著跟 [appendAnswer] 用的是同一個值。
   ///
   /// 每題累加的秒數只算「想的時間」，這裡改成整輪實際花的時間，
   /// 含翻卡片、看答案、發呆那些。
-  Future<void> finishRound(int round, Duration elapsed) async {
+  Future<void> finishRound(DateTime at, Duration elapsed) async {
     final rounds = await _readRounds();
-    final index = rounds.indexWhere((r) => r.round == round);
+    final index = rounds.indexWhere((r) => r.at == at);
     if (index < 0) return;
     final current = rounds[index];
     rounds[index] = RoundLog(
-      round: current.round,
       at: current.at,
       seconds: elapsed.inSeconds,
       total: current.total,
@@ -154,12 +163,16 @@ class HistoryRepository {
     );
   }
 
-  /// 某一輪的所有題目，照作答順序。
+  /// 某一輪的所有題目，照作答順序。[at] 是那一輪共用的識別時戳。
   /// 總紀錄頁點某一輪進去就是看這個。
-  Future<List<HistoryEntry>> forRound(int round) async {
+  ///
+  /// 不在這裡另外排序：同一輪的題目全部共用同一個 [HistoryEntry.at]，
+  /// 排序鍵會全部平手，直接照 [entries] 本身的儲存順序（新答案一律
+  /// 附加在最後面，本來就是實際作答順序）回傳才不會被不保證穩定的
+  /// 排序演算法打亂原本的答題先後。
+  Future<List<HistoryEntry>> forRound(DateTime at) async {
     final all = await entries();
-    return all.where((e) => e.round == round).toList()
-      ..sort((a, b) => a.at.compareTo(b.at));
+    return all.where((e) => e.at == at).toList();
   }
 
   /// 某個字的所有作答紀錄，新的排前面。
@@ -175,11 +188,15 @@ class HistoryRepository {
   /// 每次打包版本變新就跑一次，不是只跑一次。
   /// 對話那邊考完也是往同一份 history.txt 追加，所以這裡要能反覆合併。
   ///
-  /// 去重看的是內容，不是編號：同一輪、同一個字、同一個時間點、同樣對錯，
-  /// 就算是同一筆。兩邊剛好用到同一個輪次編號也不會互相蓋掉。
+  /// 去重看的是內容：同一個時間點、同一個字、同樣對錯，就算是同一筆
+  /// （見 [_fingerprint]）——不看任何編號，兩個獨立來源本來就幾乎不會
+  /// 在完全同一時刻答對／答錯同一個字。
   Future<void> _syncBundle() async {
     final seed = _seed;
     if (seed == null) return;
+
+    await _migrateFormatIfNeeded();
+
     final applied = int.tryParse(await _store.read(_syncedKey) ?? '') ?? 0;
     if (seed.bundleVersion <= applied) return;
 
@@ -203,10 +220,44 @@ class HistoryRepository {
     await _writeRounds(_rebuildRounds(merged, await _readRounds()));
   }
 
+  /// round 不進指紋：同一輪的所有題目本來就共用同一個 at 時間戳
+  /// （對話端 grade_round.ps1 整批寫入時只蓋一次系統時間），at + word +
+  /// correct 已經足夠唯一識別一筆紀錄，round 只是內部分組 id，混進來
+  /// 是多餘的（使用者 2026-09-17 決定拿掉）。這個字串是即時算出來的，
+  /// 不是存在本機的固定格式，改公式不用另外跑遷移版本號。
   static String _fingerprint(HistoryEntry e) =>
-      '${e.round}|${e.word.toLowerCase()}|${e.at.toIso8601String()}|${e.correct}';
+      '${e.at.toIso8601String()}|${e.word.toLowerCase()}|${e.correct}';
 
-  /// 依合併後的紀錄重建每輪摘要。
+  /// 本機資料格式跟目前 bundle 的資料形狀對不上時，先整個清空重新
+  /// 乾淨匯入一次，不走「只補差集」的增量比對邏輯——[_fingerprint]
+  /// 是即時從 [HistoryEntry] 算出來的，如果本機存的欄位（例如舊的
+  /// at 值、或舊的 round 欄位）跟現在的公式假設不一致，指紋會全部
+  /// 對不上新 bundle，被誤判成「全新的」整批重複匯入，right/wrong
+  /// 統計就灌水。已經發生過兩次：
+  ///   - 版本 2（2026-09-17）：`history.txt` 的 round 欄位被重新編號
+  ///     成全域唯一，本機存的舊指紋含著改編號前的 round，對不上新值。
+  ///   - 版本 3（2026-09-17，同一天）：round 整個從識別機制裡拿掉，
+  ///     改成完全靠 [HistoryEntry.at] 識別／分組一輪——`history.txt`
+  ///     的 at 欄位同時被回填成全域唯一的合成時間，本機舊資料的 at
+  ///     可能還是舊的（例如只精確到天、或撞在同一分鐘），也需要重新
+  ///     乾淨匯入一次才能跟新公式對齊。
+  ///
+  /// 版本一致之後這段直接跳過，不是每次都要清一次——這是保護機制，
+  /// 不是常態流程；只有資料形狀真的變了才需要再往上加一版。
+  Future<void> _migrateFormatIfNeeded() async {
+    final stored =
+        int.tryParse(await _store.read(_formatVersionKey) ?? '') ?? 1;
+    if (stored >= _currentFormatVersion) return;
+
+    await _store.remove(_entriesKey);
+    await _store.remove(_roundsKey);
+    await _store.remove(_syncedKey);
+    await _store.write(_formatVersionKey, '$_currentFormatVersion');
+  }
+
+  /// 依合併後的紀錄重建每輪摘要。分組鍵是 [HistoryEntry.at]：同一輪的
+  /// 題目共用同一個 at，跨輪的 at 保證全域唯一（見 [_migrateFormatIfNeeded]
+  /// 的說明），不會混到一起。
   ///
   /// App 自己跑出來的輪次有秒數與偽裝標記，那些要留著；
   /// 其餘從紀錄兜回來，秒數是 0，因為 history.txt 本來就沒有時間。
@@ -214,29 +265,32 @@ class HistoryRepository {
     List<HistoryEntry> entries,
     List<RoundLog> known,
   ) {
-    final byRound = <int, List<HistoryEntry>>{};
+    final byAt = <DateTime, List<HistoryEntry>>{};
     for (final e in entries) {
-      byRound.putIfAbsent(e.round, () => []).add(e);
+      byAt.putIfAbsent(e.at, () => []).add(e);
     }
-    final keep = {for (final r in known) r.round: r};
+    final keep = {for (final r in known) r.at: r};
 
     return [
-      for (final entry in byRound.entries)
-        keep[entry.key] ??
+      for (final group in byAt.entries)
+        keep[group.key] ??
             RoundLog(
-              round: entry.key,
-              at: entry.value.first.at,
+              at: group.key,
               seconds: 0,
-              total: entry.value.length,
-              right: entry.value.where((e) => e.correct).length,
+              total: group.value.length,
+              right: group.value.where((e) => e.correct).length,
               stealth: false,
             ),
-    ]..sort((a, b) => a.round.compareTo(b.round));
+    ]..sort((a, b) => a.at.compareTo(b.at));
   }
 
   Future<List<HistoryEntry>> _readEntries() async {
     final raw = await _store.read(_entriesKey);
-    if (raw == null) return const [];
+    // 給一個真的空清單，不是 const []：appendAnswer 會直接對這裡讀出來
+    // 的清單呼叫 .add()，const 的不可變清單會炸掉（沒有 seed，或 seed
+    // 的 bundleHistory() 剛好是空的情況下，_syncBundle 從沒寫過任何
+    // 東西，第一次讀到的就是這裡的預設值）。
+    if (raw == null) return [];
     return (jsonDecode(raw) as List)
         .cast<Map<String, dynamic>>()
         .map(HistoryEntry.fromJson)
@@ -245,7 +299,7 @@ class HistoryRepository {
 
   Future<List<RoundLog>> _readRounds() async {
     final raw = await _store.read(_roundsKey);
-    if (raw == null) return const [];
+    if (raw == null) return [];
     return (jsonDecode(raw) as List)
         .cast<Map<String, dynamic>>()
         .map(RoundLog.fromJson)

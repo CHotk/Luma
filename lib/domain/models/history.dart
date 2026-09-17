@@ -2,9 +2,14 @@
 ///
 /// 這份紀錄是**只增不改**的，跟專案裡 history.txt 的規矩一樣。
 /// 單字上的累計對錯次數必須等於這裡的加總，兩邊對不起來就是有 bug。
+///
+/// 沒有輪次編號欄位（2026-09-17 決定拿掉）：同一輪的所有題目共用同一個
+/// [at] 時間戳（對話端整批寫入時只蓋一次系統時間，App 端也改成一輪
+/// 開始時只取一次 `DateTime.now()`，見 `quiz_controller.dart`），兩個
+/// 獨立來源產生的真實時刻幾乎不可能重複，靠 [at] 識別／分組一輪，
+/// 不需要再靠額外配發的編號、也不需要維持任何人工的編號分帶規則。
 class HistoryEntry {
   const HistoryEntry({
-    required this.round,
     required this.word,
     required this.correct,
     required this.at,
@@ -14,8 +19,6 @@ class HistoryEntry {
     this.isReview = false,
   });
 
-  /// 輪次編號，從 1 開始連號。
-  final int round;
   final String word;
   final bool correct;
 
@@ -39,7 +42,6 @@ class HistoryEntry {
   final bool isReview;
 
   Map<String, dynamic> toJson() => {
-    'round': round,
     'word': word,
     'correct': correct,
     'at': at.toIso8601String(),
@@ -50,7 +52,6 @@ class HistoryEntry {
   };
 
   factory HistoryEntry.fromJson(Map<String, dynamic> json) => HistoryEntry(
-    round: json['round'] as int,
     word: json['word'] as String,
     correct: json['correct'] as bool,
     at: DateTime.parse(json['at'] as String),
@@ -62,9 +63,11 @@ class HistoryEntry {
 }
 
 /// 一輪的摘要。作答紀錄存不下的東西放這裡，例如花了多久。
+///
+/// 沒有輪次編號欄位：[at] 本身就是這一輪的識別碼——同一輪的所有
+/// [HistoryEntry] 共用同一個 [at]，這裡的 [at] 就是那個共用值。
 class RoundLog {
   const RoundLog({
-    required this.round,
     required this.at,
     required this.seconds,
     required this.total,
@@ -72,7 +75,6 @@ class RoundLog {
     required this.stealth,
   });
 
-  final int round;
   final DateTime at;
   final int seconds;
   final int total;
@@ -82,7 +84,6 @@ class RoundLog {
   final bool stealth;
 
   Map<String, dynamic> toJson() => {
-    'round': round,
     'at': at.toIso8601String(),
     'seconds': seconds,
     'total': total,
@@ -91,7 +92,6 @@ class RoundLog {
   };
 
   factory RoundLog.fromJson(Map<String, dynamic> json) => RoundLog(
-    round: json['round'] as int,
     at: DateTime.parse(json['at'] as String),
     seconds: json['seconds'] as int? ?? 0,
     total: json['total'] as int? ?? 0,

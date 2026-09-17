@@ -24,7 +24,7 @@ class WordSeedLoader implements SeedSource {
   /// 每次從 En 資料夾重新複製檔案進 assets 就要 +1。
   /// 忘了加，App 就不會同步，然後你會以為程式壞了。
   @override
-  int get bundleVersion => 34;
+  int get bundleVersion => 36;
 
   Future<List<Word>> _seedWords() async {
     final words = <Word>[];
@@ -128,8 +128,12 @@ class WordSeedLoader implements SeedSource {
 
   /// 測驗紀錄：date / round / word / result [/ mode / input / seconds]
   ///
-  /// 前四欄是必要的：round 長得像 R12，result 只有 O 和 X。
-  /// 後三欄是後來才加的，舊資料沒有也讀得起來：
+  /// round 那欄（`R12` 這種格式）只是檔案裡給人看的分組標籤，App 這邊
+  /// 不再讀它的值——[HistoryEntry] 已經沒有 round 欄位了，識別／分組
+  /// 一輪全部改靠 at（同一輪的所有題目共用同一個 at，2026-09-17 決定，
+  /// 見 `history_repository.dart` 的說明）。這裡仍然要求每行至少 4 欄
+  /// （含 round 那欄的位置）才收，只是收了不存，純粹當格式完整性檢查。
+  /// result 只有 O 和 X。後三欄是後來才加的，舊資料沒有也讀得起來：
   ///   mode    tap 或 type
   ///   input   打字題實際打了什麼，點選題寫 -
   ///   seconds 想了幾秒
@@ -143,13 +147,11 @@ class WordSeedLoader implements SeedSource {
       final cols = line.split(_separator);
       if (cols.length < 4) continue;
       final at = DateTime.tryParse(cols[0]);
-      final round = int.tryParse(cols[1].replaceFirst('R', ''));
-      if (at == null || round == null) continue;
+      if (at == null) continue;
 
       final input = cols.length > 5 ? cols[5].trim() : '';
       entries.add(
         HistoryEntry(
-          round: round,
           word: cols[2],
           correct: cols[3].trim() == 'O',
           at: at,

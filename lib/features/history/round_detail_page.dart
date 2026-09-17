@@ -12,13 +12,15 @@ import '../../domain/models/history.dart';
 /// 做這頁的理由是使用者想以後慢慢翻自己的進步，
 /// 所以「當初打錯成什麼」比「答錯了」更有價值，要看得到。
 class RoundDetailPage extends ConsumerWidget {
-  const RoundDetailPage({super.key, required this.round});
+  const RoundDetailPage({super.key, required this.at});
 
-  final int round;
+  /// 這一輪共用的識別時戳，不是編號——路由參數也是這個值（見
+  /// `router.dart`）。
+  final DateTime at;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(roundDetailProvider(round));
+    final async = ref.watch(roundDetailProvider(at));
 
     return Scaffold(
       body: SafeArea(
@@ -34,7 +36,14 @@ class RoundDetailPage extends ConsumerWidget {
                     icon: const Icon(Icons.arrow_back, size: 20),
                     color: AppColors.ink2,
                   ),
-                  Text('第 $round 輪', style: AppText.title),
+                  // 一輪已經沒有編號了（2026-09-17 決定拿掉），顯示給
+                  // 使用者看的「第幾輪」要等 async 算出按時間排的序號
+                  // 才有，載入中先給個通用標題。
+                  async.maybeWhen(
+                    data: (data) =>
+                        Text('第 ${data.sequence} 輪', style: AppText.title),
+                    orElse: () => const Text('這一輪', style: AppText.title),
+                  ),
                 ],
               ),
               Expanded(
@@ -54,27 +63,31 @@ class RoundDetailPage extends ConsumerWidget {
   }
 }
 
-/// 這一輪的題目，外加每個字的中文。
+/// 這一輪的題目，外加每個字的中文，還有這一輪按時間先後算出來的
+/// 「第幾輪」（一輪已經沒有編號了，[at] 是那一輪共用的識別時戳）。
 /// 中文不存在紀錄裡，要去單字庫查，這樣才不會有兩份會不一致的中文。
 final roundDetailProvider = FutureProvider.autoDispose
-    .family<({List<HistoryEntry> entries, Map<String, String> zh}), int>((
-      ref,
-      round,
-    ) async {
-      final entries = await ref
-          .watch(historyRepositoryProvider)
-          .forRound(round);
+    .family<
+      ({List<HistoryEntry> entries, Map<String, String> zh, int sequence}),
+      DateTime
+    >((ref, at) async {
+      final repo = ref.watch(historyRepositoryProvider);
+      final entries = await repo.forRound(at);
       final words = await ref.watch(wordRepositoryProvider).loadAll();
+      final rounds = await repo.rounds();
+      final sequence = rounds.indexWhere((r) => r.at == at) + 1;
       return (
         entries: entries,
         zh: {for (final w in words) w.word.toLowerCase(): w.zh},
+        sequence: sequence,
       );
     });
 
 class _Body extends StatelessWidget {
   const _Body({required this.data});
 
-  final ({List<HistoryEntry> entries, Map<String, String> zh}) data;
+  final ({List<HistoryEntry> entries, Map<String, String> zh, int sequence})
+  data;
 
   @override
   Widget build(BuildContext context) {

@@ -30,9 +30,16 @@ final appRouter = GoRouter(
     GoRoute(path: '/stealth', builder: (_, _) => const StealthPage()),
     GoRoute(path: '/history', builder: (_, _) => const HistoryPage()),
     GoRoute(
-      path: '/round/:round',
+      path: '/round/:at',
+      // 一輪已經沒有編號了，路由參數是那一輪共用的 at 時戳（ISO8601，
+      // 用 Uri.encodeComponent 編碼過，因為冒號跟點在路徑片段裡不安全）
+      // ——見 history_repository.dart／history_page.dart 的說明。
       builder: (_, state) => RoundDetailPage(
-        round: int.tryParse(state.pathParameters['round'] ?? '') ?? 0,
+        at:
+            DateTime.tryParse(
+              Uri.decodeComponent(state.pathParameters['at'] ?? ''),
+            ) ??
+            DateTime(0),
       ),
     ),
     GoRoute(path: '/library', builder: (_, _) => const LibraryPage()),
