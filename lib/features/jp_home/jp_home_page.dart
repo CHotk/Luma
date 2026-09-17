@@ -70,70 +70,87 @@ class _Body extends StatelessWidget {
     final target = state.config.dailyKanaTarget;
     final done = state.todayCount >= target;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const SizedBox(height: Gap.md),
-        _TopBar(now: DateTime.now()),
-        const SizedBox(height: Gap.lg),
+    // 跟英文首頁同一個問題：Column 直接放 Spacer() 沒有滾動能力，螢幕
+    // 矮一點就整頁卡死，滾輪／手指滑動都沒反應。用 LayoutBuilder 量出
+    // 可用高度，塞得下維持原排版（按鈕釘底部），塞不下就讓
+    // SingleChildScrollView 接手滾動。
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: IntrinsicHeight(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: Gap.md),
+                  _TopBar(now: DateTime.now()),
+                  const SizedBox(height: Gap.lg),
 
-        GlassCard(
-          padding: const EdgeInsets.fromLTRB(10, 16, 10, 14),
-          child: Column(
-            children: [
-              RingProgress(
-                done: state.todayCount,
-                total: target,
-                centerLabel: '${state.todayCount}/$target',
-                bottomLabel:
-                    '${state.todayMinutes} / ${state.config.dailyMinutesTarget} 分',
+                  GlassCard(
+                    padding: const EdgeInsets.fromLTRB(10, 16, 10, 14),
+                    child: Column(
+                      children: [
+                        RingProgress(
+                          done: state.todayCount,
+                          total: target,
+                          centerLabel: '${state.todayCount}/$target',
+                          bottomLabel:
+                              '${state.todayMinutes} / ${state.config.dailyMinutesTarget} 分',
+                        ),
+                        const SizedBox(height: Gap.sm),
+                        Text(
+                          done
+                              ? '今天的份量做完了'
+                              : Encouragement.forDate(DateTime.now()),
+                          textAlign: TextAlign.center,
+                          style: AppText.bodyDim,
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: Gap.md),
+                  const GlassCard(child: _KanaPreview()),
+
+                  const SizedBox(height: Gap.md),
+                  GlassCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const PanelLabel('下一輪'),
+                        const SizedBox(height: Gap.sm),
+                        _Row('待複習', '${state.review.due}'),
+                        _Row('新字', '${state.review.fresh}'),
+                        _Row('已掌握', '${state.review.mastered}'),
+                        _Row('手寫練習', '$target 字'),
+                      ],
+                    ),
+                  ),
+
+                  const Spacer(),
+                  FilledButton(
+                    onPressed: () => context.push('/kana-practice'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: JpHomePage._accent,
+                      foregroundColor: const Color(0xFF241019),
+                      padding: const EdgeInsets.symmetric(vertical: 15),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(Radii.button),
+                      ),
+                    ),
+                    child: const Text(
+                      '開始這輪',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  const SizedBox(height: Gap.lg),
+                ],
               ),
-              const SizedBox(height: Gap.sm),
-              Text(
-                done ? '今天的份量做完了' : Encouragement.forDate(DateTime.now()),
-                textAlign: TextAlign.center,
-                style: AppText.bodyDim,
-              ),
-            ],
-          ),
-        ),
-
-        const SizedBox(height: Gap.md),
-        const GlassCard(child: _KanaPreview()),
-
-        const SizedBox(height: Gap.md),
-        GlassCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const PanelLabel('下一輪'),
-              const SizedBox(height: Gap.sm),
-              _Row('待複習', '${state.review.due}'),
-              _Row('新字', '${state.review.fresh}'),
-              _Row('已掌握', '${state.review.mastered}'),
-              _Row('手寫練習', '$target 字'),
-            ],
-          ),
-        ),
-
-        const Spacer(),
-        FilledButton(
-          onPressed: () => context.push('/kana-practice'),
-          style: FilledButton.styleFrom(
-            backgroundColor: JpHomePage._accent,
-            foregroundColor: const Color(0xFF241019),
-            padding: const EdgeInsets.symmetric(vertical: 15),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(Radii.button),
             ),
           ),
-          child: const Text(
-            '開始這輪',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-          ),
-        ),
-        const SizedBox(height: Gap.lg),
-      ],
+        );
+      },
     );
   }
 }

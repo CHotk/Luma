@@ -52,61 +52,81 @@ class _Body extends StatelessWidget {
   Widget build(BuildContext context) {
     final minutesUsed = state.usage.practiceSeconds ~/ 60;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const SizedBox(height: Gap.md),
-        // 週幾／時間用當下的真實時間，不是 state.usage.date——後者是
-        // 「今天這筆用量第一次建立時」的時間戳，同一天內重新打開 App
-        // 不會更新，拿來顯示時間會是舊的。
-        _TopBar(now: DateTime.now()),
-        const SizedBox(height: Gap.lg),
+    // Column 直接塞 Spacer() 沒有滾動能力：內容剛好塞滿螢幕時看不出來，
+    // 一旦螢幕矮一點（或字級調大），滑鼠滾輪／手指上下滑動都不會動，
+    // 只會裁切或噴 overflow。這裡用 LayoutBuilder 量出可用高度，內容
+    // 塞得下就照原樣把按鈕釘在底部，塞不下就讓 SingleChildScrollView
+    // 接手滾動。
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: IntrinsicHeight(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: Gap.md),
+                  // 週幾／時間用當下的真實時間，不是 state.usage.date——
+                  // 後者是「今天這筆用量第一次建立時」的時間戳，同一天內
+                  // 重新打開 App 不會更新，拿來顯示時間會是舊的。
+                  _TopBar(now: DateTime.now()),
+                  const SizedBox(height: Gap.lg),
 
-        GlassCard(
-          padding: const EdgeInsets.fromLTRB(10, 16, 10, 14),
-          child: Column(
-            children: [
-              RingProgress(
-                done: state.usage.roundsDone,
-                total: state.rules.roundsPerDay,
-                centerLabel:
-                    '${state.usage.roundsDone}/${state.rules.roundsPerDay}',
-                bottomLabel: '$minutesUsed / ${state.rules.minutesPerDay} 分',
+                  GlassCard(
+                    padding: const EdgeInsets.fromLTRB(10, 16, 10, 14),
+                    child: Column(
+                      children: [
+                        RingProgress(
+                          done: state.usage.roundsDone,
+                          total: state.rules.roundsPerDay,
+                          centerLabel:
+                              '${state.usage.roundsDone}/${state.rules.roundsPerDay}',
+                          bottomLabel:
+                              '$minutesUsed / ${state.rules.minutesPerDay} 分',
+                        ),
+                        const SizedBox(height: Gap.sm),
+                        Text(
+                          // 做滿了就講做滿了，其餘時候給一句每天不一樣的話。
+                          state.limitReached
+                              ? '今天的份量做完了'
+                              : Encouragement.forDate(state.usage.date),
+                          textAlign: TextAlign.center,
+                          style: AppText.bodyDim,
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: Gap.md),
+                  GlassCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const PanelLabel('下一輪'),
+                        const SizedBox(height: Gap.sm),
+                        _Row('待複習', '${state.rules.pendingPerRound}'),
+                        _Row('新字', '${state.rules.freshPerRound}'),
+                        _Row('已掌握', '${state.rules.masteredPerRound}'),
+
+                        if (state.rules.effectiveTypeQuestions > 0)
+                          _Row(
+                            '要打字的題數',
+                            '${state.rules.effectiveTypeQuestions}',
+                          ),
+                      ],
+                    ),
+                  ),
+
+                  const Spacer(),
+                  _StartButton(state: state),
+                  const SizedBox(height: Gap.lg),
+                ],
               ),
-              const SizedBox(height: Gap.sm),
-              Text(
-                // 做滿了就講做滿了，其餘時候給一句每天不一樣的話。
-                state.limitReached
-                    ? '今天的份量做完了'
-                    : Encouragement.forDate(state.usage.date),
-                textAlign: TextAlign.center,
-                style: AppText.bodyDim,
-              ),
-            ],
+            ),
           ),
-        ),
-
-        const SizedBox(height: Gap.md),
-        GlassCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const PanelLabel('下一輪'),
-              const SizedBox(height: Gap.sm),
-              _Row('待複習', '${state.rules.pendingPerRound}'),
-              _Row('新字', '${state.rules.freshPerRound}'),
-              _Row('已掌握', '${state.rules.masteredPerRound}'),
-
-              if (state.rules.effectiveTypeQuestions > 0)
-                _Row('要打字的題數', '${state.rules.effectiveTypeQuestions}'),
-            ],
-          ),
-        ),
-
-        const Spacer(),
-        _StartButton(state: state),
-        const SizedBox(height: Gap.lg),
-      ],
+        );
+      },
     );
   }
 }
