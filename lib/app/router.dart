@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../features/history/history_page.dart';
 import '../features/history/round_detail_page.dart';
 import '../features/home/home_page.dart';
+import '../features/jp_home/jp_home_page.dart';
 import '../features/kana_practice/kana_practice_history_page.dart';
 import '../features/kana_practice/kana_practice_page.dart';
 import '../features/library/library_page.dart';
@@ -23,6 +24,7 @@ final appRouter = GoRouter(
   routes: [
     GoRoute(path: '/', builder: (_, _) => const SplashPage()),
     GoRoute(path: '/home', builder: (_, _) => const HomePage()),
+    GoRoute(path: '/jp-home', builder: (_, _) => const JpHomePage()),
     GoRoute(path: '/quiz', builder: (_, _) => const QuizPage()),
     GoRoute(path: '/result', builder: (_, _) => const ResultPage()),
     GoRoute(path: '/stealth', builder: (_, _) => const StealthPage()),

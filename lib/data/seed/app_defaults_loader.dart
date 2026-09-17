@@ -51,3 +51,37 @@ Future<Duration> loadSplashHoldDuration() async {
   final doc = await _loadDoc();
   return Duration(milliseconds: doc['splashHoldMs'] as int);
 }
+
+/// 單字庫標籤下拉選單的自訂排序。唯一來源，沒有 code 端備份值——
+/// 但跟發音／啟動畫面不同，這個讀失敗不會讓例外往上炸，是直接退回
+/// [empty]（純字母序），因為排序偏好不影響資料對不對，壞掉最多就是
+/// 排列比較普通，不值得為這個讓 App 打不開。
+class LibraryTagOrder {
+  const LibraryTagOrder({
+    required this.adjacentGroups,
+    required this.trailingOrder,
+  });
+
+  static const empty = LibraryTagOrder(adjacentGroups: [], trailingOrder: []);
+
+  /// 要相黏在一起的標籤群組，群組內順序就是顯示順序。
+  final List<List<String>> adjacentGroups;
+
+  /// 要照這個順序排在一般標籤清單最後的標籤。
+  final List<String> trailingOrder;
+}
+
+Future<LibraryTagOrder> loadLibraryTagOrder() async {
+  try {
+    final doc = await _loadDoc();
+    final groups = (doc['libraryTagAdjacentGroups'] as List? ?? const [])
+        .map((g) => (g as List).map((e) => e.toString()).toList())
+        .toList();
+    final trailing = (doc['libraryTagTrailingOrder'] as List? ?? const [])
+        .map((e) => e.toString())
+        .toList();
+    return LibraryTagOrder(adjacentGroups: groups, trailingOrder: trailing);
+  } catch (_) {
+    return LibraryTagOrder.empty;
+  }
+}

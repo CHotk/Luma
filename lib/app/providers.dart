@@ -19,6 +19,13 @@ final keyValueStoreProvider = Provider<KeyValueStore>((ref) {
   throw UnimplementedError('請在 main() 用 overrideWithValue 注入');
 });
 
+/// 單字庫標籤下拉選單的排序偏好。跟 [keyValueStoreProvider] 同理，
+/// 讀 `app_defaults.yaml` 需要非同步，不適合在 provider 裡等，
+/// 在 main() 先讀好再用 overrideWithValue 注入。
+final libraryTagOrderProvider = Provider<LibraryTagOrder>((ref) {
+  throw UnimplementedError('請在 main() 用 overrideWithValue 注入');
+});
+
 final wordRepositoryProvider = Provider<WordRepository>(
   (ref) => WordRepository(
     store: ref.watch(keyValueStoreProvider),

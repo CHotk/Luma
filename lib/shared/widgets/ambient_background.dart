@@ -8,36 +8,53 @@ import '../../app/theme/colors.dart';
 ///
 /// 深色底加上這幾團色塊，毛玻璃才看得出邊緣的那道亮線。
 /// 少了它整支 App 會變成一片死黑。
+///
+/// [background]／[blobColors] 可以換掉，給不同語言軌道用不同色系
+/// （例如日文軌道的櫻配色）——預設值就是原本英文軌道那組，換色系
+/// 只是換參數，不用整個重刻一份，四團色塊的位置/大小是固定的版面，
+/// 跟色系無關。
 class AmbientBackground extends StatelessWidget {
-  const AmbientBackground({super.key, required this.child});
+  const AmbientBackground({
+    super.key,
+    required this.child,
+    this.background = AppColors.bg,
+    this.blobColors = const [
+      AppColors.ambBlue,
+      AppColors.ambEmber,
+      AppColors.ambViolet,
+      AppColors.ambTeal,
+    ],
+  }) : assert(blobColors.length == 4, '固定四團色塊，換色系也要給滿四個顏色');
 
   final Widget child;
+  final Color background;
+  final List<Color> blobColors;
 
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: AppColors.bg,
+      color: background,
       child: Stack(
         children: [
-          const Positioned(
+          Positioned(
             left: -70,
             top: -50,
-            child: _Blob(size: 260, color: AppColors.ambBlue),
+            child: _Blob(size: 260, color: blobColors[0]),
           ),
-          const Positioned(
+          Positioned(
             right: -80,
             top: 150,
-            child: _Blob(size: 230, color: AppColors.ambEmber),
+            child: _Blob(size: 230, color: blobColors[1]),
           ),
-          const Positioned(
+          Positioned(
             left: -50,
             bottom: -90,
-            child: _Blob(size: 280, color: AppColors.ambViolet),
+            child: _Blob(size: 280, color: blobColors[2]),
           ),
-          const Positioned(
+          Positioned(
             right: -45,
             bottom: 60,
-            child: _Blob(size: 190, color: AppColors.ambTeal),
+            child: _Blob(size: 190, color: blobColors[3]),
           ),
           child,
         ],

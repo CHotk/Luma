@@ -7,30 +7,12 @@ import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
 import '../../domain/encouragement.dart';
+import '../../domain/time_of_day_label.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/glass_card.dart';
 import '../../shared/widgets/ring_progress.dart';
+import '../../shared/widgets/track_switcher.dart';
 import 'home_controller.dart';
-
-const _weekdayLabels = ['一', '二', '三', '四', '五', '六', '日'];
-
-String _weekdayLabel(DateTime date) => '週${_weekdayLabels[date.weekday - 1]}';
-
-String _timeLabel(DateTime date) =>
-    '${date.hour.toString().padLeft(2, '0')}:'
-    '${date.minute.toString().padLeft(2, '0')}';
-
-/// 五個時段各配一個不同的 emoji（使用者 2026-09-17 要求）。邊界照常見
-/// 的中文時段習慣抓：凌晨 00–05、早上 06–10、中午 11–13、下午 14–17、
-/// 晚上 18–23。
-String _periodEmoji(DateTime date) {
-  final h = date.hour;
-  if (h < 6) return '🌙';
-  if (h < 11) return '🌅';
-  if (h < 14) return '☀️';
-  if (h < 18) return '🌤️';
-  return '🌆';
-}
 
 /// 首頁。版型 04 節制版：圓環是主角，其餘都讓路。
 ///
@@ -177,11 +159,11 @@ class _TopBar extends ConsumerWidget {
     return Row(
       children: [
         Text(
-          '${_weekdayLabel(now)} ${_timeLabel(now)} ${_periodEmoji(now)}',
+          '${weekdayLabel(now)} ${clockLabel(now)} ${periodEmoji(now)}',
           style: AppText.title,
         ),
         const SizedBox(width: Gap.sm),
-        const _TrackSwitcher(),
+        const TrackSwitcher(current: LearningTrack.en),
         const Spacer(),
         for (final e in entries)
           IconButton(
@@ -194,60 +176,6 @@ class _TopBar extends ConsumerWidget {
             constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
           ),
       ],
-    );
-  }
-}
-
-/// 語言軌道切換，玻璃風格的下拉選單。日文還沒有自己的首頁，選下去
-/// 先帶去五十音手寫練習頁——目前唯一做出來的日文內容，這也就順便
-/// 取代了原本暫時掛在頂端列的「假名練習（暫）」入口，不用兩個都留著。
-class _TrackSwitcher extends StatelessWidget {
-  const _TrackSwitcher();
-
-  @override
-  Widget build(BuildContext context) {
-    return PopupMenuButton<String>(
-      color: const Color(0xFF1A1A24),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: const BorderSide(color: AppColors.glassEdge),
-      ),
-      itemBuilder: (_) => const [
-        PopupMenuItem(
-          value: 'en',
-          child: Text('英文', style: TextStyle(color: AppColors.ink)),
-        ),
-        PopupMenuItem(
-          value: 'ja',
-          child: Text('日文', style: TextStyle(color: AppColors.ink)),
-        ),
-      ],
-      onSelected: (value) {
-        if (value == 'ja') context.push('/kana-practice');
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-        decoration: BoxDecoration(
-          color: AppColors.glassFill,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: AppColors.glassEdge),
-        ),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              '英文',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.ink,
-              ),
-            ),
-            SizedBox(width: 4),
-            Icon(Icons.expand_more, size: 16, color: AppColors.ink2),
-          ],
-        ),
-      ),
     );
   }
 }

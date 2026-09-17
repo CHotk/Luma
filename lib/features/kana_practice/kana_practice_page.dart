@@ -62,9 +62,17 @@ class _KanaPracticePageState extends ConsumerState<KanaPracticePage> {
 
   /// 紙上有墨跡才存，「清除重寫」按下去代表使用者不想留這次的嘗試，
   /// 不能在那裡也偷偷存一筆。
+  ///
+  /// 存完要 bump `dataRevisionProvider`，日文首頁才會重新算「已存幾筆」
+  /// ——先把 repository 跟 notifier 這兩個物件同步抓出來，不要在
+  /// `.then()` 裡才去用 `ref`：這個方法在 `dispose()` 裡也會被呼叫，
+  /// 寫入完成時這個 State 可能已經銷毀，`ref` 那時候未必還能用，但
+  /// 抓出來的物件本身跟這個 State 的生死無關，用起來才安全。
   void _autoSave() {
     if (_strokes.isEmpty) return;
-    ref.read(kanaPracticeRepositoryProvider).add(_buildEntry());
+    final repo = ref.read(kanaPracticeRepositoryProvider);
+    final revision = ref.read(dataRevisionProvider.notifier);
+    repo.add(_buildEntry()).then((_) => revision.state++);
   }
 
   KanaPracticeEntry _buildEntry() => KanaPracticeEntry(

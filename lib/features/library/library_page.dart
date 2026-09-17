@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
+import '../../data/seed/app_defaults_loader.dart';
 import '../../domain/models/word.dart';
 import '../../domain/rules_config.dart';
 import '../../shared/widgets/ambient_background.dart';
@@ -283,6 +285,30 @@ class _Chip extends ConsumerWidget {
 /// [multiTagLabel]（自己貼了兩個以上標籤的字）固定排在選單最下面，
 /// 用分隔線跟一般標籤隔開，因為它篩的是「標籤數量」而不是某個標籤本身，
 /// 混在字母排序裡容易被誤會成一個普通標籤。
+/// 標籤清單的顯示順序：先字母序，再套使用者在
+/// `assets/config/app_defaults.yaml`（`libraryTagAdjacentGroups`／
+/// `libraryTagTrailingOrder`）指定的偏好（使用者 2026-09-17 決定）。
+/// 標籤清單裡沒有的偏好項目就跳過，不強求。
+List<String> sortLibraryTags(Iterable<String> raw, LibraryTagOrder order) {
+  final tags = raw.toList()..sort();
+
+  for (final group in order.adjacentGroups) {
+    for (var i = 1; i < group.length; i++) {
+      final anchor = group[i - 1];
+      final tag = group[i];
+      if (!tags.contains(anchor) || !tags.contains(tag)) continue;
+      tags.remove(tag);
+      tags.insert(tags.indexOf(anchor) + 1, tag);
+    }
+  }
+
+  for (final tag in order.trailingOrder) {
+    if (tags.remove(tag)) tags.add(tag);
+  }
+
+  return tags;
+}
+
 class _TagMenu extends ConsumerWidget {
   const _TagMenu({required this.counts, required this.multiTagCount});
 
@@ -292,8 +318,11 @@ class _TagMenu extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final selected = ref.watch(libraryTagProvider);
-    final tags = counts.keys.where((t) => t != untaggedLabel).toList()
-      ..sort();
+    final order = ref.watch(libraryTagOrderProvider);
+    final tags = sortLibraryTags(
+      counts.keys.where((t) => t != untaggedLabel),
+      order,
+    );
 
     String label() {
       if (selected.isEmpty) return '標籤';
