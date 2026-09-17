@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../features/history/history_page.dart';
 import '../features/history/round_detail_page.dart';
 import '../features/home/home_page.dart';
+import '../features/kana_practice/kana_practice_page.dart';
 import '../features/library/library_page.dart';
 import '../features/mastered/mastered_page.dart';
 import '../domain/models/note_collection.dart';
@@ -32,6 +33,10 @@ final appRouter = GoRouter(
       ),
     ),
     GoRoute(path: '/library', builder: (_, _) => const LibraryPage()),
+    GoRoute(
+      path: '/kana-practice',
+      builder: (_, _) => const KanaPracticePage(),
+    ),
     GoRoute(path: '/mastered', builder: (_, _) => const MasteredPage()),
     GoRoute(path: '/notes', builder: (_, _) => const NotesPage()),
     GoRoute(path: '/settings', builder: (_, _) => const SettingsPage()),

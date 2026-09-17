@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/repositories/history_repository.dart';
+import '../data/repositories/kana_practice_repository.dart';
 import '../data/repositories/settings_repository.dart';
 import '../data/repositories/word_repository.dart';
 import '../data/seed/app_defaults_loader.dart';
@@ -28,6 +29,10 @@ final wordRepositoryProvider = Provider<WordRepository>(
 
 final settingsRepositoryProvider = Provider<SettingsRepository>(
   (ref) => SettingsRepository(ref.watch(keyValueStoreProvider)),
+);
+
+final kanaPracticeRepositoryProvider = Provider<KanaPracticeRepository>(
+  (ref) => KanaPracticeRepository(ref.watch(keyValueStoreProvider)),
 );
 
 final historyRepositoryProvider = Provider<HistoryRepository>(

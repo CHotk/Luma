@@ -138,6 +138,13 @@ class _TopBar extends ConsumerWidget {
         tip: '單字庫',
         tap: () => context.push('/library'),
       ),
+      // 暫時的入口：日文軌道還沒有自己的首頁，先讓五十音手寫練習頁
+      // 掛在這裡能被點到。等日文首頁做出來，這顆要移過去，不留在這。
+      (
+        icon: Icons.brush_outlined,
+        tip: '假名練習（暫）',
+        tap: () => context.push('/kana-practice'),
+      ),
       (
         icon: Icons.bar_chart_rounded,
         tip: '總紀錄',
