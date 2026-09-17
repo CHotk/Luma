@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
@@ -107,6 +108,14 @@ class _KanaPracticePageState extends ConsumerState<KanaPracticePage> {
                     ),
                     const SizedBox(width: Gap.xs),
                     const Text('五十音・手寫練習', style: AppText.title),
+                    const Spacer(),
+                    IconButton(
+                      onPressed: () =>
+                          context.push('/kana-practice/history'),
+                      icon: const Icon(Icons.history, size: 20),
+                      color: AppColors.ink2,
+                      tooltip: '練習紀錄',
+                    ),
                   ],
                 ),
                 const SizedBox(height: Gap.md),

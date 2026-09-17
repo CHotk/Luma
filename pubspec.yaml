@@ -21,6 +21,10 @@ dependencies:
   # 讀 assets/config/app_defaults.yaml 用的。選 YAML 不選 JSON，是因為
   # JSON 不能寫註解，這份設定檔每個數字都需要說明才看得懂，見該檔內容。
   yaml: ^3.1.2
+  # 五十音手寫練習「匯入既有圖片」用的：讓使用者從本機挑一張已經寫好
+  # 的圖片存進 App 的練習紀錄，不是只能靠畫布現寫。Web／Android／iOS
+  # 同一份 API，跟 flutter_tts 選型的理由一樣。
+  image_picker: ^1.1.2
 
 dev_dependencies:
   flutter_test:
