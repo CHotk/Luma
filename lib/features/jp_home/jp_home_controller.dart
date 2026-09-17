@@ -1,36 +1,71 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
+import '../../data/seed/app_defaults_loader.dart';
+import '../../domain/jp_review_config.dart';
+import 'jp_review_state.dart';
 
-/// 日文首頁要顯示的東西。目前這個軌道只有五十音手寫練習，統計也只
-/// 算得出跟這個功能有關的數字——不要在這裡塞進英文軌道那種輪數／
-/// 分鐘目標，那套規則（[RulesConfig]）是英文軌道自己的，日文還沒有
-/// 對應的東西，硬套會是假資料。
+/// 日文首頁要顯示的東西，一次算好，畫面只負責排版
+/// （跟英文軌道的 [HomeState] 同一個做法）。
 class JpHomeState {
-  const JpHomeState({required this.totalEntries, required this.todayEntries});
+  const JpHomeState({
+    required this.config,
+    required this.todayCount,
+    required this.todayMinutes,
+    required this.review,
+  });
 
-  final int totalEntries;
-  final int todayEntries;
+  final JpReviewConfig config;
+
+  /// 今天存了幾筆練習紀錄，首頁進度環的「done」看這個。
+  final int todayCount;
+
+  /// 今天練習花的分鐘數，從每筆紀錄的筆畫時間戳加總算出來，不是編的。
+  final int todayMinutes;
+
+  final KanaReviewSummary review;
 }
 
-/// autoDispose：離開這頁就丟掉，回來時重新算。額外 watch
-/// `dataRevisionProvider`——這頁可能一直活在 `/kana-practice` 底下
-/// 沒被銷毀（push 疊上去、還沒 pop），autoDispose 救不到這個情境，
-/// 靠這個號碼在存檔之後手動觸發重算（見
-/// `kana_practice_page.dart` 的 `_autoSave`）。
+/// autoDispose：離開日文首頁就丟掉，回來時重新算，practice 頁自動存檔
+/// 之後靠 [dataRevisionProvider] 通知這裡要重算。
 final jpHomeStateProvider = FutureProvider.autoDispose<JpHomeState>((
   ref,
 ) async {
   ref.watch(dataRevisionProvider);
+  final config = await loadJpReviewConfig();
   final entries = await ref.watch(kanaPracticeRepositoryProvider).loadAll();
   final now = DateTime.now();
-  final today = entries
-      .where(
-        (e) =>
-            e.savedAt.year == now.year &&
-            e.savedAt.month == now.month &&
-            e.savedAt.day == now.day,
-      )
-      .length;
-  return JpHomeState(totalEntries: entries.length, todayEntries: today);
+
+  final today = entries.where(
+    (e) =>
+        e.savedAt.year == now.year &&
+        e.savedAt.month == now.month &&
+        e.savedAt.day == now.day,
+  );
+
+  // 每筆紀錄自己的練習時間＝那筆筆畫時間軸最後一個時間戳（見
+  // KanaPracticeEntry.strokes 的說明：時間軸從那一筆的第一次落筆算起，
+  // 換字／存檔就會歸零重算），今天花的總分鐘數是今天所有紀錄加總，
+  // 不是找最大值。匯入的舊圖片沒有筆畫資料，貢獻 0，不會假裝有練習
+  // 時間。
+  var todayMs = 0.0;
+  for (final e in today) {
+    var entryMs = 0.0;
+    for (final stroke in e.strokes) {
+      if (stroke.isEmpty) continue;
+      final last = stroke.last.$3;
+      if (last > entryMs) entryMs = last;
+    }
+    todayMs += entryMs;
+  }
+
+  final progress = buildKanaProgress(entries);
+  final review = summarizeKanaReview(progress, config, now: now);
+
+  return JpHomeState(
+    config: config,
+    todayCount: today.length,
+    todayMinutes: todayMs ~/ 60000,
+    review: review,
+  );
 });

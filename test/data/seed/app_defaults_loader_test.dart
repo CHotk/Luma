@@ -21,4 +21,12 @@ void main() {
     final hold = await loadSplashHoldDuration();
     expect(hold, const Duration(milliseconds: 1600));
   });
+
+  test('app_defaults.yaml 的日文複習排程參數真的被讀進來', () async {
+    final config = await loadJpReviewConfig();
+    expect(config.dailyKanaTarget, 5);
+    expect(config.dailyMinutesTarget, 10);
+    expect(config.masteryPracticeCount, 3);
+    expect(config.reviewStaleDays, 7);
+  });
 }

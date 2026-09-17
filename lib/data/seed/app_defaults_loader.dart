@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:yaml/yaml.dart';
 
+import '../../domain/jp_review_config.dart';
 import '../../domain/rules_config.dart';
 
 /// 讀 `assets/config/app_defaults.yaml`。
@@ -50,6 +51,21 @@ Future<TtsDefaults> loadTtsDefaults() async {
 Future<Duration> loadSplashHoldDuration() async {
   final doc = await _loadDoc();
   return Duration(milliseconds: doc['splashHoldMs'] as int);
+}
+
+/// 給日文首頁當 [JpReviewConfig] 預設值。
+///
+/// 跟 [loadDefaultRulesConfig] 同一種保險政策：讀不到、壞掉、缺欄位
+/// 都會退回 `lib/domain/jp_review_config.dart` 建構子裡寫死的值，
+/// 因為這也是首頁核心數字（進度環、下一輪清單）的一部分，跟排序
+/// 偏好那種壞了無所謂的設定不一樣。
+Future<JpReviewConfig> loadJpReviewConfig() async {
+  try {
+    final doc = await _loadDoc();
+    return JpReviewConfig.fromJson(Map<String, dynamic>.from(doc));
+  } catch (_) {
+    return const JpReviewConfig();
+  }
 }
 
 /// 單字庫標籤下拉選單的自訂排序。唯一來源，沒有 code 端備份值——
