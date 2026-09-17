@@ -14,14 +14,19 @@ import '../../domain/models/kana_practice.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/glass_card.dart';
 import 'gojuon_data.dart';
+import 'kana_paper.dart';
 
 /// 五十音手寫練習頁。
 ///
 /// 練習紙是真的畫布：手指／滑鼠拖著寫，筆畫即時畫出來。按「儲存這張」
-/// 會把整張紙（格線＋輔助字＋墨跡）拍成一張 PNG 存進紀錄，不是只存筆畫
-/// 座標——這樣以後回頭看才看得出「當時紙面長怎樣」，不用重新描一次線
-/// 才能重播。「輔助描摹」跟「純手寫」是兩種模式：前者背景印著淡淡的
-/// 假名當參考線，後者是空白紙，練久了想測自己記不記得筆順就切過去。
+/// 會存兩份東西：整張紙（格線＋輔助字＋墨跡）拍成的 PNG，給列表跟
+/// 匯入的圖片統一用同一種方式顯示；以及每一筆每個點的座標＋時間戳
+/// （見 [KanaPracticeEntry.strokes]），給練習紀錄頁「重播當初怎麼寫的」
+/// 用——PNG 是死的看不出筆順跟節奏，要重播動作非得存座標跟時間不可，
+/// 位置跟筆畫之間停頓多久都要跟實際寫的時候一致（使用者 2026-09-17
+/// 要求），不能用猜的固定配速交差。「輔助描摹」跟「純手寫」是兩種
+/// 模式：前者背景印著淡淡的假名當參考線，後者是空白紙，練久了想測
+/// 自己記不記得筆順就切過去。
 ///
 /// 這頁的顏色是全 App 唯一的例外，沒有全部從 [AppColors] 取：紙本來就
 /// 該是亮色，跟其餘畫面統一的暗色玻璃底不是同一件事，硬套 AppColors
@@ -34,31 +39,45 @@ class KanaPracticePage extends ConsumerStatefulWidget {
 }
 
 class _KanaPracticePageState extends ConsumerState<KanaPracticePage> {
-  static const _paper = Color(0xFFF7ECEC);
-  static const _paperLine = Color(0x382A1420);
-  static const _ink = Color(0xFF2A1420);
-  static const _guide = Color(0x292A1420);
-
   final _paperKey = GlobalKey();
   final _strokes = <List<Offset>>[];
+
+  /// 跟 [_strokes] 同樣結構，同一個索引存那個點的毫秒時間戳
+  /// （從 [_sessionStart] 算起）。分開放兩個平行陣列，是為了不動
+  /// [_strokes] 原本的型別——畫面即時畫筆畫只需要座標，時間只在
+  /// 存檔那一刻才用得到。
+  final _strokeTimes = <List<double>>[];
+
+  /// 這次寫的第一筆落筆時間。整份紀錄的時間軸從這裡算起，換字／清除
+  /// 都要歸零，下一次落筆才會重新設定。
+  DateTime? _sessionStart;
 
   String _row = 'あ';
   (String, String) _selected = gojuonRows['あ']!.first;
   bool _assisted = true;
   bool _saving = false;
 
+  void _clearInk() {
+    _strokes.clear();
+    _strokeTimes.clear();
+    _sessionStart = null;
+  }
+
+  double _elapsedMs() =>
+      DateTime.now().difference(_sessionStart!).inMicroseconds / 1000;
+
   void _pickRow(String row) {
     setState(() {
       _row = row;
       _selected = gojuonRows[row]!.first;
-      _strokes.clear();
+      _clearInk();
     });
   }
 
   void _pickKana((String, String) pair) {
     setState(() {
       _selected = pair;
-      _strokes.clear();
+      _clearInk();
     });
   }
 
@@ -77,6 +96,13 @@ class _KanaPracticePageState extends ConsumerState<KanaPracticePage> {
         assisted: _assisted,
         savedAt: DateTime.now(),
         imageBase64: base64Encode(bytes!.buffer.asUint8List()),
+        strokes: [
+          for (var i = 0; i < _strokes.length; i++)
+            [
+              for (var j = 0; j < _strokes[i].length; j++)
+                (_strokes[i][j].dx, _strokes[i][j].dy, _strokeTimes[i][j]),
+            ],
+        ],
       );
       await ref.read(kanaPracticeRepositoryProvider).add(entry);
       if (!mounted) return;
@@ -148,7 +174,7 @@ class _KanaPracticePageState extends ConsumerState<KanaPracticePage> {
                           assisted: _assisted,
                           onChanged: (v) => setState(() {
                             _assisted = v;
-                            _strokes.clear();
+                            _clearInk();
                           }),
                         ),
                         const SizedBox(height: Gap.md),
@@ -181,7 +207,7 @@ class _KanaPracticePageState extends ConsumerState<KanaPracticePage> {
                             ),
                             const Spacer(),
                             TextButton.icon(
-                              onPressed: () => setState(_strokes.clear),
+                              onPressed: () => setState(_clearInk),
                               icon: const Icon(Icons.refresh, size: 16),
                               label: const Text('清除重寫'),
                               style: TextButton.styleFrom(
@@ -214,34 +240,37 @@ class _KanaPracticePageState extends ConsumerState<KanaPracticePage> {
       child: Container(
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
-          color: _paper,
+          color: paperColor,
           borderRadius: BorderRadius.circular(14),
         ),
         child: Stack(
           fit: StackFit.expand,
           children: [
-            CustomPaint(painter: const _GridPainter(color: _paperLine)),
+            const CustomPaint(painter: PaperGridPainter()),
             if (_assisted)
               Center(
                 child: Text(
                   _selected.$1,
-                  style: const TextStyle(fontSize: 130, color: _guide),
+                  style: const TextStyle(fontSize: 130, color: guideColor),
                 ),
               ),
             // 用 Listener 接原始指標事件，不用 GestureDetector 的
-            // onPan*：這頁外層包著 SingleChildScrollView，兩邊都想要
+            // onPan*：如果這頁以後又包進可捲動的容器，兩邊都想要
             // 垂直拖曳的話會搶手勢競技場，畫直筆畫時可能反而變成在
-            // 捲頁面。Listener 不進競技場，畫布裡的每一筆一定畫得到。
+            // 捲頁面。Listener 不進競技場，畫布裡的每一筆一定畫得到——
+            // 這也是這頁目前故意用固定版面、不放 SingleChildScrollView
+            // 的原因。
             Listener(
               onPointerDown: (e) => setState(() {
+                _sessionStart ??= DateTime.now();
                 _strokes.add([e.localPosition]);
+                _strokeTimes.add([_elapsedMs()]);
               }),
               onPointerMove: (e) => setState(() {
                 _strokes.last.add(e.localPosition);
+                _strokeTimes.last.add(_elapsedMs());
               }),
-              child: CustomPaint(
-                painter: _InkPainter(strokes: _strokes, color: _ink),
-              ),
+              child: CustomPaint(painter: InkPainter(strokes: _strokes)),
             ),
           ],
         ),
@@ -379,80 +408,3 @@ class _ModeToggle extends StatelessWidget {
   }
 }
 
-/// 仿「原稿用紙」的十字參考線，不是真的稿紙格，練字夠用。
-class _GridPainter extends CustomPainter {
-  const _GridPainter({required this.color});
-
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 1;
-    final padX = size.width * 0.08;
-    final padY = size.height * 0.08;
-    _dashed(
-      canvas,
-      Offset(size.width / 2, padY),
-      Offset(size.width / 2, size.height - padY),
-      paint,
-    );
-    _dashed(
-      canvas,
-      Offset(padX, size.height / 2),
-      Offset(size.width - padX, size.height / 2),
-      paint,
-    );
-  }
-
-  void _dashed(Canvas canvas, Offset a, Offset b, Paint paint) {
-    const dash = 4.0, gap = 4.0;
-    final total = (b - a).distance;
-    final dir = (b - a) / total;
-    var covered = 0.0;
-    while (covered < total) {
-      final segEnd = covered + dash > total ? total : covered + dash;
-      canvas.drawLine(a + dir * covered, a + dir * segEnd, paint);
-      covered += dash + gap;
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _GridPainter oldDelegate) => false;
-}
-
-/// 畫使用者實際寫下的筆畫。每次落筆／放開都會有新資料，簡單起見不比對
-/// 內容，一律重畫。
-class _InkPainter extends CustomPainter {
-  const _InkPainter({required this.strokes, required this.color});
-
-  final List<List<Offset>> strokes;
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 5
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round
-      ..style = PaintingStyle.stroke;
-
-    for (final stroke in strokes) {
-      if (stroke.isEmpty) continue;
-      if (stroke.length == 1) {
-        canvas.drawCircle(stroke.first, 2.5, Paint()..color = color);
-        continue;
-      }
-      final path = Path()..moveTo(stroke.first.dx, stroke.first.dy);
-      for (final p in stroke.skip(1)) {
-        path.lineTo(p.dx, p.dy);
-      }
-      canvas.drawPath(path, paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _InkPainter oldDelegate) => true;
-}

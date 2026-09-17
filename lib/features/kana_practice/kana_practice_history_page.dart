@@ -12,6 +12,7 @@ import '../../app/theme/typography.dart';
 import '../../domain/models/kana_practice.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/glass_card.dart';
+import 'kana_paper.dart';
 
 /// 五十音手寫練習的歷史紀錄。
 ///
@@ -65,6 +66,8 @@ class _KanaPracticeHistoryPageState
             assisted: result.assisted,
             savedAt: DateTime.now(),
             imageBase64: base64Encode(bytes),
+            // 匯入的圖片沒有筆畫過程可言，重播功能會顯示「沒有紀錄」。
+            strokes: const [],
           ),
         );
     _reload();
@@ -145,6 +148,10 @@ class _EntryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GlassCard(
+      onTap: () => showDialog<void>(
+        context: context,
+        builder: (_) => _ReplayDialog(entry: entry),
+      ),
       child: Row(
         children: [
           ClipRRect(
@@ -212,6 +219,123 @@ class _EntryCard extends StatelessWidget {
       '${d.year}-${d.month.toString().padLeft(2, '0')}-'
       '${d.day.toString().padLeft(2, '0')} '
       '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+}
+
+/// 點一筆紀錄跳出來的重播對話框。
+///
+/// 有存筆畫資料（練習頁現寫存的）就照原始順序漸進畫出來；沒有
+/// （匯入既有圖片存的）就老實顯示「沒有筆畫紀錄可以重播」，不要假裝
+/// 有資料硬播一個看起來像那麼回事的動畫。
+class _ReplayDialog extends StatefulWidget {
+  const _ReplayDialog({required this.entry});
+
+  final KanaPracticeEntry entry;
+
+  @override
+  State<_ReplayDialog> createState() => _ReplayDialogState();
+}
+
+class _ReplayDialogState extends State<_ReplayDialog>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final List<List<TimedPoint>> _strokes;
+
+  @override
+  void initState() {
+    super.initState();
+    _strokes = [
+      for (final stroke in widget.entry.strokes)
+        [for (final p in stroke) (Offset(p.$1, p.$2), p.$3)],
+    ];
+    final totalMs = ReplayInkPainter.totalDurationMs(_strokes);
+    _controller = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: totalMs <= 0 ? 1 : totalMs.round()),
+    );
+    if (_strokes.isNotEmpty) _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final entry = widget.entry;
+    final hasStrokes = _strokes.isNotEmpty;
+
+    return AlertDialog(
+      backgroundColor: const Color(0xFF1A1A24),
+      title: Text(
+        '${entry.kana}（${entry.romaji}）',
+        style: const TextStyle(color: AppColors.ink),
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 240,
+            height: 240,
+            child: hasStrokes
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        const ColoredBox(color: paperColor),
+                        const CustomPaint(painter: PaperGridPainter()),
+                        AnimatedBuilder(
+                          animation: _controller,
+                          builder: (_, _) => CustomPaint(
+                            painter: ReplayInkPainter(
+                              strokes: _strokes,
+                              elapsedMs:
+                                  _controller.value *
+                                  _controller.duration!.inMilliseconds,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: Image.memory(
+                      base64Decode(entry.imageBase64),
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+          ),
+          if (!hasStrokes) ...[
+            const SizedBox(height: Gap.sm),
+            const Text(
+              '這張是匯入的圖片，沒有筆畫紀錄可以重播',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 11.5, color: AppColors.ink3),
+            ),
+          ],
+        ],
+      ),
+      actionsAlignment: MainAxisAlignment.center,
+      actions: [
+        if (hasStrokes)
+          TextButton.icon(
+            onPressed: () {
+              _controller.reset();
+              _controller.forward();
+            },
+            icon: const Icon(Icons.replay, size: 16),
+            label: const Text('重播'),
+          ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('關閉'),
+        ),
+      ],
+    );
+  }
 }
 
 class _ImportResult {
