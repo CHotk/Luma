@@ -34,8 +34,8 @@ class RulesConfig {
     this.typeQuestions = 3,
     this.roundsPerDay = 5,
     this.minutesPerDay = 15,
-    this.confirmRight = 3,
-    this.recoveryRatio = 7,
+    this.confirmRight = 4,
+    this.recoveryRatio = 5,
     this.quizStyle = QuizStyle.tapOnly,
     this.pendingCandidatePoolSize = 30,
     this.sentencePerRound = 1,
@@ -86,12 +86,15 @@ class RulesConfig {
 
   /// 從沒錯過的字要答對幾次才算掌握。
   /// 調高之後，原本掌握但沒到新門檻的字會自動掉回待複習。
+  ///
+  /// 預設 4（使用者 2026-09-16 從 3 調高）。
   final int confirmRight;
 
   /// 錯過的字要翻身，答對次數得是答錯次數的幾倍。
   ///
-  /// 預設七倍：錯五次就要答對三十五次才算掌握，整個字總共會被考四十次。
-  /// 這個數字刻意訂得重，錯過的字本來就該被多考幾次才能相信。
+  /// 預設五倍（使用者 2026-09-16 從七倍調低）：錯五次就要答對二十五次
+  /// 才算掌握，整個字總共會被考三十次。這個數字刻意訂得重，錯過的字
+  /// 本來就該被多考幾次才能相信。
   final int recoveryRatio;
 
   /// 待複習出題時，從「離掌握最遠」的前幾名候選裡隨機抽，這是候選池的大小。

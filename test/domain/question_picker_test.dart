@@ -58,7 +58,11 @@ void main() {
     for (var i = 0; i < 3; i++) word('known$i', id: 200 + i, right: 1),
   ];
 
-  const rules = RulesConfig();
+  // 明確寫死 confirmRight，不要用 RulesConfig() 的預設值：這份測試裡
+  // 一堆 `right: 3` 的假資料是刻意設計成「剛好達到掌握門檻」，如果
+  // 之後調整 App 實際預設的 confirmRight（像使用者 2026-09-16 那次
+  // 從 3 調到 4），這裡不該跟著默默壞掉。
+  const rules = RulesConfig(confirmRight: 3);
 
   test('題庫沒有已掌握的字時，配額讓給新字', () {
     final picked = QuestionPicker(
