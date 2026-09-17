@@ -1,8 +1,4 @@
-import 'dart:convert';
-import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -18,19 +14,19 @@ import 'kana_paper.dart';
 
 /// 五十音手寫練習頁。
 ///
-/// 練習紙是真的畫布：手指／滑鼠拖著寫，筆畫即時畫出來。按「儲存這張」
-/// 會存兩份東西：整張紙（格線＋輔助字＋墨跡）拍成的 PNG，給列表跟
-/// 匯入的圖片統一用同一種方式顯示；以及每一筆每個點的座標＋時間戳
-/// （見 [KanaPracticeEntry.strokes]），給練習紀錄頁「重播當初怎麼寫的」
-/// 用——PNG 是死的看不出筆順跟節奏，要重播動作非得存座標跟時間不可，
-/// 位置跟筆畫之間停頓多久都要跟實際寫的時候一致（使用者 2026-09-17
-/// 要求），不能用猜的固定配速交差。「輔助描摹」跟「純手寫」是兩種
+/// 練習紙是真的畫布：手指／滑鼠拖著寫，筆畫即時畫出來。**不用手動按存**
+/// （使用者 2026-09-17 決定）：換行、換字、切換輔助/純手寫模式、或離開
+/// 這頁，只要紙上有墨跡就自動存一筆，不管在 App 還是 Web 上都一樣。
+/// 存的是每一筆每個點的座標＋時間戳（見 [KanaPracticeEntry.strokes]），
+/// 不是圖片——這樣重播時筆畫之間停頓多久、每一筆寫多快，都跟實際寫
+/// 的時候一致，而且純數字比一張 PNG 小很多，省空間（這份紀錄以後會
+/// 越存越多，省下來的空間差很多）。「輔助描摹」跟「純手寫」是兩種
 /// 模式：前者背景印著淡淡的假名當參考線，後者是空白紙，練久了想測
 /// 自己記不記得筆順就切過去。
 ///
 /// 這頁的顏色是全 App 唯一的例外，沒有全部從 [AppColors] 取：紙本來就
 /// 該是亮色，跟其餘畫面統一的暗色玻璃底不是同一件事，硬套 AppColors
-/// 會讓墨跡完全看不清楚，道理跟 [MiniFlag] 不用 AppColors 畫國旗一樣。
+/// 會讓墨跡完全看不清楚。
 class KanaPracticePage extends ConsumerStatefulWidget {
   const KanaPracticePage({super.key});
 
@@ -39,7 +35,6 @@ class KanaPracticePage extends ConsumerStatefulWidget {
 }
 
 class _KanaPracticePageState extends ConsumerState<KanaPracticePage> {
-  final _paperKey = GlobalKey();
   final _strokes = <List<Offset>>[];
 
   /// 跟 [_strokes] 同樣結構，同一個索引存那個點的毫秒時間戳
@@ -55,7 +50,38 @@ class _KanaPracticePageState extends ConsumerState<KanaPracticePage> {
   String _row = 'あ';
   (String, String) _selected = gojuonRows['あ']!.first;
   bool _assisted = true;
-  bool _saving = false;
+
+  @override
+  void dispose() {
+    // dispose() 不能 await，所以自動存檔在這裡是點火就走：repository
+    // 本身的寫入邏輯跟這個 State 的生命週期無關，就算這個 widget 已經
+    // 銷毀，寫入還是會跑完。
+    _autoSave();
+    super.dispose();
+  }
+
+  /// 紙上有墨跡才存，「清除重寫」按下去代表使用者不想留這次的嘗試，
+  /// 不能在那裡也偷偷存一筆。
+  void _autoSave() {
+    if (_strokes.isEmpty) return;
+    ref.read(kanaPracticeRepositoryProvider).add(_buildEntry());
+  }
+
+  KanaPracticeEntry _buildEntry() => KanaPracticeEntry(
+    id: DateTime.now().microsecondsSinceEpoch.toString(),
+    kana: _selected.$1,
+    romaji: _selected.$2,
+    assisted: _assisted,
+    savedAt: DateTime.now(),
+    imageBase64: null,
+    strokes: [
+      for (var i = 0; i < _strokes.length; i++)
+        [
+          for (var j = 0; j < _strokes[i].length; j++)
+            (_strokes[i][j].dx, _strokes[i][j].dy, _strokeTimes[i][j]),
+        ],
+    ],
+  );
 
   void _clearInk() {
     _strokes.clear();
@@ -67,6 +93,7 @@ class _KanaPracticePageState extends ConsumerState<KanaPracticePage> {
       DateTime.now().difference(_sessionStart!).inMicroseconds / 1000;
 
   void _pickRow(String row) {
+    _autoSave();
     setState(() {
       _row = row;
       _selected = gojuonRows[row]!.first;
@@ -75,43 +102,18 @@ class _KanaPracticePageState extends ConsumerState<KanaPracticePage> {
   }
 
   void _pickKana((String, String) pair) {
+    _autoSave();
     setState(() {
       _selected = pair;
       _clearInk();
     });
   }
 
-  Future<void> _save() async {
-    setState(() => _saving = true);
-    try {
-      final boundary =
-          _paperKey.currentContext!.findRenderObject()
-              as RenderRepaintBoundary;
-      final image = await boundary.toImage(pixelRatio: 2);
-      final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
-      final entry = KanaPracticeEntry(
-        id: DateTime.now().microsecondsSinceEpoch.toString(),
-        kana: _selected.$1,
-        romaji: _selected.$2,
-        assisted: _assisted,
-        savedAt: DateTime.now(),
-        imageBase64: base64Encode(bytes!.buffer.asUint8List()),
-        strokes: [
-          for (var i = 0; i < _strokes.length; i++)
-            [
-              for (var j = 0; j < _strokes[i].length; j++)
-                (_strokes[i][j].dx, _strokes[i][j].dy, _strokeTimes[i][j]),
-            ],
-        ],
-      );
-      await ref.read(kanaPracticeRepositoryProvider).add(entry);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('已存檔：${entry.kana}（${entry.romaji}）')),
-      );
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
+  Future<void> _openHistory() async {
+    // push 不會 dispose 這一頁，dispose() 那邊的自動存檔救不到這個情境，
+    // 要在離開前自己補存一次。
+    _autoSave();
+    await context.push('/kana-practice/history');
   }
 
   @override
@@ -136,8 +138,7 @@ class _KanaPracticePageState extends ConsumerState<KanaPracticePage> {
                     const Text('五十音・手寫練習', style: AppText.title),
                     const Spacer(),
                     IconButton(
-                      onPressed: () =>
-                          context.push('/kana-practice/history'),
+                      onPressed: _openHistory,
                       icon: const Icon(Icons.history, size: 20),
                       color: AppColors.ink2,
                       tooltip: '練習紀錄',
@@ -172,10 +173,13 @@ class _KanaPracticePageState extends ConsumerState<KanaPracticePage> {
                       children: [
                         _ModeToggle(
                           assisted: _assisted,
-                          onChanged: (v) => setState(() {
-                            _assisted = v;
-                            _clearInk();
-                          }),
+                          onChanged: (v) {
+                            _autoSave();
+                            setState(() {
+                              _assisted = v;
+                              _clearInk();
+                            });
+                          },
                         ),
                         const SizedBox(height: Gap.md),
                         Expanded(
@@ -220,11 +224,6 @@ class _KanaPracticePageState extends ConsumerState<KanaPracticePage> {
                     ),
                   ),
                 ),
-                const SizedBox(height: Gap.md),
-                GlassButton(
-                  label: _saving ? '存檔中…' : '儲存這張',
-                  onPressed: _saving ? () {} : _save,
-                ),
                 const SizedBox(height: Gap.lg),
               ],
             ),
@@ -235,45 +234,53 @@ class _KanaPracticePageState extends ConsumerState<KanaPracticePage> {
   }
 
   Widget _buildPaper() {
-    return RepaintBoundary(
-      key: _paperKey,
-      child: Container(
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
-          color: paperColor,
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            const CustomPaint(painter: PaperGridPainter()),
-            if (_assisted)
-              Center(
-                child: Text(
-                  _selected.$1,
-                  style: const TextStyle(fontSize: 130, color: guideColor),
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: paperColor,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      // LayoutBuilder 拿到紙的實際大小，落筆座標才能除回 0~1 存成
+      // 正規化座標——紙在手機上跟桌面上大小不一樣，不正規化的話存下來
+      // 的座標範圍會不一樣，重播/匯出到別的尺寸就會跑位或縮成一角。
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final box = constraints.biggest;
+          Offset normalize(Offset local) =>
+              Offset(local.dx / box.width, local.dy / box.height);
+
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              const CustomPaint(painter: PaperGridPainter()),
+              if (_assisted)
+                Center(
+                  child: Text(
+                    _selected.$1,
+                    style: const TextStyle(fontSize: 130, color: guideColor),
+                  ),
                 ),
+              // 用 Listener 接原始指標事件，不用 GestureDetector 的
+              // onPan*：如果這頁以後又包進可捲動的容器，兩邊都想要
+              // 垂直拖曳的話會搶手勢競技場，畫直筆畫時可能反而變成在
+              // 捲頁面。Listener 不進競技場，畫布裡的每一筆一定畫得到
+              // ——這也是這頁目前故意用固定版面、不放
+              // SingleChildScrollView 的原因。
+              Listener(
+                onPointerDown: (e) => setState(() {
+                  _sessionStart ??= DateTime.now();
+                  _strokes.add([normalize(e.localPosition)]);
+                  _strokeTimes.add([_elapsedMs()]);
+                }),
+                onPointerMove: (e) => setState(() {
+                  _strokes.last.add(normalize(e.localPosition));
+                  _strokeTimes.last.add(_elapsedMs());
+                }),
+                child: CustomPaint(painter: InkPainter(strokes: _strokes)),
               ),
-            // 用 Listener 接原始指標事件，不用 GestureDetector 的
-            // onPan*：如果這頁以後又包進可捲動的容器，兩邊都想要
-            // 垂直拖曳的話會搶手勢競技場，畫直筆畫時可能反而變成在
-            // 捲頁面。Listener 不進競技場，畫布裡的每一筆一定畫得到——
-            // 這也是這頁目前故意用固定版面、不放 SingleChildScrollView
-            // 的原因。
-            Listener(
-              onPointerDown: (e) => setState(() {
-                _sessionStart ??= DateTime.now();
-                _strokes.add([e.localPosition]);
-                _strokeTimes.add([_elapsedMs()]);
-              }),
-              onPointerMove: (e) => setState(() {
-                _strokes.last.add(e.localPosition);
-                _strokeTimes.last.add(_elapsedMs());
-              }),
-              child: CustomPaint(painter: InkPainter(strokes: _strokes)),
-            ),
-          ],
-        ),
+            ],
+          );
+        },
       ),
     );
   }

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:file_saver/file_saver.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -16,10 +17,16 @@ import 'kana_paper.dart';
 
 /// 五十音手寫練習的歷史紀錄。
 ///
-/// 兩種來源都會出現在這裡：練習頁畫完按「儲存這張」存的，跟這裡右上角
+/// 兩種來源都會出現在這裡：練習頁現寫、離開時自動存的，跟這裡右上角
 /// 「匯入既有圖片」手動挑檔案存的（例如在這個功能做出來之前，已經用
 /// 別的方式寫、存在別的地方的練習圖）。兩種存法最後都是同一筆
-/// [KanaPracticeEntry]，畫面上分不出差別，也不需要分。
+/// [KanaPracticeEntry]，畫面上分不出差別，也不需要分——差別只在前者
+/// 沒有 `imageBase64`（靠 [KanaPracticeEntry.strokes] 現畫），後者
+/// 沒有 `strokes`（外部圖片沒有筆畫過程）。
+///
+/// 點一筆紀錄可以重播（有 `strokes` 才有得播），也可以匯出成真正的
+/// 檔案——用 `file_saver`，Web 上是觸發瀏覽器下載，App 上是存到裝置，
+/// 同一份 API 全平台通用，跟 `image_picker` 選型理由一樣。
 class KanaPracticeHistoryPage extends ConsumerStatefulWidget {
   const KanaPracticeHistoryPage({super.key});
 
@@ -156,12 +163,7 @@ class _EntryCard extends StatelessWidget {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(10),
-            child: Image.memory(
-              base64Decode(entry.imageBase64),
-              width: 56,
-              height: 56,
-              fit: BoxFit.cover,
-            ),
+            child: _Thumb(entry: entry),
           ),
           const SizedBox(width: Gap.md),
           Expanded(
@@ -221,6 +223,43 @@ class _EntryCard extends StatelessWidget {
       '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
 }
 
+/// 縮圖：有存圖片（匯入的）就直接顯示；沒有（現寫自動存的）就靠
+/// [KanaPracticeEntry.strokes] 現畫——同一份 painter，不用另外存縮圖。
+class _Thumb extends StatelessWidget {
+  const _Thumb({required this.entry});
+
+  final KanaPracticeEntry entry;
+
+  @override
+  Widget build(BuildContext context) {
+    final img = entry.imageBase64;
+    if (img != null) {
+      return Image.memory(
+        base64Decode(img),
+        width: 56,
+        height: 56,
+        fit: BoxFit.cover,
+      );
+    }
+    return SizedBox(
+      width: 56,
+      height: 56,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          const ColoredBox(color: paperColor),
+          const CustomPaint(painter: PaperGridPainter()),
+          CustomPaint(painter: InkPainter(strokes: _asOffsets(entry.strokes))),
+        ],
+      ),
+    );
+  }
+}
+
+List<List<Offset>> _asOffsets(List<List<(double, double, double)>> strokes) => [
+  for (final stroke in strokes) [for (final p in stroke) Offset(p.$1, p.$2)],
+];
+
 /// 點一筆紀錄跳出來的重播對話框。
 ///
 /// 有存筆畫資料（練習頁現寫存的）就照原始順序漸進畫出來；沒有
@@ -259,6 +298,25 @@ class _ReplayDialogState extends State<_ReplayDialog>
   void dispose() {
     _controller.dispose();
     super.dispose();
+  }
+
+  Future<void> _export() async {
+    final entry = widget.entry;
+    final img = entry.imageBase64;
+    final bytes = img != null
+        ? base64Decode(img)
+        : await renderStrokesToPng(_asOffsets(entry.strokes));
+
+    final d = entry.savedAt;
+    String two(int n) => n.toString().padLeft(2, '0');
+    final stamp = '${d.year}${two(d.month)}${two(d.day)}_${two(d.hour)}${two(d.minute)}';
+
+    await FileSaver.instance.saveFile(
+      name: '${stamp}_${entry.kana}_${entry.romaji}',
+      bytes: bytes,
+      ext: 'png',
+      mimeType: MimeType.png,
+    );
   }
 
   @override
@@ -302,10 +360,12 @@ class _ReplayDialogState extends State<_ReplayDialog>
                   )
                 : ClipRRect(
                     borderRadius: BorderRadius.circular(14),
-                    child: Image.memory(
-                      base64Decode(entry.imageBase64),
-                      fit: BoxFit.contain,
-                    ),
+                    child: entry.imageBase64 != null
+                        ? Image.memory(
+                            base64Decode(entry.imageBase64!),
+                            fit: BoxFit.contain,
+                          )
+                        : const ColoredBox(color: paperColor),
                   ),
           ),
           if (!hasStrokes) ...[
@@ -329,6 +389,11 @@ class _ReplayDialogState extends State<_ReplayDialog>
             icon: const Icon(Icons.replay, size: 16),
             label: const Text('重播'),
           ),
+        TextButton.icon(
+          onPressed: _export,
+          icon: const Icon(Icons.download_outlined, size: 16),
+          label: const Text('匯出圖片'),
+        ),
         FilledButton(
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('關閉'),

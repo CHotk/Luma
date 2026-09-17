@@ -9,15 +9,28 @@ import '../../app/theme/typography.dart';
 import '../../domain/encouragement.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/glass_card.dart';
-import '../../shared/widgets/mini_flag.dart';
 import '../../shared/widgets/ring_progress.dart';
 import 'home_controller.dart';
 
 const _weekdayLabels = ['一', '二', '三', '四', '五', '六', '日'];
 
-/// 週幾要跟著 [HomeState.usage] 的日期算，不用 DateTime.now()，
-/// 這樣測試跟畫面看到的「今天」才是同一天。
 String _weekdayLabel(DateTime date) => '週${_weekdayLabels[date.weekday - 1]}';
+
+String _timeLabel(DateTime date) =>
+    '${date.hour.toString().padLeft(2, '0')}:'
+    '${date.minute.toString().padLeft(2, '0')}';
+
+/// 五個時段各配一個不同的 emoji（使用者 2026-09-17 要求）。邊界照常見
+/// 的中文時段習慣抓：凌晨 00–05、早上 06–10、中午 11–13、下午 14–17、
+/// 晚上 18–23。
+String _periodEmoji(DateTime date) {
+  final h = date.hour;
+  if (h < 6) return '🌙';
+  if (h < 11) return '🌅';
+  if (h < 14) return '☀️';
+  if (h < 18) return '🌤️';
+  return '🌆';
+}
 
 /// 首頁。版型 04 節制版：圓環是主角，其餘都讓路。
 ///
@@ -61,7 +74,10 @@ class _Body extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const SizedBox(height: Gap.md),
-        _TopBar(date: state.usage.date),
+        // 週幾／時間用當下的真實時間，不是 state.usage.date——後者是
+        // 「今天這筆用量第一次建立時」的時間戳，同一天內重新打開 App
+        // 不會更新，拿來顯示時間會是舊的。
+        _TopBar(now: DateTime.now()),
         const SizedBox(height: Gap.lg),
 
         GlassCard(
@@ -113,19 +129,18 @@ class _Body extends StatelessWidget {
   }
 }
 
-/// 首頁頂端。左邊週幾＋國旗，右邊功能入口。
+/// 首頁頂端。左邊週幾＋時間＋時段 emoji，中間是語言軌道切換，
+/// 右邊功能入口。
 ///
-/// 國旗表示現在練的是哪個語言的軌道（目前只有英文），之後日文版面
-/// 上線就換一面日本國旗，同一顆 [MiniFlag] 換參數就好。
 /// 偽裝模式放在最右邊，因為需要用到的時候通常很急。
 class _TopBar extends ConsumerWidget {
-  const _TopBar({required this.date});
+  const _TopBar({required this.now});
 
-  final DateTime date;
+  final DateTime now;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // IconButton 預設的點擊區是 48 見方，五顆排在一起會超出手機寬度，
+    // IconButton 預設的點擊區是 48 見方，四顆排在一起會超出手機寬度，
     // 最右邊那顆就被擠不見。這裡改成 36 並清掉內距。
     final entries = <({IconData icon, String tip, VoidCallback tap})>[
       (
@@ -137,13 +152,6 @@ class _TopBar extends ConsumerWidget {
         icon: Icons.menu_book_rounded,
         tip: '單字庫',
         tap: () => context.push('/library'),
-      ),
-      // 暫時的入口：日文軌道還沒有自己的首頁，先讓五十音手寫練習頁
-      // 掛在這裡能被點到。等日文首頁做出來，這顆要移過去，不留在這。
-      (
-        icon: Icons.brush_outlined,
-        tip: '假名練習（暫）',
-        tap: () => context.push('/kana-practice'),
       ),
       (
         icon: Icons.bar_chart_rounded,
@@ -168,9 +176,12 @@ class _TopBar extends ConsumerWidget {
 
     return Row(
       children: [
-        Text(_weekdayLabel(date), style: AppText.title),
+        Text(
+          '${_weekdayLabel(now)} ${_timeLabel(now)} ${_periodEmoji(now)}',
+          style: AppText.title,
+        ),
         const SizedBox(width: Gap.sm),
-        const MiniFlag(country: FlagCountry.us),
+        const _TrackSwitcher(),
         const Spacer(),
         for (final e in entries)
           IconButton(
@@ -183,6 +194,60 @@ class _TopBar extends ConsumerWidget {
             constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
           ),
       ],
+    );
+  }
+}
+
+/// 語言軌道切換，玻璃風格的下拉選單。日文還沒有自己的首頁，選下去
+/// 先帶去五十音手寫練習頁——目前唯一做出來的日文內容，這也就順便
+/// 取代了原本暫時掛在頂端列的「假名練習（暫）」入口，不用兩個都留著。
+class _TrackSwitcher extends StatelessWidget {
+  const _TrackSwitcher();
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<String>(
+      color: const Color(0xFF1A1A24),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: const BorderSide(color: AppColors.glassEdge),
+      ),
+      itemBuilder: (_) => const [
+        PopupMenuItem(
+          value: 'en',
+          child: Text('英文', style: TextStyle(color: AppColors.ink)),
+        ),
+        PopupMenuItem(
+          value: 'ja',
+          child: Text('日文', style: TextStyle(color: AppColors.ink)),
+        ),
+      ],
+      onSelected: (value) {
+        if (value == 'ja') context.push('/kana-practice');
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: AppColors.glassFill,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: AppColors.glassEdge),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '英文',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.ink,
+              ),
+            ),
+            SizedBox(width: 4),
+            Icon(Icons.expand_more, size: 16, color: AppColors.ink2),
+          ],
+        ),
+      ),
     );
   }
 }

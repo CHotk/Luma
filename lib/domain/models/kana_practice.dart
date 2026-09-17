@@ -9,8 +9,8 @@ class KanaPracticeEntry {
     required this.romaji,
     required this.assisted,
     required this.savedAt,
-    required this.imageBase64,
     required this.strokes,
+    this.imageBase64,
   });
 
   /// 存檔當下的微秒時間戳字串，同時當 id 用，不會重複。
@@ -24,15 +24,22 @@ class KanaPracticeEntry {
 
   final DateTime savedAt;
 
-  /// 整張練習紙的 PNG，base64 編碼。存的是格線＋輔助字＋墨跡疊在一起
-  /// 那一刻紙面的樣子，不是只存筆畫座標，靜態預覽跟匯入的圖片都靠這個。
-  final String imageBase64;
+  /// 整張練習紙的 PNG，base64 編碼，只有「匯入既有圖片」進來的紀錄才有
+  /// ——外部圖片沒有 [strokes] 可以重畫，只能存死圖。App 現寫存的紀錄
+  /// 這裡是 null：有 [strokes] 就能隨時畫出同樣的畫面（列表縮圖、重播
+  /// 都靠現算，不用另外存一張圖），純數字比一張 PNG 小很多，這份紀錄
+  /// 會越存越多（現在自動存，不用手動按），省下來的空間差很多
+  /// （使用者 2026-09-17 決定）。
+  final String? imageBase64;
 
-  /// 每一筆的落筆軌跡：`(x, y, t)`，`t` 是從整次練習第一次落筆算起的
-  /// 毫秒數，同一份紀錄裡所有筆畫共用同一條時間軸（不是每筆各自從零
-  /// 算），這樣重播時筆畫之間停頓多久、每一筆寫多快，都跟當初實際
-  /// 寫的時候一致（使用者 2026-09-17 要求：位置跟間隔都要對，不接受
-  /// 用固定配速假裝重播）。
+  /// 每一筆的落筆軌跡：`(x, y, t)`。`x`／`y` 是**正規化座標**（紙寬／
+  /// 紙高的 0~1 比例，不是實際像素）——練習當下紙的大小依螢幕寬度
+  /// 而不同，存正規化座標才能保證同一筆紀錄不管在多大的畫布上重播、
+  /// 匯出，字都置中、填滿，不會跑位。`t` 是從整次練習第一次落筆算起
+  /// 的毫秒數，同一份紀錄裡所有筆畫共用同一條時間軸（不是每筆各自
+  /// 從零算），這樣重播時筆畫之間停頓多久、每一筆寫多快，都跟當初
+  /// 實際寫的時候一致（使用者 2026-09-17 要求：位置跟間隔都要對，
+  /// 不接受用固定配速假裝重播）。
   ///
   /// 從「匯入既有圖片」進來的紀錄沒有這份資料（外部圖片本來就沒有
   /// 筆畫過程可言），會是空陣列，畫面要能處理「沒有筆畫可重播」這種
@@ -59,7 +66,7 @@ class KanaPracticeEntry {
         romaji: json['romaji'] as String,
         assisted: json['assisted'] as bool,
         savedAt: DateTime.parse(json['savedAt'] as String),
-        imageBase64: json['imageBase64'] as String,
+        imageBase64: json['imageBase64'] as String?,
         strokes: [
           for (final stroke in (json['strokes'] as List? ?? const []))
             [
