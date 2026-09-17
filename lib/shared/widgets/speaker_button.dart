@@ -15,7 +15,10 @@ class SpeakerButton extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return IconButton(
-      onPressed: () => ref.read(ttsServiceProvider).speak(text),
+      onPressed: () async {
+        final tts = await ref.read(ttsServiceProvider.future);
+        await tts.speak(text);
+      },
       icon: Icon(Icons.volume_up_rounded, size: size),
       color: AppColors.accent,
       padding: EdgeInsets.zero,

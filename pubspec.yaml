@@ -18,7 +18,7 @@ dependencies:
   # 單字/句子發音。Web／Android／iOS 同一份 code，背後自動接瀏覽器的
   # SpeechSynthesis 或系統原生 TTS 引擎，見 domain/services/tts_service.dart。
   flutter_tts: ^4.2.5
-  # 讀 assets/config/rules_defaults.yaml 用的。選 YAML 不選 JSON，是因為
+  # 讀 assets/config/app_defaults.yaml 用的。選 YAML 不選 JSON，是因為
   # JSON 不能寫註解，這份設定檔每個數字都需要說明才看得懂，見該檔內容。
   yaml: ^3.1.2
 

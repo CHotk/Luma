@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/repositories/history_repository.dart';
 import '../data/repositories/settings_repository.dart';
 import '../data/repositories/word_repository.dart';
+import '../data/seed/app_defaults_loader.dart';
 import '../data/seed/word_seed_loader.dart';
 import '../data/storage/key_value_store.dart';
 import '../domain/models/quiz.dart';
@@ -50,7 +51,13 @@ final clockProvider = Provider<DateTime Function()>((ref) => DateTime.now);
 /// 發音。測驗頁跟單字詳情頁共用同一顆，不要每個畫面各自建一個
 /// `FlutterTts` 實例——同時有兩個實例在背景初始化，Web 上偶爾會搶著
 /// 註冊同一個瀏覽器 SpeechSynthesis 事件，聲音會怪怪的。
-final ttsServiceProvider = Provider<TtsService>((ref) => TtsService());
+///
+/// 語言／音調要先從 `app_defaults.yaml` 讀出來才能建立實例，所以是
+/// `FutureProvider`，讀取端用 `ref.read(ttsServiceProvider.future)`。
+final ttsServiceProvider = FutureProvider<TtsService>((ref) async {
+  final defaults = await loadTtsDefaults();
+  return TtsService(language: defaults.language, pitch: defaults.pitch);
+});
 
 /// 偽裝模式。開著的時候這一輪不出打字題，
 /// 因為偽裝畫面要假裝成終端機，跳出中文輸入法就穿幫了。

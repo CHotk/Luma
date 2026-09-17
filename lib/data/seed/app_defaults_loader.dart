@@ -3,24 +3,51 @@ import 'package:yaml/yaml.dart';
 
 import '../../domain/rules_config.dart';
 
-/// 讀 `assets/config/rules_defaults.yaml`，給全新使用者（還沒存過設定）當預設值。
+/// 讀 `assets/config/app_defaults.yaml`。
 ///
-/// 為什麼要有這個檔案：這樣調整「一輪幾題、幾次算掌握」這類數字
-/// 不用重新編譯 App，改完 YAML 直接部署就好。選 YAML 不選 JSON，是因為
-/// JSON 沒辦法寫註解，這種每個數字都需要說明才看得懂的設定檔，
-/// 沒有註解等於沒人敢改。
+/// 這份檔案是「調數字不用重新編譯」的設定集中地，內容跟保險機制的
+/// 說明都寫在該檔案開頭，這裡只是解析。除了學習規則（見
+/// [loadDefaultRulesConfig] 的說明）以外，其餘欄位都是唯一來源，
+/// 讀不到、格式壞掉、缺欄位就直接讓例外往上炸，不做 try/catch 假裝
+/// 沒事——App 早就有「出錯就出錯」的慣例，這裡沒理由特別客氣。
+Future<YamlMap> _loadDoc() async {
+  final raw = await rootBundle.loadString('assets/config/app_defaults.yaml');
+  return loadYaml(raw) as YamlMap;
+}
+
+/// 給全新使用者（還沒存過設定）當 [RulesConfig] 預設值。
 ///
-/// [RulesConfig] 建構子裡原本那組數字還留著當保險——這個檔案讀不到、
-/// 格式壞掉、或漏了某個欄位，都會照 `RulesConfig.fromJson` 原本的邏輯
-/// 一路 fallback 回那組寫死的值，不會因為這個檔案出包而整個掛掉。
+/// 這是目前唯一還留著 code 端保險預設值的部分：讀取沿用既有的
+/// `RulesConfig.fromJson`（原本就是給使用者存在本機的舊設定做欄位
+/// 補齊用），檔案讀不到、壞掉、或漏欄位都會照 `fromJson` 的邏輯退回
+/// `lib/domain/rules_config.dart` 建構子裡寫死的值，不算額外成本才
+/// 值得留。使用者已經存過設定之後就不會再讀到這裡。
 Future<RulesConfig> loadDefaultRulesConfig() async {
   try {
-    final raw = await rootBundle.loadString(
-      'assets/config/rules_defaults.yaml',
-    );
-    final doc = loadYaml(raw) as YamlMap;
+    final doc = await _loadDoc();
     return RulesConfig.fromJson(Map<String, dynamic>.from(doc));
   } catch (_) {
     return const RulesConfig();
   }
+}
+
+/// 發音設定。唯一來源，沒有 code 端備份值。
+class TtsDefaults {
+  const TtsDefaults({required this.language, required this.pitch});
+  final String language;
+  final double pitch;
+}
+
+Future<TtsDefaults> loadTtsDefaults() async {
+  final doc = await _loadDoc();
+  return TtsDefaults(
+    language: doc['ttsLanguage'] as String,
+    pitch: (doc['ttsPitch'] as num).toDouble(),
+  );
+}
+
+/// 啟動畫面要停留多久。唯一來源，沒有 code 端備份值。
+Future<Duration> loadSplashHoldDuration() async {
+  final doc = await _loadDoc();
+  return Duration(milliseconds: doc['splashHoldMs'] as int);
 }

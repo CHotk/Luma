@@ -4,17 +4,17 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/theme/colors.dart';
+import '../../data/seed/app_defaults_loader.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/lume_mark.dart';
 
 /// 啟動畫面。
 ///
-/// 停留約一秒半就自己走，不要做成要使用者點一下才進去，
-/// 每天都要看的東西多一次點擊就是多一分懶得開。
+/// 停留多久才自動跳轉見 `assets/config/app_defaults.yaml` 的
+/// `splashHoldMs`（唯一來源，這裡不寫死）。不要做成要使用者點一下
+/// 才進去，每天都要看的東西多一次點擊就是多一分懶得開。
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
-
-  static const _hold = Duration(milliseconds: 1600);
 
   @override
   State<SplashPage> createState() => _SplashPageState();
@@ -26,7 +26,13 @@ class _SplashPageState extends State<SplashPage> {
   @override
   void initState() {
     super.initState();
-    _timer = Timer(SplashPage._hold, () {
+    _scheduleNavigate();
+  }
+
+  Future<void> _scheduleNavigate() async {
+    final hold = await loadSplashHoldDuration();
+    if (!mounted) return;
+    _timer = Timer(hold, () {
       if (mounted) context.go('/home');
     });
   }

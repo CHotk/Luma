@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import '../../domain/daily_limit.dart';
 import '../../domain/rules_config.dart';
-import '../seed/rules_defaults_loader.dart';
+import '../seed/app_defaults_loader.dart';
 import '../storage/key_value_store.dart';
 
 /// 設定與今日用量。
