@@ -9,8 +9,15 @@ import '../../app/theme/typography.dart';
 import '../../domain/encouragement.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/glass_card.dart';
+import '../../shared/widgets/mini_flag.dart';
 import '../../shared/widgets/ring_progress.dart';
 import 'home_controller.dart';
+
+const _weekdayLabels = ['一', '二', '三', '四', '五', '六', '日'];
+
+/// 週幾要跟著 [HomeState.usage] 的日期算，不用 DateTime.now()，
+/// 這樣測試跟畫面看到的「今天」才是同一天。
+String _weekdayLabel(DateTime date) => '週${_weekdayLabels[date.weekday - 1]}';
 
 /// 首頁。版型 04 節制版：圓環是主角，其餘都讓路。
 ///
@@ -54,7 +61,7 @@ class _Body extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const SizedBox(height: Gap.md),
-        const _TopBar(),
+        _TopBar(date: state.usage.date),
         const SizedBox(height: Gap.lg),
 
         GlassCard(
@@ -106,11 +113,15 @@ class _Body extends StatelessWidget {
   }
 }
 
-/// 首頁頂端。左邊標題，右邊兩個入口。
+/// 首頁頂端。左邊週幾＋國旗，右邊功能入口。
 ///
+/// 國旗表示現在練的是哪個語言的軌道（目前只有英文），之後日文版面
+/// 上線就換一面日本國旗，同一顆 [MiniFlag] 換參數就好。
 /// 偽裝模式放在最右邊，因為需要用到的時候通常很急。
 class _TopBar extends ConsumerWidget {
-  const _TopBar();
+  const _TopBar({required this.date});
+
+  final DateTime date;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -150,7 +161,9 @@ class _TopBar extends ConsumerWidget {
 
     return Row(
       children: [
-        const Text('今天', style: AppText.title),
+        Text(_weekdayLabel(date), style: AppText.title),
+        const SizedBox(width: Gap.sm),
+        const MiniFlag(country: FlagCountry.us),
         const Spacer(),
         for (final e in entries)
           IconButton(

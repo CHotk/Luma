@@ -1,0 +1,592 @@
+<!doctype html>
+<title>假名練習首頁</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Material+Symbols+Outlined&display=swap"
+/>
+<style>
+  :root {
+    color-scheme: dark;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  * { box-sizing: border-box; }
+  img { max-width: 100%; }
+  [hidden] { display: none !important; }
+
+  html, body {
+    margin: 0;
+    background: #0a090c;
+    color: #e7e3e6;
+    font-family: "Zen Kaku Gothic New", "Noto Sans JP", system-ui, sans-serif;
+  }
+
+  body {
+    padding-inline: 20px;
+    padding-block: 40px 56px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 28px;
+  }
+
+  /* ---------- page chrome (not part of the app mockup itself) ---------- */
+
+  .intro {
+    max-width: 480px;
+    width: 100%;
+    text-align: center;
+  }
+
+  .eyebrow {
+    font-size: 12px;
+    letter-spacing: 0.16em;
+    color: #8b8690;
+    text-transform: uppercase;
+  }
+
+  .intro h1 {
+    font-family: "Shippori Mincho", serif;
+    font-weight: 800;
+    font-size: clamp(24px, 5vw, 30px);
+    margin: 6px 0 10px;
+    text-wrap: balance;
+    color: #f4f1f4;
+  }
+
+  .intro p {
+    margin: 0;
+    font-size: 13.5px;
+    line-height: 1.7;
+    color: #a9a4ad;
+    max-width: 46ch;
+    margin-inline: auto;
+  }
+
+  .switcher {
+    display: flex;
+    gap: 6px;
+    padding: 4px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 999px;
+  }
+
+  .switcher button {
+    appearance: none;
+    border: none;
+    background: transparent;
+    color: #9d98a3;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 8px 16px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease;
+  }
+
+  .switcher button:focus-visible {
+    outline: 2px solid #e7e3e6;
+    outline-offset: 2px;
+  }
+
+  .switcher button.active {
+    background: rgba(255, 255, 255, 0.14);
+    color: #fff;
+  }
+
+  .concept {
+    max-width: 380px;
+    width: 100%;
+    text-align: center;
+    font-size: 12.5px;
+    line-height: 1.65;
+    color: #a9a4ad;
+    min-height: 3.4em;
+  }
+
+  .concept b {
+    color: #e7e3e6;
+    font-weight: 600;
+  }
+
+  /* ---------- the app-screen mockup ---------- */
+
+  .phone {
+    position: relative;
+    width: 100%;
+    max-width: 380px;
+    border-radius: 34px;
+    padding: 14px;
+    isolation: isolate;
+    overflow: hidden;
+    background: var(--bg);
+    box-shadow: 0 30px 70px -30px rgba(0, 0, 0, 0.7);
+    transition: background 0.4s ease;
+  }
+
+  .amb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(46px);
+    opacity: 0.55;
+    z-index: -1;
+    transition: background 0.4s ease;
+  }
+  .amb-1 { width: 220px; height: 220px; top: -70px; left: -60px; background: var(--amb1); }
+  .amb-2 { width: 200px; height: 200px; bottom: 40px; right: -70px; background: var(--amb2); }
+  .amb-3 { width: 180px; height: 180px; bottom: -80px; left: 30px; background: var(--amb3); }
+
+  .shell {
+    position: relative;
+    border-radius: 24px;
+    padding: 18px 16px 20px;
+    background: rgba(255, 255, 255, 0.045);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border: 1px solid var(--panel-edge);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  /* top bar */
+  .topbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .weekday {
+    font-family: "Shippori Mincho", serif;
+    font-weight: 700;
+    font-size: 21px;
+    color: var(--ink);
+  }
+
+  .flag-jp {
+    width: 22px;
+    height: 15px;
+    border-radius: 2px;
+    background: #fff;
+    position: relative;
+    flex: none;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
+  }
+  .flag-jp::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #bc002d;
+  }
+
+  .topbar-icons {
+    margin-left: auto;
+    display: flex;
+    gap: 2px;
+  }
+  .topbar-icons .material-symbols-outlined {
+    font-size: 18px;
+    color: var(--ink3);
+    padding: 7px;
+    font-variation-settings: "opsz" 20;
+  }
+
+  /* generic glass card */
+  .card {
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.035);
+    border: 1px solid var(--panel-edge);
+    padding: 14px 14px 12px;
+  }
+
+  .panel-label {
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    color: var(--ink3);
+    text-transform: uppercase;
+    margin: 0 0 8px;
+  }
+
+  /* ring progress */
+  .ring-card { display: flex; flex-direction: column; align-items: center; gap: 8px; padding-block: 16px 12px; }
+  .ring-wrap { position: relative; width: 108px; height: 108px; }
+  .ring-wrap svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .ring-track { fill: none; stroke: rgba(255,255,255,0.08); stroke-width: 8; }
+  .ring-value { fill: none; stroke: var(--accent); stroke-width: 8; stroke-linecap: round; transition: stroke 0.4s ease; }
+  .ring-center {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 1px;
+  }
+  .ring-center .n { font-variant-numeric: tabular-nums; font-weight: 700; font-size: 18px; color: var(--ink); }
+  .ring-center .m { font-size: 10.5px; color: var(--ink3); font-variant-numeric: tabular-nums; }
+  .ring-note { font-size: 12px; color: var(--ink2); }
+
+  /* kana practice card */
+  .row-tabs {
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+  }
+  .row-tabs::-webkit-scrollbar { display: none; }
+  .row-tabs button {
+    appearance: none;
+    flex: none;
+    border: 1px solid transparent;
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--ink2);
+    font-family: "Shippori Mincho", serif;
+    font-size: 14px;
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  }
+  .row-tabs button:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+  .row-tabs button.active {
+    background: color-mix(in srgb, var(--accent) 26%, transparent);
+    border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+    color: var(--ink);
+  }
+
+  .kana-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+    margin-top: 10px;
+  }
+  .kana-grid button {
+    appearance: none;
+    aspect-ratio: 1;
+    border-radius: 10px;
+    border: 1px solid var(--panel-edge);
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--ink);
+    font-family: "Shippori Mincho", serif;
+    font-size: 19px;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+  }
+  .kana-grid button:hover { transform: translateY(-1px); }
+  .kana-grid button:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+  .kana-grid button.active {
+    background: color-mix(in srgb, var(--accent) 30%, transparent);
+    border-color: color-mix(in srgb, var(--accent) 65%, transparent);
+  }
+  .kana-grid button:disabled { visibility: hidden; }
+
+  .trace-wrap {
+    margin-top: 12px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .trace-box {
+    position: relative;
+    width: 116px;
+    height: 116px;
+    flex: none;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--panel-edge);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .trace-box::before {
+    content: "";
+    position: absolute;
+    left: 50%; top: 10%; bottom: 10%;
+    border-left: 1px dashed rgba(255, 255, 255, 0.22);
+  }
+  .trace-box::after {
+    content: "";
+    position: absolute;
+    top: 50%; left: 10%; right: 10%;
+    border-top: 1px dashed rgba(255, 255, 255, 0.22);
+  }
+  .trace-box .glyph {
+    position: relative;
+    font-family: "Shippori Mincho", serif;
+    font-size: 74px;
+    line-height: 1;
+    color: var(--ink);
+    opacity: 0.4;
+  }
+
+  .trace-meta { display: flex; flex-direction: column; gap: 4px; }
+  .trace-meta .romaji {
+    font-variant-numeric: tabular-nums;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .trace-meta .hint { font-size: 11.5px; color: var(--ink3); line-height: 1.5; max-width: 20ch; }
+
+  /* next round list */
+  .rows { display: flex; flex-direction: column; }
+  .row-line {
+    display: flex;
+    justify-content: space-between;
+    padding-block: 5px;
+    font-size: 13.5px;
+  }
+  .row-line span:first-child { color: var(--ink2); }
+  .row-line span:last-child { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  /* cta */
+  .cta {
+    appearance: none;
+    border: none;
+    border-radius: 15px;
+    padding: 14px;
+    font-family: "Zen Kaku Gothic New", sans-serif;
+    font-size: 15.5px;
+    font-weight: 700;
+    color: #17110c;
+    background: var(--accent);
+    cursor: pointer;
+    transition: background 0.3s ease, filter 0.15s ease;
+  }
+  .cta:hover { filter: brightness(1.06); }
+  .cta:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+
+  @media (max-width: 420px) {
+    .switcher { width: 100%; justify-content: space-between; }
+    .switcher button { flex: 1; padding-inline: 4px; }
+  }
+</style>
+
+<div class="intro">
+  <p class="eyebrow">Lume · 日文軌道提案</p>
+  <h1>三種配色，同一套毛玻璃骨架</h1>
+  <p>
+    左上角沿用英文首頁「週幾＋國旗」的做法，換成日之丸；新增的卡片是
+    五十音手寫練習——先選行、再選字，右側方格是仿「原稿用紙」的九宮格
+    描摹框。點下面三個名字可以切換配色，結構完全共用，只有色板不同。
+  </p>
+</div>
+
+<div class="switcher" role="tablist" aria-label="配色切換">
+  <button class="active" data-palette="shu" role="tab" aria-selected="true">朱</button>
+  <button data-palette="ai" role="tab" aria-selected="false">藍</button>
+  <button data-palette="sakura" role="tab" aria-selected="false">櫻</button>
+</div>
+
+<p class="concept" id="concept">
+  <b>朱（しゅ）</b>— 鳥居的漆紅配深墨底，沉靜、正式，適合把日文練習當一件正經事看待的人。
+</p>
+
+<div class="phone" id="phone" data-palette="shu">
+  <div class="amb amb-1"></div>
+  <div class="amb amb-2"></div>
+  <div class="amb amb-3"></div>
+
+  <div class="shell">
+    <div class="topbar">
+      <span class="weekday" id="weekday">週三</span>
+      <span class="flag-jp" aria-label="日文軌道"></span>
+      <div class="topbar-icons">
+        <span class="material-symbols-outlined">tips_and_updates</span>
+        <span class="material-symbols-outlined">menu_book</span>
+        <span class="material-symbols-outlined">bar_chart</span>
+        <span class="material-symbols-outlined">terminal</span>
+        <span class="material-symbols-outlined">settings</span>
+      </div>
+    </div>
+
+    <div class="card ring-card">
+      <div class="ring-wrap">
+        <svg viewBox="0 0 108 108">
+          <circle class="ring-track" cx="54" cy="54" r="46" />
+          <circle
+            class="ring-value"
+            cx="54" cy="54" r="46"
+            stroke-dasharray="289"
+            stroke-dashoffset="173"
+          />
+        </svg>
+        <div class="ring-center">
+          <span class="n">2/5</span>
+          <span class="m">8 / 15 分</span>
+        </div>
+      </div>
+      <p class="ring-note">一步一步來，急不得</p>
+    </div>
+
+    <div class="card">
+      <p class="panel-label">五十音・手寫練習</p>
+      <div class="row-tabs" id="rowTabs"></div>
+      <div class="kana-grid" id="kanaGrid"></div>
+      <div class="trace-wrap">
+        <div class="trace-box"><span class="glyph" id="glyph">あ</span></div>
+        <div class="trace-meta">
+          <span class="romaji" id="romaji">a</span>
+          <span class="hint">沿淡色筆跡描三次，再閉眼默寫一次</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="panel-label">下一輪</p>
+      <div class="rows">
+        <div class="row-line"><span>待複習</span><span>6</span></div>
+        <div class="row-line"><span>新字</span><span>2</span></div>
+        <div class="row-line"><span>已掌握</span><span>1</span></div>
+        <div class="row-line"><span>手寫練習</span><span>5 字</span></div>
+      </div>
+    </div>
+
+    <button class="cta">開始這輪</button>
+  </div>
+</div>
+
+<script>
+  const PALETTES = {
+    shu: {
+      "--bg": "#14100e",
+      "--panel-edge": "rgba(255,255,255,0.12)",
+      "--ink": "#f4eae2",
+      "--ink2": "#b7a79b",
+      "--ink3": "#7c6d63",
+      "--accent": "#e4572e",
+      "--amb1": "#7a2a18",
+      "--amb2": "#c2521c",
+      "--amb3": "#2b1414",
+      concept:
+        "<b>朱（しゅ）</b>— 鳥居的漆紅配深墨底，沉靜、正式，適合把日文練習當一件正經事看待的人。",
+    },
+    ai: {
+      "--bg": "#0b0e1a",
+      "--panel-edge": "rgba(255,255,255,0.12)",
+      "--ink": "#eceef7",
+      "--ink2": "#a6acc4",
+      "--ink3": "#6e7592",
+      "--accent": "#5b6fe0",
+      "--amb1": "#1b2456",
+      "--amb2": "#3a2e6b",
+      "--amb3": "#0e3b3a",
+      concept:
+        "<b>藍（あい）</b>— 藍染的深靛，配一點金繕般的暖色點綴，穩重裡帶一點講究。",
+    },
+    sakura: {
+      "--bg": "#1b1420",
+      "--panel-edge": "rgba(255,255,255,0.13)",
+      "--ink": "#f8eef3",
+      "--ink2": "#c6afbc",
+      "--ink3": "#8b7482",
+      "--accent": "#ea92ac",
+      "--amb1": "#4a2036",
+      "--amb2": "#6b3550",
+      "--amb3": "#2e2440",
+      concept:
+        "<b>櫻（さくら）</b>— 深紫底托一點粉，比另外兩版柔軟，適合想讓練習感覺輕鬆一點的時候。",
+    },
+  };
+
+  const GOJUON = {
+    あ: [["あ", "a"], ["い", "i"], ["う", "u"], ["え", "e"], ["お", "o"]],
+    か: [["か", "ka"], ["き", "ki"], ["く", "ku"], ["け", "ke"], ["こ", "ko"]],
+    さ: [["さ", "sa"], ["し", "shi"], ["す", "su"], ["せ", "se"], ["そ", "so"]],
+    た: [["た", "ta"], ["ち", "chi"], ["つ", "tsu"], ["て", "te"], ["と", "to"]],
+    な: [["な", "na"], ["に", "ni"], ["ぬ", "nu"], ["ね", "ne"], ["の", "no"]],
+    は: [["は", "ha"], ["ひ", "hi"], ["ふ", "fu"], ["へ", "he"], ["ほ", "ho"]],
+    ま: [["ま", "ma"], ["み", "mi"], ["む", "mu"], ["め", "me"], ["も", "mo"]],
+    や: [["や", "ya"], ["ゆ", "yu"], ["よ", "yo"]],
+    ら: [["ら", "ra"], ["り", "ri"], ["る", "ru"], ["れ", "re"], ["ろ", "ro"]],
+    わ: [["わ", "wa"], ["を", "wo"], ["ん", "n"]],
+  };
+
+  const rowTabsEl = document.getElementById("rowTabs");
+  const kanaGridEl = document.getElementById("kanaGrid");
+  const glyphEl = document.getElementById("glyph");
+  const romajiEl = document.getElementById("romaji");
+
+  let activeRow = "あ";
+
+  function renderRowTabs() {
+    rowTabsEl.innerHTML = "";
+    Object.keys(GOJUON).forEach((row) => {
+      const btn = document.createElement("button");
+      btn.textContent = row;
+      btn.className = row === activeRow ? "active" : "";
+      btn.setAttribute("aria-pressed", row === activeRow ? "true" : "false");
+      btn.addEventListener("click", () => {
+        activeRow = row;
+        renderRowTabs();
+        renderKanaGrid();
+      });
+      rowTabsEl.appendChild(btn);
+    });
+  }
+
+  function renderKanaGrid() {
+    kanaGridEl.innerHTML = "";
+    const chars = GOJUON[activeRow];
+    for (let i = 0; i < 5; i++) {
+      const btn = document.createElement("button");
+      const pair = chars[i];
+      if (!pair) {
+        btn.disabled = true;
+        kanaGridEl.appendChild(btn);
+        continue;
+      }
+      btn.textContent = pair[0];
+      if (i === 0) btn.classList.add("active");
+      btn.addEventListener("click", () => {
+        [...kanaGridEl.children].forEach((c) => c.classList.remove("active"));
+        btn.classList.add("active");
+        glyphEl.textContent = pair[0];
+        romajiEl.textContent = pair[1];
+      });
+      kanaGridEl.appendChild(btn);
+    }
+    // 預設顯示這一行第一個字
+    const first = chars[0];
+    glyphEl.textContent = first[0];
+    romajiEl.textContent = first[1];
+  }
+
+  renderRowTabs();
+  renderKanaGrid();
+
+  const phone = document.getElementById("phone");
+  const conceptEl = document.getElementById("concept");
+  document.querySelectorAll(".switcher button").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document
+        .querySelectorAll(".switcher button")
+        .forEach((b) => {
+          b.classList.remove("active");
+          b.setAttribute("aria-selected", "false");
+        });
+      btn.classList.add("active");
+      btn.setAttribute("aria-selected", "true");
+
+      const key = btn.dataset.palette;
+      const p = PALETTES[key];
+      Object.entries(p).forEach(([prop, val]) => {
+        if (prop.startsWith("--")) phone.style.setProperty(prop, val);
+      });
+      phone.dataset.palette = key;
+      conceptEl.innerHTML = p.concept;
+    });
+  });
+</script>

@@ -1,0 +1,542 @@
+<!doctype html>
+<title>櫻・手寫練習頁</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Material+Symbols+Outlined&display=swap"
+/>
+<style>
+  :root {
+    color-scheme: dark;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+
+    --bg: #1b1420;
+    --panel-edge: rgba(255, 255, 255, 0.13);
+    --ink: #f8eef3;
+    --ink2: #c6afbc;
+    --ink3: #8b7482;
+    --accent: #ea92ac;
+    --accent-deep: #c86487;
+    --amb1: #4a2036;
+    --amb2: #6b3550;
+    --amb3: #2e2440;
+
+    --paper: #f7ecec;
+    --paper-line: rgba(60, 30, 40, 0.22);
+    --ink-stroke: #2a1420;
+  }
+  * { box-sizing: border-box; }
+  img { max-width: 100%; }
+  [hidden] { display: none !important; }
+
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: #0a090c;
+    color: var(--ink);
+    font-family: "Zen Kaku Gothic New", "Noto Sans JP", system-ui, sans-serif;
+  }
+
+  body {
+    padding-inline: 20px;
+    padding-block: 32px 48px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+  }
+
+  .intro {
+    max-width: 420px;
+    width: 100%;
+    text-align: center;
+  }
+  .eyebrow {
+    font-size: 12px;
+    letter-spacing: 0.16em;
+    color: #8b8690;
+    text-transform: uppercase;
+  }
+  .intro h1 {
+    font-family: "Shippori Mincho", serif;
+    font-weight: 800;
+    font-size: clamp(22px, 5vw, 27px);
+    margin: 6px 0 8px;
+    text-wrap: balance;
+    color: #f4f1f4;
+  }
+  .intro p {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.7;
+    color: #a9a4ad;
+    max-width: 44ch;
+    margin-inline: auto;
+  }
+
+  /* ---------- phone shell shared by both screens ---------- */
+  .phone {
+    position: relative;
+    width: 100%;
+    max-width: 380px;
+    border-radius: 34px;
+    padding: 14px;
+    isolation: isolate;
+    overflow: hidden;
+    background: var(--bg);
+    box-shadow: 0 30px 70px -30px rgba(0, 0, 0, 0.7);
+  }
+  .amb { position: absolute; border-radius: 50%; filter: blur(46px); opacity: 0.55; z-index: -1; }
+  .amb-1 { width: 220px; height: 220px; top: -70px; left: -60px; background: var(--amb1); }
+  .amb-2 { width: 200px; height: 200px; bottom: 40px; right: -70px; background: var(--amb2); }
+  .amb-3 { width: 180px; height: 180px; bottom: -80px; left: 30px; background: var(--amb3); }
+
+  .shell {
+    position: relative;
+    border-radius: 24px;
+    padding: 18px 16px 20px;
+    background: rgba(255, 255, 255, 0.045);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border: 1px solid var(--panel-edge);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .screen { display: flex; flex-direction: column; gap: 14px; }
+
+  /* topbar (home only) */
+  .topbar { display: flex; align-items: center; gap: 8px; }
+  .weekday { font-family: "Shippori Mincho", serif; font-weight: 700; font-size: 21px; color: var(--ink); }
+  .flag-jp {
+    width: 22px; height: 15px; border-radius: 2px; background: #fff;
+    position: relative; flex: none; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
+  }
+  .flag-jp::after {
+    content: ""; position: absolute; inset: 0; margin: auto;
+    width: 7px; height: 7px; border-radius: 50%; background: #bc002d;
+  }
+  .topbar-icons { margin-left: auto; display: flex; gap: 2px; }
+  .topbar-icons .material-symbols-outlined {
+    font-size: 18px; color: var(--ink3); padding: 7px; font-variation-settings: "opsz" 20;
+  }
+
+  /* practice-screen header */
+  .practice-header { display: flex; align-items: center; gap: 6px; }
+  .back-btn {
+    appearance: none; border: none; background: rgba(255, 255, 255, 0.06);
+    color: var(--ink); width: 32px; height: 32px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    flex: none;
+  }
+  .back-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .practice-title { font-family: "Shippori Mincho", serif; font-weight: 700; font-size: 16px; }
+
+  .card {
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.035);
+    border: 1px solid var(--panel-edge);
+    padding: 14px 14px 12px;
+  }
+  .panel-label {
+    font-size: 11px; letter-spacing: 0.1em; color: var(--ink3);
+    text-transform: uppercase; margin: 0 0 8px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+
+  /* ring progress */
+  .ring-card { display: flex; flex-direction: column; align-items: center; gap: 8px; padding-block: 16px 12px; }
+  .ring-wrap { position: relative; width: 108px; height: 108px; }
+  .ring-wrap svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .ring-track { fill: none; stroke: rgba(255, 255, 255, 0.08); stroke-width: 8; }
+  .ring-value { fill: none; stroke: var(--accent); stroke-width: 8; stroke-linecap: round; }
+  .ring-center {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 1px;
+  }
+  .ring-center .n { font-variant-numeric: tabular-nums; font-weight: 700; font-size: 18px; color: var(--ink); }
+  .ring-center .m { font-size: 10.5px; color: var(--ink3); font-variant-numeric: tabular-nums; }
+  .ring-note { font-size: 12px; color: var(--ink2); }
+
+  /* home's kana-practice entry card -- whole thing is a button */
+  .kana-entry {
+    appearance: none;
+    width: 100%;
+    text-align: left;
+    border: 1px solid var(--panel-edge);
+    background: rgba(255, 255, 255, 0.035);
+    border-radius: 18px;
+    padding: 14px 14px 14px;
+    color: inherit;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+  }
+  .kana-entry:hover { background: rgba(255, 255, 255, 0.055); transform: translateY(-1px); }
+  .kana-entry:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .kana-entry .chevron {
+    font-size: 18px; color: var(--ink3); transition: color 0.15s ease;
+  }
+  .kana-entry:hover .chevron { color: var(--ink); }
+
+  .kana-preview-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .kana-preview-glyphs {
+    font-family: "Shippori Mincho", serif;
+    font-size: 20px;
+    color: var(--ink2);
+    letter-spacing: 3px;
+    flex: 1;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .kana-preview-count { font-size: 12px; color: var(--ink3); flex: none; }
+
+  /* next round list */
+  .rows { display: flex; flex-direction: column; }
+  .row-line { display: flex; justify-content: space-between; padding-block: 5px; font-size: 13.5px; }
+  .row-line span:first-child { color: var(--ink2); }
+  .row-line span:last-child { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  .cta {
+    appearance: none; border: none; border-radius: 15px; padding: 14px;
+    font-family: "Zen Kaku Gothic New", sans-serif; font-size: 15.5px; font-weight: 700;
+    color: #2a1420; background: var(--accent); cursor: pointer;
+    transition: filter 0.15s ease;
+  }
+  .cta:hover { filter: brightness(1.06); }
+  .cta:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+  /* ---------- practice screen: row tabs + kana grid (interactive here) ---------- */
+  .row-tabs { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+  .row-tabs::-webkit-scrollbar { display: none; }
+  .row-tabs button {
+    appearance: none; flex: none; border: 1px solid transparent;
+    background: rgba(255, 255, 255, 0.04); color: var(--ink2);
+    font-family: "Shippori Mincho", serif; font-size: 14px;
+    width: 30px; height: 30px; border-radius: 9px; cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  }
+  .row-tabs button:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+  .row-tabs button.active {
+    background: color-mix(in srgb, var(--accent) 30%, transparent);
+    border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+    color: var(--ink);
+  }
+
+  .kana-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-top: 10px; }
+  .kana-grid button {
+    appearance: none; aspect-ratio: 1; border-radius: 10px;
+    border: 1px solid var(--panel-edge); background: rgba(255, 255, 255, 0.03);
+    color: var(--ink); font-family: "Shippori Mincho", serif; font-size: 19px; cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+  }
+  .kana-grid button:hover { transform: translateY(-1px); }
+  .kana-grid button:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+  .kana-grid button.active {
+    background: color-mix(in srgb, var(--accent) 32%, transparent);
+    border-color: color-mix(in srgb, var(--accent) 70%, transparent);
+  }
+  .kana-grid button:disabled { visibility: hidden; }
+
+  /* the actual writable paper */
+  .paper-card { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .paper-wrap {
+    position: relative;
+    width: 100%;
+    max-width: 260px;
+    aspect-ratio: 1;
+    border-radius: 14px;
+    background: var(--paper);
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06), 0 10px 24px -12px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+    touch-action: none;
+  }
+  .paper-wrap::before {
+    content: "";
+    position: absolute; left: 50%; top: 6%; bottom: 6%;
+    border-left: 1px dashed var(--paper-line);
+  }
+  .paper-wrap::after {
+    content: "";
+    position: absolute; top: 50%; left: 6%; right: 6%;
+    border-top: 1px dashed var(--paper-line);
+  }
+  .paper-guide {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-family: "Shippori Mincho", serif;
+    font-size: 62%;
+    color: rgba(42, 20, 32, 0.16);
+    pointer-events: none;
+    user-select: none;
+  }
+  #inkCanvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; }
+
+  .paper-actions { display: flex; align-items: center; gap: 10px; }
+  .romaji-tag {
+    font-variant-numeric: tabular-nums; font-size: 19px; font-weight: 700; color: var(--ink);
+  }
+  .clear-btn {
+    appearance: none; border: 1px solid var(--panel-edge); background: rgba(255, 255, 255, 0.05);
+    color: var(--ink2); font-family: inherit; font-size: 12.5px; padding: 7px 12px;
+    border-radius: 999px; cursor: pointer; display: flex; align-items: center; gap: 4px;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .clear-btn:hover { background: rgba(255, 255, 255, 0.09); color: var(--ink); }
+  .clear-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .clear-btn .material-symbols-outlined { font-size: 15px; }
+
+  .paper-hint { font-size: 11.5px; color: var(--ink3); text-align: center; max-width: 26ch; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="intro">
+  <p class="eyebrow">Lume · 日文軌道・定案</p>
+  <h1>櫻版，手寫練習真的能寫</h1>
+  <p>
+    首頁那張「五十音・手寫練習」卡整塊變成入口，點下去才進手寫練習頁——
+    右邊那格紙是真的畫布，滑鼠／觸控拖著寫，寫壞了按「清除重寫」。
+  </p>
+</div>
+
+<div class="phone">
+  <div class="amb amb-1"></div>
+  <div class="amb amb-2"></div>
+  <div class="amb amb-3"></div>
+
+  <div class="shell">
+    <!-- ============ HOME SCREEN ============ -->
+    <div class="screen" id="screenHome">
+      <div class="topbar">
+        <span class="weekday">週三</span>
+        <span class="flag-jp" aria-label="日文軌道"></span>
+        <div class="topbar-icons">
+          <span class="material-symbols-outlined">tips_and_updates</span>
+          <span class="material-symbols-outlined">menu_book</span>
+          <span class="material-symbols-outlined">bar_chart</span>
+          <span class="material-symbols-outlined">terminal</span>
+          <span class="material-symbols-outlined">settings</span>
+        </div>
+      </div>
+
+      <div class="card ring-card">
+        <div class="ring-wrap">
+          <svg viewBox="0 0 108 108">
+            <circle class="ring-track" cx="54" cy="54" r="46" />
+            <circle class="ring-value" cx="54" cy="54" r="46" stroke-dasharray="289" stroke-dashoffset="173" />
+          </svg>
+          <div class="ring-center">
+            <span class="n">2/5</span>
+            <span class="m">8 / 15 分</span>
+          </div>
+        </div>
+        <p class="ring-note">一步一步來，急不得</p>
+      </div>
+
+      <button class="kana-entry" id="openPractice">
+        <p class="panel-label">
+          五十音・手寫練習
+          <span class="material-symbols-outlined chevron">chevron_right</span>
+        </p>
+        <div class="kana-preview-row">
+          <span class="kana-preview-glyphs">あ い う え お</span>
+          <span class="kana-preview-count">今天 5 字</span>
+        </div>
+      </button>
+
+      <div class="card">
+        <p class="panel-label">下一輪</p>
+        <div class="rows">
+          <div class="row-line"><span>待複習</span><span>6</span></div>
+          <div class="row-line"><span>新字</span><span>2</span></div>
+          <div class="row-line"><span>已掌握</span><span>1</span></div>
+          <div class="row-line"><span>手寫練習</span><span>5 字</span></div>
+        </div>
+      </div>
+
+      <button class="cta">開始這輪</button>
+    </div>
+
+    <!-- ============ PRACTICE SCREEN ============ -->
+    <div class="screen" id="screenPractice" hidden>
+      <div class="practice-header">
+        <button class="back-btn" id="backHome" aria-label="返回首頁">
+          <span class="material-symbols-outlined">arrow_back</span>
+        </button>
+        <span class="practice-title">五十音・手寫練習</span>
+      </div>
+
+      <div class="card">
+        <div class="row-tabs" id="rowTabs"></div>
+        <div class="kana-grid" id="kanaGrid"></div>
+      </div>
+
+      <div class="card paper-card">
+        <div class="paper-wrap">
+          <span class="paper-guide" id="glyphGuide">あ</span>
+          <canvas id="inkCanvas"></canvas>
+        </div>
+        <div class="paper-actions">
+          <span class="romaji-tag" id="romaji">a</span>
+          <button class="clear-btn" id="clearBtn">
+            <span class="material-symbols-outlined">ink_eraser</span>
+            清除重寫
+          </button>
+        </div>
+        <p class="paper-hint">沿淡色筆跡描三次，再閉眼默寫一次看看</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const GOJUON = {
+    あ: [["あ", "a"], ["い", "i"], ["う", "u"], ["え", "e"], ["お", "o"]],
+    か: [["か", "ka"], ["き", "ki"], ["く", "ku"], ["け", "ke"], ["こ", "ko"]],
+    さ: [["さ", "sa"], ["し", "shi"], ["す", "su"], ["せ", "se"], ["そ", "so"]],
+    た: [["た", "ta"], ["ち", "chi"], ["つ", "tsu"], ["て", "te"], ["と", "to"]],
+    な: [["な", "na"], ["に", "ni"], ["ぬ", "nu"], ["ね", "ne"], ["の", "no"]],
+    は: [["は", "ha"], ["ひ", "hi"], ["ふ", "fu"], ["へ", "he"], ["ほ", "ho"]],
+    ま: [["ま", "ma"], ["み", "mi"], ["む", "mu"], ["め", "me"], ["も", "mo"]],
+    や: [["や", "ya"], ["ゆ", "yu"], ["よ", "yo"]],
+    ら: [["ら", "ra"], ["り", "ri"], ["る", "ru"], ["れ", "re"], ["ろ", "ro"]],
+    わ: [["わ", "wa"], ["を", "wo"], ["ん", "n"]],
+  };
+
+  const rowTabsEl = document.getElementById("rowTabs");
+  const kanaGridEl = document.getElementById("kanaGrid");
+  const glyphGuideEl = document.getElementById("glyphGuide");
+  const romajiEl = document.getElementById("romaji");
+
+  let activeRow = "あ";
+
+  function renderRowTabs() {
+    rowTabsEl.innerHTML = "";
+    Object.keys(GOJUON).forEach((row) => {
+      const btn = document.createElement("button");
+      btn.textContent = row;
+      btn.className = row === activeRow ? "active" : "";
+      btn.addEventListener("click", () => {
+        activeRow = row;
+        renderRowTabs();
+        renderKanaGrid();
+      });
+      rowTabsEl.appendChild(btn);
+    });
+  }
+
+  function selectGlyph(char, romaji) {
+    glyphGuideEl.textContent = char;
+    romajiEl.textContent = romaji;
+    clearInk();
+  }
+
+  function renderKanaGrid() {
+    kanaGridEl.innerHTML = "";
+    const chars = GOJUON[activeRow];
+    for (let i = 0; i < 5; i++) {
+      const btn = document.createElement("button");
+      const pair = chars[i];
+      if (!pair) {
+        btn.disabled = true;
+        kanaGridEl.appendChild(btn);
+        continue;
+      }
+      btn.textContent = pair[0];
+      if (i === 0) btn.classList.add("active");
+      btn.addEventListener("click", () => {
+        [...kanaGridEl.children].forEach((c) => c.classList.remove("active"));
+        btn.classList.add("active");
+        selectGlyph(pair[0], pair[1]);
+      });
+      kanaGridEl.appendChild(btn);
+    }
+    selectGlyph(chars[0][0], chars[0][1]);
+  }
+
+  renderRowTabs();
+  renderKanaGrid();
+
+  /* ---------- writable canvas ---------- */
+  const canvas = document.getElementById("inkCanvas");
+  const ctx = canvas.getContext("2d");
+  const paperWrap = canvas.parentElement;
+
+  function fitCanvas() {
+    const rect = paperWrap.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    const prev = document.createElement("canvas");
+    prev.width = canvas.width;
+    prev.height = canvas.height;
+    prev.getContext("2d").drawImage(canvas, 0, 0);
+
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.drawImage(prev, 0, 0, prev.width / dpr, prev.height / dpr);
+  }
+
+  function clearInk() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+
+  let drawing = false;
+  let last = null;
+
+  function posFromEvent(e) {
+    const rect = canvas.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  }
+
+  canvas.addEventListener("pointerdown", (e) => {
+    drawing = true;
+    canvas.setPointerCapture(e.pointerId);
+    last = posFromEvent(e);
+  });
+  canvas.addEventListener("pointermove", (e) => {
+    if (!drawing) return;
+    const p = posFromEvent(e);
+    ctx.strokeStyle = "#2a1420";
+    ctx.lineWidth = 6;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    ctx.moveTo(last.x, last.y);
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+    last = p;
+  });
+  window.addEventListener("pointerup", () => (drawing = false));
+  window.addEventListener("pointercancel", () => (drawing = false));
+
+  document.getElementById("clearBtn").addEventListener("click", clearInk);
+
+  window.addEventListener("resize", fitCanvas);
+
+  /* ---------- screen navigation ---------- */
+  const screenHome = document.getElementById("screenHome");
+  const screenPractice = document.getElementById("screenPractice");
+
+  document.getElementById("openPractice").addEventListener("click", () => {
+    screenHome.hidden = true;
+    screenPractice.hidden = false;
+    fitCanvas();
+  });
+  document.getElementById("backHome").addEventListener("click", () => {
+    screenPractice.hidden = true;
+    screenHome.hidden = false;
+  });
+
+  fitCanvas();
+</script>
