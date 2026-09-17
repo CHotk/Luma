@@ -15,14 +15,17 @@ import 'kana_paper.dart';
 /// 五十音手寫練習頁。
 ///
 /// 練習紙是真的畫布：手指／滑鼠拖著寫，筆畫即時畫出來。**不用手動按存**
-/// （使用者 2026-09-17 決定）：換行、換字、切換輔助/純手寫模式、或離開
-/// 這頁，只要紙上有墨跡就自動存一筆，不管在 App 還是 Web 上都一樣。
-/// 存的是每一筆每個點的座標＋時間戳（見 [KanaPracticeEntry.strokes]），
-/// 不是圖片——這樣重播時筆畫之間停頓多久、每一筆寫多快，都跟實際寫
-/// 的時候一致，而且純數字比一張 PNG 小很多，省空間（這份紀錄以後會
-/// 越存越多，省下來的空間差很多）。「輔助描摹」跟「純手寫」是兩種
-/// 模式：前者背景印著淡淡的假名當參考線，後者是空白紙，練久了想測
-/// 自己記不記得筆順就切過去。
+/// （使用者 2026-09-17 決定）：**畫完一筆（放手）就存一次**，同一個字
+/// 只要沒換行／換字／切模式，一路都是同一筆紀錄被整版換掉（見
+/// [KanaPracticeRepository.upsert]）——不是等「離開這個字」才補存一次
+/// 整份。這樣存檔時機只有一個地方要管，不用在換行／換字／切模式／
+/// 開紀錄頁／離開頁面各自埋一次「記得存」的邏輯，也不怕中途漏存
+/// （2026-09-17 使用者要求）。存的是每一筆每個點的座標＋時間戳（見
+/// [KanaPracticeEntry.strokes]），不是圖片——這樣重播時筆畫之間停頓
+/// 多久、每一筆寫多快，都跟實際寫的時候一致，而且純數字比一張 PNG
+/// 小很多，省空間。「輔助描摹」跟「純手寫」是兩種模式：前者背景印著
+/// 淡淡的假名當參考線，後者是空白紙，練久了想測自己記不記得筆順就
+/// 切過去。
 ///
 /// 這頁的顏色是全 App 唯一的例外，沒有全部從 [AppColors] 取：紙本來就
 /// 該是亮色，跟其餘畫面統一的暗色玻璃底不是同一件事，硬套 AppColors
@@ -65,38 +68,33 @@ class _KanaPracticePageState extends ConsumerState<KanaPracticePage> {
   /// 都要歸零，下一次落筆才會重新設定。
   DateTime? _sessionStart;
 
+  /// 目前這個字存檔用的 id。第一筆落筆時才生出來，之後同一個字每畫完
+  /// 一筆都拿同一個 id 去 [KanaPracticeRepository.upsert]，換字／清除
+  /// 才會歸零、換一個新的——這樣「同一個字」跟「存檔的哪一筆」是綁在
+  /// 一起的，不用另外決定「什麼時候該存」。
+  String? _entryId;
+
+  /// 上一次 [_saveStroke] 觸發的寫入，還沒完成的話留著給
+  /// [_openHistory] 之類真的要確保寫完才能做下一步的地方等。
+  Future<void>? _pendingSave;
+
   late KanaScript _script = widget.initial?.script ?? KanaScript.hiragana;
   late String _row = widget.initial?.row ?? 'あ';
   late (String, String) _selected =
       widget.initial?.kana ?? rowsFor(_script)[_row]!.first;
   bool _assisted = true;
 
-  @override
-  void dispose() {
-    // dispose() 不能 await，所以自動存檔在這裡是點火就走：repository
-    // 本身的寫入邏輯跟這個 State 的生命週期無關，就算這個 widget 已經
-    // 銷毀，寫入還是會跑完。
-    _autoSave();
-    super.dispose();
-  }
-
-  /// 紙上有墨跡才存，「清除重寫」按下去代表使用者不想留這次的嘗試，
-  /// 不能在那裡也偷偷存一筆。
-  ///
-  /// 存完要 bump `dataRevisionProvider`，日文首頁才會重新算「已存幾筆」
-  /// ——先把 repository 跟 notifier 這兩個物件同步抓出來，不要在
-  /// `.then()` 裡才去用 `ref`：這個方法在 `dispose()` 裡也會被呼叫，
-  /// 寫入完成時這個 State 可能已經銷毀，`ref` 那時候未必還能用，但
-  /// 抓出來的物件本身跟這個 State 的生死無關，用起來才安全。
-  void _autoSave() {
-    if (_strokes.isEmpty) return;
+  /// 一筆畫完（放手）就存一次，不等使用者換字／離開頁面才補存
+  /// （2026-09-17 使用者要求，見這個 State 開頭的說明）。
+  void _saveStroke() {
+    if (_strokes.isEmpty || _entryId == null) return;
     final repo = ref.read(kanaPracticeRepositoryProvider);
     final revision = ref.read(dataRevisionProvider.notifier);
-    repo.add(_buildEntry()).then((_) => revision.state++);
+    _pendingSave = repo.upsert(_buildEntry()).then((_) => revision.state++);
   }
 
   KanaPracticeEntry _buildEntry() => KanaPracticeEntry(
-    id: DateTime.now().microsecondsSinceEpoch.toString(),
+    id: _entryId!,
     kana: _selected.$1,
     romaji: _selected.$2,
     assisted: _assisted,
@@ -111,10 +109,24 @@ class _KanaPracticePageState extends ConsumerState<KanaPracticePage> {
     ],
   );
 
+  /// 換到下一個字／收掉目前這個字的本地畫布狀態。已經存過的紀錄留著
+  /// 不動——這只是清畫布，不是「丟掉這次練習」，那是 [_discard] 的事。
   void _clearInk() {
     _strokes.clear();
     _strokeTimes.clear();
     _sessionStart = null;
+    _entryId = null;
+  }
+
+  /// 「清除重寫」：跟換字不一樣，這是使用者主動說這次嘗試不算，連
+  /// 已經存過的幾版也要一起丟掉，不能留著半成品紀錄。
+  Future<void> _discard() async {
+    final id = _entryId;
+    setState(_clearInk);
+    if (id == null) return;
+    final repo = ref.read(kanaPracticeRepositoryProvider);
+    await repo.delete(id);
+    ref.read(dataRevisionProvider.notifier).state++;
   }
 
   double _elapsedMs() =>
@@ -122,7 +134,6 @@ class _KanaPracticePageState extends ConsumerState<KanaPracticePage> {
 
   void _pickScript(KanaScript script) {
     if (script == _script) return;
-    _autoSave();
     setState(() {
       _script = script;
       _row = rowsFor(script).keys.first;
@@ -132,7 +143,6 @@ class _KanaPracticePageState extends ConsumerState<KanaPracticePage> {
   }
 
   void _pickRow(String row) {
-    _autoSave();
     setState(() {
       _row = row;
       _selected = rowsFor(_script)[row]!.first;
@@ -141,7 +151,6 @@ class _KanaPracticePageState extends ConsumerState<KanaPracticePage> {
   }
 
   void _pickKana((String, String) pair) {
-    _autoSave();
     setState(() {
       _selected = pair;
       _clearInk();
@@ -149,9 +158,12 @@ class _KanaPracticePageState extends ConsumerState<KanaPracticePage> {
   }
 
   Future<void> _openHistory() async {
-    // push 不會 dispose 這一頁，dispose() 那邊的自動存檔救不到這個情境，
-    // 要在離開前自己補存一次。
-    _autoSave();
+    // 每一筆已經在放手那一刻就存過了，這裡只需要確保「最後一筆」的
+    // 寫入真的完成，不然練習紀錄頁的初始讀取可能比這次寫入還早跑完，
+    // 剛畫的那幾筆就看不到（2026-09-17 使用者回饋：點進練習紀錄，剛練
+    // 的那筆沒出現）。
+    if (_pendingSave != null) await _pendingSave;
+    if (!mounted) return;
     await context.push('/kana-practice/history');
   }
 
@@ -219,13 +231,10 @@ class _KanaPracticePageState extends ConsumerState<KanaPracticePage> {
                       children: [
                         _ModeToggle(
                           assisted: _assisted,
-                          onChanged: (v) {
-                            _autoSave();
-                            setState(() {
-                              _assisted = v;
-                              _clearInk();
-                            });
-                          },
+                          onChanged: (v) => setState(() {
+                            _assisted = v;
+                            _clearInk();
+                          }),
                         ),
                         const SizedBox(height: Gap.md),
                         Expanded(
@@ -257,7 +266,7 @@ class _KanaPracticePageState extends ConsumerState<KanaPracticePage> {
                             ),
                             const Spacer(),
                             TextButton.icon(
-                              onPressed: () => setState(_clearInk),
+                              onPressed: _discard,
                               icon: const Icon(Icons.refresh, size: 16),
                               label: const Text('清除重寫'),
                               style: TextButton.styleFrom(
@@ -301,9 +310,19 @@ class _KanaPracticePageState extends ConsumerState<KanaPracticePage> {
               const CustomPaint(painter: PaperGridPainter()),
               if (_assisted)
                 Center(
+                  // 字級要跟紙的實際大小算，不能寫死：紙（AspectRatio）
+                  // 會跟著視窗縮放，固定字級縮到一定程度會比紙還大，
+                  // 超出的部分被 Container 的 clipBehavior 裁掉——而
+                  // 中日文字型的字框上下留白本來就不對稱，裁完看起來
+                  // 就像參考字跑位，其實是裁切不對稱（2026-09-17 使用者
+                  // 回饋）。
                   child: Text(
                     _selected.$1,
-                    style: const TextStyle(fontSize: 130, color: guideColor),
+                    style: TextStyle(
+                      fontSize: box.shortestSide * 0.62,
+                      height: 1,
+                      color: guideColor,
+                    ),
                   ),
                 ),
               // 用 Listener 接原始指標事件，不用 GestureDetector 的
@@ -315,6 +334,7 @@ class _KanaPracticePageState extends ConsumerState<KanaPracticePage> {
               Listener(
                 onPointerDown: (e) => setState(() {
                   _sessionStart ??= DateTime.now();
+                  _entryId ??= DateTime.now().microsecondsSinceEpoch.toString();
                   _strokes.add([normalize(e.localPosition)]);
                   _strokeTimes.add([_elapsedMs()]);
                 }),
@@ -322,6 +342,8 @@ class _KanaPracticePageState extends ConsumerState<KanaPracticePage> {
                   _strokes.last.add(normalize(e.localPosition));
                   _strokeTimes.last.add(_elapsedMs());
                 }),
+                // 放手＝這一筆畫完了，存一次（見這個 State 開頭的說明）。
+                onPointerUp: (_) => _saveStroke(),
                 child: CustomPaint(painter: InkPainter(strokes: _strokes)),
               ),
             ],

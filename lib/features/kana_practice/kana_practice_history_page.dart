@@ -82,6 +82,14 @@ class _KanaPracticeHistoryPageState
 
   @override
   Widget build(BuildContext context) {
+    // 練習頁存檔完會 bump 這個 provider；只在 initState 讀一次的話，
+    // 如果這個畫面是被 pop 回來重新看到的舊 instance（不是重新 push
+    // 出來的新 instance），initState 不會再跑，畫面就停在舊資料，剛
+    // 存的那筆練習紀錄看起來像不見了（2026-09-17 使用者回饋）。
+    ref.listen<int>(dataRevisionProvider, (prev, next) {
+      if (prev != next) _reload();
+    });
+
     return Scaffold(
       body: AmbientBackground(
         child: SafeArea(
