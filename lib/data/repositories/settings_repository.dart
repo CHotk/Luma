@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import '../../domain/daily_limit.dart';
 import '../../domain/rules_config.dart';
+import '../seed/rules_defaults_loader.dart';
 import '../storage/key_value_store.dart';
 
 /// 設定與今日用量。
@@ -18,7 +19,8 @@ class SettingsRepository {
 
   Future<RulesConfig> loadRules() async {
     final raw = await _store.read(_rulesKey);
-    if (raw == null) return const RulesConfig();
+    // 使用者存過設定就用那份；沒存過（全新使用者）才讀資產檔的預設值。
+    if (raw == null) return loadDefaultRulesConfig();
     return RulesConfig.fromJson(jsonDecode(raw) as Map<String, dynamic>);
   }
 
