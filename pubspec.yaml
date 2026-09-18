@@ -31,6 +31,11 @@ dependencies:
   # 設定頁最下面顯示的版本號用的：跟 pubspec.yaml 的 version 對得上，
   # 不用自己手動同步一份常數，Web／Android／iOS 同一份 API。
   package_info_plus: ^8.1.2
+  # 手寫練習重播「下載動畫」用的：把逐格畫出來的筆畫編成動畫 GIF。
+  # 真的編碼成 mp4/webm 需要很重的影片編碼套件，純 Flutter Web 沒有
+  # 內建能力，跟這個小功能的規模不相稱；GIF 純 Dart 就能做，不用加
+  # 重依賴（2026-09-18 使用者決定）。
+  image: ^4.3.0
 
 dev_dependencies:
   flutter_test:

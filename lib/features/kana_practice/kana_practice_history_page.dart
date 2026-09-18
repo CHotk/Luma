@@ -382,6 +382,7 @@ class _ReplayDialogState extends State<_ReplayDialog>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   late final List<List<TimedPoint>> _strokes;
+  bool _exportingGif = false;
 
   @override
   void initState() {
@@ -421,6 +422,32 @@ class _ReplayDialogState extends State<_ReplayDialog>
       ext: 'png',
       mimeType: MimeType.png,
     );
+  }
+
+  /// 「下載動畫」：把重播（筆畫怎麼畫出來）編成一份動畫 GIF 下載，
+  /// 不是只匯出寫完的靜態圖（2026-09-18 使用者要求）。逐格畫、編碼
+  /// 都要花時間，按下去到存檔中間有一段等待，用 [_exportingGif] 鎖住
+  /// 按鈕、換成轉圈，不然使用者按了沒反應會以為壞掉、重複按好幾次。
+  Future<void> _exportGif() async {
+    if (_exportingGif) return;
+    setState(() => _exportingGif = true);
+    try {
+      final entry = widget.entry;
+      final bytes = await renderStrokesToGif(_strokes);
+      final d = entry.savedAt;
+      String two(int n) => n.toString().padLeft(2, '0');
+      final stamp =
+          '${d.year}${two(d.month)}${two(d.day)}_${two(d.hour)}${two(d.minute)}';
+
+      await FileSaver.instance.saveFile(
+        name: '${stamp}_${entry.kana}_${entry.romaji}',
+        bytes: bytes,
+        ext: 'gif',
+        mimeType: MimeType.gif,
+      );
+    } finally {
+      if (mounted) setState(() => _exportingGif = false);
+    }
   }
 
   @override
@@ -492,6 +519,18 @@ class _ReplayDialogState extends State<_ReplayDialog>
             },
             icon: const Icon(Icons.replay, size: 16),
             label: const Text('重播'),
+          ),
+        if (hasStrokes)
+          TextButton.icon(
+            onPressed: _exportingGif ? null : _exportGif,
+            icon: _exportingGif
+                ? const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.gif_box_outlined, size: 16),
+            label: Text(_exportingGif ? '編碼中…' : '下載動畫'),
           ),
         TextButton.icon(
           onPressed: _export,

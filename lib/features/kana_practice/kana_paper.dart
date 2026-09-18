@@ -1,7 +1,9 @@
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:image/image.dart' as img;
 
 /// 練習紙的顏色跟畫筆邏輯，練習頁（現寫）跟練習紀錄頁（重播／匯出）
 /// 共用，不要各自刻一份。
@@ -204,4 +206,74 @@ Future<Uint8List> renderStrokesToPng(
   final image = await picture.toImage(size, size);
   final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
   return byteData!.buffer.asUint8List();
+}
+
+/// 把一份重播紀錄（見 [ReplayInkPainter]）畫成一份動畫 GIF，給「重播
+/// 旁邊下載動畫」用（2026-09-18 使用者要求）。
+///
+/// 沒有做真正的影片編碼（mp4／webm）——純 Flutter Web 沒有內建影片
+/// 編碼能力，要編碼成真的影片得另外引入很重的套件（例如 ffmpeg.wasm），
+/// 跟「看筆畫怎麼畫出來」這個小功能的規模不相稱。GIF 一樣是「筆畫自己
+/// 畫出來」的動畫效果，`image` 套件純 Dart 就能編，不用加重依賴。
+///
+/// 逐格畫法跟 [renderStrokesToPng] 同一套：不靠 `RepaintBoundary` 截圖，
+/// 直接用 `PictureRecorder` 在背景依序畫出每一格的時間點，跟畫面上
+/// 顯示什麼完全無關。
+Future<Uint8List> renderStrokesToGif(
+  List<List<TimedPoint>> strokes, {
+  int size = 320,
+  int maxFrames = 40,
+}) async {
+  final totalMs = ReplayInkPainter.totalDurationMs(strokes);
+  final frameCount = totalMs <= 0
+      ? 1
+      : math.min(maxFrames, math.max(1, (totalMs / 80).ceil()));
+  final stepMs = frameCount <= 1 ? 0.0 : totalMs / frameCount;
+
+  // 幾乎全是紙色背景加深色墨線的簡單畫面，不用神經網路量化那麼講究，
+  // 用比較快的 octree、色數也不用到 256，逐格編碼才不會卡太久。
+  final encoder = img.GifEncoder(
+    repeat: 0,
+    quantizerType: img.QuantizerType.octree,
+    numColors: 64,
+  );
+
+  for (var i = 0; i <= frameCount; i++) {
+    final isLast = i == frameCount;
+    final t = isLast ? totalMs : stepMs * i;
+    final frame = await _rasterizeFrame(strokes, t, size);
+    // GIF 的格延遲單位是 1/100 秒，最後一格多停留一下，讓看的人來得及
+    // 看到寫完的完整樣子，不是畫完馬上就跳回去重播（repeat: 0 是無限
+    // 循環）。
+    final duration = isLast ? 120 : (stepMs / 10).round().clamp(2, 100);
+    encoder.addFrame(frame, duration: duration);
+  }
+
+  return encoder.finish()!;
+}
+
+Future<img.Image> _rasterizeFrame(
+  List<List<TimedPoint>> strokes,
+  double elapsedMs,
+  int size,
+) async {
+  final recorder = ui.PictureRecorder();
+  final canvas = Canvas(recorder);
+  final logicalSize = Size(size.toDouble(), size.toDouble());
+  canvas.drawRect(Offset.zero & logicalSize, Paint()..color = paperColor);
+  const PaperGridPainter().paint(canvas, logicalSize);
+  ReplayInkPainter(strokes: strokes, elapsedMs: elapsedMs).paint(
+    canvas,
+    logicalSize,
+  );
+  final picture = recorder.endRecording();
+  final image = await picture.toImage(size, size);
+  final byteData = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+  return img.Image.fromBytes(
+    width: size,
+    height: size,
+    bytes: byteData!.buffer,
+    numChannels: 4,
+    order: img.ChannelOrder.rgba,
+  );
 }
