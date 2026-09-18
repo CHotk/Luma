@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:file_saver/file_saver.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -10,6 +11,7 @@ import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
+import '../../data/export/file_download.dart';
 import '../../domain/models/kana_practice.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/glass_card.dart';
@@ -116,6 +118,17 @@ class _KanaPracticeHistoryPageState
                     const SizedBox(width: Gap.xs),
                     const Text('手寫練習紀錄', style: AppText.title),
                     const Spacer(),
+                    // 手機跟電腦各自練的紀錄存在各自瀏覽器的 localStorage
+                    // 裡，不會自動合併，這顆按鈕把整份紀錄（含筆畫座標／
+                    // 時間戳）匯出成檔案，讓使用者自己拿去手動合併
+                    // （2026-09-18 使用者要求，跟 history_page.dart 的
+                    // 匯出紀錄同一個用途，見 [_showExportDialog]）。
+                    IconButton(
+                      onPressed: () => _showExportDialog(context, ref),
+                      icon: const Icon(Icons.ios_share_rounded, size: 20),
+                      color: AppColors.ink2,
+                      tooltip: '匯出紀錄',
+                    ),
                     IconButton(
                       onPressed: _import,
                       icon: const Icon(
@@ -160,6 +173,82 @@ class _KanaPracticeHistoryPageState
       ),
     );
   }
+}
+
+/// 跳出匯出對話框，內容是整份 [KanaPracticeEntry] 紀錄的 JSON 陣列。
+///
+/// 不像 `history_page.dart` 那份用空白分隔欄位的文字格式——這裡的紀錄
+/// 有巢狀的筆畫座標／時間戳陣列，有些還帶著匯入圖片的 base64，塞進
+/// 那種欄位格式會失真或整行爆長，直接用 JSON 最省事、也保留得住完整
+/// 結構。下載走的是同一套 `file_download.dart`（見 `history_page.dart`
+/// 的說明），複製到剪貼簿當備用。
+Future<void> _showExportDialog(BuildContext context, WidgetRef ref) async {
+  final entries = await ref.read(kanaPracticeRepositoryProvider).exportJson();
+  if (!context.mounted) return;
+
+  final sizeLabel = _formatExportSize(utf8.encode(entries.text).length);
+  final filename = 'lume-kana-practice-${_exportTodayStamp()}.json';
+
+  showDialog<void>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      backgroundColor: const Color(0xFF1A1A24),
+      title: const Text(
+        '匯出手寫練習紀錄',
+        textAlign: TextAlign.center,
+        style: TextStyle(color: AppColors.ink),
+      ),
+      content: Text(
+        '$filename\n共 ${entries.count} 筆 ・ 約 $sizeLabel',
+        textAlign: TextAlign.center,
+        style: const TextStyle(fontSize: 12, color: AppColors.ink3),
+      ),
+      actionsAlignment: MainAxisAlignment.center,
+      actions: [
+        FilledButton(
+          onPressed: () {
+            final ok = saveTextFile(filename, entries.text);
+            ScaffoldMessenger.of(dialogContext).showSnackBar(
+              SnackBar(
+                content: Text(ok ? '已下載 $filename' : '這個平台還不支援下載，改用複製'),
+              ),
+            );
+          },
+          style: FilledButton.styleFrom(
+            backgroundColor: AppColors.jpAccent,
+            foregroundColor: AppColors.jpAccentInk,
+          ),
+          child: const Text('下載'),
+        ),
+        OutlinedButton(
+          onPressed: () {
+            Clipboard.setData(ClipboardData(text: entries.text));
+            ScaffoldMessenger.of(dialogContext).showSnackBar(
+              const SnackBar(content: Text('已複製到剪貼簿')),
+            );
+          },
+          child: const Text('複製'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(),
+          child: const Text('關閉'),
+        ),
+      ],
+    ),
+  );
+}
+
+String _formatExportSize(int bytes) {
+  if (bytes < 1024) return '$bytes B';
+  final kb = bytes / 1024;
+  if (kb < 1024) return '${kb.toStringAsFixed(1)} KB';
+  return '${(kb / 1024).toStringAsFixed(1)} MB';
+}
+
+String _exportTodayStamp() {
+  final now = DateTime.now();
+  String two(int n) => n.toString().padLeft(2, '0');
+  return '${now.year}${two(now.month)}${two(now.day)}';
 }
 
 class _EntryCard extends StatelessWidget {

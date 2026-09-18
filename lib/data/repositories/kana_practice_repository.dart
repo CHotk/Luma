@@ -18,7 +18,14 @@ class KanaPracticeRepository {
 
   Future<List<KanaPracticeEntry>> loadAll() async {
     final raw = await _store.read(_key);
-    if (raw == null) return const [];
+    // 不能回傳 `const []`：[upsert] 拿到這個列表後會直接 `.add()`
+    // 進去，const 列表是不可變的，呼叫 `.add()` 會丟例外——而且是在
+    // 一個沒人 await、沒人接 catchError 的 Future 裡丟，畫面上完全
+    // 看不出來，唯一的症狀就是「明明畫完了，紀錄卻沒進去」。這正好
+    // 是全新瀏覽器（`localStorage` 裡這個 key 從來沒寫過）第一次練習
+    // 就會踩到的狀況（2026-09-18 使用者回報手機第一次寫沒進紀錄，
+    // 追出來是這個）。
+    if (raw == null) return <KanaPracticeEntry>[];
     return (jsonDecode(raw) as List)
         .cast<Map<String, dynamic>>()
         .map(KanaPracticeEntry.fromJson)
@@ -55,5 +62,20 @@ class KanaPracticeRepository {
     final all = await loadAll()
       ..removeWhere((e) => e.id == id);
     await _store.write(_key, jsonEncode([for (final e in all) e.toJson()]));
+  }
+
+  /// 匯出整份紀錄給使用者存成真正的檔案，手動搬進 git 版控的資產裡——
+  /// 跟 [HistoryRepository.exportText] 同一個用途：手機跟電腦各自練的
+  /// 紀錄存在各自瀏覽器的 localStorage，不會自動合併，只能靠使用者
+  /// 手動搬（2026-09-18 使用者要求）。用 JSON 陣列，不是 history.txt
+  /// 那種空白分隔欄位的格式——這裡每筆紀錄都帶著巢狀的筆畫座標／
+  /// 時間戳陣列，有些還有匯入圖片的 base64，塞進那種欄位格式會失真。
+  Future<({String text, int count})> exportJson() async {
+    final all = await loadAll();
+    const encoder = JsonEncoder.withIndent('  ');
+    return (
+      text: encoder.convert([for (final e in all) e.toJson()]),
+      count: all.length,
+    );
   }
 }
