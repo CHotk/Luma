@@ -64,6 +64,21 @@ class KanaPracticeRepository {
     await _store.write(_key, jsonEncode([for (final e in all) e.toJson()]));
   }
 
+  /// 把種子資料（見 [loadKanaPracticeSeed]）併回本機。開啟練習紀錄頁
+  /// 那一瞬間呼叫（見 `kana_practice_history_page.dart`）：本機如果有
+  /// 跟種子同一個 `id` 的舊版本，先移除、換成種子那份——是「專案的
+  /// 版本為準」，不是「本機已經有就跳過」（2026-09-18 使用者要求：
+  /// 重複的去本機那邊刪掉，保留專案的）。種子沒提到的 id，本機原本
+  /// 有的照樣留著，不會被清掉。
+  Future<void> mergeSeed(List<KanaPracticeEntry> incoming) async {
+    if (incoming.isEmpty) return;
+    final local = await loadAll();
+    final incomingIds = {for (final e in incoming) e.id};
+    final kept = [for (final e in local) if (!incomingIds.contains(e.id)) e];
+    final merged = [...kept, ...incoming];
+    await _store.write(_key, jsonEncode([for (final e in merged) e.toJson()]));
+  }
+
   /// 匯出整份紀錄給使用者存成真正的檔案，手動搬進 git 版控的資產裡——
   /// 跟 [HistoryRepository.exportText] 同一個用途：手機跟電腦各自練的
   /// 紀錄存在各自瀏覽器的 localStorage，不會自動合併，只能靠使用者

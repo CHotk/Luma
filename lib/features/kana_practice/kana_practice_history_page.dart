@@ -12,9 +12,12 @@ import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
 import '../../data/export/file_download.dart';
+import '../../data/repositories/kana_practice_repository.dart';
+import '../../data/seed/kana_practice_seed_loader.dart';
 import '../../domain/models/kana_practice.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/glass_card.dart';
+import 'gojuon_data.dart';
 import 'kana_paper.dart';
 
 /// 五十音手寫練習的歷史紀錄。
@@ -41,10 +44,26 @@ class _KanaPracticeHistoryPageState
     extends ConsumerState<KanaPracticeHistoryPage> {
   late Future<List<KanaPracticeEntry>> _future;
 
+  /// 篩選條件，null 表示「全部」。兩個維度各自獨立，可以同時篩
+  /// （2026-09-18 使用者要求：練習紀錄要能篩選標籤、看統計數量）。
+  KanaScript? _scriptFilter;
+  bool? _assistedFilter;
+
   @override
   void initState() {
     super.initState();
-    _future = ref.read(kanaPracticeRepositoryProvider).loadAll();
+    _future = _loadWithSeedMerge();
+  }
+
+  /// 打開這頁那一瞬間先把種子資料（見 [loadKanaPracticeSeed]）併回
+  /// 本機，再讀出來顯示（2026-09-18 使用者要求：觸發點就是打開練習
+  /// 紀錄頁的時候）。之後單純重整（[_reload]）不用每次都重新合併——
+  /// 種子資料不會無緣無故變，只有第一次打開這頁才需要做這件事。
+  Future<List<KanaPracticeEntry>> _loadWithSeedMerge() async {
+    final repo = ref.read(kanaPracticeRepositoryProvider);
+    final seed = await loadKanaPracticeSeed();
+    if (seed.isNotEmpty) await repo.mergeSeed(seed);
+    return repo.loadAll();
   }
 
   void _reload() {
@@ -150,18 +169,121 @@ class _KanaPracticeHistoryPageState
                           child: CircularProgressIndicator.adaptive(),
                         );
                       }
-                      final entries = [...snap.data!]
+                      final all = [...snap.data!]
                         ..sort((a, b) => b.savedAt.compareTo(a.savedAt));
-                      if (entries.isEmpty) {
+                      if (all.isEmpty) {
                         return Center(
                           child: Text('還沒有任何練習紀錄', style: AppText.bodyDim),
                         );
                       }
-                      return ListView.separated(
-                        itemCount: entries.length,
-                        separatorBuilder: (_, _) =>
-                            const SizedBox(height: Gap.sm),
-                        itemBuilder: (_, i) => _EntryCard(entry: entries[i]),
+
+                      // 標籤上的數量永遠算「全部紀錄」裡各分類有幾筆，
+                      // 不是算篩選後還剩幾筆——不然篩下去數字全部變成
+                      // 自己那一類的總數，看不出其他分類原本有多少。
+                      final hiraganaCount = all
+                          .where((e) => _scriptOf(e.kana) == KanaScript.hiragana)
+                          .length;
+                      final katakanaCount = all.length - hiraganaCount;
+                      final assistedCount = all.where((e) => e.assisted).length;
+                      final rawCount = all.length - assistedCount;
+
+                      final filtered = all.where((e) {
+                        if (_scriptFilter != null &&
+                            _scriptOf(e.kana) != _scriptFilter) {
+                          return false;
+                        }
+                        if (_assistedFilter != null &&
+                            e.assisted != _assistedFilter) {
+                          return false;
+                        }
+                        return true;
+                      }).toList();
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Row(
+                            children: [
+                              _FilterChip(
+                                label: '全部',
+                                count: all.length,
+                                selected: _scriptFilter == null,
+                                onTap: () =>
+                                    setState(() => _scriptFilter = null),
+                              ),
+                              const SizedBox(width: 6),
+                              _FilterChip(
+                                label: '平假名',
+                                count: hiraganaCount,
+                                selected:
+                                    _scriptFilter == KanaScript.hiragana,
+                                onTap: () => setState(
+                                  () => _scriptFilter = KanaScript.hiragana,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              _FilterChip(
+                                label: '片假名',
+                                count: katakanaCount,
+                                selected:
+                                    _scriptFilter == KanaScript.katakana,
+                                onTap: () => setState(
+                                  () => _scriptFilter = KanaScript.katakana,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: Gap.xs),
+                          Row(
+                            children: [
+                              _FilterChip(
+                                label: '全部',
+                                count: all.length,
+                                selected: _assistedFilter == null,
+                                onTap: () =>
+                                    setState(() => _assistedFilter = null),
+                              ),
+                              const SizedBox(width: 6),
+                              _FilterChip(
+                                label: '輔助描摹',
+                                count: assistedCount,
+                                selected: _assistedFilter == true,
+                                onTap: () =>
+                                    setState(() => _assistedFilter = true),
+                              ),
+                              const SizedBox(width: 6),
+                              _FilterChip(
+                                label: '純手寫',
+                                count: rawCount,
+                                selected: _assistedFilter == false,
+                                onTap: () =>
+                                    setState(() => _assistedFilter = false),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: Gap.sm),
+                          Text(
+                            '符合條件 ${filtered.length} / ${all.length} 筆',
+                            style: AppText.note,
+                          ),
+                          const SizedBox(height: Gap.sm),
+                          Expanded(
+                            child: filtered.isEmpty
+                                ? Center(
+                                    child: Text(
+                                      '沒有符合篩選條件的紀錄',
+                                      style: AppText.bodyDim,
+                                    ),
+                                  )
+                                : ListView.separated(
+                                    itemCount: filtered.length,
+                                    separatorBuilder: (_, _) =>
+                                        const SizedBox(height: Gap.sm),
+                                    itemBuilder: (_, i) =>
+                                        _EntryCard(entry: filtered[i]),
+                                  ),
+                          ),
+                        ],
                       );
                     },
                   ),
@@ -175,6 +297,14 @@ class _KanaPracticeHistoryPageState
   }
 }
 
+/// 匯出的範圍：只匯出這台裝置 localStorage 裡的，還是連專案已經
+/// 打包好的種子資料一起（2026-09-18 使用者要求：哪天真的想把專案的
+/// 也一起匯出就也可以）。多數時候兩者是一樣的——練習紀錄頁打開時
+/// 就會把種子資料併進 localStorage（見 [_loadWithSeedMerge]）；差別
+/// 只在使用者還沒開過那個合併流程、或種子資料比 localStorage 新的
+/// 情況。
+enum _ExportScope { localOnly, withSeed }
+
 /// 跳出匯出對話框，內容是整份 [KanaPracticeEntry] 紀錄的 JSON 陣列。
 ///
 /// 不像 `history_page.dart` 那份用空白分隔欄位的文字格式——這裡的紀錄
@@ -183,32 +313,133 @@ class _KanaPracticeHistoryPageState
 /// 結構。下載走的是同一套 `file_download.dart`（見 `history_page.dart`
 /// 的說明），複製到剪貼簿當備用。
 Future<void> _showExportDialog(BuildContext context, WidgetRef ref) async {
-  final entries = await ref.read(kanaPracticeRepositoryProvider).exportJson();
-  if (!context.mounted) return;
-
-  final sizeLabel = _formatExportSize(utf8.encode(entries.text).length);
-  final filename = 'lume-kana-practice-${_exportTodayStamp()}.json';
-
-  showDialog<void>(
+  final repo = ref.read(kanaPracticeRepositoryProvider);
+  await showDialog<void>(
     context: context,
-    builder: (dialogContext) => AlertDialog(
+    builder: (dialogContext) => _ExportDialog(repo: repo),
+  );
+}
+
+class _ExportDialog extends StatefulWidget {
+  const _ExportDialog({required this.repo});
+
+  final KanaPracticeRepository repo;
+
+  @override
+  State<_ExportDialog> createState() => _ExportDialogState();
+}
+
+class _ExportDialogState extends State<_ExportDialog> {
+  _ExportScope _scope = _ExportScope.localOnly;
+  late Future<({String text, int count})> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _build(_scope);
+  }
+
+  Future<({String text, int count})> _build(_ExportScope scope) async {
+    if (scope == _ExportScope.localOnly) {
+      return widget.repo.exportJson();
+    }
+    final local = await widget.repo.loadAll();
+    final seed = await loadKanaPracticeSeed();
+    // 本機為準：本機有的 id 蓋掉種子那份，本機沒有、種子有的才補上
+    // ——這裡要的是「補齊這台裝置漏掉、但專案種子檔案裡已經有」的
+    // 紀錄，不是拿種子蓋掉這台裝置剛練的東西。
+    final byId = {for (final e in seed) e.id: e};
+    for (final e in local) {
+      byId[e.id] = e;
+    }
+    final merged = byId.values.toList();
+    const encoder = JsonEncoder.withIndent('  ');
+    return (
+      text: encoder.convert([for (final e in merged) e.toJson()]),
+      count: merged.length,
+    );
+  }
+
+  void _setScope(_ExportScope scope) {
+    if (scope == _scope) return;
+    setState(() {
+      _scope = scope;
+      _future = _build(scope);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final filename = 'lume-kana-practice-${_exportTodayStamp()}.json';
+
+    return AlertDialog(
       backgroundColor: const Color(0xFF1A1A24),
       title: const Text(
         '匯出手寫練習紀錄',
         textAlign: TextAlign.center,
         style: TextStyle(color: AppColors.ink),
       ),
-      content: Text(
-        '$filename\n共 ${entries.count} 筆 ・ 約 $sizeLabel',
-        textAlign: TextAlign.center,
-        style: const TextStyle(fontSize: 12, color: AppColors.ink3),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SegmentedButton<_ExportScope>(
+            segments: const [
+              ButtonSegment(
+                value: _ExportScope.localOnly,
+                label: Text('僅這台裝置'),
+              ),
+              ButtonSegment(
+                value: _ExportScope.withSeed,
+                label: Text('連專案種子一起'),
+              ),
+            ],
+            selected: {_scope},
+            onSelectionChanged: (s) => _setScope(s.first),
+            style: SegmentedButton.styleFrom(
+              backgroundColor: AppColors.glassFill,
+              foregroundColor: AppColors.ink2,
+              selectedBackgroundColor: AppColors.jpAccent.withValues(
+                alpha: 0.28,
+              ),
+              selectedForegroundColor: AppColors.ink,
+              side: const BorderSide(color: AppColors.glassEdge),
+            ),
+          ),
+          const SizedBox(height: Gap.sm),
+          FutureBuilder<({String text, int count})>(
+            future: _future,
+            builder: (context, snap) {
+              if (!snap.hasData) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: Gap.md),
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                );
+              }
+              final data = snap.data!;
+              final sizeLabel = _formatExportSize(
+                utf8.encode(data.text).length,
+              );
+              return Text(
+                '$filename\n共 ${data.count} 筆 ・ 約 $sizeLabel',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 12, color: AppColors.ink3),
+              );
+            },
+          ),
+        ],
       ),
       actionsAlignment: MainAxisAlignment.center,
       actions: [
         FilledButton(
-          onPressed: () {
-            final ok = saveTextFile(filename, entries.text);
-            ScaffoldMessenger.of(dialogContext).showSnackBar(
+          onPressed: () async {
+            final data = await _future;
+            final ok = saveTextFile(filename, data.text);
+            if (!context.mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(ok ? '已下載 $filename' : '這個平台還不支援下載，改用複製'),
               ),
@@ -221,21 +452,23 @@ Future<void> _showExportDialog(BuildContext context, WidgetRef ref) async {
           child: const Text('下載'),
         ),
         OutlinedButton(
-          onPressed: () {
-            Clipboard.setData(ClipboardData(text: entries.text));
-            ScaffoldMessenger.of(dialogContext).showSnackBar(
+          onPressed: () async {
+            final data = await _future;
+            await Clipboard.setData(ClipboardData(text: data.text));
+            if (!context.mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('已複製到剪貼簿')),
             );
           },
           child: const Text('複製'),
         ),
         TextButton(
-          onPressed: () => Navigator.of(dialogContext).pop(),
+          onPressed: () => Navigator.of(context).pop(),
           child: const Text('關閉'),
         ),
       ],
-    ),
-  );
+    );
+  }
 }
 
 String _formatExportSize(int bytes) {
@@ -249,6 +482,65 @@ String _exportTodayStamp() {
   final now = DateTime.now();
   String two(int n) => n.toString().padLeft(2, '0');
   return '${now.year}${two(now.month)}${two(now.day)}';
+}
+
+/// 紀錄本身沒存「這是平假名還是片假名」——不查 gojuon_data.dart 的表
+/// （匯入既有圖片時 `kana` 是使用者自己打的文字，不保證剛好對得上表
+/// 裡的 92 個字），用 Unicode 分區判斷比較穩：片假名區段是
+/// U+30A0–U+30FF，其餘（含平假名 U+3040–309F）都當平假名。
+KanaScript _scriptOf(String kana) {
+  if (kana.isEmpty) return KanaScript.hiragana;
+  final code = kana.codeUnitAt(0);
+  return code >= 0x30A0 && code <= 0x30FF
+      ? KanaScript.katakana
+      : KanaScript.hiragana;
+}
+
+/// 篩選用的膠囊按鈕，帶著這個分類目前有幾筆——數量是為了讓使用者
+/// 一眼看出「篩下去大概還剩多少」，不用先點下去才知道
+/// （2026-09-18 使用者要求：練習紀錄要有篩選標籤、看統計數量）。
+class _FilterChip extends StatelessWidget {
+  const _FilterChip({
+    required this.label,
+    required this.count,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final int count;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppColors.jpAccent.withValues(alpha: 0.28)
+              : AppColors.glassFill,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: selected
+                ? AppColors.jpAccent.withValues(alpha: 0.6)
+                : AppColors.glassEdge,
+          ),
+        ),
+        child: Text(
+          '$label $count',
+          style: TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w600,
+            color: selected ? AppColors.ink : AppColors.ink2,
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _EntryCard extends StatelessWidget {
@@ -530,7 +822,7 @@ class _ReplayDialogState extends State<_ReplayDialog>
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.gif_box_outlined, size: 16),
-            label: Text(_exportingGif ? '編碼中…' : '下載動畫'),
+            label: Text(_exportingGif ? '編碼中…' : '下載該次筆跡'),
           ),
         TextButton.icon(
           onPressed: _export,

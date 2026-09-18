@@ -68,6 +68,34 @@ void main() {
       0.1,
     );
   });
+
+  test('mergeSeed：種子跟本機同一個 id，用種子那份蓋掉本機的舊版本', () async {
+    await repo.upsert(entry('a1', kana: '本機舊版'));
+    await repo.upsert(entry('a2'));
+
+    await repo.mergeSeed([entry('a1', kana: '種子新版')]);
+
+    final all = await repo.loadAll();
+    expect(all.length, 2, reason: 'a2 本機沒對到種子，要留著');
+    expect(all.firstWhere((e) => e.id == 'a1').kana, '種子新版');
+  });
+
+  test('mergeSeed：種子有本機沒有的 id，直接加進去', () async {
+    await repo.upsert(entry('a1'));
+
+    await repo.mergeSeed([entry('seed-only')]);
+
+    final ids = (await repo.loadAll()).map((e) => e.id).toSet();
+    expect(ids, {'a1', 'seed-only'});
+  });
+
+  test('mergeSeed：種子是空的就什麼都不動', () async {
+    await repo.upsert(entry('a1'));
+
+    await repo.mergeSeed(const []);
+
+    expect((await repo.loadAll()).length, 1);
+  });
 }
 
 class _MemoryStore implements KeyValueStore {

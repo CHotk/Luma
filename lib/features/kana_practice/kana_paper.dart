@@ -222,12 +222,15 @@ Future<Uint8List> renderStrokesToPng(
 Future<Uint8List> renderStrokesToGif(
   List<List<TimedPoint>> strokes, {
   int size = 320,
-  int maxFrames = 40,
+  int maxFrames = 90,
 }) async {
   final totalMs = ReplayInkPainter.totalDurationMs(strokes);
+  // 目標每格 45ms（約 22fps）——原本是 80ms（約 12fps），使用者回饋
+  // 看起來會頓；上限也從 40 格提高到 90 格，不然寫比較久的字還是會
+  // 被 maxFrames 卡回更粗的格數，等於白調（2026-09-18 使用者要求）。
   final frameCount = totalMs <= 0
       ? 1
-      : math.min(maxFrames, math.max(1, (totalMs / 80).ceil()));
+      : math.min(maxFrames, math.max(1, (totalMs / 45).ceil()));
   final stepMs = frameCount <= 1 ? 0.0 : totalMs / frameCount;
 
   // 幾乎全是紙色背景加深色墨線的簡單畫面，不用神經網路量化那麼講究，
