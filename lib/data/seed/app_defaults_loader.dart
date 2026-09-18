@@ -87,6 +87,45 @@ class LibraryTagOrder {
   final List<String> trailingOrder;
 }
 
+/// 手寫練習重播「下載該次筆跡」編 GIF 用的參數。跟 [loadJpReviewConfig]
+/// 同一種保險政策：讀不到、壞掉就退回這裡建構子的預設值，不會讓這個
+/// 小功能拖累其他畫面（2026-09-18 使用者要求：GIF 相關設定移到專門
+/// 設定檔）。
+class KanaGifDefaults {
+  const KanaGifDefaults({
+    this.frameIntervalMs = 30,
+    this.maxFrames = 150,
+    this.size = 320,
+    this.numColors = 64,
+  });
+
+  /// 每一格間隔幾毫秒，愈小愈流暢，檔案愈大、編碼愈久。
+  final int frameIntervalMs;
+
+  /// 格數上限，避免寫很久的字格數／檔案大小／編碼時間跟著無限增加。
+  final int maxFrames;
+
+  /// 輸出的正方形邊長（像素）。
+  final int size;
+
+  /// 色盤大小，這種近似單色的畫面不需要到 256 色。
+  final int numColors;
+}
+
+Future<KanaGifDefaults> loadKanaGifDefaults() async {
+  try {
+    final doc = await _loadDoc();
+    return KanaGifDefaults(
+      frameIntervalMs: doc['kanaGifFrameIntervalMs'] as int,
+      maxFrames: doc['kanaGifMaxFrames'] as int,
+      size: doc['kanaGifSize'] as int,
+      numColors: doc['kanaGifNumColors'] as int,
+    );
+  } catch (_) {
+    return const KanaGifDefaults();
+  }
+}
+
 Future<LibraryTagOrder> loadLibraryTagOrder() async {
   try {
     final doc = await _loadDoc();

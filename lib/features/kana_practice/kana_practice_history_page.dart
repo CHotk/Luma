@@ -13,6 +13,7 @@ import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
 import '../../data/export/file_download.dart';
 import '../../data/repositories/kana_practice_repository.dart';
+import '../../data/seed/app_defaults_loader.dart';
 import '../../data/seed/kana_practice_seed_loader.dart';
 import '../../domain/models/kana_practice.dart';
 import '../../shared/widgets/ambient_background.dart';
@@ -725,7 +726,14 @@ class _ReplayDialogState extends State<_ReplayDialog>
     setState(() => _exportingGif = true);
     try {
       final entry = widget.entry;
-      final bytes = await renderStrokesToGif(_strokes);
+      final gifConfig = await loadKanaGifDefaults();
+      final bytes = await renderStrokesToGif(
+        _strokes,
+        size: gifConfig.size,
+        maxFrames: gifConfig.maxFrames,
+        frameIntervalMs: gifConfig.frameIntervalMs,
+        numColors: gifConfig.numColors,
+      );
       final d = entry.savedAt;
       String two(int n) => n.toString().padLeft(2, '0');
       final stamp =

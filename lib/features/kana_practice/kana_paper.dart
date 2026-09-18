@@ -219,26 +219,35 @@ Future<Uint8List> renderStrokesToPng(
 /// 逐格畫法跟 [renderStrokesToPng] 同一套：不靠 `RepaintBoundary` 截圖，
 /// 直接用 `PictureRecorder` 在背景依序畫出每一格的時間點，跟畫面上
 /// 顯示什麼完全無關。
+///
+/// 幾個參數（格間隔、格數上限、輸出大小、色盤大小）唯一來源是
+/// `assets/config/app_defaults.yaml`（見
+/// `lib/data/seed/app_defaults_loader.dart` 的 [KanaGifDefaults]），
+/// 這裡的預設值只是呼叫端沒傳、或讀取設定檔失敗時的保險，不是主要
+/// 調整的地方（2026-09-18 使用者要求：GIF 相關設定移到專門設定檔，
+/// 不要寫死在 code 裡）。
 Future<Uint8List> renderStrokesToGif(
   List<List<TimedPoint>> strokes, {
   int size = 320,
-  int maxFrames = 90,
+  int maxFrames = 150,
+  int frameIntervalMs = 30,
+  int numColors = 64,
 }) async {
   final totalMs = ReplayInkPainter.totalDurationMs(strokes);
-  // 目標每格 45ms（約 22fps）——原本是 80ms（約 12fps），使用者回饋
-  // 看起來會頓；上限也從 40 格提高到 90 格，不然寫比較久的字還是會
-  // 被 maxFrames 卡回更粗的格數，等於白調（2026-09-18 使用者要求）。
   final frameCount = totalMs <= 0
       ? 1
-      : math.min(maxFrames, math.max(1, (totalMs / 45).ceil()));
+      : math.min(
+          maxFrames,
+          math.max(1, (totalMs / frameIntervalMs).ceil()),
+        );
   final stepMs = frameCount <= 1 ? 0.0 : totalMs / frameCount;
 
   // 幾乎全是紙色背景加深色墨線的簡單畫面，不用神經網路量化那麼講究，
-  // 用比較快的 octree、色數也不用到 256，逐格編碼才不會卡太久。
+  // 用比較快的 octree，逐格編碼才不會卡太久。
   final encoder = img.GifEncoder(
     repeat: 0,
     quantizerType: img.QuantizerType.octree,
-    numColors: 64,
+    numColors: numColors,
   );
 
   for (var i = 0; i <= frameCount; i++) {
