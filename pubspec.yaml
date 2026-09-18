@@ -28,6 +28,9 @@ dependencies:
   # 五十音手寫練習「匯出這張」用的：把練習紀錄存成真正的檔案（Web 上
   # 是觸發瀏覽器下載，App 上是存到裝置），同一份 API 全平台通用。
   file_saver: ^0.2.14
+  # 設定頁最下面顯示的版本號用的：跟 pubspec.yaml 的 version 對得上，
+  # 不用自己手動同步一份常數，Web／Android／iOS 同一份 API。
+  package_info_plus: ^8.1.2
 
 dev_dependencies:
   flutter_test:

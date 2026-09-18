@@ -14,6 +14,7 @@ class SettingsRepository {
 
   static const _rulesKey = 'rules.v1';
   static const _usageKey = 'usage.v1';
+  static const _lastTrackKey = 'track.last';
 
   final KeyValueStore _store;
 
@@ -37,4 +38,12 @@ class SettingsRepository {
 
   Future<void> saveUsage(DailyUsage usage) async =>
       _store.write(_usageKey, jsonEncode(usage.toJson()));
+
+  /// 上次選的語言軌道（存的是 [LearningTrack.name]，例如 'en'／'ja'）。
+  /// 開機畫面看這個決定要跳去哪個首頁，不然每次啟動都固定跳英文，
+  /// 常用日文軌道的人每次都要手動切一次（2026-09-18 使用者要求）。
+  Future<String?> loadLastTrack() => _store.read(_lastTrackKey);
+
+  Future<void> saveLastTrack(String track) =>
+      _store.write(_lastTrackKey, track);
 }

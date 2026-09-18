@@ -14,6 +14,7 @@ import '../features/notes/notes_page.dart';
 import '../features/word_detail/word_detail_page.dart';
 import '../features/quiz/quiz_page.dart';
 import '../features/result/result_page.dart';
+import '../features/settings/debug_log_page.dart';
 import '../features/settings/settings_page.dart';
 import '../features/splash/splash_page.dart';
 import '../features/stealth/stealth_page.dart';
@@ -58,6 +59,7 @@ final appRouter = GoRouter(
     GoRoute(path: '/mastered', builder: (_, _) => const MasteredPage()),
     GoRoute(path: '/notes', builder: (_, _) => const NotesPage()),
     GoRoute(path: '/settings', builder: (_, _) => const SettingsPage()),
+    GoRoute(path: '/debug-log', builder: (_, _) => const DebugLogPage()),
     GoRoute(
       path: '/notes/:collection/:no',
       builder: (_, state) => NoteDetailPage(

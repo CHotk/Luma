@@ -142,9 +142,27 @@ class _KanaPracticePageState extends ConsumerState<KanaPracticePage> {
   void _pickScript(KanaScript script) {
     if (script == _script) return;
     setState(() {
+      // 切平／片假名要留在原本選的那一行、原本選的第幾個字，不能跳回
+      // 第一行第一個（2026-09-18 使用者回饋：切了不可以跑掉跑回第一
+      // 個）。分兩層防禦性處理——行對不到才退回第一行，行對得到、只是
+      // 字的 index 對不到，只退那一個字，不連行也一起拖下去
+      // （2026-09-18 使用者要求：對不到的那排才回第一個，對得到的那排
+      // 要保持對到）。道理跟 jp_home_page.dart 的
+      // _KanaPreviewState._pickScript 一樣。
+      final oldList = rowsFor(_script)[_row]!;
+      final charIndex = oldList.indexOf(_selected);
       _script = script;
-      _row = rowsFor(script).keys.first;
-      _selected = rowsFor(script)[_row]!.first;
+      final newRows = rowsFor(script);
+      if (!newRows.containsKey(_row)) {
+        _row = newRows.keys.first;
+        _selected = newRows[_row]!.first;
+        _clearInk();
+        return;
+      }
+      final newList = newRows[_row]!;
+      _selected = charIndex >= 0 && charIndex < newList.length
+          ? newList[charIndex]
+          : newList.first;
       _clearInk();
     });
   }
@@ -434,8 +452,11 @@ class _RowTabs extends StatelessWidget {
         separatorBuilder: (_, _) => const SizedBox(width: 6),
         itemBuilder: (_, i) {
           final row = rows.keys.elementAt(i);
+          // 行的 key 是固定用平假名當內部代號（兩份表才對得起來，見
+          // gojuon_data.dart），但顯示的字要照目前選的字表換——片假名
+          // 模式要顯示「ア」，不是「あ」（2026-09-18 使用者回饋）。
           return _Chip(
-            label: row,
+            label: rows[row]!.first.$1,
             selected: row == active,
             onTap: () => onPick(row),
           );

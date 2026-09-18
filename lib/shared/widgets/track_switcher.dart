@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
 
 /// 語言軌道。目前只有英文有完整的學習流程，日文只有五十音手寫練習。
@@ -17,13 +19,13 @@ enum LearningTrack {
 /// 2026-09-17 決定拿掉原本的國旗圖示，改用這個）。切換是換到另一個
 /// 軌道的首頁，用 `go` 不是 `push`——這是平行的兩個首頁，不是主頁面
 /// 底下的子頁面，不應該疊在返回堆疊裡，來回切換也不該越疊越深。
-class TrackSwitcher extends StatelessWidget {
+class TrackSwitcher extends ConsumerWidget {
   const TrackSwitcher({super.key, required this.current});
 
   final LearningTrack current;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return PopupMenuButton<LearningTrack>(
       color: const Color(0xFF1A1A24),
       shape: RoundedRectangleBorder(
@@ -42,6 +44,9 @@ class TrackSwitcher extends StatelessWidget {
       ],
       onSelected: (track) {
         if (track == current) return;
+        // 存起來給開機畫面看，下次啟動才不會固定跳回英文首頁
+        // （2026-09-18 使用者要求，見 [SettingsRepository.saveLastTrack]）。
+        ref.read(settingsRepositoryProvider).saveLastTrack(track.name);
         context.go(track.homeRoute);
       },
       child: Container(

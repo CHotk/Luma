@@ -216,10 +216,29 @@ class _KanaPreviewState extends State<_KanaPreview> {
   (String, String) _selected = gojuonRows.values.first.first;
 
   void _pickScript(KanaScript script) {
+    if (script == _script) return;
     setState(() {
+      // 切平／片假名要留在原本選的那一行、原本選的第幾個字，不能
+      // 跳回第一行第一個（2026-09-18 使用者回饋：切了不可以跑掉跑回
+      // 第一個）。兩份表行的 key 跟每行字數本來就一一對應（見
+      // gojuon_data.dart 的說明），正常不會對不到；但這裡還是分兩層
+      // 防禦性處理，不是整包對不到就一起退回第一行第一個——行對不到
+      // 才退回第一行，行對得到、只是字的index對不到，只退那一個字，
+      // 不連行也一起拖下去（2026-09-18 使用者要求：對不到的那排才回
+      // 第一個，對得到的那排要保持對到）。
+      final oldList = rowsFor(_script)[_row]!;
+      final charIndex = oldList.indexOf(_selected);
       _script = script;
-      _row = rowsFor(script).keys.first;
-      _selected = rowsFor(script)[_row]!.first;
+      final newRows = rowsFor(script);
+      if (!newRows.containsKey(_row)) {
+        _row = newRows.keys.first;
+        _selected = newRows[_row]!.first;
+        return;
+      }
+      final newList = newRows[_row]!;
+      _selected = charIndex >= 0 && charIndex < newList.length
+          ? newList[charIndex]
+          : newList.first;
     });
   }
 
@@ -257,8 +276,12 @@ class _KanaPreviewState extends State<_KanaPreview> {
             separatorBuilder: (_, _) => const SizedBox(width: 6),
             itemBuilder: (_, i) {
               final row = rows.keys.elementAt(i);
+              // 行的 key 是固定用平假名當內部代號（兩份表才對得起來，
+              // 見 gojuon_data.dart），但顯示的字要照目前選的字表換
+              // ——片假名模式顯示「ア行」，不是「あ行」（2026-09-18
+              // 使用者回饋）。
               return _RowTab(
-                label: '$row行',
+                label: '${rows[row]!.first.$1}行',
                 selected: row == _row,
                 onTap: () => setState(() {
                   _row = row;

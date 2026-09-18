@@ -2,6 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
@@ -305,8 +307,73 @@ class _Body extends ConsumerWidget {
           textAlign: TextAlign.center,
           style: AppText.note,
         ),
+
+        const SizedBox(height: Gap.lg),
+        const _SectionLabel('除錯'),
+        GlassCard(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+          child: InkWell(
+            onTap: () => context.push('/debug-log'),
+            borderRadius: BorderRadius.circular(12),
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.terminal_outlined,
+                    size: 18,
+                    color: AppColors.ink2,
+                  ),
+                  SizedBox(width: Gap.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '查看除錯訊息',
+                          style: TextStyle(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.ink,
+                          ),
+                        ),
+                        SizedBox(height: 1),
+                        Text('手機不方便叫出瀏覽器 console，這裡看得到', style: AppText.note),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.chevron_right, size: 18, color: AppColors.ink3),
+                ],
+              ),
+            ),
+          ),
+        ),
+
+        const SizedBox(height: Gap.lg),
+        const _VersionFooter(),
         const SizedBox(height: Gap.xl),
       ],
+    );
+  }
+}
+
+/// App 版本號，跟 `pubspec.yaml` 的 `version` 對得上——出問題時使用者
+/// 回報「幾版」比較好對，不用自己手動同步一份常數
+/// （2026-09-18 使用者要求）。
+class _VersionFooter extends StatelessWidget {
+  const _VersionFooter();
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<PackageInfo>(
+      future: PackageInfo.fromPlatform(),
+      builder: (context, snap) {
+        final info = snap.data;
+        final label = info == null
+            ? '讀取版本號中…'
+            : 'v${info.version}+${info.buildNumber}';
+        return Center(child: Text(label, style: AppText.note));
+      },
     );
   }
 }
