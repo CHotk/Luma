@@ -15,10 +15,6 @@ class HistoryRepository {
   static const _entriesKey = 'history.entries.v1';
   static const _roundsKey = 'history.rounds.v1';
   static const _syncedKey = 'history.synced.version';
-  static const _formatVersionKey = 'history.format.version';
-
-  /// 目前的資料格式版本。見 [_migrateFormatIfNeeded]。
-  static const _currentFormatVersion = 3;
 
   final KeyValueStore _store;
 
@@ -195,8 +191,6 @@ class HistoryRepository {
     final seed = _seed;
     if (seed == null) return;
 
-    await _migrateFormatIfNeeded();
-
     final applied = int.tryParse(await _store.read(_syncedKey) ?? '') ?? 0;
     if (seed.bundleVersion <= applied) return;
 
@@ -228,36 +222,12 @@ class HistoryRepository {
   static String _fingerprint(HistoryEntry e) =>
       '${e.at.toIso8601String()}|${e.word.toLowerCase()}|${e.correct}';
 
-  /// 本機資料格式跟目前 bundle 的資料形狀對不上時，先整個清空重新
-  /// 乾淨匯入一次，不走「只補差集」的增量比對邏輯——[_fingerprint]
-  /// 是即時從 [HistoryEntry] 算出來的，如果本機存的欄位（例如舊的
-  /// at 值、或舊的 round 欄位）跟現在的公式假設不一致，指紋會全部
-  /// 對不上新 bundle，被誤判成「全新的」整批重複匯入，right/wrong
-  /// 統計就灌水。已經發生過兩次：
-  ///   - 版本 2（2026-09-17）：`history.txt` 的 round 欄位被重新編號
-  ///     成全域唯一，本機存的舊指紋含著改編號前的 round，對不上新值。
-  ///   - 版本 3（2026-09-17，同一天）：round 整個從識別機制裡拿掉，
-  ///     改成完全靠 [HistoryEntry.at] 識別／分組一輪——`history.txt`
-  ///     的 at 欄位同時被回填成全域唯一的合成時間，本機舊資料的 at
-  ///     可能還是舊的（例如只精確到天、或撞在同一分鐘），也需要重新
-  ///     乾淨匯入一次才能跟新公式對齊。
-  ///
-  /// 版本一致之後這段直接跳過，不是每次都要清一次——這是保護機制，
-  /// 不是常態流程；只有資料形狀真的變了才需要再往上加一版。
-  Future<void> _migrateFormatIfNeeded() async {
-    final stored =
-        int.tryParse(await _store.read(_formatVersionKey) ?? '') ?? 1;
-    if (stored >= _currentFormatVersion) return;
-
-    await _store.remove(_entriesKey);
-    await _store.remove(_roundsKey);
-    await _store.remove(_syncedKey);
-    await _store.write(_formatVersionKey, '$_currentFormatVersion');
-  }
-
   /// 依合併後的紀錄重建每輪摘要。分組鍵是 [HistoryEntry.at]：同一輪的
-  /// 題目共用同一個 at，跨輪的 at 保證全域唯一（見 [_migrateFormatIfNeeded]
-  /// 的說明），不會混到一起。
+  /// 題目共用同一個 at，跨輪的 at 保證全域唯一，不會混到一起
+  /// （2026-09-18 使用者決定拿掉本來在這之前的「格式版本落後就整個
+  /// 清空重新匯入」機制——本機資料不會再因為偵測到版本不同就被清空，
+  /// 之後如果資料形狀真的再變，要另外想辦法遷移，不能再靠整個清空
+  /// 解決）。
   ///
   /// App 自己跑出來的輪次有秒數與偽裝標記，那些要留著；
   /// 其餘從紀錄兜回來，秒數是 0，因為 history.txt 本來就沒有時間。

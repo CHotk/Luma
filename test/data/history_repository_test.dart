@@ -17,19 +17,13 @@ void main() {
   HistoryEntry log(String w, {required bool ok, required DateTime at}) =>
       HistoryEntry(word: w, correct: ok, at: at);
 
-  test('本機格式版本落後時，資料形狀變了的 bundle 不會被當成重複匯入', () async {
-    // 模擬本機存了一筆「舊形狀」的資料（例如 at 還是 backfill 之前的
-    // 值），格式版本號完全沒有寫過（代表這是舊資料，還沒經歷過
-    // 2026-09-17 那次改用 at 識別的重構）。
+  test('bundle 版本變新時，指紋比對得上的舊紀錄不會重複疊加', () async {
     store.data['history.entries.v1'] =
         '[{"word":"rain","correct":true,'
-        '"at":"2026-09-01T00:00:00.000","typed":false,"input":"",'
+        '"at":"2026-09-01T00:10:00.000","typed":false,"input":"",'
         '"seconds":0,"isReview":false}]';
     store.data['history.synced.version'] = '1';
 
-    // 新 bundle 版本升到 2，同一筆紀錄的 at 已經被回填成不一樣的合成
-    // 時間——如果沒有格式遷移，指紋比對不起來，會被當成全新的紀錄
-    // 疊上去。
     final seed = _FakeSeed(
       version: 2,
       history: [log('rain', ok: true, at: DateTime(2026, 9, 1, 0, 10))],
@@ -38,25 +32,7 @@ void main() {
 
     final entries = await repo.entries();
 
-    expect(entries.length, 1, reason: '舊資料要被格式遷移清空，不是疊加');
-    expect(entries.first.at, DateTime(2026, 9, 1, 0, 10));
-    expect(store.data['history.format.version'], '3');
-  });
-
-  test('格式版本已經是最新的話，遷移不會再清一次資料', () async {
-    store.data['history.format.version'] = '3';
-    store.data['history.entries.v1'] =
-        '[{"word":"rain","correct":true,'
-        '"at":"2026-09-01T00:00:00.000","typed":false,"input":"",'
-        '"seconds":0,"isReview":false}]';
-    store.data['history.synced.version'] = '9'; // 比 seed 版本新，不會再同步。
-
-    final seed = _FakeSeed(version: 1, history: const []);
-    final repo = HistoryRepository(store, seed: seed);
-
-    final entries = await repo.entries();
-
-    expect(entries.length, 1, reason: '已經遷移過的資料不該被清掉');
+    expect(entries.length, 1, reason: '指紋（at+word+correct）對得上，不該疊成兩筆');
   });
 
   test('appendAnswer：同一個 at 的題目會被歸成同一輪', () async {

@@ -78,6 +78,13 @@ class _KanaPracticePageState extends ConsumerState<KanaPracticePage> {
   /// [_openHistory] 之類真的要確保寫完才能做下一步的地方等。
   Future<void>? _pendingSave;
 
+  /// 目前正在畫的那根手指的 pointer id。手機螢幕常常一邊寫一邊誤觸
+  /// 到第二根手指（手掌邊緣、另一手扶手機），如果不分辨是哪一根手指，
+  /// 兩根手指的座標會混進同一筆線條——只認第一根落筆的手指，其他手指
+  /// 的事件全部忽略，直到它放開或被取消（2026-09-18 使用者回報手機
+  /// 寫完練習紀錄頁完全沒出現，多點觸控污染筆畫是可能成因之一）。
+  int? _activePointer;
+
   late KanaScript _script = widget.initial?.script ?? KanaScript.hiragana;
   late String _row = widget.initial?.row ?? 'あ';
   late (String, String) _selected =
@@ -171,6 +178,13 @@ class _KanaPracticePageState extends ConsumerState<KanaPracticePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: AmbientBackground(
+        background: AppColors.jpBg,
+        blobColors: const [
+          AppColors.jpAmb1,
+          AppColors.jpAmb2,
+          AppColors.jpAmb3,
+          AppColors.jpAmb4,
+        ],
         child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: Gap.screenSide),
@@ -332,18 +346,41 @@ class _KanaPracticePageState extends ConsumerState<KanaPracticePage> {
               // ——這也是這頁目前故意用固定版面、不放
               // SingleChildScrollView 的原因。
               Listener(
-                onPointerDown: (e) => setState(() {
-                  _sessionStart ??= DateTime.now();
-                  _entryId ??= DateTime.now().microsecondsSinceEpoch.toString();
-                  _strokes.add([normalize(e.localPosition)]);
-                  _strokeTimes.add([_elapsedMs()]);
-                }),
-                onPointerMove: (e) => setState(() {
-                  _strokes.last.add(normalize(e.localPosition));
-                  _strokeTimes.last.add(_elapsedMs());
-                }),
+                onPointerDown: (e) {
+                  // 已經有一根手指在畫了，忽略新落下的其他手指——不然
+                  // 兩根手指的座標會混進同一筆線條。
+                  if (_activePointer != null) return;
+                  _activePointer = e.pointer;
+                  setState(() {
+                    _sessionStart ??= DateTime.now();
+                    _entryId ??=
+                        DateTime.now().microsecondsSinceEpoch.toString();
+                    _strokes.add([normalize(e.localPosition)]);
+                    _strokeTimes.add([_elapsedMs()]);
+                  });
+                },
+                onPointerMove: (e) {
+                  if (e.pointer != _activePointer) return;
+                  setState(() {
+                    _strokes.last.add(normalize(e.localPosition));
+                    _strokeTimes.last.add(_elapsedMs());
+                  });
+                },
                 // 放手＝這一筆畫完了，存一次（見這個 State 開頭的說明）。
-                onPointerUp: (_) => _saveStroke(),
+                onPointerUp: (e) {
+                  if (e.pointer != _activePointer) return;
+                  _activePointer = null;
+                  _saveStroke();
+                },
+                // 手機瀏覽器常常沒送 pointerup 就直接送 pointercancel
+                // （被判定成別的手勢、切分頁、誤觸第二指等），如果只認
+                // pointerup，這種狀況畫的東西就整個沒存到——跟 pointerup
+                // 一樣要存，最多丟這一筆沒畫完的部分，不會整份不見。
+                onPointerCancel: (e) {
+                  if (e.pointer != _activePointer) return;
+                  _activePointer = null;
+                  _saveStroke();
+                },
                 child: CustomPaint(painter: InkPainter(strokes: _strokes)),
               ),
             ],
@@ -372,7 +409,7 @@ class _ScriptToggle extends StatelessWidget {
       style: SegmentedButton.styleFrom(
         backgroundColor: AppColors.glassFill,
         foregroundColor: AppColors.ink2,
-        selectedBackgroundColor: AppColors.accentSolid.withValues(alpha: 0.28),
+        selectedBackgroundColor: AppColors.jpAccent.withValues(alpha: 0.28),
         selectedForegroundColor: AppColors.ink,
         side: const BorderSide(color: AppColors.glassEdge),
       ),
@@ -464,11 +501,11 @@ class _Chip extends StatelessWidget {
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: selected
-              ? AppColors.accentSolid.withValues(alpha: 0.28)
+              ? AppColors.jpAccent.withValues(alpha: 0.28)
               : AppColors.glassFill,
           border: Border.all(
             color: selected
-                ? AppColors.accentSolid.withValues(alpha: 0.6)
+                ? AppColors.jpAccent.withValues(alpha: 0.6)
                 : AppColors.glassEdge,
           ),
           borderRadius: BorderRadius.circular(9),
@@ -504,7 +541,7 @@ class _ModeToggle extends StatelessWidget {
       style: SegmentedButton.styleFrom(
         backgroundColor: AppColors.glassFill,
         foregroundColor: AppColors.ink2,
-        selectedBackgroundColor: AppColors.accentSolid.withValues(alpha: 0.28),
+        selectedBackgroundColor: AppColors.jpAccent.withValues(alpha: 0.28),
         selectedForegroundColor: AppColors.ink,
         side: const BorderSide(color: AppColors.glassEdge),
       ),

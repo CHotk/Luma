@@ -55,4 +55,21 @@ abstract final class AppColors {
   static const markTop = Color(0xFFFFFFFF);
   static const markBottom = Color(0xFF9B7BFF);
   static const markArm = Color(0x8C7EA6FF);
+
+  /// 日文軌道「櫻」配色（設計稿定案，見 `design-history/`）。日文首頁、
+  /// 五十音手寫練習頁、練習紀錄頁都算同一個軌道，要用同一組主色跟
+  /// 環境光，不能各畫各的——之前手寫練習頁沒接這組色，從粉色系的
+  /// 日文首頁點進去畫面突然跳回英文軌道那組藍色系，很突兀
+  /// （2026-09-18 使用者回饋：手寫練習那邊也要保持櫻色）。
+  static const jpAccent = Color(0xFFEA92AC);
+
+  /// 疊在 [jpAccent] 實色／高透明度底上的文字用這個，不用 [ink]——
+  /// 淺粉底配全白字對比不夠。
+  static const jpAccentInk = Color(0xFF241019);
+
+  static const jpBg = Color(0xFF1B1420);
+  static const jpAmb1 = Color(0xFF4A2036);
+  static const jpAmb2 = Color(0xFF6B3550);
+  static const jpAmb3 = Color(0xFF2E2440);
+  static const jpAmb4 = Color(0xFF7A3F55);
 }

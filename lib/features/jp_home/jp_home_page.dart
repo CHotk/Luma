@@ -28,22 +28,19 @@ import 'jp_home_controller.dart';
 class JpHomePage extends ConsumerWidget {
   const JpHomePage({super.key});
 
-  static const _accent = Color(0xFFEA92AC);
-  static const _amb = [
-    Color(0xFF4A2036),
-    Color(0xFF6B3550),
-    Color(0xFF2E2440),
-    Color(0xFF7A3F55),
-  ];
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(jpHomeStateProvider);
 
     return Scaffold(
       body: AmbientBackground(
-        background: const Color(0xFF1B1420),
-        blobColors: _amb,
+        background: AppColors.jpBg,
+        blobColors: const [
+          AppColors.jpAmb1,
+          AppColors.jpAmb2,
+          AppColors.jpAmb3,
+          AppColors.jpAmb4,
+        ],
         child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: Gap.screenSide),
@@ -134,8 +131,8 @@ class _Body extends StatelessWidget {
                   FilledButton(
                     onPressed: () => context.push('/kana-practice'),
                     style: FilledButton.styleFrom(
-                      backgroundColor: JpHomePage._accent,
-                      foregroundColor: const Color(0xFF241019),
+                      backgroundColor: AppColors.jpAccent,
+                      foregroundColor: AppColors.jpAccentInk,
                       padding: const EdgeInsets.symmetric(vertical: 15),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(Radii.button),
@@ -370,7 +367,7 @@ class _RowTab extends StatelessWidget {
         height: 30,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: selected ? JpHomePage._accent : Colors.transparent,
+          color: selected ? AppColors.jpAccent : Colors.transparent,
           borderRadius: BorderRadius.circular(999),
           border: selected
               ? null
@@ -381,7 +378,7 @@ class _RowTab extends StatelessWidget {
           style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w700,
-            color: selected ? const Color(0xFF241019) : AppColors.ink2,
+            color: selected ? AppColors.jpAccentInk : AppColors.ink2,
           ),
         ),
       ),
@@ -411,11 +408,11 @@ class _PreviewChip extends StatelessWidget {
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: selected
-              ? JpHomePage._accent.withValues(alpha: 0.28)
+              ? AppColors.jpAccent.withValues(alpha: 0.28)
               : AppColors.glassFill,
           border: Border.all(
             color: selected
-                ? JpHomePage._accent.withValues(alpha: 0.6)
+                ? AppColors.jpAccent.withValues(alpha: 0.6)
                 : AppColors.glassEdge,
           ),
           borderRadius: BorderRadius.circular(9),

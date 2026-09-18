@@ -92,6 +92,13 @@ class _KanaPracticeHistoryPageState
 
     return Scaffold(
       body: AmbientBackground(
+        background: AppColors.jpBg,
+        blobColors: const [
+          AppColors.jpAmb1,
+          AppColors.jpAmb2,
+          AppColors.jpAmb3,
+          AppColors.jpAmb4,
+        ],
         child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: Gap.screenSide),
@@ -207,7 +214,7 @@ class _EntryCard extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
               color:
-                  (entry.assisted ? AppColors.accentSolid : AppColors.ink3)
+                  (entry.assisted ? AppColors.jpAccent : AppColors.ink3)
                       .withValues(alpha: 0.18),
               borderRadius: BorderRadius.circular(Radii.chip),
             ),
@@ -216,7 +223,7 @@ class _EntryCard extends StatelessWidget {
               style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
-                color: entry.assisted ? AppColors.accentSolid : AppColors.ink2,
+                color: entry.assisted ? AppColors.jpAccent : AppColors.ink2,
               ),
             ),
           ),
