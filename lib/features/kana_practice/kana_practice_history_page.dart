@@ -56,10 +56,10 @@ class _KanaPracticeHistoryPageState
     _future = _loadWithSeedMerge();
   }
 
-  /// 打開這頁那一瞬間先把種子資料（見 [loadKanaPracticeSeed]）併回
+  /// 打開這頁那一瞬間先把手寫紀錄快照（見 [loadKanaPracticeSeed]）併回
   /// 本機，再讀出來顯示（2026-09-18 使用者要求：觸發點就是打開練習
   /// 紀錄頁的時候）。之後單純重整（[_reload]）不用每次都重新合併——
-  /// 種子資料不會無緣無故變，只有第一次打開這頁才需要做這件事。
+  /// 快照不會無緣無故變，只有第一次打開這頁才需要做這件事。
   Future<List<KanaPracticeEntry>> _loadWithSeedMerge() async {
     final repo = ref.read(kanaPracticeRepositoryProvider);
     final seed = await loadKanaPracticeSeed();
@@ -299,10 +299,10 @@ class _KanaPracticeHistoryPageState
 }
 
 /// 匯出的範圍：只匯出這台裝置 localStorage 裡的，還是連專案已經
-/// 打包好的種子資料一起（2026-09-18 使用者要求：哪天真的想把專案的
-/// 也一起匯出就也可以）。多數時候兩者是一樣的——練習紀錄頁打開時
-/// 就會把種子資料併進 localStorage（見 [_loadWithSeedMerge]）；差別
-/// 只在使用者還沒開過那個合併流程、或種子資料比 localStorage 新的
+/// 打包好的手寫紀錄快照一起（2026-09-18 使用者要求：哪天真的想把
+/// 專案的也一起匯出就也可以）。多數時候兩者是一樣的——練習紀錄頁
+/// 打開時就會把快照併進 localStorage（見 [_loadWithSeedMerge]）；
+/// 差別只在使用者還沒開過那個合併流程、或快照比 localStorage 新的
 /// 情況。
 enum _ExportScope { localOnly, withSeed }
 
@@ -346,9 +346,9 @@ class _ExportDialogState extends State<_ExportDialog> {
     }
     final local = await widget.repo.loadAll();
     final seed = await loadKanaPracticeSeed();
-    // 本機為準：本機有的 id 蓋掉種子那份，本機沒有、種子有的才補上
-    // ——這裡要的是「補齊這台裝置漏掉、但專案種子檔案裡已經有」的
-    // 紀錄，不是拿種子蓋掉這台裝置剛練的東西。
+    // 本機為準：本機有的 id 蓋掉快照那份，本機沒有、快照有的才補上
+    // ——這裡要的是「補齊這台裝置漏掉、但專案快照裡已經有」的
+    // 紀錄，不是拿快照蓋掉這台裝置剛練的東西。
     final byId = {for (final e in seed) e.id: e};
     for (final e in local) {
       byId[e.id] = e;
@@ -391,7 +391,7 @@ class _ExportDialogState extends State<_ExportDialog> {
               ),
               ButtonSegment(
                 value: _ExportScope.withSeed,
-                label: Text('連專案種子一起'),
+                label: Text('連手寫紀錄快照一起'),
               ),
             ],
             selected: {_scope},

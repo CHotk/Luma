@@ -4,6 +4,8 @@ import '../features/history/history_page.dart';
 import '../features/history/round_detail_page.dart';
 import '../features/home/home_page.dart';
 import '../features/jp_home/jp_home_page.dart';
+import '../features/kana_exam/kana_exam_mode_select_page.dart';
+import '../features/kana_exam/kana_exam_page.dart';
 import '../features/kana_practice/kana_practice_history_page.dart';
 import '../features/kana_practice/kana_practice_page.dart';
 import '../features/library/library_page.dart';
@@ -55,6 +57,22 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/kana-practice/history',
       builder: (_, _) => const KanaPracticeHistoryPage(),
+    ),
+    GoRoute(
+      path: '/kana-exam',
+      builder: (_, _) => const KanaExamModeSelectPage(),
+      routes: [
+        GoRoute(
+          path: 'start',
+          // extra 是模式選擇頁帶進來的 ExamMode，沒有就沒得考，
+          // 直接退回選擇頁（正常操作不會發生，防的是有人直接打網址）。
+          builder: (_, state) {
+            final mode = state.extra;
+            if (mode is! ExamMode) return const KanaExamModeSelectPage();
+            return KanaExamPage(mode: mode);
+          },
+        ),
+      ],
     ),
     GoRoute(path: '/mastered', builder: (_, _) => const MasteredPage()),
     GoRoute(path: '/notes', builder: (_, _) => const NotesPage()),

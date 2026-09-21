@@ -64,12 +64,12 @@ class KanaPracticeRepository {
     await _store.write(_key, jsonEncode([for (final e in all) e.toJson()]));
   }
 
-  /// 把種子資料（見 [loadKanaPracticeSeed]）併回本機。開啟練習紀錄頁
-  /// 那一瞬間呼叫（見 `kana_practice_history_page.dart`）：本機如果有
-  /// 跟種子同一個 `id` 的舊版本，先移除、換成種子那份——是「專案的
-  /// 版本為準」，不是「本機已經有就跳過」（2026-09-18 使用者要求：
-  /// 重複的去本機那邊刪掉，保留專案的）。種子沒提到的 id，本機原本
-  /// 有的照樣留著，不會被清掉。
+  /// 把手寫紀錄快照（見 [loadKanaPracticeSeed]）併回本機。開啟練習
+  /// 紀錄頁那一瞬間呼叫（見 `kana_practice_history_page.dart`）：本機
+  /// 如果有跟快照同一個 `id` 的舊版本，先移除、換成快照那份——是
+  /// 「專案的版本為準」，不是「本機已經有就跳過」（2026-09-18 使用者
+  /// 要求：重複的去本機那邊刪掉，保留專案的）。快照沒提到的 id，
+  /// 本機原本有的照樣留著，不會被清掉。
   Future<void> mergeSeed(List<KanaPracticeEntry> incoming) async {
     if (incoming.isEmpty) return;
     final local = await loadAll();

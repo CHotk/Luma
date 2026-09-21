@@ -140,7 +140,10 @@ class _Body extends StatelessWidget {
                     ),
                     child: const Text(
                       '開始這輪',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                   const SizedBox(height: Gap.lg),
@@ -174,6 +177,15 @@ class _TopBar extends StatelessWidget {
         const SizedBox(width: Gap.sm),
         const TrackSwitcher(current: LearningTrack.ja),
         const Spacer(),
+        IconButton(
+          onPressed: () => context.push('/kana-exam'),
+          icon: const Icon(Icons.edit_note_rounded, size: 20),
+          color: AppColors.ink2,
+          tooltip: '考試模式',
+          padding: EdgeInsets.zero,
+          visualDensity: VisualDensity.compact,
+          constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+        ),
         IconButton(
           onPressed: () => context.push('/kana-practice/history'),
           icon: const Icon(Icons.history, size: 20),
@@ -373,7 +385,11 @@ class _KanaPreviewState extends State<_KanaPreview> {
 /// 樣式——之前兩排都用 [_PreviewChip] 同一種外觀，使用者分不出哪排是
 /// 「選一整行」、哪排是「選行裡面哪個字」（2026-09-17 回饋）。
 class _RowTab extends StatelessWidget {
-  const _RowTab({required this.label, required this.selected, required this.onTap});
+  const _RowTab({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
 
   final String label;
   final bool selected;
@@ -392,9 +408,7 @@ class _RowTab extends StatelessWidget {
         decoration: BoxDecoration(
           color: selected ? AppColors.jpAccent : Colors.transparent,
           borderRadius: BorderRadius.circular(999),
-          border: selected
-              ? null
-              : Border.all(color: AppColors.glassEdge),
+          border: selected ? null : Border.all(color: AppColors.glassEdge),
         ),
         child: Text(
           label,
