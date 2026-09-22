@@ -37,6 +37,8 @@ class _DiaryPageState extends ConsumerState<DiaryPage> {
   late Future<List<DiaryEntry>> _future;
   final _textController = TextEditingController();
   String _mood = diaryMoods.first;
+  // 天氣選填，預設第一個選項（2026-09-22 使用者要求）。
+  String _weather = diaryWeathers.first;
   // 0 = 今天／1 = 昨天／2 = 前天，補寫之前忘記打卡的日子用
   // （2026-09-22 使用者要求：怕 12 點才寫或忘記寫一天）。
   int _dayOffset = 0;
@@ -89,12 +91,14 @@ class _DiaryPageState extends ConsumerState<DiaryPage> {
         id: now.microsecondsSinceEpoch.toString(),
         mood: _mood,
         text: text,
+        weather: _weather,
         // 補寫昨天／前天：日期往回推，但時分照實際送出的當下記錄。
         savedAt: now.subtract(Duration(days: _dayOffset)),
       ),
     );
     _textController.clear();
     _mood = diaryMoods.first;
+    _weather = diaryWeathers.first;
     _dayOffset = 0;
     _reload();
   }
@@ -116,6 +120,10 @@ class _DiaryPageState extends ConsumerState<DiaryPage> {
               Row(
                 children: [
                   Text(entry.mood, style: const TextStyle(fontSize: 22)),
+                  if (entry.weather.isNotEmpty) ...[
+                    const SizedBox(width: 6),
+                    Text(entry.weather, style: const TextStyle(fontSize: 15)),
+                  ],
                   const SizedBox(width: Gap.sm),
                   Expanded(
                     child: Text(_dateLabel(entry.savedAt), style: AppText.bodyDim),
@@ -192,6 +200,8 @@ class _DiaryPageState extends ConsumerState<DiaryPage> {
   Future<void> _showEditDialog(DiaryEntry entry) async {
     final controller = TextEditingController(text: entry.text);
     var mood = entry.mood;
+    // 舊資料沒有天氣欄位（空字串），編輯時給個預設選項，不留空著。
+    var weather = entry.weather.isEmpty ? diaryWeathers.first : entry.weather;
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
@@ -216,9 +226,33 @@ class _DiaryPageState extends ConsumerState<DiaryPage> {
                 ],
               ),
               const SizedBox(height: Gap.sm),
+              Row(
+                children: [
+                  for (final w in diaryWeathers) ...[
+                    Expanded(
+                      child: _WeatherChip(
+                        weather: w,
+                        selected: w == weather,
+                        onTap: () => setDialogState(() => weather = w),
+                      ),
+                    ),
+                    if (w != diaryWeathers.last) const SizedBox(width: 6),
+                  ],
+                ],
+              ),
+              const SizedBox(height: Gap.sm),
+              // 跟打卡卡輸入框同一個理由：固定行數＋換行，不要單行內部
+              // 橫向自動捲動，不然拖曳選字會變成拖著框內容跑
+              // （2026-09-22 使用者要求：編輯這邊也要能選取文字）。
               TextField(
                 controller: controller,
                 maxLength: 60,
+                minLines: 1,
+                // 塞不下就多長一行，最多長到 7 行，超過才用內建的上下
+                // 捲動看剩下的內容（2026-09-22 使用者要求）。
+                maxLines: 7,
+                keyboardType: TextInputType.multiline,
+                textInputAction: TextInputAction.newline,
                 autofocus: true,
                 decoration: const InputDecoration(counterText: ''),
                 style: const TextStyle(fontSize: 13, color: AppColors.ink),
@@ -241,6 +275,7 @@ class _DiaryPageState extends ConsumerState<DiaryPage> {
                         id: entry.id,
                         mood: mood,
                         text: text,
+                        weather: weather,
                         savedAt: entry.savedAt,
                       ),
                     );
@@ -328,11 +363,14 @@ class _DiaryPageState extends ConsumerState<DiaryPage> {
                           _CheckInCard(
                             controller: _textController,
                             mood: _mood,
+                            weather: _weather,
                             dayOffset: _dayOffset,
                             checkedInForTarget: checkedInForTarget,
                             onDayOffsetChanged: (v) =>
                                 setState(() => _dayOffset = v),
                             onMoodChanged: (m) => setState(() => _mood = m),
+                            onWeatherChanged: (w) =>
+                                setState(() => _weather = w),
                             onSubmit: _submit,
                           ),
                           const SizedBox(height: Gap.md),
@@ -411,6 +449,30 @@ class _DateStripState extends State<_DateStrip> {
   DateTime _focusedDay = _stripDate(DateTime.now());
   bool _calendarOpen = false;
 
+  // 展開的月曆要能像 iOS 行事曆一樣上下滑動切換月份（2026-09-22
+  // 使用者要求），用 PageView 而不是「按鈕才能換月」。
+  late final PageController _monthPageController = PageController(
+    initialPage: _monthIndex(_focusedDay),
+  );
+
+  @override
+  void dispose() {
+    _monthPageController.dispose();
+    super.dispose();
+  }
+
+  /// 把 PageView 目前停在的月份頁跟 [_focusedDay] 同步——[_shiftWeek]
+  /// 或點月曆選日期都可能把 [_focusedDay] 換到跟 PageView 目前顯示的
+  /// 不同月，不同步的話展開月曆時會看到舊的那一頁。跳頁方向是使用者
+  /// 手動滑動以外的操作才呼叫，不會跟使用者正在滑的手勢互搶。
+  void _syncMonthPage() {
+    if (!_monthPageController.hasClients) return;
+    final target = _monthIndex(_focusedDay);
+    if (_monthPageController.page?.round() != target) {
+      _monthPageController.jumpToPage(target);
+    }
+  }
+
   Map<DateTime, DiaryEntry> get _byDay {
     final map = <DateTime, DiaryEntry>{};
     for (final e in widget.entries) {
@@ -432,6 +494,7 @@ class _DateStripState extends State<_DateStrip> {
 
   void _shiftWeek(int delta) {
     setState(() => _focusedDay = _focusedDay.add(Duration(days: 7 * delta)));
+    _syncMonthPage();
   }
 
   void _tapDay(DateTime day) {
@@ -439,6 +502,7 @@ class _DateStripState extends State<_DateStrip> {
       _focusedDay = day;
       _calendarOpen = false;
     });
+    _syncMonthPage();
     widget.onSelectDay(day);
   }
 
@@ -499,17 +563,46 @@ class _DateStripState extends State<_DateStrip> {
             selectedDay: widget.selectedDay,
             onTap: _tapDay,
           ),
-          secondChild: _MonthCalendar(
-            month: _focusedDay,
-            byDay: byDay,
-            selectedDay: widget.selectedDay,
-            onTap: _tapDay,
+          // 月曆頁固定高度＋垂直 PageView 才能滑，高度照當下螢幕寬度
+          // 反推格子大小再算，不用猜一個寫死的數字（每格是正方形，
+          // 寬度隨螢幕變，寫死高度在窄螢幕會滑出格子外、寬螢幕又留一堆
+          // 空白）。
+          secondChild: LayoutBuilder(
+            builder: (context, constraints) {
+              const spacing = 4.0;
+              const rows = 6.0;
+              const headerHeight = 50.0;
+              final cellSize = (constraints.maxWidth - spacing * 6) / 7;
+              final gridHeight = cellSize * rows + spacing * (rows - 1);
+              return SizedBox(
+                height: headerHeight + gridHeight,
+                child: PageView.builder(
+                  controller: _monthPageController,
+                  scrollDirection: Axis.vertical,
+                  onPageChanged: (index) =>
+                      setState(() => _focusedDay = _monthFromIndex(index)),
+                  itemBuilder: (context, index) => _MonthCalendar(
+                    month: _monthFromIndex(index),
+                    byDay: byDay,
+                    selectedDay: widget.selectedDay,
+                    onTap: _tapDay,
+                  ),
+                ),
+              );
+            },
           ),
         ),
       ],
     );
   }
 }
+
+/// 月份跟一個線性整數互轉，拿來當 [PageView] 的頁碼——月份差幾頁就是
+/// 這兩個整數差幾，PageView 才能正確算出滑到第幾頁對應哪個月。
+int _monthIndex(DateTime d) => d.year * 12 + (d.month - 1);
+
+DateTime _monthFromIndex(int index) =>
+    DateTime(index ~/ 12, index % 12 + 1);
 
 String _weekRangeLabel(List<DateTime> days) {
   final start = days.first;
@@ -542,20 +635,20 @@ class _WeekRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final today = _stripDate(DateTime.now());
     final selected = selectedDay == null ? null : _stripDate(selectedDay!);
+    // 固定寬度＋spaceBetween，不是每格硬用 Expanded 撐滿——七格平分整個
+    // 螢幕寬度會把每格擠成細細長長的比例，跟原本方方正正的日期方塊
+    // 比例對不起來（2026-09-22 使用者回饋：日期變好窄，很醜）。
     return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        for (final day in days) ...[
-          Expanded(
-            child: _DayChip(
-              day: day,
-              hasEntry: byDay.containsKey(day),
-              isToday: day == today,
-              isSelected: day == selected,
-              onTap: () => onTap(day),
-            ),
+        for (final day in days)
+          _DayChip(
+            day: day,
+            hasEntry: byDay.containsKey(day),
+            isToday: day == today,
+            isSelected: day == selected,
+            onTap: () => onTap(day),
           ),
-          if (day != days.last) const SizedBox(width: 6),
-        ],
       ],
     );
   }
@@ -585,6 +678,7 @@ class _DayChip extends StatelessWidget {
         clipBehavior: Clip.none,
         children: [
           Container(
+            width: 44,
             padding: const EdgeInsets.symmetric(vertical: 7),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
@@ -823,6 +917,13 @@ class _SelectedDayPanel extends StatelessWidget {
                   child: Row(
                     children: [
                       Text(entry.mood, style: const TextStyle(fontSize: 20)),
+                      if (entry.weather.isNotEmpty) ...[
+                        const SizedBox(width: 4),
+                        Text(
+                          entry.weather,
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                      ],
                       const SizedBox(width: Gap.sm),
                       Expanded(
                         child: Column(
@@ -864,19 +965,23 @@ class _CheckInCard extends StatelessWidget {
   const _CheckInCard({
     required this.controller,
     required this.mood,
+    required this.weather,
     required this.dayOffset,
     required this.checkedInForTarget,
     required this.onDayOffsetChanged,
     required this.onMoodChanged,
+    required this.onWeatherChanged,
     required this.onSubmit,
   });
 
   final TextEditingController controller;
   final String mood;
+  final String weather;
   final int dayOffset;
   final bool checkedInForTarget;
   final ValueChanged<int> onDayOffsetChanged;
   final ValueChanged<String> onMoodChanged;
+  final ValueChanged<String> onWeatherChanged;
   final VoidCallback onSubmit;
 
   @override
@@ -918,6 +1023,24 @@ class _CheckInCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: Gap.sm),
+          // 天氣選填，跟心情同一排邏輯（2026-09-22 使用者要求）。
+          Row(
+            children: [
+              for (final w in diaryWeathers) ...[
+                Expanded(
+                  child: _WeatherChip(
+                    weather: w,
+                    selected: w == weather,
+                    onTap: checkedInForTarget
+                        ? null
+                        : () => onWeatherChanged(w),
+                  ),
+                ),
+                if (w != diaryWeathers.last) const SizedBox(width: 6),
+              ],
+            ],
+          ),
+          const SizedBox(height: Gap.sm),
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
@@ -930,19 +1053,39 @@ class _CheckInCard extends StatelessWidget {
                   enabled: !checkedInForTarget,
                   maxLength: 60,
                   minLines: 1,
-                  maxLines: 3,
+                  // 塞不下就多長一行，最多長到 7 行，超過才用內建的
+                  // 上下捲動看剩下的內容（2026-09-22 使用者要求）。
+                  maxLines: 7,
                   keyboardType: TextInputType.multiline,
                   textInputAction: TextInputAction.newline,
-                  decoration: const InputDecoration(
+                  // 鎖住的時候底色、字色都要跟著變暗＋補一個鎖頭圖示，
+                  // 不能只靠 enabled 那個不太看得出來的預設灰階差異，
+                  // 不然使用者分不出「打不開」跟「還沒打字」
+                  // （2026-09-22 使用者回饋：鎖起來但顏色沒變會混淆）。
+                  decoration: InputDecoration(
                     isDense: true,
                     hintText: '例如：把日記功能接上真的資料了',
                     counterText: '',
-                    contentPadding: EdgeInsets.symmetric(
+                    filled: true,
+                    fillColor: checkedInForTarget
+                        ? AppColors.glassFill.withValues(alpha: 0.5)
+                        : Colors.transparent,
+                    suffixIcon: checkedInForTarget
+                        ? const Icon(
+                            Icons.lock_outline,
+                            size: 16,
+                            color: AppColors.ink3,
+                          )
+                        : null,
+                    contentPadding: const EdgeInsets.symmetric(
                       horizontal: 12,
                       vertical: 10,
                     ),
                   ),
-                  style: const TextStyle(fontSize: 13, color: AppColors.ink),
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: checkedInForTarget ? AppColors.ink3 : AppColors.ink,
+                  ),
                 ),
               ),
               const SizedBox(width: Gap.sm),
@@ -968,7 +1111,12 @@ class _CheckInCard extends StatelessWidget {
   }
 }
 
-/// 補寫今天／昨天／前天的小下拉選單（2026-09-22 使用者要求）。
+/// 補寫今天／昨天／前天的小選單（2026-09-22 使用者要求）。用
+/// [PopupMenuButton] 不是 [DropdownButton]：後者開合時會把「目前選中的
+/// 那個選項」對齊在按鈕位置展開，選到清單下面的選項（例如前天）之後，
+/// 選單再打開就會整個往上跳一截去把那個選項對齊回按鈕——每次開合位置
+/// 都不一樣，容易誤觸（2026-09-22 使用者回饋）。[PopupMenuButton] 固定
+/// 貼著按鈕下面展開，跟目前選了哪一項無關，位置每次都一樣。
 class _DayOffsetDropdown extends StatelessWidget {
   const _DayOffsetDropdown({required this.value, required this.onChanged});
 
@@ -977,35 +1125,48 @@ class _DayOffsetDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(
-        color: AppColors.glassFill,
-        border: Border.all(color: AppColors.glassEdge),
-        borderRadius: BorderRadius.circular(8),
+    return PopupMenuButton<int>(
+      initialValue: value,
+      onSelected: onChanged,
+      color: const Color(0xFF1A1A24),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: const BorderSide(color: AppColors.glassEdge),
       ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<int>(
-          value: value,
-          isDense: true,
-          dropdownColor: const Color(0xFF1A1A24),
-          icon: const Icon(
-            Icons.expand_more,
-            size: 16,
-            color: AppColors.ink3,
+      itemBuilder: (context) => [
+        for (var i = 0; i < _dayOffsetLabels.length; i++)
+          PopupMenuItem(
+            value: i,
+            child: Text(
+              _dayOffsetLabels[i],
+              style: TextStyle(
+                color: i == value ? AppColors.diaryAccent : AppColors.ink2,
+                fontWeight: i == value ? FontWeight.w700 : FontWeight.w500,
+              ),
+            ),
           ),
-          style: const TextStyle(
-            fontSize: 12,
-            color: AppColors.ink2,
-            fontWeight: FontWeight.w600,
-          ),
-          items: [
-            for (var i = 0; i < _dayOffsetLabels.length; i++)
-              DropdownMenuItem(value: i, child: Text(_dayOffsetLabels[i])),
+      ],
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: AppColors.glassFill,
+          border: Border.all(color: AppColors.glassEdge),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              _dayOffsetLabels[value],
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppColors.ink2,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(width: 2),
+            const Icon(Icons.expand_more, size: 16, color: AppColors.ink3),
           ],
-          onChanged: (v) {
-            if (v != null) onChanged(v);
-          },
         ),
       ),
     );
@@ -1041,6 +1202,47 @@ class _MoodButton extends StatelessWidget {
           ),
         ),
         child: Text(mood, style: const TextStyle(fontSize: 17)),
+      ),
+    );
+  }
+}
+
+class _WeatherChip extends StatelessWidget {
+  const _WeatherChip({
+    required this.weather,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String weather;
+  final bool selected;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        height: 32,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          color: selected
+              ? AppColors.diaryAccent.withValues(alpha: 0.26)
+              : AppColors.glassFill,
+          border: Border.all(
+            color: selected ? AppColors.diaryAccent : AppColors.glassEdge,
+          ),
+        ),
+        child: Text(
+          weather,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: selected ? AppColors.ink : AppColors.ink2,
+          ),
+        ),
       ),
     );
   }
