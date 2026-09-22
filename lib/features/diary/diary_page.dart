@@ -318,7 +318,8 @@ class _DiaryPageState extends ConsumerState<DiaryPage> {
               // （2026-09-22 使用者要求：編輯這邊也要能選取文字）。
               TextField(
                 controller: controller,
-                maxLength: 60,
+                // 2026-09-22 使用者要求：60 字太少，1500 字才夠用。
+                maxLength: 1500,
                 minLines: 1,
                 // 塞不下就多長一行，最多長到 7 行，超過才用內建的上下
                 // 捲動看剩下的內容（2026-09-22 使用者要求）。
@@ -1052,7 +1053,8 @@ class _CheckInCard extends StatelessWidget {
                 child: TextField(
                   controller: controller,
                   enabled: !checkedInForTarget,
-                  maxLength: 60,
+                  // 2026-09-22 使用者要求：60 字太少，1500 字才夠用。
+                  maxLength: 1500,
                   minLines: 1,
                   // 塞不下就多長一行，最多長到 7 行，超過才用內建的
                   // 上下捲動看剩下的內容（2026-09-22 使用者要求）。
