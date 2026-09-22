@@ -1,0 +1,201 @@
+<!doctype html>
+<title>日記設計04・極簡打卡版</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;800&family=Material+Symbols+Outlined&display=swap"
+/>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0c0c13;
+    --bg-deep: #0a0a10;
+    --panel-edge: rgba(255, 255, 255, 0.14);
+    --ink: #f3f2f8;
+    --ink2: #a3a2b2;
+    --ink3: #74738a;
+    --glass-edge: rgba(255, 255, 255, 0.14);
+    /* 04 用鼠尾草綠，低摩擦、隨手打卡的調性，跟其他三版分開。 */
+    --accent: #8fbf9f;
+    --accent-ink: #10241a;
+    --amb-1: #2c5a3e;
+    --amb-2: #2a2450;
+    --amb-3: #315a4a;
+  }
+  * { box-sizing: border-box; }
+  /* min-height 而不是 height：見同批日記 mock 的說明——body 是 flex
+     column，height:100% 加上 flex-shrink 預設不是 0，內容一旦超過
+     視窗高度就會被壓扁，不會讓頁面往下捲（2026-09-22 使用者回報：
+     模擬畫面擠在一起、不能往下滑）。 */
+  html, body { margin: 0; min-height: 100%; background: var(--bg-deep); color: var(--ink); font-family: "Zen Kaku Gothic New", "Noto Sans TC", system-ui, sans-serif; }
+  body { padding-inline: 20px; padding-block: 32px 48px; display: flex; flex-direction: column; align-items: center; gap: 18px; }
+
+  .intro { max-width: 480px; width: 100%; text-align: center; }
+  .eyebrow { font-size: 12px; letter-spacing: 0.16em; color: #8b8690; text-transform: uppercase; }
+  .intro h1 { font-weight: 800; font-size: clamp(20px, 5vw, 24px); margin: 6px 0 8px; color: #f4f1f4; }
+  .intro p { margin: 0 0 4px; font-size: 13px; line-height: 1.7; color: #a9a4ad; max-width: 48ch; margin-inline: auto; }
+  .intro ul { text-align: left; max-width: 40ch; margin: 10px auto 0; padding-left: 18px; font-size: 12.5px; line-height: 1.8; color: #9d98a4; }
+
+  .phone { position: relative; width: 100%; max-width: 380px; height: 760px; flex-shrink: 0; border-radius: 34px; padding: 14px; isolation: isolate; overflow: hidden; background: var(--bg); box-shadow: 0 30px 70px -30px rgba(0,0,0,0.7); }
+  .amb { position: absolute; border-radius: 50%; filter: blur(55px); opacity: 0.46; z-index: -1; }
+  .amb-1 { width: 220px; height: 220px; top: -70px; left: -60px; background: var(--amb-1); }
+  .amb-2 { width: 200px; height: 200px; bottom: 90px; right: -70px; background: var(--amb-2); }
+  .amb-3 { width: 190px; height: 190px; bottom: -90px; left: 30px; background: var(--amb-3); }
+
+  .shell { position: relative; height: 100%; border-radius: 24px; padding: 18px 16px; background: rgba(255,255,255,0.04); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); border: 1px solid var(--panel-edge); overflow: hidden; display: flex; flex-direction: column; gap: 14px; }
+
+  .topbar { display: flex; align-items: center; gap: 8px; flex: none; }
+  .topbar-title { font-weight: 800; font-size: 16px; }
+  .topbar-sub { font-size: 11px; color: var(--ink3); margin-left: auto; }
+
+  /* 一週小圓點總覽 */
+  .week-glance { display: flex; justify-content: space-between; flex: none; }
+  .week-glance .col { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+  .week-glance .ww { font-size: 10px; color: var(--ink3); }
+  .week-glance .cell {
+    width: 30px; height: 30px; border-radius: 9px; display: flex; align-items: center; justify-content: center;
+    font-size: 14px; background: rgba(255,255,255,0.035); border: 1px solid var(--panel-edge); color: var(--ink3);
+  }
+  .week-glance .cell.filled { border-color: color-mix(in srgb, var(--accent) 40%, transparent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+  .week-glance .cell.today { border-color: var(--accent); }
+
+  /* 打卡卡：核心互動，一次操作完成 */
+  .checkin { flex: none; border-radius: 16px; padding: 14px; background: color-mix(in srgb, var(--accent) 9%, rgba(255,255,255,0.035)); border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--glass-edge)); }
+  .checkin .label { font-size: 12px; color: var(--ink2); margin-bottom: 9px; }
+  .checkin .mood-row { display: flex; gap: 6px; margin-bottom: 9px; }
+  .checkin .mood-row button {
+    flex: 1; appearance: none; border: 1px solid var(--glass-edge); background: rgba(255,255,255,0.03);
+    height: 38px; border-radius: 10px; font-size: 17px; cursor: pointer;
+  }
+  .checkin .mood-row button.selected { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 26%, transparent); }
+  .checkin .input-row { display: flex; gap: 8px; }
+  .checkin input {
+    flex: 1; background: rgba(255,255,255,0.04); border: 1px solid var(--glass-edge); border-radius: 10px;
+    padding: 9px 11px; color: var(--ink); font-family: inherit; font-size: 12.5px;
+  }
+  .checkin input::placeholder { color: var(--ink3); }
+  .checkin .go-btn {
+    appearance: none; border: none; background: var(--accent); color: var(--accent-ink);
+    font-family: inherit; font-weight: 800; font-size: 13px; width: 40px; border-radius: 10px; cursor: pointer; flex: none;
+  }
+  .checkin .hint { font-size: 10.5px; color: var(--ink3); margin-top: 7px; }
+
+  /* 一行一則的簡易列表 */
+  .list-label { font-size: 11px; letter-spacing: 0.06em; color: var(--ink3); text-transform: uppercase; flex: none; }
+  .simple-list { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+  .simple-row {
+    display: flex; align-items: center; gap: 9px; padding: 9px 4px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+  .simple-row .dd { flex: none; width: 34px; font-size: 11.5px; color: var(--ink3); }
+  .simple-row .em { flex: none; font-size: 15px; }
+  .simple-row .tx { flex: 1; min-width: 0; font-size: 12.5px; color: var(--ink2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="intro">
+  <p class="eyebrow">Lume · 日記設計 04（Mock，資料全假）</p>
+  <h1>不是寫日記，是「一行打卡」</h1>
+  <p>四版裡功能最少的一版：拋開長文、標籤、標題這些負擔，只求「10 秒內記一句」。適合真的沒空寫長篇、但想維持每天記錄習慣的人，跟 01～03 是完全不同的產品定位（微日記 vs 長文日記）。</p>
+  <ul>
+    <li>頂部<b>一週小格子</b>一眼看完整週有沒有記錄，不用點進日曆。</li>
+    <li>核心是常駐的<b>打卡卡</b>：選心情＋一行文字輸入框＋送出，全部在同一個操作裡完成，沒有分開的「寫日記頁」。</li>
+    <li>底下是<b>單行列表</b>，每則只佔一行（日期＋表情＋一句話），滑過去就好，不像 01 那樣是大卡片。</li>
+    <li>沒有標籤、沒有統計頁、沒有日曆——這版刻意「功能少」，跟其他版本形成對照組。</li>
+  </ul>
+</div>
+
+<div class="phone">
+  <div class="amb amb-1"></div>
+  <div class="amb amb-2"></div>
+  <div class="amb amb-3"></div>
+
+  <div class="shell">
+    <div class="topbar">
+      <span class="topbar-title">日記</span>
+      <span class="topbar-sub">本週 5/7 天</span>
+    </div>
+
+    <div class="week-glance" id="weekGlance"></div>
+
+    <div class="checkin">
+      <p class="label">今天過得怎樣？一句話就好</p>
+      <div class="mood-row" id="checkinMood">
+        <button data-mood="😄">😄</button>
+        <button class="selected" data-mood="🙂">🙂</button>
+        <button data-mood="😐">😐</button>
+        <button data-mood="😔">😔</button>
+        <button data-mood="😢">😢</button>
+      </div>
+      <div class="input-row">
+        <input type="text" id="checkinInput" placeholder="例如：把選單接上真元件了" maxlength="60" />
+        <button class="go-btn" id="checkinGo">✓</button>
+      </div>
+      <p class="hint" id="checkinHint">今天還沒記錄</p>
+    </div>
+
+    <p class="list-label">最近</p>
+    <div class="simple-list" id="simpleList"></div>
+  </div>
+</div>
+
+<script>
+  const WEEKDAYS = ['一','二','三','四','五','六','日'];
+  const WEEK = [
+    { d: '16', has: false },
+    { d: '17', has: true, em: '🙂' },
+    { d: '18', has: false },
+    { d: '19', has: true, em: '😔' },
+    { d: '20', has: false },
+    { d: '21', has: true, em: '🙂' },
+    { d: '22', has: false, today: true },
+  ];
+  const weekGlance = document.getElementById('weekGlance');
+  WEEK.forEach((w, i) => {
+    const col = document.createElement('div');
+    col.className = 'col';
+    col.innerHTML = `<span class="ww">${WEEKDAYS[i]}</span><div class="cell${w.has ? ' filled' : ''}${w.today ? ' today' : ''}">${w.has ? w.em : w.d}</div>`;
+    weekGlance.appendChild(col);
+  });
+
+  const ROWS = [
+    { d: '9/21', em: '🙂', tx: '幫手寫考試紀錄加了單題重播' },
+    { d: '9/19', em: '😔', tx: 'ら行跟わ行還是常常搞混' },
+    { d: '9/17', em: '🙂', tx: '重播下載成 GIF，幀率調高很多' },
+    { d: '9/15', em: '😄', tx: '複習排程終於照想要的方式跑起來' },
+    { d: '9/12', em: '😄', tx: '休息的一天，沒碰專案' },
+  ];
+  const simpleList = document.getElementById('simpleList');
+  function addRow(row, prepend) {
+    const el = document.createElement('div');
+    el.className = 'simple-row';
+    el.innerHTML = `<span class="dd">${row.d}</span><span class="em">${row.em}</span><span class="tx">${row.tx}</span>`;
+    if (prepend) simpleList.prepend(el); else simpleList.appendChild(el);
+  }
+  ROWS.forEach(r => addRow(r, false));
+
+  document.querySelectorAll('#checkinMood button').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('#checkinMood button').forEach(x => x.classList.remove('selected'));
+      b.classList.add('selected');
+    });
+  });
+
+  const checkinInput = document.getElementById('checkinInput');
+  const checkinHint = document.getElementById('checkinHint');
+  document.getElementById('checkinGo').addEventListener('click', () => {
+    if (!checkinInput.value.trim()) return;
+    const mood = document.querySelector('#checkinMood .selected').dataset.mood;
+    addRow({ d: '9/22', em: mood, tx: checkinInput.value.trim() }, true);
+    checkinInput.value = '';
+    checkinHint.textContent = '今天已經記錄過了 ✓';
+    WEEK[6].has = true;
+    WEEK[6].em = mood;
+    weekGlance.children[6].querySelector('.cell').textContent = mood;
+    weekGlance.children[6].querySelector('.cell').classList.add('filled');
+  });
+</script>

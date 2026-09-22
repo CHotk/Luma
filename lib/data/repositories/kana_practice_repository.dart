@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../../domain/models/kana_practice.dart';
+import '../seed/seed_merge.dart';
 import '../storage/key_value_store.dart';
 
 /// 五十音手寫練習的存檔紀錄。
@@ -72,10 +73,12 @@ class KanaPracticeRepository {
   /// 本機原本有的照樣留著，不會被清掉。
   Future<void> mergeSeed(List<KanaPracticeEntry> incoming) async {
     if (incoming.isEmpty) return;
-    final local = await loadAll();
-    final incomingIds = {for (final e in incoming) e.id};
-    final kept = [for (final e in local) if (!incomingIds.contains(e.id)) e];
-    final merged = [...kept, ...incoming];
+    final merged = mergeSeedRecords(
+      local: await loadAll(),
+      seed: incoming,
+      idOf: (e) => e.id,
+      priority: SeedMergePriority.seed,
+    );
     await _store.write(_key, jsonEncode([for (final e in merged) e.toJson()]));
   }
 

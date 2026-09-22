@@ -24,7 +24,7 @@ class WordSeedLoader implements SeedSource {
   /// 每次從 En 資料夾重新複製檔案進 assets 就要 +1。
   /// 忘了加，App 就不會同步，然後你會以為程式壞了。
   @override
-  int get bundleVersion => 36;
+  int get bundleVersion => 37;
 
   Future<List<Word>> _seedWords() async {
     final words = <Word>[];

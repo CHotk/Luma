@@ -85,16 +85,9 @@ class _KanaExamRowSelectPageState extends State<KanaExamRowSelectPage> {
                       style: TextStyle(fontSize: 13, color: AppColors.ink3),
                     ),
                     const Spacer(),
-                    TextButton(
-                      onPressed: _selectNone,
-                      style: TextButton.styleFrom(
-                        foregroundColor: AppColors.ink2,
-                        padding: EdgeInsets.zero,
-                        visualDensity: VisualDensity.compact,
-                      ),
-                      child: const Text('全取消'),
-                    ),
-                    const SizedBox(width: Gap.sm),
+                    // 一般使用習慣是「全選」在左、「全取消」在右（正向
+                    // 操作在前，取消/清空這種收斂動作在後）——原本兩顆
+                    // 位置反了（2026-09-22 使用者回饋）。
                     TextButton(
                       onPressed: _selectAll,
                       style: TextButton.styleFrom(
@@ -103,6 +96,16 @@ class _KanaExamRowSelectPageState extends State<KanaExamRowSelectPage> {
                         visualDensity: VisualDensity.compact,
                       ),
                       child: const Text('全選'),
+                    ),
+                    const SizedBox(width: Gap.sm),
+                    TextButton(
+                      onPressed: _selectNone,
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.ink2,
+                        padding: EdgeInsets.zero,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      child: const Text('全取消'),
                     ),
                   ],
                 ),

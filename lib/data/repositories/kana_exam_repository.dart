@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../../domain/models/kana_exam.dart';
+import '../seed/seed_merge.dart';
 import '../storage/key_value_store.dart';
 
 /// 50 音考試的存檔紀錄。
@@ -67,6 +68,23 @@ class KanaExamRepository {
     if (entries.isEmpty) return (0, 0);
     final correct = entries.where((e) => e.isCorrect).length;
     return (correct, entries.length);
+  }
+
+  /// 把考試紀錄快照（見 [loadKanaExamSeed]）併回本機，跟
+  /// [KanaPracticeRepository.mergeSeed] 同一套邏輯（共用
+  /// `seed_merge.dart` 的 [mergeSeedRecords]）：本機如果有跟快照同一個
+  /// `id` 的舊版本，換成快照那份——專案的版本為準，快照沒提到的 id，
+  /// 本機原本有的照樣留著（2026-09-22 使用者要求：考試紀錄也要有這套
+  /// 機制）。
+  Future<void> mergeSeed(List<KanaExamEntry> incoming) async {
+    if (incoming.isEmpty) return;
+    final merged = mergeSeedRecords(
+      local: await loadAll(),
+      seed: incoming,
+      idOf: (e) => e.id,
+      priority: SeedMergePriority.seed,
+    );
+    await _store.write(_key, jsonEncode([for (final e in merged) e.toJson()]));
   }
 
   /// 匯出整份考試紀錄給使用者存成真正的檔案，跟

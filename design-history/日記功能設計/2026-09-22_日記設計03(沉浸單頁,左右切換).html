@@ -1,0 +1,224 @@
+<!doctype html>
+<title>日記設計03・沉浸單頁版</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;800&family=Material+Symbols+Outlined&display=swap"
+/>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0c0c13;
+    --bg-deep: #0a0a10;
+    --panel-edge: rgba(255, 255, 255, 0.14);
+    --ink: #f3f2f8;
+    --ink2: #a3a2b2;
+    --ink3: #74738a;
+    --glass-edge: rgba(255, 255, 255, 0.14);
+    /* 03 用深紫，安靜、專注寫作的調性。 */
+    --accent: #a78bfa;
+    --accent-ink: #1c1430;
+    --amb-1: #4c2f8a;
+    --amb-2: #2a2450;
+    --amb-3: #5a2f6e;
+  }
+  * { box-sizing: border-box; }
+  /* min-height 而不是 height：見同批日記 mock 的說明——body 是 flex
+     column，height:100% 加上 flex-shrink 預設不是 0，內容一旦超過
+     視窗高度就會被壓扁，不會讓頁面往下捲（2026-09-22 使用者回報：
+     模擬畫面擠在一起、不能往下滑）。 */
+  html, body { margin: 0; min-height: 100%; background: var(--bg-deep); color: var(--ink); font-family: "Zen Kaku Gothic New", "Noto Sans TC", system-ui, sans-serif; }
+  body { padding-inline: 20px; padding-block: 32px 48px; display: flex; flex-direction: column; align-items: center; gap: 18px; }
+
+  .intro { max-width: 480px; width: 100%; text-align: center; }
+  .eyebrow { font-size: 12px; letter-spacing: 0.16em; color: #8b8690; text-transform: uppercase; }
+  .intro h1 { font-weight: 800; font-size: clamp(20px, 5vw, 24px); margin: 6px 0 8px; color: #f4f1f4; }
+  .intro p { margin: 0 0 4px; font-size: 13px; line-height: 1.7; color: #a9a4ad; max-width: 48ch; margin-inline: auto; }
+  .intro ul { text-align: left; max-width: 40ch; margin: 10px auto 0; padding-left: 18px; font-size: 12.5px; line-height: 1.8; color: #9d98a4; }
+
+  .phone { position: relative; width: 100%; max-width: 380px; height: 760px; flex-shrink: 0; border-radius: 34px; padding: 14px; isolation: isolate; overflow: hidden; background: var(--bg); box-shadow: 0 30px 70px -30px rgba(0,0,0,0.7); }
+  .amb { position: absolute; border-radius: 50%; filter: blur(55px); opacity: 0.5; z-index: -1; transition: background 0.4s ease; }
+  .amb-1 { width: 230px; height: 230px; top: -70px; left: -60px; background: var(--amb-1); }
+  .amb-2 { width: 210px; height: 210px; bottom: 90px; right: -80px; background: var(--amb-2); }
+  .amb-3 { width: 190px; height: 190px; bottom: -90px; left: 30px; background: var(--amb-3); }
+
+  .shell { position: relative; height: 100%; border-radius: 24px; padding: 18px 18px 16px; background: rgba(255,255,255,0.04); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); border: 1px solid var(--panel-edge); overflow: hidden; display: flex; flex-direction: column; }
+
+  /* 上方日期切換 */
+  .day-nav { display: flex; align-items: center; gap: 6px; flex: none; }
+  .nav-arrow {
+    appearance: none; border: 1px solid var(--glass-edge); background: rgba(255,255,255,0.04);
+    width: 32px; height: 32px; border-radius: 10px; color: var(--ink2);
+    display: flex; align-items: center; justify-content: center; cursor: pointer; flex: none;
+  }
+  .nav-arrow:hover { color: var(--ink); background: rgba(255,255,255,0.08); }
+  .nav-arrow:disabled { opacity: 0.3; cursor: default; }
+  .day-title { flex: 1; text-align: center; }
+  .day-title .dd { font-size: 17px; font-weight: 800; }
+  .day-title .yy { font-size: 10.5px; color: var(--ink3); margin-top: 1px; }
+
+  .center-area { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 10px 0; }
+
+  .mood-big { display: flex; gap: 10px; }
+  .mood-big button {
+    appearance: none; border: 1px solid var(--glass-edge); background: rgba(255,255,255,0.03);
+    width: 44px; height: 44px; border-radius: 14px; font-size: 21px; cursor: pointer;
+    transition: transform 0.12s ease, background 0.15s ease, border-color 0.15s ease;
+  }
+  .mood-big button.selected { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 26%, transparent); transform: scale(1.08); }
+
+  .prompt-text { font-size: 12px; color: var(--ink3); text-align: center; max-width: 26ch; }
+
+  .write-area { width: 100%; flex: 1; min-height: 0; display: flex; }
+  .write-area textarea {
+    width: 100%; height: 100%; resize: none; background: transparent; border: none;
+    color: var(--ink); font-family: inherit; font-size: 15px; line-height: 1.9; text-align: center;
+    padding: 0 4px;
+  }
+  .write-area textarea::placeholder { color: var(--ink3); }
+  .write-area textarea:focus { outline: none; }
+  .write-area.readonly textarea { text-align: left; font-size: 13.5px; }
+
+  .empty-state { display: flex; flex-direction: column; align-items: center; gap: 8px; color: var(--ink3); }
+  .empty-state .material-symbols-outlined { font-size: 30px; opacity: 0.7; }
+  .empty-state span.hint { font-size: 12px; }
+
+  .bottom-bar { flex: none; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .week-dots { display: flex; gap: 9px; }
+  .week-dots button {
+    appearance: none; border: none; background: rgba(255,255,255,0.12); width: 7px; height: 7px;
+    border-radius: 50%; cursor: pointer; padding: 0;
+  }
+  .week-dots button.has-entry { background: var(--accent); }
+  .week-dots button.current { width: 9px; height: 9px; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent); }
+  .save-row { display: flex; gap: 8px; width: 100%; }
+  .save-btn {
+    flex: 1; appearance: none; border: none; background: var(--accent); color: var(--accent-ink);
+    font-family: inherit; font-weight: 700; font-size: 13.5px; padding: 11px; border-radius: 12px; cursor: pointer;
+  }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="intro">
+  <p class="eyebrow">Lume · 日記設計 03（Mock，資料全假）</p>
+  <h1>一次只看一天，左右箭頭切換</h1>
+  <p>跟 01／02 都不一樣：完全不列清單，畫面永遠只有「這一天」。重點是降低翻找過去紀錄的干擾，專注在「今天要不要寫」這件事本身，像實體的每日一頁筆記本。</p>
+  <ul>
+    <li>頂部左右箭頭切換前一天／後一天，沒有日曆、沒有清單。</li>
+    <li>切到<b>還沒寫</b>的日子：只顯示一句引導提示（例如「今天有什麼讓你印象深刻？」）＋空白輸入框，鼓勵當場補寫。</li>
+    <li>切到<b>已經寫過</b>的日子：直接唯讀顯示那天寫的內容跟心情，不能誤觸修改。</li>
+    <li>底部一排小圓點代表最近一週，實心＝那天有寫，點掉的那顆比較大——取代日曆，位置固定不佔版面。</li>
+  </ul>
+</div>
+
+<div class="phone">
+  <div class="amb amb-1" id="amb1"></div>
+  <div class="amb amb-2"></div>
+  <div class="amb amb-3"></div>
+
+  <div class="shell">
+    <div class="day-nav">
+      <button class="nav-arrow" id="prevDay"><span class="material-symbols-outlined">chevron_left</span></button>
+      <div class="day-title">
+        <div class="dd" id="dayTitle">9 月 22 日・週二</div>
+        <div class="yy">2026</div>
+      </div>
+      <button class="nav-arrow" id="nextDay" disabled><span class="material-symbols-outlined">chevron_right</span></button>
+    </div>
+
+    <div class="center-area" id="centerArea"></div>
+
+    <div class="bottom-bar">
+      <div class="week-dots" id="weekDots"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // day: 22 是今天（無資料，可寫），其餘是過去（唯讀展示）
+  const DAYS = {
+    16: { weekday: '三', mood: null, text: null },
+    17: { weekday: '四', mood: '🙂', text: '把手寫練習的重播下載成 GIF，幀率調高之後順很多。' },
+    18: { weekday: '五', mood: null, text: null },
+    19: { weekday: '六', mood: '😔', text: 'ら行跟わ行寫一寫還是常常搞混，明天再多練幾次片假名看看。' },
+    20: { weekday: '日', mood: null, text: null },
+    21: { weekday: '一', mood: '🙂', text: '幫手寫考試紀錄加了單題重播，按「不會」沒寫的題目想了很久該怎麼呈現。' },
+    22: { weekday: '二', mood: null, text: null },
+  };
+  const dayKeys = Object.keys(DAYS).map(Number).sort((a, b) => a - b);
+  let cursor = 22;
+
+  const dayTitle = document.getElementById('dayTitle');
+  const centerArea = document.getElementById('centerArea');
+  const prevBtn = document.getElementById('prevDay');
+  const nextBtn = document.getElementById('nextDay');
+  const weekDots = document.getElementById('weekDots');
+  const MOODS = ['😄', '🙂', '😐', '😔', '😢'];
+  const PROMPTS = [
+    '今天有什麼讓你印象深刻？',
+    '有沒有什麼小事值得記一筆？',
+    '今天過得比昨天好一點嗎？',
+  ];
+
+  function render() {
+    const d = DAYS[cursor];
+    dayTitle.textContent = `9 月 ${cursor} 日・週${d.weekday}`;
+    prevBtn.disabled = cursor === dayKeys[0];
+    nextBtn.disabled = cursor === dayKeys[dayKeys.length - 1];
+
+    if (d.text) {
+      centerArea.innerHTML = `
+        <div class="mood-big">${MOODS.map(m => `<button class="${m === d.mood ? 'selected' : ''}" disabled>${m}</button>`).join('')}</div>
+        <div class="write-area readonly"><textarea readonly>${d.text}</textarea></div>
+      `;
+    } else {
+      const prompt = PROMPTS[cursor % PROMPTS.length];
+      centerArea.innerHTML = `
+        <div class="mood-big" id="moodPicker">${MOODS.map((m, i) => `<button data-i="${i}">${m}</button>`).join('')}</div>
+        <p class="prompt-text">${prompt}</p>
+        <div class="write-area"><textarea placeholder="寫幾句也好，不用很長……"></textarea></div>
+        <div class="save-row"><button class="save-btn" id="saveDay">儲存這一天</button></div>
+      `;
+      document.querySelectorAll('#moodPicker button').forEach(b => {
+        b.addEventListener('click', () => {
+          document.querySelectorAll('#moodPicker button').forEach(x => x.classList.remove('selected'));
+          b.classList.add('selected');
+        });
+      });
+      document.getElementById('saveDay').addEventListener('click', () => {
+        const textarea = centerArea.querySelector('textarea');
+        if (!textarea.value.trim()) return;
+        const selected = centerArea.querySelector('#moodPicker .selected');
+        DAYS[cursor] = { weekday: d.weekday, mood: selected ? MOODS[selected.dataset.i] : '🙂', text: textarea.value.trim() };
+        render();
+        renderDots();
+      });
+    }
+  }
+
+  function renderDots() {
+    weekDots.innerHTML = '';
+    dayKeys.forEach(k => {
+      const btn = document.createElement('button');
+      btn.className = (DAYS[k].text ? 'has-entry ' : '') + (k === cursor ? 'current' : '');
+      btn.addEventListener('click', () => { cursor = k; render(); renderDots(); });
+      weekDots.appendChild(btn);
+    });
+  }
+
+  prevBtn.addEventListener('click', () => {
+    const i = dayKeys.indexOf(cursor);
+    if (i > 0) { cursor = dayKeys[i - 1]; render(); renderDots(); }
+  });
+  nextBtn.addEventListener('click', () => {
+    const i = dayKeys.indexOf(cursor);
+    if (i < dayKeys.length - 1) { cursor = dayKeys[i + 1]; render(); renderDots(); }
+  });
+
+  render();
+  renderDots();
+</script>

@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
@@ -85,6 +86,16 @@ class AppSideDrawer extends StatelessWidget {
                     // 導一次頁——目前 App 只有這一個大類別是真的做出來的。
                     onTap: () => Navigator.of(context).pop(),
                   ),
+                  _NavItem(
+                    icon: Icons.auto_stories_rounded,
+                    label: '日記',
+                    // 日記做出來了（2026-09-22），從「敬請期待」那組
+                    // 移出來變成真的可以點的大類別，跟語言學習同一層。
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      context.push('/diary');
+                    },
+                  ),
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 10),
                     child: Divider(height: 1, color: AppColors.glassEdge),
@@ -114,10 +125,6 @@ class AppSideDrawer extends StatelessWidget {
                   ),
                   const _MockNavItem(icon: Icons.alarm_rounded, label: '鬧鐘'),
                   const _MockNavItem(icon: Icons.timer_rounded, label: '碼錶'),
-                  const _MockNavItem(
-                    icon: Icons.auto_stories_rounded,
-                    label: '日記',
-                  ),
                 ],
               ),
             ),

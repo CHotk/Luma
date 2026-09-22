@@ -10,6 +10,8 @@ import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
 import '../../data/export/file_download.dart';
 import '../../data/repositories/kana_exam_repository.dart';
+import '../../data/seed/kana_exam_seed_loader.dart';
+import '../../data/seed/seed_merge.dart';
 import '../../domain/models/kana_exam.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../kana_practice/kana_paper.dart';
@@ -32,10 +34,32 @@ class _KanaExamHistoryPageState extends ConsumerState<KanaExamHistoryPage> {
   /// null 表示「全部」。
   String? _typeFilter;
 
+  /// 這台瀏覽器 localStorage 原本有幾筆、專案內建快照有幾筆——都是
+  /// 「合併前」的數字，合併之後兩者的界線就看不出來了，所以要在合併
+  /// 前先記下來，跟 [KanaPracticeHistoryPage] 同一套（2026-09-21 那邊
+  /// 使用者要求的「要能分別看到專案內建跟本機瀏覽器各自有幾筆」，考試
+  /// 紀錄比照辦理）。
+  int? _localCountBeforeMerge;
+  int? _seedCount;
+
   @override
   void initState() {
     super.initState();
-    _future = ref.read(kanaExamRepositoryProvider).loadAll();
+    _future = _loadWithSeedMerge();
+  }
+
+  /// 打開這頁那一瞬間先把考試紀錄快照（見 [loadKanaExamSeed]）併回
+  /// 本機，再讀出來顯示——跟
+  /// `kana_practice_history_page.dart` 的 `_loadWithSeedMerge` 同一套
+  /// （2026-09-22 使用者要求：考試紀錄也要有這套機制）。
+  Future<List<KanaExamEntry>> _loadWithSeedMerge() async {
+    final repo = ref.read(kanaExamRepositoryProvider);
+    final localBefore = await repo.loadAll();
+    final seed = await loadKanaExamSeed();
+    _localCountBeforeMerge = localBefore.length;
+    _seedCount = seed.length;
+    if (seed.isNotEmpty) await repo.mergeSeed(seed);
+    return repo.loadAll();
   }
 
   void _reload() {
@@ -239,6 +263,30 @@ class _KanaExamHistoryPageState extends ConsumerState<KanaExamHistoryPage> {
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
+                          if (_localCountBeforeMerge != null &&
+                              _seedCount != null)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: Gap.sm),
+                              child: Wrap(
+                                spacing: 6,
+                                runSpacing: 4,
+                                children: [
+                                  _SourceCountChip(
+                                    label: '這台瀏覽器',
+                                    count: _localCountBeforeMerge!,
+                                  ),
+                                  _SourceCountChip(
+                                    label: '專案內建快照',
+                                    count: _seedCount!,
+                                  ),
+                                  _SourceCountChip(
+                                    label: '合併後共',
+                                    count: all.length,
+                                    emphasize: true,
+                                  ),
+                                ],
+                              ),
+                            ),
                           Row(
                             children: [
                               _FilterChip(
@@ -341,6 +389,49 @@ class _FilterChip extends StatelessWidget {
             fontWeight: FontWeight.w600,
             color: selected ? AppColors.ink : AppColors.ink2,
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 純顯示用的小標籤，不可點——跟 [_FilterChip] 長得像但語意不同，
+/// 這裡是「資料來源各有幾筆」的說明，不是篩選條件，跟
+/// `kana_practice_history_page.dart` 的同名 widget 同一套樣式
+/// （2026-09-22 使用者要求：考試紀錄也要能分別看到專案內建跟本機
+/// 瀏覽器各自有幾筆）。
+class _SourceCountChip extends StatelessWidget {
+  const _SourceCountChip({
+    required this.label,
+    required this.count,
+    this.emphasize = false,
+  });
+
+  final String label;
+  final int count;
+  final bool emphasize;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: emphasize
+            ? AppColors.jpAccent.withValues(alpha: 0.16)
+            : AppColors.glassFill,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: emphasize
+              ? AppColors.jpAccent.withValues(alpha: 0.4)
+              : AppColors.glassEdge,
+        ),
+      ),
+      child: Text(
+        '$label $count 筆',
+        style: TextStyle(
+          fontSize: 11.5,
+          fontWeight: FontWeight.w600,
+          color: emphasize ? AppColors.jpAccent : AppColors.ink3,
         ),
       ),
     );
@@ -771,6 +862,12 @@ Future<void> _showExportDialog(BuildContext context, WidgetRef ref) async {
   );
 }
 
+/// 匯出的範圍：只匯出這台裝置 localStorage 裡的，還是連專案已經打包
+/// 好的考試紀錄快照一起，跟 `kana_practice_history_page.dart` 的
+/// `_ExportScope` 同一個用途（2026-09-22 使用者要求：考試紀錄也要有
+/// 這套機制）。
+enum _ExportScope { localOnly, withSeed }
+
 class _ExportDialog extends StatefulWidget {
   const _ExportDialog({required this.repo});
 
@@ -781,8 +878,41 @@ class _ExportDialog extends StatefulWidget {
 }
 
 class _ExportDialogState extends State<_ExportDialog> {
-  late final Future<({String text, int count})> _future = widget.repo
-      .exportJson();
+  _ExportScope _scope = _ExportScope.localOnly;
+  late Future<({String text, int count})> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _build(_scope);
+  }
+
+  Future<({String text, int count})> _build(_ExportScope scope) async {
+    if (scope == _ExportScope.localOnly) {
+      return widget.repo.exportJson();
+    }
+    final merged = mergeSeedRecords(
+      local: await widget.repo.loadAll(),
+      seed: await loadKanaExamSeed(),
+      idOf: (e) => e.id,
+      // 本機為準：要的是「補齊這台裝置漏掉、但專案快照裡已經有」的
+      // 紀錄，不是拿快照蓋掉這台裝置剛考的東西。
+      priority: SeedMergePriority.local,
+    );
+    const encoder = JsonEncoder.withIndent('  ');
+    return (
+      text: encoder.convert([for (final e in merged) e.toJson()]),
+      count: merged.length,
+    );
+  }
+
+  void _setScope(_ExportScope scope) {
+    if (scope == _scope) return;
+    setState(() {
+      _scope = scope;
+      _future = _build(scope);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -795,27 +925,58 @@ class _ExportDialogState extends State<_ExportDialog> {
         textAlign: TextAlign.center,
         style: TextStyle(color: AppColors.ink),
       ),
-      content: FutureBuilder<({String text, int count})>(
-        future: _future,
-        builder: (context, snap) {
-          if (!snap.hasData) {
-            return const Padding(
-              padding: EdgeInsets.symmetric(vertical: Gap.md),
-              child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SegmentedButton<_ExportScope>(
+            segments: const [
+              ButtonSegment(
+                value: _ExportScope.localOnly,
+                label: Text('僅這台裝置'),
               ),
-            );
-          }
-          final data = snap.data!;
-          final sizeLabel = _formatExportSize(utf8.encode(data.text).length);
-          return Text(
-            '$filename\n共 ${data.count} 筆 ・ 約 $sizeLabel',
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 12, color: AppColors.ink3),
-          );
-        },
+              ButtonSegment(
+                value: _ExportScope.withSeed,
+                label: Text('連考試紀錄快照一起'),
+              ),
+            ],
+            selected: {_scope},
+            onSelectionChanged: (s) => _setScope(s.first),
+            style: SegmentedButton.styleFrom(
+              backgroundColor: AppColors.glassFill,
+              foregroundColor: AppColors.ink2,
+              selectedBackgroundColor: AppColors.jpAccent.withValues(
+                alpha: 0.28,
+              ),
+              selectedForegroundColor: AppColors.ink,
+              side: const BorderSide(color: AppColors.glassEdge),
+            ),
+          ),
+          const SizedBox(height: Gap.sm),
+          FutureBuilder<({String text, int count})>(
+            future: _future,
+            builder: (context, snap) {
+              if (!snap.hasData) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: Gap.md),
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                );
+              }
+              final data = snap.data!;
+              final sizeLabel = _formatExportSize(
+                utf8.encode(data.text).length,
+              );
+              return Text(
+                '$filename\n共 ${data.count} 筆 ・ 約 $sizeLabel',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 12, color: AppColors.ink3),
+              );
+            },
+          ),
+        ],
       ),
       actionsAlignment: MainAxisAlignment.center,
       actions: [

@@ -15,6 +15,7 @@ import '../../data/export/file_download.dart';
 import '../../data/repositories/kana_practice_repository.dart';
 import '../../data/seed/app_defaults_loader.dart';
 import '../../data/seed/kana_practice_seed_loader.dart';
+import '../../data/seed/seed_merge.dart';
 import '../../domain/models/kana_practice.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/glass_card.dart';
@@ -379,16 +380,14 @@ class _ExportDialogState extends State<_ExportDialog> {
     if (scope == _ExportScope.localOnly) {
       return widget.repo.exportJson();
     }
-    final local = await widget.repo.loadAll();
-    final seed = await loadKanaPracticeSeed();
-    // 本機為準：本機有的 id 蓋掉快照那份，本機沒有、快照有的才補上
-    // ——這裡要的是「補齊這台裝置漏掉、但專案快照裡已經有」的
-    // 紀錄，不是拿快照蓋掉這台裝置剛練的東西。
-    final byId = {for (final e in seed) e.id: e};
-    for (final e in local) {
-      byId[e.id] = e;
-    }
-    final merged = byId.values.toList();
+    final merged = mergeSeedRecords(
+      local: await widget.repo.loadAll(),
+      seed: await loadKanaPracticeSeed(),
+      idOf: (e) => e.id,
+      // 本機為準：要的是「補齊這台裝置漏掉、但專案快照裡已經有」的
+      // 紀錄，不是拿快照蓋掉這台裝置剛練的東西。
+      priority: SeedMergePriority.local,
+    );
     const encoder = JsonEncoder.withIndent('  ');
     return (
       text: encoder.convert([for (final e in merged) e.toJson()]),

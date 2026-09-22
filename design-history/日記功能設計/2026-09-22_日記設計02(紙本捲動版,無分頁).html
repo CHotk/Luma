@@ -1,0 +1,249 @@
+<!doctype html>
+<title>日記設計02・紙本捲動版</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;800&family=Noto+Serif+TC:wght@400;600&family=Material+Symbols+Outlined&display=swap"
+/>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0c0c13;
+    --bg-deep: #0a0a10;
+    --panel-edge: rgba(255, 255, 255, 0.14);
+    --ink: #f3f2f8;
+    --ink2: #a3a2b2;
+    --ink3: #74738a;
+    --glass-edge: rgba(255, 255, 255, 0.14);
+    /* 02 用赤陶紅棕，跟 01 的金黃分開，紙本／手寫感比較重。 */
+    --accent: #d98b6d;
+    --accent-ink: #2a1710;
+    --amb-1: #6e3322;
+    --amb-2: #4a2a52;
+    --amb-3: #7a4a30;
+  }
+  * { box-sizing: border-box; }
+  /* min-height 而不是 height：body 是 flex column，height:100% 加上
+     flex-shrink 預設不是 0，intro 文字＋手機框加起來一旦超過視窗高度，
+     瀏覽器會把整個手機框壓扁塞進去，而不是讓頁面往下捲（2026-09-22
+     使用者回報：模擬畫面擠在一起、不能往下滑，這才是真正原因，
+     不是本機環境問題）。 */
+  html, body { margin: 0; min-height: 100%; background: var(--bg-deep); color: var(--ink); font-family: "Zen Kaku Gothic New", "Noto Sans TC", system-ui, sans-serif; }
+  body { padding-inline: 20px; padding-block: 32px 48px; display: flex; flex-direction: column; align-items: center; gap: 18px; }
+
+  .intro { max-width: 480px; width: 100%; text-align: center; }
+  .eyebrow { font-size: 12px; letter-spacing: 0.16em; color: #8b8690; text-transform: uppercase; }
+  .intro h1 { font-weight: 800; font-size: clamp(20px, 5vw, 24px); margin: 6px 0 8px; color: #f4f1f4; }
+  .intro p { margin: 0 0 4px; font-size: 13px; line-height: 1.7; color: #a9a4ad; max-width: 48ch; margin-inline: auto; }
+  .intro ul { text-align: left; max-width: 40ch; margin: 10px auto 0; padding-left: 18px; font-size: 12.5px; line-height: 1.8; color: #9d98a4; }
+
+  .phone { position: relative; width: 100%; max-width: 380px; height: 760px; flex-shrink: 0; border-radius: 34px; padding: 14px; isolation: isolate; overflow: hidden; background: var(--bg); box-shadow: 0 30px 70px -30px rgba(0,0,0,0.7); }
+  .amb { position: absolute; border-radius: 50%; filter: blur(52px); opacity: 0.46; z-index: -1; }
+  .amb-1 { width: 220px; height: 220px; top: -70px; left: -60px; background: var(--amb-1); }
+  .amb-2 { width: 200px; height: 200px; bottom: 80px; right: -70px; background: var(--amb-2); }
+  .amb-3 { width: 190px; height: 190px; bottom: -90px; left: 30px; background: var(--amb-3); }
+
+  .shell { position: relative; height: 100%; border-radius: 24px; padding: 16px 16px 0; background: rgba(255,255,255,0.04); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); border: 1px solid var(--panel-edge); overflow: hidden; display: flex; flex-direction: column; }
+
+  .topbar { display: flex; align-items: baseline; gap: 8px; flex: none; padding-bottom: 10px; }
+  .topbar-title { font-weight: 800; font-size: 16px; }
+  .topbar-sub { font-size: 11px; color: var(--ink3); margin-left: auto; }
+
+  /* 日期跳轉條 */
+  .date-strip { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 12px; flex: none; scrollbar-width: none; }
+  .date-strip::-webkit-scrollbar { display: none; }
+  .date-chip {
+    flex: none; display: flex; flex-direction: column; align-items: center; gap: 2px;
+    width: 40px; padding: 7px 0; border-radius: 12px; cursor: pointer;
+    background: rgba(255,255,255,0.03); border: 1px solid var(--glass-edge); color: var(--ink3);
+  }
+  .date-chip .dd { font-size: 13px; font-weight: 800; color: var(--ink); }
+  .date-chip .ww { font-size: 9px; }
+  .date-chip.has-entry { color: var(--accent); }
+  .date-chip.has-entry::after { content: ""; width: 4px; height: 4px; border-radius: 50%; background: var(--accent); margin-top: 1px; }
+  .date-chip.active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 16%, transparent); }
+
+  .feed { flex: 1; min-height: 0; overflow-y: auto; padding-bottom: 20px; display: flex; flex-direction: column; gap: 14px; }
+
+  /* 常駐頂部的內嵌寫作卡 */
+  .quick-write {
+    border-radius: 16px; padding: 12px 14px; flex: none;
+    background: color-mix(in srgb, var(--accent) 10%, rgba(255,255,255,0.035));
+    border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--glass-edge));
+  }
+  .quick-write .prompt { font-size: 12.5px; color: var(--ink2); margin-bottom: 8px; }
+  .quick-write textarea {
+    width: 100%; min-height: 40px; resize: none; background: transparent; border: none;
+    color: var(--ink); font-family: inherit; font-size: 13px; line-height: 1.6; padding: 0;
+  }
+  .quick-write textarea::placeholder { color: var(--ink3); }
+  .quick-write textarea:focus { outline: none; }
+  .quick-write-expand { display: flex; align-items: center; gap: 8px; margin-top: 10px; max-height: 0; overflow: hidden; transition: max-height 0.25s ease; }
+  .quick-write.focused .quick-write-expand { max-height: 50px; }
+  .mini-mood { display: flex; gap: 5px; }
+  .mini-mood button { appearance: none; border: 1px solid var(--glass-edge); background: rgba(255,255,255,0.03); width: 28px; height: 28px; border-radius: 8px; font-size: 14px; cursor: pointer; }
+  .mini-mood button.selected { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 26%, transparent); }
+  .quick-save { margin-left: auto; appearance: none; border: none; background: var(--accent); color: var(--accent-ink); font-family: inherit; font-weight: 700; font-size: 12px; padding: 7px 14px; border-radius: 9px; cursor: pointer; }
+
+  /* 日記頁卡片，紙本感 */
+  .page {
+    border-radius: 4px 16px 16px 4px; padding: 14px 15px 14px 16px;
+    background: rgba(255,255,255,0.032);
+    border: 1px solid var(--panel-edge);
+    border-left: 3px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  }
+  .page-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .page-head .pd { font-weight: 800; font-size: 13.5px; color: var(--ink); }
+  .page-head .pw { font-size: 11px; color: var(--ink3); }
+  .page-head .mood { margin-left: auto; font-size: 17px; }
+  .page-text { font-family: "Noto Serif TC", "Zen Kaku Gothic New", serif; font-size: 13px; line-height: 1.85; color: var(--ink2); }
+  .page-tags { display: flex; gap: 5px; margin-top: 9px; flex-wrap: wrap; }
+  .tag-chip { font-size: 10px; font-weight: 600; color: var(--ink2); background: rgba(255,255,255,0.055); border: 1px solid var(--glass-edge); padding: 2px 7px; border-radius: 999px; }
+
+  /* 週回顧卡，穿插在 feed 裡 */
+  .recap {
+    border-radius: 14px; padding: 11px 14px; text-align: center;
+    background: transparent; border: 1px dashed color-mix(in srgb, var(--accent) 40%, var(--glass-edge));
+    font-size: 11.5px; color: var(--ink3);
+  }
+  .recap b { color: var(--accent); }
+  .recap .dots { display: flex; justify-content: center; gap: 5px; margin-top: 7px; }
+  .recap .dots span { font-size: 13px; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="intro">
+  <p class="eyebrow">Lume · 日記設計 02（Mock，資料全假）</p>
+  <h1>沒有分頁，像翻一本本子一路往下捲</h1>
+  <p>跟 01 最大的差別：拿掉底部分頁跟浮動按鈕、拿掉彈出視窗。寫日記的欄位常駐在最上面，往下捲就是過去寫過的內容，像真的在翻一本筆記本。</p>
+  <ul>
+    <li>頂部一條可橫向滑動的<b>日期跳轉條</b>，有寫過的日子下面點一個小點，點日期會捲到那天（mock 只做視覺提示，捲動未接）。</li>
+    <li>最上面是<b>常駐輸入框</b>：點下去才展開心情選擇跟「儲存」按鈕，平常收起來只佔一行，降低「今天還沒寫」的心理負擔。</li>
+    <li>每篇日記用<b>襯線字體＋左側色條</b>呈現，讀起來比表格化的卡片更像紙本筆記，不截斷內容。</li>
+    <li>每隔幾篇穿插一張<b>週回顧</b>虛線卡（一句話總結＋心情表情序列），不用另外切去統計頁看。</li>
+  </ul>
+</div>
+
+<div class="phone">
+  <div class="amb amb-1"></div>
+  <div class="amb amb-2"></div>
+  <div class="amb amb-3"></div>
+
+  <div class="shell">
+    <div class="topbar">
+      <span class="topbar-title">日記</span>
+      <span class="topbar-sub">2026 年 9 月</span>
+    </div>
+
+    <div class="date-strip" id="dateStrip"></div>
+
+    <div class="feed" id="feed">
+      <div class="quick-write" id="quickWrite">
+        <p class="prompt">9 月 22 日・今天想寫點什麼？</p>
+        <textarea id="qwText" placeholder="隨手記幾句也可以……" rows="1"></textarea>
+        <div class="quick-write-expand">
+          <div class="mini-mood">
+            <button class="selected" data-mood="😄">😄</button>
+            <button data-mood="🙂">🙂</button>
+            <button data-mood="😐">😐</button>
+            <button data-mood="😔">😔</button>
+            <button data-mood="😢">😢</button>
+          </div>
+          <button class="quick-save" id="qwSave">儲存</button>
+        </div>
+      </div>
+      <!-- 過去日記 + 週回顧，由 JS 產生 -->
+      <div id="pastEntries"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const ENTRIES = [
+    { day: 21, weekday: '一', mood: '🙂', text: '幫手寫考試紀錄加了單題重播，按「不會」沒寫的題目想了很久該怎麼呈現才不會誤導成有標準答案，最後決定就老實顯示空白紙。', tags: ['專案'] },
+    { day: 19, weekday: '六', mood: '😔', text: 'ら行跟わ行寫一寫還是常常搞混，明天再多練幾次片假名看看，感覺是手感問題不是記不熟。', tags: ['日文', '五十音'] },
+    { day: 17, weekday: '四', mood: '🙂', text: '把手寫練習的重播下載成 GIF，幀率調高之後順很多，之前那個版本看起來像在頓格。', tags: ['專案'] },
+    { day: 15, weekday: '二', mood: '😄', text: '待複習／新字／已掌握的排程規則終於照想要的方式跑起來了，晚上驗證一輪都對，很有成就感。', tags: [] },
+    { day: 12, weekday: '六', mood: '😄', text: '休息的一天，沒碰專案，純粹看書。偶爾這樣放空一天感覺也是必要的。', tags: ['生活'] },
+  ];
+  const entryDays = new Set(ENTRIES.map(e => e.day));
+  entryDays.add(22);
+
+  const dateStrip = document.getElementById('dateStrip');
+  const START_DOW = 2; // 2026-09-01 週二
+  for (let d = 1; d <= 30; d++) {
+    const dow = (START_DOW + d - 1) % 7;
+    const weekdayLabels = ['日','一','二','三','四','五','六'];
+    const chip = document.createElement('div');
+    chip.className = 'date-chip' + (entryDays.has(d) ? ' has-entry' : '') + (d === 22 ? ' active' : '');
+    chip.dataset.day = d;
+    chip.innerHTML = `<span class="dd">${d}</span><span class="ww">週${weekdayLabels[dow]}</span>`;
+    // 原本這顆有 cursor:pointer 但完全沒綁事件，點了沒反應
+    // （2026-09-22 使用者回報：看起來能點的東西沒真的可以點）。
+    // 有日記的日子點了捲到那篇，沒有的日子點了捲回最上面的輸入框。
+    chip.addEventListener('click', () => {
+      dateStrip.querySelectorAll('.date-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      const page = past.querySelector(`[data-day="${d}"]`);
+      (page ?? quickWrite).scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+    dateStrip.appendChild(chip);
+  }
+  // 預設捲到今天附近
+  requestAnimationFrame(() => {
+    const active = dateStrip.querySelector('.active');
+    if (active) dateStrip.scrollLeft = active.offsetLeft - 20;
+  });
+
+  const past = document.getElementById('pastEntries');
+  ENTRIES.forEach((e, i) => {
+    const page = document.createElement('div');
+    page.className = 'page';
+    page.dataset.day = e.day;
+    page.style.marginTop = i === 0 ? '14px' : '';
+    page.innerHTML = `
+      <div class="page-head">
+        <span class="pd">9 月 ${e.day} 日</span>
+        <span class="pw">週${e.weekday}</span>
+        <span class="mood">${e.mood}</span>
+      </div>
+      <div class="page-text">${e.text}</div>
+      ${e.tags.length ? `<div class="page-tags">${e.tags.map(t => `<span class="tag-chip">#${t}</span>`).join('')}</div>` : ''}
+    `;
+    past.appendChild(page);
+    past.appendChild(document.createElement('div')).style.height = '14px';
+
+    // 每 2 篇插一張週回顧
+    if (i === 1) {
+      const recap = document.createElement('div');
+      recap.className = 'recap';
+      recap.innerHTML = `<b>本週回顧</b>　寫了 2 篇，心情偏正向<div class="dots"><span>🙂</span><span>😔</span></div>`;
+      past.appendChild(recap);
+      past.appendChild(document.createElement('div')).style.height = '14px';
+    }
+  });
+
+  // 輸入框展開/收合
+  const qwText = document.getElementById('qwText');
+  const quickWrite = document.getElementById('quickWrite');
+  qwText.addEventListener('focus', () => quickWrite.classList.add('focused'));
+  qwText.addEventListener('input', () => {
+    qwText.style.height = 'auto';
+    qwText.style.height = qwText.scrollHeight + 'px';
+  });
+  document.querySelectorAll('.mini-mood button').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('.mini-mood button').forEach(x => x.classList.remove('selected'));
+      b.classList.add('selected');
+    });
+  });
+  document.getElementById('qwSave').addEventListener('click', () => {
+    if (!qwText.value.trim()) return;
+    qwText.value = '';
+    quickWrite.classList.remove('focused');
+  });
+</script>

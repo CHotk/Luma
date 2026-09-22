@@ -1,5 +1,6 @@
 import 'package:go_router/go_router.dart';
 
+import '../features/diary/diary_page.dart';
 import '../features/history/history_page.dart';
 import '../features/history/round_detail_page.dart';
 import '../features/home/home_page.dart';
@@ -91,6 +92,7 @@ final appRouter = GoRouter(
         ),
       ],
     ),
+    GoRoute(path: '/diary', builder: (_, _) => const DiaryPage()),
     GoRoute(path: '/mastered', builder: (_, _) => const MasteredPage()),
     GoRoute(path: '/notes', builder: (_, _) => const NotesPage()),
     GoRoute(path: '/settings', builder: (_, _) => const SettingsPage()),

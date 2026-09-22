@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../data/repositories/diary_repository.dart';
 import '../data/repositories/history_repository.dart';
 import '../data/repositories/kana_exam_repository.dart';
 import '../data/repositories/kana_practice_repository.dart';
@@ -45,6 +46,10 @@ final kanaPracticeRepositoryProvider = Provider<KanaPracticeRepository>(
 
 final kanaExamRepositoryProvider = Provider<KanaExamRepository>(
   (ref) => KanaExamRepository(ref.watch(keyValueStoreProvider)),
+);
+
+final diaryRepositoryProvider = Provider<DiaryRepository>(
+  (ref) => DiaryRepository(ref.watch(keyValueStoreProvider)),
 );
 
 final historyRepositoryProvider = Provider<HistoryRepository>(

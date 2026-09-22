@@ -72,4 +72,10 @@ abstract final class AppColors {
   static const jpAmb2 = Color(0xFF6B3550);
   static const jpAmb3 = Color(0xFF2E2440);
   static const jpAmb4 = Color(0xFF7A3F55);
+
+  /// 日記功能主色（設計稿 04 定案，見 `design-history/`）。日記不是
+  /// 語言學習的一部分，用鼠尾草綠跟英文軌道的藍、日文軌道的櫻分開，
+  /// 低摩擦打卡的調性。
+  static const diaryAccent = Color(0xFF8FBF9F);
+  static const diaryAccentInk = Color(0xFF10241A);
 }
