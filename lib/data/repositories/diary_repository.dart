@@ -34,6 +34,16 @@ class DiaryRepository {
     await _store.write(_key, jsonEncode([for (final e in all) e.toJson()]));
   }
 
+  /// 編輯某一篇的心情／文字，`id` 跟 `savedAt`（原始打卡時間）不變——
+  /// 編輯只是改內容，不是重新打卡一次。找不到對應 `id` 就當沒這回事。
+  Future<void> update(DiaryEntry entry) async {
+    final all = await loadAll();
+    final index = all.indexWhere((e) => e.id == entry.id);
+    if (index == -1) return;
+    all[index] = entry;
+    await _store.write(_key, jsonEncode([for (final e in all) e.toJson()]));
+  }
+
   /// 把日記快照（見 [loadDiarySeed]）併回本機，跟
   /// [KanaPracticeRepository.mergeSeed]／[KanaExamRepository.mergeSeed]
   /// 同一套邏輯（共用 `seed_merge.dart` 的 [mergeSeedRecords]）：本機

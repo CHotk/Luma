@@ -493,42 +493,58 @@ class _KanaExamPageState extends ConsumerState<KanaExamPage> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: Gap.xl),
-                Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    SizedBox(
-                      width: 148,
-                      height: 148,
-                      child: CircularProgressIndicator(
-                        value: total == 0 ? 0 : _correctCount / total,
-                        strokeWidth: 10,
-                        strokeCap: StrokeCap.round,
-                        backgroundColor: AppColors.glassFill,
-                        valueColor: const AlwaysStoppedAnimation(
-                          AppColors.jpAccent,
-                        ),
-                      ),
-                    ),
-                    Column(
-                      mainAxisSize: MainAxisSize.min,
+                // 結算圈圈跟百分比數字一起從 0 動態跑到最終正確率（例如
+                // 40% 就從 0 跑到 40），不是一開場就直接靜態顯示結果
+                // （2026-09-22 使用者要求）。TweenAnimationBuilder 一進
+                // 這個畫面就自動跑一次，不用自己管 AnimationController
+                // 的生命週期。
+                TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0, end: total == 0 ? 0 : _correctCount / total),
+                  duration: const Duration(milliseconds: 900),
+                  curve: Curves.easeOutCubic,
+                  builder: (context, value, _) {
+                    final animatedAccuracy = (value * 100).round();
+                    return Stack(
+                      alignment: Alignment.center,
                       children: [
-                        Text(
-                          '$accuracy%',
-                          style: const TextStyle(
-                            fontSize: 36,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.jpAccent,
-                            height: 1,
+                        SizedBox(
+                          width: 148,
+                          height: 148,
+                          child: CircularProgressIndicator(
+                            value: value,
+                            strokeWidth: 10,
+                            strokeCap: StrokeCap.round,
+                            backgroundColor: AppColors.glassFill,
+                            valueColor: const AlwaysStoppedAnimation(
+                              AppColors.jpAccent,
+                            ),
                           ),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '$_correctCount / $total 題',
-                          style: TextStyle(fontSize: 13, color: AppColors.ink3),
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '$animatedAccuracy%',
+                              style: const TextStyle(
+                                fontSize: 36,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.jpAccent,
+                                height: 1,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '$_correctCount / $total 題',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: AppColors.ink3,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
-                    ),
-                  ],
+                    );
+                  },
                 ),
                 const SizedBox(height: Gap.sm),
                 Text(

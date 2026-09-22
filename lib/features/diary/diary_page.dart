@@ -14,13 +14,17 @@ import '../../data/seed/diary_seed_loader.dart';
 import '../../data/seed/seed_merge.dart';
 import '../../domain/models/diary_entry.dart';
 import '../../shared/widgets/ambient_background.dart';
+import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/glass_card.dart';
+
+/// 打開日記詳情（點某一篇）之後可以選的動作。
+enum _EntryAction { edit, delete }
 
 /// 日記功能。走「極簡打卡」路線（設計稿 04），頂部日期跳轉條借設計稿
 /// 02 的版面（2026-09-22 使用者拍板：頂部日期用 02 的，其餘照 04）。
 ///
-/// 一天原則上打卡一次：今天已經記錄過，打卡卡會鎖住，要改就長按
-/// 下面列表那一則刪掉重打，不是無限疊加同一天的紀錄。
+/// 一天原則上打卡一次：那一天已經記錄過，打卡卡會鎖住，要改就點下面
+/// 列表那一則編輯，或刪掉重打，不是無限疊加同一天的紀錄。
 class DiaryPage extends ConsumerStatefulWidget {
   const DiaryPage({super.key});
 
@@ -32,6 +36,12 @@ class _DiaryPageState extends ConsumerState<DiaryPage> {
   late Future<List<DiaryEntry>> _future;
   final _textController = TextEditingController();
   String _mood = diaryMoods.first;
+  // 0 = 今天／1 = 昨天／2 = 前天，補寫之前忘記打卡的日子用
+  // （2026-09-22 使用者要求：怕 12 點才寫或忘記寫一天）。
+  int _dayOffset = 0;
+  // 點頂部日期條選中的那一天，非 null 時下面列表只顯示那一天
+  // （2026-09-22 使用者要求：選日期要讓下面直接跳到那天）。
+  DateTime? _selectedDay;
 
   @override
   void initState() {
@@ -60,25 +70,36 @@ class _DiaryPageState extends ConsumerState<DiaryPage> {
     });
   }
 
+  void _selectDay(DateTime day) {
+    setState(() {
+      _selectedDay = _selectedDay != null && isSameDay(_selectedDay!, day)
+          ? null
+          : day;
+    });
+  }
+
   Future<void> _submit() async {
     final text = _textController.text.trim();
     if (text.isEmpty) return;
     final repo = ref.read(diaryRepositoryProvider);
+    final now = DateTime.now();
     await repo.add(
       DiaryEntry(
-        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        id: now.microsecondsSinceEpoch.toString(),
         mood: _mood,
         text: text,
-        savedAt: DateTime.now(),
+        // 補寫昨天／前天：日期往回推，但時分照實際送出的當下記錄。
+        savedAt: now.subtract(Duration(days: _dayOffset)),
       ),
     );
     _textController.clear();
     _mood = diaryMoods.first;
+    _dayOffset = 0;
     _reload();
   }
 
   Future<void> _showEntry(DiaryEntry entry) async {
-    final action = await showModalBottomSheet<bool>(
+    final action = await showModalBottomSheet<_EntryAction>(
       context: context,
       backgroundColor: const Color(0xFF1A1A24),
       shape: const RoundedRectangleBorder(
@@ -95,28 +116,145 @@ class _DiaryPageState extends ConsumerState<DiaryPage> {
                 children: [
                   Text(entry.mood, style: const TextStyle(fontSize: 22)),
                   const SizedBox(width: Gap.sm),
-                  Text(_dateLabel(entry.savedAt), style: AppText.bodyDim),
+                  Expanded(
+                    child: Text(_dateLabel(entry.savedAt), style: AppText.bodyDim),
+                  ),
                 ],
               ),
               const SizedBox(height: Gap.sm),
               Text(entry.text, style: AppText.body),
               const SizedBox(height: Gap.md),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton.icon(
-                  onPressed: () => Navigator.pop(sheetContext, true),
-                  icon: const Icon(Icons.delete_outline, size: 16),
-                  label: const Text('刪除這篇'),
-                  style: TextButton.styleFrom(foregroundColor: AppColors.bad),
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton.icon(
+                    onPressed: () => Navigator.pop(sheetContext, _EntryAction.edit),
+                    icon: const Icon(Icons.edit_outlined, size: 16),
+                    label: const Text('編輯'),
+                    style: TextButton.styleFrom(foregroundColor: AppColors.ink2),
+                  ),
+                  const SizedBox(width: Gap.xs),
+                  TextButton.icon(
+                    onPressed: () =>
+                        Navigator.pop(sheetContext, _EntryAction.delete),
+                    icon: const Icon(Icons.delete_outline, size: 16),
+                    label: const Text('刪除'),
+                    style: TextButton.styleFrom(foregroundColor: AppColors.bad),
+                  ),
+                ],
               ),
             ],
           ),
         ),
       ),
     );
-    if (action != true) return;
-    await ref.read(diaryRepositoryProvider).delete(entry.id);
+    if (action == _EntryAction.edit) {
+      await _showEditDialog(entry);
+    } else if (action == _EntryAction.delete) {
+      final confirmed = await _confirmDelete(entry);
+      if (confirmed != true) return;
+      await ref.read(diaryRepositoryProvider).delete(entry.id);
+      if (!mounted) return;
+      _reload();
+    }
+  }
+
+  /// 刪除是不可逆動作，點「刪除」只是打開這篇的操作選單，還要再確認
+  /// 一次才會真的刪（2026-09-22 使用者要求：點下去要問是否確定）。
+  Future<bool?> _confirmDelete(DiaryEntry entry) {
+    return showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A24),
+        title: const Text('確定要刪除這篇？', style: TextStyle(color: AppColors.ink)),
+        content: Text(
+          '${_dateLabel(entry.savedAt)}\n刪除後無法復原。',
+          style: AppText.bodyDim,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.bad),
+            child: const Text('刪除'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 編輯只改心情／文字，原始打卡時間（[DiaryEntry.savedAt]）不變——
+  /// 那是「哪天打的卡」的紀錄，編輯內容不該連帶改掉。
+  Future<void> _showEditDialog(DiaryEntry entry) async {
+    final controller = TextEditingController(text: entry.text);
+    var mood = entry.mood;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: const Color(0xFF1A1A24),
+          title: const Text('編輯日記', style: TextStyle(color: AppColors.ink)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  for (final m in diaryMoods) ...[
+                    Expanded(
+                      child: _MoodButton(
+                        mood: m,
+                        selected: m == mood,
+                        onTap: () => setDialogState(() => mood = m),
+                      ),
+                    ),
+                    if (m != diaryMoods.last) const SizedBox(width: 6),
+                  ],
+                ],
+              ),
+              const SizedBox(height: Gap.sm),
+              TextField(
+                controller: controller,
+                maxLength: 60,
+                autofocus: true,
+                decoration: const InputDecoration(counterText: ''),
+                style: const TextStyle(fontSize: 13, color: AppColors.ink),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                final text = controller.text.trim();
+                if (text.isEmpty) return;
+                await ref
+                    .read(diaryRepositoryProvider)
+                    .update(
+                      DiaryEntry(
+                        id: entry.id,
+                        mood: mood,
+                        text: text,
+                        savedAt: entry.savedAt,
+                      ),
+                    );
+                if (dialogContext.mounted) Navigator.pop(dialogContext);
+              },
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.diaryAccent,
+                foregroundColor: AppColors.diaryAccentInk,
+              ),
+              child: const Text('儲存'),
+            ),
+          ],
+        ),
+      ),
+    );
     if (!mounted) return;
     _reload();
   }
@@ -124,6 +262,10 @@ class _DiaryPageState extends ConsumerState<DiaryPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // 左上角三條線選單是全 App 共用、固定的位置，子頁面不能把它換成
+      // 只有返回鍵——兩個都要，返回鍵放三條線旁邊（2026-09-22 使用者
+      // 要求）。
+      drawer: const AppSideDrawer(),
       body: AmbientBackground(
         child: SafeArea(
           child: Padding(
@@ -132,23 +274,7 @@ class _DiaryPageState extends ConsumerState<DiaryPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: Gap.sm),
-                Row(
-                  children: [
-                    IconButton(
-                      onPressed: () => Navigator.of(context).maybePop(),
-                      icon: const Icon(Icons.arrow_back, size: 20),
-                      color: AppColors.ink2,
-                    ),
-                    const SizedBox(width: Gap.xs),
-                    const Expanded(child: Text('日記', style: AppText.title)),
-                    IconButton(
-                      onPressed: () => _showExportDialog(context, ref),
-                      icon: const Icon(Icons.ios_share_rounded, size: 20),
-                      color: AppColors.ink2,
-                      tooltip: '匯出日記',
-                    ),
-                  ],
-                ),
+                _DiaryTopBar(onExport: () => _showExportDialog(context, ref)),
                 const SizedBox(height: Gap.md),
                 Expanded(
                   child: FutureBuilder<List<DiaryEntry>>(
@@ -161,46 +287,80 @@ class _DiaryPageState extends ConsumerState<DiaryPage> {
                       }
                       final all = [...snap.data!]
                         ..sort((a, b) => b.savedAt.compareTo(a.savedAt));
-                      final today = DateTime.now();
-                      final checkedInToday = all.any(
-                        (e) => isSameDay(e.savedAt, today),
+                      final targetDay = DateTime.now().subtract(
+                        Duration(days: _dayOffset),
                       );
+                      final checkedInForTarget = all.any(
+                        (e) => isSameDay(e.savedAt, targetDay),
+                      );
+                      final selectedDay = _selectedDay;
+                      DiaryEntry? selectedEntry;
+                      if (selectedDay != null) {
+                        for (final e in all) {
+                          if (!isSameDay(e.savedAt, selectedDay)) continue;
+                          if (selectedEntry == null ||
+                              e.savedAt.isAfter(selectedEntry.savedAt)) {
+                            selectedEntry = e;
+                          }
+                        }
+                      }
 
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          _DateStrip(entries: all, onTapEntry: _showEntry),
+                          _DateStrip(
+                            entries: all,
+                            selectedDay: _selectedDay,
+                            onSelectDay: _selectDay,
+                          ),
                           const SizedBox(height: Gap.md),
                           _CheckInCard(
                             controller: _textController,
                             mood: _mood,
-                            checkedInToday: checkedInToday,
+                            dayOffset: _dayOffset,
+                            checkedInForTarget: checkedInForTarget,
+                            onDayOffsetChanged: (v) =>
+                                setState(() => _dayOffset = v),
                             onMoodChanged: (m) => setState(() => _mood = m),
                             onSubmit: _submit,
                           ),
                           const SizedBox(height: Gap.md),
-                          const PanelLabel('最近'),
-                          const SizedBox(height: Gap.sm),
-                          Expanded(
-                            child: all.isEmpty
-                                ? Center(
-                                    child: Text(
-                                      '還沒有任何日記，上面打個卡開始吧',
-                                      style: AppText.bodyDim,
+                          if (selectedDay == null) ...[
+                            const PanelLabel('最近'),
+                            const SizedBox(height: Gap.sm),
+                            Expanded(
+                              child: all.isEmpty
+                                  ? Center(
+                                      child: Text(
+                                        '還沒有任何日記，上面打個卡開始吧',
+                                        style: AppText.bodyDim,
+                                      ),
+                                    )
+                                  : ListView.separated(
+                                      itemCount: all.length,
+                                      separatorBuilder: (_, _) =>
+                                          const Divider(
+                                            height: 1,
+                                            color: AppColors.glassEdge,
+                                          ),
+                                      itemBuilder: (_, i) => _SimpleRow(
+                                        entry: all[i],
+                                        onTap: () => _showEntry(all[i]),
+                                      ),
                                     ),
-                                  )
-                                : ListView.separated(
-                                    itemCount: all.length,
-                                    separatorBuilder: (_, _) => const Divider(
-                                      height: 1,
-                                      color: AppColors.glassEdge,
-                                    ),
-                                    itemBuilder: (_, i) => _SimpleRow(
-                                      entry: all[i],
-                                      onTap: () => _showEntry(all[i]),
-                                    ),
-                                  ),
-                          ),
+                            ),
+                          ] else
+                            Expanded(
+                              child: _SelectedDayPanel(
+                                day: selectedDay,
+                                entry: selectedEntry,
+                                onClear: () =>
+                                    setState(() => _selectedDay = null),
+                                onTapEntry: selectedEntry == null
+                                    ? null
+                                    : () => _showEntry(selectedEntry!),
+                              ),
+                            ),
                         ],
                       );
                     },
@@ -215,149 +375,567 @@ class _DiaryPageState extends ConsumerState<DiaryPage> {
   }
 }
 
-/// 頂部日期跳轉條，借設計稿 02 的版面：橫向可滑動，本月每一天一顆，
-/// 有打卡的日子下面標小點，點有打卡的日子直接跳出那篇內容
-/// （2026-09-22 使用者拍板：頂部日期用 02 版）。
-class _DateStrip extends StatelessWidget {
-  const _DateStrip({required this.entries, required this.onTapEntry});
+/// 頂部列：左邊固定是三條線選單（全 App 共用的位置，見
+/// `app_side_drawer.dart`），返回鍵放它旁邊——子頁面不能讓三條線消失
+/// 只剩返回鍵（2026-09-22 使用者要求）。要用 `Scaffold.of(context)` 開
+/// 抽屜，這裡的 context 必須是 Scaffold 的子孫節點，所以獨立成一個
+/// widget，不能直接寫在 Scaffold 自己的 build() 裡面。
+class _DiaryTopBar extends StatelessWidget {
+  const _DiaryTopBar({required this.onExport});
 
-  final List<DiaryEntry> entries;
-  final void Function(DiaryEntry entry) onTapEntry;
+  final VoidCallback onExport;
 
   @override
   Widget build(BuildContext context) {
-    final now = DateTime.now();
-    final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
-    // 同一天可能被打卡多次的歷史資料（例如刪了重打前的舊版本），
-    // 只取最新一筆代表那一天。
-    final byDay = <int, DiaryEntry>{};
-    for (final e in entries) {
-      if (e.savedAt.year == now.year && e.savedAt.month == now.month) {
-        final day = e.savedAt.day;
-        final existing = byDay[day];
-        if (existing == null || e.savedAt.isAfter(existing.savedAt)) {
-          byDay[day] = e;
-        }
-      }
-    }
-
-    return SizedBox(
-      height: 52,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: daysInMonth,
-        separatorBuilder: (_, _) => const SizedBox(width: 6),
-        itemBuilder: (_, i) {
-          final day = i + 1;
-          final entry = byDay[day];
-          final isToday = day == now.day;
-          return _DateChip(
-            day: day,
-            weekday: DateTime(now.year, now.month, day).weekday,
-            hasEntry: entry != null,
-            isToday: isToday,
-            onTap: entry == null ? null : () => onTapEntry(entry),
-          );
-        },
-      ),
+    return Row(
+      children: [
+        IconButton(
+          onPressed: () => Scaffold.of(context).openDrawer(),
+          icon: const Icon(Icons.menu, size: 20),
+          color: AppColors.ink2,
+          tooltip: '選單',
+          padding: EdgeInsets.zero,
+          visualDensity: VisualDensity.compact,
+          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+        ),
+        const SizedBox(width: Gap.sm),
+        IconButton(
+          onPressed: () => Navigator.of(context).maybePop(),
+          icon: const Icon(Icons.arrow_back, size: 20),
+          color: AppColors.ink2,
+          tooltip: '返回',
+          padding: EdgeInsets.zero,
+          visualDensity: VisualDensity.compact,
+          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+        ),
+        const SizedBox(width: Gap.xs),
+        const Expanded(child: Text('日記', style: AppText.title)),
+        IconButton(
+          onPressed: onExport,
+          icon: const Icon(Icons.ios_share_rounded, size: 20),
+          color: AppColors.ink2,
+          tooltip: '匯出日記',
+        ),
+      ],
     );
   }
 }
 
+/// 頂部日期跳轉條，借設計稿 02 的版面精神再擴充：預設顯示這一週（週一
+/// 到週日），可以左右切換週，也可以展開成整月月曆挑日子
+/// （2026-09-22 使用者要求）。有打卡的日子在方塊左上角標一個小點；點
+/// 任何一天（不限定有沒有打卡）都會選中那天，選中的方塊用跟毛玻璃同
+/// 色系的特別外框標出來，同時讓下面的日記顯示跳到那一天
+/// （2026-09-22 使用者要求）。
+class _DateStrip extends StatefulWidget {
+  const _DateStrip({
+    required this.entries,
+    required this.selectedDay,
+    required this.onSelectDay,
+  });
+
+  final List<DiaryEntry> entries;
+  final DateTime? selectedDay;
+  final void Function(DateTime day) onSelectDay;
+
+  @override
+  State<_DateStrip> createState() => _DateStripState();
+}
+
+class _DateStripState extends State<_DateStrip> {
+  DateTime _focusedDay = _stripDate(DateTime.now());
+  bool _calendarOpen = false;
+
+  Map<DateTime, DiaryEntry> get _byDay {
+    final map = <DateTime, DiaryEntry>{};
+    for (final e in widget.entries) {
+      final day = _stripDate(e.savedAt);
+      final existing = map[day];
+      if (existing == null || e.savedAt.isAfter(existing.savedAt)) {
+        map[day] = e;
+      }
+    }
+    return map;
+  }
+
+  List<DateTime> get _weekDays {
+    final monday = _focusedDay.subtract(
+      Duration(days: _focusedDay.weekday - 1),
+    );
+    return [for (var i = 0; i < 7; i++) monday.add(Duration(days: i))];
+  }
+
+  void _shiftWeek(int delta) {
+    setState(() => _focusedDay = _focusedDay.add(Duration(days: 7 * delta)));
+  }
+
+  void _tapDay(DateTime day) {
+    setState(() {
+      _focusedDay = day;
+      _calendarOpen = false;
+    });
+    widget.onSelectDay(day);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final byDay = _byDay;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            IconButton(
+              onPressed: () => _shiftWeek(-1),
+              icon: const Icon(Icons.chevron_left, size: 18),
+              color: AppColors.ink3,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+            ),
+            Expanded(
+              child: Text(
+                _weekRangeLabel(_weekDays),
+                textAlign: TextAlign.center,
+                style: AppText.bodyDim,
+              ),
+            ),
+            IconButton(
+              onPressed: () => _shiftWeek(1),
+              icon: const Icon(Icons.chevron_right, size: 18),
+              color: AppColors.ink3,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+            ),
+            const SizedBox(width: 4),
+            IconButton(
+              onPressed: () => setState(() => _calendarOpen = !_calendarOpen),
+              icon: Icon(
+                _calendarOpen
+                    ? Icons.calendar_month
+                    : Icons.calendar_month_outlined,
+                size: 18,
+              ),
+              color: _calendarOpen ? AppColors.diaryAccent : AppColors.ink3,
+              tooltip: '展開月曆選日期',
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        AnimatedCrossFade(
+          duration: const Duration(milliseconds: 180),
+          crossFadeState: _calendarOpen
+              ? CrossFadeState.showSecond
+              : CrossFadeState.showFirst,
+          firstChild: _WeekRow(
+            days: _weekDays,
+            byDay: byDay,
+            selectedDay: widget.selectedDay,
+            onTap: _tapDay,
+          ),
+          secondChild: _MonthCalendar(
+            month: _focusedDay,
+            byDay: byDay,
+            selectedDay: widget.selectedDay,
+            onTap: _tapDay,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+String _weekRangeLabel(List<DateTime> days) {
+  final start = days.first;
+  final end = days.last;
+  if (start.month == end.month) {
+    return '${start.month} 月 ${start.day} - ${end.day} 日';
+  }
+  return '${start.month}/${start.day} - ${end.month}/${end.day}';
+}
+
+/// 只留年月日，用來當 Map 的 key／比較「是不是同一天」。
+DateTime _stripDate(DateTime d) => DateTime(d.year, d.month, d.day);
+
 const _weekdayLabels = ['一', '二', '三', '四', '五', '六', '日'];
 
-class _DateChip extends StatelessWidget {
-  const _DateChip({
-    required this.day,
-    required this.weekday,
-    required this.hasEntry,
-    required this.isToday,
+class _WeekRow extends StatelessWidget {
+  const _WeekRow({
+    required this.days,
+    required this.byDay,
+    required this.selectedDay,
     required this.onTap,
   });
 
-  final int day;
-  final int weekday;
+  final List<DateTime> days;
+  final Map<DateTime, DiaryEntry> byDay;
+  final DateTime? selectedDay;
+  final void Function(DateTime day) onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final today = _stripDate(DateTime.now());
+    final selected = selectedDay == null ? null : _stripDate(selectedDay!);
+    return Row(
+      children: [
+        for (final day in days) ...[
+          Expanded(
+            child: _DayChip(
+              day: day,
+              hasEntry: byDay.containsKey(day),
+              isToday: day == today,
+              isSelected: day == selected,
+              onTap: () => onTap(day),
+            ),
+          ),
+          if (day != days.last) const SizedBox(width: 6),
+        ],
+      ],
+    );
+  }
+}
+
+class _DayChip extends StatelessWidget {
+  const _DayChip({
+    required this.day,
+    required this.hasEntry,
+    required this.isToday,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final DateTime day;
   final bool hasEntry;
   final bool isToday;
-  final VoidCallback? onTap;
+  final bool isSelected;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
-      child: Container(
-        width: 40,
-        padding: const EdgeInsets.symmetric(vertical: 7),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          color: hasEntry
-              ? AppColors.diaryAccent.withValues(alpha: 0.16)
-              : AppColors.glassFill,
-          border: Border.all(
-            color: isToday ? AppColors.diaryAccent : AppColors.glassEdge,
-          ),
-        ),
-        child: Column(
-          children: [
-            Text(
-              '$day',
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w800,
-                color: AppColors.ink,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 7),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              color: isSelected
+                  ? AppColors.diaryAccent.withValues(alpha: 0.30)
+                  : hasEntry
+                  ? AppColors.diaryAccent.withValues(alpha: 0.16)
+                  : AppColors.glassFill,
+              border: Border.all(
+                color: isSelected
+                    ? AppColors.diaryAccent
+                    : isToday
+                    ? AppColors.diaryAccent.withValues(alpha: 0.55)
+                    : AppColors.glassEdge,
+                width: isSelected ? 1.6 : 1,
               ),
-            ),
-            Text(
-              '週${_weekdayLabels[weekday - 1]}',
-              style: const TextStyle(fontSize: 9, color: AppColors.ink3),
-            ),
-            const SizedBox(height: 2),
-            SizedBox(
-              width: 4,
-              height: 4,
-              child: hasEntry
-                  ? const DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: AppColors.diaryAccent,
-                        shape: BoxShape.circle,
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color: AppColors.diaryAccent.withValues(alpha: 0.35),
+                        blurRadius: 8,
                       ),
-                    )
+                    ]
                   : null,
             ),
-          ],
-        ),
+            child: Column(
+              children: [
+                Text(
+                  '${day.day}',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.ink,
+                  ),
+                ),
+                Text(
+                  '週${_weekdayLabels[day.weekday - 1]}',
+                  style: const TextStyle(fontSize: 9, color: AppColors.ink3),
+                ),
+              ],
+            ),
+          ),
+          if (hasEntry)
+            Positioned(
+              top: 4,
+              left: 4,
+              child: Container(
+                width: 6,
+                height: 6,
+                decoration: const BoxDecoration(
+                  color: AppColors.diaryAccent,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
 }
 
+/// 展開的整月月曆，跟一般日曆 App 一樣的網格版面，一樣有打卡小點跟
+/// 選中外框。
+class _MonthCalendar extends StatelessWidget {
+  const _MonthCalendar({
+    required this.month,
+    required this.byDay,
+    required this.selectedDay,
+    required this.onTap,
+  });
+
+  final DateTime month;
+  final Map<DateTime, DiaryEntry> byDay;
+  final DateTime? selectedDay;
+  final void Function(DateTime day) onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final first = DateTime(month.year, month.month, 1);
+    final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
+    final leadingBlanks = first.weekday - 1;
+    final today = _stripDate(DateTime.now());
+    final selected = selectedDay == null ? null : _stripDate(selectedDay!);
+
+    return Column(
+      children: [
+        Text('${month.year} 年 ${month.month} 月', style: AppText.bodyDim),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            for (final w in _weekdayLabels)
+              Expanded(
+                child: Text(
+                  w,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 10, color: AppColors.ink3),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: leadingBlanks + daysInMonth,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 7,
+            mainAxisSpacing: 4,
+            crossAxisSpacing: 4,
+          ),
+          itemBuilder: (_, i) {
+            if (i < leadingBlanks) return const SizedBox.shrink();
+            final day = DateTime(
+              month.year,
+              month.month,
+              i - leadingBlanks + 1,
+            );
+            return _MonthCell(
+              day: day,
+              hasEntry: byDay.containsKey(day),
+              isToday: day == today,
+              isSelected: day == selected,
+              onTap: () => onTap(day),
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _MonthCell extends StatelessWidget {
+  const _MonthCell({
+    required this.day,
+    required this.hasEntry,
+    required this.isToday,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final DateTime day;
+  final bool hasEntry;
+  final bool isToday;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              color: isSelected
+                  ? AppColors.diaryAccent.withValues(alpha: 0.30)
+                  : hasEntry
+                  ? AppColors.diaryAccent.withValues(alpha: 0.16)
+                  : Colors.transparent,
+              border: Border.all(
+                color: isSelected
+                    ? AppColors.diaryAccent
+                    : isToday
+                    ? AppColors.diaryAccent.withValues(alpha: 0.55)
+                    : Colors.transparent,
+                width: isSelected ? 1.6 : 1,
+              ),
+            ),
+            child: Text(
+              '${day.day}',
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: hasEntry ? FontWeight.w800 : FontWeight.w500,
+                color: hasEntry ? AppColors.ink : AppColors.ink2,
+              ),
+            ),
+          ),
+          if (hasEntry)
+            const Positioned(
+              top: 1,
+              left: 3,
+              child: SizedBox(
+                width: 5,
+                height: 5,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: AppColors.diaryAccent,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 選了某一天（點頂部日期條）以後，下面「最近」列表換成只顯示那一天
+/// （2026-09-22 使用者要求：選日期要讓下面直接跳到那天）。
+class _SelectedDayPanel extends StatelessWidget {
+  const _SelectedDayPanel({
+    required this.day,
+    required this.entry,
+    required this.onClear,
+    required this.onTapEntry,
+  });
+
+  final DateTime day;
+  final DiaryEntry? entry;
+  final VoidCallback onClear;
+  final VoidCallback? onTapEntry;
+
+  @override
+  Widget build(BuildContext context) {
+    final entry = this.entry;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Expanded(child: Text(_dayHeaderLabel(day), style: AppText.body)),
+            TextButton(onPressed: onClear, child: const Text('顯示全部')),
+          ],
+        ),
+        const SizedBox(height: Gap.sm),
+        Expanded(
+          child: entry == null
+              ? Center(child: Text('這天沒有日記', style: AppText.bodyDim))
+              : GlassCard(
+                  onTap: onTapEntry,
+                  child: Row(
+                    children: [
+                      Text(entry.mood, style: const TextStyle(fontSize: 20)),
+                      const SizedBox(width: Gap.sm),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(_dateLabel(entry.savedAt), style: AppText.note),
+                            const SizedBox(height: 2),
+                            Text(entry.text, style: AppText.body),
+                          ],
+                        ),
+                      ),
+                      const Icon(
+                        Icons.chevron_right,
+                        size: 18,
+                        color: AppColors.ink3,
+                      ),
+                    ],
+                  ),
+                ),
+        ),
+      ],
+    );
+  }
+}
+
+String _dayHeaderLabel(DateTime d) {
+  final weekday = _weekdayLabels[d.weekday - 1];
+  return '${d.year} 年 ${d.month} 月 ${d.day} 日・週$weekday';
+}
+
+const _dayOffsetLabels = ['今天', '昨天', '前天'];
+
 /// 打卡卡：選心情＋一行文字＋送出，全部同一個操作完成（設計稿 04）。
-/// 今天打過卡了就鎖住，不能重複打（要改就去下面列表刪掉那篇）。
+/// 那天打過卡了就鎖住，不能重複打（要改就去下面列表編輯或刪掉那篇）。
+///
+/// 右上角可以選「今天／昨天／前天」——不是每天都剛好想到就寫，晚上
+/// 12 點才想寫或漏了一天，補寫給前幾天用（2026-09-22 使用者要求）。
 class _CheckInCard extends StatelessWidget {
   const _CheckInCard({
     required this.controller,
     required this.mood,
-    required this.checkedInToday,
+    required this.dayOffset,
+    required this.checkedInForTarget,
+    required this.onDayOffsetChanged,
     required this.onMoodChanged,
     required this.onSubmit,
   });
 
   final TextEditingController controller;
   final String mood;
-  final bool checkedInToday;
+  final int dayOffset;
+  final bool checkedInForTarget;
+  final ValueChanged<int> onDayOffsetChanged;
   final ValueChanged<String> onMoodChanged;
   final VoidCallback onSubmit;
 
   @override
   Widget build(BuildContext context) {
+    final targetLabel = _dayOffsetLabels[dayOffset];
     return GlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            checkedInToday ? '今天已經記錄過了 ✓' : '今天過得怎樣？一句話就好',
-            style: AppText.bodyDim,
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  checkedInForTarget
+                      ? '$targetLabel已經記錄過了 ✓'
+                      : '$targetLabel過得怎樣？一句話就好',
+                  style: AppText.bodyDim,
+                ),
+              ),
+              _DayOffsetDropdown(
+                value: dayOffset,
+                onChanged: onDayOffsetChanged,
+              ),
+            ],
           ),
           const SizedBox(height: Gap.sm),
           Row(
@@ -367,7 +945,7 @@ class _CheckInCard extends StatelessWidget {
                   child: _MoodButton(
                     mood: m,
                     selected: m == mood,
-                    onTap: checkedInToday ? null : () => onMoodChanged(m),
+                    onTap: checkedInForTarget ? null : () => onMoodChanged(m),
                   ),
                 ),
                 if (m != diaryMoods.last) const SizedBox(width: 6),
@@ -376,13 +954,20 @@ class _CheckInCard extends StatelessWidget {
           ),
           const SizedBox(height: Gap.sm),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Expanded(
+                // 固定行數＋不夠就換行（不是單行內部橫向自動捲動），不然
+                // 打字超出框寬時框會自己滑動，滑鼠拖曳想選取文字時會變
+                // 成拖著框內容跑，選不到字（2026-09-22 使用者要求）。
                 child: TextField(
                   controller: controller,
-                  enabled: !checkedInToday,
+                  enabled: !checkedInForTarget,
                   maxLength: 60,
-                  onSubmitted: (_) => onSubmit(),
+                  minLines: 1,
+                  maxLines: 3,
+                  keyboardType: TextInputType.multiline,
+                  textInputAction: TextInputAction.newline,
                   decoration: const InputDecoration(
                     isDense: true,
                     hintText: '例如：把日記功能接上真的資料了',
@@ -397,7 +982,7 @@ class _CheckInCard extends StatelessWidget {
               ),
               const SizedBox(width: Gap.sm),
               FilledButton(
-                onPressed: checkedInToday ? null : onSubmit,
+                onPressed: checkedInForTarget ? null : onSubmit,
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.diaryAccent,
                   foregroundColor: AppColors.diaryAccentInk,
@@ -413,6 +998,50 @@ class _CheckInCard extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// 補寫今天／昨天／前天的小下拉選單（2026-09-22 使用者要求）。
+class _DayOffsetDropdown extends StatelessWidget {
+  const _DayOffsetDropdown({required this.value, required this.onChanged});
+
+  final int value;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: AppColors.glassFill,
+        border: Border.all(color: AppColors.glassEdge),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<int>(
+          value: value,
+          isDense: true,
+          dropdownColor: const Color(0xFF1A1A24),
+          icon: const Icon(
+            Icons.expand_more,
+            size: 16,
+            color: AppColors.ink3,
+          ),
+          style: const TextStyle(
+            fontSize: 12,
+            color: AppColors.ink2,
+            fontWeight: FontWeight.w600,
+          ),
+          items: [
+            for (var i = 0; i < _dayOffsetLabels.length; i++)
+              DropdownMenuItem(value: i, child: Text(_dayOffsetLabels[i])),
+          ],
+          onChanged: (v) {
+            if (v != null) onChanged(v);
+          },
+        ),
       ),
     );
   }
@@ -490,9 +1119,13 @@ class _SimpleRow extends StatelessWidget {
 
 String _shortDateLabel(DateTime d) => '${d.month}/${d.day}';
 
+/// 詳情／編輯／刪除確認都要看到完整的「哪年哪月哪日星期幾幾點幾分」
+/// （2026-09-22 使用者要求），列表那種一行預覽才用 [_shortDateLabel]。
 String _dateLabel(DateTime d) {
   final weekday = _weekdayLabels[d.weekday - 1];
-  return '${d.month} 月 ${d.day} 日・週$weekday';
+  String two(int n) => n.toString().padLeft(2, '0');
+  return '${d.year} 年 ${d.month} 月 ${d.day} 日・週$weekday '
+      '${two(d.hour)}:${two(d.minute)}';
 }
 
 /// 匯出的範圍：只匯出這台裝置 localStorage 裡的，還是連專案已經打包
