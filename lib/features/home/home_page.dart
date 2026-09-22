@@ -9,6 +9,7 @@ import '../../app/theme/typography.dart';
 import '../../domain/encouragement.dart';
 import '../../domain/time_of_day_label.dart';
 import '../../shared/widgets/ambient_background.dart';
+import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/glass_card.dart';
 import '../../shared/widgets/ring_progress.dart';
 import '../../shared/widgets/track_switcher.dart';
@@ -25,6 +26,7 @@ class HomePage extends ConsumerWidget {
     final state = ref.watch(homeStateProvider);
 
     return Scaffold(
+      drawer: const AppSideDrawer(),
       body: AmbientBackground(
         child: SafeArea(
           child: Padding(
@@ -179,6 +181,21 @@ class _TopBar extends ConsumerWidget {
 
     return Row(
       children: [
+        IconButton(
+          onPressed: () => Scaffold.of(context).openDrawer(),
+          icon: const Icon(Icons.menu, size: 20),
+          color: AppColors.ink2,
+          tooltip: '選單',
+          padding: EdgeInsets.zero,
+          visualDensity: VisualDensity.compact,
+          // 32 而不是跟其他按鈕一樣的 36——這顆是最左邊，命中框自己的
+          // 內距已經佔掉「畫面邊緣→圖示」的視覺間距，框越大，右邊
+          // SizedBox 那段「圖示→文字」的間距相對就顯得更擠、跟左邊不
+          // 對稱（2026-09-22 使用者回饋：選單跟右邊的週四太近，空出的
+          // 空間跟左邊不對稱）。
+          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+        ),
+        const SizedBox(width: Gap.sm),
         Text(
           '${weekdayLabel(now)} ${clockLabel(now)} ${periodEmoji(now)}',
           style: AppText.title,

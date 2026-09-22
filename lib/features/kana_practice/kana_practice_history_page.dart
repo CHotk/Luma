@@ -50,6 +50,14 @@ class _KanaPracticeHistoryPageState
   KanaScript? _scriptFilter;
   bool? _assistedFilter;
 
+  /// 這台瀏覽器 localStorage 原本有幾筆、專案內建快照有幾筆——都是
+  /// 「合併前」的數字，合併之後兩者的界線就看不出來了，所以要在合併
+  /// 前先記下來（2026-09-21 使用者要求：要能分別看到專案內建跟本機
+  /// 瀏覽器各自有幾筆）。合併動作只在 initState 做一次，這兩個數字
+  /// 也就只在那時候設定一次，之後單純重整（[_reload]）不會再變。
+  int? _localCountBeforeMerge;
+  int? _seedCount;
+
   @override
   void initState() {
     super.initState();
@@ -62,7 +70,10 @@ class _KanaPracticeHistoryPageState
   /// 快照不會無緣無故變，只有第一次打開這頁才需要做這件事。
   Future<List<KanaPracticeEntry>> _loadWithSeedMerge() async {
     final repo = ref.read(kanaPracticeRepositoryProvider);
+    final localBefore = await repo.loadAll();
     final seed = await loadKanaPracticeSeed();
+    _localCountBeforeMerge = localBefore.length;
+    _seedCount = seed.length;
     if (seed.isNotEmpty) await repo.mergeSeed(seed);
     return repo.loadAll();
   }
@@ -182,7 +193,9 @@ class _KanaPracticeHistoryPageState
                       // 不是算篩選後還剩幾筆——不然篩下去數字全部變成
                       // 自己那一類的總數，看不出其他分類原本有多少。
                       final hiraganaCount = all
-                          .where((e) => _scriptOf(e.kana) == KanaScript.hiragana)
+                          .where(
+                            (e) => _scriptOf(e.kana) == KanaScript.hiragana,
+                          )
                           .length;
                       final katakanaCount = all.length - hiraganaCount;
                       final assistedCount = all.where((e) => e.assisted).length;
@@ -203,6 +216,30 @@ class _KanaPracticeHistoryPageState
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
+                          if (_localCountBeforeMerge != null &&
+                              _seedCount != null)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: Gap.sm),
+                              child: Wrap(
+                                spacing: 6,
+                                runSpacing: 4,
+                                children: [
+                                  _SourceCountChip(
+                                    label: '這台瀏覽器',
+                                    count: _localCountBeforeMerge!,
+                                  ),
+                                  _SourceCountChip(
+                                    label: '專案內建快照',
+                                    count: _seedCount!,
+                                  ),
+                                  _SourceCountChip(
+                                    label: '合併後共',
+                                    count: all.length,
+                                    emphasize: true,
+                                  ),
+                                ],
+                              ),
+                            ),
                           Row(
                             children: [
                               _FilterChip(
@@ -216,8 +253,7 @@ class _KanaPracticeHistoryPageState
                               _FilterChip(
                                 label: '平假名',
                                 count: hiraganaCount,
-                                selected:
-                                    _scriptFilter == KanaScript.hiragana,
+                                selected: _scriptFilter == KanaScript.hiragana,
                                 onTap: () => setState(
                                   () => _scriptFilter = KanaScript.hiragana,
                                 ),
@@ -226,8 +262,7 @@ class _KanaPracticeHistoryPageState
                               _FilterChip(
                                 label: '片假名',
                                 count: katakanaCount,
-                                selected:
-                                    _scriptFilter == KanaScript.katakana,
+                                selected: _scriptFilter == KanaScript.katakana,
                                 onTap: () => setState(
                                   () => _scriptFilter = KanaScript.katakana,
                                 ),
@@ -441,9 +476,7 @@ class _ExportDialogState extends State<_ExportDialog> {
             final ok = saveTextFile(filename, data.text);
             if (!context.mounted) return;
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(ok ? '已下載 $filename' : '這個平台還不支援下載，改用複製'),
-              ),
+              SnackBar(content: Text(ok ? '已下載 $filename' : '這個平台還不支援下載，改用複製')),
             );
           },
           style: FilledButton.styleFrom(
@@ -457,9 +490,9 @@ class _ExportDialogState extends State<_ExportDialog> {
             final data = await _future;
             await Clipboard.setData(ClipboardData(text: data.text));
             if (!context.mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('已複製到剪貼簿')),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('已複製到剪貼簿')));
           },
           child: const Text('複製'),
         ),
@@ -544,6 +577,47 @@ class _FilterChip extends StatelessWidget {
   }
 }
 
+/// 純顯示用的小標籤，不可點——跟 [_FilterChip] 長得像但語意不同，
+/// 這裡是「資料來源各有幾筆」的說明，不是篩選條件（2026-09-21 使用者
+/// 要求：要能分別看到專案內建跟本機瀏覽器各自有幾筆）。
+class _SourceCountChip extends StatelessWidget {
+  const _SourceCountChip({
+    required this.label,
+    required this.count,
+    this.emphasize = false,
+  });
+
+  final String label;
+  final int count;
+  final bool emphasize;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: emphasize
+            ? AppColors.jpAccent.withValues(alpha: 0.16)
+            : AppColors.glassFill,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: emphasize
+              ? AppColors.jpAccent.withValues(alpha: 0.4)
+              : AppColors.glassEdge,
+        ),
+      ),
+      child: Text(
+        '$label $count 筆',
+        style: TextStyle(
+          fontSize: 11.5,
+          fontWeight: FontWeight.w600,
+          color: emphasize ? AppColors.jpAccent : AppColors.ink3,
+        ),
+      ),
+    );
+  }
+}
+
 class _EntryCard extends StatelessWidget {
   const _EntryCard({required this.entry});
 
@@ -595,9 +669,8 @@ class _EntryCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
-              color:
-                  (entry.assisted ? AppColors.jpAccent : AppColors.ink3)
-                      .withValues(alpha: 0.18),
+              color: (entry.assisted ? AppColors.jpAccent : AppColors.ink3)
+                  .withValues(alpha: 0.18),
               borderRadius: BorderRadius.circular(Radii.chip),
             ),
             child: Text(
@@ -646,7 +719,12 @@ class _Thumb extends StatelessWidget {
         children: [
           const ColoredBox(color: paperColor),
           const CustomPaint(painter: PaperGridPainter()),
-          CustomPaint(painter: InkPainter(strokes: _asOffsets(entry.strokes))),
+          CustomPaint(
+            painter: InkPainter(
+              strokes: _asOffsets(entry.strokes),
+              strokeWidth: inkStrokeWidth(56),
+            ),
+          ),
         ],
       ),
     );
@@ -707,7 +785,8 @@ class _ReplayDialogState extends State<_ReplayDialog>
 
     final d = entry.savedAt;
     String two(int n) => n.toString().padLeft(2, '0');
-    final stamp = '${d.year}${two(d.month)}${two(d.day)}_${two(d.hour)}${two(d.minute)}';
+    final stamp =
+        '${d.year}${two(d.month)}${two(d.day)}_${two(d.hour)}${two(d.minute)}';
 
     await FileSaver.instance.saveFile(
       name: '${stamp}_${entry.kana}_${entry.romaji}',

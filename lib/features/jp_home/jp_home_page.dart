@@ -8,6 +8,7 @@ import '../../app/theme/typography.dart';
 import '../../domain/encouragement.dart';
 import '../../domain/time_of_day_label.dart';
 import '../../shared/widgets/ambient_background.dart';
+import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/glass_card.dart';
 import '../../shared/widgets/ring_progress.dart';
 import '../../shared/widgets/track_switcher.dart';
@@ -33,6 +34,7 @@ class JpHomePage extends ConsumerWidget {
     final async = ref.watch(jpHomeStateProvider);
 
     return Scaffold(
+      drawer: const AppSideDrawer(),
       body: AmbientBackground(
         background: AppColors.jpBg,
         blobColors: const [
@@ -112,6 +114,9 @@ class _Body extends StatelessWidget {
                   const GlassCard(child: _KanaPreview()),
 
                   const SizedBox(height: Gap.md),
+                  const GlassCard(child: _ExamEntryCard()),
+
+                  const SizedBox(height: Gap.md),
                   GlassCard(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -170,6 +175,19 @@ class _TopBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
+        IconButton(
+          onPressed: () => Scaffold.of(context).openDrawer(),
+          icon: const Icon(Icons.menu, size: 20),
+          color: AppColors.ink2,
+          tooltip: '選單',
+          padding: EdgeInsets.zero,
+          visualDensity: VisualDensity.compact,
+          // 跟英文首頁同一個修法，見那邊的說明
+          // （2026-09-22 使用者回饋：選單跟右邊的週四太近，空出的空間
+          // 跟左邊不對稱）。
+          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+        ),
+        const SizedBox(width: Gap.sm),
         Text(
           '${weekdayLabel(now)} ${clockLabel(now)} ${periodEmoji(now)}',
           style: AppText.title,
@@ -177,11 +195,14 @@ class _TopBar extends StatelessWidget {
         const SizedBox(width: Gap.sm),
         const TrackSwitcher(current: LearningTrack.ja),
         const Spacer(),
+        // 對應英文軌道首頁的「總紀錄」（bar_chart_rounded → /history），
+        // 日文原本只有分開的練習紀錄／考試紀錄，沒有一個總覽的地方
+        // （2026-09-21 使用者要求：英文右上角有統計，日文也應該要有）。
         IconButton(
-          onPressed: () => context.push('/kana-exam'),
-          icon: const Icon(Icons.edit_note_rounded, size: 20),
+          onPressed: () => context.push('/jp-stats'),
+          icon: const Icon(Icons.bar_chart_rounded, size: 20),
           color: AppColors.ink2,
-          tooltip: '考試模式',
+          tooltip: '學習統計',
           padding: EdgeInsets.zero,
           visualDensity: VisualDensity.compact,
           constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
@@ -377,6 +398,73 @@ class _KanaPreviewState extends State<_KanaPreview> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// 手寫考試的入口卡片。整張卡可點，點進去先到模式選擇頁（50 音／
+/// 詞彙），不在首頁先選——首頁只負責「帶你進去」，選什麼題型是那頁
+/// 自己的事（2026-09-21 使用者要求：考試入口要做成卡片，不要藏在
+/// 右上角圖示按鈕裡，卡片才夠顯眼、夠好點）。
+class _ExamEntryCard extends StatelessWidget {
+  const _ExamEntryCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: () => context.push('/kana-exam'),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          children: [
+            Container(
+              width: 76,
+              height: 76,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: AppColors.jpAccent.withValues(alpha: 0.16),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Text('📝', style: TextStyle(fontSize: 34)),
+            ),
+            const SizedBox(width: Gap.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Expanded(child: PanelLabel('手寫考試')),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.jpAccent.withValues(alpha: 0.16),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: const Text(
+                          '不看提示',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.jpAccent,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text('50 音、詞彙隨機出題，考完才公布答案', style: AppText.note),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, size: 20, color: AppColors.ink3),
+          ],
+        ),
+      ),
     );
   }
 }

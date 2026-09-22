@@ -49,6 +49,12 @@ class KanaExamRepository {
     await _store.write(_key, jsonEncode([for (final e in all) e.toJson()]));
   }
 
+  /// 清空整份考試紀錄——不可逆，呼叫端要在按鈕本身做二次確認，這裡
+  /// 不重複防呆（2026-09-21 使用者要求：一鍵清空要有防呆詢問）。
+  Future<void> clearAll() async {
+    await _store.write(_key, jsonEncode(const <Map<String, dynamic>>[]));
+  }
+
   /// 查詢指定考試類型的所有紀錄。
   Future<List<KanaExamEntry>> findByExamType(String examType) async {
     final all = await loadAll();
@@ -61,5 +67,18 @@ class KanaExamRepository {
     if (entries.isEmpty) return (0, 0);
     final correct = entries.where((e) => e.isCorrect).length;
     return (correct, entries.length);
+  }
+
+  /// 匯出整份考試紀錄給使用者存成真正的檔案，跟
+  /// [KanaPracticeRepository.exportJson] 同一個用途：手機跟電腦各自考
+  /// 的紀錄存在各自瀏覽器的 localStorage，不會自動合併，只能靠使用者
+  /// 手動搬（2026-09-21 使用者要求：考試紀錄也要能匯出）。
+  Future<({String text, int count})> exportJson() async {
+    final all = await loadAll();
+    const encoder = JsonEncoder.withIndent('  ');
+    return (
+      text: encoder.convert([for (final e in all) e.toJson()]),
+      count: all.length,
+    );
   }
 }

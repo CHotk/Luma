@@ -371,8 +371,8 @@ class _KanaPracticePageState extends ConsumerState<KanaPracticePage> {
                   _activePointer = e.pointer;
                   setState(() {
                     _sessionStart ??= DateTime.now();
-                    _entryId ??=
-                        DateTime.now().microsecondsSinceEpoch.toString();
+                    _entryId ??= DateTime.now().microsecondsSinceEpoch
+                        .toString();
                     _strokes.add([normalize(e.localPosition)]);
                     _strokeTimes.add([_elapsedMs()]);
                   });
@@ -399,7 +399,17 @@ class _KanaPracticePageState extends ConsumerState<KanaPracticePage> {
                   _activePointer = null;
                   _saveStroke();
                 },
-                child: CustomPaint(painter: InkPainter(strokes: _strokes)),
+                // 筆畫粗細照畫布邊長抓比例算，不是寫死一個像素值——
+                // 寫死的話，這塊手寫畫布（AspectRatio 撐滿、比縮圖／
+                // 預覽大很多）跟小畫布用同一個像素值，視覺比例會不
+                // 協調（2026-09-21 使用者回饋：預覽比較粗、比較好看，
+                // 手寫時也想要那麼粗，而且要按畫布比例算，不要寫死）。
+                child: CustomPaint(
+                  painter: InkPainter(
+                    strokes: _strokes,
+                    strokeWidth: inkStrokeWidth(box.shortestSide),
+                  ),
+                ),
               ),
             ],
           );
@@ -436,7 +446,11 @@ class _ScriptToggle extends StatelessWidget {
 }
 
 class _RowTabs extends StatelessWidget {
-  const _RowTabs({required this.rows, required this.active, required this.onPick});
+  const _RowTabs({
+    required this.rows,
+    required this.active,
+    required this.onPick,
+  });
 
   final Map<String, List<(String, String)>> rows;
   final String active;
@@ -569,4 +583,3 @@ class _ModeToggle extends StatelessWidget {
     );
   }
 }
-

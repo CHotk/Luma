@@ -4,8 +4,11 @@ import '../features/history/history_page.dart';
 import '../features/history/round_detail_page.dart';
 import '../features/home/home_page.dart';
 import '../features/jp_home/jp_home_page.dart';
+import '../features/jp_home/jp_stats_page.dart';
+import '../features/kana_exam/kana_exam_history_page.dart';
 import '../features/kana_exam/kana_exam_mode_select_page.dart';
 import '../features/kana_exam/kana_exam_page.dart';
+import '../features/kana_exam/kana_exam_row_select_page.dart';
 import '../features/kana_practice/kana_practice_history_page.dart';
 import '../features/kana_practice/kana_practice_page.dart';
 import '../features/library/library_page.dart';
@@ -28,6 +31,7 @@ final appRouter = GoRouter(
     GoRoute(path: '/', builder: (_, _) => const SplashPage()),
     GoRoute(path: '/home', builder: (_, _) => const HomePage()),
     GoRoute(path: '/jp-home', builder: (_, _) => const JpHomePage()),
+    GoRoute(path: '/jp-stats', builder: (_, _) => const JpStatsPage()),
     GoRoute(path: '/quiz', builder: (_, _) => const QuizPage()),
     GoRoute(path: '/result', builder: (_, _) => const ResultPage()),
     GoRoute(path: '/stealth', builder: (_, _) => const StealthPage()),
@@ -62,14 +66,27 @@ final appRouter = GoRouter(
       path: '/kana-exam',
       builder: (_, _) => const KanaExamModeSelectPage(),
       routes: [
+        GoRoute(path: 'rows', builder: (_, _) => const KanaExamRowSelectPage()),
+        GoRoute(
+          path: 'history',
+          builder: (_, _) => const KanaExamHistoryPage(),
+        ),
         GoRoute(
           path: 'start',
-          // extra 是模式選擇頁帶進來的 ExamMode，沒有就沒得考，
-          // 直接退回選擇頁（正常操作不會發生，防的是有人直接打網址）。
+          // extra 是進來的方式決定的型別：詞彙模式從模式選擇頁直接帶
+          // `ExamMode.vocab` 進來（不用選範圍）；50 音模式從選題範圍頁
+          // 帶 `(ExamMode.kana, Set<String>)` 進來（選中的行）。兩種都
+          // 沒對到就沒得考，直接退回選擇頁（正常操作不會發生，防的是
+          // 有人直接打網址）。
           builder: (_, state) {
-            final mode = state.extra;
-            if (mode is! ExamMode) return const KanaExamModeSelectPage();
-            return KanaExamPage(mode: mode);
+            final extra = state.extra;
+            if (extra is ExamMode) {
+              return KanaExamPage(mode: extra);
+            }
+            if (extra is (ExamMode, Set<String>)) {
+              return KanaExamPage(mode: extra.$1, selectedRows: extra.$2);
+            }
+            return const KanaExamModeSelectPage();
           },
         ),
       ],

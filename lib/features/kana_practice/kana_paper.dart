@@ -22,12 +22,22 @@ const guideColor = Color(0x292A1420);
 /// 座標才能保證同一筆紀錄無論在多大的畫布上重播、匯出，字都置中、
 /// 填滿，不會因為存檔當下螢幕大小不同而跑位或縮成一小角。畫的時候
 /// 各個 painter 自己乘回目前 `size` 還原成實際像素。
-Paint _inkPaint(Color color) => Paint()
+Paint _inkPaint(Color color, {double strokeWidth = 5}) => Paint()
   ..color = color
-  ..strokeWidth = 5
+  ..strokeWidth = strokeWidth
   ..strokeCap = StrokeCap.round
   ..strokeJoin = StrokeJoin.round
   ..style = PaintingStyle.stroke;
+
+/// 依畫布邊長算出粗細比例，畫布越大線越粗、越小越細，全 App 只有這
+/// 一個公式，[InkPainter] 的每個呼叫端都要用這個算，不要自己寫死一個
+/// 數字（2026-09-21 使用者兩次回饋才定案：一開始小畫布維持固定 5px，
+/// 但那對 72px 的結果彈窗預覽來說還是太粗，筆畫會糊在一起——固定值
+/// 不管多少都會在某個畫布尺寸上失準，唯一穩妥的做法是全部畫布都照
+/// 同一個比例換算，沒有例外）。下限 1.5 只是防止極端小尺寸筆畫細到
+/// 完全看不見，不是「小畫布刻意粗一點」的例外。
+double inkStrokeWidth(double canvasShortestSide) =>
+    (canvasShortestSide * 0.026).clamp(1.8, 14.0);
 
 /// 仿「原稿用紙」的十字參考線，不是真的稿紙格，練字夠用。
 class PaperGridPainter extends CustomPainter {
@@ -75,22 +85,30 @@ class PaperGridPainter extends CustomPainter {
 /// 畫完整的筆畫，不做漸進顯示。練習頁現寫、練習紀錄頁的靜態縮圖、
 /// 匯出成 PNG 都用這個——差別只在餵給它的 `size` 多大。
 class InkPainter extends CustomPainter {
-  const InkPainter({required this.strokes, this.color = inkColor});
+  const InkPainter({
+    required this.strokes,
+    this.color = inkColor,
+    this.strokeWidth = 5,
+  });
 
   /// 正規化座標（0~1），見檔案開頭說明。
   final List<List<Offset>> strokes;
   final Color color;
 
+  /// 見 [_inkPaint] 的說明：小畫布（縮圖／預覽／匯出）用預設值，
+  /// 手寫作答的大畫布傳大一點的值才會跟小畫布視覺粗細協調。
+  final double strokeWidth;
+
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = _inkPaint(color);
+    final paint = _inkPaint(color, strokeWidth: strokeWidth);
     for (final stroke in strokes) {
       if (stroke.isEmpty) continue;
       final pts = [
         for (final p in stroke) Offset(p.dx * size.width, p.dy * size.height),
       ];
       if (pts.length == 1) {
-        canvas.drawCircle(pts.first, 2.5, Paint()..color = color);
+        canvas.drawCircle(pts.first, strokeWidth / 2, Paint()..color = color);
         continue;
       }
       final path = Path()..moveTo(pts.first.dx, pts.first.dy);
@@ -101,6 +119,10 @@ class InkPainter extends CustomPainter {
     }
   }
 
+  // 一律重繪，不細比對——[strokes] 在即時手寫時是同一個 List 物件被
+  // `.add()`，只比參考比不出內容變了，之前就是一律 true，不能因為加了
+  // strokeWidth 就順手改成有條件比對，不然手寫時畫面會停在半筆不動
+  // （原本這裡就是這樣設計，見這個 class 的既有取捨）。
   @override
   bool shouldRepaint(covariant InkPainter oldDelegate) => true;
 }
@@ -236,10 +258,7 @@ Future<Uint8List> renderStrokesToGif(
   final totalMs = ReplayInkPainter.totalDurationMs(strokes);
   final frameCount = totalMs <= 0
       ? 1
-      : math.min(
-          maxFrames,
-          math.max(1, (totalMs / frameIntervalMs).ceil()),
-        );
+      : math.min(maxFrames, math.max(1, (totalMs / frameIntervalMs).ceil()));
   final stepMs = frameCount <= 1 ? 0.0 : totalMs / frameCount;
 
   // 幾乎全是紙色背景加深色墨線的簡單畫面，不用神經網路量化那麼講究，
@@ -274,10 +293,10 @@ Future<img.Image> _rasterizeFrame(
   final logicalSize = Size(size.toDouble(), size.toDouble());
   canvas.drawRect(Offset.zero & logicalSize, Paint()..color = paperColor);
   const PaperGridPainter().paint(canvas, logicalSize);
-  ReplayInkPainter(strokes: strokes, elapsedMs: elapsedMs).paint(
-    canvas,
-    logicalSize,
-  );
+  ReplayInkPainter(
+    strokes: strokes,
+    elapsedMs: elapsedMs,
+  ).paint(canvas, logicalSize);
   final picture = recorder.endRecording();
   final image = await picture.toImage(size, size);
   final byteData = await image.toByteData(format: ui.ImageByteFormat.rawRgba);

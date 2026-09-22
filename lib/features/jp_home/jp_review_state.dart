@@ -64,10 +64,9 @@ List<KanaProgress> buildKanaProgress(List<KanaPracticeEntry> entries) {
                 .length,
             lastPracticedAt: (byKana[kana] ?? const []).fold<DateTime?>(
               null,
-              (latest, e) =>
-                  latest == null || e.savedAt.isAfter(latest)
-                      ? e.savedAt
-                      : latest,
+              (latest, e) => latest == null || e.savedAt.isAfter(latest)
+                  ? e.savedAt
+                  : latest,
             ),
           ),
   ];

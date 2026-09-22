@@ -1,0 +1,385 @@
+<!doctype html>
+<title>左側選單・設計稿</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;800&family=Material+Symbols+Outlined&display=swap"
+/>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0c0c13;
+    --bg-deep: #0a0a10;
+    --panel-edge: rgba(255, 255, 255, 0.14);
+    --ink: #f3f2f8;
+    --ink2: #a3a2b2;
+    --ink3: #74738a;
+    --accent: #7ea6ff;
+    --accent-solid: #2e6bff;
+    --glass-fill: rgba(255, 255, 255, 0.07);
+    --glass-edge: rgba(255, 255, 255, 0.14);
+    --amb-blue: #2450d8;
+    --amb-violet: #6c2fce;
+    --amb-teal: #0e7c6c;
+    --jp-accent: #ea92ac;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: var(--bg-deep);
+    color: var(--ink);
+    font-family: "Zen Kaku Gothic New", "Noto Sans TC", system-ui, sans-serif;
+  }
+
+  body {
+    padding-inline: 20px;
+    padding-block: 32px 48px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+  }
+
+  .intro { max-width: 460px; width: 100%; text-align: center; }
+  .eyebrow {
+    font-size: 12px; letter-spacing: 0.16em; color: #8b8690; text-transform: uppercase;
+  }
+  .intro h1 {
+    font-weight: 800; font-size: clamp(20px, 5vw, 24px); margin: 6px 0 8px; color: #f4f1f4;
+  }
+  .intro p { margin: 0; font-size: 13px; line-height: 1.7; color: #a9a4ad; max-width: 46ch; margin-inline: auto; }
+
+  /* ---------- phone shell ---------- */
+  .phone {
+    position: relative;
+    width: 100%;
+    max-width: 380px;
+    height: 720px;
+    border-radius: 34px;
+    padding: 14px;
+    isolation: isolate;
+    overflow: hidden;
+    background: var(--bg);
+    box-shadow: 0 30px 70px -30px rgba(0, 0, 0, 0.7);
+  }
+  .amb { position: absolute; border-radius: 50%; filter: blur(50px); opacity: 0.5; z-index: -1; }
+  .amb-1 { width: 220px; height: 220px; top: -70px; left: -60px; background: var(--amb-blue); }
+  .amb-2 { width: 200px; height: 200px; bottom: 60px; right: -70px; background: var(--amb-violet); }
+  .amb-3 { width: 180px; height: 180px; bottom: -90px; left: 40px; background: var(--amb-teal); }
+
+  .shell {
+    position: relative;
+    height: 100%;
+    border-radius: 24px;
+    padding: 18px 16px 20px;
+    background: rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border: 1px solid var(--panel-edge);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  /* topbar */
+  .topbar { display: flex; align-items: center; gap: 10px; }
+  .menu-btn {
+    appearance: none; border: none; background: var(--glass-fill);
+    border: 1px solid var(--glass-edge);
+    color: var(--ink); width: 36px; height: 36px; border-radius: 11px;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    flex: none; transition: background 0.15s ease, transform 0.1s ease;
+  }
+  .menu-btn:hover { background: rgba(255, 255, 255, 0.12); }
+  .menu-btn:active { transform: scale(0.94); }
+  .menu-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .topbar-title { font-weight: 700; font-size: 16px; }
+  .topbar-icons { margin-left: auto; display: flex; gap: 2px; }
+  .topbar-icons .material-symbols-outlined {
+    font-size: 18px; color: var(--ink3); padding: 7px; font-variation-settings: "opsz" 20;
+  }
+
+  .home-body { display: flex; flex-direction: column; gap: 14px; flex: 1; }
+  .card {
+    border-radius: 18px; background: rgba(255, 255, 255, 0.035);
+    border: 1px solid var(--panel-edge); padding: 14px;
+  }
+  .placeholder-lines { display: flex; flex-direction: column; gap: 8px; }
+  .placeholder-lines .bar { height: 10px; border-radius: 6px; background: rgba(255, 255, 255, 0.06); }
+  .placeholder-lines .bar.w60 { width: 60%; }
+  .placeholder-lines .bar.w80 { width: 80%; }
+  .placeholder-lines .bar.w40 { width: 40%; }
+
+  .hint-tap {
+    margin-top: auto;
+    text-align: center;
+    font-size: 12px;
+    color: var(--ink3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+  }
+  .hint-tap .material-symbols-outlined { font-size: 15px; }
+
+  /* ---------- sidebar drawer ---------- */
+  .scrim {
+    position: absolute; inset: 0; z-index: 5;
+    background: rgba(6, 5, 10, 0.55);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.28s ease;
+  }
+  .scrim.open { opacity: 1; pointer-events: auto; }
+
+  .drawer {
+    position: absolute; top: 0; bottom: 0; left: 0;
+    width: 270px;
+    z-index: 6;
+    transform: translateX(-104%);
+    transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+    display: flex;
+    flex-direction: column;
+    background: rgba(20, 18, 28, 0.72);
+    backdrop-filter: blur(24px) saturate(140%);
+    -webkit-backdrop-filter: blur(24px) saturate(140%);
+    border-right: 1px solid var(--glass-edge);
+    box-shadow: 30px 0 60px -30px rgba(0, 0, 0, 0.6);
+    padding: 18px 14px 16px;
+    gap: 4px;
+    overflow-y: auto;
+  }
+  .drawer.open { transform: translateX(0); }
+
+  .drawer-head { display: flex; align-items: center; gap: 10px; padding: 4px 6px 14px; }
+  .brand-mark {
+    width: 34px; height: 34px; border-radius: 10px; flex: none;
+    background: linear-gradient(155deg, #ffffff 0%, #9b7bff 60%, #7ea6ff 100%);
+  }
+  .brand-name { font-weight: 800; font-size: 16px; letter-spacing: 0.01em; }
+  .close-btn {
+    margin-left: auto; appearance: none; border: none; background: transparent;
+    color: var(--ink3); width: 28px; height: 28px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+  }
+  .close-btn:hover { color: var(--ink); background: rgba(255, 255, 255, 0.06); }
+
+  /* track switcher */
+  .track-switch {
+    display: flex; gap: 6px; padding: 3px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--glass-edge);
+    border-radius: 13px; margin: 4px 2px 14px;
+  }
+  .track-switch button {
+    appearance: none; border: none; flex: 1; padding: 8px 6px;
+    border-radius: 10px; background: transparent; color: var(--ink2);
+    font-family: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 5px;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .track-switch button.active.en { background: color-mix(in srgb, var(--accent) 30%, transparent); color: var(--ink); }
+  .track-switch button.active.jp { background: color-mix(in srgb, var(--jp-accent) 30%, transparent); color: var(--ink); }
+  .track-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+  .track-dot.en { background: var(--accent); }
+  .track-dot.jp { background: var(--jp-accent); }
+
+  .group-label {
+    font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--ink3); padding: 10px 10px 6px;
+  }
+
+  .nav-item {
+    appearance: none; border: none; width: 100%; text-align: left;
+    display: flex; align-items: center; gap: 11px;
+    padding: 10px 10px; border-radius: 12px;
+    background: transparent; color: var(--ink2);
+    font-family: inherit; font-size: 13.5px; font-weight: 600;
+    cursor: pointer; transition: background 0.15s ease, color 0.15s ease;
+  }
+  .nav-item .material-symbols-outlined { font-size: 19px; color: inherit; flex: none; }
+  .nav-item:hover { background: rgba(255, 255, 255, 0.055); color: var(--ink); }
+  .nav-item:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+  .nav-item.active {
+    background: color-mix(in srgb, var(--accent) 22%, transparent);
+    color: var(--ink);
+  }
+  .nav-item.active .material-symbols-outlined { color: var(--accent); }
+  .nav-item span.label { flex: 1; }
+
+  .nav-item.mock { cursor: default; }
+  .nav-item.mock:hover { background: transparent; color: var(--ink2); }
+  .soon-tag {
+    font-size: 9.5px; font-weight: 700; letter-spacing: 0.02em;
+    color: var(--ink3); background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--glass-edge);
+    padding: 2px 7px; border-radius: 999px; flex: none;
+  }
+
+  .drawer-divider { height: 1px; background: var(--glass-edge); margin: 10px 2px; flex: none; }
+
+  .drawer-footer { margin-top: auto; padding-top: 6px; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="intro">
+  <p class="eyebrow">Lume · 左側選單・設計稿（Mock，未接真資料）</p>
+  <h1>三條線開側邊欄，毛玻璃抽屜</h1>
+  <p>
+    右上角原本的圖示列保留（提示／單字庫／統計／紀錄／設定），左上角新增「≡」按鈕，
+    點開毛玻璃抽屜：上面是軌道切換（英文／日文），中間是既有功能，
+    下面「敬請期待」那組是還沒做的六個構想——先看版面順不順，圖示、分類都可以再調。
+  </p>
+</div>
+
+<div class="phone">
+  <div class="amb amb-1"></div>
+  <div class="amb amb-2"></div>
+  <div class="amb amb-3"></div>
+
+  <div class="shell">
+    <div class="topbar">
+      <button class="menu-btn" id="openDrawer" aria-label="開啟選單">
+        <span class="material-symbols-outlined">menu</span>
+      </button>
+      <span class="topbar-title">週三 · 英文軌道</span>
+      <div class="topbar-icons">
+        <span class="material-symbols-outlined">tips_and_updates</span>
+        <span class="material-symbols-outlined">menu_book</span>
+        <span class="material-symbols-outlined">bar_chart</span>
+        <span class="material-symbols-outlined">settings</span>
+      </div>
+    </div>
+
+    <div class="home-body">
+      <div class="card">
+        <div class="placeholder-lines">
+          <div class="bar w60"></div>
+          <div class="bar w80"></div>
+          <div class="bar w40"></div>
+        </div>
+      </div>
+      <div class="card" style="flex:1;"></div>
+      <p class="hint-tap">
+        <span class="material-symbols-outlined">touch_app</span>
+        點左上角「≡」看側邊欄
+      </p>
+    </div>
+
+    <!-- scrim -->
+    <div class="scrim" id="scrim"></div>
+
+    <!-- drawer -->
+    <nav class="drawer" id="drawer" aria-label="側邊選單">
+      <div class="drawer-head">
+        <div class="brand-mark"></div>
+        <span class="brand-name">Lume</span>
+        <button class="close-btn" id="closeDrawer" aria-label="關閉選單">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+
+      <div class="track-switch">
+        <button class="active en">
+          <span class="track-dot en"></span>英文
+        </button>
+        <button class="jp">
+          <span class="track-dot jp"></span>日文
+        </button>
+      </div>
+
+      <p class="group-label">學習</p>
+      <button class="nav-item active">
+        <span class="material-symbols-outlined">home</span>
+        <span class="label">首頁</span>
+      </button>
+      <button class="nav-item">
+        <span class="material-symbols-outlined">menu_book</span>
+        <span class="label">單字庫</span>
+      </button>
+      <button class="nav-item">
+        <span class="material-symbols-outlined">history</span>
+        <span class="label">練習紀錄</span>
+      </button>
+      <button class="nav-item">
+        <span class="material-symbols-outlined">bar_chart</span>
+        <span class="label">學習統計</span>
+      </button>
+
+      <div class="drawer-divider"></div>
+
+      <p class="group-label">敬請期待</p>
+      <button class="nav-item mock">
+        <span class="material-symbols-outlined">subscriptions</span>
+        <span class="label">YT 頻道追蹤</span>
+        <span class="soon-tag">構想中</span>
+      </button>
+      <button class="nav-item mock">
+        <span class="material-symbols-outlined">account_balance_wallet</span>
+        <span class="label">記帳</span>
+        <span class="soon-tag">構想中</span>
+      </button>
+      <button class="nav-item mock">
+        <span class="material-symbols-outlined">event_note</span>
+        <span class="label">行程表</span>
+        <span class="soon-tag">構想中</span>
+      </button>
+      <button class="nav-item mock">
+        <span class="material-symbols-outlined">alarm</span>
+        <span class="label">鬧鐘</span>
+        <span class="soon-tag">構想中</span>
+      </button>
+      <button class="nav-item mock">
+        <span class="material-symbols-outlined">timer</span>
+        <span class="label">碼錶</span>
+        <span class="soon-tag">構想中</span>
+      </button>
+      <button class="nav-item mock">
+        <span class="material-symbols-outlined">auto_stories</span>
+        <span class="label">日記</span>
+        <span class="soon-tag">構想中</span>
+      </button>
+
+      <div class="drawer-footer">
+        <div class="drawer-divider"></div>
+        <button class="nav-item">
+          <span class="material-symbols-outlined">settings</span>
+          <span class="label">設定</span>
+        </button>
+      </div>
+    </nav>
+  </div>
+</div>
+
+<script>
+  const openBtn = document.getElementById("openDrawer");
+  const closeBtn = document.getElementById("closeDrawer");
+  const drawer = document.getElementById("drawer");
+  const scrim = document.getElementById("scrim");
+
+  function openDrawer() {
+    drawer.classList.add("open");
+    scrim.classList.add("open");
+  }
+  function closeDrawer() {
+    drawer.classList.remove("open");
+    scrim.classList.remove("open");
+  }
+
+  openBtn.addEventListener("click", openDrawer);
+  closeBtn.addEventListener("click", closeDrawer);
+  scrim.addEventListener("click", closeDrawer);
+
+  // 敬請期待項目先不做任何事，只是版面 mock
+  document.querySelectorAll(".nav-item.mock").forEach((btn) => {
+    btn.addEventListener("click", (e) => e.preventDefault());
+  });
+</script>

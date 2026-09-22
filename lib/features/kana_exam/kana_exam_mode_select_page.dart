@@ -3,8 +3,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
-import '../../app/theme/typography.dart';
 import '../../shared/widgets/ambient_background.dart';
+import 'kana_exam_header_bar.dart';
 import 'kana_exam_page.dart';
 
 /// 考試模式選擇頁。
@@ -35,17 +35,7 @@ class KanaExamModeSelectPage extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: Gap.sm),
-                Row(
-                  children: [
-                    IconButton(
-                      onPressed: () => Navigator.of(context).maybePop(),
-                      icon: const Icon(Icons.arrow_back, size: 20),
-                      color: AppColors.ink2,
-                    ),
-                    const SizedBox(width: Gap.xs),
-                    const Text('📝 手寫考試', style: AppText.title),
-                  ],
-                ),
+                const KanaExamHeaderBar(title: '📝 手寫考試'),
                 const SizedBox(height: Gap.sm),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -64,8 +54,7 @@ class KanaExamModeSelectPage extends StatelessWidget {
                   title: '50 音考試',
                   desc: '聽發音，手寫出對應的平假名',
                   accentText: 'a → あ',
-                  onTap: () =>
-                      context.push('/kana-exam/start', extra: ExamMode.kana),
+                  onTap: () => context.push('/kana-exam/rows'),
                 ),
                 const SizedBox(height: Gap.md),
                 _ModeCard(
