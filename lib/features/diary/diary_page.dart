@@ -37,14 +37,20 @@ class _DiaryPageState extends ConsumerState<DiaryPage> {
   late Future<List<DiaryEntry>> _future;
   final _textController = TextEditingController();
   String _mood = diaryMoods.first;
-  // 天氣選填，預設第一個選項（2026-09-22 使用者要求）。
+  // 天氣現象／冷熱感受選填，預設各自第一個選項——兩個獨立屬性，分開
+  // 兩排選（2026-09-22 使用者糾正：陰晴雨／冷熱普通不是同一屬性）。
   String _weather = diaryWeathers.first;
+  String _temperature = diaryTemperatures.first;
   // 0 = 今天／1 = 昨天／2 = 前天，補寫之前忘記打卡的日子用
   // （2026-09-22 使用者要求：怕 12 點才寫或忘記寫一天）。
   int _dayOffset = 0;
-  // 點頂部日期條選中的那一天，非 null 時下面列表只顯示那一天
-  // （2026-09-22 使用者要求：選日期要讓下面直接跳到那天）。
+  // 點頂部日期條選中的那一天，下面「最近」列表還是照樣顯示全部，只是
+  // 把這一天的那則特別標起來、捲到看得到的地方方便找，不是把其他都
+  // 藏掉（2026-09-22 使用者糾正：原本誤做成過濾掉其他天）。
   DateTime? _selectedDay;
+  DateTime? _lastScrolledSelection;
+  final _listScrollController = ScrollController();
+  final Map<String, GlobalKey> _rowKeys = {};
 
   @override
   void initState() {
@@ -64,6 +70,7 @@ class _DiaryPageState extends ConsumerState<DiaryPage> {
   @override
   void dispose() {
     _textController.dispose();
+    _listScrollController.dispose();
     super.dispose();
   }
 
@@ -81,6 +88,44 @@ class _DiaryPageState extends ConsumerState<DiaryPage> {
     });
   }
 
+  /// 「最近」列表永遠是全部日記都在（2026-09-22 使用者糾正：點頂部
+  /// 日期原本誤做成把其他天都濾掉，其實應該照樣全部顯示，只是把選中
+  /// 那天特別標起來、捲到看得到的地方方便找）。[selectedEntry] 非 null
+  /// 的話，捲一次讓它進入可視範圍——只在「這次選的天」跟上次捲過的不
+  /// 一樣時才捲，不然每次 build 都會被拉走，使用者自己往上滑找別的
+  /// 紀錄時會一直被拉回去。
+  Widget _buildRecentList(List<DiaryEntry> all, DiaryEntry? selectedEntry) {
+    if (selectedEntry != null && _lastScrolledSelection != _selectedDay) {
+      _lastScrolledSelection = _selectedDay;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final ctx = _rowKeys[selectedEntry.id]?.currentContext;
+        if (ctx == null) return;
+        Scrollable.ensureVisible(
+          ctx,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+          alignment: 0.5,
+        );
+      });
+    }
+    return ListView.separated(
+      controller: _listScrollController,
+      itemCount: all.length,
+      separatorBuilder: (_, _) =>
+          const Divider(height: 1, color: AppColors.glassEdge),
+      itemBuilder: (_, i) {
+        final entry = all[i];
+        final key = _rowKeys.putIfAbsent(entry.id, () => GlobalKey());
+        return _SimpleRow(
+          key: key,
+          entry: entry,
+          highlighted: selectedEntry != null && entry.id == selectedEntry.id,
+          onTap: () => _showEntry(entry),
+        );
+      },
+    );
+  }
+
   Future<void> _submit() async {
     final text = _textController.text.trim();
     if (text.isEmpty) return;
@@ -92,6 +137,7 @@ class _DiaryPageState extends ConsumerState<DiaryPage> {
         mood: _mood,
         text: text,
         weather: _weather,
+        temperature: _temperature,
         // 補寫昨天／前天：日期往回推，但時分照實際送出的當下記錄。
         savedAt: now.subtract(Duration(days: _dayOffset)),
       ),
@@ -99,6 +145,7 @@ class _DiaryPageState extends ConsumerState<DiaryPage> {
     _textController.clear();
     _mood = diaryMoods.first;
     _weather = diaryWeathers.first;
+    _temperature = diaryTemperatures.first;
     _dayOffset = 0;
     _reload();
   }
@@ -123,6 +170,13 @@ class _DiaryPageState extends ConsumerState<DiaryPage> {
                   if (entry.weather.isNotEmpty) ...[
                     const SizedBox(width: 6),
                     Text(entry.weather, style: const TextStyle(fontSize: 15)),
+                  ],
+                  if (entry.temperature.isNotEmpty) ...[
+                    const SizedBox(width: 4),
+                    Text(
+                      entry.temperature,
+                      style: const TextStyle(fontSize: 15),
+                    ),
                   ],
                   const SizedBox(width: Gap.sm),
                   Expanded(
@@ -200,8 +254,11 @@ class _DiaryPageState extends ConsumerState<DiaryPage> {
   Future<void> _showEditDialog(DiaryEntry entry) async {
     final controller = TextEditingController(text: entry.text);
     var mood = entry.mood;
-    // 舊資料沒有天氣欄位（空字串），編輯時給個預設選項，不留空著。
+    // 舊資料沒有天氣／冷熱欄位（空字串），編輯時給個預設選項，不留空著。
     var weather = entry.weather.isEmpty ? diaryWeathers.first : entry.weather;
+    var temperature = entry.temperature.isEmpty
+        ? diaryTemperatures.first
+        : entry.temperature;
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
@@ -230,13 +287,28 @@ class _DiaryPageState extends ConsumerState<DiaryPage> {
                 children: [
                   for (final w in diaryWeathers) ...[
                     Expanded(
-                      child: _WeatherChip(
-                        weather: w,
+                      child: _TagChip(
+                        label: w,
                         selected: w == weather,
                         onTap: () => setDialogState(() => weather = w),
                       ),
                     ),
                     if (w != diaryWeathers.last) const SizedBox(width: 6),
+                  ],
+                ],
+              ),
+              const SizedBox(height: Gap.xs),
+              Row(
+                children: [
+                  for (final t in diaryTemperatures) ...[
+                    Expanded(
+                      child: _TagChip(
+                        label: t,
+                        selected: t == temperature,
+                        onTap: () => setDialogState(() => temperature = t),
+                      ),
+                    ),
+                    if (t != diaryTemperatures.last) const SizedBox(width: 6),
                   ],
                 ],
               ),
@@ -276,6 +348,7 @@ class _DiaryPageState extends ConsumerState<DiaryPage> {
                         mood: mood,
                         text: text,
                         weather: weather,
+                        temperature: temperature,
                         savedAt: entry.savedAt,
                       ),
                     );
@@ -364,6 +437,7 @@ class _DiaryPageState extends ConsumerState<DiaryPage> {
                             controller: _textController,
                             mood: _mood,
                             weather: _weather,
+                            temperature: _temperature,
                             dayOffset: _dayOffset,
                             checkedInForTarget: checkedInForTarget,
                             onDayOffsetChanged: (v) =>
@@ -371,45 +445,23 @@ class _DiaryPageState extends ConsumerState<DiaryPage> {
                             onMoodChanged: (m) => setState(() => _mood = m),
                             onWeatherChanged: (w) =>
                                 setState(() => _weather = w),
+                            onTemperatureChanged: (t) =>
+                                setState(() => _temperature = t),
                             onSubmit: _submit,
                           ),
                           const SizedBox(height: Gap.md),
-                          if (selectedDay == null) ...[
-                            const PanelLabel('最近'),
-                            const SizedBox(height: Gap.sm),
-                            Expanded(
-                              child: all.isEmpty
-                                  ? Center(
-                                      child: Text(
-                                        '還沒有任何日記，上面打個卡開始吧',
-                                        style: AppText.bodyDim,
-                                      ),
-                                    )
-                                  : ListView.separated(
-                                      itemCount: all.length,
-                                      separatorBuilder: (_, _) =>
-                                          const Divider(
-                                            height: 1,
-                                            color: AppColors.glassEdge,
-                                          ),
-                                      itemBuilder: (_, i) => _SimpleRow(
-                                        entry: all[i],
-                                        onTap: () => _showEntry(all[i]),
-                                      ),
+                          const PanelLabel('最近'),
+                          const SizedBox(height: Gap.sm),
+                          Expanded(
+                            child: all.isEmpty
+                                ? Center(
+                                    child: Text(
+                                      '還沒有任何日記，上面打個卡開始吧',
+                                      style: AppText.bodyDim,
                                     ),
-                            ),
-                          ] else
-                            Expanded(
-                              child: _SelectedDayPanel(
-                                day: selectedDay,
-                                entry: selectedEntry,
-                                onClear: () =>
-                                    setState(() => _selectedDay = null),
-                                onTapEntry: selectedEntry == null
-                                    ? null
-                                    : () => _showEntry(selectedEntry!),
-                              ),
-                            ),
+                                  )
+                                : _buildRecentList(all, selectedEntry),
+                          ),
                         ],
                       );
                     },
@@ -881,79 +933,6 @@ class _MonthCell extends StatelessWidget {
   }
 }
 
-/// 選了某一天（點頂部日期條）以後，下面「最近」列表換成只顯示那一天
-/// （2026-09-22 使用者要求：選日期要讓下面直接跳到那天）。
-class _SelectedDayPanel extends StatelessWidget {
-  const _SelectedDayPanel({
-    required this.day,
-    required this.entry,
-    required this.onClear,
-    required this.onTapEntry,
-  });
-
-  final DateTime day;
-  final DiaryEntry? entry;
-  final VoidCallback onClear;
-  final VoidCallback? onTapEntry;
-
-  @override
-  Widget build(BuildContext context) {
-    final entry = this.entry;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          children: [
-            Expanded(child: Text(_dayHeaderLabel(day), style: AppText.body)),
-            TextButton(onPressed: onClear, child: const Text('顯示全部')),
-          ],
-        ),
-        const SizedBox(height: Gap.sm),
-        Expanded(
-          child: entry == null
-              ? Center(child: Text('這天沒有日記', style: AppText.bodyDim))
-              : GlassCard(
-                  onTap: onTapEntry,
-                  child: Row(
-                    children: [
-                      Text(entry.mood, style: const TextStyle(fontSize: 20)),
-                      if (entry.weather.isNotEmpty) ...[
-                        const SizedBox(width: 4),
-                        Text(
-                          entry.weather,
-                          style: const TextStyle(fontSize: 13),
-                        ),
-                      ],
-                      const SizedBox(width: Gap.sm),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(_dateLabel(entry.savedAt), style: AppText.note),
-                            const SizedBox(height: 2),
-                            Text(entry.text, style: AppText.body),
-                          ],
-                        ),
-                      ),
-                      const Icon(
-                        Icons.chevron_right,
-                        size: 18,
-                        color: AppColors.ink3,
-                      ),
-                    ],
-                  ),
-                ),
-        ),
-      ],
-    );
-  }
-}
-
-String _dayHeaderLabel(DateTime d) {
-  final weekday = _weekdayLabels[d.weekday - 1];
-  return '${d.year} 年 ${d.month} 月 ${d.day} 日・週$weekday';
-}
-
 const _dayOffsetLabels = ['今天', '昨天', '前天'];
 
 /// 打卡卡：選心情＋一行文字＋送出，全部同一個操作完成（設計稿 04）。
@@ -966,22 +945,26 @@ class _CheckInCard extends StatelessWidget {
     required this.controller,
     required this.mood,
     required this.weather,
+    required this.temperature,
     required this.dayOffset,
     required this.checkedInForTarget,
     required this.onDayOffsetChanged,
     required this.onMoodChanged,
     required this.onWeatherChanged,
+    required this.onTemperatureChanged,
     required this.onSubmit,
   });
 
   final TextEditingController controller;
   final String mood;
   final String weather;
+  final String temperature;
   final int dayOffset;
   final bool checkedInForTarget;
   final ValueChanged<int> onDayOffsetChanged;
   final ValueChanged<String> onMoodChanged;
   final ValueChanged<String> onWeatherChanged;
+  final ValueChanged<String> onTemperatureChanged;
   final VoidCallback onSubmit;
 
   @override
@@ -1023,13 +1006,14 @@ class _CheckInCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: Gap.sm),
-          // 天氣選填，跟心情同一排邏輯（2026-09-22 使用者要求）。
+          // 天氣現象跟冷熱感受是兩個獨立屬性，各自一排（2026-09-22
+          // 使用者糾正：一開始誤把六個選項塞進同一排）。
           Row(
             children: [
               for (final w in diaryWeathers) ...[
                 Expanded(
-                  child: _WeatherChip(
-                    weather: w,
+                  child: _TagChip(
+                    label: w,
                     selected: w == weather,
                     onTap: checkedInForTarget
                         ? null
@@ -1037,6 +1021,23 @@ class _CheckInCard extends StatelessWidget {
                   ),
                 ),
                 if (w != diaryWeathers.last) const SizedBox(width: 6),
+              ],
+            ],
+          ),
+          const SizedBox(height: Gap.xs),
+          Row(
+            children: [
+              for (final t in diaryTemperatures) ...[
+                Expanded(
+                  child: _TagChip(
+                    label: t,
+                    selected: t == temperature,
+                    onTap: checkedInForTarget
+                        ? null
+                        : () => onTemperatureChanged(t),
+                  ),
+                ),
+                if (t != diaryTemperatures.last) const SizedBox(width: 6),
               ],
             ],
           ),
@@ -1117,6 +1118,10 @@ class _CheckInCard extends StatelessWidget {
 /// 選單再打開就會整個往上跳一截去把那個選項對齊回按鈕——每次開合位置
 /// 都不一樣，容易誤觸（2026-09-22 使用者回饋）。[PopupMenuButton] 固定
 /// 貼著按鈕下面展開，跟目前選了哪一項無關，位置每次都一樣。
+///
+/// 按鈕本身用 [GlassCard]（全 App 唯一的毛玻璃實作，見該檔案說明），
+/// 半圓角做成膠囊形——原本只有純色底+邊框，跟卡片其他地方的玻璃質感
+/// 對不起來，看起來很突兀（2026-09-22 使用者回饋：沒有一點毛玻璃）。
 class _DayOffsetDropdown extends StatelessWidget {
   const _DayOffsetDropdown({required this.value, required this.onChanged});
 
@@ -1146,13 +1151,9 @@ class _DayOffsetDropdown extends StatelessWidget {
             ),
           ),
       ],
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: AppColors.glassFill,
-          border: Border.all(color: AppColors.glassEdge),
-          borderRadius: BorderRadius.circular(8),
-        ),
+      child: GlassCard(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        radius: Radii.chip,
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -1207,14 +1208,15 @@ class _MoodButton extends StatelessWidget {
   }
 }
 
-class _WeatherChip extends StatelessWidget {
-  const _WeatherChip({
-    required this.weather,
+/// 天氣現象／冷熱感受共用的小標籤按鈕。
+class _TagChip extends StatelessWidget {
+  const _TagChip({
+    required this.label,
     required this.selected,
     required this.onTap,
   });
 
-  final String weather;
+  final String label;
   final bool selected;
   final VoidCallback? onTap;
 
@@ -1236,7 +1238,7 @@ class _WeatherChip extends StatelessWidget {
           ),
         ),
         child: Text(
-          weather,
+          label,
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
@@ -1248,19 +1250,38 @@ class _WeatherChip extends StatelessWidget {
   }
 }
 
-/// 一行一則，滑過去就好，不是大卡片（設計稿 04）。
+/// 一行一則，滑過去就好，不是大卡片（設計稿 04）。[highlighted] 是點了
+/// 頂部日期條選中那天時，用來標出「就是這一則」的（2026-09-22 使用者
+/// 糾正：選日期不該把其他天濾掉，全部照樣顯示，只是標記+捲過去）。
 class _SimpleRow extends StatelessWidget {
-  const _SimpleRow({required this.entry, required this.onTap});
+  const _SimpleRow({
+    super.key,
+    required this.entry,
+    required this.onTap,
+    this.highlighted = false,
+  });
 
   final DiaryEntry entry;
   final VoidCallback onTap;
+  final bool highlighted;
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 9),
+      borderRadius: BorderRadius.circular(10),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          color: highlighted
+              ? AppColors.diaryAccent.withValues(alpha: 0.18)
+              : Colors.transparent,
+          border: highlighted
+              ? Border.all(color: AppColors.diaryAccent)
+              : null,
+        ),
         child: Row(
           children: [
             SizedBox(
