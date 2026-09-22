@@ -37,6 +37,7 @@ class YoutubeVideo {
     required this.title,
     required this.publishedAt,
     required this.thumbnailUrl,
+    this.duration,
   });
 
   final String videoId;
@@ -44,7 +45,44 @@ class YoutubeVideo {
   final DateTime publishedAt;
   final String thumbnailUrl;
 
+  /// 影片長度——`playlistItems.list`（抓影片清單那支 API）不會給這個，
+  /// 要另外呼叫 `videos.list` 才拿得到，所以先建好物件、抓完清單之後
+  /// 再補一次請求把這欄填回去（見 [YoutubeApiService.fetchDurations]）。
+  /// 沒填到（那次呼叫失敗、或還沒補）就是 null，畫面上不顯示時長角標，
+  /// 不是硬顯示 0:00 誤導人。
+  final Duration? duration;
+
   String get watchUrl => 'https://www.youtube.com/watch?v=$videoId';
+
+  YoutubeVideo withDuration(Duration value) => YoutubeVideo(
+    videoId: videoId,
+    title: title,
+    publishedAt: publishedAt,
+    thumbnailUrl: thumbnailUrl,
+    duration: value,
+  );
+}
+
+/// YouTube API 的影片長度是 ISO 8601 格式（例如 `PT1H2M10S`、`PT4M13S`），
+/// Dart 沒有內建剖析器，自己抓三個數字。抓不到的部分當 0（例如
+/// `PT45S` 沒有 H、M 兩段）。
+Duration parseIso8601Duration(String iso) {
+  final match = RegExp(r'PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?').firstMatch(iso);
+  if (match == null) return Duration.zero;
+  final hours = int.tryParse(match.group(1) ?? '') ?? 0;
+  final minutes = int.tryParse(match.group(2) ?? '') ?? 0;
+  final seconds = int.tryParse(match.group(3) ?? '') ?? 0;
+  return Duration(hours: hours, minutes: minutes, seconds: seconds);
+}
+
+/// 時長角標要顯示的文字，跟 YouTube 網站同一種慣例：超過一小時才顯示
+/// 時的那一段，分鐘/秒數固定補零到兩位數。
+String formatVideoDuration(Duration d) {
+  String two(int n) => n.toString().padLeft(2, '0');
+  final h = d.inHours;
+  final m = d.inMinutes % 60;
+  final s = d.inSeconds % 60;
+  return h > 0 ? '$h:${two(m)}:${two(s)}' : '$m:${two(s)}';
 }
 
 /// 直接打 YouTube Data API v3，純前端 HTTP 呼叫，不用整包 googleapis
@@ -136,6 +174,34 @@ class YoutubeApiService {
       publishedAt: DateTime.parse(snippet['publishedAt'] as String),
       thumbnailUrl: thumb['url'] as String,
     );
+  }
+
+  /// 補影片長度——`videos.list` 一次最多吃 50 個 id，一次呼叫就夠（這個
+  /// App 一次最多抓 10 部影片），跟 `fetchRecentVideos` 分開呼叫是因為
+  /// `playlistItems.list` 本身沒有長度這個欄位。
+  Future<Map<String, Duration>> fetchDurations(List<String> videoIds) async {
+    if (videoIds.isEmpty) return const {};
+    final uri = Uri.parse('$_base/videos').replace(
+      queryParameters: {
+        'part': 'contentDetails',
+        'id': videoIds.join(','),
+        'key': apiKey,
+      },
+    );
+    final res = await http.get(uri);
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    if (res.statusCode != 200) {
+      throw YoutubeApiException(_errorMessage(res.statusCode, body));
+    }
+    final items = ((body['items'] as List?) ?? const [])
+        .cast<Map<String, dynamic>>();
+    return {
+      for (final item in items)
+        item['id'] as String: parseIso8601Duration(
+          (item['contentDetails'] as Map<String, dynamic>)['duration']
+              as String,
+        ),
+    };
   }
 
   String _errorMessage(int status, Map<String, dynamic> body) {

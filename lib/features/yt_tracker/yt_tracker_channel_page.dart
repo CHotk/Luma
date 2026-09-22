@@ -5,16 +5,20 @@ import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
+import '../../data/services/youtube_api_service.dart';
 import '../../domain/models/yt_tracker.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
 import '../../shared/widgets/glass_card.dart';
+import 'yt_api_key_dialog.dart';
 import 'yt_channel_avatar.dart';
+import 'yt_video_row.dart';
 
-/// 頻道詳情。目前只有基本資料（名稱、分類、網址）跟編輯／刪除，還沒有
-/// 「最近影片」的真資料——見 `yt_tracker_browse_page.dart` 的
-/// `_VideoEmptyState` 說明，同一個理由。
+/// 頻道詳情。基本資料（名稱、分類、網址、簡介）可以編輯／刪除，網址點
+/// 下去會開新分頁；「最近影片」真的接了 YouTube Data API（2026-09-22，
+/// 之前漏接，跟 `yt_tracker_browse_page.dart` 的「依影片顯示」補齊成
+/// 同一套邏輯，見 `yt_video_row.dart` 共用元件）。
 class YtTrackerChannelPage extends ConsumerStatefulWidget {
   const YtTrackerChannelPage({super.key, required this.channelId});
 
@@ -27,6 +31,15 @@ class YtTrackerChannelPage extends ConsumerStatefulWidget {
 
 class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
   late Future<({YtChannel? channel, List<YtCategory> categories})> _future;
+
+  Future<List<YoutubeVideo>>? _videosFuture;
+  String? _videosLoadedForChannelId;
+  DateTime? _videosLoadedAt;
+
+  /// 跟 `yt_tracker_browse_page.dart` 同一個節流理由：不是把影片清單
+  /// 長期快取，只是不要每次重繪都重打 API，超過這個時間或按「重新
+  /// 整理」都會重抓一次真的資料。
+  static const _staleAfter = Duration(minutes: 5);
 
   @override
   void initState() {
@@ -43,6 +56,132 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
   }
 
   void _reload() => setState(() => _future = _load());
+
+  void _ensureVideosLoaded(YtChannel channel, {bool force = false}) {
+    final apiKey = ref.read(ytApiKeyProvider);
+    if (apiKey == null || apiKey.isEmpty) return;
+    final sameChannel = _videosLoadedForChannelId == channel.id;
+    final stillFresh =
+        _videosLoadedAt != null &&
+        DateTime.now().difference(_videosLoadedAt!) < _staleAfter;
+    if (!force && sameChannel && stillFresh) return;
+    _videosLoadedForChannelId = channel.id;
+    _videosLoadedAt = DateTime.now();
+    setState(() {
+      _videosFuture = _fetchVideos(channel);
+    });
+  }
+
+  Future<List<YoutubeVideo>> _fetchVideos(YtChannel channel) async {
+    final apiKey = ref.read(ytApiKeyProvider);
+    if (apiKey == null || apiKey.isEmpty) return const [];
+    final service = YoutubeApiService(apiKey);
+    var uploadsId = channel.uploadsPlaylistId;
+    if (uploadsId.isEmpty) {
+      final handle = YoutubeApiService.parseHandle(channel.url);
+      if (handle == null) {
+        throw YoutubeApiException('這個頻道沒有網址，或網址裡找不到 @帳號，先去編輯頻道補上');
+      }
+      final info = await service.fetchChannelInfo(handle);
+      uploadsId = info.uploadsPlaylistId;
+      final updated = YtChannel(
+        id: channel.id,
+        name: channel.name,
+        categoryId: channel.categoryId,
+        avatarEmoji: channel.avatarEmoji,
+        avatarImageUrl: channel.avatarImageUrl.isEmpty
+            ? info.avatarUrl
+            : channel.avatarImageUrl,
+        url: channel.url,
+        description: channel.description,
+        youtubeChannelId: info.channelId,
+        uploadsPlaylistId: info.uploadsPlaylistId,
+        addedAt: channel.addedAt,
+      );
+      await ref.read(ytTrackerRepositoryProvider).updateChannel(updated);
+    }
+    final videos = await service.fetchRecentVideos(uploadsId, maxResults: 10);
+    // 時長要多打一次 videos.list 才有，見 youtube_api_service.dart 的
+    // 說明。這次失敗就算了，讓影片清單照樣顯示，只是沒有時長角標，
+    // 不要因為這個次要資訊讓整個清單抓失敗。
+    try {
+      final durations = await service.fetchDurations(
+        [for (final v in videos) v.videoId],
+      );
+      return [
+        for (final v in videos)
+          durations.containsKey(v.videoId)
+              ? v.withDuration(durations[v.videoId]!)
+              : v,
+      ];
+    } catch (_) {
+      return videos;
+    }
+  }
+
+  Widget _buildVideos(YtChannel channel) {
+    final apiKey = ref.watch(ytApiKeyProvider);
+    if (apiKey == null || apiKey.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.vpn_key_outlined, size: 32, color: AppColors.ink3),
+              const SizedBox(height: Gap.sm),
+              Text('還沒有設定 API 金鑰', style: AppText.bodyDim),
+              const SizedBox(height: Gap.md),
+              FilledButton(
+                onPressed: () => showYtApiKeyDialog(context, ref),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.ytAccent,
+                  foregroundColor: AppColors.ytAccentInk,
+                ),
+                child: const Text('設定金鑰'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    if (_videosFuture == null) {
+      return const Center(child: CircularProgressIndicator.adaptive());
+    }
+    return FutureBuilder<List<YoutubeVideo>>(
+      future: _videosFuture,
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator.adaptive());
+        }
+        if (snap.hasError) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(
+                '${snap.error}',
+                style: AppText.bodyDim,
+                textAlign: TextAlign.center,
+              ),
+            ),
+          );
+        }
+        final videos = snap.data ?? const [];
+        if (videos.isEmpty) {
+          return Center(child: Text('這個頻道抓不到影片', style: AppText.bodyDim));
+        }
+        return ListView.separated(
+          itemCount: videos.length,
+          separatorBuilder: (_, _) =>
+              const Divider(height: 1, color: AppColors.glassEdge),
+          itemBuilder: (_, i) => YtVideoRow(
+            video: videos[i],
+            subtitle: ytRelativeTime(videos[i].publishedAt),
+          ),
+        );
+      },
+    );
+  }
 
   Future<void> _showEditDialog(YtChannel channel, List<YtCategory> categories) async {
     final nameController = TextEditingController(text: channel.name);
@@ -65,19 +204,22 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                   controller: nameController,
                   autofocus: true,
                   maxLength: 30,
-                  decoration: const InputDecoration(counterText: ''),
+                  decoration: const InputDecoration(
+                    labelText: '頻道名稱',
+                    counterText: '',
+                  ),
                   style: const TextStyle(color: AppColors.ink),
                 ),
                 const SizedBox(height: Gap.xs),
                 TextField(
                   controller: urlController,
-                  decoration: const InputDecoration(hintText: '頻道網址（選填）'),
+                  decoration: const InputDecoration(labelText: '頻道網址'),
                   style: const TextStyle(fontSize: 12.5, color: AppColors.ink),
                 ),
                 const SizedBox(height: Gap.xs),
                 TextField(
                   controller: avatarController,
-                  decoration: const InputDecoration(hintText: '頭像圖片網址（選填）'),
+                  decoration: const InputDecoration(labelText: '頭像圖片網址'),
                   style: const TextStyle(fontSize: 12.5, color: AppColors.ink),
                 ),
                 const SizedBox(height: Gap.xs),
@@ -86,7 +228,7 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                   minLines: 1,
                   maxLines: 4,
                   maxLength: 200,
-                  decoration: const InputDecoration(hintText: '簡介（選填）'),
+                  decoration: const InputDecoration(labelText: '簡介'),
                   style: const TextStyle(fontSize: 12.5, color: AppColors.ink),
                 ),
                 const SizedBox(height: Gap.sm),
@@ -114,15 +256,14 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
               ],
             ),
           ),
+          // 刪除是破壞性動作，字體縮小、放最左邊跟儲存/取消拉開距離，
+          // 不要跟常用的兩個動作擠在一起、字級還一樣大，容易誤按
+          // （2026-09-22 使用者要求）。儲存在取消左邊，離刪除比較遠。
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, 'delete'),
               style: TextButton.styleFrom(foregroundColor: AppColors.bad),
-              child: const Text('刪除'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, 'cancel'),
-              child: const Text('取消'),
+              child: const Text('刪除', style: TextStyle(fontSize: 12)),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(dialogContext, 'save'),
@@ -131,6 +272,10 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                 foregroundColor: AppColors.ytAccentInk,
               ),
               child: const Text('儲存'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, 'cancel'),
+              child: const Text('取消'),
             ),
           ],
         ),
@@ -232,6 +377,13 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                       final categoryLabel =
                           category.isEmpty ? '未分類' : category.first.name;
 
+                      // 不能在 build() 當下直接呼叫（裡面可能觸發
+                      // setState），排到這一幀畫完之後——跟
+                      // `yt_tracker_browse_page.dart` 同一套做法。
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (mounted) _ensureVideosLoaded(channel);
+                      });
+
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
@@ -268,11 +420,28 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                                     Text(categoryLabel, style: AppText.note),
                                     if (channel.url.isNotEmpty) ...[
                                       const SizedBox(height: 2),
-                                      Text(
-                                        channel.url,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: AppText.note,
+                                      InkWell(
+                                        onTap: () => openExternalUrl(
+                                          context,
+                                          channel.url,
+                                        ),
+                                        child: Text(
+                                          channel.url,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: AppText.note.copyWith(
+                                            // 連結照網頁慣例用淡藍色，不用
+                                            // 這個功能自己的紅色強調色——
+                                            // 紅在這個 App 的語意色系裡也
+                                            // 常代表錯誤/警示，用在連結上
+                                            // 會讓人誤會（2026-09-22
+                                            // 使用者回饋）。AppColors.accent
+                                            // 就是既有的淡藍色，不用另外
+                                            // 開新色碼。
+                                            color: AppColors.accent,
+                                            decoration: TextDecoration.underline,
+                                          ),
+                                        ),
                                       ),
                                     ],
                                   ],
@@ -287,37 +456,27 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                             Text(channel.description, style: AppText.bodyDim),
                           ],
                           const SizedBox(height: Gap.md),
-                          const PanelLabel('最近影片'),
-                          const SizedBox(height: Gap.sm),
-                          Expanded(
-                            child: Center(
-                              child: Padding(
-                                padding: const EdgeInsets.all(24),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(
-                                      Icons.video_library_outlined,
-                                      size: 32,
-                                      color: AppColors.ink3,
-                                    ),
-                                    const SizedBox(height: Gap.sm),
-                                    Text(
-                                      '還沒有接這個頻道的影片資料',
-                                      style: AppText.bodyDim,
-                                      textAlign: TextAlign.center,
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      '目前只做分類／頻道管理，之後接上\nYouTube 資料來源，這裡就會列出\n最新上傳的影片。',
-                                      style: AppText.note,
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  ],
+                          Row(
+                            children: [
+                              const PanelLabel('最近影片'),
+                              const Spacer(),
+                              TextButton.icon(
+                                onPressed: () =>
+                                    _ensureVideosLoaded(channel, force: true),
+                                icon: const Icon(Icons.refresh, size: 15),
+                                label: const Text('重新整理'),
+                                style: TextButton.styleFrom(
+                                  foregroundColor: AppColors.ink2,
+                                  padding: EdgeInsets.zero,
+                                  minimumSize: const Size(0, 0),
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
                                 ),
                               ),
-                            ),
+                            ],
                           ),
+                          const SizedBox(height: Gap.sm),
+                          Expanded(child: _buildVideos(channel)),
                         ],
                       );
                     },

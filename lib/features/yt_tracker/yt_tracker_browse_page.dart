@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
@@ -14,6 +13,7 @@ import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
 import 'yt_api_key_dialog.dart';
 import 'yt_channel_avatar.dart';
+import 'yt_video_row.dart';
 
 enum _ViewMode { channel, video }
 
@@ -141,6 +141,26 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
         results.add(_ChannelVideo(video: v, channel: channel));
       }
     }
+    // 時長要多打一次 videos.list，這裡混了好幾個頻道，一次把所有影片
+    // id 湊在一起問，不要每個頻道各打一次——省配額，最多一次 50 個 id
+    // 這個 App 用量遠遠用不到那個上限。這次失敗就算了，清單照樣顯示，
+    // 只是沒有時長角標。
+    try {
+      final durations = await service.fetchDurations(
+        [for (final r in results) r.video.videoId],
+      );
+      for (var i = 0; i < results.length; i++) {
+        final d = durations[results[i].video.videoId];
+        if (d != null) {
+          results[i] = _ChannelVideo(
+            video: results[i].video.withDuration(d),
+            channel: results[i].channel,
+          );
+        }
+      }
+    } catch (_) {
+      // 忽略，影片清單本身已經抓到了。
+    }
     results.sort((a, b) => b.video.publishedAt.compareTo(a.video.publishedAt));
     return results;
   }
@@ -179,14 +199,18 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                   controller: nameController,
                   autofocus: true,
                   maxLength: 30,
-                  decoration: const InputDecoration(hintText: '頻道名稱', counterText: ''),
+                  decoration: const InputDecoration(
+                    labelText: '頻道名稱',
+                    counterText: '',
+                  ),
                   style: const TextStyle(color: AppColors.ink),
                 ),
                 const SizedBox(height: Gap.xs),
                 TextField(
                   controller: urlController,
                   decoration: const InputDecoration(
-                    hintText: '頻道網址（選填，先存起來給之後用）',
+                    labelText: '頻道網址',
+                    hintText: '例如 https://www.youtube.com/@shasha77',
                   ),
                   style: const TextStyle(fontSize: 12.5, color: AppColors.ink),
                 ),
@@ -194,7 +218,8 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                 TextField(
                   controller: avatarController,
                   decoration: const InputDecoration(
-                    hintText: '頭像圖片網址（選填，去頻道頁面複製大頭貼圖片網址）',
+                    labelText: '頭像圖片網址',
+                    hintText: '去頻道頁面複製大頭貼圖片網址',
                   ),
                   style: const TextStyle(fontSize: 12.5, color: AppColors.ink),
                 ),
@@ -205,7 +230,8 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                   maxLines: 4,
                   maxLength: 200,
                   decoration: const InputDecoration(
-                    hintText: '簡介（選填，這個頻道在做什麼）',
+                    labelText: '簡介',
+                    hintText: '這個頻道在做什麼',
                   ),
                   style: const TextStyle(fontSize: 12.5, color: AppColors.ink),
                 ),
@@ -352,7 +378,14 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                       itemCount: videos.length,
                       separatorBuilder: (_, _) =>
                           const Divider(height: 1, color: AppColors.glassEdge),
-                      itemBuilder: (_, i) => _VideoRow(item: videos[i]),
+                      itemBuilder: (_, i) {
+                        final item = videos[i];
+                        return YtVideoRow(
+                          video: item.video,
+                          subtitle:
+                              '${item.channel.name}・${ytRelativeTime(item.video.publishedAt)}',
+                        );
+                      },
                     );
                   },
                 ),
@@ -568,81 +601,6 @@ class _ChannelGrid extends StatelessWidget {
       },
     );
   }
-}
-
-/// 「依影片顯示」的一列：影片縮圖＋標題，底下小字是哪個頻道、什麼時候
-/// 發的——因為這條時間軸混了好幾個頻道，不像頻道詳情頁那樣已經知道
-/// 是誰，每一列都要標出來。點下去開新分頁到 YouTube 播放。
-class _VideoRow extends StatelessWidget {
-  const _VideoRow({required this.item});
-
-  final _ChannelVideo item;
-
-  @override
-  Widget build(BuildContext context) {
-    final video = item.video;
-    final channel = item.channel;
-    return InkWell(
-      onTap: () =>
-          launchUrl(Uri.parse(video.watchUrl), mode: LaunchMode.externalApplication),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: Image.network(
-                video.thumbnailUrl,
-                width: 96,
-                height: 54,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stack) => Container(
-                  width: 96,
-                  height: 54,
-                  color: AppColors.glassFill,
-                  alignment: Alignment.center,
-                  child: const Icon(
-                    Icons.image_not_supported_outlined,
-                    size: 16,
-                    color: AppColors.ink3,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: Gap.sm),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    video.title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 12.5, color: AppColors.ink),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${channel.name}・${_relativeTime(video.publishedAt)}',
-                    style: AppText.note,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-String _relativeTime(DateTime t) {
-  final diff = DateTime.now().difference(t);
-  if (diff.inMinutes < 60) return '${diff.inMinutes} 分鐘前';
-  if (diff.inHours < 24) return '${diff.inHours} 小時前';
-  if (diff.inDays < 30) return '${diff.inDays} 天前';
-  if (diff.inDays < 365) return '${(diff.inDays / 30).floor()} 個月前';
-  return '${(diff.inDays / 365).floor()} 年前';
 }
 
 class _CategoryPickChip extends StatelessWidget {

@@ -111,7 +111,11 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
                 controller: controller,
                 autofocus: true,
                 maxLength: 20,
-                decoration: const InputDecoration(hintText: '例如：遊戲實況', counterText: ''),
+                decoration: const InputDecoration(
+                  labelText: '分類名稱',
+                  hintText: '例如：遊戲實況',
+                  counterText: '',
+                ),
                 style: const TextStyle(color: AppColors.ink),
               ),
               const SizedBox(height: Gap.sm),
@@ -176,7 +180,10 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
                 controller: controller,
                 autofocus: true,
                 maxLength: 20,
-                decoration: const InputDecoration(counterText: ''),
+                decoration: const InputDecoration(
+                  labelText: '分類名稱',
+                  counterText: '',
+                ),
                 style: const TextStyle(color: AppColors.ink),
               ),
               const SizedBox(height: Gap.sm),
@@ -194,15 +201,13 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
               ),
             ],
           ),
+          // 刪除縮小放最左邊，跟儲存/取消拉開距離，不容易誤按；儲存在
+          // 取消左邊（2026-09-22 使用者要求，跟頻道編輯對話框同一套）。
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, 'delete'),
               style: TextButton.styleFrom(foregroundColor: AppColors.bad),
-              child: const Text('刪除'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, 'cancel'),
-              child: const Text('取消'),
+              child: const Text('刪除', style: TextStyle(fontSize: 12)),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(dialogContext, 'save'),
@@ -211,6 +216,10 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
                 foregroundColor: AppColors.ytAccentInk,
               ),
               child: const Text('儲存'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, 'cancel'),
+              child: const Text('取消'),
             ),
           ],
         ),
@@ -407,6 +416,7 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
                               ],
                             ),
                           ),
+                          const SizedBox(height: Gap.md),
                         ],
                       );
                     },

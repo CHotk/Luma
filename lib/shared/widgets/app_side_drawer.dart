@@ -19,6 +19,15 @@ class AppSideDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 依目前網址決定哪個大項目要標「選中」，不是寫死語言學習
+    // （2026-09-22 使用者回報：進了日記/YT 頻道追蹤之後打開選單，
+    // 選中的還是語言學習，沒有跟著換）。只有這三個大類別是真的做
+    // 出來的，日記／YT 頻道追蹤以外的網址都算語言學習底下的頁面。
+    final location = GoRouterState.of(context).uri.path;
+    final isDiary = location.startsWith('/diary');
+    final isYtTracker = location.startsWith('/yt-tracker');
+    final isLanguage = !isDiary && !isYtTracker;
+
     return Drawer(
       width: 270,
       backgroundColor: Colors.transparent,
@@ -81,29 +90,35 @@ class AppSideDrawer extends StatelessWidget {
                   _NavItem(
                     icon: Icons.school_rounded,
                     label: '語言學習',
-                    active: true,
+                    active: isLanguage,
                     // 已經在語言學習裡面了，點這項只是關掉選單，不用再
-                    // 導一次頁——目前 App 只有這一個大類別是真的做出來的。
-                    onTap: () => Navigator.of(context).pop(),
+                    // 導一次頁；不在的話（例如從日記點回來）才真的導頁。
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      if (!isLanguage) context.go('/home');
+                    },
                   ),
                   _NavItem(
                     icon: Icons.auto_stories_rounded,
                     label: '日記',
+                    active: isDiary,
                     // 日記做出來了（2026-09-22），從「敬請期待」那組
                     // 移出來變成真的可以點的大類別，跟語言學習同一層。
+                    // 已經在日記裡就只關選單，不重複 push 疊一頁。
                     onTap: () {
                       Navigator.of(context).pop();
-                      context.push('/diary');
+                      if (!isDiary) context.push('/diary');
                     },
                   ),
                   _NavItem(
                     icon: Icons.subscriptions_rounded,
                     label: 'YT 頻道追蹤',
+                    active: isYtTracker,
                     // 分類／頻道管理做出來了（2026-09-22），從「敬請
-                    // 期待」那組移出來，同上。影片資料還沒接。
+                    // 期待」那組移出來，同上。
                     onTap: () {
                       Navigator.of(context).pop();
-                      context.push('/yt-tracker');
+                      if (!isYtTracker) context.push('/yt-tracker');
                     },
                   ),
                   const Padding(
