@@ -12,6 +12,8 @@ import '../../data/seed/app_defaults_loader.dart';
 import '../../domain/models/word.dart';
 import '../../domain/rules_config.dart';
 import '../../shared/widgets/ambient_background.dart';
+import '../../shared/widgets/app_side_drawer.dart';
+import '../../shared/widgets/app_top_bar.dart';
 import '../../shared/widgets/glass_card.dart';
 import '../../shared/widgets/sense_tag.dart';
 import '../../shared/widgets/status_pill.dart';
@@ -28,6 +30,7 @@ class LibraryPage extends ConsumerWidget {
     final async = ref.watch(libraryProvider);
 
     return Scaffold(
+      drawer: const AppSideDrawer(),
       body: AmbientBackground(
         child: SafeArea(
           child: Padding(
@@ -36,15 +39,9 @@ class LibraryPage extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: Gap.sm),
-                Row(
-                  children: [
-                    IconButton(
-                      onPressed: () => context.go('/home'),
-                      icon: const Icon(Icons.arrow_back, size: 20),
-                      color: AppColors.ink2,
-                    ),
-                    const Text('單字庫', style: AppText.title),
-                    const Spacer(),
+                AppTopBar(
+                  title: '單字庫',
+                  actions: [
                     // 掌握的字另外有一頁攤開例句，入口放這裡最好找。
                     IconButton(
                       onPressed: () => context.push('/mastered'),

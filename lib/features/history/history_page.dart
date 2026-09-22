@@ -12,6 +12,8 @@ import '../../app/theme/typography.dart';
 import '../../data/export/file_download.dart';
 import '../../domain/models/history.dart';
 import '../../shared/widgets/ambient_background.dart';
+import '../../shared/widgets/app_side_drawer.dart';
+import '../../shared/widgets/app_top_bar.dart';
 import '../../shared/widgets/glass_card.dart';
 
 /// 總歷史。從第一天用到現在的累計，加上每一輪的明細。
@@ -23,6 +25,7 @@ class HistoryPage extends ConsumerWidget {
     final async = ref.watch(historyOverviewProvider);
 
     return Scaffold(
+      drawer: const AppSideDrawer(),
       body: AmbientBackground(
         child: SafeArea(
           child: Padding(
@@ -31,15 +34,9 @@ class HistoryPage extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: Gap.sm),
-                Row(
-                  children: [
-                    IconButton(
-                      onPressed: () => context.go('/home'),
-                      icon: const Icon(Icons.arrow_back, size: 20),
-                      color: AppColors.ink2,
-                    ),
-                    const Text('總紀錄', style: AppText.title),
-                    const Spacer(),
+                AppTopBar(
+                  title: '總紀錄',
+                  actions: [
                     // 手機跟電腦各自練的紀錄存在各自裝置裡，不會自動合併，
                     // 這顆按鈕把紀錄匯出成文字，讓使用者自己拿去手動合併。
                     IconButton(

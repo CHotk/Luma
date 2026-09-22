@@ -8,6 +8,8 @@ import '../../app/theme/typography.dart';
 import '../../domain/models/note_collection.dart';
 import '../../domain/models/usage_note.dart';
 import '../../shared/widgets/ambient_background.dart';
+import '../../shared/widgets/app_side_drawer.dart';
+import '../../shared/widgets/app_top_bar.dart';
 import 'notes_controller.dart';
 
 /// 筆記。上面切換看哪一本：用法地雷或近義字。
@@ -23,6 +25,7 @@ class NotesPage extends ConsumerWidget {
     final async = ref.watch(notesProvider(collection));
 
     return Scaffold(
+      drawer: const AppSideDrawer(),
       body: AmbientBackground(
         child: SafeArea(
           child: Padding(
@@ -30,16 +33,8 @@ class NotesPage extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Row(
-                  children: [
-                    IconButton(
-                      onPressed: () => context.go('/home'),
-                      icon: const Icon(Icons.arrow_back, size: 20),
-                      color: AppColors.ink2,
-                    ),
-                    const Text('筆記', style: AppText.title),
-                  ],
-                ),
+                const SizedBox(height: Gap.sm),
+                const AppTopBar(title: '筆記'),
                 const SizedBox(height: Gap.xs),
                 const _Switcher(),
                 const SizedBox(height: Gap.xs),

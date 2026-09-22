@@ -7,6 +7,8 @@ import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
 import '../../domain/models/kana_exam.dart';
 import '../../shared/widgets/ambient_background.dart';
+import '../../shared/widgets/app_side_drawer.dart';
+import '../../shared/widgets/app_top_bar.dart';
 import '../../shared/widgets/glass_card.dart';
 import 'jp_home_controller.dart';
 
@@ -24,6 +26,7 @@ class JpStatsPage extends ConsumerWidget {
     final examEntriesAsync = ref.watch(_examEntriesProvider);
 
     return Scaffold(
+      drawer: const AppSideDrawer(),
       body: AmbientBackground(
         background: AppColors.jpBg,
         blobColors: const [
@@ -39,17 +42,7 @@ class JpStatsPage extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: Gap.sm),
-                Row(
-                  children: [
-                    IconButton(
-                      onPressed: () => Navigator.of(context).maybePop(),
-                      icon: const Icon(Icons.arrow_back, size: 20),
-                      color: AppColors.ink2,
-                    ),
-                    const SizedBox(width: Gap.xs),
-                    const Text('📊 學習統計', style: AppText.title),
-                  ],
-                ),
+                const AppTopBar(title: '📊 學習統計'),
                 const SizedBox(height: Gap.md),
                 Expanded(
                   child: SingleChildScrollView(

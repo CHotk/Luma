@@ -10,6 +10,8 @@ import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
 import '../../domain/rules_config.dart';
 import '../../shared/widgets/ambient_background.dart';
+import '../../shared/widgets/app_side_drawer.dart';
+import '../../shared/widgets/app_top_bar.dart';
 import '../../shared/widgets/glass_card.dart';
 import 'settings_controller.dart';
 
@@ -22,6 +24,7 @@ class SettingsPage extends ConsumerWidget {
     final async = ref.watch(settingsControllerProvider);
 
     return Scaffold(
+      drawer: const AppSideDrawer(),
       body: AmbientBackground(
         child: SafeArea(
           child: Padding(
@@ -29,16 +32,9 @@ class SettingsPage extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Row(
-                  children: [
-                    IconButton(
-                      onPressed: () => Navigator.of(context).maybePop(),
-                      icon: const Icon(Icons.arrow_back, size: 20),
-                      color: AppColors.ink2,
-                    ),
-                    const Text('設定', style: AppText.title),
-                  ],
-                ),
+                const SizedBox(height: Gap.sm),
+                // 自己就是設定頁，不用再顯示一顆連去設定的齒輪。
+                const AppTopBar(title: '設定', showSettings: false),
                 Expanded(
                   child: async.when(
                     loading: () => const Center(

@@ -9,6 +9,8 @@ import '../../app/theme/typography.dart';
 import '../../domain/models/word.dart';
 import '../../domain/rules_config.dart';
 import '../../shared/widgets/ambient_background.dart';
+import '../../shared/widgets/app_side_drawer.dart';
+import '../../shared/widgets/app_top_bar.dart';
 import '../../shared/widgets/glass_card.dart';
 import '../../shared/widgets/sense_tag.dart';
 import '../../shared/widgets/tag_badge.dart';
@@ -27,6 +29,7 @@ class MasteredPage extends ConsumerWidget {
     final async = ref.watch(masteredProvider);
 
     return Scaffold(
+      drawer: const AppSideDrawer(),
       body: AmbientBackground(
         child: SafeArea(
           child: Padding(
@@ -34,16 +37,8 @@ class MasteredPage extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Row(
-                  children: [
-                    IconButton(
-                      onPressed: () => Navigator.of(context).maybePop(),
-                      icon: const Icon(Icons.arrow_back, size: 20),
-                      color: AppColors.ink2,
-                    ),
-                    const Text('已經掌握', style: AppText.title),
-                  ],
-                ),
+                const SizedBox(height: Gap.sm),
+                const AppTopBar(title: '已經掌握'),
                 Expanded(
                   child: async.when(
                     loading: () => const Center(

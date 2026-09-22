@@ -8,6 +8,8 @@ import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
 import '../../domain/models/quiz.dart';
 import '../../shared/widgets/ambient_background.dart';
+import '../../shared/widgets/app_side_drawer.dart';
+import '../../shared/widgets/app_top_bar.dart';
 import '../../shared/widgets/glass_card.dart';
 import '../home/home_controller.dart';
 import '../quiz/quiz_controller.dart';
@@ -24,11 +26,28 @@ class ResultPage extends ConsumerWidget {
     final result = ref.watch(lastRoundProvider);
 
     return Scaffold(
+      drawer: const AppSideDrawer(),
       body: AmbientBackground(
         child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: Gap.screenSide),
-            child: result == null ? const _Empty() : _Body(result: result),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: Gap.sm),
+                // 這頁靠底下「回首頁」／「再來一輪」離開，不是靠上一頁
+                // 返回（結果頁常常是 pushReplacement 進來的，上一頁的
+                // 語意不明確），所以沒有返回鍵，但三條線選單跟設定齒輪
+                // 一樣要固定在（2026-09-22 使用者要求）。
+                const AppTopBar(title: '這輪結果', showBack: false),
+                const SizedBox(height: Gap.sm),
+                Expanded(
+                  child: result == null
+                      ? const _Empty()
+                      : _Body(result: result),
+                ),
+              ],
+            ),
           ),
         ),
       ),

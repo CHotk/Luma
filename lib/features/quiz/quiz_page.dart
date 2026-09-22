@@ -13,6 +13,7 @@ import '../../app/theme/typography.dart';
 import '../../domain/models/quiz.dart';
 import '../../domain/spell_judge.dart';
 import '../../shared/widgets/ambient_background.dart';
+import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/glass_card.dart';
 import '../../shared/widgets/speaker_button.dart';
 import 'quiz_controller.dart';
@@ -77,6 +78,7 @@ class _QuizPageState extends ConsumerState<QuizPage> {
     final async = ref.watch(quizControllerProvider);
 
     return Scaffold(
+      drawer: const AppSideDrawer(),
       body: AmbientBackground(
         child: SafeArea(
           child: Padding(
@@ -166,6 +168,16 @@ class _ProgressBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
+        // 三條線選單固定在最左邊，跟其他頁面一致（2026-09-22 使用者
+        // 要求：不管哪個頁面都要在）。
+        IconButton(
+          onPressed: () => Scaffold.of(context).openDrawer(),
+          icon: const Icon(Icons.menu, size: 19),
+          color: AppColors.ink3,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+          tooltip: '選單',
+        ),
         // 考到一半要能走。答過的題目在作答當下就寫進紀錄了，離開不會掉。
         IconButton(
           onPressed: () => Navigator.of(context).maybePop(),
@@ -191,6 +203,14 @@ class _ProgressBar extends StatelessWidget {
         Text(
           '${state.index + 1} / ${state.questions.length}',
           style: AppText.note,
+        ),
+        IconButton(
+          onPressed: () => context.push('/settings'),
+          icon: const Icon(Icons.settings_outlined, size: 19),
+          color: AppColors.ink3,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+          tooltip: '設定',
         ),
       ],
     );

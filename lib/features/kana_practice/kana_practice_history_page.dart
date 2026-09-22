@@ -18,6 +18,8 @@ import '../../data/seed/kana_practice_seed_loader.dart';
 import '../../data/seed/seed_merge.dart';
 import '../../domain/models/kana_practice.dart';
 import '../../shared/widgets/ambient_background.dart';
+import '../../shared/widgets/app_side_drawer.dart';
+import '../../shared/widgets/app_top_bar.dart';
 import '../../shared/widgets/glass_card.dart';
 import 'gojuon_data.dart';
 import 'kana_paper.dart';
@@ -125,6 +127,7 @@ class _KanaPracticeHistoryPageState
     });
 
     return Scaffold(
+      drawer: const AppSideDrawer(),
       body: AmbientBackground(
         background: AppColors.jpBg,
         blobColors: const [
@@ -140,16 +143,9 @@ class _KanaPracticeHistoryPageState
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: Gap.sm),
-                Row(
-                  children: [
-                    IconButton(
-                      onPressed: () => Navigator.of(context).maybePop(),
-                      icon: const Icon(Icons.arrow_back, size: 20),
-                      color: AppColors.ink2,
-                    ),
-                    const SizedBox(width: Gap.xs),
-                    const Text('手寫練習紀錄', style: AppText.title),
-                    const Spacer(),
+                AppTopBar(
+                  title: '手寫練習紀錄',
+                  actions: [
                     // 手機跟電腦各自練的紀錄存在各自瀏覽器的 localStorage
                     // 裡，不會自動合併，這顆按鈕把整份紀錄（含筆畫座標／
                     // 時間戳）匯出成檔案，讓使用者自己拿去手動合併

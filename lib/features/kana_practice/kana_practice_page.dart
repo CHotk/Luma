@@ -5,9 +5,10 @@ import 'package:go_router/go_router.dart';
 import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
-import '../../app/theme/typography.dart';
 import '../../domain/models/kana_practice.dart';
 import '../../shared/widgets/ambient_background.dart';
+import '../../shared/widgets/app_side_drawer.dart';
+import '../../shared/widgets/app_top_bar.dart';
 import '../../shared/widgets/glass_card.dart';
 import 'gojuon_data.dart';
 import 'kana_paper.dart';
@@ -195,6 +196,7 @@ class _KanaPracticePageState extends ConsumerState<KanaPracticePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      drawer: const AppSideDrawer(),
       body: AmbientBackground(
         background: AppColors.jpBg,
         blobColors: const [
@@ -210,16 +212,9 @@ class _KanaPracticePageState extends ConsumerState<KanaPracticePage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: Gap.sm),
-                Row(
-                  children: [
-                    IconButton(
-                      onPressed: () => Navigator.of(context).maybePop(),
-                      icon: const Icon(Icons.arrow_back, size: 20),
-                      color: AppColors.ink2,
-                    ),
-                    const SizedBox(width: Gap.xs),
-                    const Text('五十音・手寫練習', style: AppText.title),
-                    const Spacer(),
+                AppTopBar(
+                  title: '五十音・手寫練習',
+                  actions: [
                     IconButton(
                       onPressed: _openHistory,
                       icon: const Icon(Icons.history, size: 20),

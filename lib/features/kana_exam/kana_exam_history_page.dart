@@ -14,6 +14,8 @@ import '../../data/seed/kana_exam_seed_loader.dart';
 import '../../data/seed/seed_merge.dart';
 import '../../domain/models/kana_exam.dart';
 import '../../shared/widgets/ambient_background.dart';
+import '../../shared/widgets/app_side_drawer.dart';
+import '../../shared/widgets/app_top_bar.dart';
 import '../kana_practice/kana_paper.dart';
 
 /// 手寫考試的歷史紀錄。跟 [KanaPracticeHistoryPage] 是同一套結構、
@@ -175,6 +177,7 @@ class _KanaExamHistoryPageState extends ConsumerState<KanaExamHistoryPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      drawer: const AppSideDrawer(),
       body: AmbientBackground(
         background: AppColors.jpBg,
         blobColors: const [
@@ -190,15 +193,9 @@ class _KanaExamHistoryPageState extends ConsumerState<KanaExamHistoryPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: Gap.sm),
-                Row(
-                  children: [
-                    IconButton(
-                      onPressed: () => Navigator.of(context).maybePop(),
-                      icon: const Icon(Icons.arrow_back, size: 20),
-                      color: AppColors.ink2,
-                    ),
-                    const SizedBox(width: Gap.xs),
-                    const Expanded(child: Text('考試紀錄', style: AppText.title)),
+                AppTopBar(
+                  title: '考試紀錄',
+                  actions: [
                     IconButton(
                       onPressed: _confirmClearAll,
                       icon: const Icon(Icons.delete_sweep_outlined, size: 20),

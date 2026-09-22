@@ -6,6 +6,8 @@ import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
 import '../../domain/models/history.dart';
+import '../../shared/widgets/app_side_drawer.dart';
+import '../../shared/widgets/app_top_bar.dart';
 
 /// 一輪的完整明細：出了哪些題、你怎麼答的。
 ///
@@ -21,31 +23,24 @@ class RoundDetailPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(roundDetailProvider(at));
+    // 一輪已經沒有編號了（2026-09-17 決定拿掉），顯示給使用者看的
+    // 「第幾輪」要等 async 算出按時間排的序號才有，載入中先給個通用
+    // 標題。
+    final title = async.maybeWhen(
+      data: (data) => '第 ${data.sequence} 輪',
+      orElse: () => '這一輪',
+    );
 
     return Scaffold(
+      drawer: const AppSideDrawer(),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: Gap.screenSide),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Row(
-                children: [
-                  IconButton(
-                    onPressed: () => Navigator.of(context).maybePop(),
-                    icon: const Icon(Icons.arrow_back, size: 20),
-                    color: AppColors.ink2,
-                  ),
-                  // 一輪已經沒有編號了（2026-09-17 決定拿掉），顯示給
-                  // 使用者看的「第幾輪」要等 async 算出按時間排的序號
-                  // 才有，載入中先給個通用標題。
-                  async.maybeWhen(
-                    data: (data) =>
-                        Text('第 ${data.sequence} 輪', style: AppText.title),
-                    orElse: () => const Text('這一輪', style: AppText.title),
-                  ),
-                ],
-              ),
+              const SizedBox(height: Gap.sm),
+              AppTopBar(title: title),
               Expanded(
                 child: async.when(
                   loading: () =>

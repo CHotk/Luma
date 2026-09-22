@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../shared/widgets/ambient_background.dart';
+import '../../shared/widgets/app_side_drawer.dart';
 import '../kana_practice/gojuon_data.dart';
 import 'kana_exam_header_bar.dart';
 import 'kana_exam_page.dart';
@@ -48,6 +49,7 @@ class _KanaExamRowSelectPageState extends State<KanaExamRowSelectPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      drawer: const AppSideDrawer(),
       body: AmbientBackground(
         background: AppColors.jpBg,
         blobColors: const [

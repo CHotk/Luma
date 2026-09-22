@@ -9,6 +9,8 @@ import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
 import '../../domain/models/kana_exam.dart';
 import '../../shared/widgets/ambient_background.dart';
+import '../../shared/widgets/app_side_drawer.dart';
+import '../../shared/widgets/app_top_bar.dart';
 import '../../shared/widgets/glass_card.dart';
 import '../../shared/widgets/speaker_button.dart';
 import '../kana_practice/gojuon_data.dart';
@@ -232,6 +234,7 @@ class _KanaExamPageState extends ConsumerState<KanaExamPage> {
     final question = _currentQuestions[_currentQuestionIndex];
 
     return Scaffold(
+      drawer: const AppSideDrawer(),
       body: AmbientBackground(
         background: AppColors.jpBg,
         blobColors: const [
@@ -473,6 +476,7 @@ class _KanaExamPageState extends ConsumerState<KanaExamPage> {
     final accuracy = total == 0 ? 0 : (_correctCount / total * 100).round();
 
     return Scaffold(
+      drawer: const AppSideDrawer(),
       body: AmbientBackground(
         background: AppColors.jpBg,
         blobColors: const [
@@ -485,8 +489,13 @@ class _KanaExamPageState extends ConsumerState<KanaExamPage> {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: Gap.xl),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                const SizedBox(height: Gap.sm),
+                AppTopBar(
+                  title: _mode == ExamMode.kana ? '50 音考試結果' : '詞彙考試結果',
+                ),
+                const Spacer(),
                 Text(
                   _mode == ExamMode.kana ? '🌸 50 音考試完成！' : '🌸 詞彙考試完成！',
                   style: AppText.title,
@@ -586,6 +595,7 @@ class _KanaExamPageState extends ConsumerState<KanaExamPage> {
                     child: const Text('返回模式選擇'),
                   ),
                 ),
+                const Spacer(),
               ],
             ),
           ),

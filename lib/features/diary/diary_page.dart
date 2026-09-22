@@ -15,6 +15,7 @@ import '../../data/seed/seed_merge.dart';
 import '../../domain/models/diary_entry.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_side_drawer.dart';
+import '../../shared/widgets/app_top_bar.dart';
 import '../../shared/widgets/glass_card.dart';
 
 /// 打開日記詳情（點某一篇）之後可以選的動作。
@@ -274,7 +275,17 @@ class _DiaryPageState extends ConsumerState<DiaryPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: Gap.sm),
-                _DiaryTopBar(onExport: () => _showExportDialog(context, ref)),
+                AppTopBar(
+                  title: '日記',
+                  actions: [
+                    IconButton(
+                      onPressed: () => _showExportDialog(context, ref),
+                      icon: const Icon(Icons.ios_share_rounded, size: 20),
+                      color: AppColors.ink2,
+                      tooltip: '匯出日記',
+                    ),
+                  ],
+                ),
                 const SizedBox(height: Gap.md),
                 Expanded(
                   child: FutureBuilder<List<DiaryEntry>>(
@@ -371,52 +382,6 @@ class _DiaryPageState extends ConsumerState<DiaryPage> {
           ),
         ),
       ),
-    );
-  }
-}
-
-/// 頂部列：左邊固定是三條線選單（全 App 共用的位置，見
-/// `app_side_drawer.dart`），返回鍵放它旁邊——子頁面不能讓三條線消失
-/// 只剩返回鍵（2026-09-22 使用者要求）。要用 `Scaffold.of(context)` 開
-/// 抽屜，這裡的 context 必須是 Scaffold 的子孫節點，所以獨立成一個
-/// widget，不能直接寫在 Scaffold 自己的 build() 裡面。
-class _DiaryTopBar extends StatelessWidget {
-  const _DiaryTopBar({required this.onExport});
-
-  final VoidCallback onExport;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        IconButton(
-          onPressed: () => Scaffold.of(context).openDrawer(),
-          icon: const Icon(Icons.menu, size: 20),
-          color: AppColors.ink2,
-          tooltip: '選單',
-          padding: EdgeInsets.zero,
-          visualDensity: VisualDensity.compact,
-          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-        ),
-        const SizedBox(width: Gap.sm),
-        IconButton(
-          onPressed: () => Navigator.of(context).maybePop(),
-          icon: const Icon(Icons.arrow_back, size: 20),
-          color: AppColors.ink2,
-          tooltip: '返回',
-          padding: EdgeInsets.zero,
-          visualDensity: VisualDensity.compact,
-          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-        ),
-        const SizedBox(width: Gap.xs),
-        const Expanded(child: Text('日記', style: AppText.title)),
-        IconButton(
-          onPressed: onExport,
-          icon: const Icon(Icons.ios_share_rounded, size: 20),
-          color: AppColors.ink2,
-          tooltip: '匯出日記',
-        ),
-      ],
     );
   }
 }

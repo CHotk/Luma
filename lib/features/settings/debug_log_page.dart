@@ -6,6 +6,8 @@ import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
 import '../../shared/debug/app_log.dart';
 import '../../shared/widgets/ambient_background.dart';
+import '../../shared/widgets/app_side_drawer.dart';
+import '../../shared/widgets/app_top_bar.dart';
 
 /// 「查看除錯訊息」：手機瀏覽器不方便叫出開發者工具看 console，這頁
 /// 把 [AppLog] 存的最近幾百筆訊息列出來，可以整份複製貼給人看
@@ -48,6 +50,7 @@ class _DebugLogPageState extends State<DebugLogPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      drawer: const AppSideDrawer(),
       body: AmbientBackground(
         child: SafeArea(
           child: Padding(
@@ -56,16 +59,9 @@ class _DebugLogPageState extends State<DebugLogPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: Gap.sm),
-                Row(
-                  children: [
-                    IconButton(
-                      onPressed: () => Navigator.of(context).maybePop(),
-                      icon: const Icon(Icons.arrow_back, size: 20),
-                      color: AppColors.ink2,
-                    ),
-                    const SizedBox(width: Gap.xs),
-                    const Text('除錯訊息', style: AppText.title),
-                    const Spacer(),
+                AppTopBar(
+                  title: '除錯訊息',
+                  actions: [
                     ValueListenableBuilder<List<AppLogEntry>>(
                       valueListenable: AppLog.entries,
                       builder: (context, entries, _) => IconButton(
