@@ -88,7 +88,6 @@ Future<void> showYtApiKeyDialog(BuildContext context, WidgetRef ref) async {
               style: TextButton.styleFrom(foregroundColor: AppColors.bad),
               child: const Text('清除金鑰'),
             ),
-          const Spacer(),
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
             child: const Text('取消'),

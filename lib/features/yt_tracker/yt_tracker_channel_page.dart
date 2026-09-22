@@ -120,7 +120,6 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
               style: TextButton.styleFrom(foregroundColor: AppColors.bad),
               child: const Text('刪除'),
             ),
-            const Spacer(),
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, 'cancel'),
               child: const Text('取消'),
