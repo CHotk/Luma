@@ -6,6 +6,7 @@ import '../data/repositories/kana_exam_repository.dart';
 import '../data/repositories/kana_practice_repository.dart';
 import '../data/repositories/settings_repository.dart';
 import '../data/repositories/word_repository.dart';
+import '../data/repositories/yt_tracker_repository.dart';
 import '../data/seed/app_defaults_loader.dart';
 import '../data/seed/word_seed_loader.dart';
 import '../data/storage/key_value_store.dart';
@@ -50,6 +51,10 @@ final kanaExamRepositoryProvider = Provider<KanaExamRepository>(
 
 final diaryRepositoryProvider = Provider<DiaryRepository>(
   (ref) => DiaryRepository(ref.watch(keyValueStoreProvider)),
+);
+
+final ytTrackerRepositoryProvider = Provider<YtTrackerRepository>(
+  (ref) => YtTrackerRepository(ref.watch(keyValueStoreProvider)),
 );
 
 final historyRepositoryProvider = Provider<HistoryRepository>(

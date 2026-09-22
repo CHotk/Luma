@@ -78,4 +78,10 @@ abstract final class AppColors {
   /// 低摩擦打卡的調性。
   static const diaryAccent = Color(0xFF8FBF9F);
   static const diaryAccentInk = Color(0xFF10241A);
+
+  /// YT 頻道追蹤主色（設計稿 08 定案，見 `design-history/Yt頻道訂閱管理/`）
+  /// ——貼近 YouTube 品牌紅，但只用在強調的地方（選中狀態、按鈕），
+  /// 不是整片塗紅，跟 YouTube 自己深色模式的用色節制程度一致。
+  static const ytAccent = Color(0xFFFF2D40);
+  static const ytAccentInk = Color(0xFF2B0708);
 }

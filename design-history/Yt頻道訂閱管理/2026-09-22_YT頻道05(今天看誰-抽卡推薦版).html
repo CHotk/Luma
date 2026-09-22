@@ -1,0 +1,301 @@
+<!doctype html>
+<title>YT頻道05・今天看誰抽卡推薦版</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;800&family=Noto+Sans+TC:wght@400;500;700&display=swap"
+/>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0c0c13;
+    --bg-deep: #0a0a10;
+    --panel-edge: rgba(255, 255, 255, 0.14);
+    --ink: #f3f2f8;
+    --ink2: #a3a2b2;
+    --ink3: #74738a;
+    --glass-edge: rgba(255, 255, 255, 0.14);
+    /* 抽卡推薦版用桃粉：跟「隨機、驚喜」的調性搭。 */
+    --accent: #e069a0;
+    --accent-ink: #2a0a1a;
+    --amb-1: #4a1f38;
+    --amb-2: #2a2450;
+    --amb-3: #3f2030;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; background: var(--bg-deep); color: var(--ink); font-family: "Zen Kaku Gothic New", "Noto Sans TC", system-ui, sans-serif; }
+  body { padding-inline: 20px; padding-block: 32px 48px; display: flex; flex-direction: column; align-items: center; gap: 18px; }
+
+  .intro { max-width: 480px; width: 100%; text-align: center; }
+  .eyebrow { font-size: 12px; letter-spacing: 0.16em; color: #8b8690; text-transform: uppercase; }
+  .intro h1 { font-weight: 800; font-size: clamp(20px, 5vw, 24px); margin: 6px 0 8px; color: #f4f1f4; }
+  .intro p { margin: 0 0 4px; font-size: 13px; line-height: 1.7; color: #a9a4ad; max-width: 48ch; margin-inline: auto; }
+  .intro ul { text-align: left; max-width: 40ch; margin: 10px auto 0; padding-left: 18px; font-size: 12.5px; line-height: 1.8; color: #9d98a4; }
+
+  .phone { position: relative; width: 100%; max-width: 380px; height: 760px; flex-shrink: 0; border-radius: 34px; padding: 14px; isolation: isolate; overflow: hidden; background: var(--bg); box-shadow: 0 30px 70px -30px rgba(0,0,0,0.7); }
+  .amb { position: absolute; border-radius: 50%; filter: blur(55px); opacity: 0.46; z-index: -1; }
+  .amb-1 { width: 220px; height: 220px; top: -70px; left: -60px; background: var(--amb-1); }
+  .amb-2 { width: 200px; height: 200px; bottom: 90px; right: -70px; background: var(--amb-2); }
+  .amb-3 { width: 190px; height: 190px; bottom: -90px; left: 30px; background: var(--amb-3); }
+
+  .shell { position: relative; height: 100%; border-radius: 24px; padding: 18px 16px; background: rgba(255,255,255,0.04); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); border: 1px solid var(--panel-edge); overflow: hidden; display: flex; flex-direction: column; gap: 12px; }
+
+  .topbar { display: flex; align-items: center; gap: 10px; flex: none; }
+  .icon-btn { appearance: none; border: none; background: rgba(255,255,255,0.06); color: var(--ink2); width: 30px; height: 30px; border-radius: 9px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; flex: none; }
+  .icon-btn:hover { background: rgba(255,255,255,0.1); }
+  .topbar-title { font-weight: 800; font-size: 16px; }
+
+  .view { flex: 1; min-height: 0; overflow-y: auto; display: none; flex-direction: column; gap: 12px; }
+  .view.active { display: flex; }
+
+  /* 抽卡英雄區 */
+  .hero { flex: none; border-radius: 18px; padding: 14px; background: color-mix(in srgb, var(--accent) 12%, rgba(255,255,255,0.035)); border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--glass-edge)); }
+  .hero-label { font-size: 12px; color: var(--ink2); margin-bottom: 8px; font-weight: 700; }
+  .hero-card { display: flex; gap: 10px; align-items: center; }
+  .hero-card .av { width: 46px; height: 46px; border-radius: 50%; flex: none; display: flex; align-items: center; justify-content: center; font-size: 22px; background: rgba(255,255,255,0.07); }
+  .hero-card .meta { flex: 1; min-width: 0; }
+  .hero-card .name { font-size: 13.5px; font-weight: 700; }
+  .hero-card .cat { font-size: 10.5px; color: var(--ink3); }
+  .hero-thumb { margin-top: 10px; border-radius: 12px; height: 90px; background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 45%, #222), #222); display: flex; align-items: flex-end; padding: 8px; font-size: 10px; color: rgba(255,255,255,0.75); }
+  .hero-vt { font-size: 12.5px; color: var(--ink); margin-top: 8px; line-height: 1.4; }
+  .hero-actions { display: flex; gap: 8px; margin-top: 10px; }
+  .hero-actions button { flex: 1; appearance: none; border: none; font-family: inherit; font-weight: 700; font-size: 12.5px; padding: 10px; border-radius: 10px; cursor: pointer; }
+  .hero-actions .reroll { background: rgba(255,255,255,0.07); color: var(--ink2); border: 1px solid var(--glass-edge); }
+  .hero-actions .go { background: var(--accent); color: var(--accent-ink); }
+
+  .filter-scroll { flex: none; display: flex; gap: 6px; overflow-x: auto; }
+  .filter-chip { flex: none; padding: 6px 12px; border-radius: 999px; font-size: 11.5px; font-weight: 600; cursor: pointer; border: 1px solid var(--glass-edge); background: rgba(255,255,255,0.03); color: var(--ink2); white-space: nowrap; }
+  .filter-chip.selected { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 24%, transparent); color: var(--ink); }
+
+  .list-label { font-size: 11px; letter-spacing: 0.06em; color: var(--ink3); text-transform: uppercase; flex: none; margin-top: 2px; }
+  .cat-section { flex: none; }
+  .cat-title { font-size: 12px; font-weight: 700; color: var(--ink2); margin-bottom: 7px; }
+  .cat-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .chan-card { border-radius: 14px; padding: 10px; background: rgba(255,255,255,0.035); border: 1px solid var(--glass-edge); cursor: pointer; display: flex; align-items: center; gap: 8px; }
+  .chan-card:hover { background: rgba(255,255,255,0.06); }
+  .chan-card .av { width: 34px; height: 34px; border-radius: 50%; flex: none; display: flex; align-items: center; justify-content: center; font-size: 16px; background: rgba(255,255,255,0.06); }
+  .chan-card .meta { flex: 1; min-width: 0; }
+  .chan-card .name { font-size: 12px; font-weight: 700; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chan-card .last { font-size: 10px; color: var(--ink3); }
+
+  /* 頻道詳情 */
+  .chan-header { display: flex; align-items: center; gap: 12px; flex: none; padding: 6px 4px 4px; }
+  .chan-header .av { width: 54px; height: 54px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 26px; background: rgba(255,255,255,0.06); border: 1px solid var(--glass-edge); }
+  .chan-header .name { font-size: 16px; font-weight: 800; }
+  .chan-header .sub { font-size: 11.5px; color: var(--ink3); margin-top: 2px; }
+
+  .video-row { display: flex; gap: 10px; padding: 8px 4px; border-radius: 12px; }
+  .video-row:hover { background: rgba(255,255,255,0.04); }
+  .video-row .thumb { flex: none; width: 88px; height: 54px; border-radius: 10px; background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 40%, #222), #222); display: flex; align-items: center; justify-content: center; font-size: 10px; color: rgba(255,255,255,0.7); }
+  .video-row .vmeta { flex: 1; min-width: 0; }
+  .video-row .vt { font-size: 12.5px; color: var(--ink); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .video-row .vd { font-size: 11px; color: var(--ink3); margin-top: 4px; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="intro">
+  <p class="eyebrow">Lume · YT 頻道追蹤 05（Mock，資料全假）</p>
+  <h1>「今天看誰？」抽卡推薦</h1>
+  <p>專門對付「訂閱一堆人、但打開 App 常常不知道要看誰」的情境：頂部是一顆會隨機抽一個頻道給你看的卡片，不喜歡就換一個。下面照樣有分類牆可以自己選，抽卡只是多一種「懶得選」時的入口，不是取代分類瀏覽。</p>
+  <ul>
+    <li>頂部<b>抽卡卡片</b>：隨機推薦一個頻道＋他最新一部影片，「換一個」重抽，「看這個」直接進頻道。</li>
+    <li>抽卡上方可以<b>限定分類</b>（例如只想抽遊戲類的），不選就從全部裡面抽。</li>
+    <li>下面還是完整的<b>分類牆</b>，想自己挑的話照樣點得到。</li>
+    <li>跟其他四版最大差異：這版直接處理「不知道看誰」的決策疲勞，不只是整理分類。</li>
+  </ul>
+</div>
+
+<div class="phone">
+  <div class="amb amb-1"></div>
+  <div class="amb amb-2"></div>
+  <div class="amb amb-3"></div>
+
+  <div class="shell">
+    <div class="topbar" id="topbar">
+      <span class="topbar-title" id="topTitle">頻道追蹤</span>
+    </div>
+
+    <div class="view active" id="view-home">
+      <div class="hero">
+        <div class="hero-label">🎲 今天看誰？</div>
+        <div class="hero-card">
+          <div class="av" id="heroAv"></div>
+          <div class="meta">
+            <div class="name" id="heroName"></div>
+            <div class="cat" id="heroCat"></div>
+          </div>
+        </div>
+        <div class="hero-thumb" id="heroThumb"></div>
+        <div class="hero-vt" id="heroVt"></div>
+        <div class="hero-actions">
+          <button class="reroll" id="rerollBtn">🔀 換一個</button>
+          <button class="go" id="goBtn">▶ 看這個</button>
+        </div>
+      </div>
+
+      <div class="filter-scroll" id="filterScroll"></div>
+
+      <p class="list-label">全部分類</p>
+      <div id="catSections"></div>
+    </div>
+
+    <div class="view" id="view-channel">
+      <div class="chan-header">
+        <div class="av" id="chAv"></div>
+        <div>
+          <div class="name" id="chName"></div>
+          <div class="sub" id="chSub"></div>
+        </div>
+      </div>
+      <p class="list-label">最近影片</p>
+      <div id="chVideos"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const CATEGORIES = [
+    { key: 'game', label: '遊戲實況' },
+    { key: 'know', label: '知識科普' },
+    { key: 'food', label: '美食' },
+    { key: 'music', label: '音樂' },
+    { key: 'vlog', label: 'Vlog生活' },
+  ];
+  const CHANNELS = [
+    { id:'c1', name:'夜貓實況室', cat:'game', avatar:'🎮', last:'3 小時前', videos:[
+      {t:'跟訂閱者一起玩到凌晨的爆笑集錦', time:'3 小時前', dur:'18:24'},
+      {t:'新地圖初體驗，全程手忙腳亂', time:'2 天前', dur:'42:10'},
+    ]},
+    { id:'c2', name:'阿凱的知識膠囊', cat:'know', avatar:'🧠', last:'昨天', videos:[
+      {t:'為什麼貓咪喜歡箱子？三分鐘搞懂', time:'昨天', dur:'3:45'},
+    ]},
+    { id:'c3', name:'小廚房日常', cat:'food', avatar:'🍳', last:'2 天前', videos:[
+      {t:'十分鐘炒出餐廳等級的炒飯', time:'2 天前', dur:'10:05'},
+    ]},
+    { id:'c4', name:'耳朵懷孕電台', cat:'music', avatar:'🎧', last:'4 天前', videos:[
+      {t:'深夜讀書歌單 Lofi Mix', time:'4 天前', dur:'55:00'},
+    ]},
+    { id:'c5', name:'阿明的下班日常', cat:'vlog', avatar:'🌇', last:'5 天前', videos:[
+      {t:'週末去了趟老家菜市場', time:'5 天前', dur:'12:20'},
+    ]},
+    { id:'c6', name:'速攻通關社', cat:'game', avatar:'🕹️', last:'1 週前', videos:[
+      {t:'新手向：三個容易忽略的隱藏道具', time:'1 週前', dur:'9:40'},
+    ]},
+    { id:'c7', name:'冷知識研究所', cat:'know', avatar:'📚', last:'3 天前', videos:[
+      {t:'冷氣為什麼要往上吹？', time:'3 天前', dur:'5:20'},
+    ]},
+    { id:'c8', name:'甜點實驗室', cat:'food', avatar:'🧁', last:'6 天前', videos:[
+      {t:'免烤箱提拉米蘇教學', time:'6 天前', dur:'11:11'},
+    ]},
+    { id:'c9', name:'路人甲的Cover', cat:'music', avatar:'🎤', last:'1 個月前', videos:[
+      {t:'翻唱合輯 Vol.7', time:'1 個月前', dur:'6:40'},
+    ]},
+    { id:'c10', name:'未分類頻道A', cat:'vlog', avatar:'📺', last:'2 個月前', videos:[
+      {t:'很久以前訂閱、忘記為什麼', time:'2 個月前', dur:'7:00'},
+    ]},
+  ];
+
+  let heroFilter = null; // null = 不限分類
+
+  function pickRandom() {
+    const pool = heroFilter ? CHANNELS.filter(c => c.cat === heroFilter) : CHANNELS;
+    const c = pool[Math.floor(Math.random() * pool.length)];
+    document.getElementById('heroAv').textContent = c.avatar;
+    document.getElementById('heroName').textContent = c.name;
+    document.getElementById('heroCat').textContent = CATEGORIES.find(x => x.key === c.cat).label;
+    const v = c.videos[0];
+    document.getElementById('heroThumb').textContent = v.dur;
+    document.getElementById('heroVt').textContent = v.t;
+    document.getElementById('goBtn').onclick = () => openChannel(c.id);
+  }
+
+  const filterScroll = document.getElementById('filterScroll');
+  const allChip = document.createElement('div');
+  allChip.className = 'filter-chip selected';
+  allChip.textContent = '不限分類';
+  allChip.addEventListener('click', () => {
+    heroFilter = null;
+    document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('selected'));
+    allChip.classList.add('selected');
+    pickRandom();
+  });
+  filterScroll.appendChild(allChip);
+  CATEGORIES.forEach(cat => {
+    const chip = document.createElement('div');
+    chip.className = 'filter-chip';
+    chip.textContent = cat.label;
+    chip.addEventListener('click', () => {
+      heroFilter = cat.key;
+      document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('selected'));
+      chip.classList.add('selected');
+      pickRandom();
+    });
+    filterScroll.appendChild(chip);
+  });
+  document.getElementById('rerollBtn').addEventListener('click', pickRandom);
+
+  // 分類牆
+  const catBox = document.getElementById('catSections');
+  CATEGORIES.forEach(cat => {
+    const chans = CHANNELS.filter(c => c.cat === cat.key);
+    if (chans.length === 0) return;
+    const section = document.createElement('div');
+    section.className = 'cat-section';
+    section.innerHTML = `<div class="cat-title">${cat.label}</div><div class="cat-cards"></div>`;
+    const cardsBox = section.querySelector('.cat-cards');
+    chans.forEach(c => {
+      const card = document.createElement('div');
+      card.className = 'chan-card';
+      card.innerHTML = `<div class="av">${c.avatar}</div><div class="meta"><div class="name">${c.name}</div><div class="last">${c.last}</div></div>`;
+      card.addEventListener('click', () => openChannel(c.id));
+      cardsBox.appendChild(card);
+    });
+    catBox.appendChild(section);
+  });
+
+  const views = { home: document.getElementById('view-home'), channel: document.getElementById('view-channel') };
+  const topbar = document.getElementById('topbar');
+
+  function showView(name) {
+    Object.values(views).forEach(v => v.classList.remove('active'));
+    views[name].classList.add('active');
+  }
+
+  function renderTopbar(title, showBack) {
+    topbar.innerHTML = '';
+    if (showBack) {
+      const b = document.createElement('button');
+      b.className = 'icon-btn';
+      b.textContent = '←';
+      b.addEventListener('click', () => { renderTopbar('頻道追蹤', false); showView('home'); });
+      topbar.appendChild(b);
+    }
+    const t = document.createElement('span');
+    t.className = 'topbar-title';
+    t.textContent = title;
+    topbar.appendChild(t);
+  }
+
+  function openChannel(id) {
+    const c = CHANNELS.find(x => x.id === id);
+    renderTopbar('頻道', true);
+    document.getElementById('chAv').textContent = c.avatar;
+    document.getElementById('chName').textContent = c.name;
+    document.getElementById('chSub').textContent = CATEGORIES.find(x => x.key === c.cat).label + '・最新更新 ' + c.last;
+    const vbox = document.getElementById('chVideos');
+    vbox.innerHTML = '';
+    c.videos.forEach(v => {
+      const row = document.createElement('div');
+      row.className = 'video-row';
+      row.innerHTML = `<div class="thumb">${v.dur}</div><div class="vmeta"><div class="vt">${v.t}</div><div class="vd">${v.time}</div></div>`;
+      vbox.appendChild(row);
+    });
+    showView('channel');
+  }
+
+  pickRandom();
+</script>

@@ -1,0 +1,254 @@
+<!doctype html>
+<title>YT頻道03・業界主流版</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;800&family=Noto+Sans+TC:wght@400;500;700&display=swap"
+/>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0c0c13;
+    --bg-deep: #0a0a10;
+    --panel-edge: rgba(255, 255, 255, 0.14);
+    --ink: #f3f2f8;
+    --ink2: #a3a2b2;
+    --ink3: #74738a;
+    --glass-edge: rgba(255, 255, 255, 0.14);
+    /* 業界主流版致敬 YouTube 紅，一眼認得出是「訂閱管理」這種頁面。 */
+    --accent: #e6543f;
+    --accent-ink: #2a0e09;
+    --amb-1: #4a2320;
+    --amb-2: #2a2450;
+    --amb-3: #3a2020;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; background: var(--bg-deep); color: var(--ink); font-family: "Zen Kaku Gothic New", "Noto Sans TC", system-ui, sans-serif; }
+  body { padding-inline: 20px; padding-block: 32px 48px; display: flex; flex-direction: column; align-items: center; gap: 18px; }
+
+  .intro { max-width: 480px; width: 100%; text-align: center; }
+  .eyebrow { font-size: 12px; letter-spacing: 0.16em; color: #8b8690; text-transform: uppercase; }
+  .intro h1 { font-weight: 800; font-size: clamp(20px, 5vw, 24px); margin: 6px 0 8px; color: #f4f1f4; }
+  .intro p { margin: 0 0 4px; font-size: 13px; line-height: 1.7; color: #a9a4ad; max-width: 48ch; margin-inline: auto; }
+  .intro ul { text-align: left; max-width: 40ch; margin: 10px auto 0; padding-left: 18px; font-size: 12.5px; line-height: 1.8; color: #9d98a4; }
+
+  .phone { position: relative; width: 100%; max-width: 380px; height: 760px; flex-shrink: 0; border-radius: 34px; padding: 14px; isolation: isolate; overflow: hidden; background: var(--bg); box-shadow: 0 30px 70px -30px rgba(0,0,0,0.7); }
+  .amb { position: absolute; border-radius: 50%; filter: blur(55px); opacity: 0.46; z-index: -1; }
+  .amb-1 { width: 220px; height: 220px; top: -70px; left: -60px; background: var(--amb-1); }
+  .amb-2 { width: 200px; height: 200px; bottom: 90px; right: -70px; background: var(--amb-2); }
+  .amb-3 { width: 190px; height: 190px; bottom: -90px; left: 30px; background: var(--amb-3); }
+
+  .shell { position: relative; height: 100%; border-radius: 24px; padding: 18px 16px; background: rgba(255,255,255,0.04); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); border: 1px solid var(--panel-edge); overflow: hidden; display: flex; flex-direction: column; gap: 12px; }
+
+  .topbar { display: flex; align-items: center; gap: 10px; flex: none; }
+  .icon-btn { appearance: none; border: none; background: rgba(255,255,255,0.06); color: var(--ink2); width: 30px; height: 30px; border-radius: 9px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; flex: none; }
+  .icon-btn:hover { background: rgba(255,255,255,0.1); }
+  .topbar-title { font-weight: 800; font-size: 16px; }
+
+  .view { flex: 1; min-height: 0; overflow-y: auto; display: none; flex-direction: column; gap: 10px; }
+  .view.active { display: flex; }
+
+  .search-box { flex: none; display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.045); border: 1px solid var(--glass-edge); border-radius: 999px; padding: 8px 13px; }
+  .search-box input { flex: 1; background: none; border: none; outline: none; color: var(--ink); font-family: inherit; font-size: 12.5px; }
+  .search-box input::placeholder { color: var(--ink3); }
+  .search-box .si { color: var(--ink3); font-size: 13px; }
+
+  .seg { flex: none; display: flex; gap: 6px; }
+  .seg button { flex: 1; appearance: none; border: 1px solid var(--glass-edge); background: rgba(255,255,255,0.03); color: var(--ink2); padding: 7px; border-radius: 10px; font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+  .seg button.selected { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--ink); }
+
+  .chan-list { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; }
+  .chan-row { display: flex; align-items: center; gap: 10px; padding: 9px 4px; border-radius: 12px; cursor: pointer; }
+  .chan-row:hover { background: rgba(255,255,255,0.04); }
+  .chan-row .av { width: 40px; height: 40px; border-radius: 50%; flex: none; display: flex; align-items: center; justify-content: center; font-size: 19px; background: rgba(255,255,255,0.06); position: relative; }
+  .chan-row .av .dot { position: absolute; top: -1px; right: -1px; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg-deep); }
+  .chan-row .meta { flex: 1; min-width: 0; }
+  .chan-row .name-line { display: flex; align-items: center; gap: 6px; }
+  .chan-row .name { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+  .chan-row .pill { font-size: 9.5px; padding: 1px 7px; border-radius: 999px; background: rgba(255,255,255,0.07); color: var(--ink3); flex: none; }
+  .chan-row .last { font-size: 11px; color: var(--ink3); margin-top: 2px; }
+  .chan-row .chev { color: var(--ink3); font-size: 16px; flex: none; }
+
+  /* 頻道詳情：標準影片清單 */
+  .chan-header { display: flex; align-items: center; gap: 12px; flex: none; padding: 6px 4px 10px; border-bottom: 1px solid var(--glass-edge); }
+  .chan-header .av { width: 54px; height: 54px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 26px; background: rgba(255,255,255,0.06); border: 1px solid var(--glass-edge); }
+  .chan-header .name { font-size: 16px; font-weight: 800; }
+  .chan-header .sub { font-size: 11.5px; color: var(--ink3); margin-top: 2px; }
+  .chan-header .unsub { margin-left: auto; font-size: 11px; padding: 6px 11px; border-radius: 999px; border: 1px solid var(--glass-edge); background: rgba(255,255,255,0.04); color: var(--ink2); cursor: pointer; }
+
+  .video-row { display: flex; gap: 10px; padding: 9px 4px; border-radius: 12px; }
+  .video-row:hover { background: rgba(255,255,255,0.04); }
+  .video-row .thumb { flex: none; width: 108px; height: 62px; border-radius: 10px; background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 45%, #222), #222); display: flex; align-items: center; justify-content: center; font-size: 10px; color: rgba(255,255,255,0.7); }
+  .video-row .vmeta { flex: 1; min-width: 0; }
+  .video-row .vt { font-size: 12.5px; color: var(--ink); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .video-row .vd { font-size: 11px; color: var(--ink3); margin-top: 4px; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="intro">
+  <p class="eyebrow">Lume · YT 頻道追蹤 03（Mock，資料全假・業界主流版）</p>
+  <h1>訂閱管理清單</h1>
+  <p>照 YouTube／Twitch 自己的「管理訂閱內容」頁面慣例設計：搜尋框＋一整條頻道清單，可以切「最新動態」（依更新時間排）或「名稱」（A-Z 排）排序，分類只是一個小標籤貼在名字旁邊，不是主要瀏覽方式——熟悉這類 App 的人幾乎不用學就會用。</p>
+  <ul>
+    <li>頂部<b>搜尋框</b>即時篩選頻道名稱。</li>
+    <li><b>最新動態／名稱</b>兩種排序切換，跟大部分訂閱清單一樣。</li>
+    <li>頭像右上角紅點代表「這頻道 24 小時內有新影片」。</li>
+    <li>分類用一顆小標籤跟在名字旁邊，功能上還是以「找到某個頻道」為主，不是以分類瀏覽為主——這是跟 01、02 版最大的取捨差異。</li>
+  </ul>
+</div>
+
+<div class="phone">
+  <div class="amb amb-1"></div>
+  <div class="amb amb-2"></div>
+  <div class="amb amb-3"></div>
+
+  <div class="shell">
+    <div class="topbar" id="topbar">
+      <span class="topbar-title" id="topTitle">管理訂閱內容</span>
+    </div>
+
+    <div class="view active" id="view-list">
+      <div class="search-box">
+        <span class="si">🔍</span>
+        <input type="text" id="searchInput" placeholder="搜尋頻道名稱" />
+      </div>
+      <div class="seg" id="sortSeg">
+        <button class="selected" data-sort="recent">最新動態</button>
+        <button data-sort="name">名稱 A-Z</button>
+      </div>
+      <div class="chan-list" id="chanList"></div>
+    </div>
+
+    <div class="view" id="view-channel">
+      <div class="chan-header">
+        <div class="av" id="chAv"></div>
+        <div>
+          <div class="name" id="chName"></div>
+          <div class="sub" id="chSub"></div>
+        </div>
+        <div class="unsub">取消訂閱</div>
+      </div>
+      <div id="chVideos" style="overflow-y:auto; flex:1; min-height:0; display:flex; flex-direction:column;"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const CAT_LABEL = { game:'遊戲', know:'知識', food:'美食', music:'音樂', vlog:'Vlog', none:'未分類' };
+  const CHANNELS = [
+    { id:'c1', name:'夜貓實況室', cat:'game', avatar:'🎮', last:'3 小時前', recentScore: 1, videos:[
+      {t:'跟訂閱者一起玩到凌晨的爆笑集錦', time:'3 小時前', dur:'18:24'},
+      {t:'新地圖初體驗，全程手忙腳亂', time:'2 天前', dur:'42:10'},
+    ]},
+    { id:'c2', name:'阿凱的知識膠囊', cat:'know', avatar:'🧠', last:'昨天', recentScore: 2, videos:[
+      {t:'為什麼貓咪喜歡箱子？三分鐘搞懂', time:'昨天', dur:'3:45'},
+    ]},
+    { id:'c3', name:'小廚房日常', cat:'food', avatar:'🍳', last:'2 天前', recentScore: 3, videos:[
+      {t:'十分鐘炒出餐廳等級的炒飯', time:'2 天前', dur:'10:05'},
+    ]},
+    { id:'c4', name:'耳朵懷孕電台', cat:'music', avatar:'🎧', last:'4 天前', recentScore: 4, videos:[
+      {t:'深夜讀書歌單 Lofi Mix', time:'4 天前', dur:'55:00'},
+    ]},
+    { id:'c5', name:'阿明的下班日常', cat:'vlog', avatar:'🌇', last:'5 天前', recentScore: 5, videos:[
+      {t:'週末去了趟老家菜市場', time:'5 天前', dur:'12:20'},
+    ]},
+    { id:'c6', name:'速攻通關社', cat:'game', avatar:'🕹️', last:'1 週前', recentScore: 6, videos:[
+      {t:'新手向：三個容易忽略的隱藏道具', time:'1 週前', dur:'9:40'},
+    ]},
+    { id:'c7', name:'冷知識研究所', cat:'know', avatar:'📚', last:'3 天前', recentScore: 3.5, videos:[
+      {t:'冷氣為什麼要往上吹？', time:'3 天前', dur:'5:20'},
+    ]},
+    { id:'c8', name:'甜點實驗室', cat:'food', avatar:'🧁', last:'6 天前', recentScore: 7, videos:[
+      {t:'免烤箱提拉米蘇教學', time:'6 天前', dur:'11:11'},
+    ]},
+    { id:'c9', name:'路人甲的Cover', cat:'music', avatar:'🎤', last:'1 個月前', recentScore: 9, videos:[
+      {t:'翻唱合輯 Vol.7', time:'1 個月前', dur:'6:40'},
+    ]},
+    { id:'c10', name:'未分類頻道A', cat:'none', avatar:'📺', last:'2 個月前', recentScore: 10, videos:[
+      {t:'很久以前訂閱、忘記為什麼', time:'2 個月前', dur:'7:00'},
+    ]},
+    { id:'c11', name:'未分類頻道B', cat:'none', avatar:'📺', last:'3 個月前', recentScore: 11, videos:[
+      {t:'許久沒更新的頻道', time:'3 個月前', dur:'15:00'},
+    ]},
+  ];
+
+  let sortMode = 'recent';
+  let query = '';
+
+  function renderList() {
+    let list = CHANNELS.filter(c => c.name.includes(query));
+    list = [...list].sort((a, b) => sortMode === 'recent'
+      ? a.recentScore - b.recentScore
+      : a.name.localeCompare(b.name, 'zh-Hant'));
+    const box = document.getElementById('chanList');
+    box.innerHTML = '';
+    list.forEach(c => {
+      const row = document.createElement('div');
+      row.className = 'chan-row';
+      row.innerHTML = `<div class="av">${c.avatar}${c.recentScore <= 1.5 ? '<span class="dot"></span>' : ''}</div>
+        <div class="meta"><div class="name-line"><span class="name">${c.name}</span><span class="pill">${CAT_LABEL[c.cat]}</span></div><div class="last">最新影片・${c.last}</div></div>
+        <div class="chev">›</div>`;
+      row.addEventListener('click', () => openChannel(c.id));
+      box.appendChild(row);
+    });
+  }
+
+  document.getElementById('searchInput').addEventListener('input', (e) => {
+    query = e.target.value.trim();
+    renderList();
+  });
+  document.getElementById('sortSeg').addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    document.querySelectorAll('#sortSeg button').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    sortMode = btn.dataset.sort;
+    renderList();
+  });
+
+  const views = { list: document.getElementById('view-list'), channel: document.getElementById('view-channel') };
+  const topbar = document.getElementById('topbar');
+
+  function showView(name) {
+    Object.values(views).forEach(v => v.classList.remove('active'));
+    views[name].classList.add('active');
+  }
+
+  function renderTopbar(title, showBack) {
+    topbar.innerHTML = '';
+    if (showBack) {
+      const b = document.createElement('button');
+      b.className = 'icon-btn';
+      b.textContent = '←';
+      b.addEventListener('click', () => { renderTopbar('管理訂閱內容', false); showView('list'); });
+      topbar.appendChild(b);
+    }
+    const t = document.createElement('span');
+    t.className = 'topbar-title';
+    t.textContent = title;
+    topbar.appendChild(t);
+  }
+
+  function openChannel(id) {
+    const c = CHANNELS.find(x => x.id === id);
+    renderTopbar('頻道', true);
+    document.getElementById('chAv').textContent = c.avatar;
+    document.getElementById('chName').textContent = c.name;
+    document.getElementById('chSub').textContent = CAT_LABEL[c.cat] + '・最新更新 ' + c.last;
+    const vbox = document.getElementById('chVideos');
+    vbox.innerHTML = '';
+    c.videos.forEach(v => {
+      const row = document.createElement('div');
+      row.className = 'video-row';
+      row.innerHTML = `<div class="thumb">${v.dur}</div><div class="vmeta"><div class="vt">${v.t}</div><div class="vd">${v.time}</div></div>`;
+      vbox.appendChild(row);
+    });
+    showView('channel');
+  }
+
+  renderList();
+</script>

@@ -1,0 +1,474 @@
+<!doctype html>
+<title>YT頻道08・精緻高級感 YT紅版</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;800&family=Noto+Sans+TC:wght@400;500;700;800&display=swap"
+/>
+<style>
+  :root {
+    color-scheme: dark;
+    /* YouTube 自己的深色模式底色偏中性黑（不是偏藍或偏紫），這版跟著改。 */
+    --bg: #0c0a0a;
+    --bg-deep: #090808;
+    --ink: #f2f1ef;
+    --ink2: #a8a5a3;
+    --ink3: #6f6c6b;
+    --glass-edge: rgba(255, 255, 255, 0.09);
+    --glass-fill: rgba(255, 255, 255, 0.035);
+    --hairline: rgba(255, 255, 255, 0.06);
+    /* 07 版用香檳金，這版改回貼近 YouTube 品牌紅——但沿用 07 的「紅色只
+       用在強調的地方」做法（選中狀態、按鈕、光暈），不是整片鋪紅，紅色
+       太多反而俗氣，跟 YouTube 自己深色模式的用色節制程度一致。 */
+    --accent: #ff2d40;
+    --accent-soft: #ff8478;
+    --accent-ink: #2b0708;
+    --amb-1: #451414;
+    --amb-2: #2a1010;
+    --amb-3: #3a1212;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; min-height: 100%; background: var(--bg-deep); color: var(--ink); font-family: "Zen Kaku Gothic New", "Noto Sans TC", system-ui, sans-serif; }
+  body { padding-inline: 20px; padding-block: 32px 48px; display: flex; flex-direction: column; align-items: center; gap: 18px; }
+
+  .intro { max-width: 480px; width: 100%; text-align: center; }
+  .eyebrow { font-size: 11.5px; letter-spacing: 0.18em; color: #8b8690; text-transform: uppercase; }
+  .intro h1 { font-weight: 800; font-size: clamp(20px, 5vw, 24px); margin: 6px 0 8px; color: #f4f1f4; letter-spacing: -0.01em; }
+  .intro p { margin: 0 0 4px; font-size: 13px; line-height: 1.7; color: #a9a4ad; max-width: 48ch; margin-inline: auto; }
+  .intro ul { text-align: left; max-width: 40ch; margin: 10px auto 0; padding-left: 18px; font-size: 12.5px; line-height: 1.8; color: #9d98a4; }
+
+  .phone {
+    position: relative; width: 100%; max-width: 380px; height: 780px; flex-shrink: 0;
+    border-radius: 40px; padding: 12px; isolation: isolate; overflow: hidden;
+    background: radial-gradient(120% 100% at 50% -10%, #151212 0%, var(--bg) 45%, var(--bg-deep) 100%);
+    box-shadow: 0 40px 90px -30px rgba(0,0,0,0.75), inset 0 0 0 1px rgba(255,255,255,0.04);
+  }
+  .amb { position: absolute; border-radius: 50%; filter: blur(72px); opacity: 0.38; z-index: -1; }
+  .amb-1 { width: 230px; height: 230px; top: -80px; left: -60px; background: var(--amb-1); }
+  .amb-2 { width: 220px; height: 220px; bottom: 60px; right: -80px; background: var(--amb-2); }
+  .amb-3 { width: 200px; height: 200px; bottom: -100px; left: 40px; background: var(--amb-3); }
+
+  .shell {
+    position: relative; height: 100%; border-radius: 30px; padding: 20px 17px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.022) 100%);
+    backdrop-filter: blur(22px); -webkit-backdrop-filter: blur(22px);
+    border: 1px solid var(--glass-edge);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.14), inset 0 0 40px rgba(255,255,255,0.015);
+    overflow: hidden; display: flex; flex-direction: column; gap: 14px;
+  }
+
+  .topbar { display: flex; align-items: center; gap: 10px; flex: none; }
+  .icon-btn {
+    appearance: none; border: 1px solid var(--hairline); background: rgba(255,255,255,0.03); color: var(--ink2);
+    width: 32px; height: 32px; border-radius: 11px; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 15px; flex: none; transition: background .18s ease, transform .12s ease;
+  }
+  .icon-btn:hover { background: rgba(255,255,255,0.08); }
+  .icon-btn:active { transform: scale(0.92); }
+  .topbar-title { font-weight: 800; font-size: 16.5px; letter-spacing: -0.01em; }
+
+  .view { flex: 1; min-height: 0; overflow-y: auto; display: none; flex-direction: column; gap: 13px; scrollbar-width: none; }
+  .view::-webkit-scrollbar { display: none; }
+  .view.active { display: flex; animation: viewIn .32s cubic-bezier(.2,.7,.3,1); }
+  @keyframes viewIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  .folder-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .folder-card {
+    border-radius: 18px; padding: 13px; cursor: pointer;
+    background: var(--glass-fill);
+    border: 1px solid var(--hairline);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.07), 0 14px 30px -18px rgba(0,0,0,0.6);
+    display: flex; flex-direction: column; gap: 9px;
+    transition: transform .16s ease, border-color .16s ease, background .16s ease;
+  }
+  .folder-card:active { transform: scale(0.97); }
+  .folder-card .fdot { width: 7px; height: 7px; border-radius: 50%; background: var(--cat); box-shadow: 0 0 8px var(--cat); }
+  .folder-card .flabel { font-size: 13px; font-weight: 700; color: var(--ink); letter-spacing: -0.01em; }
+  .folder-card .fcount { font-size: 10.5px; color: var(--ink3); }
+  .folder-card .favatars { display: flex; margin-top: 2px; }
+  .folder-card .favatars span {
+    width: 25px; height: 25px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 12px; margin-left: -8px; background: radial-gradient(circle at 30% 25%, #2c2a2a, #171515);
+    border: 1.5px solid var(--bg); box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  }
+  .folder-card .favatars span:first-child { margin-left: 0; }
+
+  .all-btn {
+    flex: none; display: flex; align-items: center; justify-content: center; gap: 7px; padding: 12px;
+    border-radius: 16px; background: var(--glass-fill); border: 1px dashed var(--hairline); color: var(--ink2);
+    font-size: 12.5px; cursor: pointer; transition: background .16s ease, border-color .16s ease;
+  }
+  .all-btn:hover { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.16); }
+
+  .filter-scroll { flex: none; display: flex; gap: 7px; overflow-x: auto; padding: 1px 1px 3px; scrollbar-width: none; }
+  .filter-scroll::-webkit-scrollbar { display: none; }
+  .filter-chip {
+    flex: none; padding: 7px 14px; border-radius: 999px; font-size: 11.5px; font-weight: 600; cursor: pointer;
+    border: 1px solid var(--hairline); background: rgba(255,255,255,0.028); color: var(--ink2); white-space: nowrap;
+    transition: all .18s ease;
+  }
+  .filter-chip.selected {
+    border-color: color-mix(in srgb, var(--chip-color, var(--accent)) 55%, transparent);
+    background: color-mix(in srgb, var(--chip-color, var(--accent)) 20%, rgba(255,255,255,0.03));
+    color: var(--ink); box-shadow: 0 0 14px -4px var(--chip-color, var(--accent));
+  }
+
+  .seg-wrap { flex: none; position: relative; display: flex; padding: 3px; border-radius: 13px; background: rgba(255,255,255,0.03); border: 1px solid var(--hairline); }
+  .seg-thumb {
+    position: absolute; top: 3px; bottom: 3px; width: calc(50% - 3px); border-radius: 10px;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 32%, transparent), color-mix(in srgb, var(--accent) 16%, transparent));
+    border: 1px solid color-mix(in srgb, var(--accent) 50%, transparent);
+    transition: left .28s cubic-bezier(.3,.8,.3,1);
+  }
+  .seg-wrap button {
+    position: relative; z-index: 1; flex: 1; appearance: none; border: none; background: none;
+    color: var(--ink3); padding: 8px; font-family: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer;
+    transition: color .2s ease;
+  }
+  .seg-wrap button.selected { color: var(--ink); }
+
+  .sort-row { flex: none; display: flex; align-items: center; justify-content: space-between; }
+  .sort-row .label { font-size: 10.5px; color: var(--ink3); letter-spacing: 0.02em; }
+  .sort-toggle { display: flex; gap: 4px; }
+  .sort-toggle button {
+    appearance: none; border: 1px solid var(--hairline); background: rgba(255,255,255,0.028); color: var(--ink2);
+    padding: 5px 11px; border-radius: 999px; font-family: inherit; font-size: 10.5px; font-weight: 600; cursor: pointer;
+    transition: all .18s ease;
+  }
+  .sort-toggle button.selected { border-color: color-mix(in srgb, var(--accent) 55%, transparent); background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--ink); }
+
+  .content-scroll { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 9px; scrollbar-width: none; }
+  .content-scroll::-webkit-scrollbar { display: none; }
+
+  .chan-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; align-content: start; }
+  .chan-card {
+    border-radius: 16px; padding: 11px; background: var(--glass-fill); border: 1px solid var(--hairline);
+    cursor: pointer; display: flex; align-items: center; gap: 9px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+    transition: transform .16s ease, background .16s ease;
+  }
+  .chan-card:hover { background: rgba(255,255,255,0.06); }
+  .chan-card:active { transform: scale(0.97); }
+  .chan-card .av {
+    width: 37px; height: 37px; border-radius: 50%; flex: none; display: flex; align-items: center; justify-content: center;
+    font-size: 17px; background: radial-gradient(circle at 30% 25%, #2c2a2a, #171515);
+    box-shadow: 0 0 0 1px var(--hairline), 0 3px 8px rgba(0,0,0,0.4);
+  }
+  .chan-card .meta { flex: 1; min-width: 0; }
+  .chan-card .name { font-size: 12px; font-weight: 700; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chan-card .last { font-size: 10px; color: var(--ink3); margin-top: 1px; }
+
+  .video-row {
+    display: flex; gap: 11px; padding: 9px; border-radius: 16px; cursor: pointer;
+    border: 1px solid transparent; transition: background .16s ease, border-color .16s ease;
+  }
+  .video-row:hover { background: rgba(255,255,255,0.045); border-color: var(--hairline); }
+  .video-row .thumb {
+    flex: none; position: relative; width: 100px; height: 60px; border-radius: 12px; overflow: hidden;
+    background:
+      linear-gradient(135deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0) 40%),
+      linear-gradient(135deg, color-mix(in srgb, var(--accent) 42%, #1a1717), #141212);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);
+  }
+  .video-row .thumb .play { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 13px; color: rgba(255,255,255,0.55); }
+  .video-row .thumb .dur {
+    position: absolute; right: 5px; bottom: 5px; font-size: 9px; padding: 1.5px 5px; border-radius: 5px;
+    background: rgba(6,6,7,0.7); backdrop-filter: blur(4px); color: #f0ede8; letter-spacing: 0.01em;
+  }
+  .video-row .vmeta { flex: 1; min-width: 0; padding-top: 1px; }
+  .video-row .vt { font-size: 12.5px; color: var(--ink); line-height: 1.4; letter-spacing: -0.005em; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .video-row .vch { font-size: 10.5px; color: var(--ink3); margin-top: 6px; display: flex; align-items: center; gap: 5px; }
+  .video-row .vch .av { width: 15px; height: 15px; border-radius: 50%; background: radial-gradient(circle at 30% 25%, #2c2a2a, #171515); display: inline-flex; align-items: center; justify-content: center; font-size: 9px; flex: none; }
+
+  .empty-hint { font-size: 12px; color: var(--ink3); text-align: center; padding: 30px 10px; }
+
+  .chan-header { display: flex; align-items: center; gap: 13px; flex: none; padding: 4px 2px 8px; border-bottom: 1px solid var(--hairline); }
+  .chan-header .av {
+    width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 26px;
+    background: radial-gradient(circle at 30% 25%, #2c2a2a, #171515);
+    box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--accent) 50%, var(--hairline)), 0 6px 16px rgba(0,0,0,0.45);
+  }
+  .chan-header .name { font-size: 16.5px; font-weight: 800; letter-spacing: -0.01em; }
+  .chan-header .sub { font-size: 11.5px; color: var(--ink3); margin-top: 3px; }
+
+  .list-label { font-size: 10.5px; letter-spacing: 0.1em; color: var(--ink3); text-transform: uppercase; flex: none; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<div class="intro">
+  <p class="eyebrow">Lume · YT 頻道追蹤 08（Mock，資料全假・精緻高級感 YT 紅版）</p>
+  <h1>更貼近 YouTube 本尊的配色</h1>
+  <p>功能、版面完全承接 07 版，只換色系：改成貼近 YouTube 品牌紅，底色也從偏紫調的黑改成 YouTube 深色模式那種中性偏暖黑。紅色一樣只用在強調的地方（選中狀態、按鈕光暈、頭像外框）——YouTube 自己深色模式其實紅色用得很節制，不是整片塗紅，太滿反而顯廉價，這版延續 07 的節制邏輯，只是把強調色換成紅。</p>
+  <ul>
+    <li>底色改中性偏暖黑，不再偏紫調，光暈色也從金／紫改成深紅／黑。</li>
+    <li>選中的篩選 chip、分段指示條、頻道頭像外框都改用紅色光暈。</li>
+    <li>分類識別色點（遊戲藍／知識綠／美食金／音樂紫／Vlog珊瑚）維持不變——那是功能性的分類辨識色，跟主題強調色是兩回事，全部換紅反而失去辨識度。</li>
+    <li>文字白改成中性偏冷的白，不再是 07 版偏暖的香檳白。</li>
+  </ul>
+</div>
+
+<div class="phone">
+  <div class="amb amb-1"></div>
+  <div class="amb amb-2"></div>
+  <div class="amb amb-3"></div>
+
+  <div class="shell">
+    <div class="topbar" id="topbar">
+      <span class="topbar-title" id="topTitle">頻道追蹤</span>
+    </div>
+
+    <div class="view active" id="view-home">
+      <div class="folder-grid" id="folderGrid"></div>
+      <div class="all-btn" id="allBtn">📺 全部頻道／全部影片</div>
+    </div>
+
+    <div class="view" id="view-browse">
+      <div class="filter-scroll" id="filterScroll"></div>
+      <div class="seg-wrap" id="modeSeg">
+        <div class="seg-thumb" id="segThumb"></div>
+        <button class="selected" data-mode="channel">依頻道顯示</button>
+        <button data-mode="video">依影片顯示</button>
+      </div>
+      <div class="sort-row" id="sortRow" style="display:none;">
+        <span class="label" id="resultCount"></span>
+        <div class="sort-toggle" id="sortToggle">
+          <button class="selected" data-sort="new">最新優先</button>
+          <button data-sort="name">頻道名稱</button>
+        </div>
+      </div>
+      <div class="content-scroll" id="contentScroll"></div>
+    </div>
+
+    <div class="view" id="view-channel">
+      <div class="chan-header">
+        <div class="av" id="chAv"></div>
+        <div>
+          <div class="name" id="chName"></div>
+          <div class="sub" id="chSub"></div>
+        </div>
+      </div>
+      <p class="list-label">最近影片</p>
+      <div id="chVideos" style="overflow-y:auto; flex:1; min-height:0; display:flex; flex-direction:column; gap:5px;"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const CATEGORIES = [
+    { key: 'game', label: '遊戲實況', color: '#6aa9e0' },
+    { key: 'know', label: '知識科普', color: '#7fbf8f' },
+    { key: 'food', label: '美食', color: '#e0a94e' },
+    { key: 'music', label: '音樂', color: '#c98fe0' },
+    { key: 'vlog', label: 'Vlog生活', color: '#e07a7a' },
+  ];
+
+  const CHANNELS = [
+    { id:'c1', name:'夜貓實況室', cat:'game', avatar:'🎮', videos:[
+      {t:'跟訂閱者一起玩到凌晨的爆笑集錦', time:'3 小時前', dur:'18:24', ts:3},
+      {t:'新地圖初體驗，全程手忙腳亂', time:'2 天前', dur:'42:10', ts:48},
+      {t:'排位賽連勝紀錄挑戰', time:'5 天前', dur:'1:02:33', ts:120},
+    ]},
+    { id:'c2', name:'阿凱的知識膠囊', cat:'know', avatar:'🧠', videos:[
+      {t:'為什麼貓咪喜歡箱子？三分鐘搞懂', time:'昨天', dur:'3:45', ts:20},
+      {t:'黑洞到底有多黑', time:'6 天前', dur:'8:12', ts:144},
+    ]},
+    { id:'c3', name:'小廚房日常', cat:'food', avatar:'🍳', videos:[
+      {t:'十分鐘炒出餐廳等級的炒飯', time:'2 天前', dur:'10:05', ts:44},
+      {t:'冰箱清空挑戰：剩菜大改造', time:'1 週前', dur:'14:50', ts:168},
+    ]},
+    { id:'c4', name:'耳朵懷孕電台', cat:'music', avatar:'🎧', videos:[
+      {t:'深夜讀書歌單 Lofi Mix', time:'4 天前', dur:'55:00', ts:96},
+      {t:'翻唱：那些年我們聽過的歌', time:'2 週前', dur:'4:32', ts:336},
+    ]},
+    { id:'c5', name:'阿明的下班日常', cat:'vlog', avatar:'🌇', videos:[
+      {t:'週末去了趟老家菜市場', time:'5 天前', dur:'12:20', ts:120},
+      {t:'搬新家整理房間 Vlog', time:'3 週前', dur:'20:15', ts:504},
+    ]},
+    { id:'c6', name:'速攻通關社', cat:'game', avatar:'🕹️', videos:[
+      {t:'新手向：三個容易忽略的隱藏道具', time:'1 週前', dur:'9:40', ts:168},
+      {t:'一小時速通紀錄挑戰失敗集', time:'3 週前', dur:'1:15:00', ts:504},
+    ]},
+    { id:'c7', name:'冷知識研究所', cat:'know', avatar:'📚', videos:[
+      {t:'冷氣為什麼要往上吹？', time:'3 天前', dur:'5:20', ts:72},
+      {t:'一分鐘搞懂通貨膨脹', time:'2 週前', dur:'1:58', ts:336},
+    ]},
+    { id:'c8', name:'甜點實驗室', cat:'food', avatar:'🧁', videos:[
+      {t:'免烤箱提拉米蘇教學', time:'6 天前', dur:'11:11', ts:144},
+    ]},
+    { id:'c9', name:'路人甲的Cover', cat:'music', avatar:'🎤', videos:[
+      {t:'翻唱合輯 Vol.7', time:'1 個月前', dur:'6:40', ts:720},
+    ]},
+    { id:'c10', name:'唱跳實況社', cat:'game', avatar:'🎤', videos:[
+      {t:'邊玩音game邊唱歌雜談', time:'3 天前', dur:'44:00', ts:70},
+      {t:'新歌首唱直播精華', time:'10 天前', dur:'32:10', ts:240},
+    ]},
+    { id:'c11', name:'旅遊吃貨日記', cat:'vlog', avatar:'✈️', videos:[
+      {t:'日本自由行必吃清單', time:'2 週前', dur:'16:30', ts:336},
+    ]},
+  ];
+
+  const selectedCats = new Set();
+
+  function catColor(key) { return CATEGORIES.find(c => c.key === key)?.color || '#8a8a9a'; }
+  function catLabel(key) { return CATEGORIES.find(c => c.key === key)?.label || '未分類'; }
+  function matchedChannels() { return selectedCats.size === 0 ? CHANNELS : CHANNELS.filter(c => selectedCats.has(c.cat)); }
+
+  const folderGrid = document.getElementById('folderGrid');
+  CATEGORIES.forEach(cat => {
+    const chans = CHANNELS.filter(c => c.cat === cat.key);
+    const card = document.createElement('div');
+    card.className = 'folder-card';
+    card.style.setProperty('--cat', cat.color);
+    card.innerHTML = `<div class="fdot"></div><div class="flabel">${cat.label}</div><div class="fcount">${chans.length} 個頻道</div><div class="favatars">${chans.slice(0,4).map(c => `<span>${c.avatar}</span>`).join('')}</div>`;
+    card.addEventListener('click', () => enterBrowse([cat.key]));
+    folderGrid.appendChild(card);
+  });
+  document.getElementById('allBtn').addEventListener('click', () => enterBrowse([]));
+
+  let mode = 'channel';
+  let sortMode = 'new';
+
+  function enterBrowse(initialCats) {
+    selectedCats.clear();
+    initialCats.forEach(k => selectedCats.add(k));
+    renderTopbar(initialCats.length === 1 ? catLabel(initialCats[0]) : '頻道追蹤', true, goHome);
+    renderFilterChips();
+    showView('browse');
+    renderBrowseContent();
+  }
+
+  function renderFilterChips() {
+    const box = document.getElementById('filterScroll');
+    box.innerHTML = '';
+    CATEGORIES.forEach(cat => {
+      const chip = document.createElement('div');
+      chip.className = 'filter-chip' + (selectedCats.has(cat.key) ? ' selected' : '');
+      chip.style.setProperty('--chip-color', cat.color);
+      chip.textContent = cat.label;
+      chip.addEventListener('click', () => {
+        if (selectedCats.has(cat.key)) selectedCats.delete(cat.key); else selectedCats.add(cat.key);
+        chip.classList.toggle('selected');
+        renderTopbar(selectedCats.size === 1 ? catLabel([...selectedCats][0]) : selectedCats.size === 0 ? '頻道追蹤' : `已選 ${selectedCats.size} 個分類`, true, goHome);
+        renderBrowseContent();
+      });
+      box.appendChild(chip);
+    });
+  }
+
+  const segThumb = document.getElementById('segThumb');
+  document.getElementById('modeSeg').addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    document.querySelectorAll('#modeSeg button').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    mode = btn.dataset.mode;
+    segThumb.style.left = mode === 'channel' ? '3px' : 'calc(50% + 0px)';
+    renderBrowseContent();
+  });
+  segThumb.style.left = '3px';
+
+  document.getElementById('sortToggle').addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    document.querySelectorAll('#sortToggle button').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    sortMode = btn.dataset.sort;
+    renderBrowseContent();
+  });
+
+  function renderBrowseContent() {
+    const chans = matchedChannels();
+    const box = document.getElementById('contentScroll');
+    box.innerHTML = '';
+    document.getElementById('sortRow').style.display = mode === 'video' ? 'flex' : 'none';
+
+    if (mode === 'channel') {
+      if (chans.length === 0) { box.innerHTML = '<div class="empty-hint">這個篩選條件下沒有頻道</div>'; return; }
+      const grid = document.createElement('div');
+      grid.className = 'chan-grid';
+      chans.forEach(c => {
+        const card = document.createElement('div');
+        card.className = 'chan-card';
+        const newest = [...c.videos].sort((a,b) => a.ts - b.ts)[0];
+        card.innerHTML = `<div class="av">${c.avatar}</div><div class="meta"><div class="name">${c.name}</div><div class="last">${newest.time}</div></div>`;
+        card.addEventListener('click', () => openChannel(c.id));
+        grid.appendChild(card);
+      });
+      box.appendChild(grid);
+    } else {
+      let videos = [];
+      chans.forEach(c => c.videos.forEach(v => videos.push({ ...v, chanId: c.id, chanName: c.name, chanAvatar: c.avatar })));
+      videos.sort((a, b) => sortMode === 'new' ? a.ts - b.ts : a.chanName.localeCompare(b.chanName, 'zh-Hant'));
+      document.getElementById('resultCount').textContent = `共 ${videos.length} 部影片`;
+      if (videos.length === 0) { box.innerHTML = '<div class="empty-hint">這個篩選條件下沒有影片</div>'; return; }
+      videos.forEach(v => {
+        const row = document.createElement('div');
+        row.className = 'video-row';
+        row.innerHTML = `<div class="thumb"><span class="play">▶</span><span class="dur">${v.dur}</span></div><div class="vmeta"><div class="vt">${v.t}</div><div class="vch"><span class="av">${v.chanAvatar}</span>${v.chanName}・${v.time}</div></div>`;
+        row.addEventListener('click', () => openChannel(v.chanId));
+        box.appendChild(row);
+      });
+    }
+  }
+
+  const views = { home: document.getElementById('view-home'), browse: document.getElementById('view-browse'), channel: document.getElementById('view-channel') };
+  const topbar = document.getElementById('topbar');
+  let lastBrowseCats = [];
+
+  function showView(name) {
+    Object.values(views).forEach(v => v.classList.remove('active'));
+    views[name].classList.add('active');
+  }
+
+  function renderTopbar(title, showBack, onBack) {
+    topbar.innerHTML = '';
+    if (showBack) {
+      const b = document.createElement('button');
+      b.className = 'icon-btn';
+      b.textContent = '←';
+      b.addEventListener('click', onBack);
+      topbar.appendChild(b);
+    }
+    const t = document.createElement('span');
+    t.className = 'topbar-title';
+    t.textContent = title;
+    topbar.appendChild(t);
+  }
+
+  function goHome() {
+    renderTopbar('頻道追蹤', false, null);
+    showView('home');
+  }
+
+  function openChannel(id) {
+    lastBrowseCats = [...selectedCats];
+    const c = CHANNELS.find(x => x.id === id);
+    renderTopbar('頻道', true, () => {
+      selectedCats.clear();
+      lastBrowseCats.forEach(k => selectedCats.add(k));
+      renderTopbar(selectedCats.size === 1 ? catLabel(lastBrowseCats[0]) : selectedCats.size === 0 ? '頻道追蹤' : `已選 ${selectedCats.size} 個分類`, true, goHome);
+      renderFilterChips();
+      showView('browse');
+      renderBrowseContent();
+    });
+    document.getElementById('chAv').textContent = c.avatar;
+    document.getElementById('chName').textContent = c.name;
+    const sorted = [...c.videos].sort((a,b) => a.ts - b.ts);
+    document.getElementById('chSub').textContent = catLabel(c.cat) + '・最新更新 ' + sorted[0].time;
+    const vbox = document.getElementById('chVideos');
+    vbox.innerHTML = '';
+    sorted.forEach(v => {
+      const row = document.createElement('div');
+      row.className = 'video-row';
+      row.innerHTML = `<div class="thumb"><span class="play">▶</span><span class="dur">${v.dur}</span></div><div class="vmeta"><div class="vt">${v.t}</div><div class="vch">${v.time}</div></div>`;
+      vbox.appendChild(row);
+    });
+    showView('channel');
+  }
+
+  goHome();
+</script>

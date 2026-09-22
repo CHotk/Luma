@@ -24,6 +24,9 @@ import '../features/settings/debug_log_page.dart';
 import '../features/settings/settings_page.dart';
 import '../features/splash/splash_page.dart';
 import '../features/stealth/stealth_page.dart';
+import '../features/yt_tracker/yt_tracker_browse_page.dart';
+import '../features/yt_tracker/yt_tracker_channel_page.dart';
+import '../features/yt_tracker/yt_tracker_home_page.dart';
 
 /// 全 App 的路徑只在這裡定義，畫面裡不准自己組路徑字串。
 final appRouter = GoRouter(
@@ -93,6 +96,21 @@ final appRouter = GoRouter(
       ],
     ),
     GoRoute(path: '/diary', builder: (_, _) => const DiaryPage()),
+    GoRoute(path: '/yt-tracker', builder: (_, _) => const YtTrackerHomePage()),
+    GoRoute(
+      path: '/yt-tracker/browse',
+      // extra 是從首頁點哪個分類資料夾進來的（見 yt_tracker_home_page.dart），
+      // 沒帶（例如有人直接打網址）就當作沒篩選，顯示全部。
+      builder: (_, state) => YtTrackerBrowsePage(
+        initialCategoryIds: state.extra as Set<String>? ?? const {},
+      ),
+    ),
+    GoRoute(
+      path: '/yt-tracker/channel/:id',
+      builder: (_, state) => YtTrackerChannelPage(
+        channelId: state.pathParameters['id'] ?? '',
+      ),
+    ),
     GoRoute(path: '/mastered', builder: (_, _) => const MasteredPage()),
     GoRoute(path: '/notes', builder: (_, _) => const NotesPage()),
     GoRoute(path: '/settings', builder: (_, _) => const SettingsPage()),

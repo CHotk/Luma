@@ -96,6 +96,16 @@ class AppSideDrawer extends StatelessWidget {
                       context.push('/diary');
                     },
                   ),
+                  _NavItem(
+                    icon: Icons.subscriptions_rounded,
+                    label: 'YT 頻道追蹤',
+                    // 分類／頻道管理做出來了（2026-09-22），從「敬請
+                    // 期待」那組移出來，同上。影片資料還沒接。
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      context.push('/yt-tracker');
+                    },
+                  ),
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 10),
                     child: Divider(height: 1, color: AppColors.glassEdge),
@@ -110,10 +120,6 @@ class AppSideDrawer extends StatelessWidget {
                         color: AppColors.ink3,
                       ),
                     ),
-                  ),
-                  const _MockNavItem(
-                    icon: Icons.subscriptions_rounded,
-                    label: 'YT 頻道追蹤',
                   ),
                   const _MockNavItem(
                     icon: Icons.account_balance_wallet_rounded,
@@ -189,7 +195,8 @@ class _NavItem extends StatelessWidget {
 /// onTap，樣式本身就比一般項目暗，不用另外做 disabled 判斷
 /// （2026-09-22 使用者要求：先記錄 YT 頻道追蹤／記帳／行程表／
 /// 鬧鐘／碼錶／日記這六個構想，見 kana_exam_next_ideas 跟
-/// personal_app_feature_ideas 兩份記憶）。
+/// personal_app_feature_ideas 兩份記憶）。日記、YT 頻道追蹤後來做出來
+/// 了，移到上面變成真的可以點的項目，這裡只剩還沒開工的四個。
 class _MockNavItem extends StatelessWidget {
   const _MockNavItem({required this.icon, required this.label});
 
