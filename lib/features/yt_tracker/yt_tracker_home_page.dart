@@ -18,6 +18,7 @@ import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
 import '../../shared/widgets/glass_card.dart';
+import 'yt_api_key_dialog.dart';
 import 'yt_channel_avatar.dart';
 
 /// YT 頻道追蹤首頁：分類資料夾格子（設計稿 06/07/08 定案，見
@@ -26,8 +27,9 @@ import 'yt_channel_avatar.dart';
 /// 這是「管理」導向的功能，不是「看動態牆」——使用者原話：訂閱太多人、
 /// 不是為了照 YouTube 那樣逛訂閱的人，是想先分類、想不知道看誰的時候
 /// 能照分類找。所以首頁不是影片清單，是分類資料夾（2026-09-22 使用者
-/// 要求）。目前只做分類／頻道管理，還沒有接 YouTube API，影片資料之後
-/// 再說（2026-09-22 使用者決定：先不接，金鑰會曝光在這個純前端網站）。
+/// 要求）。「依影片顯示」真的接了 YouTube Data API（2026-09-22），但
+/// 金鑰只存記憶體，不進 localStorage／Git，所以一進這頁、金鑰還沒存的
+/// 話會先跳懸浮視窗問（見 `yt_api_key_dialog.dart`）。
 class YtTrackerHomePage extends ConsumerStatefulWidget {
   const YtTrackerHomePage({super.key});
 
@@ -42,6 +44,16 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
   void initState() {
     super.initState();
     _future = _load();
+    // 一進頁面就問金鑰，但不擋categorization——沒金鑰一樣能用分類/頻道
+    // 管理，只有「依影片顯示」需要（2026-09-22 使用者要求：剛進來先
+    // 跳懸浮視窗輸入）。
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final key = ref.read(ytApiKeyProvider);
+      if (key == null || key.isEmpty) {
+        showYtApiKeyDialog(context, ref);
+      }
+    });
   }
 
   /// 打開這頁那一瞬間先把分類／頻道快照（見 `yt_tracker_seed_loader.dart`）
@@ -237,6 +249,21 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
                 AppTopBar(
                   title: 'YT 頻道追蹤',
                   actions: [
+                    Consumer(
+                      builder: (context, ref, _) {
+                        final hasKey =
+                            (ref.watch(ytApiKeyProvider) ?? '').isNotEmpty;
+                        return IconButton(
+                          onPressed: () => showYtApiKeyDialog(context, ref),
+                          icon: Icon(
+                            hasKey ? Icons.vpn_key : Icons.vpn_key_outlined,
+                            size: 20,
+                          ),
+                          color: hasKey ? AppColors.ok : AppColors.ink2,
+                          tooltip: hasKey ? 'API 金鑰已儲存' : '設定 API 金鑰',
+                        );
+                      },
+                    ),
                     IconButton(
                       onPressed: () => _showExportDialog(context, ref),
                       icon: const Icon(Icons.ios_share_rounded, size: 20),

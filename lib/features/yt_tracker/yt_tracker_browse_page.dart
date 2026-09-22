@@ -1,25 +1,40 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
+import '../../data/services/youtube_api_service.dart';
 import '../../domain/models/yt_tracker.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
+import 'yt_api_key_dialog.dart';
 import 'yt_channel_avatar.dart';
 
 enum _ViewMode { channel, video }
+
+/// 一部影片＋它屬於哪個頻道，「依影片顯示」要混合多個頻道的影片，
+/// 每一列要能同時秀出影片跟頻道兩邊的資訊。
+class _ChannelVideo {
+  const _ChannelVideo({required this.video, required this.channel});
+
+  final YoutubeVideo video;
+  final YtChannel channel;
+}
 
 /// 篩選＋頻道／影片雙視圖畫面（設計稿 06/07/08 定案）。從首頁點分類
 /// 資料夾進來時，[initialCategoryIds] 就是那個分類，篩選 chip 會直接
 /// 帶入選中狀態，不用重選一次（2026-09-22 使用者要求）。
 ///
-/// 「依影片顯示」目前是空狀態——還沒接 YouTube API（見
-/// `yt_tracker_repository.dart` 說明），畫面先做好，之後接上資料就能用。
+/// 「依影片顯示」接了真的 YouTube Data API（2026-09-22）：把篩選範圍內
+/// 每個頻道的「已上傳影片」播放清單抓出來，混成一條時間軸依上傳時間
+/// 排序。第一次抓某個頻道時要先呼叫一次 `channels.list` 把
+/// [YtChannel.uploadsPlaylistId] 解析出來、存回本機，之後同一個頻道
+/// 就不用再解析（省配額，見 `youtube_api_service.dart`）。
 class YtTrackerBrowsePage extends ConsumerStatefulWidget {
   const YtTrackerBrowsePage({super.key, required this.initialCategoryIds});
 
@@ -35,6 +50,17 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
   late final Set<String> _selected = {...widget.initialCategoryIds};
   _ViewMode _mode = _ViewMode.channel;
 
+  Future<List<_ChannelVideo>>? _videosFuture;
+  List<String>? _videosLoadedFor;
+  DateTime? _videosLoadedAt;
+
+  /// 「篩選範圍沒變就不重抓」是為了不要每次畫面重繪（一秒可能好幾次）
+  /// 都重打 API，不是要把影片清單長期快取著——實際的影片清單從來沒有
+  /// 存進本機，每次真的重抓都是直接問 YouTube 當下的狀態。但如果同一個
+  /// 瀏覽分頁開超過這個時間都沒離開過，一樣要自動重抓一次，不然真的可能
+  /// 放好幾天看到的都是舊清單（2026-09-22 使用者糾正）。
+  static const _staleAfter = Duration(minutes: 5);
+
   @override
   void initState() {
     super.initState();
@@ -49,6 +75,75 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
   }
 
   void _reload() => setState(() => _future = _load());
+
+  /// 「依影片顯示」要抓資料才有得看，但不能每次 build 都重打 API——只在
+  /// 「切到影片模式」或「篩選範圍變了」才重抓，[force] 是手動按重新整理
+  /// 才會用到，無視快取直接重抓一次。
+  void _ensureVideosLoaded(List<YtChannel> channels, {bool force = false}) {
+    final apiKey = ref.read(ytApiKeyProvider);
+    if (apiKey == null || apiKey.isEmpty) return;
+    final ids = channels.map((c) => c.id).toList()..sort();
+    final sameSelection =
+        _videosLoadedFor != null && _listEquals(_videosLoadedFor!, ids);
+    final stillFresh =
+        _videosLoadedAt != null &&
+        DateTime.now().difference(_videosLoadedAt!) < _staleAfter;
+    if (!force && sameSelection && stillFresh) return;
+    _videosLoadedFor = ids;
+    _videosLoadedAt = DateTime.now();
+    setState(() {
+      _videosFuture = _fetchVideos(channels, apiKey);
+    });
+  }
+
+  bool _listEquals(List<String> a, List<String> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
+  Future<List<_ChannelVideo>> _fetchVideos(
+    List<YtChannel> channels,
+    String apiKey,
+  ) async {
+    final service = YoutubeApiService(apiKey);
+    final repo = ref.read(ytTrackerRepositoryProvider);
+    final results = <_ChannelVideo>[];
+    for (final original in channels) {
+      var channel = original;
+      if (channel.uploadsPlaylistId.isEmpty) {
+        final handle = YoutubeApiService.parseHandle(channel.url);
+        if (handle == null) continue; // 沒網址／沒 @handle，這個頻道跳過
+        final info = await service.fetchChannelInfo(handle);
+        channel = YtChannel(
+          id: channel.id,
+          name: channel.name,
+          categoryId: channel.categoryId,
+          avatarEmoji: channel.avatarEmoji,
+          // 順便拿這次呼叫本來就有的官方頭貼——但只在使用者自己沒貼過
+          // 圖片網址時才覆蓋，不要蓋掉使用者手動選的圖。
+          avatarImageUrl: channel.avatarImageUrl.isEmpty
+              ? info.avatarUrl
+              : channel.avatarImageUrl,
+          url: channel.url,
+          description: channel.description,
+          youtubeChannelId: info.channelId,
+          uploadsPlaylistId: info.uploadsPlaylistId,
+          addedAt: channel.addedAt,
+        );
+        // 解析結果快取回本機，下次同一個頻道不用再打一次 channels.list。
+        await repo.updateChannel(channel);
+      }
+      final videos = await service.fetchRecentVideos(channel.uploadsPlaylistId);
+      for (final v in videos) {
+        results.add(_ChannelVideo(video: v, channel: channel));
+      }
+    }
+    results.sort((a, b) => b.video.publishedAt.compareTo(a.video.publishedAt));
+    return results;
+  }
 
   String _title(List<YtCategory> categories) {
     if (_selected.isEmpty) return '全部頻道';
@@ -173,6 +268,99 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
     _reload();
   }
 
+  Widget _buildVideoPanel(List<YtChannel> channels) {
+    final apiKey = ref.watch(ytApiKeyProvider);
+    if (apiKey == null || apiKey.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.vpn_key_outlined,
+                size: 32,
+                color: AppColors.ink3,
+              ),
+              const SizedBox(height: Gap.sm),
+              Text('還沒有設定 API 金鑰', style: AppText.bodyDim),
+              const SizedBox(height: 4),
+              Text(
+                '依影片顯示需要用金鑰去 YouTube 抓資料，\n依頻道顯示不用金鑰照樣能用。',
+                style: AppText.note,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: Gap.md),
+              FilledButton(
+                onPressed: () => showYtApiKeyDialog(context, ref),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.ytAccent,
+                  foregroundColor: AppColors.ytAccentInk,
+                ),
+                child: const Text('設定金鑰'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    if (channels.isEmpty) {
+      return Center(child: Text('這個篩選條件下沒有頻道', style: AppText.bodyDim));
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton.icon(
+            onPressed: () => _ensureVideosLoaded(channels, force: true),
+            icon: const Icon(Icons.refresh, size: 15),
+            label: const Text('重新整理'),
+            style: TextButton.styleFrom(foregroundColor: AppColors.ink2),
+          ),
+        ),
+        Expanded(
+          child: _videosFuture == null
+              ? const Center(child: CircularProgressIndicator.adaptive())
+              : FutureBuilder<List<_ChannelVideo>>(
+                  future: _videosFuture,
+                  builder: (context, snap) {
+                    if (snap.connectionState == ConnectionState.waiting) {
+                      return const Center(
+                        child: CircularProgressIndicator.adaptive(),
+                      );
+                    }
+                    if (snap.hasError) {
+                      return Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Text(
+                            '${snap.error}',
+                            style: AppText.bodyDim,
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      );
+                    }
+                    final videos = snap.data ?? const [];
+                    if (videos.isEmpty) {
+                      return Center(
+                        child: Text('這些頻道抓不到影片', style: AppText.bodyDim),
+                      );
+                    }
+                    return ListView.separated(
+                      itemCount: videos.length,
+                      separatorBuilder: (_, _) =>
+                          const Divider(height: 1, color: AppColors.glassEdge),
+                      itemBuilder: (_, i) => _VideoRow(item: videos[i]),
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -208,6 +396,17 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                                   ),
                                 )
                                 .toList();
+
+                      // 只在「依影片顯示」時才需要抓影片；[_ensureVideosLoaded]
+                      // 內部會比對篩選範圍有沒有變，沒變就直接跳過，所以每次
+                      // build 都排程呼叫也不會一直重打 API。不能在 build()
+                      // 當下直接呼叫（裡面可能觸發 setState），要排到這一幀
+                      // 畫完之後。
+                      if (_mode == _ViewMode.video) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (mounted) _ensureVideosLoaded(channels);
+                        });
+                      }
 
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -298,7 +497,7 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                           Expanded(
                             child: _mode == _ViewMode.channel
                                 ? _ChannelGrid(channels: channels)
-                                : const _VideoEmptyState(),
+                                : _buildVideoPanel(channels),
                           ),
                         ],
                       );
@@ -371,31 +570,79 @@ class _ChannelGrid extends StatelessWidget {
   }
 }
 
-class _VideoEmptyState extends StatelessWidget {
-  const _VideoEmptyState();
+/// 「依影片顯示」的一列：影片縮圖＋標題，底下小字是哪個頻道、什麼時候
+/// 發的——因為這條時間軸混了好幾個頻道，不像頻道詳情頁那樣已經知道
+/// 是誰，每一列都要標出來。點下去開新分頁到 YouTube 播放。
+class _VideoRow extends StatelessWidget {
+  const _VideoRow({required this.item});
+
+  final _ChannelVideo item;
 
   @override
   Widget build(BuildContext context) {
-    return Center(
+    final video = item.video;
+    final channel = item.channel;
+    return InkWell(
+      onTap: () =>
+          launchUrl(Uri.parse(video.watchUrl), mode: LaunchMode.externalApplication),
       child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.video_library_outlined, size: 32, color: AppColors.ink3),
-            const SizedBox(height: Gap.sm),
-            Text('還沒有接影片資料', style: AppText.bodyDim, textAlign: TextAlign.center),
-            const SizedBox(height: 4),
-            Text(
-              '目前只做分類／頻道管理，之後接上 YouTube 資料來源，\n這裡就會列出選中分類底下所有頻道的影片，依上傳時間排序。',
-              style: AppText.note,
-              textAlign: TextAlign.center,
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: Image.network(
+                video.thumbnailUrl,
+                width: 96,
+                height: 54,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stack) => Container(
+                  width: 96,
+                  height: 54,
+                  color: AppColors.glassFill,
+                  alignment: Alignment.center,
+                  child: const Icon(
+                    Icons.image_not_supported_outlined,
+                    size: 16,
+                    color: AppColors.ink3,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: Gap.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    video.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 12.5, color: AppColors.ink),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${channel.name}・${_relativeTime(video.publishedAt)}',
+                    style: AppText.note,
+                  ),
+                ],
+              ),
             ),
           ],
         ),
       ),
     );
   }
+}
+
+String _relativeTime(DateTime t) {
+  final diff = DateTime.now().difference(t);
+  if (diff.inMinutes < 60) return '${diff.inMinutes} 分鐘前';
+  if (diff.inHours < 24) return '${diff.inHours} 小時前';
+  if (diff.inDays < 30) return '${diff.inDays} 天前';
+  if (diff.inDays < 365) return '${(diff.inDays / 30).floor()} 個月前';
+  return '${(diff.inDays / 365).floor()} 年前';
 }
 
 class _CategoryPickChip extends StatelessWidget {

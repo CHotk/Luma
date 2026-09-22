@@ -49,10 +49,9 @@ class YtCategory {
 /// 追蹤的頻道。[categoryId] 是 null 代表「未分類」（分類被刪掉、或新增
 /// 頻道時還沒選分類）。
 ///
-/// [url] 選填——現在還沒接 YouTube API（2026-09-22 使用者決定：先只做
-/// 分類／頻道管理，影片資料之後再接，避免 API 金鑰直接曝光在這個純前端
-/// 靜態網站的疑慮），先讓使用者把網址存起來，以後真的要抓資料時就不用
-/// 每個頻道再補一次。
+/// [url] 選填，貼頻道網址（例如 `https://www.youtube.com/@shasha77`）
+/// 就能解析出 @handle，「依影片顯示」拿它去問 YouTube Data API 抓最新
+/// 影片（見 `youtube_api_service.dart`）。
 class YtChannel {
   const YtChannel({
     required this.id,
@@ -62,6 +61,8 @@ class YtChannel {
     this.avatarImageUrl = '',
     this.url = '',
     this.description = '',
+    this.youtubeChannelId = '',
+    this.uploadsPlaylistId = '',
     required this.addedAt,
   });
 
@@ -72,17 +73,25 @@ class YtChannel {
   /// [avatarImageUrl] 沒填、或圖片載入失敗時的退回佔位。
   final String avatarEmoji;
 
-  /// 頻道大頭貼的圖片網址，選填——YouTube 官方大頭貼要透過 Data API
-  /// 才拿得到，但這是純前端網站，金鑰會曝光（2026-09-22 使用者決定：
-  /// 先不接 API），所以先讓使用者自己去頻道頁面複製大頭貼圖片網址貼
-  /// 上來，之後真的接了 API，一樣是覆蓋這個欄位，不用另外改資料結構。
+  /// 頻道大頭貼的圖片網址。手動貼上來的（去頻道頁面複製大頭貼圖片
+  /// 網址），或是之後「依影片顯示」解析頻道時從 API 抓到的
+  /// [YoutubeChannelInfo.avatarUrl] 覆蓋過去，都是同一個欄位。
   final String avatarImageUrl;
 
   final String url;
 
   /// 頻道簡介，選填——使用者自己寫幾句話介紹這個頻道在做什麼
-  /// （2026-09-22 使用者要求），不是自動抓來的，因為還沒接 API。
+  /// （2026-09-22 使用者要求）。API 目前不會自動填這欄，YouTube 官方
+  /// 頻道說明文字跟這個用途不完全一樣，不強行覆蓋使用者自己寫的。
   final String description;
+
+  /// 這兩個是呼叫 YouTube Data API 第一次成功解析 [url] 裡的 @handle
+  /// 之後快取下來的結果（頻道真正的 ID、上傳影片播放清單 ID）——不快取
+  /// 的話「依影片顯示」每次都要多打一次 `channels.list` 才能拿到
+  /// `uploadsPlaylistId`，白白多花配額，這兩個字串空著就是「還沒解析
+  /// 過」（2026-09-22 使用者要求：接真的 YouTube API）。
+  final String youtubeChannelId;
+  final String uploadsPlaylistId;
 
   final DateTime addedAt;
 
@@ -94,6 +103,8 @@ class YtChannel {
     'avatarImageUrl': avatarImageUrl,
     'url': url,
     'description': description,
+    'youtubeChannelId': youtubeChannelId,
+    'uploadsPlaylistId': uploadsPlaylistId,
     'addedAt': addedAt.toIso8601String(),
   };
 
@@ -105,6 +116,8 @@ class YtChannel {
     avatarImageUrl: json['avatarImageUrl'] as String? ?? '',
     url: json['url'] as String? ?? '',
     description: json['description'] as String? ?? '',
+    youtubeChannelId: json['youtubeChannelId'] as String? ?? '',
+    uploadsPlaylistId: json['uploadsPlaylistId'] as String? ?? '',
     addedAt: DateTime.parse(json['addedAt'] as String),
   );
 }

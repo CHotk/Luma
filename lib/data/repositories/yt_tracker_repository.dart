@@ -7,8 +7,9 @@ import '../storage/key_value_store.dart';
 /// YT 頻道追蹤的分類／頻道管理。分類、頻道各存一份 JSON blob，跟
 /// 其他功能同一套「整包讀出來、整包寫回去」的存法。
 ///
-/// 目前只做分類／頻道管理，還沒有影片資料（2026-09-22 使用者決定：
-/// 先做管理，YouTube API 串接之後再說），所以這裡沒有 video 相關方法。
+/// 影片資料（真的接了 YouTube Data API，見 `youtube_api_service.dart`）
+/// 不算進這裡——那些是即時打 API 拿的，本來就不該存檔，這個
+/// repository 只管分類／頻道這種需要留著的資料。
 class YtTrackerRepository {
   YtTrackerRepository(this._store);
 

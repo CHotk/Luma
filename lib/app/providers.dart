@@ -90,6 +90,13 @@ final ttsServiceProvider = FutureProvider<TtsService>((ref) async {
 /// 因為偽裝畫面要假裝成終端機，跳出中文輸入法就穿幫了。
 final stealthModeProvider = StateProvider<bool>((ref) => false);
 
+/// YouTube API 金鑰。故意只放記憶體（`StateProvider`），不寫進
+/// `KeyValueStore`／localStorage——使用者明確要求金鑰只留在這次的
+/// 分頁存活期間，關掉分頁或重新整理就消失，不要長期存在瀏覽器裡
+/// （2026-09-22 使用者要求：比較安全，不用長期儲存）。代價是每次
+/// 重新整理都要重新輸入一次，這是使用者接受的取捨。
+final ytApiKeyProvider = StateProvider<String?>((ref) => null);
+
 /// 剛結束那一輪的成績，給結果頁讀。
 /// 不用 autoDispose，因為從測驗頁跳到結果頁的過程中測驗頁會被銷毀。
 final lastRoundProvider = StateProvider<RoundResult?>((ref) => null);

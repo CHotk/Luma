@@ -36,6 +36,12 @@ dependencies:
   # 內建能力，跟這個小功能的規模不相稱；GIF 純 Dart 就能做，不用加
   # 重依賴（2026-09-18 使用者決定）。
   image: ^4.3.0
+  # YT 頻道追蹤「依影片顯示」用的：直接呼叫 YouTube Data API v3 抓頻道
+  # 最新影片，純前端打 Google API 走 HTTP，不用整包 googleapis SDK。
+  http: ^1.2.2
+  # 點影片列要能開新分頁到真的 YouTube 網址，Web／Android／iOS 同一份
+  # API，跟這專案其他外部連結需求的選型理由一樣。
+  url_launcher: ^6.3.1
 
 dev_dependencies:
   flutter_test:
