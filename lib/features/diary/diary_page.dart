@@ -804,10 +804,17 @@ class _DayChip extends StatelessWidget {
               children: [
                 Text(
                   '${day.day}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w800,
-                    color: AppColors.ink,
+                    // 當天（沒被選中時）文字跟外框改用同一個顏色，兩個
+                    // 一起變才看得出「這是今天」，不是只有框變、數字還是
+                    // 跟其他天一樣白（2026-09-23 使用者要求文字跟框要
+                    // 統一）。有被選中時已經有實心底色＋外框整個變色夠
+                    // 明顯，文字維持白色才好讀。
+                    color: isToday && !isSelected
+                        ? AppColors.diaryAccent
+                        : AppColors.ink,
                   ),
                 ),
                 Text(
@@ -956,7 +963,13 @@ class _MonthCell extends StatelessWidget {
               style: TextStyle(
                 fontSize: 11.5,
                 fontWeight: hasEntry ? FontWeight.w800 : FontWeight.w500,
-                color: hasEntry ? AppColors.ink : AppColors.ink2,
+                // 跟 _DayChip 同一套：當天（沒被選中時）文字跟外框統一
+                // 用同一個顏色才看得出「這是今天」。
+                color: isToday && !isSelected
+                    ? AppColors.diaryAccent
+                    : hasEntry
+                    ? AppColors.ink
+                    : AppColors.ink2,
               ),
             ),
           ),

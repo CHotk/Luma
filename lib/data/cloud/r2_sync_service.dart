@@ -2,20 +2,22 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import '../../domain/models/diary_entry.dart';
+import '../../domain/models/fitness.dart';
 import '../repositories/diary_repository.dart';
+import '../repositories/fitness_repository.dart';
 import 'r2_client.dart';
 
 /// 「立即同步」跑到哪一步了，給畫面顯示用（見 `r2_sync_section.dart`
-/// 的同步狀況卡）。
-enum DiarySyncPhase { downloading, uploading }
+/// 的同步狀況卡）——不分功能共用同一組狀態，日記、健身都用得到。
+enum SyncPhase { downloading, uploading }
 
 /// 多裝置同步。第二階段（2026-09-23）：下載＋上傳都做了，刪除用墓碑
 /// 標記（tombstone，見 [DiaryEntry.deletedAt] 的說明）不是物理刪除，
-/// 避免刪掉的紀錄被下一次同步復活。之後每加一個功能的同步，就在這個
-/// class 上加一組對應的 `pullXxx`／`pushXxx`／`syncXxx`，不要另外開
-/// 新檔案，同步邏輯要集中在一個地方找得到，其他功能要照日記這套模式
-/// （model 加 `deletedAt`、repository 加 `loadAllIncludingDeleted`、
-/// 刪除改標記）照樣做一次，見 `DiaryRepository` 的說明。
+/// 避免刪掉的紀錄被下一次同步復活。日記做完之後健身也照這套模式加上
+/// 去了（model 加 `deletedAt`／`updatedAt`、repository 加
+/// `loadAllIncludingDeleted`、刪除改標記，見 `FitnessRepository` 的
+/// 說明）——之後每加一個功能的同步，就在這個 class 上加一組對應的
+/// `syncXxx`，不要另外開新檔案，同步邏輯要集中在一個地方找得到。
 class R2SyncService {
   R2SyncService(this._client);
 
@@ -38,9 +40,8 @@ class R2SyncService {
 
   /// 把 R2 上的 `diary.json` 抓下來解析成 entry 清單，還沒併回本機
   /// ——[syncDiary] 要在上傳前也拿這份「雲端原本長怎樣」來跟上傳內容
-  /// 比對，算出上傳異動了幾筆，所以抓資料跟合併分成兩步，不像原本
-  /// 全包在一個 `pullDiary` 裡。雲端還沒有這個檔案（第一次用）就回傳
-  /// 空清單，不算錯誤。
+  /// 比對，算出上傳異動了幾筆，所以抓資料跟合併分成兩步。雲端還沒有
+  /// 這個檔案（第一次用）就回傳空清單，不算錯誤。
   Future<List<DiaryEntry>> _fetchCloudDiary() async {
     final bytes = await _client.getObject('diary.json');
     if (bytes == null) return const [];
@@ -64,19 +65,53 @@ class R2SyncService {
   /// 「目前在下載還是上傳」用（見 `r2_sync_section.dart` 的同步狀況卡）。
   Future<({int downloaded, int uploaded})> syncDiary(
     DiaryRepository repo, {
-    void Function(DiarySyncPhase phase)? onPhase,
+    void Function(SyncPhase phase)? onPhase,
   }) async {
-    onPhase?.call(DiarySyncPhase.downloading);
+    onPhase?.call(SyncPhase.downloading);
     final cloudBefore = await _fetchCloudDiary();
     final downloaded = cloudBefore.isEmpty
         ? 0
         : await repo.mergeFromCloud(cloudBefore);
 
-    onPhase?.call(DiarySyncPhase.uploading);
+    onPhase?.call(SyncPhase.uploading);
     final all = await repo.allForUpload();
     final uploaded = diaryDiffCount(cloudBefore, all);
     final bytes = utf8.encode(jsonEncode([for (final e in all) e.toJson()]));
     await _client.putObject('diary.json', Uint8List.fromList(bytes));
+
+    return (downloaded: downloaded, uploaded: uploaded);
+  }
+
+  /// 跟 [_fetchCloudDiary] 同一個用途，換成健身的 `fitness.json`。
+  Future<List<FitnessEntry>> _fetchCloudFitness() async {
+    final bytes = await _client.getObject('fitness.json');
+    if (bytes == null) return const [];
+    final decoded = jsonDecode(utf8.decode(bytes)) as List;
+    return decoded
+        .cast<Map<String, dynamic>>()
+        .map(FitnessEntry.fromJson)
+        .toList();
+  }
+
+  /// 健身版的 [syncDiary]，邏輯完全對應（下載合併→上傳覆蓋、上傳／
+  /// 下載異動筆數分開算、同一組 [SyncPhase] 回報進度），只是換成健身
+  /// 的 model／repository／R2 物件 key（`fitness.json`，跟日記的
+  /// `diary.json` 分開存，一個功能一個檔案，不要塞在同一份 JSON 裡）。
+  Future<({int downloaded, int uploaded})> syncFitness(
+    FitnessRepository repo, {
+    void Function(SyncPhase phase)? onPhase,
+  }) async {
+    onPhase?.call(SyncPhase.downloading);
+    final cloudBefore = await _fetchCloudFitness();
+    final downloaded = cloudBefore.isEmpty
+        ? 0
+        : await repo.mergeFromCloud(cloudBefore);
+
+    onPhase?.call(SyncPhase.uploading);
+    final all = await repo.allForUpload();
+    final uploaded = fitnessDiffCount(cloudBefore, all);
+    final bytes = utf8.encode(jsonEncode([for (final e in all) e.toJson()]));
+    await _client.putObject('fitness.json', Uint8List.fromList(bytes));
 
     return (downloaded: downloaded, uploaded: uploaded);
   }

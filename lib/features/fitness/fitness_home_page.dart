@@ -510,6 +510,12 @@ class _FitnessHomePageState extends ConsumerState<FitnessHomePage> {
 
   @override
   Widget build(BuildContext context) {
+    // 從抽屜點去雲端同步頁同步完按返回，這個健身頁的 instance 還留在
+    // 導覽堆疊底下沒被重建，只在 initState 讀一次的話會看到同步前的
+    // 舊資料——跟 `diary_page.dart` 同一套機制（2026-09-23）。
+    ref.listen<int>(dataRevisionProvider, (prev, next) {
+      if (prev != next) _reload();
+    });
     return Scaffold(
       drawer: const AppSideDrawer(),
       body: AmbientBackground(

@@ -17,8 +17,8 @@ enum _Phase { idle, testing, success, error }
 
 /// 「各功能同步狀況」卡片裡，單一功能目前跑到哪一步（2026-09-23
 /// 使用者要求：同步頁要看得出目前是哪個功能在下載還是上傳，不是只有
-/// 一顆「立即同步」按鈕看不出進度）。目前只有日記這一個功能，之後每
-/// 加一個功能的同步，這個卡片就多加一行，用同一組狀態。
+/// 一顆「立即同步」按鈕看不出進度）。日記、健身都用同一組狀態，之後
+/// 每加一個功能的同步，這個卡片就多加一行。
 enum _FeaturePhase { idle, downloading, uploading, done, error }
 
 /// 設定頁「多裝置同步」區塊，照設計稿
@@ -44,6 +44,7 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
   DateTime? _lastSyncedAt;
   bool _syncing = false;
   _FeaturePhase _diaryPhase = _FeaturePhase.idle;
+  _FeaturePhase _fitnessPhase = _FeaturePhase.idle;
 
   @override
   void initState() {
@@ -116,12 +117,29 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
     _secretKeyController.clear();
   }
 
+  /// 給單一功能用的 [SyncPhase] → [_FeaturePhase] 轉接，[onUpdate] 是
+  /// 對應功能自己的 setState 賦值——日記、健身各自呼叫一次
+  /// [R2SyncService] 的 `syncXxx`，用這個共用轉接省得兩邊各寫一份幾乎
+  /// 一樣的 callback。
+  void Function(SyncPhase) _phaseCallback(void Function(_FeaturePhase) onUpdate) {
+    return (phase) {
+      if (!mounted) return;
+      setState(() {
+        onUpdate(switch (phase) {
+          SyncPhase.downloading => _FeaturePhase.downloading,
+          SyncPhase.uploading => _FeaturePhase.uploading,
+        });
+      });
+    };
+  }
+
   Future<void> _syncNow() async {
     final credentials = ref.read(r2CredentialsProvider);
     if (credentials == null || _syncing) return;
     setState(() {
       _syncing = true;
       _diaryPhase = _FeaturePhase.downloading;
+      _fitnessPhase = _FeaturePhase.idle;
     });
     try {
       final client = R2Client(
@@ -129,24 +147,29 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
         bucket: ref.read(r2BucketNameProvider),
       );
       final service = R2SyncService(client);
-      final result = await service.syncDiary(
+      // 日記、健身依序同步，不是同時打——避免兩邊同時搶著寫 R2 造成
+      // 混亂的請求時序，個人手動按同步的使用情境對速度沒有要求。
+      // 每個功能自己一結束就馬上標記完成，不是等兩個都做完才一起標記
+      // ——不然萬一健身那邊失敗，明明已經同步好的日記那一行也會卡在
+      // 「上傳中…」，看起來像日記也失敗了。
+      final diaryResult = await service.syncDiary(
         ref.read(diaryRepositoryProvider),
-        onPhase: (phase) {
-          if (!mounted) return;
-          setState(() {
-            _diaryPhase = switch (phase) {
-              DiarySyncPhase.downloading => _FeaturePhase.downloading,
-              DiarySyncPhase.uploading => _FeaturePhase.uploading,
-            };
-          });
-        },
+        onPhase: _phaseCallback((p) => _diaryPhase = p),
       );
+      if (mounted) setState(() => _diaryPhase = _FeaturePhase.done);
+
+      final fitnessResult = await service.syncFitness(
+        ref.read(fitnessRepositoryProvider),
+        onPhase: _phaseCallback((p) => _fitnessPhase = p),
+      );
+      if (mounted) setState(() => _fitnessPhase = _FeaturePhase.done);
+
       final now = DateTime.now();
       await ref
           .read(keyValueStoreProvider)
           .write(_lastSyncedKey, now.toIso8601String());
-      // 同步抓回來的資料要讓日記頁（可能還留在導覽堆疊底下沒被重建）
-      // 知道要重讀，不然使用者按返回回日記頁時畫面還是同步前的舊資料
+      // 同步抓回來的資料要讓日記頁／健身頁（可能還留在導覽堆疊底下沒被
+      // 重建）知道要重讀，不然使用者按返回時畫面還是同步前的舊資料
       // （2026-09-23 使用者回報）——跟練習紀錄頁那套「存檔完 bump 這個
       // provider」共用同一個機制，見 `dataRevisionProvider` 的其他用法。
       ref.read(dataRevisionProvider.notifier).state++;
@@ -154,19 +177,24 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
       setState(() {
         _lastSyncedAt = now;
         _syncing = false;
-        _diaryPhase = _FeaturePhase.done;
       });
       showAppNotice(
         context,
-        '日記同步完成，上傳 ${result.uploaded} 筆、下載 ${result.downloaded} 筆',
+        '同步完成 —— 日記上傳 ${diaryResult.uploaded}／下載 ${diaryResult.downloaded} 筆，'
+        '健身上傳 ${fitnessResult.uploaded}／下載 ${fitnessResult.downloaded} 筆',
       );
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _syncing = false;
-        _diaryPhase = _FeaturePhase.error;
+        if (_diaryPhase == _FeaturePhase.downloading || _diaryPhase == _FeaturePhase.uploading) {
+          _diaryPhase = _FeaturePhase.error;
+        }
+        if (_fitnessPhase == _FeaturePhase.downloading || _fitnessPhase == _FeaturePhase.uploading) {
+          _fitnessPhase = _FeaturePhase.error;
+        }
       });
-      showAppNotice(context, '日記同步失敗：$e', isError: true);
+      showAppNotice(context, '同步失敗：$e', isError: true);
     }
   }
 
@@ -198,6 +226,7 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
         ),
         const SizedBox(height: Gap.sm),
         _FeatureStatusRow(label: '日記', phase: _diaryPhase),
+        _FeatureStatusRow(label: '健身', phase: _fitnessPhase),
       ],
     );
   }

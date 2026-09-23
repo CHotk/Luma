@@ -75,7 +75,9 @@ class FitnessEntry {
     required this.type,
     this.durationMinutes,
     required this.loggedAt,
-  });
+    this.deletedAt,
+    DateTime? updatedAt,
+  }) : updatedAt = updatedAt ?? loggedAt;
 
   final String id;
   final DateTime date;
@@ -86,6 +88,16 @@ class FitnessEntry {
   final int? durationMinutes;
   final DateTime loggedAt;
 
+  /// 墓碑標記（soft delete），跟 [DiaryEntry.deletedAt] 同一套道理——
+  /// 多裝置同步刪除不能物理刪除，不然下一輪同步會把刪掉的紀錄從別的
+  /// 裝置復活回來（2026-09-23 健身比照日記加上去）。
+  final DateTime? deletedAt;
+
+  /// 最後一次「內容有變」的時間，預設等於 [loggedAt]；編輯／刪除都會
+  /// 蓋成當下。同步合併沒有刪除標記的紀錄時拿這個比新舊，跟
+  /// [DiaryEntry.updatedAt] 同一套。
+  final DateTime updatedAt;
+
   static DateTime dayOnly(DateTime d) => DateTime(d.year, d.month, d.day);
 
   Map<String, dynamic> toJson() => {
@@ -94,6 +106,8 @@ class FitnessEntry {
     'type': type.storageValue,
     'durationMinutes': durationMinutes,
     'loggedAt': loggedAt.toIso8601String(),
+    'deletedAt': deletedAt?.toIso8601String(),
+    'updatedAt': updatedAt.toIso8601String(),
   };
 
   factory FitnessEntry.fromJson(Map<String, dynamic> json) => FitnessEntry(
@@ -102,5 +116,37 @@ class FitnessEntry {
     type: FitnessTypeX.fromStorage(json['type'] as String),
     durationMinutes: json['durationMinutes'] as int?,
     loggedAt: DateTime.parse(json['loggedAt'] as String),
+    deletedAt: json['deletedAt'] == null
+        ? null
+        : DateTime.parse(json['deletedAt'] as String),
+    // 舊紀錄沒有這欄，落回 loggedAt——當作「打卡之後沒再編輯過」。
+    updatedAt: json['updatedAt'] == null
+        ? null
+        : DateTime.parse(json['updatedAt'] as String),
+  );
+
+  FitnessEntry copyWithDeleted() {
+    final now = DateTime.now();
+    return FitnessEntry(
+      id: id,
+      date: date,
+      type: type,
+      durationMinutes: durationMinutes,
+      loggedAt: loggedAt,
+      deletedAt: now,
+      updatedAt: now,
+    );
+  }
+
+  /// 編輯存檔時呼叫，把 [updatedAt] 蓋成現在，其餘欄位照 `this`——見
+  /// [FitnessRepository.updateEntry]。
+  FitnessEntry copyWithTouched() => FitnessEntry(
+    id: id,
+    date: date,
+    type: type,
+    durationMinutes: durationMinutes,
+    loggedAt: loggedAt,
+    deletedAt: deletedAt,
+    updatedAt: DateTime.now(),
   );
 }

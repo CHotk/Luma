@@ -23,6 +23,11 @@ class FitnessStatsPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // 同步完要重讀，跟 `fitness_home_page.dart`／`diary_page.dart` 同一套
+    // 機制——這頁是 ConsumerWidget 沒有自己的 State，watch 這個 provider
+    // 讓它變了就整個 build 重跑，FutureBuilder 才會拿到新的 Future
+    // （2026-09-23）。
+    ref.watch(dataRevisionProvider);
     return Scaffold(
       drawer: const AppSideDrawer(),
       body: AmbientBackground(
