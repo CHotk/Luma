@@ -1,0 +1,77 @@
+<!doctype html>
+<title>除錯內容頁08・卡片摘要式</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" />
+<style>
+  :root { color-scheme: dark; --bg:#0c0c13; --bg-deep:#0a0a10; --ink:#f3f2f8; --ink2:#a3a2b2; --ink3:#74738a;
+    --glass-edge: rgba(255,255,255,0.14); --glass-fill: rgba(255,255,255,0.045); --accent:#7ea6ff; --bad:#ff938b; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; min-height: 100%; background: var(--bg-deep); color: var(--ink); font-family: "Noto Sans TC", system-ui, sans-serif; }
+  body { padding: 32px 20px 48px; display: flex; flex-direction: column; align-items: center; gap: 18px; }
+  .intro { max-width: 460px; text-align: center; }
+  .eyebrow { font-size: 11.5px; letter-spacing: 0.18em; color: #8b8690; text-transform: uppercase; }
+  .intro h1 { font-weight: 800; font-size: 21px; margin: 6px 0 8px; }
+  .intro p { margin: 0 auto; font-size: 13px; line-height: 1.7; color: #a9a4ad; max-width: 46ch; }
+  .phone { position: relative; width: 100%; max-width: 380px; min-height: 780px; flex-shrink: 0; border-radius: 40px; padding: 12px; isolation: isolate; overflow: hidden;
+    background: radial-gradient(120% 100% at 50% -10%, #131019 0%, var(--bg) 45%, var(--bg-deep) 100%);
+    box-shadow: 0 40px 90px -30px rgba(0,0,0,0.75), inset 0 0 0 1px rgba(255,255,255,0.04); }
+  .amb { position: absolute; border-radius: 50%; filter: blur(72px); opacity: 0.4; z-index: -1; }
+  .amb-1 { width: 230px; height: 230px; top: -80px; left: -60px; background: #1a1a33; }
+  .amb-2 { width: 220px; height: 220px; bottom: 60px; right: -80px; background: #201d1a; }
+  .shell { position: relative; min-height: 100%; border-radius: 30px; padding: 20px 17px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.022) 100%);
+    backdrop-filter: blur(22px); border: 1px solid var(--glass-edge);
+    display: flex; flex-direction: column; gap: 10px; }
+  .topbar { display: flex; align-items: center; gap: 10px; }
+  .icon-btn { width: 32px; height: 32px; border-radius: 11px; border: 1px solid rgba(255,255,255,0.07); background: rgba(255,255,255,0.03); display: flex; align-items: center; justify-content: center; color: var(--ink2); font-size: 15px; }
+  .topbar-title { font-weight: 800; font-size: 16.5px; flex: 1; }
+  .card { border-radius: 14px; padding: 11px 12px; background: var(--glass-fill); border: 1px solid rgba(255,255,255,0.08); }
+  .card.err { border-color: color-mix(in srgb, var(--bad) 45%, transparent); background: color-mix(in srgb, var(--bad) 8%, var(--glass-fill)); }
+  .card .head { display: flex; align-items: center; gap: 7px; }
+  .card .ic { font-size: 13px; }
+  .card .tag { font-family: "JetBrains Mono", monospace; font-size: 9.5px; font-weight: 700; color: var(--accent); background: rgba(126,166,255,0.14); padding: 1px 6px; border-radius: 5px; }
+  .card.err .tag { color: var(--bad); background: rgba(255,147,139,0.14); }
+  .card .ts { margin-left: auto; font-size: 9.5px; color: var(--ink3); font-family: "JetBrains Mono", monospace; }
+  .card .msg { font-size: 11.5px; color: var(--ink2); margin-top: 6px; line-height: 1.5; }
+  .card.err .msg { color: var(--ink); }
+  .card .expand { font-size: 10px; color: var(--ink3); margin-top: 6px; display: flex; align-items: center; gap: 3px; }
+</style>
+
+<div class="intro">
+  <p class="eyebrow">Lume · 除錯內容頁 08（Mock・卡片摘要式）</p>
+  <h1>一則一張卡片</h1>
+  <p>不是逐行等寬小字，每則訊息變成一張獨立卡片：模組標籤（YtApi／Diary／ExternalLink……）＋時間＋訊息內容，錯誤卡片整張泛紅底色，掃過去一眼就抓得到重點。適合訊息內容比較長、需要換行說明的情境；缺點是同樣筆數會佔比較多垂直空間，長時間開著看即時串流訊息時不如純清單好追。</p>
+</div>
+
+<div class="phone">
+  <div class="amb amb-1"></div>
+  <div class="amb amb-2"></div>
+  <div class="shell">
+    <div class="topbar">
+      <div class="icon-btn">☰</div>
+      <div class="topbar-title">除錯訊息</div>
+      <div class="icon-btn">⧉</div>
+      <div class="icon-btn">🗑</div>
+    </div>
+    <div class="card err">
+      <div class="head"><span class="ic">⚠️</span><span class="tag">YtApi</span><span class="ts">14:02:12.660</span></div>
+      <div class="msg">fetchDurations 失敗：quotaExceeded，今天的 API 配額用完了，明天太平洋時間午夜重置</div>
+    </div>
+    <div class="card">
+      <div class="head"><span class="ic">ℹ️</span><span class="tag">Diary</span><span class="ts">14:03:40.001</span></div>
+      <div class="msg">loadEntries() 共 42 筆</div>
+    </div>
+    <div class="card err">
+      <div class="head"><span class="ic">⚠️</span><span class="tag">ExternalLink</span><span class="ts">14:05:02.775</span></div>
+      <div class="msg">window.open 失敗：popup blocked，已退回剪貼簿</div>
+      <div class="expand">▾ 展開完整堆疊</div>
+    </div>
+    <div class="card">
+      <div class="head"><span class="ic">ℹ️</span><span class="tag">KanaExam</span><span class="ts">14:06:19.442</span></div>
+      <div class="msg">submit answer id=88 正確，streak 更新為 12</div>
+    </div>
+  </div>
+</div>

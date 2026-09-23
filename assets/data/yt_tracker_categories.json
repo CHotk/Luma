@@ -26,6 +26,19 @@
   {
     "id": "seed-disliked",
     "name": "看過但不喜歡",
-    "color": 4292901498
+    "color": 4292901498,
+    "imageUrl": "assets/images/yt_tracker/disliked.png"
+  },
+  {
+    "id": "seed-entertainment",
+    "name": "娛樂",
+    "color": 4291399648,
+    "imageUrl": "assets/images/yt_tracker/entertainment.png"
+  },
+  {
+    "id": "seed-food",
+    "name": "食物",
+    "color": 4292897184,
+    "imageUrl": "assets/images/yt_tracker/food.png"
   }
 ]
