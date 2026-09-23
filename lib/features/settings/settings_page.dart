@@ -2,7 +2,6 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../app/theme/colors.dart';
@@ -13,7 +12,6 @@ import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
 import '../../shared/widgets/glass_card.dart';
-import 'r2_sync_section.dart';
 import 'settings_controller.dart';
 
 /// 設定。改完立即生效，不用按確定。
@@ -303,51 +301,6 @@ class _Body extends ConsumerWidget {
           '拼字判定不管大小寫，複數算錯，a 和 an 算不同的字。',
           textAlign: TextAlign.center,
           style: AppText.note,
-        ),
-
-        const SizedBox(height: Gap.lg),
-        const _SectionLabel('多裝置同步'),
-        const R2SyncSection(),
-
-        const SizedBox(height: Gap.lg),
-        const _SectionLabel('除錯'),
-        GlassCard(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-          child: InkWell(
-            onTap: () => context.push('/debug-log'),
-            borderRadius: BorderRadius.circular(12),
-            child: const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 11, vertical: 9),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.terminal_outlined,
-                    size: 18,
-                    color: AppColors.ink2,
-                  ),
-                  SizedBox(width: Gap.md),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '查看除錯訊息',
-                          style: TextStyle(
-                            fontSize: 14.5,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.ink,
-                          ),
-                        ),
-                        SizedBox(height: 1),
-                        Text('手機不方便叫出瀏覽器 console，這裡看得到', style: AppText.note),
-                      ],
-                    ),
-                  ),
-                  Icon(Icons.chevron_right, size: 18, color: AppColors.ink3),
-                ],
-              ),
-            ),
-          ),
         ),
 
         const SizedBox(height: Gap.lg),

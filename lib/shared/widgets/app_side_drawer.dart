@@ -29,7 +29,9 @@ class AppSideDrawer extends StatelessWidget {
     final isYtTracker = location.startsWith('/yt-tracker');
     final isFitness = location.startsWith('/fitness');
     final isDebugLog = location.startsWith('/debug-log');
-    final isLanguage = !isDiary && !isYtTracker && !isFitness && !isDebugLog;
+    final isSync = location.startsWith('/sync');
+    final isLanguage =
+        !isDiary && !isYtTracker && !isFitness && !isDebugLog && !isSync;
 
     return Drawer(
       width: 270,
@@ -184,6 +186,19 @@ class AppSideDrawer extends StatelessWidget {
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 10),
                     child: Divider(height: 1, color: AppColors.glassEdge),
+                  ),
+                  // 多裝置同步（2026-09-23）獨立成自己的功能頁，不是塞在
+                  // 設定頁裡的一個區塊——這功能之後會一直擴充（日記以外
+                  // 的功能陸續加進來同步），該有自己的入口。排在除錯
+                  // 正上方，使用者原話「放在debug出錯訊息上面」。
+                  _NavItem(
+                    icon: Icons.cloud_sync_outlined,
+                    label: '多裝置同步',
+                    active: isSync,
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      if (!isSync) context.push('/sync');
+                    },
                   ),
                   // 除錯放整個選單最後一項，圖示角標式（設計稿 04）：
                   // 平常就是普通圖示，只有「上次看過除錯頁之後又出現新的

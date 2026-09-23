@@ -26,6 +26,7 @@ import '../features/settings/debug_log_page.dart';
 import '../features/settings/settings_page.dart';
 import '../features/splash/splash_page.dart';
 import '../features/stealth/stealth_page.dart';
+import '../features/sync/sync_page.dart';
 import '../features/yt_tracker/yt_tracker_browse_page.dart';
 import '../features/yt_tracker/yt_tracker_channel_page.dart';
 import '../features/yt_tracker/yt_tracker_home_page.dart';
@@ -122,6 +123,7 @@ final appRouter = GoRouter(
     GoRoute(path: '/notes', builder: (_, _) => const NotesPage()),
     GoRoute(path: '/settings', builder: (_, _) => const SettingsPage()),
     GoRoute(path: '/debug-log', builder: (_, _) => const DebugLogPage()),
+    GoRoute(path: '/sync', builder: (_, _) => const SyncPage()),
     GoRoute(
       path: '/notes/:collection/:no',
       builder: (_, state) => NoteDetailPage(
