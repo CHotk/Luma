@@ -73,7 +73,16 @@ class _FitnessHomePageState extends ConsumerState<FitnessHomePage> {
                   actions: [
                     IconButton(
                       onPressed: () => context.push('/fitness/stats'),
-                      icon: const Icon(Icons.bar_chart_rounded, size: 20),
+                      icon: Image.asset(
+                        'assets/images/fitness/stats_icon.png',
+                        width: 20,
+                        height: 20,
+                        color: AppColors.ink2,
+                        errorBuilder: (context, error, stack) => const Icon(
+                          Icons.bar_chart_rounded,
+                          size: 20,
+                        ),
+                      ),
                       color: AppColors.ink2,
                       tooltip: '統計',
                     ),
