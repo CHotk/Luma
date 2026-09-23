@@ -3,9 +3,9 @@ const MANIFEST = 'flutter-app-manifest';
 const TEMP = 'flutter-temp-cache';
 const CACHE_NAME = 'flutter-app-cache';
 
-const RESOURCES = {"assets/AssetManifest.bin": "b2c29a698d2ca09c9960e96f4b0cc35d",
-"assets/AssetManifest.bin.json": "5cd6cb6d8fc102c18d9dbdcc8c39d16f",
-"assets/AssetManifest.json": "db94206adc3357194891be28fa9578a4",
+const RESOURCES = {"assets/AssetManifest.bin": "d2a34cb98429718b96687f155e292cb7",
+"assets/AssetManifest.bin.json": "24a1de3d56bce79754fe60d78ffbb82b",
+"assets/AssetManifest.json": "372d69b8b0a65fc19d07eb7bb41b3ba1",
 "assets/assets/config/app_defaults.yaml": "a6a2a167a31e7f082db512d4a55cf48c",
 "assets/assets/data/diary.json": "58e0494c51d30eb3494f7c9198986bb9",
 "assets/assets/data/history.txt": "f8473da7db7f9cbb66af59d0c356dd8d",
@@ -24,6 +24,7 @@ const RESOURCES = {"assets/AssetManifest.bin": "b2c29a698d2ca09c9960e96f4b0cc35d
 "assets/assets/images/fitness/stats_icon.png": "f7858d86b9ad02943544c240c7046a6d",
 "assets/assets/images/nav_icons/debug.png": "45ae419e8ccae79c1d18eb26241f4cdc",
 "assets/assets/images/nav_icons/fitness.png": "15d9698156dda9b4a6ba498a4031a158",
+"assets/assets/images/nav_icons/language.png": "56901a12b24c7c673293368c9da03775",
 "assets/assets/images/nav_icons/yt_tracker.png": "dfc02db7f81b6b6ad1e7529d632484d9",
 "assets/assets/images/yt_tracker/crypto.png": "7928d04dd40b2654cb1d9f971fc29fcf",
 "assets/assets/images/yt_tracker/current_affairs.png": "3eb4af02c9c57c34ca2f17bdac6d9ac9",
@@ -51,7 +52,7 @@ const RESOURCES = {"assets/AssetManifest.bin": "b2c29a698d2ca09c9960e96f4b0cc35d
 "favicon.png": "7766d4fdb8f3cc18395cf68d532277fe",
 "favicon.svg": "3dbec1bff39900957c641bfe18dbfba3",
 "flutter.js": "888483df48293866f9f41d3d9274a779",
-"flutter_bootstrap.js": "f3279052a9b14de840e59cc34575e9db",
+"flutter_bootstrap.js": "25cff0f0e26539a1235935efc01494e5",
 "icons/Icon-192.png": "8d9031d1295296c75d11559dfb2111b0",
 "icons/Icon-512.png": "74bd094b3a64d96c10aed911647992ba",
 "icons/Icon-maskable-192.png": "8d9031d1295296c75d11559dfb2111b0",
