@@ -40,9 +40,17 @@ dependencies:
   # 最新影片，純前端打 Google API 走 HTTP，不用整包 googleapis SDK。
   http: ^1.2.2
   # 多裝置同步用的：R2 的 S3 相容 API 要求 AWS SigV4 簽章，簽章要用
-  # HMAC-SHA256／SHA256，Dart 沒有內建，這個是官方維護的標準套件，
-  # 不用整包 AWS SDK 換一個這麼底層的東西。
+  # HMAC-SHA256／SHA256，Dart 沒有內建，這個是官方維護的標準套件。
   crypto: ^3.0.6
+  # AWS 官方（Amplify Flutter 團隊）維護的 SigV4 簽章實作，不要自己
+  # 手刻——手刻的簽章邏輯沒有真的 R2 帳號沒辦法驗證對不對，簽章這種
+  # 東西錯一個字元的編碼規則就整個失敗，有現成、AWS 自己在用的實作
+  # 就不該重新發明（2026-09-23 使用者問「應該自己刻嗎」才改用這個）。
+  aws_signature_v4: ^0.6.10
+  # aws_signature_v4 的 AWSHttpRequest／AWSService 這些型別實際定義在
+  # 這個套件裡，直接 import 用到就該直接宣告依賴，不要只靠遞移依賴
+  # 悄悄可以用。
+  aws_common: ^0.7.13
 
 dev_dependencies:
   flutter_test:
