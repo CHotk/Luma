@@ -5,24 +5,13 @@ import '../../domain/models/diary_entry.dart';
 import '../repositories/diary_repository.dart';
 import 'r2_client.dart';
 
-/// 多裝置同步的第一階段（打地基）：只做「測試連線」跟「日記下載」，
-/// 還沒有上傳——先把連線／簽章／資料格式這些地基在風險較低的讀取
-/// 路徑上驗證過，再加上傳（2026-09-23 使用者決定）。之後每加一個
-/// 功能的同步，就在這個 class 上加一個對應的 `pullXxx` 方法，不要
-/// 另外開新檔案，同步邏輯要集中在一個地方找得到。
-///
-/// 【第二階段（上傳）設計決定，先記下來，還沒實作】刪除不能是物理
-/// 刪除，要用墓碑標記（tombstone）：每筆紀錄的 model 加一個
-/// `deletedAt`（可為 null）欄位，「刪除」動作改成把這個欄位填上
-/// 現在的時間戳記，不是真的把那筆從清單拿掉。合併時本機或雲端任一邊
-/// 有這個標記、且比對方版本新，才真的從清單移除。理由：現在的
-/// [DiaryRepository.mergeFromCloud] 是純聯集合併，只看「這個 id 有沒有
-/// 出現過」——如果只是把刪掉的那筆從清單拿掉，雲端還留著舊版本的話，
-/// 下次同步（pull）就會把已經刪除的紀錄復活，因為合併邏輯完全看不出
-/// 「這是被刻意刪除的」還是「本來就沒有過」，兩者在資料上長得一樣
-/// （2026-09-23 使用者推導出這個問題、也確認要用墓碑標記解決，並要求
-/// 這個模式套用到之後所有功能的同步，不是只有日記）。做上傳的時候要
-/// 一起把這個補上，不是先做完上傳、之後才追加。
+/// 多裝置同步。第二階段（2026-09-23）：下載＋上傳都做了，刪除用墓碑
+/// 標記（tombstone，見 [DiaryEntry.deletedAt] 的說明）不是物理刪除，
+/// 避免刪掉的紀錄被下一次同步復活。之後每加一個功能的同步，就在這個
+/// class 上加一組對應的 `pullXxx`／`pushXxx`／`syncXxx`，不要另外開
+/// 新檔案，同步邏輯要集中在一個地方找得到，其他功能要照日記這套模式
+/// （model 加 `deletedAt`、repository 加 `loadAllIncludingDeleted`、
+/// 刪除改標記）照樣做一次，見 `DiaryRepository` 的說明。
 class R2SyncService {
   R2SyncService(this._client);
 
@@ -43,21 +32,43 @@ class R2SyncService {
     await _client.deleteObject(testKey);
   }
 
-  /// 把 R2 上的 `diary.json` 抓下來，跟本機合併（本機資料贏，見
-  /// [DiaryRepository.mergeFromCloud] 的說明）。回傳合併後本機共有
-  /// 幾篇日記，給畫面顯示用。
+  /// 把 R2 上的 `diary.json` 抓下來，跟本機合併（本機資料贏，墓碑
+  /// 標記優先，見 [DiaryRepository.mergeFromCloud] 的說明）。回傳這次
+  /// 合併「異動」了幾筆（新增／被刪除／內容有變，各算一筆），不是
+  /// 合併後的總筆數——使用者要看到的是這次同步做了什麼
+  /// （2026-09-23 使用者要求）。
   Future<int> pullDiary(DiaryRepository repo) async {
     final bytes = await _client.getObject('diary.json');
-    if (bytes != null) {
-      final decoded = jsonDecode(utf8.decode(bytes)) as List;
-      final incoming = decoded
-          .cast<Map<String, dynamic>>()
-          .map(DiaryEntry.fromJson)
-          .toList();
-      await repo.mergeFromCloud(incoming);
-    }
-    // 雲端還沒有這個檔案（第一次用、或還沒手動上傳過）就當沒有資料
-    // 可以合併，不算錯誤，直接回報目前本機有幾篇。
-    return (await repo.loadAll()).length;
+    // 雲端還沒有這個檔案（第一次用）就當沒有資料可以合併，不算錯誤。
+    if (bytes == null) return 0;
+    final decoded = jsonDecode(utf8.decode(bytes)) as List;
+    final incoming = decoded
+        .cast<Map<String, dynamic>>()
+        .map(DiaryEntry.fromJson)
+        .toList();
+    return repo.mergeFromCloud(incoming);
+  }
+
+  /// 把本機現況（含刪除標記）整包覆蓋寫回 R2——不是合併，單純用本機
+  /// 蓋掉雲端那份。之所以能這樣做而不怕弄丟資料：[syncDiary] 一定會
+  /// 先 [pullDiary] 把雲端有、本機沒有的合併進本機，再上傳，所以上傳
+  /// 當下的本機狀態已經包含了雲端原本的東西，直接覆蓋不會丟資料
+  /// ——除非兩台裝置在下載完、上傳前這段空檔各自又新增了東西，那種
+  /// 罕見的競速情況目前沒有處理，個人一兩台裝置手動按同步的使用情境
+  /// 機率很低，先不處理。
+  Future<void> pushDiary(DiaryRepository repo) async {
+    final all = await repo.allForUpload();
+    final bytes = utf8.encode(jsonEncode([for (final e in all) e.toJson()]));
+    await _client.putObject('diary.json', Uint8List.fromList(bytes));
+  }
+
+  /// 「立即同步」按下去做的事：先下載合併，再上傳——順序很重要，
+  /// 上傳前一定要先把雲端可能有的新資料併進本機，不然直接上傳會把
+  /// 雲端才有、本機還沒同步到的東西覆蓋掉。回傳下載那步的異動筆數
+  /// 給畫面顯示。
+  Future<int> syncDiary(DiaryRepository repo) async {
+    final changed = await pullDiary(repo);
+    await pushDiary(repo);
+    return changed;
   }
 }

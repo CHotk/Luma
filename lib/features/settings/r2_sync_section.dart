@@ -119,17 +119,22 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
         bucket: ref.read(r2BucketNameProvider),
       );
       final service = R2SyncService(client);
-      final count = await service.pullDiary(ref.read(diaryRepositoryProvider));
+      final changed = await service.syncDiary(ref.read(diaryRepositoryProvider));
       final now = DateTime.now();
       await ref
           .read(keyValueStoreProvider)
           .write(_lastSyncedKey, now.toIso8601String());
+      // 同步抓回來的資料要讓日記頁（可能還留在導覽堆疊底下沒被重建）
+      // 知道要重讀，不然使用者按返回回日記頁時畫面還是同步前的舊資料
+      // （2026-09-23 使用者回報）——跟練習紀錄頁那套「存檔完 bump 這個
+      // provider」共用同一個機制，見 `dataRevisionProvider` 的其他用法。
+      ref.read(dataRevisionProvider.notifier).state++;
       if (!mounted) return;
       setState(() {
         _lastSyncedAt = now;
         _syncing = false;
       });
-      showAppNotice(context, '日記 同步成功 $count 筆');
+      showAppNotice(context, '日記 同步成功，異動 $changed 筆');
     } catch (e) {
       if (!mounted) return;
       setState(() => _syncing = false);

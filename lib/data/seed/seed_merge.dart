@@ -21,19 +21,48 @@ enum SeedMergePriority {
 
 /// 合併 [local] 跟 [seed] 兩份紀錄，[idOf] 取每筆的識別碼，
 /// [priority] 決定同 id 衝突時誰贏。
+///
+/// [deletedAtOf] 選填——給有墓碑標記（soft delete）欄位的 model 用
+/// （目前只有 [DiaryEntry]，見該檔案說明），不給就是舊行為，單純覆蓋
+/// 不管刪除標記。有給的話合併規則是「刪除永遠贏」：任一邊只要有刪除
+/// 標記，結果就是刪除，不比較時間新舊——這是 2026-09-23 使用者確認的
+/// 取捨。刪除標記本身**不會**從合併結果裡濾掉，會留著繼續往下傳（給
+/// 下一輪同步／下一台裝置看到這個標記），UI 該濾掉已刪除項目是呼叫端
+/// 自己的事（見 `DiaryRepository.loadAll()` 濾掉、
+/// `loadAllIncludingDeleted()` 保留兩個方法分開）。
+///
+/// [updatedAtOf] 選填——兩邊都沒有刪除標記時，用這個比新舊，新的贏
+/// （2026-09-23 使用者發現：沒有這個的話，[priority] 固定某一邊贏，
+/// 裝置 A 編輯過、推上雲端之後，裝置 B 沒改過的舊版反而會蓋掉 A 的
+/// 編輯，等於編輯沒同步到）。不給就退回舊行為：純粹看 [priority] 那
+/// 邊贏，不比時間。
 List<T> mergeSeedRecords<T>({
   required List<T> local,
   required List<T> seed,
   required String Function(T) idOf,
   required SeedMergePriority priority,
+  DateTime? Function(T)? deletedAtOf,
+  DateTime Function(T)? updatedAtOf,
 }) {
   if (seed.isEmpty) return local;
 
   switch (priority) {
     case SeedMergePriority.seed:
-      return _overlay(base: local, overlay: seed, idOf: idOf);
+      return _overlay(
+        base: local,
+        overlay: seed,
+        idOf: idOf,
+        deletedAtOf: deletedAtOf,
+        updatedAtOf: updatedAtOf,
+      );
     case SeedMergePriority.local:
-      return _overlay(base: seed, overlay: local, idOf: idOf);
+      return _overlay(
+        base: seed,
+        overlay: local,
+        idOf: idOf,
+        deletedAtOf: deletedAtOf,
+        updatedAtOf: updatedAtOf,
+      );
   }
 }
 
@@ -44,10 +73,34 @@ List<T> _overlay<T>({
   required List<T> base,
   required List<T> overlay,
   required String Function(T) idOf,
+  DateTime? Function(T)? deletedAtOf,
+  DateTime Function(T)? updatedAtOf,
 }) {
   final byId = {for (final e in base) idOf(e): e};
   for (final e in overlay) {
-    byId[idOf(e)] = e;
+    final id = idOf(e);
+    final existing = byId[id];
+    if (existing == null) {
+      byId[id] = e;
+      continue;
+    }
+    final existingDeleted = deletedAtOf?.call(existing) != null;
+    final incomingDeleted = deletedAtOf?.call(e) != null;
+    if (existingDeleted && !incomingDeleted) {
+      // base 這邊已經有刪除標記、overlay 這筆沒有，刪除贏，不覆蓋回去。
+      continue;
+    }
+    if (incomingDeleted) {
+      // overlay 這筆是刪除，刪除永遠贏，不比時間戳直接覆蓋。
+      byId[id] = e;
+      continue;
+    }
+    // 都沒有刪除標記：有給 updatedAtOf 就比新舊，base 比較新就留著；
+    // 沒給就退回舊行為，overlay 直接贏。
+    if (updatedAtOf != null && updatedAtOf(existing).isAfter(updatedAtOf(e))) {
+      continue;
+    }
+    byId[id] = e;
   }
   return byId.values.toList();
 }

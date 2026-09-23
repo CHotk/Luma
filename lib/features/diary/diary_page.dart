@@ -18,6 +18,7 @@ import '../../shared/widgets/app_notice.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
 import '../../shared/widgets/glass_card.dart';
+import '../../shared/widgets/masked_text.dart';
 
 /// 打開日記詳情（點某一篇）之後可以選的動作。
 enum _EntryAction { edit, delete }
@@ -53,10 +54,29 @@ class _DiaryPageState extends ConsumerState<DiaryPage> {
   final _listScrollController = ScrollController();
   final Map<String, GlobalKey> _rowKeys = {};
 
+  /// 隱私馬賽克開關，存 localStorage、預設關（2026-09-23 使用者要求）。
+  /// 這個不用走 `app_defaults.yaml`——單純一個布林開關，不是需要調參的
+  /// 設定，直接存讀 [keyValueStoreProvider] 就好，不用多繞一層設定檔。
+  static const _maskedKey = 'diary.masked.v1';
+  bool _masked = false;
+
   @override
   void initState() {
     super.initState();
     _future = _loadWithSeedMerge();
+    _loadMaskedPref();
+  }
+
+  Future<void> _loadMaskedPref() async {
+    final raw = await ref.read(keyValueStoreProvider).read(_maskedKey);
+    if (raw == 'true' && mounted) setState(() => _masked = true);
+  }
+
+  Future<void> _toggleMasked() async {
+    setState(() => _masked = !_masked);
+    await ref
+        .read(keyValueStoreProvider)
+        .write(_maskedKey, _masked.toString());
   }
 
   /// 打開這頁那一瞬間先把日記快照（見 [loadDiarySeed]）併回本機，跟
@@ -120,6 +140,7 @@ class _DiaryPageState extends ConsumerState<DiaryPage> {
         return _SimpleRow(
           key: key,
           entry: entry,
+          masked: _masked,
           highlighted: selectedEntry != null && entry.id == selectedEntry.id,
           onTap: () => _showEntry(entry),
         );
@@ -186,7 +207,7 @@ class _DiaryPageState extends ConsumerState<DiaryPage> {
                 ],
               ),
               const SizedBox(height: Gap.sm),
-              Text(entry.text, style: AppText.body),
+              MaskedText(entry.text, masked: _masked, style: AppText.body),
               const SizedBox(height: Gap.md),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
@@ -372,6 +393,13 @@ class _DiaryPageState extends ConsumerState<DiaryPage> {
 
   @override
   Widget build(BuildContext context) {
+    // 從抽屜點去雲端同步頁按下「立即同步」，這個日記頁的 instance 還
+    // 留在導覽堆疊底下沒被重建，只在 initState 讀一次的話返回來會看到
+    // 同步前的舊資料——跟 `kana_practice_history_page.dart` 同一套機制
+    // （2026-09-23 使用者回報）。
+    ref.listen<int>(dataRevisionProvider, (prev, next) {
+      if (prev != next) _reload();
+    });
     return Scaffold(
       // 左上角三條線選單是全 App 共用、固定的位置，子頁面不能把它換成
       // 只有返回鍵——兩個都要，返回鍵放三條線旁邊（2026-09-22 使用者
@@ -389,6 +417,15 @@ class _DiaryPageState extends ConsumerState<DiaryPage> {
                   title: '日記',
                   showBack: false,
                   actions: [
+                    IconButton(
+                      onPressed: _toggleMasked,
+                      icon: Icon(
+                        _masked ? Icons.blur_off_rounded : Icons.blur_on_rounded,
+                        size: 20,
+                      ),
+                      color: _masked ? AppColors.diaryAccent : AppColors.ink2,
+                      tooltip: _masked ? '取消馬賽克' : '馬賽克文字',
+                    ),
                     IconButton(
                       onPressed: () => _showExportDialog(context, ref),
                       icon: const Icon(Icons.ios_share_rounded, size: 20),
@@ -748,7 +785,11 @@ class _DayChip extends StatelessWidget {
                     : isToday
                     ? AppColors.diaryAccent.withValues(alpha: 0.55)
                     : AppColors.glassEdge,
-                width: isSelected ? 1.6 : 1,
+                width: isSelected
+                    ? 1.6
+                    : isToday
+                    ? 1.4
+                    : 1,
               ),
               boxShadow: isSelected
                   ? [
@@ -903,7 +944,11 @@ class _MonthCell extends StatelessWidget {
                     : isToday
                     ? AppColors.diaryAccent.withValues(alpha: 0.55)
                     : Colors.transparent,
-                width: isSelected ? 1.6 : 1,
+                width: isSelected
+                    ? 1.6
+                    : isToday
+                    ? 1.4
+                    : 1,
               ),
             ),
             child: Text(
@@ -1262,11 +1307,13 @@ class _SimpleRow extends StatelessWidget {
     super.key,
     required this.entry,
     required this.onTap,
+    required this.masked,
     this.highlighted = false,
   });
 
   final DiaryEntry entry;
   final VoidCallback onTap;
+  final bool masked;
   final bool highlighted;
 
   @override
@@ -1295,8 +1342,9 @@ class _SimpleRow extends StatelessWidget {
             Text(entry.mood, style: const TextStyle(fontSize: 15)),
             const SizedBox(width: Gap.sm),
             Expanded(
-              child: Text(
+              child: MaskedText(
                 entry.text,
+                masked: masked,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: AppText.bodyDim,

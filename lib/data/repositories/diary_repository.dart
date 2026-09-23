@@ -1,11 +1,18 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show mapEquals;
+
 import '../../domain/models/diary_entry.dart';
 import '../seed/seed_merge.dart';
 import '../storage/key_value_store.dart';
 
 /// 日記的存檔紀錄，結構跟 [KanaPracticeRepository]／[KanaExamRepository]
 /// 同一套：整包讀出來、整包寫回去。
+///
+/// 刪除是墓碑標記（soft delete），不是物理刪除——見 [DiaryEntry.deletedAt]
+/// 的說明。內部所有讀寫都走 [_loadAllRaw]（含已刪除的），公開的
+/// [loadAll] 才把已刪除的濾掉給 UI 用，兩者分開是為了同步合併時不能
+/// 讓已刪除的標記憑空消失（見 [loadAllIncludingDeleted]）。
 class DiaryRepository {
   DiaryRepository(this._store);
 
@@ -13,7 +20,7 @@ class DiaryRepository {
 
   final KeyValueStore _store;
 
-  Future<List<DiaryEntry>> loadAll() async {
+  Future<List<DiaryEntry>> _loadAllRaw() async {
     final raw = await _store.read(_key);
     if (raw == null) return <DiaryEntry>[];
     return (jsonDecode(raw) as List)
@@ -22,26 +29,42 @@ class DiaryRepository {
         .toList();
   }
 
+  Future<void> _write(List<DiaryEntry> all) =>
+      _store.write(_key, jsonEncode([for (final e in all) e.toJson()]));
+
+  /// 給 UI 用——已刪除的濾掉，畫面不該看到鬼影資料。
+  Future<List<DiaryEntry>> loadAll() async =>
+      (await _loadAllRaw()).where((e) => e.deletedAt == null).toList();
+
+  /// 給同步／匯出用——連刪除標記都要看得到，才能正確合併、正確把
+  /// 刪除這件事傳給下一台裝置或下一輪同步。
+  Future<List<DiaryEntry>> loadAllIncludingDeleted() => _loadAllRaw();
+
   Future<void> add(DiaryEntry entry) async {
-    final all = [...await loadAll(), entry];
-    await _store.write(_key, jsonEncode([for (final e in all) e.toJson()]));
+    final all = [...await _loadAllRaw(), entry];
+    await _write(all);
   }
 
-  /// 打卡打錯了想刪掉重打，或長按列表項目刪除用。
+  /// 打卡打錯了想刪掉重打，或長按列表項目刪除用——標記 [DiaryEntry.deletedAt]，
+  /// 不是真的從清單拿掉。
   Future<void> delete(String id) async {
-    final all = await loadAll()
-      ..removeWhere((e) => e.id == id);
-    await _store.write(_key, jsonEncode([for (final e in all) e.toJson()]));
+    final all = await _loadAllRaw();
+    final index = all.indexWhere((e) => e.id == id);
+    if (index == -1) return;
+    all[index] = all[index].copyWithDeleted();
+    await _write(all);
   }
 
   /// 編輯某一篇的心情／文字，`id` 跟 `savedAt`（原始打卡時間）不變——
   /// 編輯只是改內容，不是重新打卡一次。找不到對應 `id` 就當沒這回事。
   Future<void> update(DiaryEntry entry) async {
-    final all = await loadAll();
+    final all = await _loadAllRaw();
     final index = all.indexWhere((e) => e.id == entry.id);
     if (index == -1) return;
-    all[index] = entry;
-    await _store.write(_key, jsonEncode([for (final e in all) e.toJson()]));
+    // 蓋成現在的 updatedAt，不是照 entry 原本帶的——多裝置同步要靠這個
+    // 判斷「這篇最近被誰改過」，見 [DiaryEntry.updatedAt] 的說明。
+    all[index] = entry.copyWithTouched();
+    await _write(all);
   }
 
   /// 把日記快照（見 [loadDiarySeed]）併回本機，跟
@@ -52,36 +75,63 @@ class DiaryRepository {
   Future<void> mergeSeed(List<DiaryEntry> incoming) async {
     if (incoming.isEmpty) return;
     final merged = mergeSeedRecords(
-      local: await loadAll(),
+      local: await _loadAllRaw(),
       seed: incoming,
       idOf: (e) => e.id,
       priority: SeedMergePriority.seed,
+      deletedAtOf: (e) => e.deletedAt,
+      updatedAtOf: (e) => e.updatedAt,
     );
-    await _store.write(_key, jsonEncode([for (final e in merged) e.toJson()]));
+    await _write(merged);
   }
 
   /// 把 R2 雲端抓下來的日記併回本機，跟 [mergeSeed] 用同一套
   /// [mergeSeedRecords]，但 `priority` 用 [SeedMergePriority.local]
-  /// 不是 `.seed`——這是故意反過來的：[mergeSeed] 是「App 內建快照贏」
-  /// 給部署時合併用，這裡是「本機這台裝置的資料贏」，雲端只補本機沒有
-  /// 的 id。理由：現在還沒做「上傳」（2026-09-23 分階段開發，先做下載
-  /// 打地基），雲端上的資料只可能是使用者手動放上去的舊版本，用雲端贏
-  /// 的話，剛好會把這台裝置更新的紀錄蓋掉，方向要反過來才安全。
-  Future<void> mergeFromCloud(List<DiaryEntry> incoming) async {
-    if (incoming.isEmpty) return;
+  /// 不是 `.seed`——本機這台裝置的資料贏，雲端只補本機沒有的 id；有
+  /// 刪除標記的話「刪除永遠贏」（見 `seed_merge.dart` 的
+  /// [mergeSeedRecords] 說明）。回傳這次合併實際「異動」了幾筆
+  /// （新增／被刪除／內容有變，各算一筆），不是回傳合併後總筆數
+  /// ——使用者要看到的是「這次同步做了什麼」，不是本來就有的總數
+  /// （2026-09-23 使用者要求）。
+  Future<int> mergeFromCloud(List<DiaryEntry> incoming) async {
+    if (incoming.isEmpty) return 0;
+    final before = await _loadAllRaw();
     final merged = mergeSeedRecords(
-      local: await loadAll(),
+      local: before,
       seed: incoming,
       idOf: (e) => e.id,
       priority: SeedMergePriority.local,
+      deletedAtOf: (e) => e.deletedAt,
+      updatedAtOf: (e) => e.updatedAt,
     );
-    await _store.write(_key, jsonEncode([for (final e in merged) e.toJson()]));
+    await _write(merged);
+    return _diffCount(before, merged);
   }
 
-  /// 匯出整份日記給使用者存成真正的檔案，手動搬進 git 版控的
-  /// `assets/data/diary.json`，跟手寫練習／考試紀錄同一個用途——手機
-  /// 跟電腦各自打卡的紀錄存在各自瀏覽器的 localStorage，不會自動合併，
-  /// 只能靠使用者手動搬。
+  /// 把本機現況（含刪除標記）整包覆蓋寫回 R2——上傳不是合併，就是
+  /// 單純用本機蓋掉雲端那份，理由見 `r2_sync_service.dart` 的說明。
+  /// 回傳的是「這次上傳的內容」，異動筆數要呼叫端自己在上傳前後比較
+  /// （這裡沒有「雲端原本長怎樣」可以比，不像下載那樣本機端看得到
+  /// before/after）。
+  Future<List<DiaryEntry>> allForUpload() => _loadAllRaw();
+
+  /// 比較合併前後多了幾筆新增、幾筆變成刪除、幾筆內容不一樣，全部
+  /// 加起來當「異動筆數」——每一筆不管是哪種變化都只算一次。
+  int _diffCount(List<DiaryEntry> before, List<DiaryEntry> after) {
+    final beforeById = {for (final e in before) e.id: e};
+    var changed = 0;
+    for (final e in after) {
+      final prior = beforeById[e.id];
+      if (prior == null || !mapEquals(prior.toJson(), e.toJson())) {
+        changed++;
+      }
+    }
+    return changed;
+  }
+
+  /// 匯出整份日記（不含已刪除的）給使用者存成真正的檔案，手動搬進
+  /// git 版控——日記已經改用 R2 同步，這個純粹保留給想要手動備份的
+  /// 情境用，不強制走這條路。
   Future<({String text, int count})> exportJson() async {
     final all = await loadAll();
     const encoder = JsonEncoder.withIndent('  ');
