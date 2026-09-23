@@ -5,6 +5,7 @@ import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
+import '../../data/repositories/yt_video_cache_store.dart';
 import '../../data/services/youtube_api_service.dart';
 import '../../domain/models/yt_tracker.dart';
 import '../../shared/widgets/ambient_background.dart';
@@ -153,23 +154,56 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     // 只抓近半年，不是全部歷史——時間範圍固定，不會因為頻道發片多寡
     // 讓等待時間跟配額失控（2026-09-23 使用者要求）。
     final since = DateTime(now.year, now.month - 6, now.day);
-    final videos = await service.fetchAllVideos(uploadsId, since: since);
-    // 時長抓失敗不影響圖能不能畫，只是 Shorts／一般影片分不出來，兩條
-    // 線會全部算進「一般影片」那條（因為 isLikelyShort 需要 duration
-    // 才能判斷，沒有就當作不是 Shorts）。
-    try {
-      final durations = await service.fetchDurations(
-        [for (final v in videos) v.videoId],
-      );
-      return [
-        for (final v in videos)
-          durations.containsKey(v.videoId)
-              ? v.withDuration(durations[v.videoId]!)
-              : v,
-      ];
-    } catch (_) {
-      return videos;
+
+    // 本機已經快取過的影片（見 yt_video_cache_store.dart）：翻頁翻到
+    // 整頁都已經在快取裡就會提早停止，之前抓過的影片不會重抓，也不會
+    // 重打一次 fetchDurations（2026-09-23 使用者要求：本機已經有的
+    // 資料不用再往後拿，省配額）。
+    final cache = YtVideoCacheStore(ref.read(keyValueStoreProvider));
+    final cached = await cache.load(channel.id);
+    final cachedById = {for (final v in cached) v.videoId: v};
+
+    final fetched = await service.fetchAllVideos(
+      uploadsId,
+      since: since,
+      knownVideoIds: cachedById.keys.toSet(),
+    );
+
+    // 這次翻頁翻到的影片，扣掉本來就已經快取、時長也已經有的，只有
+    // 真的新的才需要多打一次 fetchDurations。
+    final newIds = [
+      for (final v in fetched)
+        if (!cachedById.containsKey(v.videoId) ||
+            cachedById[v.videoId]!.duration == null)
+          v.videoId,
+    ];
+    var withDurations = fetched;
+    if (newIds.isNotEmpty) {
+      // 時長抓失敗不影響圖能不能畫，只是 Shorts／一般影片分不出來，
+      // 兩條線會全部算進「一般影片」那條（isLikelyShort 需要 duration
+      // 才能判斷，沒有就當作不是 Shorts）。
+      try {
+        final durations = await service.fetchDurations(newIds);
+        withDurations = [
+          for (final v in fetched)
+            durations.containsKey(v.videoId)
+                ? v.withDuration(durations[v.videoId]!)
+                : v,
+        ];
+      } catch (_) {
+        // 忽略，withDurations 保持沒補時長的版本。
+      }
     }
+
+    // 合併快取＋這次抓到的，新的蓋舊的（時長可能剛補上），依發布時間
+    // 過濾在 since 窗口內，落地存回去給下次用。
+    final merged = {
+      for (final v in cached) v.videoId: v,
+      for (final v in withDurations) v.videoId: v,
+    }.values.where((v) => !v.publishedAt.isBefore(since)).toList()
+      ..sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
+    await cache.save(channel.id, merged);
+    return merged;
   }
 
   Widget _buildHistoryChart(YtChannel channel) {

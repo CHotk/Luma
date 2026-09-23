@@ -72,6 +72,26 @@ class YoutubeVideo {
     thumbnailUrl: thumbnailUrl,
     duration: value,
   );
+
+  /// 給 `yt_video_cache_store.dart` 落地快取用——只有歷史影片（上傳
+  /// 頻率圖那批）會被快取，不是每次抓影片都序列化，見該檔案說明。
+  Map<String, dynamic> toJson() => {
+    'videoId': videoId,
+    'title': title,
+    'publishedAt': publishedAt.toIso8601String(),
+    'thumbnailUrl': thumbnailUrl,
+    'durationSeconds': duration?.inSeconds,
+  };
+
+  factory YoutubeVideo.fromJson(Map<String, dynamic> json) => YoutubeVideo(
+    videoId: json['videoId'] as String,
+    title: json['title'] as String,
+    publishedAt: DateTime.parse(json['publishedAt'] as String),
+    thumbnailUrl: json['thumbnailUrl'] as String,
+    duration: json['durationSeconds'] == null
+        ? null
+        : Duration(seconds: json['durationSeconds'] as int),
+  );
 }
 
 /// YouTube API 的影片長度是 ISO 8601 格式（例如 `PT1H2M10S`、`PT4M13S`），
@@ -184,9 +204,18 @@ class YoutubeApiService {
   /// 不用再翻下一頁——`maxPages` 是額外的安全上限，正常情況半年份的
   /// 影片翻不了幾頁就會被時間篩到，這個上限只是防止極端狀況（例如
   /// `since` 給了很久以前的時間）翻到失控。
+  ///
+  /// [knownVideoIds] 是呼叫端本機已經快取過的影片 id（見
+  /// `yt_video_cache_store.dart`）——`playlistItems.list` 新到舊回傳，
+  /// 一旦某一頁「整頁」都已經在快取裡，代表這頁（跟更舊的）之前都已經
+  /// 抓過了，直接停止翻頁，不用把整段歷史重抓一次（2026-09-23 使用者
+  /// 要求：本機已經有的資料就不用再往後拿，省配額）。回傳的是「這次
+  /// 翻頁翻到的」影片，不代表本機快取的全部，合併快取跟這次結果是
+  /// 呼叫端的事。
   Future<List<YoutubeVideo>> fetchAllVideos(
     String uploadsPlaylistId, {
     required DateTime since,
+    Set<String> knownVideoIds = const {},
     int maxPages = 20,
   }) async {
     final videos = <YoutubeVideo>[];
@@ -215,9 +244,14 @@ class YoutubeApiService {
           : pageVideos.map((v) => v.publishedAt).reduce(
               (a, b) => a.isBefore(b) ? a : b,
             );
+      final allKnown =
+          knownVideoIds.isNotEmpty &&
+          pageVideos.isNotEmpty &&
+          pageVideos.every((v) => knownVideoIds.contains(v.videoId));
       pageToken = body['nextPageToken'] as String?;
       if (pageToken == null) break;
       if (oldestInPage != null && oldestInPage.isBefore(since)) break;
+      if (allKnown) break;
     }
     return videos;
   }

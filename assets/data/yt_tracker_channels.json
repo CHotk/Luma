@@ -11,12 +11,22 @@
   },
   {
     "id": "seed-youtubercrypto",
-    "name": "youtubercrypto",
+    "name": "科幣託",
     "categoryId": "seed-crypto",
     "avatarEmoji": "📺",
     "avatarImageUrl": "https://yt3.googleusercontent.com/kjmNBjUNQ_Qs_TxFWEnUkTO9guZWHwpbuYIDjZPLsX76UMseUw61pS0_SuaEn269yDsJ-JaT=s160-c-k-c0x00ffffff-no-rj",
     "url": "https://youtube.com/@youtubercrypto",
-    "description": "",
+    "description": "虛擬貨幣KOL",
     "addedAt": "2026-09-22T00:00:00.000"
+  },
+  {
+    "id": "seed-youtubercrypto",
+    "name": "峰哥",
+    "categoryId": "seed-crypto",
+    "avatarEmoji": "📺",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/ZV7s8pEvqYKU1hwY…RAO_fdmX20RBpr2WHXmgVw=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://youtube.com/@traderfengge?si=JsKheshSx09kxBrI",
+    "description": "虛擬貨幣KOL",
+    "addedAt": "2026-09-23T14:06:00.000"
   }
 ]

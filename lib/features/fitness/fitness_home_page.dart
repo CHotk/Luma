@@ -62,6 +62,11 @@ class _FitnessHomePageState extends ConsumerState<FitnessHomePage> {
   /// （2026-09-23 使用者要求：像 iPhone 鬧鐘調分鐘那樣的效果）。
   TimeOfDay _pickedTime = TimeOfDay.now();
 
+  /// 運動時長（分鐘），選填——null 代表沒設定，打卡不會強制要填這個。
+  /// 範圍固定 0~100 分鐘，跟打卡時間同一種滾輪 UI，只是欄位換成單純
+  /// 數字（2026-09-23 使用者要求）。
+  int? _pickedDuration;
+
   @override
   void initState() {
     super.initState();
@@ -129,6 +134,55 @@ class _FitnessHomePageState extends ConsumerState<FitnessHomePage> {
     if (confirmed == true) setState(() => _pickedTime = draft);
   }
 
+  Future<void> _pickDuration() async {
+    var draft = _pickedDuration ?? 0;
+    final confirmed = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: const Color(0xFF1A1A24),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 8, 4),
+              child: Row(
+                children: [
+                  Text('選運動時長', style: AppText.body),
+                  const Spacer(),
+                  TextButton(
+                    onPressed: () => Navigator.pop(sheetContext, true),
+                    child: const Text('完成'),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(
+              height: 200,
+              child: CupertinoTheme(
+                data: const CupertinoThemeData(brightness: Brightness.dark),
+                child: CupertinoPicker(
+                  itemExtent: 36,
+                  scrollController: FixedExtentScrollController(
+                    initialItem: draft,
+                  ),
+                  onSelectedItemChanged: (i) => draft = i,
+                  children: [
+                    for (var i = 0; i <= 100; i++)
+                      Center(child: Text('$i 分鐘')),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (confirmed == true) setState(() => _pickedDuration = draft);
+  }
+
   Future<void> _checkIn() async {
     final now = DateTime.now();
     final targetDay = FitnessEntry.dayOnly(
@@ -146,6 +200,7 @@ class _FitnessHomePageState extends ConsumerState<FitnessHomePage> {
         id: '${now.microsecondsSinceEpoch}',
         date: targetDay,
         type: _selectedType,
+        durationMinutes: _pickedDuration,
         loggedAt: loggedAt,
       ),
     );
@@ -154,7 +209,8 @@ class _FitnessHomePageState extends ConsumerState<FitnessHomePage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          '已打卡：${_dayOffsetLabels[_dayOffset]}・${_selectedType.label}',
+          '已打卡：${_dayOffsetLabels[_dayOffset]}・${_selectedType.label}'
+          '${_pickedDuration == null ? '' : '・$_pickedDuration 分鐘'}',
         ),
       ),
     );
@@ -255,6 +311,7 @@ class _FitnessHomePageState extends ConsumerState<FitnessHomePage> {
   Future<void> _showEditEntryDialog(FitnessEntry entry) async {
     var type = entry.type;
     var time = TimeOfDay.fromDateTime(entry.loggedAt);
+    var duration = entry.durationMinutes;
     final saved = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
@@ -351,6 +408,74 @@ class _FitnessHomePageState extends ConsumerState<FitnessHomePage> {
                   ],
                 ),
               ),
+              InkWell(
+                onTap: () async {
+                  var draft = duration ?? 0;
+                  final confirmed = await showModalBottomSheet<bool>(
+                    context: dialogContext,
+                    backgroundColor: const Color(0xFF1A1A24),
+                    shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(20),
+                      ),
+                    ),
+                    builder: (sheetContext) => SafeArea(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 14, 8, 4),
+                            child: Row(
+                              children: [
+                                Text('選運動時長', style: AppText.body),
+                                const Spacer(),
+                                TextButton(
+                                  onPressed: () =>
+                                      Navigator.pop(sheetContext, true),
+                                  child: const Text('完成'),
+                                ),
+                              ],
+                            ),
+                          ),
+                          SizedBox(
+                            height: 200,
+                            child: CupertinoTheme(
+                              data: const CupertinoThemeData(
+                                brightness: Brightness.dark,
+                              ),
+                              child: CupertinoPicker(
+                                itemExtent: 36,
+                                scrollController: FixedExtentScrollController(
+                                  initialItem: draft,
+                                ),
+                                onSelectedItemChanged: (i) => draft = i,
+                                children: [
+                                  for (var i = 0; i <= 100; i++)
+                                    Center(child: Text('$i 分鐘')),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                  if (confirmed == true) setDialogState(() => duration = draft);
+                },
+                borderRadius: BorderRadius.circular(10),
+                child: Row(
+                  children: [
+                    const Icon(Icons.timer_outlined, size: 15, color: AppColors.ink3),
+                    const SizedBox(width: 6),
+                    Text(
+                      duration == null ? '運動時長（選填）' : '運動時長 $duration 分鐘',
+                      style: AppText.note,
+                    ),
+                    const Spacer(),
+                    const Icon(Icons.expand_more, size: 16, color: AppColors.ink3),
+                  ],
+                ),
+              ),
             ],
           ),
           actions: [
@@ -377,6 +502,7 @@ class _FitnessHomePageState extends ConsumerState<FitnessHomePage> {
         id: entry.id,
         date: d,
         type: type,
+        durationMinutes: duration,
         loggedAt: DateTime(d.year, d.month, d.day, time.hour, time.minute),
       ),
     );
@@ -462,6 +588,8 @@ class _FitnessHomePageState extends ConsumerState<FitnessHomePage> {
                                   setState(() => _dayOffset = v),
                               pickedTime: _pickedTime,
                               onPickTime: _pickTime,
+                              pickedDuration: _pickedDuration,
+                              onPickDuration: _pickDuration,
                             ),
                             const SizedBox(height: Gap.md),
                             if (entries.isNotEmpty) ...[
@@ -690,6 +818,8 @@ class _CheckInCard extends StatelessWidget {
     required this.onDayOffsetChanged,
     required this.pickedTime,
     required this.onPickTime,
+    required this.pickedDuration,
+    required this.onPickDuration,
   });
 
   final Set<DateTime> days;
@@ -700,6 +830,8 @@ class _CheckInCard extends StatelessWidget {
   final ValueChanged<int> onDayOffsetChanged;
   final TimeOfDay pickedTime;
   final VoidCallback onPickTime;
+  final int? pickedDuration;
+  final VoidCallback onPickDuration;
 
   @override
   Widget build(BuildContext context) {
@@ -754,6 +886,25 @@ class _CheckInCard extends StatelessWidget {
                   Text(
                     '打卡時間 ${pickedTime.hour.toString().padLeft(2, '0')}:'
                     '${pickedTime.minute.toString().padLeft(2, '0')}',
+                    style: AppText.note,
+                  ),
+                  const Spacer(),
+                  const Icon(Icons.expand_more, size: 16, color: AppColors.ink3),
+                ],
+              ),
+            ),
+          ),
+          InkWell(
+            onTap: onPickDuration,
+            borderRadius: BorderRadius.circular(10),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  const Icon(Icons.timer_outlined, size: 15, color: AppColors.ink3),
+                  const SizedBox(width: 6),
+                  Text(
+                    pickedDuration == null ? '運動時長（選填）' : '運動時長 $pickedDuration 分鐘',
                     style: AppText.note,
                   ),
                   const Spacer(),
@@ -895,7 +1046,9 @@ class _HistoryRow extends StatelessWidget {
             const SizedBox(width: Gap.sm),
             Expanded(
               child: Text(
-                entry.type.label,
+                entry.durationMinutes == null
+                    ? entry.type.label
+                    : '${entry.type.label}・${entry.durationMinutes} 分鐘',
                 style: const TextStyle(fontSize: 12.5, color: AppColors.ink),
               ),
             ),

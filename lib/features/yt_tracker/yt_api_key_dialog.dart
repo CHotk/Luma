@@ -6,6 +6,7 @@ import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
+import '../../data/repositories/yt_api_key_store.dart';
 
 /// 剪貼簿內容看起來像不像一把 API 金鑰的簡單判斷——不是真的去問
 /// Google 這把金鑰存不存在，只是排除掉「顯然不是」的內容（網址、
@@ -26,164 +27,190 @@ bool _looksLikeApiKey(String text) {
 /// 跟頂部列的鑰匙圖示都會開這個，同一顆元件，不要各刻一份
 /// （2026-09-22 使用者要求：進來先跳懸浮視窗輸入，也要有地方看目前
 /// 有沒有存、可以清除）。
-///
-/// 打開時會先看一眼剪貼簿，像金鑰的內容就秀一顆「貼上並儲存」——跟
-/// 百度網盤偵測到分享碼會主動問要不要貼上同一種體驗，一鍵貼上＋送出，
-/// 不用自己長按貼上再點儲存兩個動作（2026-09-23 使用者要求）。
-///
-/// 金鑰只放 [ytApiKeyProvider] 那個記憶體 provider，不寫進
-/// localStorage——使用者明確要求關掉分頁／重新整理就要消失，不要長期
-/// 留著，比較安全。
-Future<void> showYtApiKeyDialog(BuildContext context, WidgetRef ref) async {
-  final current = ref.read(ytApiKeyProvider);
-  final controller = TextEditingController(text: current ?? '');
-  var obscure = true;
-
-  // 剪貼簿讀取是 async，要在開 dialog 之前先問完，dialog 的 builder
-  // 本身不能是 async。讀不到（權限被擋、瀏覽器不支援）就當沒有候選，
-  // 不影響原本手動貼上的流程。
-  String? clipboardCandidate;
-  try {
-    final data = await Clipboard.getData(Clipboard.kTextPlain);
-    final text = data?.text?.trim();
-    if (text != null && text.isNotEmpty && text != current && _looksLikeApiKey(text)) {
-      clipboardCandidate = text;
-    }
-  } catch (_) {
-    clipboardCandidate = null;
-  }
-  if (!context.mounted) return;
-
-  await showDialog<void>(
+Future<void> showYtApiKeyDialog(BuildContext context, WidgetRef ref) {
+  return showDialog<void>(
     context: context,
-    builder: (dialogContext) => StatefulBuilder(
-      builder: (context, setDialogState) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1A24),
-        title: const Text(
-          'YouTube API 金鑰',
-          style: TextStyle(color: AppColors.ink),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  current == null || current.isEmpty
-                      ? Icons.lock_open_outlined
-                      : Icons.lock_outline,
-                  size: 16,
-                  color: current == null || current.isEmpty
-                      ? AppColors.ink3
-                      : AppColors.ok,
-                ),
-                const SizedBox(width: Gap.xs),
-                Text(
-                  current == null || current.isEmpty ? '目前沒有儲存金鑰' : '目前有金鑰儲存中',
-                  style: AppText.note,
-                ),
-              ],
-            ),
-            if (clipboardCandidate != null) ...[
-              const SizedBox(height: Gap.sm),
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: AppColors.ytAccent.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: AppColors.ytAccent.withValues(alpha: 0.4),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.content_paste_go_rounded,
-                      size: 16,
-                      color: AppColors.ytAccent,
-                    ),
-                    const SizedBox(width: Gap.xs),
-                    Expanded(
-                      child: Text(
-                        '偵測到剪貼簿有疑似金鑰的內容',
-                        style: AppText.note,
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        ref.read(ytApiKeyProvider.notifier).state =
-                            clipboardCandidate;
-                        Navigator.pop(dialogContext);
-                      },
-                      style: TextButton.styleFrom(
-                        foregroundColor: AppColors.ytAccent,
-                        padding: const EdgeInsets.symmetric(horizontal: 10),
-                        minimumSize: const Size(0, 32),
-                      ),
-                      child: const Text('貼上並儲存'),
-                    ),
-                  ],
-                ),
+    builder: (dialogContext) => const _YtApiKeyDialog(),
+  );
+}
+
+class _YtApiKeyDialog extends ConsumerStatefulWidget {
+  const _YtApiKeyDialog();
+
+  @override
+  ConsumerState<_YtApiKeyDialog> createState() => _YtApiKeyDialogState();
+}
+
+class _YtApiKeyDialogState extends ConsumerState<_YtApiKeyDialog> {
+  late final TextEditingController _controller;
+  var _obscure = true;
+  String? _clipboardCandidate;
+
+  @override
+  void initState() {
+    super.initState();
+    final current = ref.read(ytApiKeyProvider);
+    _controller = TextEditingController(text: current ?? '');
+    // 打開時會先看一眼剪貼簿，像金鑰的內容就秀一顆「貼上並儲存」——跟
+    // 百度網盤偵測到分享碼會主動問要不要貼上同一種體驗，一鍵貼上＋送出
+    // （2026-09-23 使用者要求）。
+    //
+    // 一定要在 dialog 已經開著、widget 已經 mount 之後才讀剪貼簿，不能
+    // 在 showDialog 之前就先讀——瀏覽器讀剪貼簿常常會跳權限詢問，使用者
+    // 按「允許」那個當下，如果 dialog 都還沒開，等權限答覆回來時原本
+    // 那次檢查早就結束、判斷完「沒有候選」了，dialog 開出來自然什麼都
+    // 不會顯示，使用者只會覺得「要求了權限，結果什麼都沒發生」——還是
+    // 得自己手動貼一次（2026-09-23 使用者實測回報的正是這個現象）。
+    // 現在改成 initState 裡才發起讀取，讀完用 setState 更新，不管權限
+    // 詢問花多久，畫面都還在、都能即時反映結果。
+    _checkClipboard(current);
+  }
+
+  Future<void> _checkClipboard(String? current) async {
+    try {
+      final data = await Clipboard.getData(Clipboard.kTextPlain);
+      final text = data?.text?.trim();
+      if (text != null &&
+          text.isNotEmpty &&
+          text != current &&
+          _looksLikeApiKey(text) &&
+          mounted) {
+        setState(() => _clipboardCandidate = text);
+      }
+    } catch (_) {
+      // 權限被擋、瀏覽器不支援：當沒有候選，不影響手動貼上的路。
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _persistAndClose(String? value) async {
+    ref.read(ytApiKeyProvider.notifier).state = value;
+    final store = YtApiKeyStore(ref.read(keyValueStoreProvider));
+    if (value == null) {
+      await store.clear();
+    } else {
+      await store.save(value);
+    }
+    if (!mounted) return;
+    Navigator.pop(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final current = ref.watch(ytApiKeyProvider);
+    final hasKey = current != null && current.isNotEmpty;
+
+    return AlertDialog(
+      backgroundColor: const Color(0xFF1A1A24),
+      title: const Text(
+        'YouTube API 金鑰',
+        style: TextStyle(color: AppColors.ink),
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                hasKey ? Icons.lock_outline : Icons.lock_open_outlined,
+                size: 16,
+                color: hasKey ? AppColors.ok : AppColors.ink3,
               ),
+              const SizedBox(width: Gap.xs),
+              Text(hasKey ? '目前有金鑰儲存中' : '目前沒有儲存金鑰', style: AppText.note),
             ],
+          ),
+          if (_clipboardCandidate != null) ...[
             const SizedBox(height: Gap.sm),
-            TextField(
-              controller: controller,
-              obscureText: obscure,
-              autofocus: current == null || current.isEmpty,
-              decoration: InputDecoration(
-                hintText: '貼上 API 金鑰',
-                suffixIcon: IconButton(
-                  onPressed: () =>
-                      setDialogState(() => obscure = !obscure),
-                  icon: Icon(
-                    obscure
-                        ? Icons.visibility_outlined
-                        : Icons.visibility_off_outlined,
-                    size: 18,
-                  ),
-                  color: AppColors.ink3,
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.ytAccent.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: AppColors.ytAccent.withValues(alpha: 0.4),
                 ),
               ),
-              style: const TextStyle(fontSize: 13, color: AppColors.ink),
-            ),
-            const SizedBox(height: Gap.xs),
-            Text(
-              '只存在這個分頁的記憶體裡，不會寫進瀏覽器儲存空間、也不會進\nGit——關掉分頁或重新整理就會消失，下次要重新貼一次。',
-              style: AppText.note,
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.content_paste_go_rounded,
+                    size: 16,
+                    color: AppColors.ytAccent,
+                  ),
+                  const SizedBox(width: Gap.xs),
+                  const Expanded(
+                    child: Text('偵測到剪貼簿有疑似金鑰的內容', style: AppText.note),
+                  ),
+                  TextButton(
+                    onPressed: () => _persistAndClose(_clipboardCandidate),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.ytAccent,
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      minimumSize: const Size(0, 32),
+                    ),
+                    child: const Text('貼上並儲存'),
+                  ),
+                ],
+              ),
             ),
           ],
-        ),
-        actions: [
-          if (current != null && current.isNotEmpty)
-            TextButton(
-              onPressed: () {
-                ref.read(ytApiKeyProvider.notifier).state = null;
-                Navigator.pop(dialogContext);
-              },
-              style: TextButton.styleFrom(foregroundColor: AppColors.bad),
-              child: const Text('清除金鑰'),
+          const SizedBox(height: Gap.sm),
+          TextField(
+            controller: _controller,
+            obscureText: _obscure,
+            autofocus: !hasKey,
+            decoration: InputDecoration(
+              hintText: '貼上 API 金鑰',
+              suffixIcon: IconButton(
+                onPressed: () => setState(() => _obscure = !_obscure),
+                icon: Icon(
+                  _obscure
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
+                  size: 18,
+                ),
+                color: AppColors.ink3,
+              ),
             ),
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('取消'),
+            style: const TextStyle(fontSize: 13, color: AppColors.ink),
           ),
-          FilledButton(
-            onPressed: () {
-              final value = controller.text.trim();
-              ref.read(ytApiKeyProvider.notifier).state =
-                  value.isEmpty ? null : value;
-              Navigator.pop(dialogContext);
-            },
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.ytAccent,
-              foregroundColor: AppColors.ytAccentInk,
-            ),
-            child: const Text('儲存'),
+          const SizedBox(height: Gap.xs),
+          Text(
+            '會存在這台裝置的瀏覽器裡，但只留到明天 00:00——過了就自動\n清掉，不會無限期留著，也不會進 Git。',
+            style: AppText.note,
           ),
         ],
       ),
-    ),
-  );
+      actions: [
+        if (hasKey)
+          TextButton(
+            onPressed: () => _persistAndClose(null),
+            style: TextButton.styleFrom(foregroundColor: AppColors.bad),
+            child: const Text('清除金鑰'),
+          ),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('取消'),
+        ),
+        FilledButton(
+          onPressed: () {
+            final value = _controller.text.trim();
+            _persistAndClose(value.isEmpty ? null : value);
+          },
+          style: FilledButton.styleFrom(
+            backgroundColor: AppColors.ytAccent,
+            foregroundColor: AppColors.ytAccentInk,
+          ),
+          child: const Text('儲存'),
+        ),
+      ],
+    );
+  }
 }

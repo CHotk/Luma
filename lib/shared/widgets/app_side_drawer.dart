@@ -173,6 +173,10 @@ class AppSideDrawer extends StatelessWidget {
                     icon: Icons.soup_kitchen_outlined,
                     label: '料理技能',
                   ),
+                  const _MockNavItem(
+                    icon: Icons.theaters_outlined,
+                    label: '已看過的影劇',
+                  ),
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 10),
                     child: Divider(height: 1, color: AppColors.glassEdge),

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app/app.dart';
 import 'app/providers.dart';
+import 'data/repositories/yt_api_key_store.dart';
 import 'data/seed/app_defaults_loader.dart';
 import 'data/storage/key_value_store.dart';
 import 'shared/debug/app_log.dart';
@@ -16,12 +17,16 @@ Future<void> main() async {
   _wireAppLog();
   final store = await SharedPrefsStore.open();
   final tagOrder = await loadLibraryTagOrder();
+  // 過期（隔天 00:00 之後）就是 null，跟原本沒存過一樣——見
+  // yt_api_key_store.dart 的說明。
+  final savedYtApiKey = await YtApiKeyStore(store).load();
 
   runApp(
     ProviderScope(
       overrides: [
         keyValueStoreProvider.overrideWithValue(store),
         libraryTagOrderProvider.overrideWithValue(tagOrder),
+        ytApiKeyProvider.overrideWith((ref) => savedYtApiKey),
       ],
       child: const LumeApp(),
     ),

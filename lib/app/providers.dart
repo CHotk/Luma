@@ -95,11 +95,15 @@ final ttsServiceProvider = FutureProvider<TtsService>((ref) async {
 /// 因為偽裝畫面要假裝成終端機，跳出中文輸入法就穿幫了。
 final stealthModeProvider = StateProvider<bool>((ref) => false);
 
-/// YouTube API 金鑰。故意只放記憶體（`StateProvider`），不寫進
-/// `KeyValueStore`／localStorage——使用者明確要求金鑰只留在這次的
-/// 分頁存活期間，關掉分頁或重新整理就消失，不要長期存在瀏覽器裡
-/// （2026-09-22 使用者要求：比較安全，不用長期儲存）。代價是每次
-/// 重新整理都要重新輸入一次，這是使用者接受的取捨。
+/// YouTube API 金鑰。原本堅持只放記憶體、不寫進 localStorage
+/// （2026-09-22），後來使用者覺得每次重新整理都要重貼太麻煩，改成存
+/// `KeyValueStore`／localStorage，但帶「隔天 00:00 就過期」的效期
+/// （2026-09-23 使用者決定，見 `data/repositories/yt_api_key_store.dart`）
+/// ——不是永久留著，兩邊各退一步。這裡的初始值預設是 null，真正「有
+/// 存過、還沒過期」的值是在 `main.dart` 用 `overrideWith` 蓋進來的；
+/// 存新金鑰／清除金鑰時，畫面層要自己再呼叫一次 [YtApiKeyStore] 同步
+/// 寫回本機，這個 provider 本身不會自動幫你寫（它只是純記憶體狀態，
+/// 跟開機時讀一次是兩件事）。
 final ytApiKeyProvider = StateProvider<String?>((ref) => null);
 
 /// 剛結束那一輪的成績，給結果頁讀。

@@ -40,5 +40,11 @@
     "name": "食物",
     "color": 4292897184,
     "imageUrl": "assets/images/yt_tracker/food.png"
+  },
+  {
+    "id": "seed-music",
+    "name": "音樂",
+    "color": 4292897184,
+    "imageUrl": "assets/images/yt_tracker/music.png"
   }
 ]
