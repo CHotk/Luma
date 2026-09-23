@@ -50,22 +50,7 @@ class AppSideDrawer extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Container(
-                        width: 34,
-                        height: 34,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(10),
-                          gradient: const LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              Color(0xFFFFFFFF),
-                              Color(0xFF9B7BFF),
-                              Color(0xFF7EA6FF),
-                            ],
-                          ),
-                        ),
-                      ),
+                      const _BrandLogo(),
                       const SizedBox(width: 10),
                       const Text(
                         'Lume',
@@ -172,12 +157,21 @@ class AppSideDrawer extends StatelessWidget {
                   const _MockNavItem(icon: Icons.alarm_rounded, label: '鬧鐘'),
                   const _MockNavItem(icon: Icons.timer_rounded, label: '碼錶'),
                   // 純前端網頁沒有後端能在背景推播，App／分頁沒開著就
-                  // 不可能準時提醒（2026-09-23 已經跟使用者說明這個限制、
-                  // 使用者先記著這個構想，還沒決定要不要做「盡力而為」
-                  // 的退化版本）。
+                  // 不可能準時提醒（2026-09-23 已經跟使用者說明這個限制）。
+                  // 一開始只想到健身提醒才取名「健身提醒」，使用者後來
+                  // 决定改成更通用的「提醒」，也明確表示不做退化版本
+                  // （只開分頁才會響那種），純粹先記著構想。
                   const _MockNavItem(
                     icon: Icons.notifications_active_outlined,
-                    label: '健身提醒',
+                    label: '提醒',
+                  ),
+                  const _MockNavItem(
+                    icon: Icons.restaurant_menu_rounded,
+                    label: '飲食控制',
+                  ),
+                  const _MockNavItem(
+                    icon: Icons.soup_kitchen_outlined,
+                    label: '料理技能',
                   ),
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 10),
@@ -210,6 +204,43 @@ class AppSideDrawer extends StatelessWidget {
                   ),
                 ],
               ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 側邊選單頂端的品牌標誌。使用者準備了自己的圖放
+/// `assets/images/app_logo/logo.png`，讀得到就用那張，讀不到（還沒放、
+/// 路徑打錯）就退回原本設計的漸層方塊，跟 [StatsIcon]／[SettingsIcon]
+/// 同一套防呆做法（2026-09-23 使用者要求：一樣要防呆，沒圖就退成目前
+/// 設計版本）。
+class _BrandLogo extends StatelessWidget {
+  const _BrandLogo();
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(10),
+      child: Image.asset(
+        'assets/images/app_logo/logo.png',
+        width: 34,
+        height: 34,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stack) => Container(
+          width: 34,
+          height: 34,
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFFFFFFFF),
+                Color(0xFF9B7BFF),
+                Color(0xFF7EA6FF),
+              ],
             ),
           ),
         ),

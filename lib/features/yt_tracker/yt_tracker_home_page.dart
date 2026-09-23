@@ -277,6 +277,7 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
                 const SizedBox(height: Gap.sm),
                 AppTopBar(
                   title: 'YT 頻道追蹤',
+                  showBack: false,
                   actions: [
                     Consumer(
                       builder: (context, ref, _) {

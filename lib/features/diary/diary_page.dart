@@ -386,6 +386,7 @@ class _DiaryPageState extends ConsumerState<DiaryPage> {
                 const SizedBox(height: Gap.sm),
                 AppTopBar(
                   title: '日記',
+                  showBack: false,
                   actions: [
                     IconButton(
                       onPressed: () => _showExportDialog(context, ref),
