@@ -259,14 +259,19 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
         if (videos.isEmpty) {
           return Center(child: Text('這個頻道抓不到影片', style: AppText.bodyDim));
         }
-        return ListView.separated(
-          itemCount: videos.length,
-          separatorBuilder: (_, _) =>
-              const Divider(height: 1, color: AppColors.glassEdge),
-          itemBuilder: (_, i) => YtVideoRow(
-            video: videos[i],
-            subtitle: ytRelativeTime(videos[i].publishedAt),
-          ),
+        // 用 Column 不用 ListView.separated——這塊現在是外層
+        // SingleChildScrollView 的一部分，自己不用再是獨立的可捲動
+        // 區域（見 build() 的說明：簡介／圖表／影片要一起滑動）。
+        return Column(
+          children: [
+            for (var i = 0; i < videos.length; i++) ...[
+              if (i > 0) const Divider(height: 1, color: AppColors.glassEdge),
+              YtVideoRow(
+                video: videos[i],
+                subtitle: ytRelativeTime(videos[i].publishedAt),
+              ),
+            ],
+          ],
         );
       },
     );
@@ -491,7 +496,47 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                             ],
                           ),
                           const SizedBox(height: Gap.md),
-                          Row(
+                          // 簡介／上傳頻率圖／最近影片全部包進同一個可捲動
+                          // 區域，不要只有最近影片自己捲、上面的內容固定
+                          // 不動——不然滑最近影片清單時，簡介跟圖表卻停在
+                          // 原地不會一起往上滑，體驗很奇怪（2026-09-23
+                          // 使用者回報）。只有頂部列固定在外面。
+                          Expanded(
+                            child: SingleChildScrollView(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  _buildChannelBody(
+                                    channel,
+                                    categories,
+                                    categoryLabel,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChannelBody(
+    YtChannel channel,
+    List<YtCategory> categories,
+    String categoryLabel,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
                             children: [
                               YtChannelAvatar(channel: channel, radius: 28),
                               const SizedBox(width: Gap.md),
@@ -572,18 +617,9 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                               ),
                             ],
                           ),
-                          const SizedBox(height: Gap.sm),
-                          Expanded(child: _buildVideos(channel)),
-                        ],
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+        const SizedBox(height: Gap.sm),
+        _buildVideos(channel),
+      ],
     );
   }
 }
