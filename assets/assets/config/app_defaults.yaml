@@ -149,3 +149,15 @@ kanaGifSize: 320
 # 色盤大小，愈小編碼愈快、檔案愈小——幾乎全是紙色背景加深色墨線的
 # 簡單畫面，不需要到 256 色。
 kanaGifNumColors: 64
+
+## ---- 多裝置同步（Cloudflare R2）----
+## 只放 bucket 名稱這種「固定不變、換了要改 code 邏輯才有意義」的
+## 設定，Access Key ID／Secret Access Key 這些每個裝置各自不同的
+## 憑證不放這裡——那些是使用者在「設定」頁自己輸入、存本機
+## localStorage 的，跟這份隨 App 一起打包、所有裝置共用同一份的設定檔
+## 完全是两回事（2026-09-23 使用者要求：bucket 名稱要能改設定檔，
+## 不要寫死在 code 裡）。
+
+# R2 bucket 名稱。一個人只會有一個同步用的 bucket，不需要讓使用者在
+# 畫面上填，但也不要真的寫死在 .dart 檔裡，換 bucket 只要改這裡。
+r2BucketName: lume
