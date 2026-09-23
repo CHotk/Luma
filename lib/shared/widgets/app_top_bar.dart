@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
+import 'settings_icon.dart';
 
 /// 全 App 共用的頁面頂部列：左邊固定三條線選單（開抽屜），右邊固定
 /// 設定齒輪——這兩個位置整個 App 都一樣，不管哪個頁面都要在，不能
@@ -75,7 +76,7 @@ class AppTopBar extends StatelessWidget {
         if (showSettings)
           IconButton(
             onPressed: () => context.push('/settings'),
-            icon: const Icon(Icons.settings_outlined, size: 20),
+            icon: const SettingsIcon(size: 20),
             color: AppColors.ink2,
             tooltip: '設定',
             padding: EdgeInsets.zero,

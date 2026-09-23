@@ -15,6 +15,7 @@ import '../../domain/spell_judge.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/glass_card.dart';
+import '../../shared/widgets/settings_icon.dart';
 import '../../shared/widgets/speaker_button.dart';
 import 'quiz_controller.dart';
 
@@ -206,7 +207,7 @@ class _ProgressBar extends StatelessWidget {
         ),
         IconButton(
           onPressed: () => context.push('/settings'),
-          icon: const Icon(Icons.settings_outlined, size: 19),
+          icon: const SettingsIcon(size: 19, color: AppColors.ink3),
           color: AppColors.ink3,
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(minWidth: 32, minHeight: 32),

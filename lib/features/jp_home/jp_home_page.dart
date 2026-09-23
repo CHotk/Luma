@@ -11,6 +11,7 @@ import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/glass_card.dart';
 import '../../shared/widgets/ring_progress.dart';
+import '../../shared/widgets/settings_icon.dart';
 import '../../shared/widgets/stats_icon.dart';
 import '../../shared/widgets/track_switcher.dart';
 import '../kana_practice/gojuon_data.dart';
@@ -219,7 +220,7 @@ class _TopBar extends StatelessWidget {
         ),
         IconButton(
           onPressed: () => context.push('/settings'),
-          icon: const Icon(Icons.settings_outlined, size: 20),
+          icon: const SettingsIcon(size: 20, color: AppColors.ink2),
           color: AppColors.ink2,
           tooltip: '設定',
           padding: EdgeInsets.zero,

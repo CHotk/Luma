@@ -12,6 +12,7 @@ import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/glass_card.dart';
 import '../../shared/widgets/ring_progress.dart';
+import '../../shared/widgets/settings_icon.dart';
 import '../../shared/widgets/stats_icon.dart';
 import '../../shared/widgets/track_switcher.dart';
 import 'home_controller.dart';
@@ -170,11 +171,6 @@ class _TopBar extends ConsumerWidget {
           context.push('/stealth');
         },
       ),
-      (
-        icon: Icons.settings_outlined,
-        tip: '設定',
-        tap: () => context.push('/settings'),
-      ),
     ];
 
     return Row(
@@ -230,6 +226,15 @@ class _TopBar extends ConsumerWidget {
             visualDensity: VisualDensity.compact,
             constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
           ),
+        IconButton(
+          onPressed: () => context.push('/settings'),
+          icon: const SettingsIcon(size: 20, color: AppColors.ink2),
+          color: AppColors.ink2,
+          tooltip: '設定',
+          padding: EdgeInsets.zero,
+          visualDensity: VisualDensity.compact,
+          constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+        ),
       ],
     );
   }
