@@ -177,6 +177,10 @@ class AppSideDrawer extends StatelessWidget {
                     icon: Icons.theaters_outlined,
                     label: '已看過的影劇',
                   ),
+                  const _MockNavItem(
+                    icon: Icons.storage_outlined,
+                    label: '本機資料檢視',
+                  ),
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 10),
                     child: Divider(height: 1, color: AppColors.glassEdge),
