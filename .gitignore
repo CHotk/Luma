@@ -43,3 +43,11 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# 日記內容太私人，不走「匯出→貼進 assets/data/→commit」這套快照備份
+# 流程——這個 repo 是公開的（GitHub Pages 需要），其他功能（YT頻道
+# 追蹤／健身／假名練習/考試）都還照這套模式正常版控，只有日記這個
+# 檔案不行，使用者自己另外用私人雲端備份日記（2026-09-23 使用者決定）。
+# 本機這個檔案還是會留著（loadDiarySeed() 讀不到／空陣列都有防呆，
+# 見 lib/data/seed/diary_seed_loader.dart），只是不再進 git 歷史。
+assets/data/diary.json
