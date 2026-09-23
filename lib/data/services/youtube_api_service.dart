@@ -173,17 +173,20 @@ class YoutubeApiService {
     ];
   }
 
-  /// 抓一個頻道「從有紀錄以來到現在」的全部上傳影片，給統計圖用。
+  /// 抓一個頻道「`since` 之後」的全部上傳影片，給統計圖用——不是抓從
+  /// 有紀錄以來的完整歷史，只抓最近一段時間（頻道詳情頁傳「近半年」，
+  /// 見 `yt_tracker_channel_page.dart`）（2026-09-23 使用者拿掉「全部
+  /// 歷史」的範圍，改成半年就好，時間範圍固定，不會因為頻道發片多寡
+  /// 讓等待時間跟配額失控）。
   ///
-  /// `playlistItems.list` 一次最多回 50 筆，要抓完整段歷史得靠
-  /// `pageToken` 一直翻頁；`maxPages` 是安全上限（預設 20 頁＝最多
-  /// 1000 部影片）——不設上限的話，訂閱很久、產量很大的頻道（例如
-  /// 日更好幾年）可能要翻幾十頁才翻得完，每頁都是一次網路來回，使用者
-  /// 會等到不耐煩，配額也會不必要地一直燒（雖然這支 API 每頁只算
-  /// 1 單位，燒得不算快，但頁數不設上限還是有失控風險）。1000 部影片
-  /// 拿來畫「每月上傳頻率」摺線圖已經綽綽有餘，用不到的頻道也很少見。
+  /// `playlistItems.list` 一次最多回 50 筆，回傳順序是新到舊，靠
+  /// `pageToken` 翻頁；每頁檢查最後一筆的發布時間，一旦早於 [since] 就
+  /// 不用再翻下一頁——`maxPages` 是額外的安全上限，正常情況半年份的
+  /// 影片翻不了幾頁就會被時間篩到，這個上限只是防止極端狀況（例如
+  /// `since` 給了很久以前的時間）翻到失控。
   Future<List<YoutubeVideo>> fetchAllVideos(
     String uploadsPlaylistId, {
+    required DateTime since,
     int maxPages = 20,
   }) async {
     final videos = <YoutubeVideo>[];
@@ -205,9 +208,16 @@ class YoutubeApiService {
       }
       final items = ((body['items'] as List?) ?? const [])
           .cast<Map<String, dynamic>>();
-      videos.addAll(items.map(_videoFrom));
+      final pageVideos = items.map(_videoFrom).toList();
+      videos.addAll(pageVideos.where((v) => !v.publishedAt.isBefore(since)));
+      final oldestInPage = pageVideos.isEmpty
+          ? null
+          : pageVideos.map((v) => v.publishedAt).reduce(
+              (a, b) => a.isBefore(b) ? a : b,
+            );
       pageToken = body['nextPageToken'] as String?;
       if (pageToken == null) break;
+      if (oldestInPage != null && oldestInPage.isBefore(since)) break;
     }
     return videos;
   }

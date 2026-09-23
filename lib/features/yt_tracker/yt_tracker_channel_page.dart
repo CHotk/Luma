@@ -37,11 +37,11 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
   String? _videosLoadedForChannelId;
   DateTime? _videosLoadedAt;
 
-  /// 「上傳頻率」摺線圖的全部歷史影片，跟「最近影片」分開抓、分開快取
-  /// ——這支要翻好幾頁 API、抓幾百部影片的時長，比最近影片貴很多，
-  /// 用同一個 5 分鐘節流太浪費；歷史資料本來就不會突然變，只要同一個
-  /// 頻道同一次進頁面抓過一次就夠，不用時間到就重抓，只有手動按重新
-  /// 整理（跟最近影片共用那顆按鈕）才會強制重抓。
+  /// 「上傳頻率」摺線圖用的近半年影片，跟「最近影片」分開抓、分開快取
+  /// ——這支可能要翻好幾頁 API、抓不少影片的時長，比最近影片貴，用同一
+  /// 個 5 分鐘節流太浪費；半年內的資料不會突然變，只要同一個頻道同一次
+  /// 進頁面抓過一次就夠，不用時間到就重抓，只有手動按重新整理（跟最近
+  /// 影片共用那顆按鈕）才會強制重抓。
   Future<List<YoutubeVideo>>? _historyFuture;
   String? _historyLoadedForChannelId;
 
@@ -149,7 +149,11 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
       final info = await service.fetchChannelInfo(handle);
       uploadsId = info.uploadsPlaylistId;
     }
-    final videos = await service.fetchAllVideos(uploadsId);
+    final now = DateTime.now();
+    // 只抓近半年，不是全部歷史——時間範圍固定，不會因為頻道發片多寡
+    // 讓等待時間跟配額失控（2026-09-23 使用者要求）。
+    final since = DateTime(now.year, now.month - 6, now.day);
+    final videos = await service.fetchAllVideos(uploadsId, since: since);
     // 時長抓失敗不影響圖能不能畫，只是 Shorts／一般影片分不出來，兩條
     // 線會全部算進「一般影片」那條（因為 isLikelyShort 需要 duration
     // 才能判斷，沒有就當作不是 Shorts）。
@@ -543,7 +547,7 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                             Text(channel.description, style: AppText.bodyDim),
                           ],
                           const SizedBox(height: Gap.md),
-                          const PanelLabel('上傳頻率'),
+                          const PanelLabel('上傳頻率（近半年）'),
                           const SizedBox(height: Gap.xs),
                           _buildHistoryChart(channel),
                           const SizedBox(height: Gap.md),
