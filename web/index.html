@@ -20,6 +20,16 @@
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="Lume 微光 — 一天一點未來光">
 
+  <!--
+    手機瀏覽器（非安裝成 PWA 時）狀態列／網址列那塊底色是看這個 meta
+    標籤，不是 manifest.json 的 theme_color——manifest 那個只有「已加入
+    主畫面、用 standalone 模式開」才會生效。沒加這個標籤的話 iPhone
+    Safari 上排會是預設白色，跟 App 深色底完全不搭（2026-09-23 使用者
+    拿實機截圖回報最上面時間那排一片白）。顏色跟 manifest.json 的
+    theme_color、background_color 同一個值，三處要保持一致。
+  -->
+  <meta name="theme-color" content="#0C0C13">
+
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">

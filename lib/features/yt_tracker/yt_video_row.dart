@@ -1,26 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
+import '../../data/external_link.dart';
 import '../../data/services/youtube_api_service.dart';
 
 /// 開外部連結，失敗就退回複製到剪貼簿——跟匯出檔案失敗退回複製剪貼簿
-/// 同一個處理哲學。之前直接呼叫 `launchUrl(..., mode:
-/// LaunchMode.externalApplication)` 沒包 try/catch，網頁上丟出例外會
-/// 整個吃掉沒有任何畫面回饋，使用者只會覺得「點了沒反應」（2026-09-22
-/// 使用者回報主控台真的有 Uncaught Error）。`externalApplication` 這個
-/// mode 本來是手機平台用來指定「真的開瀏覽器 App 不要用內嵌 WebView」，
-/// 網頁版沒有這個區分，改用 `platformDefault` 比較安全。
+/// 同一個處理哲學。
+///
+/// 這裡**不能**用 `url_launcher`：它在網頁版走 plugin channel，`launch`
+/// 呼叫到真正執行 `window.open` 中間一定會夾至少一個 await／microtask。
+/// 桌機瀏覽器對「這次 window.open 算不算使用者手勢觸發」判斷比較寬鬆，
+/// 夾一個 microtask 還是會放行；手機 Safari 判斷嚴格很多，只要不是在
+/// 點擊事件處理常式裡「同步」呼叫就直接擋掉，使用者只會看到打不開
+/// （2026-09-23 使用者拿實機回報才抓到，桌機版之前修的是另一個問題：
+/// 未捕捉例外，不是這個彈窗封鎖）。改用 [openExternalUrlSync] 同步直接
+/// 呼叫 `window.open`，就在點擊當下那個呼叫堆疊裡執行，不夾任何 await。
 Future<void> openExternalUrl(BuildContext context, String url) async {
-  var opened = false;
-  try {
-    opened = await launchUrl(Uri.parse(url), mode: LaunchMode.platformDefault);
-  } catch (_) {
-    opened = false;
-  }
+  final opened = openExternalUrlSync(url);
   if (opened || !context.mounted) return;
   await Clipboard.setData(ClipboardData(text: url));
   if (!context.mounted) return;

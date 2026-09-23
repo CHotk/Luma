@@ -11,6 +11,7 @@ import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
 import '../../shared/widgets/glass_card.dart';
+import 'upload_frequency_chart.dart';
 import 'yt_api_key_dialog.dart';
 import 'yt_channel_avatar.dart';
 import 'yt_video_row.dart';
@@ -35,6 +36,14 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
   Future<List<YoutubeVideo>>? _videosFuture;
   String? _videosLoadedForChannelId;
   DateTime? _videosLoadedAt;
+
+  /// 「上傳頻率」摺線圖的全部歷史影片，跟「最近影片」分開抓、分開快取
+  /// ——這支要翻好幾頁 API、抓幾百部影片的時長，比最近影片貴很多，
+  /// 用同一個 5 分鐘節流太浪費；歷史資料本來就不會突然變，只要同一個
+  /// 頻道同一次進頁面抓過一次就夠，不用時間到就重抓，只有手動按重新
+  /// 整理（跟最近影片共用那顆按鈕）才會強制重抓。
+  Future<List<YoutubeVideo>>? _historyFuture;
+  String? _historyLoadedForChannelId;
 
   /// 跟 `yt_tracker_browse_page.dart` 同一個節流理由：不是把影片清單
   /// 長期快取，只是不要每次重繪都重打 API，超過這個時間或按「重新
@@ -117,6 +126,82 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     } catch (_) {
       return videos;
     }
+  }
+
+  void _ensureHistoryLoaded(YtChannel channel, {bool force = false}) {
+    final apiKey = ref.read(ytApiKeyProvider);
+    if (apiKey == null || apiKey.isEmpty) return;
+    if (!force && _historyLoadedForChannelId == channel.id) return;
+    _historyLoadedForChannelId = channel.id;
+    setState(() {
+      _historyFuture = _fetchHistory(channel);
+    });
+  }
+
+  Future<List<YoutubeVideo>> _fetchHistory(YtChannel channel) async {
+    final apiKey = ref.read(ytApiKeyProvider);
+    if (apiKey == null || apiKey.isEmpty) return const [];
+    final service = YoutubeApiService(apiKey);
+    var uploadsId = channel.uploadsPlaylistId;
+    if (uploadsId.isEmpty) {
+      final handle = YoutubeApiService.parseHandle(channel.url);
+      if (handle == null) return const [];
+      final info = await service.fetchChannelInfo(handle);
+      uploadsId = info.uploadsPlaylistId;
+    }
+    final videos = await service.fetchAllVideos(uploadsId);
+    // 時長抓失敗不影響圖能不能畫，只是 Shorts／一般影片分不出來，兩條
+    // 線會全部算進「一般影片」那條（因為 isLikelyShort 需要 duration
+    // 才能判斷，沒有就當作不是 Shorts）。
+    try {
+      final durations = await service.fetchDurations(
+        [for (final v in videos) v.videoId],
+      );
+      return [
+        for (final v in videos)
+          durations.containsKey(v.videoId)
+              ? v.withDuration(durations[v.videoId]!)
+              : v,
+      ];
+    } catch (_) {
+      return videos;
+    }
+  }
+
+  Widget _buildHistoryChart(YtChannel channel) {
+    final apiKey = ref.watch(ytApiKeyProvider);
+    if (apiKey == null || apiKey.isEmpty) return const SizedBox.shrink();
+    if (_historyFuture == null) {
+      return const SizedBox(
+        height: 60,
+        child: Center(child: CircularProgressIndicator.adaptive()),
+      );
+    }
+    return FutureBuilder<List<YoutubeVideo>>(
+      future: _historyFuture,
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const SizedBox(
+            height: 160,
+            child: Center(child: CircularProgressIndicator.adaptive()),
+          );
+        }
+        if (snap.hasError) {
+          return SizedBox(
+            height: 60,
+            child: Center(
+              child: Text(
+                '抓不到歷史影片：${snap.error}',
+                style: AppText.note,
+                textAlign: TextAlign.center,
+              ),
+            ),
+          );
+        }
+        final videos = snap.data ?? const [];
+        return UploadFrequencyChart(data: bucketVideosByMonth(videos));
+      },
+    );
   }
 
   Widget _buildVideos(YtChannel channel) {
@@ -381,7 +466,9 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                       // setState），排到這一幀畫完之後——跟
                       // `yt_tracker_browse_page.dart` 同一套做法。
                       WidgetsBinding.instance.addPostFrameCallback((_) {
-                        if (mounted) _ensureVideosLoaded(channel);
+                        if (!mounted) return;
+                        _ensureVideosLoaded(channel);
+                        _ensureHistoryLoaded(channel);
                       });
 
                       return Column(
@@ -456,13 +543,19 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                             Text(channel.description, style: AppText.bodyDim),
                           ],
                           const SizedBox(height: Gap.md),
+                          const PanelLabel('上傳頻率'),
+                          const SizedBox(height: Gap.xs),
+                          _buildHistoryChart(channel),
+                          const SizedBox(height: Gap.md),
                           Row(
                             children: [
                               const PanelLabel('最近影片'),
                               const Spacer(),
                               TextButton.icon(
-                                onPressed: () =>
-                                    _ensureVideosLoaded(channel, force: true),
+                                onPressed: () {
+                                  _ensureVideosLoaded(channel, force: true);
+                                  _ensureHistoryLoaded(channel, force: true);
+                                },
                                 icon: const Icon(Icons.refresh, size: 15),
                                 label: const Text('重新整理'),
                                 style: TextButton.styleFrom(

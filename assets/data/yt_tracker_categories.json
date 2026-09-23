@@ -2,6 +2,25 @@
   {
     "id": "seed-current-affairs",
     "name": "時事議題／社會分析",
-    "color": 4285180384
+    "color": 4285180384,
+    "imageUrl": "assets/images/yt_tracker/current_affairs.png"
+  },
+  {
+    "id": "seed-crypto",
+    "name": "幣圈",
+    "color": 4292913486,
+    "imageUrl": "assets/images/yt_tracker/crypto.png"
+  },
+  {
+    "id": "seed-games",
+    "name": "遊戲",
+    "color": 4286562191,
+    "imageUrl": "assets/images/yt_tracker/games.png"
+  },
+  {
+    "id": "seed-travel",
+    "name": "旅遊",
+    "color": 4284463305,
+    "imageUrl": "assets/images/yt_tracker/travel.png"
   }
 ]

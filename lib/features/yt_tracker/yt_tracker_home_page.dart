@@ -96,6 +96,7 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
 
   Future<void> _showAddCategoryDialog() async {
     final controller = TextEditingController();
+    final imageController = TextEditingController();
     var colorValue = ytCategoryColors.first;
     final saved = await showDialog<bool>(
       context: context,
@@ -117,6 +118,12 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
                   counterText: '',
                 ),
                 style: const TextStyle(color: AppColors.ink),
+              ),
+              const SizedBox(height: Gap.xs),
+              TextField(
+                controller: imageController,
+                decoration: const InputDecoration(labelText: '底圖網址（選填）'),
+                style: const TextStyle(fontSize: 12.5, color: AppColors.ink),
               ),
               const SizedBox(height: Gap.sm),
               Wrap(
@@ -157,6 +164,7 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
         id: DateTime.now().microsecondsSinceEpoch.toString(),
         name: name,
         colorValue: colorValue,
+        imageUrl: imageController.text.trim(),
       ),
     );
     if (!mounted) return;
@@ -165,6 +173,7 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
 
   Future<void> _showEditCategoryDialog(YtCategory category) async {
     final controller = TextEditingController(text: category.name);
+    final imageController = TextEditingController(text: category.imageUrl);
     var colorValue = category.colorValue;
     final action = await showDialog<String>(
       context: context,
@@ -185,6 +194,12 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
                   counterText: '',
                 ),
                 style: const TextStyle(color: AppColors.ink),
+              ),
+              const SizedBox(height: Gap.xs),
+              TextField(
+                controller: imageController,
+                decoration: const InputDecoration(labelText: '底圖網址（選填）'),
+                style: const TextStyle(fontSize: 12.5, color: AppColors.ink),
               ),
               const SizedBox(height: Gap.sm),
               Wrap(
@@ -230,7 +245,12 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
       final name = controller.text.trim();
       if (name.isEmpty) return;
       await repo.updateCategory(
-        YtCategory(id: category.id, name: name, colorValue: colorValue),
+        YtCategory(
+          id: category.id,
+          name: name,
+          colorValue: colorValue,
+          imageUrl: imageController.text.trim(),
+        ),
       );
       if (!mounted) return;
       _reload();
@@ -295,20 +315,45 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
                         );
                       },
                     ),
-                    IconButton(
-                      onPressed: () => _testNotification(context),
-                      icon: const Icon(
-                        Icons.notifications_active_outlined,
-                        size: 20,
-                      ),
+                    // 測試通知／匯出收進「⋮」選單，不要跟金鑰狀態、新增
+                    // 分類這兩個常用項目擠在同一排——四顆小圖示疊在頂部列
+                    // 本來就已經很擠，使用者反應找不到測試通知按鈕，很可能
+                    // 就是這排太擠，眼睛掃過去沒認出來（2026-09-23）。收進
+                    // 選單後項目有文字標籤，比一顆顆小圖示更好辨識。
+                    PopupMenuButton<_YtHomeMenuAction>(
+                      icon: const Icon(Icons.more_vert_rounded, size: 20),
                       color: AppColors.ink2,
-                      tooltip: '測試通知',
-                    ),
-                    IconButton(
-                      onPressed: () => _showExportDialog(context, ref),
-                      icon: const Icon(Icons.ios_share_rounded, size: 20),
-                      color: AppColors.ink2,
-                      tooltip: '匯出分類／頻道',
+                      tooltip: '更多',
+                      onSelected: (action) {
+                        switch (action) {
+                          case _YtHomeMenuAction.testNotification:
+                            _testNotification(context);
+                          case _YtHomeMenuAction.export:
+                            _showExportDialog(context, ref);
+                        }
+                      },
+                      itemBuilder: (context) => const [
+                        PopupMenuItem(
+                          value: _YtHomeMenuAction.testNotification,
+                          child: Row(
+                            children: [
+                              Icon(Icons.notifications_active_outlined, size: 18),
+                              SizedBox(width: 10),
+                              Text('測試通知'),
+                            ],
+                          ),
+                        ),
+                        PopupMenuItem(
+                          value: _YtHomeMenuAction.export,
+                          child: Row(
+                            children: [
+                              Icon(Icons.ios_share_rounded, size: 18),
+                              SizedBox(width: 10),
+                              Text('匯出分類／頻道'),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                     IconButton(
                       onPressed: _showAddCategoryDialog,
@@ -431,6 +476,8 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
   }
 }
 
+enum _YtHomeMenuAction { testNotification, export }
+
 class _EmptyState extends StatelessWidget {
   const _EmptyState({required this.onAdd});
 
@@ -461,6 +508,25 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
+/// 分類底圖可能是使用者手動貼的遠端網址，也可能是專案內建的 asset
+/// （`assets/images/yt_tracker/...`，2026-09-23 使用者把自己準備的底圖
+/// 直接丟進專案，不是連結）——用路徑開頭判斷該用哪個 widget 讀圖，不用
+/// 另外加一個布林欄位增加資料結構複雜度。
+class _CategoryImage extends StatelessWidget {
+  const _CategoryImage({required this.url, required this.errorBuilder});
+
+  final String url;
+  final Widget Function(BuildContext, Object, StackTrace?) errorBuilder;
+
+  @override
+  Widget build(BuildContext context) {
+    if (url.startsWith('assets/')) {
+      return Image.asset(url, fit: BoxFit.cover, errorBuilder: errorBuilder);
+    }
+    return Image.network(url, fit: BoxFit.cover, errorBuilder: errorBuilder);
+  }
+}
+
 class _CategoryCard extends StatelessWidget {
   const _CategoryCard({
     required this.category,
@@ -478,46 +544,84 @@ class _CategoryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hasImage = category.imageUrl.isNotEmpty;
     return InkWell(
       onTap: onTap,
       onLongPress: onLongPress,
       borderRadius: BorderRadius.circular(Radii.card),
       child: Container(
-        padding: const EdgeInsets.all(13),
+        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(Radii.card),
           color: category.color.withValues(alpha: 0.12),
           border: Border.all(color: category.color.withValues(alpha: 0.4)),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Stack(
+          fit: StackFit.expand,
           children: [
-            Container(
-              width: 7,
-              height: 7,
-              decoration: BoxDecoration(color: category.color, shape: BoxShape.circle),
-            ),
-            const SizedBox(height: Gap.xs),
-            Text(
-              category.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: AppColors.ink,
+            // 有底圖才鋪，沒有就照舊用純色調子當底
+            // （2026-09-22 使用者要求：卡片可以貼圖好看一點）。
+            if (hasImage)
+              _CategoryImage(
+                url: category.imageUrl,
+                errorBuilder: (context, error, stack) => const SizedBox.shrink(),
               ),
-            ),
-            Text('$count 個頻道', style: AppText.note),
-            const Spacer(),
-            Row(
-              children: [
-                for (final c in channels)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 4),
-                    child: YtChannelAvatar(channel: c, radius: 11),
+            if (hasImage)
+              // 底圖上蓋一層深色漸層，不然文字/頭像疊在圖片上會看不清楚。
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.black.withValues(alpha: 0.15),
+                      Colors.black.withValues(alpha: 0.65),
+                    ],
                   ),
-              ],
+                ),
+              ),
+            Padding(
+              padding: const EdgeInsets.all(13),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 7,
+                    height: 7,
+                    decoration: BoxDecoration(
+                      color: category.color,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(height: Gap.xs),
+                  Text(
+                    category.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: hasImage ? Colors.white : AppColors.ink,
+                    ),
+                  ),
+                  Text(
+                    '$count 個頻道',
+                    style: hasImage
+                        ? const TextStyle(fontSize: 11, color: Colors.white70)
+                        : AppText.note,
+                  ),
+                  const Spacer(),
+                  Row(
+                    children: [
+                      for (final c in channels)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 4),
+                          child: YtChannelAvatar(channel: c, radius: 11),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ],
         ),

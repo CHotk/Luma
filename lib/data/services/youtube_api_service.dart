@@ -54,6 +54,17 @@ class YoutubeVideo {
 
   String get watchUrl => 'https://www.youtube.com/watch?v=$videoId';
 
+  /// Shorts／一般影片的分辨啟發式判斷。YouTube Data API **沒有**任何
+  /// 欄位直接標「這是 Shorts」——`playlistItems.list`／`videos.list`
+  /// 都查不到，官方文件也沒有公開這個資訊，只能用已知線索猜：Shorts
+  /// 傳統上限制在 60 秒內（2024 年後 YouTube 放寬到最長 3 分鐘，但
+  /// 大多數 Shorts 還是很短），拿 60 秒當門檻是業界最常見的近似值，
+  /// 不是 100% 準——例如一部剛好 45 秒的一般直式影片也會被誤判成
+  /// Shorts（2026-09-23 使用者問「api給的資料有區分嗎」，答案是沒有，
+  /// 這是退而求其次的做法）。[duration] 還沒抓到時回傳 false，不猜。
+  bool get isLikelyShort =>
+      duration != null && duration!.inSeconds > 0 && duration!.inSeconds <= 60;
+
   YoutubeVideo withDuration(Duration value) => YoutubeVideo(
     videoId: videoId,
     title: title,
@@ -162,6 +173,45 @@ class YoutubeApiService {
     ];
   }
 
+  /// 抓一個頻道「從有紀錄以來到現在」的全部上傳影片，給統計圖用。
+  ///
+  /// `playlistItems.list` 一次最多回 50 筆，要抓完整段歷史得靠
+  /// `pageToken` 一直翻頁；`maxPages` 是安全上限（預設 20 頁＝最多
+  /// 1000 部影片）——不設上限的話，訂閱很久、產量很大的頻道（例如
+  /// 日更好幾年）可能要翻幾十頁才翻得完，每頁都是一次網路來回，使用者
+  /// 會等到不耐煩，配額也會不必要地一直燒（雖然這支 API 每頁只算
+  /// 1 單位，燒得不算快，但頁數不設上限還是有失控風險）。1000 部影片
+  /// 拿來畫「每月上傳頻率」摺線圖已經綽綽有餘，用不到的頻道也很少見。
+  Future<List<YoutubeVideo>> fetchAllVideos(
+    String uploadsPlaylistId, {
+    int maxPages = 20,
+  }) async {
+    final videos = <YoutubeVideo>[];
+    String? pageToken;
+    for (var page = 0; page < maxPages; page++) {
+      final uri = Uri.parse('$_base/playlistItems').replace(
+        queryParameters: {
+          'part': 'snippet',
+          'playlistId': uploadsPlaylistId,
+          'maxResults': '50',
+          'key': apiKey,
+          if (pageToken != null) 'pageToken': pageToken,
+        },
+      );
+      final res = await http.get(uri);
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      if (res.statusCode != 200) {
+        throw YoutubeApiException(_errorMessage(res.statusCode, body));
+      }
+      final items = ((body['items'] as List?) ?? const [])
+          .cast<Map<String, dynamic>>();
+      videos.addAll(items.map(_videoFrom));
+      pageToken = body['nextPageToken'] as String?;
+      if (pageToken == null) break;
+    }
+    return videos;
+  }
+
   YoutubeVideo _videoFrom(Map<String, dynamic> item) {
     final snippet = item['snippet'] as Map<String, dynamic>;
     final resourceId = snippet['resourceId'] as Map<String, dynamic>;
@@ -176,32 +226,39 @@ class YoutubeApiService {
     );
   }
 
-  /// 補影片長度——`videos.list` 一次最多吃 50 個 id，一次呼叫就夠（這個
-  /// App 一次最多抓 10 部影片），跟 `fetchRecentVideos` 分開呼叫是因為
-  /// `playlistItems.list` 本身沒有長度這個欄位。
+  /// 補影片長度——`videos.list` 一次最多吃 50 個 id，`videoIds` 超過 50
+  /// 筆（統計圖抓全部歷史影片時很常見）就切成好幾批依序呼叫，每批
+  /// 1 單位配額，跟一次呼叫的用量算法一樣，只是拆開打。
   Future<Map<String, Duration>> fetchDurations(List<String> videoIds) async {
     if (videoIds.isEmpty) return const {};
-    final uri = Uri.parse('$_base/videos').replace(
-      queryParameters: {
-        'part': 'contentDetails',
-        'id': videoIds.join(','),
-        'key': apiKey,
-      },
-    );
-    final res = await http.get(uri);
-    final body = jsonDecode(res.body) as Map<String, dynamic>;
-    if (res.statusCode != 200) {
-      throw YoutubeApiException(_errorMessage(res.statusCode, body));
-    }
-    final items = ((body['items'] as List?) ?? const [])
-        .cast<Map<String, dynamic>>();
-    return {
-      for (final item in items)
-        item['id'] as String: parseIso8601Duration(
+    final result = <String, Duration>{};
+    for (var i = 0; i < videoIds.length; i += 50) {
+      final batch = videoIds.sublist(
+        i,
+        i + 50 > videoIds.length ? videoIds.length : i + 50,
+      );
+      final uri = Uri.parse('$_base/videos').replace(
+        queryParameters: {
+          'part': 'contentDetails',
+          'id': batch.join(','),
+          'key': apiKey,
+        },
+      );
+      final res = await http.get(uri);
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      if (res.statusCode != 200) {
+        throw YoutubeApiException(_errorMessage(res.statusCode, body));
+      }
+      final items = ((body['items'] as List?) ?? const [])
+          .cast<Map<String, dynamic>>();
+      for (final item in items) {
+        result[item['id'] as String] = parseIso8601Duration(
           (item['contentDetails'] as Map<String, dynamic>)['duration']
               as String,
-        ),
-    };
+        );
+      }
+    }
+    return result;
   }
 
   String _errorMessage(int status, Map<String, dynamic> body) {

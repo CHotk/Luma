@@ -17,6 +17,11 @@ import 'yt_video_row.dart';
 
 enum _ViewMode { channel, video }
 
+/// 「依影片顯示」的類型篩選——API 本身沒有標「這是 Shorts」的欄位，
+/// 靠 [YoutubeVideo.isLikelyShort] 的時長啟發式判斷來分（2026-09-23
+/// 使用者問「api給的資料有區分嗎」，這是能做到的最接近做法）。
+enum _TypeFilter { all, regular, shorts }
+
 /// 一部影片＋它屬於哪個頻道，「依影片顯示」要混合多個頻道的影片，
 /// 每一列要能同時秀出影片跟頻道兩邊的資訊。
 class _ChannelVideo {
@@ -49,6 +54,7 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
   late Future<({List<YtCategory> categories, List<YtChannel> channels})> _future;
   late final Set<String> _selected = {...widget.initialCategoryIds};
   _ViewMode _mode = _ViewMode.channel;
+  _TypeFilter _typeFilter = _TypeFilter.all;
 
   Future<List<_ChannelVideo>>? _videosFuture;
   List<String>? _videosLoadedFor;
@@ -336,14 +342,39 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Align(
-          alignment: Alignment.centerRight,
-          child: TextButton.icon(
-            onPressed: () => _ensureVideosLoaded(channels, force: true),
-            icon: const Icon(Icons.refresh, size: 15),
-            label: const Text('重新整理'),
-            style: TextButton.styleFrom(foregroundColor: AppColors.ink2),
-          ),
+        Row(
+          children: [
+            Expanded(
+              child: Wrap(
+                spacing: 6,
+                children: [
+                  _TypeChip(
+                    label: '全部',
+                    selected: _typeFilter == _TypeFilter.all,
+                    onTap: () => setState(() => _typeFilter = _TypeFilter.all),
+                  ),
+                  _TypeChip(
+                    label: '一般影片',
+                    selected: _typeFilter == _TypeFilter.regular,
+                    onTap: () =>
+                        setState(() => _typeFilter = _TypeFilter.regular),
+                  ),
+                  _TypeChip(
+                    label: 'Shorts',
+                    selected: _typeFilter == _TypeFilter.shorts,
+                    onTap: () =>
+                        setState(() => _typeFilter = _TypeFilter.shorts),
+                  ),
+                ],
+              ),
+            ),
+            TextButton.icon(
+              onPressed: () => _ensureVideosLoaded(channels, force: true),
+              icon: const Icon(Icons.refresh, size: 15),
+              label: const Text('重新整理'),
+              style: TextButton.styleFrom(foregroundColor: AppColors.ink2),
+            ),
+          ],
         ),
         Expanded(
           child: _videosFuture == null
@@ -368,10 +399,20 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                         ),
                       );
                     }
-                    final videos = snap.data ?? const [];
+                    final all = snap.data ?? const [];
+                    final videos = switch (_typeFilter) {
+                      _TypeFilter.all => all,
+                      _TypeFilter.regular =>
+                        all.where((v) => !v.video.isLikelyShort).toList(),
+                      _TypeFilter.shorts =>
+                        all.where((v) => v.video.isLikelyShort).toList(),
+                    };
                     if (videos.isEmpty) {
                       return Center(
-                        child: Text('這些頻道抓不到影片', style: AppText.bodyDim),
+                        child: Text(
+                          all.isEmpty ? '這些頻道抓不到影片' : '這個篩選條件下沒有影片',
+                          style: AppText.bodyDim,
+                        ),
                       );
                     }
                     return ListView.separated(
@@ -634,6 +675,49 @@ class _CategoryPickChip extends StatelessWidget {
           label,
           style: TextStyle(
             fontSize: 11.5,
+            fontWeight: FontWeight.w600,
+            color: selected ? AppColors.ink : AppColors.ink2,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 「依影片顯示」的一般影片／Shorts 篩選 chip，比 [_CategoryPickChip]
+/// 小一號——這排要跟「重新整理」按鈕擠在同一行，字級跟分類篩選那排
+/// 一樣大會太擠。
+class _TypeChip extends StatelessWidget {
+  const _TypeChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(Radii.chip),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(Radii.chip),
+          color: selected
+              ? AppColors.accent.withValues(alpha: 0.22)
+              : AppColors.glassFill,
+          border: Border.all(
+            color: selected ? AppColors.accent : AppColors.glassEdge,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 10.5,
             fontWeight: FontWeight.w600,
             color: selected ? AppColors.ink : AppColors.ink2,
           ),

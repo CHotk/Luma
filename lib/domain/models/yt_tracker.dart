@@ -27,6 +27,7 @@ class YtCategory {
     required this.id,
     required this.name,
     required this.colorValue,
+    this.imageUrl = '',
   });
 
   final String id;
@@ -35,14 +36,24 @@ class YtCategory {
   /// 存 ARGB int 而不是 [Color]，因為要進 JSON；顯示時用 [color] 轉回來。
   final int colorValue;
 
+  /// 分類卡片的底圖，選填——沒填就照舊用 [color] 那個純色調子當底
+  /// （2026-09-22 使用者要求：想要卡片好看一點，可以貼圖當底圖）。
+  final String imageUrl;
+
   Color get color => Color(colorValue);
 
-  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'color': colorValue};
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'color': colorValue,
+    'imageUrl': imageUrl,
+  };
 
   factory YtCategory.fromJson(Map<String, dynamic> json) => YtCategory(
     id: json['id'] as String,
     name: json['name'] as String,
     colorValue: json['color'] as int,
+    imageUrl: json['imageUrl'] as String? ?? '',
   );
 }
 

@@ -104,10 +104,16 @@ class AppSideDrawer extends StatelessWidget {
                     active: isDiary,
                     // 日記做出來了（2026-09-22），從「敬請期待」那組
                     // 移出來變成真的可以點的大類別，跟語言學習同一層。
-                    // 已經在日記裡就只關選單，不重複 push 疊一頁。
+                    // 已經在日記裡就只關選單，不重複導頁。這裡一定要用
+                    // go 不是 push——大分類切換是「換到另一個大類別」，
+                    // 不是子頁面的往下鑽，用 push 的話每點一次選單就多疊
+                    // 一頁，使用者在語言學習／日記／YT 頻道追蹤之間跳幾次
+                    // 就疊出一長串歷史，返回鍵要按超多次才回得去
+                    // （2026-09-23 使用者實機回報：點幾個小功能就開幾個
+                    // 頁面一直堆上去）。
                     onTap: () {
                       Navigator.of(context).pop();
-                      if (!isDiary) context.push('/diary');
+                      if (!isDiary) context.go('/diary');
                     },
                   ),
                   _NavItem(
@@ -115,10 +121,11 @@ class AppSideDrawer extends StatelessWidget {
                     label: 'YT 頻道追蹤',
                     active: isYtTracker,
                     // 分類／頻道管理做出來了（2026-09-22），從「敬請
-                    // 期待」那組移出來，同上。
+                    // 期待」那組移出來，同上。同樣用 go，理由見上面
+                    // 日記那項的註解。
                     onTap: () {
                       Navigator.of(context).pop();
-                      if (!isYtTracker) context.push('/yt-tracker');
+                      if (!isYtTracker) context.go('/yt-tracker');
                     },
                   ),
                   const Padding(
