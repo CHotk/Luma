@@ -50,10 +50,10 @@ class AppSideDrawer extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      const _BrandLogo(),
+                      const _ProfileAvatar(),
                       const SizedBox(width: 10),
                       const Text(
-                        'Lume',
+                        'Rex',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
@@ -212,20 +212,20 @@ class AppSideDrawer extends StatelessWidget {
   }
 }
 
-/// 側邊選單頂端的品牌標誌。使用者準備了自己的圖放
-/// `assets/images/app_logo/logo.png`，讀得到就用那張，讀不到（還沒放、
-/// 路徑打錯）就退回原本設計的漸層方塊，跟 [StatsIcon]／[SettingsIcon]
-/// 同一套防呆做法（2026-09-23 使用者要求：一樣要防呆，沒圖就退成目前
-/// 設計版本）。
-class _BrandLogo extends StatelessWidget {
-  const _BrandLogo();
+/// 側邊選單頂端其實是使用者的個人檔案頭像，不是 App 品牌標誌
+/// （2026-09-23 使用者糾正：這裡要當成登入的個人檔案，不是 App 的
+/// logo，圖也應該放 `assets/images/user_profile/` 底下，跟 App 圖示
+/// `assets/images/app_logo/` 分開）。讀得到使用者放的大頭貼就用圓形
+/// 裁切顯示，讀不到（還沒放、路徑打錯）就退回原本設計的漸層圓，跟
+/// [StatsIcon]／[SettingsIcon] 同一套防呆做法。
+class _ProfileAvatar extends StatelessWidget {
+  const _ProfileAvatar();
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(10),
+    return ClipOval(
       child: Image.asset(
-        'assets/images/app_logo/logo.png',
+        'assets/images/user_profile/user_profile.png',
         width: 34,
         height: 34,
         fit: BoxFit.cover,
@@ -233,6 +233,7 @@ class _BrandLogo extends StatelessWidget {
           width: 34,
           height: 34,
           decoration: const BoxDecoration(
+            shape: BoxShape.circle,
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
