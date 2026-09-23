@@ -8,5 +8,15 @@
     "url": "https://www.youtube.com/@shasha77",
     "description": "用清楚的圖文設計把複雜的社會議題、時事新聞整理成好懂的懶人包影片，幫沒空做功課的人快速搞懂前因後果。",
     "addedAt": "2026-09-22T00:00:00.000"
+  },
+  {
+    "id": "seed-youtubercrypto",
+    "name": "youtubercrypto",
+    "categoryId": "seed-crypto",
+    "avatarEmoji": "📺",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/kjmNBjUNQ_Qs_TxFWEnUkTO9guZWHwpbuYIDjZPLsX76UMseUw61pS0_SuaEn269yDsJ-JaT=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://youtube.com/@youtubercrypto",
+    "description": "",
+    "addedAt": "2026-09-22T00:00:00.000"
   }
 ]
