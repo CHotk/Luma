@@ -4,16 +4,26 @@ import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
+import '../../data/notifications/test_notification_action.dart';
 import '../../shared/debug/app_log.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
+import '../../shared/widgets/glass_card.dart';
+
+enum _Filter { all, error, info }
 
 /// 「查看除錯訊息」：手機瀏覽器不方便叫出開發者工具看 console，這頁
 /// 把 [AppLog] 存的最近幾百筆訊息列出來，可以整份複製貼給人看
 /// （2026-09-18 使用者要求）。用 [ValueListenableBuilder] 接
 /// [AppLog.entries]，頁面開著的時候新發生的錯誤會即時補進來，不用
 /// 手動重整。
+///
+/// 版面是設計稿 07（分級篩選）＋08（卡片摘要）＋10（頂部總覽）三版
+/// 合起來（2026-09-23 使用者決定）。篩選只有「全部／錯誤／一般」兩級，
+/// 不是 07 原稿畫的三級（多一個「警告」）——[AppLogEntry] 目前只有
+/// `isError` 一個布林欄位，沒有真的警告等級資料，不無中生有做一個假的
+/// 篩選項出來。
 class DebugLogPage extends StatefulWidget {
   const DebugLogPage({super.key});
 
@@ -22,29 +32,12 @@ class DebugLogPage extends StatefulWidget {
 }
 
 class _DebugLogPageState extends State<DebugLogPage> {
-  final _scroll = ScrollController();
-  int _lastCount = 0;
+  _Filter _filter = _Filter.all;
 
   @override
-  void dispose() {
-    _scroll.dispose();
-    super.dispose();
-  }
-
-  /// 只在「本來就在底部附近」時才跟著新訊息捲到底——使用者往上滑在看
-  /// 舊訊息時，不該被新進來的訊息硬拉走。
-  void _followIfNearBottom(int count) {
-    if (count == _lastCount) return;
-    _lastCount = count;
-    if (!_scroll.hasClients) return;
-    final atBottom =
-        _scroll.position.maxScrollExtent - _scroll.position.pixels < 80;
-    if (!atBottom) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scroll.hasClients) {
-        _scroll.jumpTo(_scroll.position.maxScrollExtent);
-      }
-    });
+  void initState() {
+    super.initState();
+    AppLog.markViewed();
   }
 
   @override
@@ -62,6 +55,15 @@ class _DebugLogPageState extends State<DebugLogPage> {
                 AppTopBar(
                   title: '除錯訊息',
                   actions: [
+                    IconButton(
+                      onPressed: () => testNotification(context),
+                      icon: const Icon(
+                        Icons.notifications_active_outlined,
+                        size: 20,
+                      ),
+                      color: AppColors.ink2,
+                      tooltip: '測試通知',
+                    ),
                     ValueListenableBuilder<List<AppLogEntry>>(
                       valueListenable: AppLog.entries,
                       builder: (context, entries, _) => IconButton(
@@ -98,11 +100,57 @@ class _DebugLogPageState extends State<DebugLogPage> {
                           child: Text('還沒有任何訊息', style: AppText.bodyDim),
                         );
                       }
-                      _followIfNearBottom(entries.length);
-                      return ListView.builder(
-                        controller: _scroll,
-                        itemCount: entries.length,
-                        itemBuilder: (context, i) => _LogRow(entry: entries[i]),
+                      final errorCount = entries.where((e) => e.isError).length;
+                      final lastError = entries
+                          .where((e) => e.isError)
+                          .fold<AppLogEntry?>(
+                            null,
+                            (latest, e) =>
+                                latest == null || e.at.isAfter(latest.at)
+                                    ? e
+                                    : latest,
+                          );
+                      final filtered = switch (_filter) {
+                        _Filter.all => entries,
+                        _Filter.error =>
+                          entries.where((e) => e.isError).toList(),
+                        _Filter.info =>
+                          entries.where((e) => !e.isError).toList(),
+                      };
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _StatRow(
+                            total: entries.length,
+                            errorCount: errorCount,
+                            lastError: lastError,
+                          ),
+                          const SizedBox(height: Gap.sm),
+                          _FilterRow(
+                            selected: _filter,
+                            total: entries.length,
+                            errorCount: errorCount,
+                            infoCount: entries.length - errorCount,
+                            onSelect: (f) => setState(() => _filter = f),
+                          ),
+                          const SizedBox(height: Gap.sm),
+                          Expanded(
+                            child: filtered.isEmpty
+                                ? Center(
+                                    child: Text(
+                                      '這個篩選條件下沒有訊息',
+                                      style: AppText.bodyDim,
+                                    ),
+                                  )
+                                : ListView.separated(
+                                    itemCount: filtered.length,
+                                    separatorBuilder: (_, _) =>
+                                        const SizedBox(height: 6),
+                                    itemBuilder: (context, i) =>
+                                        _LogCard(entry: filtered[i]),
+                                  ),
+                          ),
+                        ],
                       );
                     },
                   ),
@@ -117,47 +165,239 @@ class _DebugLogPageState extends State<DebugLogPage> {
   }
 
   static String _joined(List<AppLogEntry> entries) =>
-      entries.map(_LogRow.formatLine).join('\n');
+      entries.map(_LogCard.formatLine).join('\n');
 }
 
-class _LogRow extends StatelessWidget {
-  const _LogRow({required this.entry});
+String _two(int n) => n.toString().padLeft(2, '0');
+
+String _stamp(DateTime d) =>
+    '${_two(d.hour)}:${_two(d.minute)}:${_two(d.second)}.'
+    '${d.millisecond.toString().padLeft(3, '0')}';
+
+String _relativeTime(DateTime t) {
+  final diff = DateTime.now().difference(t);
+  if (diff.inMinutes < 1) return '剛剛';
+  if (diff.inMinutes < 60) return '${diff.inMinutes} 分鐘前';
+  if (diff.inHours < 24) return '${diff.inHours} 小時前';
+  return '${diff.inDays} 天前';
+}
+
+class _StatRow extends StatelessWidget {
+  const _StatRow({
+    required this.total,
+    required this.errorCount,
+    required this.lastError,
+  });
+
+  final int total;
+  final int errorCount;
+  final AppLogEntry? lastError;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(child: _StatCard(value: '$total', label: '總筆數')),
+        const SizedBox(width: Gap.sm),
+        Expanded(
+          child: _StatCard(
+            value: '$errorCount',
+            label: '今日錯誤',
+            valueColor: errorCount > 0 ? AppColors.bad : null,
+          ),
+        ),
+        const SizedBox(width: Gap.sm),
+        Expanded(
+          child: _StatCard(
+            value: lastError == null ? '無' : _relativeTime(lastError!.at),
+            label: '最近一次錯誤',
+            small: true,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _StatCard extends StatelessWidget {
+  const _StatCard({
+    required this.value,
+    required this.label,
+    this.valueColor,
+    this.small = false,
+  });
+
+  final String value;
+  final String label;
+  final Color? valueColor;
+  final bool small;
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: small
+                ? TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: valueColor ?? AppColors.ink,
+                  )
+                : AppText.number.copyWith(fontSize: 18, color: valueColor),
+          ),
+          const SizedBox(height: 2),
+          Text(label, style: AppText.note, textAlign: TextAlign.center),
+        ],
+      ),
+    );
+  }
+}
+
+class _FilterRow extends StatelessWidget {
+  const _FilterRow({
+    required this.selected,
+    required this.total,
+    required this.errorCount,
+    required this.infoCount,
+    required this.onSelect,
+  });
+
+  final _Filter selected;
+  final int total;
+  final int errorCount;
+  final int infoCount;
+  final ValueChanged<_Filter> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        _Chip(
+          label: '全部',
+          count: total,
+          color: AppColors.accent,
+          selected: selected == _Filter.all,
+          onTap: () => onSelect(_Filter.all),
+        ),
+        const SizedBox(width: 6),
+        _Chip(
+          label: '錯誤',
+          count: errorCount,
+          color: AppColors.bad,
+          selected: selected == _Filter.error,
+          onTap: () => onSelect(_Filter.error),
+        ),
+        const SizedBox(width: 6),
+        _Chip(
+          label: '一般',
+          count: infoCount,
+          color: AppColors.accent,
+          selected: selected == _Filter.info,
+          onTap: () => onSelect(_Filter.info),
+        ),
+      ],
+    );
+  }
+}
+
+class _Chip extends StatelessWidget {
+  const _Chip({
+    required this.label,
+    required this.count,
+    required this.color,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final int count;
+  final Color color;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(999),
+          color: selected ? color.withValues(alpha: 0.2) : AppColors.glassFill,
+          border: Border.all(color: selected ? color : AppColors.glassEdge),
+        ),
+        child: Text(
+          '$label $count',
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: selected ? AppColors.ink : AppColors.ink2,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LogCard extends StatelessWidget {
+  const _LogCard({required this.entry});
 
   final AppLogEntry entry;
-
-  static String _two(int n) => n.toString().padLeft(2, '0');
-
-  static String _stamp(DateTime d) =>
-      '${_two(d.hour)}:${_two(d.minute)}:${_two(d.second)}.'
-      '${d.millisecond.toString().padLeft(3, '0')}';
 
   static String formatLine(AppLogEntry e) => '${_stamp(e.at)}  ${e.message}';
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Text.rich(
-        TextSpan(
-          children: [
-            TextSpan(
-              text: '${_stamp(entry.at)}  ',
-              style: const TextStyle(
-                fontFamily: 'Consolas',
-                fontSize: 11,
-                color: AppColors.ink3,
-              ),
-            ),
-            TextSpan(
-              text: entry.message,
-              style: TextStyle(
-                fontFamily: 'Consolas',
-                fontSize: 11.5,
-                color: entry.isError ? AppColors.bad : AppColors.ink2,
-              ),
-            ),
-          ],
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        color: entry.isError
+            ? AppColors.bad.withValues(alpha: 0.08)
+            : AppColors.glassFill,
+        border: Border.all(
+          color: entry.isError
+              ? AppColors.bad.withValues(alpha: 0.4)
+              : AppColors.glassEdge,
         ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                entry.isError
+                    ? Icons.error_outline_rounded
+                    : Icons.info_outline_rounded,
+                size: 13,
+                color: entry.isError ? AppColors.bad : AppColors.ink3,
+              ),
+              const SizedBox(width: 5),
+              Text(
+                _stamp(entry.at),
+                style: const TextStyle(
+                  fontFamily: 'Consolas',
+                  fontSize: 10,
+                  color: AppColors.ink3,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            entry.message,
+            style: TextStyle(
+              fontFamily: 'Consolas',
+              fontSize: 11.5,
+              color: entry.isError ? AppColors.ink : AppColors.ink2,
+            ),
+          ),
+        ],
       ),
     );
   }

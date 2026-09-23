@@ -10,7 +10,7 @@ import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
 import '../../data/export/file_download.dart';
-import '../../data/notifications/notification_service.dart';
+import '../../data/notifications/test_notification_action.dart';
 import '../../data/repositories/yt_tracker_repository.dart';
 import '../../data/seed/seed_merge.dart';
 import '../../data/seed/yt_tracker_seed_loader.dart';
@@ -71,28 +71,6 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
   }
 
   void _reload() => setState(() => _future = _load());
-
-  /// 測試按鈕：只是想確認這個瀏覽器／裝置真的收得到通知，不是真的推播
-  /// （見 `docs/規則.md` YT 頻道追蹤一節：真的推播要有後端，這個 App
-  /// 還沒有）。要權限、送一則本機通知，結果用 SnackBar 講清楚，因為
-  /// 通知本身跳不跳得出來使用者不一定馬上看得到。
-  Future<void> _testNotification(BuildContext context) async {
-    final granted = await requestNotificationPermission();
-    if (!granted) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('沒有通知權限，或這個瀏覽器/裝置不支援——去系統設定允許通知後再試一次'),
-        ),
-      );
-      return;
-    }
-    await showTestNotification();
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('已送出測試通知，注意看有沒有跳出來')),
-    );
-  }
 
   Future<void> _showAddCategoryDialog() async {
     final controller = TextEditingController();
@@ -327,7 +305,7 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
                       onSelected: (action) {
                         switch (action) {
                           case _YtHomeMenuAction.testNotification:
-                            _testNotification(context);
+                            testNotification(context);
                           case _YtHomeMenuAction.export:
                             _showExportDialog(context, ref);
                         }

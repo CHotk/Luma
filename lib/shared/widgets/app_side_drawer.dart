@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
+import '../debug/app_log.dart';
 
 /// 全 App 共用的左側選單（毛玻璃抽屜），設計稿見
 /// `design-history/2026-09-21_左側選單設計稿.html`。
@@ -26,7 +27,9 @@ class AppSideDrawer extends StatelessWidget {
     final location = GoRouterState.of(context).uri.path;
     final isDiary = location.startsWith('/diary');
     final isYtTracker = location.startsWith('/yt-tracker');
-    final isLanguage = !isDiary && !isYtTracker;
+    final isFitness = location.startsWith('/fitness');
+    final isDebugLog = location.startsWith('/debug-log');
+    final isLanguage = !isDiary && !isYtTracker && !isFitness && !isDebugLog;
 
     return Drawer(
       width: 270,
@@ -89,6 +92,7 @@ class AppSideDrawer extends StatelessWidget {
                   const SizedBox(height: Gap.md),
                   _NavItem(
                     icon: Icons.school_rounded,
+                    imageAsset: 'assets/images/nav_icons/language.png',
                     label: '語言學習',
                     active: isLanguage,
                     // 已經在語言學習裡面了，點這項只是關掉選單，不用再
@@ -100,6 +104,7 @@ class AppSideDrawer extends StatelessWidget {
                   ),
                   _NavItem(
                     icon: Icons.auto_stories_rounded,
+                    imageAsset: 'assets/images/nav_icons/diary.png',
                     label: '日記',
                     active: isDiary,
                     // 日記做出來了（2026-09-22），從「敬請期待」那組
@@ -118,6 +123,7 @@ class AppSideDrawer extends StatelessWidget {
                   ),
                   _NavItem(
                     icon: Icons.subscriptions_rounded,
+                    imageAsset: 'assets/images/nav_icons/yt_tracker.png',
                     label: 'YT 頻道追蹤',
                     active: isYtTracker,
                     // 分類／頻道管理做出來了（2026-09-22），從「敬請
@@ -126,6 +132,18 @@ class AppSideDrawer extends StatelessWidget {
                     onTap: () {
                       Navigator.of(context).pop();
                       if (!isYtTracker) context.go('/yt-tracker');
+                    },
+                  ),
+                  _NavItem(
+                    icon: Icons.fitness_center_rounded,
+                    imageAsset: 'assets/images/nav_icons/fitness.png',
+                    label: '健身',
+                    active: isFitness,
+                    // 健身打卡做出來了（2026-09-23，設計稿 02 打卡日曆式
+                    // 定案），從「敬請期待」那組移出來，同上。
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      if (!isFitness) context.go('/fitness');
                     },
                   ),
                   const Padding(
@@ -153,6 +171,35 @@ class AppSideDrawer extends StatelessWidget {
                   ),
                   const _MockNavItem(icon: Icons.alarm_rounded, label: '鬧鐘'),
                   const _MockNavItem(icon: Icons.timer_rounded, label: '碼錶'),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 10),
+                    child: Divider(height: 1, color: AppColors.glassEdge),
+                  ),
+                  // 除錯放整個選單最後一項，圖示角標式（設計稿 04）：
+                  // 平常就是普通圖示，只有「上次看過除錯頁之後又出現新的
+                  // 錯誤」才冒紅點，不是「只要出過一次錯就一直掛著」
+                  // （2026-09-23 使用者要求：放最後一個＋圖示角標式）。
+                  ValueListenableBuilder<List<AppLogEntry>>(
+                    valueListenable: AppLog.entries,
+                    builder: (context, entries, _) {
+                      final unread = entries
+                          .where(
+                            (e) => e.isError && e.at.isAfter(AppLog.lastViewedAt),
+                          )
+                          .length;
+                      return _NavItem(
+                        icon: Icons.bug_report_outlined,
+                        imageAsset: 'assets/images/nav_icons/debug.png',
+                        label: '除錯',
+                        active: isDebugLog,
+                        badgeCount: unread,
+                        onTap: () {
+                          Navigator.of(context).pop();
+                          if (!isDebugLog) context.push('/debug-log');
+                        },
+                      );
+                    },
+                  ),
                 ],
               ),
             ),
@@ -169,11 +216,23 @@ class _NavItem extends StatelessWidget {
     required this.label,
     required this.onTap,
     this.active = false,
+    this.imageAsset,
+    this.badgeCount = 0,
   });
 
   final IconData icon;
+
+  /// 使用者自己準備的圖示，放在 `assets/images/nav_icons/<name>.png`。
+  /// 沒放圖的項目這個是 null，直接用 [icon]；有放的話優先顯示圖片，
+  /// 圖片載入失敗（檔案還沒放、或路徑打錯）就退回 [icon]，不會整個
+  /// 選單項目壞掉或丟例外（2026-09-23 使用者要求可以自訂選單圖示）。
+  final String? imageAsset;
   final String label;
   final bool active;
+
+  /// 右上角小紅點的未讀數，0 就不顯示——目前只有「除錯」項目在用
+  /// （見 build() 裡的 ValueListenableBuilder），其他項目留預設值。
+  final int badgeCount;
   final VoidCallback onTap;
 
   @override
@@ -191,10 +250,36 @@ class _NavItem extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
           child: Row(
             children: [
-              Icon(
-                icon,
-                size: 19,
-                color: active ? AppColors.accent : color,
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  imageAsset == null
+                      ? Icon(icon, size: 19, color: active ? AppColors.accent : color)
+                      : Image.asset(
+                          imageAsset!,
+                          width: 19,
+                          height: 19,
+                          color: active ? AppColors.accent : color,
+                          errorBuilder: (context, error, stack) => Icon(
+                            icon,
+                            size: 19,
+                            color: active ? AppColors.accent : color,
+                          ),
+                        ),
+                  if (badgeCount > 0)
+                    Positioned(
+                      right: -3,
+                      top: -3,
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: AppColors.bad,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                ],
               ),
               const SizedBox(width: 11),
               Text(

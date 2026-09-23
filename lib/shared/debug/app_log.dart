@@ -21,6 +21,15 @@ class AppLog {
     const [],
   );
 
+  /// 側邊選單「除錯」項目的角標要知道「有幾筆錯誤還沒看過」，不是
+  /// 「總共有幾筆錯誤」——不然只要出過一次錯，角標就會一直掛著不會
+  /// 消失，起不到「有新狀況」的提醒作用（2026-09-23 使用者要求除錯
+  /// 項目用圖示角標式，見 `app_side_drawer.dart`）。打開除錯頁那刻
+  /// 更新這個時間戳記，在那之後才發生的錯誤才會計進角標。
+  static DateTime lastViewedAt = DateTime.fromMillisecondsSinceEpoch(0);
+
+  static void markViewed() => lastViewedAt = DateTime.now();
+
   static void add(String message, {bool isError = false}) {
     final next = [
       ...entries.value,

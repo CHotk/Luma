@@ -51,3 +51,5 @@ flutter:
     - assets/data/
     - assets/config/
     - assets/images/yt_tracker/
+    - assets/images/fitness/
+    - assets/images/nav_icons/

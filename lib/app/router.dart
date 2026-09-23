@@ -1,6 +1,8 @@
 import 'package:go_router/go_router.dart';
 
 import '../features/diary/diary_page.dart';
+import '../features/fitness/fitness_home_page.dart';
+import '../features/fitness/fitness_stats_page.dart';
 import '../features/history/history_page.dart';
 import '../features/history/round_detail_page.dart';
 import '../features/home/home_page.dart';
@@ -110,6 +112,11 @@ final appRouter = GoRouter(
       builder: (_, state) => YtTrackerChannelPage(
         channelId: state.pathParameters['id'] ?? '',
       ),
+    ),
+    GoRoute(path: '/fitness', builder: (_, _) => const FitnessHomePage()),
+    GoRoute(
+      path: '/fitness/stats',
+      builder: (_, _) => const FitnessStatsPage(),
     ),
     GoRoute(path: '/mastered', builder: (_, _) => const MasteredPage()),
     GoRoute(path: '/notes', builder: (_, _) => const NotesPage()),
