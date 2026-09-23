@@ -171,6 +171,14 @@ class AppSideDrawer extends StatelessWidget {
                   ),
                   const _MockNavItem(icon: Icons.alarm_rounded, label: '鬧鐘'),
                   const _MockNavItem(icon: Icons.timer_rounded, label: '碼錶'),
+                  // 純前端網頁沒有後端能在背景推播，App／分頁沒開著就
+                  // 不可能準時提醒（2026-09-23 已經跟使用者說明這個限制、
+                  // 使用者先記著這個構想，還沒決定要不要做「盡力而為」
+                  // 的退化版本）。
+                  const _MockNavItem(
+                    icon: Icons.notifications_active_outlined,
+                    label: '健身提醒',
+                  ),
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 10),
                     child: Divider(height: 1, color: AppColors.glassEdge),

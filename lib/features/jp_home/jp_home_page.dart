@@ -11,6 +11,7 @@ import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/glass_card.dart';
 import '../../shared/widgets/ring_progress.dart';
+import '../../shared/widgets/stats_icon.dart';
 import '../../shared/widgets/track_switcher.dart';
 import '../kana_practice/gojuon_data.dart';
 import '../kana_practice/kana_practice_page.dart';
@@ -200,7 +201,7 @@ class _TopBar extends StatelessWidget {
         // （2026-09-21 使用者要求：英文右上角有統計，日文也應該要有）。
         IconButton(
           onPressed: () => context.push('/jp-stats'),
-          icon: const Icon(Icons.bar_chart_rounded, size: 20),
+          icon: const StatsIcon(size: 20, color: AppColors.ink2),
           color: AppColors.ink2,
           tooltip: '學習統計',
           padding: EdgeInsets.zero,

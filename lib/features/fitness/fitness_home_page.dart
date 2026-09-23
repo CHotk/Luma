@@ -19,8 +19,25 @@ import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
 import '../../shared/widgets/glass_card.dart';
+import '../../shared/widgets/stats_icon.dart';
 
 const _dayOffsetLabels = ['今天', '昨天', '前天'];
+
+enum _EntryAction { edit, delete }
+
+/// 最近打卡清單只列最新 30 筆——這是首頁的「快速看一眼＋順手改」用，
+/// 不是完整歷史查詢，資料多了全塞在首頁只會讓捲動變得很長。
+List<FitnessEntry> _recentEntries(List<FitnessEntry> all) {
+  final sorted = [...all]..sort((a, b) => b.loggedAt.compareTo(a.loggedAt));
+  return sorted.take(30).toList();
+}
+
+String _entryDateLabel(DateTime d) {
+  const weekdayLabels = ['一', '二', '三', '四', '五', '六', '日'];
+  String two(int n) => n.toString().padLeft(2, '0');
+  return '${d.year} 年 ${d.month} 月 ${d.day} 日・週${weekdayLabels[d.weekday - 1]} '
+      '${two(d.hour)}:${two(d.minute)}';
+}
 
 /// 健身打卡首頁：設計稿 02（打卡日曆式）定案版本——連續天數／本月達成率
 /// 這排數字＋月曆＋今天打卡卡片。統計儀表板（設計稿 04）收成「統計」
@@ -143,6 +160,230 @@ class _FitnessHomePageState extends ConsumerState<FitnessHomePage> {
     );
   }
 
+  /// 點一筆歷史紀錄跳出操作選單，跟日記的 `_showEntry` 同一套做法
+  /// （2026-09-23 使用者要求：健身也要能看歷史打卡、編輯或刪除）。
+  Future<void> _showEntrySheet(FitnessEntry entry) async {
+    final action = await showModalBottomSheet<_EntryAction>(
+      context: context,
+      backgroundColor: const Color(0xFF1A1A24),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 18, 18, 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(entry.type.emoji, style: const TextStyle(fontSize: 22)),
+                  const SizedBox(width: Gap.sm),
+                  Text(
+                    '${entry.type.label} ・ ${_entryDateLabel(entry.loggedAt)}',
+                    style: AppText.body,
+                  ),
+                ],
+              ),
+              const SizedBox(height: Gap.md),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton.icon(
+                    onPressed: () =>
+                        Navigator.pop(sheetContext, _EntryAction.edit),
+                    icon: const Icon(Icons.edit_outlined, size: 16),
+                    label: const Text('編輯'),
+                    style: TextButton.styleFrom(foregroundColor: AppColors.ink2),
+                  ),
+                  const SizedBox(width: Gap.xs),
+                  TextButton.icon(
+                    onPressed: () =>
+                        Navigator.pop(sheetContext, _EntryAction.delete),
+                    icon: const Icon(Icons.delete_outline, size: 16),
+                    label: const Text('刪除'),
+                    style: TextButton.styleFrom(foregroundColor: AppColors.bad),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (!mounted) return;
+    if (action == _EntryAction.edit) {
+      await _showEditEntryDialog(entry);
+    } else if (action == _EntryAction.delete) {
+      final confirmed = await _confirmDeleteEntry(entry);
+      if (confirmed != true) return;
+      await ref.read(fitnessRepositoryProvider).deleteEntry(entry.id);
+      if (!mounted) return;
+      _reload();
+    }
+  }
+
+  Future<bool?> _confirmDeleteEntry(FitnessEntry entry) {
+    return showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A24),
+        title: const Text('確定要刪除這筆打卡？', style: TextStyle(color: AppColors.ink)),
+        content: Text(
+          '${_entryDateLabel(entry.loggedAt)}\n刪除後無法復原。',
+          style: AppText.bodyDim,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.bad),
+            child: const Text('刪除'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 編輯只改運動類型跟時間，日期不變——跟日記編輯只改內容、不動
+  /// 原始打卡日期同一個理由：日期是「哪天發生的」，不該因為編輯內容
+  /// 就跑掉。
+  Future<void> _showEditEntryDialog(FitnessEntry entry) async {
+    var type = entry.type;
+    var time = TimeOfDay.fromDateTime(entry.loggedAt);
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: const Color(0xFF1A1A24),
+          title: const Text('編輯打卡', style: TextStyle(color: AppColors.ink)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final t in FitnessType.values)
+                    _TypeChip(
+                      type: t,
+                      selected: t == type,
+                      onTap: () => setDialogState(() => type = t),
+                    ),
+                ],
+              ),
+              const SizedBox(height: Gap.sm),
+              InkWell(
+                onTap: () async {
+                  var draft = time;
+                  final confirmed = await showModalBottomSheet<bool>(
+                    context: dialogContext,
+                    backgroundColor: const Color(0xFF1A1A24),
+                    shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(20),
+                      ),
+                    ),
+                    builder: (sheetContext) => SafeArea(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 14, 8, 4),
+                            child: Row(
+                              children: [
+                                Text('選打卡時間', style: AppText.body),
+                                const Spacer(),
+                                TextButton(
+                                  onPressed: () =>
+                                      Navigator.pop(sheetContext, true),
+                                  child: const Text('完成'),
+                                ),
+                              ],
+                            ),
+                          ),
+                          SizedBox(
+                            height: 200,
+                            child: CupertinoTheme(
+                              data: const CupertinoThemeData(
+                                brightness: Brightness.dark,
+                              ),
+                              child: CupertinoDatePicker(
+                                mode: CupertinoDatePickerMode.time,
+                                use24hFormat: true,
+                                initialDateTime: DateTime(
+                                  2000,
+                                  1,
+                                  1,
+                                  draft.hour,
+                                  draft.minute,
+                                ),
+                                onDateTimeChanged: (t) => draft = TimeOfDay(
+                                  hour: t.hour,
+                                  minute: t.minute,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                  if (confirmed == true) setDialogState(() => time = draft);
+                },
+                borderRadius: BorderRadius.circular(10),
+                child: Row(
+                  children: [
+                    const Icon(Icons.schedule_rounded, size: 15, color: AppColors.ink3),
+                    const SizedBox(width: 6),
+                    Text(
+                      '時間 ${time.hour.toString().padLeft(2, '0')}:'
+                      '${time.minute.toString().padLeft(2, '0')}',
+                      style: AppText.note,
+                    ),
+                    const Spacer(),
+                    const Icon(Icons.expand_more, size: 16, color: AppColors.ink3),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.accent,
+                foregroundColor: AppColors.bgDeep,
+              ),
+              child: const Text('儲存'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (saved != true) return;
+    final d = FitnessEntry.dayOnly(entry.date);
+    await ref.read(fitnessRepositoryProvider).updateEntry(
+      FitnessEntry(
+        id: entry.id,
+        date: d,
+        type: type,
+        loggedAt: DateTime(d.year, d.month, d.day, time.hour, time.minute),
+      ),
+    );
+    if (!mounted) return;
+    _reload();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -167,16 +408,7 @@ class _FitnessHomePageState extends ConsumerState<FitnessHomePage> {
                     ),
                     IconButton(
                       onPressed: () => context.push('/fitness/stats'),
-                      icon: Image.asset(
-                        'assets/images/fitness/stats_icon.png',
-                        width: 20,
-                        height: 20,
-                        color: AppColors.ink2,
-                        errorBuilder: (context, error, stack) => const Icon(
-                          Icons.bar_chart_rounded,
-                          size: 20,
-                        ),
-                      ),
+                      icon: const StatsIcon(size: 20, color: AppColors.ink2),
                       color: AppColors.ink2,
                       tooltip: '統計',
                     ),
@@ -231,6 +463,26 @@ class _FitnessHomePageState extends ConsumerState<FitnessHomePage> {
                               pickedTime: _pickedTime,
                               onPickTime: _pickTime,
                             ),
+                            const SizedBox(height: Gap.md),
+                            if (entries.isNotEmpty) ...[
+                              const PanelLabel('最近打卡'),
+                              const SizedBox(height: Gap.xs),
+                              GlassCard(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 4,
+                                ),
+                                child: Column(
+                                  children: [
+                                    for (final e in _recentEntries(entries))
+                                      _HistoryRow(
+                                        entry: e,
+                                        onTap: () => _showEntrySheet(e),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ],
                             const SizedBox(height: Gap.md),
                           ],
                         ),
@@ -616,6 +868,41 @@ class _TypeChip extends StatelessWidget {
             fontWeight: FontWeight.w600,
             color: selected ? AppColors.ink : AppColors.ink2,
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 「最近打卡」清單的一行，一部影片一行的密度，不是大卡片——這裡是
+/// 快速瀏覽＋點進去改，不是主要瀏覽介面（日曆＋打卡卡片才是）。
+class _HistoryRow extends StatelessWidget {
+  const _HistoryRow({required this.entry, required this.onTap});
+
+  final FitnessEntry entry;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+        child: Row(
+          children: [
+            Text(entry.type.emoji, style: const TextStyle(fontSize: 16)),
+            const SizedBox(width: Gap.sm),
+            Expanded(
+              child: Text(
+                entry.type.label,
+                style: const TextStyle(fontSize: 12.5, color: AppColors.ink),
+              ),
+            ),
+            Text(_entryDateLabel(entry.loggedAt), style: AppText.note),
+            const SizedBox(width: 4),
+            const Icon(Icons.chevron_right, size: 16, color: AppColors.ink3),
+          ],
         ),
       ),
     );

@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 
@@ -31,13 +33,33 @@ class DebugLogPage extends StatefulWidget {
   State<DebugLogPage> createState() => _DebugLogPageState();
 }
 
+const _testMessages = [
+  '[YtApi] fetchChannelInfo(@shasha77) 開始',
+  '[YtApi] fetchDurations 失敗：quotaExceeded',
+  '[Diary] loadEntries() 共 42 筆',
+  '[ExternalLink] window.open 失敗：popup blocked',
+  '[KanaExam] submit answer id=88 正確',
+  '[Fitness] mergeSeed 完成，共 3 筆',
+  '[Notif] requestPermission() → granted',
+];
+
 class _DebugLogPageState extends State<DebugLogPage> {
   _Filter _filter = _Filter.all;
+  final _random = Random();
 
   @override
   void initState() {
     super.initState();
     AppLog.markViewed();
+  }
+
+  /// 隨便產生一筆訊息，嚴重等級（一般／錯誤）也隨機決定——這樣才有
+  /// 兩種等級的訊息可以測，不用真的等程式出包才能看除錯頁的篩選／
+  /// 卡片顯示長怎樣（2026-09-23 使用者要求）。純測試用，訊息內容跟
+  /// 真的錯不錯無關。
+  void _addTestMessage() {
+    final message = _testMessages[_random.nextInt(_testMessages.length)];
+    AppLog.add(message, isError: _random.nextBool());
   }
 
   @override
@@ -55,6 +77,12 @@ class _DebugLogPageState extends State<DebugLogPage> {
                 AppTopBar(
                   title: '除錯訊息',
                   actions: [
+                    IconButton(
+                      onPressed: _addTestMessage,
+                      icon: const Icon(Icons.bug_report_outlined, size: 20),
+                      color: AppColors.ink2,
+                      tooltip: '新增測試訊息',
+                    ),
                     IconButton(
                       onPressed: () => testNotification(context),
                       icon: const Icon(

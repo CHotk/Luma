@@ -12,6 +12,7 @@ import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/glass_card.dart';
 import '../../shared/widgets/ring_progress.dart';
+import '../../shared/widgets/stats_icon.dart';
 import '../../shared/widgets/track_switcher.dart';
 import 'home_controller.dart';
 
@@ -158,11 +159,8 @@ class _TopBar extends ConsumerWidget {
         tip: '單字庫',
         tap: () => context.push('/library'),
       ),
-      (
-        icon: Icons.bar_chart_rounded,
-        tip: '總紀錄',
-        tap: () => context.push('/history'),
-      ),
+    ];
+    final trailingEntries = <({IconData icon, String tip, VoidCallback tap})>[
       (
         icon: Icons.terminal_rounded,
         tip: '偽裝模式',
@@ -204,6 +202,25 @@ class _TopBar extends ConsumerWidget {
         const TrackSwitcher(current: LearningTrack.en),
         const Spacer(),
         for (final e in entries)
+          IconButton(
+            onPressed: e.tap,
+            icon: Icon(e.icon, size: 20),
+            color: AppColors.ink2,
+            tooltip: e.tip,
+            padding: EdgeInsets.zero,
+            visualDensity: VisualDensity.compact,
+            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+          ),
+        IconButton(
+          onPressed: () => context.push('/history'),
+          icon: const StatsIcon(size: 20, color: AppColors.ink2),
+          color: AppColors.ink2,
+          tooltip: '總紀錄',
+          padding: EdgeInsets.zero,
+          visualDensity: VisualDensity.compact,
+          constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+        ),
+        for (final e in trailingEntries)
           IconButton(
             onPressed: e.tap,
             icon: Icon(e.icon, size: 20),

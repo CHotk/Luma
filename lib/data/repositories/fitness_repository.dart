@@ -38,6 +38,16 @@ class FitnessRepository {
     await _write(all);
   }
 
+  /// 編輯一筆打卡：改運動類型／時間，`id` 不變，找不到對應 `id` 就當
+  /// 沒這回事——跟 [DiaryRepository.update] 同一套做法。
+  Future<void> updateEntry(FitnessEntry entry) async {
+    final all = await loadEntries();
+    final index = all.indexWhere((e) => e.id == entry.id);
+    if (index == -1) return;
+    all[index] = entry;
+    await _write(all);
+  }
+
   /// 把打卡快照（見 `fitness_seed_loader.dart`）併回本機，跟
   /// [DiaryRepository.mergeSeed] 同一套邏輯（共用 `seed_merge.dart` 的
   /// [mergeSeedRecords]）。
