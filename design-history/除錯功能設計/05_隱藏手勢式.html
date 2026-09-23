@@ -1,0 +1,75 @@
+<!doctype html>
+<title>除錯05・隱藏手勢式</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;800&display=swap" />
+<style>
+  :root { color-scheme: dark; --bg:#0c0c13; --bg-deep:#0a0a10; --ink:#f3f2f8; --ink2:#a3a2b2; --ink3:#74738a;
+    --glass-edge: rgba(255,255,255,0.14); --glass-fill: rgba(255,255,255,0.045); --accent:#7ea6ff; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; min-height: 100%; background: var(--bg-deep); color: var(--ink); font-family: "Noto Sans TC", system-ui, sans-serif; }
+  body { padding: 32px 20px 48px; display: flex; flex-direction: column; align-items: center; gap: 18px; }
+  .intro { max-width: 440px; text-align: center; }
+  .eyebrow { font-size: 11.5px; letter-spacing: 0.18em; color: #8b8690; text-transform: uppercase; }
+  .intro h1 { font-weight: 800; font-size: 21px; margin: 6px 0 8px; }
+  .intro p { margin: 0 auto; font-size: 13px; line-height: 1.7; color: #a9a4ad; max-width: 44ch; }
+  .compare { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
+  .col { text-align: center; }
+  .col .cap { font-size: 11px; color: var(--ink3); margin-bottom: 8px; }
+  .drawer { width: 250px; border-radius: 22px; padding: 18px 14px; background: rgba(20,18,32,0.85); border: 1px solid var(--glass-edge); backdrop-filter: blur(20px); }
+  .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .logo { width: 34px; height: 34px; border-radius: 10px; background: linear-gradient(135deg,#fff,#9b7bff,#7ea6ff); position: relative; }
+  .tap-ring { position: absolute; inset: -6px; border: 1.5px dashed var(--accent); border-radius: 14px; opacity: 0.7; }
+  .tap-count { position: absolute; bottom: -18px; left: 50%; transform: translateX(-50%); font-size: 9px; color: var(--accent); font-weight: 700; white-space: nowrap; }
+  .brand b { font-size: 16px; font-weight: 800; }
+  .item { display: flex; align-items: center; gap: 11px; padding: 10px; border-radius: 12px; font-size: 13.5px; font-weight: 600; color: var(--ink2); }
+  .item .ic { font-size: 17px; width: 20px; text-align: center; }
+  .item.active { background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--ink); }
+  .item.active .ic { color: var(--accent); }
+  .divider { height: 1px; background: rgba(255,255,255,0.08); margin: 10px 0; }
+  .section-lbl { font-size: 10.5px; letter-spacing: 1.2px; color: var(--ink3); padding: 0 10px 6px; }
+  .mock { opacity: 0.55; }
+  .mock .tag { margin-left: auto; font-size: 9.5px; padding: 2px 7px; border-radius: 999px; background: rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); }
+  .reveal { animation: none; }
+  .toast { margin-top: 20px; text-align: center; font-size: 10.5px; color: var(--accent); background: rgba(126,166,255,0.12); border: 1px solid rgba(126,166,255,0.3); padding: 6px 12px; border-radius: 999px; display: inline-block; }
+</style>
+
+<div class="intro">
+  <p class="eyebrow">Lume · 除錯選單項 05（Mock・隱藏手勢式）</p>
+  <h1>平常不顯示，連續點 Logo 才解鎖</h1>
+  <p>平時選單完全看不到除錯這個項目；長按（或連續點 5 下）選單最上面的 Lume Logo，才會在最下面浮現出來，之後常駐直到清掉瀏覽器資料——類似 Android「連點版本號 7 次解鎖開發者選項」的慣例。一般使用者完全不會被打擾，缺點是這個手勢沒人告訴你的話根本找不到，你自己（開發者）要記得怎麼觸發。</p>
+</div>
+
+<div class="compare">
+  <div class="col">
+    <div class="cap">平常：看不到除錯</div>
+    <div class="drawer">
+      <div class="brand"><div class="logo"><span class="tap-ring"></span><span class="tap-count">連點 5 下解鎖</span></div><b>Lume</b></div>
+      <div class="item active"><span class="ic">🎓</span>語言學習</div>
+      <div class="item"><span class="ic">📖</span>日記</div>
+      <div class="item"><span class="ic">📺</span>YT 頻道追蹤</div>
+      <div class="divider"></div>
+      <div class="section-lbl">敬請期待</div>
+      <div class="item mock"><span class="ic">💰</span>記帳<span class="tag">構想中</span></div>
+      <div class="item mock"><span class="ic">📅</span>行程表<span class="tag">構想中</span></div>
+    </div>
+  </div>
+  <div class="col">
+    <div class="cap">連點 5 下之後</div>
+    <div class="drawer">
+      <div class="brand"><div class="logo"></div><b>Lume</b></div>
+      <div class="item active"><span class="ic">🎓</span>語言學習</div>
+      <div class="item"><span class="ic">📖</span>日記</div>
+      <div class="item"><span class="ic">📺</span>YT 頻道追蹤</div>
+      <div class="divider"></div>
+      <div class="section-lbl">敬請期待</div>
+      <div class="item mock"><span class="ic">💰</span>記帳<span class="tag">構想中</span></div>
+      <div class="item mock"><span class="ic">📅</span>行程表<span class="tag">構想中</span></div>
+      <div class="divider"></div>
+      <div class="item"><span class="ic">🐞</span>除錯</div>
+      <div style="text-align:center;margin-top:8px"><span class="toast">🔓 開發者選項已解鎖</span></div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,73 @@
+<!doctype html>
+<title>健身01・分類資料夾式</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;800&display=swap" />
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0c0c13; --bg-deep: #0a0a10; --ink: #f3f2f8; --ink2: #a3a2b2; --ink3: #74738a;
+    --glass-edge: rgba(255,255,255,0.14); --glass-fill: rgba(255,255,255,0.045); --hairline: rgba(255,255,255,0.07);
+    --accent: #5fc9a8; --accent-ink: #06211a;
+    --amb-1: #163229; --amb-2: #1d1a33; --amb-3: #201d1a;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; min-height: 100%; background: var(--bg-deep); color: var(--ink); font-family: "Noto Sans TC", system-ui, sans-serif; }
+  body { padding: 32px 20px 48px; display: flex; flex-direction: column; align-items: center; gap: 18px; }
+  .intro { max-width: 480px; text-align: center; }
+  .eyebrow { font-size: 11.5px; letter-spacing: 0.18em; color: #8b8690; text-transform: uppercase; }
+  .intro h1 { font-weight: 800; font-size: 22px; margin: 6px 0 8px; }
+  .intro p { margin: 0 auto; font-size: 13px; line-height: 1.7; color: #a9a4ad; max-width: 46ch; }
+  .phone { position: relative; width: 100%; max-width: 380px; min-height: 780px; flex-shrink: 0; border-radius: 40px; padding: 12px; isolation: isolate; overflow: hidden;
+    background: radial-gradient(120% 100% at 50% -10%, #131019 0%, var(--bg) 45%, var(--bg-deep) 100%);
+    box-shadow: 0 40px 90px -30px rgba(0,0,0,0.75), inset 0 0 0 1px rgba(255,255,255,0.04); }
+  .amb { position: absolute; border-radius: 50%; filter: blur(72px); opacity: 0.4; z-index: -1; }
+  .amb-1 { width: 230px; height: 230px; top: -80px; left: -60px; background: var(--amb-1); }
+  .amb-2 { width: 220px; height: 220px; bottom: 60px; right: -80px; background: var(--amb-2); }
+  .shell { position: relative; min-height: 100%; border-radius: 30px; padding: 20px 17px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.022) 100%);
+    backdrop-filter: blur(22px); border: 1px solid var(--glass-edge);
+    display: flex; flex-direction: column; gap: 14px; }
+  .topbar { display: flex; align-items: center; gap: 10px; }
+  .icon-btn { width: 32px; height: 32px; border-radius: 11px; border: 1px solid var(--hairline); background: rgba(255,255,255,0.03); display: flex; align-items: center; justify-content: center; color: var(--ink2); font-size: 15px; }
+  .topbar-title { font-weight: 800; font-size: 16.5px; }
+  .folder-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .folder-card { border-radius: 18px; padding: 14px; background: var(--glass-fill); border: 1px solid var(--hairline); display: flex; flex-direction: column; gap: 8px; }
+  .folder-card .ico { font-size: 22px; }
+  .folder-card .flabel { font-size: 13px; font-weight: 700; }
+  .folder-card .fcount { font-size: 10.5px; color: var(--ink3); }
+  .folder-card .fbar { height: 4px; border-radius: 3px; background: rgba(255,255,255,0.08); overflow: hidden; }
+  .folder-card .fbar i { display: block; height: 100%; background: var(--cat, var(--accent)); }
+  .all-btn { display: flex; align-items: center; justify-content: center; gap: 7px; padding: 12px; border-radius: 16px; background: var(--glass-fill); border: 1px dashed var(--hairline); color: var(--ink2); font-size: 12.5px; }
+  .fab { position: absolute; right: 20px; bottom: 26px; width: 50px; height: 50px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 800; box-shadow: 0 10px 26px -8px var(--accent); }
+  .streak { display: flex; align-items: center; gap: 8px; padding: 10px 13px; border-radius: 14px; background: var(--glass-fill); border: 1px solid var(--hairline); font-size: 12px; color: var(--ink2); }
+  .streak b { color: var(--accent); font-size: 15px; }
+</style>
+
+<div class="intro">
+  <p class="eyebrow">Lume · 健身功能 01（Mock・分類資料夾式）</p>
+  <h1>依運動類型分資料夾</h1>
+  <p>承接 YT 頻道追蹤已經定案的分類資料夾範式——重訓／有氧／瑜珈／伸展／戶外各一個資料夾卡，點進去才是那個類型底下的紀錄清單。優點是跟 App 既有的 YT 頻道追蹤同一套心智模型，使用者已經學過怎麼用；缺點是「今天要記錄」這件事要多點一層（先選類型資料夾，才看得到＋新增）。</p>
+</div>
+
+<div class="phone">
+  <div class="amb amb-1"></div>
+  <div class="amb amb-2"></div>
+  <div class="shell">
+    <div class="topbar">
+      <div class="icon-btn">☰</div>
+      <div class="topbar-title">健身紀錄</div>
+    </div>
+    <div class="streak">🔥 連續紀錄 <b>5</b> 天，繼續保持</div>
+    <div class="folder-grid">
+      <div class="folder-card" style="--cat:#5fc9a8"><div class="ico">🏋️</div><div class="flabel">重訓</div><div class="fcount">共 18 筆・本月 4 筆</div><div class="fbar"><i style="width:70%"></i></div></div>
+      <div class="folder-card" style="--cat:#6aa9e0"><div class="ico">🏃</div><div class="flabel">有氧</div><div class="fcount">共 9 筆・本月 2 筆</div><div class="fbar"><i style="width:40%"></i></div></div>
+      <div class="folder-card" style="--cat:#c98fe0"><div class="ico">🧘</div><div class="flabel">瑜珈</div><div class="fcount">共 6 筆・本月 1 筆</div><div class="fbar"><i style="width:25%"></i></div></div>
+      <div class="folder-card" style="--cat:#e0a94e"><div class="ico">🤸</div><div class="flabel">伸展</div><div class="fcount">共 3 筆・本月 0 筆</div><div class="fbar"><i style="width:10%"></i></div></div>
+    </div>
+    <div class="all-btn">📋 全部紀錄（共 36 筆）</div>
+    <div class="fab">＋</div>
+  </div>
+</div>

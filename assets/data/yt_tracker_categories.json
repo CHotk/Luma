@@ -22,5 +22,10 @@
     "name": "旅遊",
     "color": 4284463305,
     "imageUrl": "assets/images/yt_tracker/travel.png"
+  },
+  {
+    "id": "seed-disliked",
+    "name": "看過但不喜歡",
+    "color": 4292901498
   }
 ]

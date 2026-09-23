@@ -1,0 +1,94 @@
+<!doctype html>
+<title>健身03・訓練紀錄清單式（主流）</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;800&display=swap" />
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0c0c13; --bg-deep: #0a0a10; --ink: #f3f2f8; --ink2: #a3a2b2; --ink3: #74738a;
+    --glass-edge: rgba(255,255,255,0.14); --glass-fill: rgba(255,255,255,0.045); --hairline: rgba(255,255,255,0.07);
+    --accent: #5fb8c9; --accent-ink: #04191d;
+    --amb-1: #133033; --amb-2: #1d1a33; --amb-3: #201d1a;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; min-height: 100%; background: var(--bg-deep); color: var(--ink); font-family: "Noto Sans TC", system-ui, sans-serif; }
+  body { padding: 32px 20px 48px; display: flex; flex-direction: column; align-items: center; gap: 18px; }
+  .intro { max-width: 480px; text-align: center; }
+  .eyebrow { font-size: 11.5px; letter-spacing: 0.18em; color: #8b8690; text-transform: uppercase; }
+  .intro h1 { font-weight: 800; font-size: 22px; margin: 6px 0 8px; }
+  .intro p { margin: 0 auto; font-size: 13px; line-height: 1.7; color: #a9a4ad; max-width: 46ch; }
+  .badge { display: inline-block; margin-top: 6px; padding: 3px 10px; border-radius: 999px; font-size: 10.5px; font-weight: 700; background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent); }
+  .phone { position: relative; width: 100%; max-width: 380px; min-height: 780px; flex-shrink: 0; border-radius: 40px; padding: 12px; isolation: isolate; overflow: hidden;
+    background: radial-gradient(120% 100% at 50% -10%, #131019 0%, var(--bg) 45%, var(--bg-deep) 100%);
+    box-shadow: 0 40px 90px -30px rgba(0,0,0,0.75), inset 0 0 0 1px rgba(255,255,255,0.04); }
+  .amb { position: absolute; border-radius: 50%; filter: blur(72px); opacity: 0.4; z-index: -1; }
+  .amb-1 { width: 230px; height: 230px; top: -80px; left: -60px; background: var(--amb-1); }
+  .amb-2 { width: 220px; height: 220px; bottom: 60px; right: -80px; background: var(--amb-2); }
+  .shell { position: relative; min-height: 100%; border-radius: 30px; padding: 20px 17px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.022) 100%);
+    backdrop-filter: blur(22px); border: 1px solid var(--glass-edge);
+    display: flex; flex-direction: column; gap: 12px; }
+  .topbar { display: flex; align-items: center; gap: 10px; }
+  .icon-btn { width: 32px; height: 32px; border-radius: 11px; border: 1px solid var(--hairline); background: rgba(255,255,255,0.03); display: flex; align-items: center; justify-content: center; color: var(--ink2); font-size: 15px; }
+  .topbar-title { font-weight: 800; font-size: 16.5px; }
+  .week-strip { display: flex; gap: 5px; justify-content: space-between; }
+  .week-strip .d { flex: 1; text-align: center; padding: 7px 0; border-radius: 10px; background: rgba(255,255,255,0.02); }
+  .week-strip .d.done { background: color-mix(in srgb, var(--accent) 22%, transparent); border: 1px solid var(--accent); }
+  .week-strip .dow { font-size: 9px; color: var(--ink3); }
+  .week-strip .num { font-size: 11px; font-weight: 700; margin-top: 2px; }
+  .list-label { font-size: 10.5px; letter-spacing: 0.1em; color: var(--ink3); text-transform: uppercase; }
+  .session { display: flex; gap: 11px; padding: 12px; border-radius: 16px; background: var(--glass-fill); border: 1px solid var(--hairline); }
+  .session .date-badge { flex: none; width: 44px; text-align: center; }
+  .session .date-badge .d { font-size: 17px; font-weight: 800; }
+  .session .date-badge .m { font-size: 9px; color: var(--ink3); }
+  .session .body { flex: 1; min-width: 0; }
+  .session .ttl { font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+  .session .sub { font-size: 10.5px; color: var(--ink3); margin-top: 3px; }
+  .session .tags { display: flex; gap: 5px; margin-top: 7px; flex-wrap: wrap; }
+  .session .tag { font-size: 9.5px; padding: 2px 7px; border-radius: 999px; background: rgba(255,255,255,0.05); color: var(--ink2); }
+  .fab { position: absolute; right: 20px; bottom: 26px; width: 50px; height: 50px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 800; box-shadow: 0 10px 26px -8px var(--accent); }
+</style>
+
+<div class="intro">
+  <p class="eyebrow">Lume · 健身功能 03（Mock・訓練紀錄清單式）</p>
+  <h1>訓練紀錄清單</h1>
+  <div class="badge">主流健身 App 慣例（Strong／Hevy 等）</div>
+  <p style="margin-top:10px">依時間倒序列出每一次訓練 session：日期＋類型＋重點動作標籤，點進去才是那次的組數／重量／時長細節。這是健身類 App 最常見的資訊架構，好處是使用者不用學新東西；跟其他變體比，這版把「記錄」本身當主角，而不是打卡儀式感。</p>
+</div>
+
+<div class="phone">
+  <div class="amb amb-1"></div>
+  <div class="amb amb-2"></div>
+  <div class="shell">
+    <div class="topbar">
+      <div class="icon-btn">☰</div>
+      <div class="topbar-title">訓練紀錄</div>
+    </div>
+    <div class="week-strip">
+      <div class="d"><div class="dow">一</div><div class="num">15</div></div>
+      <div class="d done"><div class="dow">二</div><div class="num">16</div></div>
+      <div class="d"><div class="dow">三</div><div class="num">17</div></div>
+      <div class="d done"><div class="dow">四</div><div class="num">18</div></div>
+      <div class="d"><div class="dow">五</div><div class="num">19</div></div>
+      <div class="d done"><div class="dow">六</div><div class="num">20</div></div>
+      <div class="d" style="border:1px solid var(--ink3)"><div class="dow">日</div><div class="num">21</div></div>
+    </div>
+    <div class="list-label">最近訓練</div>
+    <div class="session">
+      <div class="date-badge"><div class="d">20</div><div class="m">9月</div></div>
+      <div class="body"><div class="ttl">🏋️ 上半身推系</div><div class="sub">52 分鐘・5 個動作</div><div class="tags"><span class="tag">臥推 60kg×5</span><span class="tag">肩推</span></div></div>
+    </div>
+    <div class="session">
+      <div class="date-badge"><div class="d">18</div><div class="m">9月</div></div>
+      <div class="body"><div class="ttl">🏃 間歇跑</div><div class="sub">28 分鐘・5.2km</div><div class="tags"><span class="tag">配速 5'23"</span></div></div>
+    </div>
+    <div class="session">
+      <div class="date-badge"><div class="d">16</div><div class="m">9月</div></div>
+      <div class="body"><div class="ttl">🏋️ 下半身腿系</div><div class="sub">61 分鐘・6 個動作</div><div class="tags"><span class="tag">深蹲 80kg×5</span></div></div>
+    </div>
+    <div class="fab">＋</div>
+  </div>
+</div>
