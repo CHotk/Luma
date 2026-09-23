@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../data/cloud/r2_client.dart';
 import '../data/repositories/diary_repository.dart';
 import '../data/repositories/fitness_repository.dart';
 import '../data/repositories/history_repository.dart';
@@ -109,3 +110,17 @@ final ytApiKeyProvider = StateProvider<String?>((ref) => null);
 /// 剛結束那一輪的成績，給結果頁讀。
 /// 不用 autoDispose，因為從測驗頁跳到結果頁的過程中測驗頁會被銷毀。
 final lastRoundProvider = StateProvider<RoundResult?>((ref) => null);
+
+/// R2 bucket 名稱，跟 [libraryTagOrderProvider] 同理，讀
+/// `app_defaults.yaml` 要非同步，main() 先讀好用 overrideWithValue 注入。
+final r2BucketNameProvider = Provider<String>((ref) {
+  throw UnimplementedError('請在 main() 用 overrideWithValue 注入');
+});
+
+/// R2 同步憑證，跟 [ytApiKeyProvider] 同一套模式（記憶體 provider 讓
+/// 畫面即時反應，`main()` 開機時讀一次本機存的值灌進來），但**沒有
+/// 過期時間**——見 `data/cloud/r2_credentials_store.dart` 的說明，這把
+/// 是要長期用來同步的，不能跟 YT 金鑰一樣常常過期。存新憑證／清除，
+/// 畫面層要自己同時呼叫 `R2CredentialsStore` 寫回本機，這個 provider
+/// 不會自動幫你同步寫入。
+final r2CredentialsProvider = StateProvider<R2Credentials?>((ref) => null);

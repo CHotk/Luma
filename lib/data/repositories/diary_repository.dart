@@ -60,6 +60,24 @@ class DiaryRepository {
     await _store.write(_key, jsonEncode([for (final e in merged) e.toJson()]));
   }
 
+  /// 把 R2 雲端抓下來的日記併回本機，跟 [mergeSeed] 用同一套
+  /// [mergeSeedRecords]，但 `priority` 用 [SeedMergePriority.local]
+  /// 不是 `.seed`——這是故意反過來的：[mergeSeed] 是「App 內建快照贏」
+  /// 給部署時合併用，這裡是「本機這台裝置的資料贏」，雲端只補本機沒有
+  /// 的 id。理由：現在還沒做「上傳」（2026-09-23 分階段開發，先做下載
+  /// 打地基），雲端上的資料只可能是使用者手動放上去的舊版本，用雲端贏
+  /// 的話，剛好會把這台裝置更新的紀錄蓋掉，方向要反過來才安全。
+  Future<void> mergeFromCloud(List<DiaryEntry> incoming) async {
+    if (incoming.isEmpty) return;
+    final merged = mergeSeedRecords(
+      local: await loadAll(),
+      seed: incoming,
+      idOf: (e) => e.id,
+      priority: SeedMergePriority.local,
+    );
+    await _store.write(_key, jsonEncode([for (final e in merged) e.toJson()]));
+  }
+
   /// 匯出整份日記給使用者存成真正的檔案，手動搬進 git 版控的
   /// `assets/data/diary.json`，跟手寫練習／考試紀錄同一個用途——手機
   /// 跟電腦各自打卡的紀錄存在各自瀏覽器的 localStorage，不會自動合併，

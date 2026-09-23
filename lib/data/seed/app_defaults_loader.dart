@@ -126,6 +126,17 @@ Future<KanaGifDefaults> loadKanaGifDefaults() async {
   }
 }
 
+/// R2 bucket 名稱。唯一來源，沒有 code 端備份值——讀不到、格式壞掉
+/// 就是設定檔本身有問題，該直接讓例外往上炸，不要悄悄退回一個寫死的
+/// 值假裝沒事：那樣的話改了設定檔以為換了 bucket，實際上因為某個
+/// 原因讀取失敗，App 還是偷偷連到舊的（或錯的）bucket，比直接炸掉
+/// 更難察覺（2026-09-23 使用者糾正：讀不到就該讓它壞，不要用寫死的
+/// 值蓋過去）。
+Future<String> loadR2BucketName() async {
+  final doc = await _loadDoc();
+  return doc['r2BucketName'] as String;
+}
+
 Future<LibraryTagOrder> loadLibraryTagOrder() async {
   try {
     final doc = await _loadDoc();

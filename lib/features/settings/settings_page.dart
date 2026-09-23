@@ -13,6 +13,7 @@ import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
 import '../../shared/widgets/glass_card.dart';
+import 'r2_sync_section.dart';
 import 'settings_controller.dart';
 
 /// 設定。改完立即生效，不用按確定。
@@ -303,6 +304,10 @@ class _Body extends ConsumerWidget {
           textAlign: TextAlign.center,
           style: AppText.note,
         ),
+
+        const SizedBox(height: Gap.lg),
+        const _SectionLabel('多裝置同步'),
+        const R2SyncSection(),
 
         const SizedBox(height: Gap.lg),
         const _SectionLabel('除錯'),
