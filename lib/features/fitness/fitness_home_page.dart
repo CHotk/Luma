@@ -1,4 +1,8 @@
+import 'dart:convert' show utf8, JsonEncoder;
+
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -6,11 +10,17 @@ import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
+import '../../data/export/file_download.dart';
+import '../../data/repositories/fitness_repository.dart';
+import '../../data/seed/fitness_seed_loader.dart';
+import '../../data/seed/seed_merge.dart';
 import '../../domain/models/fitness.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
 import '../../shared/widgets/glass_card.dart';
+
+const _dayOffsetLabels = ['今天', '昨天', '前天'];
 
 /// 健身打卡首頁：設計稿 02（打卡日曆式）定案版本——連續天數／本月達成率
 /// 這排數字＋月曆＋今天打卡卡片。統計儀表板（設計稿 04）收成「統計」
@@ -27,31 +37,109 @@ class _FitnessHomePageState extends ConsumerState<FitnessHomePage> {
   FitnessType _selectedType = FitnessType.strength;
   DateTime _visibleMonth = DateTime(DateTime.now().year, DateTime.now().month);
 
+  /// 0 = 今天／1 = 昨天／2 = 前天，跟日記的補寫下拉同一套邏輯
+  /// （2026-09-23 使用者要求：也要能補打昨天或前天的卡）。
+  int _dayOffset = 0;
+
+  /// 打卡時間，預設現在——不強制填，但想調整的話用 iOS 風格滾輪選
+  /// （2026-09-23 使用者要求：像 iPhone 鬧鐘調分鐘那樣的效果）。
+  TimeOfDay _pickedTime = TimeOfDay.now();
+
   @override
   void initState() {
     super.initState();
     _future = _load();
   }
 
-  Future<List<FitnessEntry>> _load() =>
-      ref.read(fitnessRepositoryProvider).loadEntries();
+  Future<List<FitnessEntry>> _load() async {
+    final repo = ref.read(fitnessRepositoryProvider);
+    // 跟日記／YT 頻道追蹤同一套：每次進頁面先把內建快照併回本機，
+    // 讓別的裝置匯出、貼回 git 的紀錄能補齊這台裝置漏掉的部分。
+    await repo.mergeSeed(await loadFitnessSeed());
+    return repo.loadEntries();
+  }
 
   void _reload() => setState(() => _future = _load());
 
+  Future<void> _pickTime() async {
+    var draft = _pickedTime;
+    final confirmed = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: const Color(0xFF1A1A24),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 8, 4),
+              child: Row(
+                children: [
+                  Text('選打卡時間', style: AppText.body),
+                  const Spacer(),
+                  TextButton(
+                    onPressed: () => Navigator.pop(sheetContext, true),
+                    child: const Text('完成'),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(
+              height: 200,
+              child: CupertinoTheme(
+                data: const CupertinoThemeData(brightness: Brightness.dark),
+                child: CupertinoDatePicker(
+                  mode: CupertinoDatePickerMode.time,
+                  use24hFormat: true,
+                  initialDateTime: DateTime(
+                    2000,
+                    1,
+                    1,
+                    draft.hour,
+                    draft.minute,
+                  ),
+                  onDateTimeChanged: (t) =>
+                      draft = TimeOfDay(hour: t.hour, minute: t.minute),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (confirmed == true) setState(() => _pickedTime = draft);
+  }
+
   Future<void> _checkIn() async {
     final now = DateTime.now();
+    final targetDay = FitnessEntry.dayOnly(
+      now.subtract(Duration(days: _dayOffset)),
+    );
+    final loggedAt = DateTime(
+      targetDay.year,
+      targetDay.month,
+      targetDay.day,
+      _pickedTime.hour,
+      _pickedTime.minute,
+    );
     await ref.read(fitnessRepositoryProvider).addEntry(
       FitnessEntry(
         id: '${now.microsecondsSinceEpoch}',
-        date: FitnessEntry.dayOnly(now),
+        date: targetDay,
         type: _selectedType,
-        loggedAt: now,
+        loggedAt: loggedAt,
       ),
     );
     if (!mounted) return;
     _reload();
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('已打卡：${_selectedType.label}')),
+      SnackBar(
+        content: Text(
+          '已打卡：${_dayOffsetLabels[_dayOffset]}・${_selectedType.label}',
+        ),
+      ),
     );
   }
 
@@ -71,6 +159,12 @@ class _FitnessHomePageState extends ConsumerState<FitnessHomePage> {
                   title: '健身打卡',
                   showBack: false,
                   actions: [
+                    IconButton(
+                      onPressed: () => _showExportDialog(context, ref),
+                      icon: const Icon(Icons.ios_share_rounded, size: 20),
+                      color: AppColors.ink2,
+                      tooltip: '匯出打卡紀錄',
+                    ),
                     IconButton(
                       onPressed: () => context.push('/fitness/stats'),
                       icon: Image.asset(
@@ -131,6 +225,11 @@ class _FitnessHomePageState extends ConsumerState<FitnessHomePage> {
                               onSelect: (t) =>
                                   setState(() => _selectedType = t),
                               onCheckIn: _checkIn,
+                              dayOffset: _dayOffset,
+                              onDayOffsetChanged: (v) =>
+                                  setState(() => _dayOffset = v),
+                              pickedTime: _pickedTime,
+                              onPickTime: _pickTime,
                             ),
                             const SizedBox(height: Gap.md),
                           ],
@@ -335,27 +434,47 @@ class _CheckInCard extends StatelessWidget {
     required this.selected,
     required this.onSelect,
     required this.onCheckIn,
+    required this.dayOffset,
+    required this.onDayOffsetChanged,
+    required this.pickedTime,
+    required this.onPickTime,
   });
 
   final Set<DateTime> days;
   final FitnessType selected;
   final ValueChanged<FitnessType> onSelect;
   final VoidCallback onCheckIn;
+  final int dayOffset;
+  final ValueChanged<int> onDayOffsetChanged;
+  final TimeOfDay pickedTime;
+  final VoidCallback onPickTime;
 
   @override
   Widget build(BuildContext context) {
-    final doneToday = days.contains(FitnessEntry.dayOnly(DateTime.now()));
+    final targetDay = FitnessEntry.dayOnly(
+      DateTime.now().subtract(Duration(days: dayOffset)),
+    );
+    final doneThatDay = days.contains(targetDay);
     return GlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            doneToday ? '今天已經打卡了，要再記一項嗎？' : '今天練了嗎？',
-            style: const TextStyle(
-              fontSize: 13.5,
-              fontWeight: FontWeight.w700,
-              color: AppColors.ink,
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  doneThatDay
+                      ? '${_dayOffsetLabels[dayOffset]}已經打卡了，要再記一項嗎？'
+                      : '${_dayOffsetLabels[dayOffset]}練了嗎？',
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.ink,
+                  ),
+                ),
+              ),
+              _DayOffsetDropdown(value: dayOffset, onChanged: onDayOffsetChanged),
+            ],
           ),
           const SizedBox(height: Gap.sm),
           Wrap(
@@ -371,6 +490,27 @@ class _CheckInCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: Gap.sm),
+          InkWell(
+            onTap: onPickTime,
+            borderRadius: BorderRadius.circular(10),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  const Icon(Icons.schedule_rounded, size: 15, color: AppColors.ink3),
+                  const SizedBox(width: 6),
+                  Text(
+                    '打卡時間 ${pickedTime.hour.toString().padLeft(2, '0')}:'
+                    '${pickedTime.minute.toString().padLeft(2, '0')}',
+                    style: AppText.note,
+                  ),
+                  const Spacer(),
+                  const Icon(Icons.expand_more, size: 16, color: AppColors.ink3),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: Gap.xs),
           SizedBox(
             width: double.infinity,
             child: FilledButton(
@@ -383,6 +523,62 @@ class _CheckInCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// 補寫今天／昨天／前天的小選單，跟日記的 `_DayOffsetDropdown` 同一套
+/// 做法：用 [PopupMenuButton] 不是 [DropdownButton]，理由見
+/// `diary_page.dart` 該元件的說明（固定貼著按鈕下面展開，不會因為選中
+/// 項在清單下面就整個跳位置）。
+class _DayOffsetDropdown extends StatelessWidget {
+  const _DayOffsetDropdown({required this.value, required this.onChanged});
+
+  final int value;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<int>(
+      initialValue: value,
+      onSelected: onChanged,
+      color: const Color(0xFF1A1A24),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: const BorderSide(color: AppColors.glassEdge),
+      ),
+      itemBuilder: (context) => [
+        for (var i = 0; i < _dayOffsetLabels.length; i++)
+          PopupMenuItem(
+            value: i,
+            child: Text(
+              _dayOffsetLabels[i],
+              style: TextStyle(
+                color: i == value ? AppColors.accent : AppColors.ink2,
+                fontWeight: i == value ? FontWeight.w700 : FontWeight.w500,
+              ),
+            ),
+          ),
+      ],
+      child: GlassCard(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        radius: Radii.chip,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              _dayOffsetLabels[value],
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppColors.ink2,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(width: 2),
+            const Icon(Icons.expand_more, size: 16, color: AppColors.ink3),
+          ],
+        ),
       ),
     );
   }
@@ -424,4 +620,165 @@ class _TypeChip extends StatelessWidget {
       ),
     );
   }
+}
+
+/// 匯出的範圍：只匯出這台裝置 localStorage 裡的，還是連專案已經打包
+/// 好的打卡快照一起，跟 `diary_page.dart`／`yt_tracker_home_page.dart`
+/// 同一個用途。
+enum _ExportScope { localOnly, withSeed }
+
+Future<void> _showExportDialog(BuildContext context, WidgetRef ref) async {
+  final repo = ref.read(fitnessRepositoryProvider);
+  await showDialog<void>(
+    context: context,
+    builder: (dialogContext) => _ExportDialog(repo: repo),
+  );
+}
+
+class _ExportDialog extends StatefulWidget {
+  const _ExportDialog({required this.repo});
+
+  final FitnessRepository repo;
+
+  @override
+  State<_ExportDialog> createState() => _ExportDialogState();
+}
+
+class _ExportDialogState extends State<_ExportDialog> {
+  _ExportScope _scope = _ExportScope.localOnly;
+  late Future<({String text, int count})> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _build(_scope);
+  }
+
+  Future<({String text, int count})> _build(_ExportScope scope) async {
+    if (scope == _ExportScope.localOnly) {
+      return widget.repo.exportJson();
+    }
+    final merged = mergeSeedRecords(
+      local: await widget.repo.loadEntries(),
+      seed: await loadFitnessSeed(),
+      idOf: (e) => e.id,
+      priority: SeedMergePriority.local,
+    );
+    const encoder = JsonEncoder.withIndent('  ');
+    return (
+      text: encoder.convert([for (final e in merged) e.toJson()]),
+      count: merged.length,
+    );
+  }
+
+  void _setScope(_ExportScope scope) {
+    if (scope == _scope) return;
+    setState(() {
+      _scope = scope;
+      _future = _build(scope);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final filename = 'lume-fitness-${_exportTodayStamp()}.json';
+
+    return AlertDialog(
+      backgroundColor: const Color(0xFF1A1A24),
+      title: const Text(
+        '匯出打卡紀錄',
+        textAlign: TextAlign.center,
+        style: TextStyle(color: AppColors.ink),
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SegmentedButton<_ExportScope>(
+            segments: const [
+              ButtonSegment(value: _ExportScope.localOnly, label: Text('僅這台裝置')),
+              ButtonSegment(value: _ExportScope.withSeed, label: Text('連快照一起')),
+            ],
+            selected: {_scope},
+            onSelectionChanged: (s) => _setScope(s.first),
+            style: SegmentedButton.styleFrom(
+              backgroundColor: AppColors.glassFill,
+              foregroundColor: AppColors.ink2,
+              selectedBackgroundColor: AppColors.accent.withValues(alpha: 0.28),
+              selectedForegroundColor: AppColors.ink,
+              side: const BorderSide(color: AppColors.glassEdge),
+            ),
+          ),
+          const SizedBox(height: Gap.sm),
+          FutureBuilder<({String text, int count})>(
+            future: _future,
+            builder: (context, snap) {
+              if (!snap.hasData) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: Gap.md),
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                );
+              }
+              final data = snap.data!;
+              final sizeLabel = _formatExportSize(utf8.encode(data.text).length);
+              return Text(
+                '$filename\n共 ${data.count} 筆 ・ 約 $sizeLabel',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 12, color: AppColors.ink3),
+              );
+            },
+          ),
+        ],
+      ),
+      actionsAlignment: MainAxisAlignment.center,
+      actions: [
+        FilledButton(
+          onPressed: () async {
+            final data = await _future;
+            final ok = saveTextFile(filename, data.text);
+            if (!context.mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(ok ? '已下載 $filename' : '這個平台還不支援下載，改用複製')),
+            );
+          },
+          style: FilledButton.styleFrom(
+            backgroundColor: AppColors.accent,
+            foregroundColor: AppColors.bgDeep,
+          ),
+          child: const Text('下載'),
+        ),
+        OutlinedButton(
+          onPressed: () async {
+            final data = await _future;
+            await Clipboard.setData(ClipboardData(text: data.text));
+            if (!context.mounted) return;
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('已複製到剪貼簿')));
+          },
+          child: const Text('複製'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('關閉'),
+        ),
+      ],
+    );
+  }
+}
+
+String _formatExportSize(int bytes) {
+  if (bytes < 1024) return '$bytes B';
+  final kb = bytes / 1024;
+  if (kb < 1024) return '${kb.toStringAsFixed(1)} KB';
+  return '${(kb / 1024).toStringAsFixed(1)} MB';
+}
+
+String _exportTodayStamp() {
+  final now = DateTime.now();
+  String two(int n) => n.toString().padLeft(2, '0');
+  return '${now.year}${two(now.month)}${two(now.day)}';
 }
