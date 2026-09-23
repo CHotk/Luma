@@ -30,6 +30,15 @@
   -->
   <meta name="theme-color" content="#0C0C13">
 
+  <!--
+    iOS「加入主畫面」要用這個獨立的舊版 apple- 前綴標籤才會真的進
+    standalone 模式（不是下面那個通用 mobile-web-app-capable）——沒加
+    這個的話，iOS 只會把主畫面捷徑當成一般 Safari 書籤開，整個瀏覽器
+    外框（含白色狀態列）都還在，下面那顆 apple-mobile-web-app-status-
+    bar-style 根本不會生效（2026-09-23 使用者拿實機「加到主畫面」測試
+    回報頂部時間那排還是白的，這個漏掉的標籤就是原因）。
+  -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -42,6 +51,12 @@
 
   <title>Lume 微光</title>
   <link rel="manifest" href="manifest.json">
+  <style>
+    /* Flutter 的 canvas 蓋滿畫面前，或瀏海/動態島那圈安全區域
+       canvas 蓋不到的地方，底色要跟 App 本身一樣深，不然會透出瀏覽器
+       預設的白色。 */
+    html, body { background: #0C0C13; }
+  </style>
 </head>
 <body>
   <script src="flutter_bootstrap.js" async></script>
