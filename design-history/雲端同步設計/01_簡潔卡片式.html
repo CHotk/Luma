@@ -48,6 +48,19 @@
   .col { display: flex; flex-direction: column; align-items: center; gap: 14px; }
   .col-label { font-size: 11.5px; font-weight: 700; color: var(--ink2); text-align: center; }
   .step-tag { font-size: 9.5px; color: var(--accent); font-weight: 700; }
+
+  .section-title { font-size: 14px; font-weight: 800; text-align: center; margin-top: 10px; }
+  .section-p { max-width: 460px; text-align: center; font-size: 12.5px; color: #a9a4ad; line-height: 1.7; margin: 0 auto; }
+  .mini-row { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; max-width: 720px; }
+  .mini-col { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 210px; }
+  .mini-label { font-size: 11px; font-weight: 700; color: var(--ink2); }
+  .mini-card { width: 100%; border-radius: 16px; padding: 14px; background: var(--glass-fill); border: 1px solid var(--glass-edge); }
+  .spinner { width: 14px; height: 14px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.25); border-top-color: var(--ink); display: inline-block; vertical-align: -2px; margin-right: 6px; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .btn-loading { width: 100%; padding: 12px; border-radius: 14px; background: rgba(255,255,255,0.06); color: var(--ink2); font-size: 12.5px; font-weight: 700; text-align: center; }
+  .btn-ok { width: 100%; padding: 12px; border-radius: 14px; background: var(--ok); color: #062b16; font-size: 12.5px; font-weight: 800; text-align: center; }
+  .btn-err { width: 100%; padding: 12px; border-radius: 14px; background: rgba(255,147,139,0.16); border: 1px solid #ff938b; color: #ff938b; font-size: 12.5px; font-weight: 800; text-align: center; }
+  .err-msg { font-size: 10.5px; color: #ff938b; margin-top: 8px; line-height: 1.6; }
 </style>
 
 <div class="intro">
@@ -112,6 +125,30 @@
           <div class="settings-row" style="border-bottom:none"><span class="lbl">查看除錯訊息</span><span class="val">›</span></div>
         </div>
       </div>
+    </div>
+  </div>
+</div>
+
+<div class="section-title">按下「儲存並測試連線」之後——三種可能結果</div>
+<p class="section-p">補上原本沒展示的部分：按下去不會立刻消失或跳走，會先進「測試中」狀態（按鈕本身變灰、轉圈、不能再按第二次），等結果出來才分岔成「成功」或「失敗」。成功的話卡片會在原地停留約 1 秒讓使用者看到打勾，接著才自動切換成 STEP 2 那個「已連接」畫面；失敗則留在原本這頁，按鈕變回可以再按，下面多一行紅字說明哪裡錯了。</p>
+<div class="mini-row">
+  <div class="mini-col">
+    <div class="mini-label">① 測試中</div>
+    <div class="mini-card">
+      <div class="btn-loading"><span class="spinner"></span>連線測試中…</div>
+    </div>
+  </div>
+  <div class="mini-col">
+    <div class="mini-label">② 成功（停留約 1 秒後自動跳下一步）</div>
+    <div class="mini-card">
+      <div class="btn-ok">✓ 連線成功</div>
+    </div>
+  </div>
+  <div class="mini-col">
+    <div class="mini-label">③ 失敗（留在原頁，可重試）</div>
+    <div class="mini-card">
+      <div class="btn-err">連線失敗，再試一次</div>
+      <div class="err-msg">找不到這個 bucket，或金鑰沒有讀寫權限——檢查 Account ID 網址跟金鑰是不是貼對了。</div>
     </div>
   </div>
 </div>
