@@ -15,6 +15,12 @@ const _lastSyncedKey = 'r2_sync.last_synced_at.v1';
 
 enum _Phase { idle, testing, success, error }
 
+/// 「各功能同步狀況」卡片裡，單一功能目前跑到哪一步（2026-09-23
+/// 使用者要求：同步頁要看得出目前是哪個功能在下載還是上傳，不是只有
+/// 一顆「立即同步」按鈕看不出進度）。目前只有日記這一個功能，之後每
+/// 加一個功能的同步，這個卡片就多加一行，用同一組狀態。
+enum _FeaturePhase { idle, downloading, uploading, done, error }
+
 /// 設定頁「多裝置同步」區塊，照設計稿
 /// `design-history/雲端同步設計/01_簡潔卡片式.html` 做：沒設定過就是
 /// 輸入卡片（Account ID／Access Key ID／Secret Access Key 三欄＋
@@ -37,6 +43,7 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
   String? _errorMessage;
   DateTime? _lastSyncedAt;
   bool _syncing = false;
+  _FeaturePhase _diaryPhase = _FeaturePhase.idle;
 
   @override
   void initState() {
@@ -112,14 +119,28 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
   Future<void> _syncNow() async {
     final credentials = ref.read(r2CredentialsProvider);
     if (credentials == null || _syncing) return;
-    setState(() => _syncing = true);
+    setState(() {
+      _syncing = true;
+      _diaryPhase = _FeaturePhase.downloading;
+    });
     try {
       final client = R2Client(
         credentials: credentials,
         bucket: ref.read(r2BucketNameProvider),
       );
       final service = R2SyncService(client);
-      final changed = await service.syncDiary(ref.read(diaryRepositoryProvider));
+      final result = await service.syncDiary(
+        ref.read(diaryRepositoryProvider),
+        onPhase: (phase) {
+          if (!mounted) return;
+          setState(() {
+            _diaryPhase = switch (phase) {
+              DiarySyncPhase.downloading => _FeaturePhase.downloading,
+              DiarySyncPhase.uploading => _FeaturePhase.uploading,
+            };
+          });
+        },
+      );
       final now = DateTime.now();
       await ref
           .read(keyValueStoreProvider)
@@ -133,11 +154,18 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
       setState(() {
         _lastSyncedAt = now;
         _syncing = false;
+        _diaryPhase = _FeaturePhase.done;
       });
-      showAppNotice(context, '日記 同步成功，異動 $changed 筆');
+      showAppNotice(
+        context,
+        '日記同步完成，上傳 ${result.uploaded} 筆、下載 ${result.downloaded} 筆',
+      );
     } catch (e) {
       if (!mounted) return;
-      setState(() => _syncing = false);
+      setState(() {
+        _syncing = false;
+        _diaryPhase = _FeaturePhase.error;
+      });
       showAppNotice(context, '日記同步失敗：$e', isError: true);
     }
   }
@@ -145,8 +173,32 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
   @override
   Widget build(BuildContext context) {
     final credentials = ref.watch(r2CredentialsProvider);
-    return GlassCard(
-      child: credentials == null ? _buildInputCard() : _buildConnectedCard(credentials),
+    if (credentials == null) {
+      return GlassCard(child: _buildInputCard());
+    }
+    // 「各功能同步狀況」卡片只有連上雲端之後才有意義顯示，跟輸入卡片
+    // 分開放（2026-09-23 使用者要求：頁面底下再加一張卡片顯示同步
+    // 進度）。
+    return Column(
+      children: [
+        GlassCard(child: _buildConnectedCard(credentials)),
+        const SizedBox(height: Gap.sm),
+        GlassCard(child: _buildStatusCard()),
+      ],
+    );
+  }
+
+  Widget _buildStatusCard() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          '各功能同步狀況',
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.ink),
+        ),
+        const SizedBox(height: Gap.sm),
+        _FeatureStatusRow(label: '日記', phase: _diaryPhase),
+      ],
     );
   }
 
@@ -355,6 +407,83 @@ class _FieldState extends State<_Field> {
           ],
         ],
       ),
+    );
+  }
+}
+
+/// 同步狀況卡片裡的一行：功能名稱＋目前狀態（閒置／下載中／上傳中／
+/// 完成打勾／失敗）。
+class _FeatureStatusRow extends StatelessWidget {
+  const _FeatureStatusRow({required this.label, required this.phase});
+
+  final String label;
+  final _FeaturePhase phase;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Text(
+            label,
+            style: const TextStyle(fontSize: 12.5, color: AppColors.ink, fontWeight: FontWeight.w600),
+          ),
+          const Spacer(),
+          _buildStatus(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatus() {
+    switch (phase) {
+      case _FeaturePhase.idle:
+        return const Text('待同步', style: TextStyle(fontSize: 11, color: AppColors.ink3));
+      case _FeaturePhase.downloading:
+        return const _StatusSpinnerLabel(label: '下載中…');
+      case _FeaturePhase.uploading:
+        return const _StatusSpinnerLabel(label: '上傳中…');
+      case _FeaturePhase.done:
+        return const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.check_circle, size: 14, color: AppColors.ok),
+            SizedBox(width: 4),
+            Text('完成', style: TextStyle(fontSize: 11, color: AppColors.ok)),
+          ],
+        );
+      case _FeaturePhase.error:
+        return const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.error_outline, size: 14, color: AppColors.bad),
+            SizedBox(width: 4),
+            Text('失敗', style: TextStyle(fontSize: 11, color: AppColors.bad)),
+          ],
+        );
+    }
+  }
+}
+
+class _StatusSpinnerLabel extends StatelessWidget {
+  const _StatusSpinnerLabel({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const SizedBox(
+          width: 11,
+          height: 11,
+          child: CircularProgressIndicator(strokeWidth: 1.6, color: AppColors.accent),
+        ),
+        const SizedBox(width: 6),
+        Text(label, style: const TextStyle(fontSize: 11, color: AppColors.ink2)),
+      ],
     );
   }
 }

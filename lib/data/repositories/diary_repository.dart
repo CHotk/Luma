@@ -105,29 +105,16 @@ class DiaryRepository {
       updatedAtOf: (e) => e.updatedAt,
     );
     await _write(merged);
-    return _diffCount(before, merged);
+    return diaryDiffCount(before, merged);
   }
 
   /// 把本機現況（含刪除標記）整包覆蓋寫回 R2——上傳不是合併，就是
   /// 單純用本機蓋掉雲端那份，理由見 `r2_sync_service.dart` 的說明。
-  /// 回傳的是「這次上傳的內容」，異動筆數要呼叫端自己在上傳前後比較
-  /// （這裡沒有「雲端原本長怎樣」可以比，不像下載那樣本機端看得到
-  /// before/after）。
+  /// 回傳的是「這次上傳的內容」，異動筆數要呼叫端自己拿上傳前的雲端
+  /// 快照跟這份比（見 [diaryDiffCount]、`r2_sync_service.dart` 的
+  /// `syncDiary`）——這裡沒有「雲端原本長怎樣」可以比，不像下載那樣
+  /// 本機端看得到 before/after。
   Future<List<DiaryEntry>> allForUpload() => _loadAllRaw();
-
-  /// 比較合併前後多了幾筆新增、幾筆變成刪除、幾筆內容不一樣，全部
-  /// 加起來當「異動筆數」——每一筆不管是哪種變化都只算一次。
-  int _diffCount(List<DiaryEntry> before, List<DiaryEntry> after) {
-    final beforeById = {for (final e in before) e.id: e};
-    var changed = 0;
-    for (final e in after) {
-      final prior = beforeById[e.id];
-      if (prior == null || !mapEquals(prior.toJson(), e.toJson())) {
-        changed++;
-      }
-    }
-    return changed;
-  }
 
   /// 匯出整份日記（不含已刪除的）給使用者存成真正的檔案，手動搬進
   /// git 版控——日記已經改用 R2 同步，這個純粹保留給想要手動備份的
@@ -140,4 +127,22 @@ class DiaryRepository {
       count: all.length,
     );
   }
+}
+
+/// 比較兩份日記清單多了幾筆新增、幾筆變成刪除、幾筆內容不一樣，全部
+/// 加起來當「異動筆數」，每一筆不管是哪種變化都只算一次——下載
+/// （[DiaryRepository.mergeFromCloud]）、上傳（`r2_sync_service.dart`
+/// 的 `syncDiary`，拿上傳前的雲端快照跟即將上傳的內容比）兩邊都拿這個
+/// 比，不要兩邊各寫一份幾乎一樣的邏輯（2026-09-23 使用者要求：上傳、
+/// 下載的異動筆數要分開算才精確，不能只看下載那邊）。
+int diaryDiffCount(List<DiaryEntry> before, List<DiaryEntry> after) {
+  final beforeById = {for (final e in before) e.id: e};
+  var changed = 0;
+  for (final e in after) {
+    final prior = beforeById[e.id];
+    if (prior == null || !mapEquals(prior.toJson(), e.toJson())) {
+      changed++;
+    }
+  }
+  return changed;
 }
