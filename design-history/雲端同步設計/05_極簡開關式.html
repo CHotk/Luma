@@ -1,0 +1,79 @@
+<!doctype html>
+<title>雲端同步05・極簡開關式</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;800&display=swap" />
+<style>
+  :root { color-scheme: dark; --bg:#0c0c13; --bg-deep:#0a0a10; --ink:#f3f2f8; --ink2:#a3a2b2; --ink3:#74738a;
+    --glass-edge: rgba(255,255,255,0.14); --glass-fill: rgba(255,255,255,0.045); --accent:#7ea6ff; --ok:#5fe08d; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; min-height: 100%; background: var(--bg-deep); color: var(--ink); font-family: "Noto Sans TC", system-ui, sans-serif; }
+  body { padding: 32px 20px 48px; display: flex; flex-direction: column; align-items: center; gap: 18px; }
+  .intro { max-width: 460px; text-align: center; }
+  .eyebrow { font-size: 11.5px; letter-spacing: 0.18em; color: #8b8690; text-transform: uppercase; }
+  .intro h1 { font-weight: 800; font-size: 21px; margin: 6px 0 8px; }
+  .intro p { margin: 0 auto; font-size: 13px; line-height: 1.7; color: #a9a4ad; max-width: 46ch; }
+  .phone { position: relative; width: 100%; max-width: 380px; min-height: 700px; flex-shrink: 0; border-radius: 40px; padding: 12px; isolation: isolate; overflow: hidden;
+    background: radial-gradient(120% 100% at 50% -10%, #131019 0%, var(--bg) 45%, var(--bg-deep) 100%);
+    box-shadow: 0 40px 90px -30px rgba(0,0,0,0.75), inset 0 0 0 1px rgba(255,255,255,0.04); }
+  .amb { position: absolute; border-radius: 50%; filter: blur(72px); opacity: 0.4; z-index: -1; }
+  .amb-1 { width: 230px; height: 230px; top: -80px; left: -60px; background: #1a1a33; }
+  .amb-2 { width: 220px; height: 220px; bottom: 60px; right: -80px; background: #201d1a; }
+  .shell { position: relative; min-height: 100%; border-radius: 30px; padding: 20px 17px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.022) 100%);
+    backdrop-filter: blur(22px); border: 1px solid var(--glass-edge);
+    display: flex; flex-direction: column; gap: 14px; }
+  .topbar { display: flex; align-items: center; gap: 10px; }
+  .icon-btn { width: 32px; height: 32px; border-radius: 11px; border: 1px solid rgba(255,255,255,0.07); background: rgba(255,255,255,0.03); display: flex; align-items: center; justify-content: center; color: var(--ink2); font-size: 15px; }
+  .topbar-title { font-weight: 800; font-size: 16.5px; flex: 1; }
+  .settings-row { display: flex; align-items: center; padding: 13px 4px; border-bottom: 1px solid rgba(255,255,255,0.06); gap: 10px; }
+  .settings-row .ic { font-size: 15px; width: 20px; text-align: center; }
+  .settings-row .lbl { flex: 1; font-size: 13px; }
+  .settings-row .sub { font-size: 10px; color: var(--ink3); margin-top: 2px; }
+  .toggle { width: 38px; height: 22px; border-radius: 999px; background: var(--accent); position: relative; flex: none; }
+  .toggle::after { content: ""; position: absolute; top: 2px; right: 2px; width: 18px; height: 18px; border-radius: 50%; background: white; }
+  .toggle.off { background: rgba(255,255,255,0.12); }
+  .toggle.off::after { right: auto; left: 2px; }
+  .chevron { color: var(--ink3); font-size: 13px; }
+</style>
+
+<div class="intro">
+  <p class="eyebrow">Lume · 雲端同步 05（Mock・極簡開關式）</p>
+  <h1>藏進一般設定清單裡</h1>
+  <p>不特別做一整塊「多裝置同步」專區，就是設定頁清單裡普通的一行：一個開關＋一行小字狀態，點進去才是金鑰輸入跟手動同步。平常掃過設定頁根本不會特別注意到它，符合「這是可有可無的選配功能，不該搶眼」的定位——跟前面幾版比起來存在感最低，找不到入口的風險也最高，適合你已經很熟悉這功能、不需要提示的階段。</p>
+</div>
+
+<div class="phone">
+  <div class="amb amb-1"></div>
+  <div class="amb amb-2"></div>
+  <div class="shell">
+    <div class="topbar">
+      <div class="icon-btn">←</div>
+      <div class="topbar-title">設定</div>
+    </div>
+    <div>
+      <div class="settings-row">
+        <span class="ic">🔔</span>
+        <span class="lbl">通知</span>
+        <div class="toggle"></div>
+      </div>
+      <div class="settings-row">
+        <span class="ic">☁️</span>
+        <div class="lbl">多裝置同步<div class="sub">已連接・3 分鐘前</div></div>
+        <span class="chevron">›</span>
+      </div>
+      <div class="settings-row">
+        <span class="ic">🐞</span>
+        <span class="lbl">查看除錯訊息</span>
+        <span class="chevron">›</span>
+      </div>
+      <div class="settings-row" style="border-bottom:none">
+        <span class="ic">ℹ️</span>
+        <span class="lbl">版本</span>
+        <span class="sub" style="margin:0">v0.1.0</span>
+      </div>
+    </div>
+  </div>
+</div>

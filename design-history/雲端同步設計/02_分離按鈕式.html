@@ -1,0 +1,72 @@
+<!doctype html>
+<title>雲端同步02・分離按鈕式</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;800&display=swap" />
+<style>
+  :root { color-scheme: dark; --bg:#0c0c13; --bg-deep:#0a0a10; --ink:#f3f2f8; --ink2:#a3a2b2; --ink3:#74738a;
+    --glass-edge: rgba(255,255,255,0.14); --glass-fill: rgba(255,255,255,0.045); --accent:#7ea6ff; --ok:#5fe08d; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; min-height: 100%; background: var(--bg-deep); color: var(--ink); font-family: "Noto Sans TC", system-ui, sans-serif; }
+  body { padding: 32px 20px 48px; display: flex; flex-direction: column; align-items: center; gap: 18px; }
+  .intro { max-width: 460px; text-align: center; }
+  .eyebrow { font-size: 11.5px; letter-spacing: 0.18em; color: #8b8690; text-transform: uppercase; }
+  .intro h1 { font-weight: 800; font-size: 21px; margin: 6px 0 8px; }
+  .intro p { margin: 0 auto; font-size: 13px; line-height: 1.7; color: #a9a4ad; max-width: 46ch; }
+  .phone { position: relative; width: 100%; max-width: 380px; min-height: 700px; flex-shrink: 0; border-radius: 40px; padding: 12px; isolation: isolate; overflow: hidden;
+    background: radial-gradient(120% 100% at 50% -10%, #131019 0%, var(--bg) 45%, var(--bg-deep) 100%);
+    box-shadow: 0 40px 90px -30px rgba(0,0,0,0.75), inset 0 0 0 1px rgba(255,255,255,0.04); }
+  .amb { position: absolute; border-radius: 50%; filter: blur(72px); opacity: 0.4; z-index: -1; }
+  .amb-1 { width: 230px; height: 230px; top: -80px; left: -60px; background: #1a1a33; }
+  .amb-2 { width: 220px; height: 220px; bottom: 60px; right: -80px; background: #201d1a; }
+  .shell { position: relative; min-height: 100%; border-radius: 30px; padding: 20px 17px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.022) 100%);
+    backdrop-filter: blur(22px); border: 1px solid var(--glass-edge);
+    display: flex; flex-direction: column; gap: 14px; }
+  .topbar { display: flex; align-items: center; gap: 10px; }
+  .icon-btn { width: 32px; height: 32px; border-radius: 11px; border: 1px solid rgba(255,255,255,0.07); background: rgba(255,255,255,0.03); display: flex; align-items: center; justify-content: center; color: var(--ink2); font-size: 15px; }
+  .topbar-title { font-weight: 800; font-size: 16.5px; flex: 1; }
+  .panel-label { font-size: 10px; letter-spacing: 1.2px; color: var(--ink2); font-weight: 500; }
+  .card { border-radius: 18px; padding: 15px; background: var(--glass-fill); border: 1px solid var(--glass-edge); }
+  .status-row { display: flex; align-items: center; gap: 8px; }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+  .status-text { font-size: 13px; font-weight: 700; }
+  .sub-text { font-size: 11px; color: var(--ink3); margin-top: 3px; }
+  .btn-row { display: flex; gap: 8px; margin-top: 14px; }
+  .btn { flex: 1; padding: 12px 6px; border-radius: 14px; font-size: 12.5px; font-weight: 700; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .btn .ic { font-size: 16px; }
+  .btn.pull { background: color-mix(in srgb, var(--accent) 20%, transparent); border: 1px solid var(--accent); color: var(--ink); }
+  .btn.push { background: rgba(255,255,255,0.04); border: 1px solid var(--glass-edge); color: var(--ink2); }
+  .hint { font-size: 10px; color: var(--ink3); margin-top: 10px; line-height: 1.6; }
+</style>
+
+<div class="intro">
+  <p class="eyebrow">Lume · 雲端同步 02（Mock・分離按鈕式）</p>
+  <h1>下載／推送分開兩顆</h1>
+  <p>「⬇ 從雲端下載」「⬆ 推送到雲端」左右並排，方向清楚，使用者自己決定要拉哪邊——跟討論定案的分階段做法直接對應：第一步只做下載，這版「推送」按鈕先用淡灰色（未啟用樣式）代表還沒做好，第二步做完再點亮。適合想清楚掌控每次同步方向的使用者，缺點是多一個決策，沒有「一顆按鈕全自動」那麼省心。</p>
+</div>
+
+<div class="phone">
+  <div class="amb amb-1"></div>
+  <div class="amb amb-2"></div>
+  <div class="shell">
+    <div class="topbar">
+      <div class="icon-btn">←</div>
+      <div class="topbar-title">設定</div>
+    </div>
+    <div class="panel-label">多裝置同步</div>
+    <div class="card">
+      <div class="status-row"><span class="status-dot"></span><span class="status-text">已連接雲端</span></div>
+      <div class="sub-text">上次下載：3 分鐘前・尚未推送過</div>
+      <div class="btn-row">
+        <div class="btn pull"><span class="ic">⬇</span>從雲端下載</div>
+        <div class="btn push" style="opacity:.45">
+          <span class="ic">⬆</span>推送到雲端
+        </div>
+      </div>
+      <div class="hint">推送功能還在做（第二階段），目前只能把雲端資料拉下來合併到本機，還不能把本機資料傳上去。</div>
+    </div>
+  </div>
+</div>

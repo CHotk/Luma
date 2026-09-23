@@ -1,0 +1,72 @@
+<!doctype html>
+<title>雲端同步04・精靈流程式</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;800&display=swap" />
+<style>
+  :root { color-scheme: dark; --bg:#0c0c13; --bg-deep:#0a0a10; --ink:#f3f2f8; --ink2:#a3a2b2; --ink3:#74738a;
+    --glass-edge: rgba(255,255,255,0.14); --glass-fill: rgba(255,255,255,0.045); --accent:#7ea6ff; --ok:#5fe08d; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; min-height: 100%; background: var(--bg-deep); color: var(--ink); font-family: "Noto Sans TC", system-ui, sans-serif; }
+  body { padding: 32px 20px 48px; display: flex; flex-direction: column; align-items: center; gap: 18px; }
+  .intro { max-width: 460px; text-align: center; }
+  .eyebrow { font-size: 11.5px; letter-spacing: 0.18em; color: #8b8690; text-transform: uppercase; }
+  .intro h1 { font-weight: 800; font-size: 21px; margin: 6px 0 8px; }
+  .intro p { margin: 0 auto; font-size: 13px; line-height: 1.7; color: #a9a4ad; max-width: 46ch; }
+  .phone { position: relative; width: 100%; max-width: 380px; min-height: 760px; flex-shrink: 0; border-radius: 40px; padding: 12px; isolation: isolate; overflow: hidden;
+    background: radial-gradient(120% 100% at 50% -10%, #131019 0%, var(--bg) 45%, var(--bg-deep) 100%);
+    box-shadow: 0 40px 90px -30px rgba(0,0,0,0.75), inset 0 0 0 1px rgba(255,255,255,0.04); }
+  .amb { position: absolute; border-radius: 50%; filter: blur(72px); opacity: 0.4; z-index: -1; }
+  .amb-1 { width: 230px; height: 230px; top: -80px; left: -60px; background: #1a1a33; }
+  .amb-2 { width: 220px; height: 220px; bottom: 60px; right: -80px; background: #201d1a; }
+  .shell { position: relative; min-height: 100%; border-radius: 30px; padding: 20px 17px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.022) 100%);
+    backdrop-filter: blur(22px); border: 1px solid var(--glass-edge);
+    display: flex; flex-direction: column; gap: 14px; }
+  .topbar { display: flex; align-items: center; gap: 10px; }
+  .icon-btn { width: 32px; height: 32px; border-radius: 11px; border: 1px solid rgba(255,255,255,0.07); background: rgba(255,255,255,0.03); display: flex; align-items: center; justify-content: center; color: var(--ink2); font-size: 15px; }
+  .topbar-title { font-weight: 800; font-size: 16.5px; flex: 1; }
+  .steps { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 4px 0; }
+  .step-dot { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10.5px; font-weight: 700; background: rgba(255,255,255,0.05); color: var(--ink3); border: 1px solid var(--glass-edge); }
+  .step-dot.active { background: var(--accent); color: #0a0f1f; border-color: var(--accent); }
+  .step-dot.done { background: color-mix(in srgb, var(--ok) 25%, transparent); color: var(--ok); border-color: var(--ok); }
+  .step-line { width: 20px; height: 1px; background: var(--glass-edge); }
+  .card { border-radius: 18px; padding: 16px; background: var(--glass-fill); border: 1px solid var(--glass-edge); flex: 1; display: flex; flex-direction: column; }
+  .card h3 { font-size: 14px; margin: 0 0 6px; }
+  .card p { font-size: 11.5px; color: var(--ink3); line-height: 1.6; margin: 0 0 14px; }
+  .field { margin-bottom: 10px; }
+  .field label { font-size: 10.5px; color: var(--ink3); display: block; margin-bottom: 4px; }
+  .field .input { padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,0.03); border: 1px solid var(--glass-edge); font-size: 12px; color: var(--ink2); }
+  .next-btn { margin-top: auto; padding: 12px; border-radius: 14px; background: var(--accent); color: #0a0f1f; font-size: 13px; font-weight: 800; text-align: center; }
+</style>
+
+<div class="intro">
+  <p class="eyebrow">Lume · 雲端同步 04（Mock・精靈流程式）</p>
+  <h1>分步驟引導輸入</h1>
+  <p>把「填 Access Key ID／Secret／Account ID」這種一次要輸入三個陌生欄位的設定，拆成一步一步的精靈流程（每步一個欄位＋說明去哪裡找），減少一次塞三個空格造成的壓力，最後一步測試連線成功才算完成。日常「立即同步」按鈕反而不在這裡，是設定完成後才出現在一般的設定頁——這版純粹處理「第一次設定」這件事本身。</p>
+</div>
+
+<div class="phone">
+  <div class="amb amb-1"></div>
+  <div class="amb amb-2"></div>
+  <div class="shell">
+    <div class="topbar">
+      <div class="icon-btn">←</div>
+      <div class="topbar-title">設定雲端同步</div>
+    </div>
+    <div class="steps">
+      <div class="step-dot done">✓</div><div class="step-line"></div>
+      <div class="step-dot active">2</div><div class="step-line"></div>
+      <div class="step-dot">3</div>
+    </div>
+    <div class="card">
+      <h3>第 2 步：貼上金鑰</h3>
+      <p>在 Cloudflare R2 建立 API Token 之後，把 Access Key ID 跟 Secret Access Key 貼在這裡。</p>
+      <div class="field"><label>Access Key ID</label><div class="input">••••••••••••1a2b</div></div>
+      <div class="field"><label>Secret Access Key</label><div class="input">••••••••••••••••••••</div></div>
+      <div class="next-btn">下一步：測試連線</div>
+    </div>
+  </div>
+</div>
