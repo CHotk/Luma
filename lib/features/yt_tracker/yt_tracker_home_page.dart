@@ -16,6 +16,7 @@ import '../../data/seed/seed_merge.dart';
 import '../../data/seed/yt_tracker_seed_loader.dart';
 import '../../domain/models/yt_tracker.dart';
 import '../../shared/widgets/ambient_background.dart';
+import '../../shared/widgets/app_notice.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
 import '../../shared/widgets/glass_card.dart';
@@ -749,9 +750,7 @@ class _ExportDialogState extends State<_ExportDialog> {
             final data = await _future;
             final ok = saveTextFile(filename, data.text);
             if (!context.mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(ok ? '已下載 $filename' : '這個平台還不支援下載，改用複製')),
-            );
+            showAppNotice(context, ok ? '已下載 $filename' : '這個平台還不支援下載，改用複製');
           },
           style: FilledButton.styleFrom(
             backgroundColor: AppColors.ytAccent,
@@ -764,9 +763,7 @@ class _ExportDialogState extends State<_ExportDialog> {
             final data = await _future;
             await Clipboard.setData(ClipboardData(text: data.text));
             if (!context.mounted) return;
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(const SnackBar(content: Text('已複製到剪貼簿')));
+            showAppNotice(context, '已複製到剪貼簿');
           },
           child: const Text('複製'),
         ),

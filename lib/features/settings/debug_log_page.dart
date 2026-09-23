@@ -9,6 +9,7 @@ import '../../app/theme/typography.dart';
 import '../../data/notifications/test_notification_action.dart';
 import '../../shared/debug/app_log.dart';
 import '../../shared/widgets/ambient_background.dart';
+import '../../shared/widgets/app_notice.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
 import '../../shared/widgets/glass_card.dart';
@@ -102,9 +103,7 @@ class _DebugLogPageState extends State<DebugLogPage> {
                                 Clipboard.setData(
                                   ClipboardData(text: _joined(entries)),
                                 );
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('已複製到剪貼簿')),
-                                );
+                                showAppNotice(context, '已複製到剪貼簿');
                               },
                         icon: const Icon(Icons.copy_all_outlined, size: 20),
                         color: AppColors.ink2,

@@ -16,6 +16,7 @@ import '../../data/seed/fitness_seed_loader.dart';
 import '../../data/seed/seed_merge.dart';
 import '../../domain/models/fitness.dart';
 import '../../shared/widgets/ambient_background.dart';
+import '../../shared/widgets/app_notice.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
 import '../../shared/widgets/glass_card.dart';
@@ -206,13 +207,10 @@ class _FitnessHomePageState extends ConsumerState<FitnessHomePage> {
     );
     if (!mounted) return;
     _reload();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          '已打卡：${_dayOffsetLabels[_dayOffset]}・${_selectedType.label}'
-          '${_pickedDuration == null ? '' : '・$_pickedDuration 分鐘'}',
-        ),
-      ),
+    showAppNotice(
+      context,
+      '已打卡：${_dayOffsetLabels[_dayOffset]}・${_selectedType.label}'
+      '${_pickedDuration == null ? '' : '・$_pickedDuration 分鐘'}',
     );
   }
 
@@ -1180,9 +1178,7 @@ class _ExportDialogState extends State<_ExportDialog> {
             final data = await _future;
             final ok = saveTextFile(filename, data.text);
             if (!context.mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(ok ? '已下載 $filename' : '這個平台還不支援下載，改用複製')),
-            );
+            showAppNotice(context, ok ? '已下載 $filename' : '這個平台還不支援下載，改用複製');
           },
           style: FilledButton.styleFrom(
             backgroundColor: AppColors.accent,
@@ -1195,9 +1191,7 @@ class _ExportDialogState extends State<_ExportDialog> {
             final data = await _future;
             await Clipboard.setData(ClipboardData(text: data.text));
             if (!context.mounted) return;
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(const SnackBar(content: Text('已複製到剪貼簿')));
+            showAppNotice(context, '已複製到剪貼簿');
           },
           child: const Text('複製'),
         ),

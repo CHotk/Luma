@@ -8,6 +8,7 @@ import '../../app/theme/typography.dart';
 import '../../data/cloud/r2_client.dart';
 import '../../data/cloud/r2_credentials_store.dart';
 import '../../data/cloud/r2_sync_service.dart';
+import '../../shared/widgets/app_notice.dart';
 import '../../shared/widgets/glass_card.dart';
 
 const _lastSyncedKey = 'r2_sync.last_synced_at.v1';
@@ -128,15 +129,11 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
         _lastSyncedAt = now;
         _syncing = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('同步完成，日記共 $count 篇（目前只同步日記，其他功能還在做）')),
-      );
+      showAppNotice(context, '日記 同步成功 $count 筆');
     } catch (e) {
       if (!mounted) return;
       setState(() => _syncing = false);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('同步失敗：$e')));
+      showAppNotice(context, '日記同步失敗：$e', isError: true);
     }
   }
 

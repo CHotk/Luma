@@ -6,6 +6,7 @@ import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
 import '../../data/external_link.dart';
 import '../../data/services/youtube_api_service.dart';
+import '../../shared/widgets/app_notice.dart';
 
 /// 開外部連結，失敗就退回複製到剪貼簿——跟匯出檔案失敗退回複製剪貼簿
 /// 同一個處理哲學。
@@ -23,9 +24,7 @@ Future<void> openExternalUrl(BuildContext context, String url) async {
   if (opened || !context.mounted) return;
   await Clipboard.setData(ClipboardData(text: url));
   if (!context.mounted) return;
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(content: Text('打不開連結，已複製到剪貼簿，貼到瀏覽器網址列開')),
-  );
+  showAppNotice(context, '打不開連結，已複製到剪貼簿，貼到瀏覽器網址列開', isError: true);
 }
 
 /// 影片列的通用元件：縮圖＋標題＋副標（頻道名稱和/或發布時間），點下去

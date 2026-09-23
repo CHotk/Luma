@@ -12,6 +12,7 @@ import '../../app/theme/typography.dart';
 import '../../data/export/file_download.dart';
 import '../../domain/models/history.dart';
 import '../../shared/widgets/ambient_background.dart';
+import '../../shared/widgets/app_notice.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
 import '../../shared/widgets/glass_card.dart';
@@ -125,11 +126,7 @@ Future<void> _showExportDialog(BuildContext context, WidgetRef ref) async {
         FilledButton(
           onPressed: () {
             final ok = saveTextFile(filename, text);
-            ScaffoldMessenger.of(dialogContext).showSnackBar(
-              SnackBar(
-                content: Text(ok ? '已下載 $filename' : '這個平台還不支援下載，改用複製'),
-              ),
-            );
+            showAppNotice(dialogContext, ok ? '已下載 $filename' : '這個平台還不支援下載，改用複製');
           },
           style: FilledButton.styleFrom(
             backgroundColor: AppColors.accentSolid,
@@ -139,9 +136,7 @@ Future<void> _showExportDialog(BuildContext context, WidgetRef ref) async {
         OutlinedButton(
           onPressed: () {
             Clipboard.setData(ClipboardData(text: text));
-            ScaffoldMessenger.of(dialogContext).showSnackBar(
-              const SnackBar(content: Text('已複製到剪貼簿')),
-            );
+            showAppNotice(dialogContext, '已複製到剪貼簿');
           },
           child: const Text('複製'),
         ),
