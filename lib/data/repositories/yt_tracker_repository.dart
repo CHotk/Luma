@@ -1,7 +1,5 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart' show mapEquals;
-
 import '../../domain/models/yt_tracker.dart';
 import '../seed/seed_merge.dart';
 import '../storage/key_value_store.dart';
@@ -239,11 +237,14 @@ int ytDiffCount(
   List<Map<String, dynamic>> before,
   List<Map<String, dynamic>> after,
 ) {
-  final beforeById = {for (final e in before) e['id']: e};
+  // 不能用 mapEquals：它只比一層，筆畫座標之類巢狀清單每次都是新物件、
+  // 永遠「不相等」，會讓沒動過的紀錄每次同步都算成上傳／下載 217 筆
+  // （2026-09-24 使用者回報）。改比 JSON 字串。
+  final beforeById = {for (final e in before) e['id']: jsonEncode(e)};
   var changed = 0;
   for (final e in after) {
     final prior = beforeById[e['id']];
-    if (prior == null || !mapEquals(prior, e)) changed++;
+    if (prior == null || prior != jsonEncode(e)) changed++;
   }
   return changed;
 }
