@@ -14,8 +14,8 @@ import '../repositories/error_log_repository.dart';
 import '../../domain/models/kana_exam.dart';
 import '../../domain/models/kana_practice.dart';
 import '../../domain/models/history.dart';
-import '../../domain/models/crypto_watch.dart';
-import '../repositories/crypto_watch_repository.dart';
+import '../../domain/models/habit_entry.dart';
+import '../repositories/habit_log_repository.dart';
 import '../repositories/fitness_repository.dart';
 import '../repositories/history_repository.dart';
 import '../repositories/kana_exam_repository.dart';
@@ -62,7 +62,10 @@ class R2SyncService {
     final bytes = await _client.getObject('diary.json');
     if (bytes == null) return const [];
     final decoded = jsonDecode(utf8.decode(bytes)) as List;
-    return decoded.cast<Map<String, dynamic>>().map(DiaryEntry.fromJson).toList();
+    return decoded
+        .cast<Map<String, dynamic>>()
+        .map(DiaryEntry.fromJson)
+        .toList();
   }
 
   /// 「立即同步」按下去做的事：先下載合併，再上傳——順序很重要，
@@ -326,7 +329,9 @@ class R2SyncService {
     final cloudRoundsByAt = {for (final r in cloudRounds) r.at: r};
     final uploaded =
         all.entries
-            .where((e) => !cloudPrints.contains(HistoryRepository.fingerprint(e)))
+            .where(
+              (e) => !cloudPrints.contains(HistoryRepository.fingerprint(e)),
+            )
             .length +
         all.rounds.where((r) {
           final c = cloudRoundsByAt[r.at];
@@ -355,13 +360,14 @@ class R2SyncService {
     onPhase: onPhase,
   );
 
-  /// 看盤（看虛擬貨幣價格）紀錄（`crypto_watch.json`）。
-  Future<({int downloaded, int uploaded})> syncCryptoWatch(
-    CryptoWatchRepository repo, {
+  /// 看盤／抽菸／喝酒紀錄，[cloudKey] 是各自的雲端檔名（見 `HabitConfig`）。
+  Future<({int downloaded, int uploaded})> syncHabitLog(
+    HabitLogRepository repo,
+    String cloudKey, {
     void Function(SyncPhase phase)? onPhase,
-  }) => _syncRecords<CryptoWatchEntry>(
-    key: 'crypto_watch.json',
-    fromJson: CryptoWatchEntry.fromJson,
+  }) => _syncRecords<HabitEntry>(
+    key: cloudKey,
+    fromJson: HabitEntry.fromJson,
     toJson: (e) => e.toJson(),
     mergeFromCloud: repo.mergeFromCloud,
     allForUpload: repo.allForUpload,

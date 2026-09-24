@@ -234,9 +234,7 @@ class _HistoryRow extends StatelessWidget {
                       '打了：${entry.input}',
                       style: TextStyle(
                         fontSize: 12,
-                        color: entry.correct
-                            ? AppColors.ink3
-                            : AppColors.bad,
+                        color: entry.correct ? AppColors.ink3 : AppColors.bad,
                       ),
                     ),
                   ),

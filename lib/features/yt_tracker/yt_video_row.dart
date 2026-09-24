@@ -110,7 +110,10 @@ class YtVideoRow extends StatelessWidget {
                     video.title,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 12.5, color: AppColors.ink),
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      color: AppColors.ink,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(subtitle, style: AppText.note),

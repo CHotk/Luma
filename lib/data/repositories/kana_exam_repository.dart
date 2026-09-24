@@ -70,7 +70,8 @@ class KanaExamRepository {
     await _store.write(
       _key,
       jsonEncode([
-        for (final e in all) (e.deletedAt == null ? e.stamped(deleted: true) : e).toJson(),
+        for (final e in all)
+          (e.deletedAt == null ? e.stamped(deleted: true) : e).toJson(),
       ]),
     );
   }

@@ -32,15 +32,15 @@ class ErrorLogRepository {
     }
   }
 
-  Future<void> _write(List<AppLogEntry> all) => _store.write(
-    _key,
-    jsonEncode([for (final e in all) e.toJson()]),
-  );
+  Future<void> _write(List<AppLogEntry> all) =>
+      _store.write(_key, jsonEncode([for (final e in all) e.toJson()]));
 
   Future<void> add(AppLogEntry entry) {
-    _queue = _queue.then((_) async {
-      await _write([...await loadAll(), entry]);
-    }).catchError((_) {});
+    _queue = _queue
+        .then((_) async {
+          await _write([...await loadAll(), entry]);
+        })
+        .catchError((_) {});
     return _queue;
   }
 

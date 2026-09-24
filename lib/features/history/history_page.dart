@@ -87,9 +87,7 @@ Future<void> _showExportDialog(BuildContext context, WidgetRef ref) async {
   // 內容只是給使用者確認「有抓到東西」，不是拿來預覽全部，
   // 完整內容太長（成千上百行）沒必要整份塞進對話框，抓前三行示意就好。
   final lines = text.split('\n');
-  final preview = lines.length > 3
-      ? '${lines.take(3).join('\n')}\n...'
-      : text;
+  final preview = lines.length > 3 ? '${lines.take(3).join('\n')}\n...' : text;
 
   showDialog<void>(
     context: context,
@@ -126,11 +124,12 @@ Future<void> _showExportDialog(BuildContext context, WidgetRef ref) async {
         FilledButton(
           onPressed: () {
             final ok = saveTextFile(filename, text);
-            showAppNotice(dialogContext, ok ? '已下載 $filename' : '這個平台還不支援下載，改用複製');
+            showAppNotice(
+              dialogContext,
+              ok ? '已下載 $filename' : '這個平台還不支援下載，改用複製',
+            );
           },
-          style: FilledButton.styleFrom(
-            backgroundColor: AppColors.accentSolid,
-          ),
+          style: FilledButton.styleFrom(backgroundColor: AppColors.accentSolid),
           child: const Text('下載'),
         ),
         OutlinedButton(
@@ -373,8 +372,9 @@ class _RoundRow extends StatelessWidget {
     return InkWell(
       // 點進去看這一輪出了什麼題、你怎麼答的。路由參數是 log.at
       // 編碼過的字串（唯一識別碼），畫面上顯示的號碼是另外算的 sequence。
-      onTap: () =>
-          context.push('/round/${Uri.encodeComponent(log.at.toIso8601String())}'),
+      onTap: () => context.push(
+        '/round/${Uri.encodeComponent(log.at.toIso8601String())}',
+      ),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 11),
         decoration: const BoxDecoration(

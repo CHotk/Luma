@@ -101,7 +101,10 @@ class _UploadFrequencyChartState extends State<UploadFrequencyChart> {
       );
     }
     final maxCount = data
-        .map((d) => d.regularCount > d.shortsCount ? d.regularCount : d.shortsCount)
+        .map(
+          (d) =>
+              d.regularCount > d.shortsCount ? d.regularCount : d.shortsCount,
+        )
         .fold<int>(1, (a, b) => a > b ? a : b);
     final top = _niceMax(maxCount);
 
@@ -172,7 +175,10 @@ class _LegendDot extends StatelessWidget {
           decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
         const SizedBox(width: 5),
-        Text(label, style: const TextStyle(fontSize: 10.5, color: AppColors.ink2)),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 10.5, color: AppColors.ink2),
+        ),
       ],
     );
   }
@@ -235,10 +241,20 @@ class _ChartPainter extends CustomPainter {
       canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
     }
 
-    _drawSeries(canvas, data.map((d) => d.regularCount).toList(), xAt, yAt,
-        AppColors.accent);
-    _drawSeries(canvas, data.map((d) => d.shortsCount).toList(), xAt, yAt,
-        AppColors.ytAccent);
+    _drawSeries(
+      canvas,
+      data.map((d) => d.regularCount).toList(),
+      xAt,
+      yAt,
+      AppColors.accent,
+    );
+    _drawSeries(
+      canvas,
+      data.map((d) => d.shortsCount).toList(),
+      xAt,
+      yAt,
+      AppColors.ytAccent,
+    );
 
     // X 軸標籤：每個月都標「n月」，第一個點跟跨年的一月再多標年份放
     // 第二行。月份很多（>14）時只標一月跟每 3 個月，避免疊字。

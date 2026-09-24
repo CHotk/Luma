@@ -35,13 +35,7 @@ void main() {
       adjacentGroups: const [],
       trailingOrder: const ['中等字', '基礎字', '超基礎字'],
     );
-    final tags = sortLibraryTags([
-      '超基礎字',
-      '動物',
-      '基礎字',
-      '食物',
-      '中等字',
-    ], order);
+    final tags = sortLibraryTags(['超基礎字', '動物', '基礎字', '食物', '中等字'], order);
     expect(tags, ['動物', '食物', '中等字', '基礎字', '超基礎字']);
   });
 

@@ -149,11 +149,7 @@ class _SortButton extends ConsumerWidget {
           borderRadius: BorderRadius.circular(Radii.button),
           border: Border.all(color: AppColors.glassEdge),
         ),
-        child: const Icon(
-          Icons.sort_rounded,
-          size: 18,
-          color: AppColors.ink2,
-        ),
+        child: const Icon(Icons.sort_rounded, size: 18, color: AppColors.ink2),
       ),
     );
   }
@@ -332,14 +328,10 @@ class _TagMenu extends ConsumerWidget {
       child: Container(
         padding: const EdgeInsets.fromLTRB(11, 6, 7, 6),
         decoration: BoxDecoration(
-          color: selected.isEmpty
-              ? AppColors.glassFill
-              : AppColors.accentSolid,
+          color: selected.isEmpty ? AppColors.glassFill : AppColors.accentSolid,
           borderRadius: BorderRadius.circular(Radii.chip),
           border: Border.all(
-            color: selected.isEmpty
-                ? AppColors.glassEdge
-                : Colors.transparent,
+            color: selected.isEmpty ? AppColors.glassEdge : Colors.transparent,
           ),
         ),
         child: Row(

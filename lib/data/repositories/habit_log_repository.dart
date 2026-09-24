@@ -1,44 +1,45 @@
 import 'dart:convert';
 
-import '../../domain/models/crypto_watch.dart';
+import '../../domain/models/habit_entry.dart';
 import '../seed/seed_merge.dart';
 import '../storage/key_value_store.dart';
 import 'yt_tracker_repository.dart' show ytDiffCount;
 
-/// 看盤（看虛擬貨幣價格）紀錄，整包 JSON 讀寫，刪除用墓碑標記，
+/// 看盤／抽菸／喝酒這類「多久一次」紀錄，整包 JSON 讀寫，刪除用墓碑標記，
 /// 跟 [KanaPracticeRepository] 同一套多裝置同步做法。
-class CryptoWatchRepository {
-  CryptoWatchRepository(this._store);
+class HabitLogRepository {
+  HabitLogRepository(this._store, this._key);
 
-  static const _key = 'crypto_watch.entries.v1';
+  /// 存放的 key，每種紀錄各一個（見 `HabitConfig.storageKey`）。
+  final String _key;
 
   final KeyValueStore _store;
 
-  Future<List<CryptoWatchEntry>> _loadAllRaw() async {
+  Future<List<HabitEntry>> _loadAllRaw() async {
     final raw = await _store.read(_key);
-    if (raw == null) return <CryptoWatchEntry>[];
+    if (raw == null) return <HabitEntry>[];
     return (jsonDecode(raw) as List)
         .cast<Map<String, dynamic>>()
-        .map(CryptoWatchEntry.fromJson)
+        .map(HabitEntry.fromJson)
         .toList();
   }
 
-  Future<void> _write(List<CryptoWatchEntry> all) =>
+  Future<void> _write(List<HabitEntry> all) =>
       _store.write(_key, jsonEncode([for (final e in all) e.toJson()]));
 
   /// 給 UI 用：已刪除的濾掉，新的在前面。
-  Future<List<CryptoWatchEntry>> loadAll() async {
+  Future<List<HabitEntry>> loadAll() async {
     final all = (await _loadAllRaw()).where((e) => e.deletedAt == null).toList()
       ..sort((a, b) => b.at.compareTo(a.at));
     return all;
   }
 
   /// 給同步用：連刪除標記都要看得到。
-  Future<List<CryptoWatchEntry>> allForUpload() => _loadAllRaw();
+  Future<List<HabitEntry>> allForUpload() => _loadAllRaw();
 
-  Future<CryptoWatchEntry> add({String? reason, DateTime? at}) async {
+  Future<HabitEntry> add({String? reason, DateTime? at}) async {
     final now = at ?? DateTime.now();
-    final entry = CryptoWatchEntry(
+    final entry = HabitEntry(
       id: now.microsecondsSinceEpoch.toString(),
       at: now,
       reason: reason,
@@ -56,7 +57,7 @@ class CryptoWatchRepository {
   }
 
   /// 把 R2 雲端抓下來的紀錄併回本機，回傳實際異動幾筆。
-  Future<int> mergeFromCloud(List<CryptoWatchEntry> incoming) async {
+  Future<int> mergeFromCloud(List<HabitEntry> incoming) async {
     if (incoming.isEmpty) return 0;
     final before = await _loadAllRaw();
     final merged = mergeSeedRecords(

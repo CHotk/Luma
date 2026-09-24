@@ -17,15 +17,8 @@ void main() {
   Word word(String w, {int id = 1}) =>
       Word(id: id, word: w, pos: 'n.', zh: '測試', grade: WordGrade.elementary);
 
-  HistoryEntry log(
-    String w, {
-    required bool ok,
-    required int day,
-  }) => HistoryEntry(
-    word: w,
-    correct: ok,
-    at: DateTime(2026, 9, day),
-  );
+  HistoryEntry log(String w, {required bool ok, required int day}) =>
+      HistoryEntry(word: w, correct: ok, at: DateTime(2026, 9, day));
 
   ({WordRepository words, HistoryRepository history}) build(_FakeSeed seed) {
     final history = HistoryRepository(store, seed: seed);

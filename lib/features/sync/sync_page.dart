@@ -88,32 +88,36 @@ class _SyncPageState extends ConsumerState<SyncPage> {
       final data = await R2SyncService(client).fetchBackupJson();
       final filename = 'lume-backup-${_backupTodayStamp()}.json';
       final ok = saveTextFile(filename, data.json);
-      await ref.read(syncLogRepositoryProvider).add(
-        SyncLogEntry(
-          at: DateTime.now(),
-          action: SyncLogAction.backup,
-          success: ok,
-          device: currentDeviceLabel(),
-          detail: ok
-              ? '日記 ${data.diaryCount} 筆、健身 ${data.fitnessCount} 筆、YT 頻道 ${data.ytCount} 個'
-              : '這個平台還不支援下載',
-        ),
-      );
+      await ref
+          .read(syncLogRepositoryProvider)
+          .add(
+            SyncLogEntry(
+              at: DateTime.now(),
+              action: SyncLogAction.backup,
+              success: ok,
+              device: currentDeviceLabel(),
+              detail: ok
+                  ? '日記 ${data.diaryCount} 筆、健身 ${data.fitnessCount} 筆、YT 頻道 ${data.ytCount} 個'
+                  : '這個平台還不支援下載',
+            ),
+          );
       await _reloadLog();
       if (!mounted) return;
       setState(() => _downloading = false);
       showAppNotice(context, ok ? '已下載 $filename' : '這個平台還不支援下載', isError: !ok);
     } catch (e, stack) {
       AppLog.add('[備份] 下載失敗：$e\n$stack', isError: true);
-      await ref.read(syncLogRepositoryProvider).add(
-        SyncLogEntry(
-          at: DateTime.now(),
-          action: SyncLogAction.backup,
-          success: false,
-          device: currentDeviceLabel(),
-          detail: '$e',
-        ),
-      );
+      await ref
+          .read(syncLogRepositoryProvider)
+          .add(
+            SyncLogEntry(
+              at: DateTime.now(),
+              action: SyncLogAction.backup,
+              success: false,
+              device: currentDeviceLabel(),
+              detail: '$e',
+            ),
+          );
       await _reloadLog();
       if (!mounted) return;
       setState(() => _downloading = false);
@@ -150,7 +154,10 @@ class _SyncPageState extends ConsumerState<SyncPage> {
                       tooltip: '備份雲端資料到本機',
                       padding: EdgeInsets.zero,
                       visualDensity: VisualDensity.compact,
-                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                      constraints: const BoxConstraints(
+                        minWidth: 32,
+                        minHeight: 32,
+                      ),
                     ),
                   ],
                 ),
@@ -184,7 +191,11 @@ class _SyncPageState extends ConsumerState<SyncPage> {
           children: [
             const Text(
               '同步紀錄',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.ink),
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: AppColors.ink,
+              ),
             ),
             const Spacer(),
             Text('共 ${_log.length} 筆', style: AppText.note),
@@ -199,9 +210,7 @@ class _SyncPageState extends ConsumerState<SyncPage> {
         if (_log.length > _visibleLogCount)
           Padding(
             padding: const EdgeInsets.only(top: Gap.sm),
-            child: Center(
-              child: Text('往下滑載入更多', style: AppText.note),
-            ),
+            child: Center(child: Text('往下滑載入更多', style: AppText.note)),
           ),
       ],
     );
@@ -243,7 +252,9 @@ class _SyncLogRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = entry.success ? AppColors.ok : AppColors.bad;
-    final lines = entry.detail == null ? const <String>[] : _detailLines(entry.detail!);
+    final lines = entry.detail == null
+        ? const <String>[]
+        : _detailLines(entry.detail!);
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),

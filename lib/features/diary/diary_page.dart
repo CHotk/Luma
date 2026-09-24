@@ -74,9 +74,7 @@ class _DiaryPageState extends ConsumerState<DiaryPage> {
 
   Future<void> _toggleMasked() async {
     setState(() => _masked = !_masked);
-    await ref
-        .read(keyValueStoreProvider)
-        .write(_maskedKey, _masked.toString());
+    await ref.read(keyValueStoreProvider).write(_maskedKey, _masked.toString());
   }
 
   /// 打開這頁那一瞬間先把日記快照（見 [loadDiarySeed]）併回本機，跟
@@ -202,7 +200,10 @@ class _DiaryPageState extends ConsumerState<DiaryPage> {
                   ],
                   const SizedBox(width: Gap.sm),
                   Expanded(
-                    child: Text(_dateLabel(entry.savedAt), style: AppText.bodyDim),
+                    child: Text(
+                      _dateLabel(entry.savedAt),
+                      style: AppText.bodyDim,
+                    ),
                   ),
                 ],
               ),
@@ -213,10 +214,13 @@ class _DiaryPageState extends ConsumerState<DiaryPage> {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   TextButton.icon(
-                    onPressed: () => Navigator.pop(sheetContext, _EntryAction.edit),
+                    onPressed: () =>
+                        Navigator.pop(sheetContext, _EntryAction.edit),
                     icon: const Icon(Icons.edit_outlined, size: 16),
                     label: const Text('編輯'),
-                    style: TextButton.styleFrom(foregroundColor: AppColors.ink2),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.ink2,
+                    ),
                   ),
                   const SizedBox(width: Gap.xs),
                   TextButton.icon(
@@ -420,7 +424,9 @@ class _DiaryPageState extends ConsumerState<DiaryPage> {
                     IconButton(
                       onPressed: _toggleMasked,
                       icon: Icon(
-                        _masked ? Icons.blur_off_rounded : Icons.blur_on_rounded,
+                        _masked
+                            ? Icons.blur_off_rounded
+                            : Icons.blur_on_rounded,
                         size: 20,
                       ),
                       color: _masked ? AppColors.diaryAccent : AppColors.ink2,
@@ -693,8 +699,7 @@ class _DateStripState extends State<_DateStrip> {
 /// 這兩個整數差幾，PageView 才能正確算出滑到第幾頁對應哪個月。
 int _monthIndex(DateTime d) => d.year * 12 + (d.month - 1);
 
-DateTime _monthFromIndex(int index) =>
-    DateTime(index ~/ 12, index % 12 + 1);
+DateTime _monthFromIndex(int index) => DateTime(index ~/ 12, index % 12 + 1);
 
 String _weekRangeLabel(List<DateTime> days) {
   final start = days.first;
@@ -1337,9 +1342,7 @@ class _SimpleRow extends StatelessWidget {
           color: highlighted
               ? AppColors.diaryAccent.withValues(alpha: 0.18)
               : Colors.transparent,
-          border: highlighted
-              ? Border.all(color: AppColors.diaryAccent)
-              : null,
+          border: highlighted ? Border.all(color: AppColors.diaryAccent) : null,
         ),
         child: Row(
           children: [

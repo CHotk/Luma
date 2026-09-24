@@ -27,13 +27,13 @@ void main() {
 
   test('沒練過的字算新字', () {
     final progress = buildKanaProgress(const []);
-    final summary = summarizeKanaReview(progress, config, now: DateTime(2026, 9, 17));
-
-    expect(
-      summary.fresh,
-      92,
-      reason: '平假名＋片假名共 92 個字，一筆紀錄都沒有就全部是新字',
+    final summary = summarizeKanaReview(
+      progress,
+      config,
+      now: DateTime(2026, 9, 17),
     );
+
+    expect(summary.fresh, 92, reason: '平假名＋片假名共 92 個字，一筆紀錄都沒有就全部是新字');
     expect(summary.due, 0);
     expect(summary.mastered, 0);
   });
@@ -44,7 +44,11 @@ void main() {
         entry('あ', 'a', assisted: true, savedAt: DateTime(2026, 9, 10 + i)),
     ];
     final progress = buildKanaProgress(entries);
-    final summary = summarizeKanaReview(progress, config, now: DateTime(2026, 9, 17));
+    final summary = summarizeKanaReview(
+      progress,
+      config,
+      now: DateTime(2026, 9, 17),
+    );
 
     expect(summary.due, 1);
     expect(summary.mastered, 0);
@@ -57,7 +61,11 @@ void main() {
         entry('あ', 'a', assisted: false, savedAt: DateTime(2026, 9, 14 + i)),
     ];
     final progress = buildKanaProgress(entries);
-    final summary = summarizeKanaReview(progress, config, now: DateTime(2026, 9, 17));
+    final summary = summarizeKanaReview(
+      progress,
+      config,
+      now: DateTime(2026, 9, 17),
+    );
 
     expect(summary.mastered, 1);
     expect(summary.due, 0);
@@ -70,7 +78,11 @@ void main() {
     ];
     final progress = buildKanaProgress(entries);
     // 最後一次練習是 9/3，現在是 9/17，隔了 14 天，超過 reviewStaleDays（7）。
-    final summary = summarizeKanaReview(progress, config, now: DateTime(2026, 9, 17));
+    final summary = summarizeKanaReview(
+      progress,
+      config,
+      now: DateTime(2026, 9, 17),
+    );
 
     expect(summary.due, 1, reason: '太久沒複習，就算次數夠也要退回待複習');
     expect(summary.mastered, 0);
@@ -79,11 +91,21 @@ void main() {
   test('片假名跟平假名一樣正式排進複習排程', () {
     // 2026-09-17 使用者要求片假名跟平假名一樣能練，複習排程不再只算
     // 46 個平假名——片假名的字自己也要能被歸進三個狀態之一。
-    final entries = [entry('ア', 'a', assisted: false, savedAt: DateTime(2026, 9, 17))];
+    final entries = [
+      entry('ア', 'a', assisted: false, savedAt: DateTime(2026, 9, 17)),
+    ];
     final progress = buildKanaProgress(entries);
-    final summary = summarizeKanaReview(progress, config, now: DateTime(2026, 9, 17));
+    final summary = summarizeKanaReview(
+      progress,
+      config,
+      now: DateTime(2026, 9, 17),
+    );
 
-    expect(summary.fresh + summary.due + summary.mastered, 92, reason: '平假名＋片假名共 92 個字');
+    expect(
+      summary.fresh + summary.due + summary.mastered,
+      92,
+      reason: '平假名＋片假名共 92 個字',
+    );
     expect(summary.due, 1, reason: '「ア」練過一次但還沒到掌握門檻，算待複習');
     expect(summary.fresh, 91, reason: '92 個字裡只有「ア」被練過');
   });

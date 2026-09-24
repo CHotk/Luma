@@ -171,8 +171,7 @@ class _FitnessHomePageState extends ConsumerState<FitnessHomePage> {
                   ),
                   onSelectedItemChanged: (i) => draft = i,
                   children: [
-                    for (var i = 0; i <= 100; i++)
-                      Center(child: Text('$i 分鐘')),
+                    for (var i = 0; i <= 100; i++) Center(child: Text('$i 分鐘')),
                   ],
                 ),
               ),
@@ -196,15 +195,17 @@ class _FitnessHomePageState extends ConsumerState<FitnessHomePage> {
       _pickedTime.hour,
       _pickedTime.minute,
     );
-    await ref.read(fitnessRepositoryProvider).addEntry(
-      FitnessEntry(
-        id: '${now.microsecondsSinceEpoch}',
-        date: targetDay,
-        type: _selectedType,
-        durationMinutes: _pickedDuration,
-        loggedAt: loggedAt,
-      ),
-    );
+    await ref
+        .read(fitnessRepositoryProvider)
+        .addEntry(
+          FitnessEntry(
+            id: '${now.microsecondsSinceEpoch}',
+            date: targetDay,
+            type: _selectedType,
+            durationMinutes: _pickedDuration,
+            loggedAt: loggedAt,
+          ),
+        );
     if (!mounted) return;
     _reload();
     showAppNotice(
@@ -249,7 +250,9 @@ class _FitnessHomePageState extends ConsumerState<FitnessHomePage> {
                         Navigator.pop(sheetContext, _EntryAction.edit),
                     icon: const Icon(Icons.edit_outlined, size: 16),
                     label: const Text('編輯'),
-                    style: TextButton.styleFrom(foregroundColor: AppColors.ink2),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.ink2,
+                    ),
                   ),
                   const SizedBox(width: Gap.xs),
                   TextButton.icon(
@@ -394,7 +397,11 @@ class _FitnessHomePageState extends ConsumerState<FitnessHomePage> {
                 borderRadius: BorderRadius.circular(10),
                 child: Row(
                   children: [
-                    const Icon(Icons.schedule_rounded, size: 15, color: AppColors.ink3),
+                    const Icon(
+                      Icons.schedule_rounded,
+                      size: 15,
+                      color: AppColors.ink3,
+                    ),
                     const SizedBox(width: 6),
                     Text(
                       '時間 ${time.hour.toString().padLeft(2, '0')}:'
@@ -402,7 +409,11 @@ class _FitnessHomePageState extends ConsumerState<FitnessHomePage> {
                       style: AppText.note,
                     ),
                     const Spacer(),
-                    const Icon(Icons.expand_more, size: 16, color: AppColors.ink3),
+                    const Icon(
+                      Icons.expand_more,
+                      size: 16,
+                      color: AppColors.ink3,
+                    ),
                   ],
                 ),
               ),
@@ -463,14 +474,22 @@ class _FitnessHomePageState extends ConsumerState<FitnessHomePage> {
                 borderRadius: BorderRadius.circular(10),
                 child: Row(
                   children: [
-                    const Icon(Icons.timer_outlined, size: 15, color: AppColors.ink3),
+                    const Icon(
+                      Icons.timer_outlined,
+                      size: 15,
+                      color: AppColors.ink3,
+                    ),
                     const SizedBox(width: 6),
                     Text(
                       duration == null ? '運動時長（選填）' : '運動時長 $duration 分鐘',
                       style: AppText.note,
                     ),
                     const Spacer(),
-                    const Icon(Icons.expand_more, size: 16, color: AppColors.ink3),
+                    const Icon(
+                      Icons.expand_more,
+                      size: 16,
+                      color: AppColors.ink3,
+                    ),
                   ],
                 ),
               ),
@@ -495,15 +514,17 @@ class _FitnessHomePageState extends ConsumerState<FitnessHomePage> {
     );
     if (saved != true) return;
     final d = FitnessEntry.dayOnly(entry.date);
-    await ref.read(fitnessRepositoryProvider).updateEntry(
-      FitnessEntry(
-        id: entry.id,
-        date: d,
-        type: type,
-        durationMinutes: duration,
-        loggedAt: DateTime(d.year, d.month, d.day, time.hour, time.minute),
-      ),
-    );
+    await ref
+        .read(fitnessRepositoryProvider)
+        .updateEntry(
+          FitnessEntry(
+            id: entry.id,
+            date: d,
+            type: type,
+            durationMinutes: duration,
+            loggedAt: DateTime(d.year, d.month, d.day, time.hour, time.minute),
+          ),
+        );
     if (!mounted) return;
     _reload();
   }
@@ -637,7 +658,9 @@ class _FitnessHomePageState extends ConsumerState<FitnessHomePage> {
 /// 會看到自己「連續天數」在還沒打卡前就已經是 0，很挫折）。
 int _currentStreak(Set<DateTime> days) {
   final today = FitnessEntry.dayOnly(DateTime.now());
-  var cursor = days.contains(today) ? today : today.subtract(const Duration(days: 1));
+  var cursor = days.contains(today)
+      ? today
+      : today.subtract(const Duration(days: 1));
   var streak = 0;
   while (days.contains(cursor)) {
     streak++;
@@ -655,9 +678,9 @@ class _StreakRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
-    final monthDays = days.where(
-      (d) => d.year == now.year && d.month == now.month,
-    ).length;
+    final monthDays = days
+        .where((d) => d.year == now.year && d.month == now.month)
+        .length;
     final rate = ((monthDays / now.day) * 100).round();
     return GlassCard(
       child: Row(
@@ -672,7 +695,8 @@ class _StreakRow extends StatelessWidget {
     );
   }
 
-  Widget _divider() => Container(width: 1, height: 30, color: AppColors.glassEdge);
+  Widget _divider() =>
+      Container(width: 1, height: 30, color: AppColors.glassEdge);
 }
 
 class _StatCell extends StatelessWidget {
@@ -760,7 +784,10 @@ class _MonthCalendar extends StatelessWidget {
                 Center(
                   child: Text(
                     d,
-                    style: const TextStyle(fontSize: 9.5, color: AppColors.ink3),
+                    style: const TextStyle(
+                      fontSize: 9.5,
+                      color: AppColors.ink3,
+                    ),
                   ),
                 ),
               for (var i = 0; i < leading; i++) const SizedBox.shrink(),
@@ -779,7 +806,11 @@ class _MonthCalendar extends StatelessWidget {
 }
 
 class _DayCell extends StatelessWidget {
-  const _DayCell({required this.day, required this.done, required this.isToday});
+  const _DayCell({
+    required this.day,
+    required this.done,
+    required this.isToday,
+  });
 
   final int day;
   final bool done;
@@ -861,7 +892,10 @@ class _CheckInCard extends StatelessWidget {
                   ),
                 ),
               ),
-              _DayOffsetDropdown(value: dayOffset, onChanged: onDayOffsetChanged),
+              _DayOffsetDropdown(
+                value: dayOffset,
+                onChanged: onDayOffsetChanged,
+              ),
             ],
           ),
           const SizedBox(height: Gap.sm),
@@ -885,7 +919,11 @@ class _CheckInCard extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 4),
               child: Row(
                 children: [
-                  const Icon(Icons.schedule_rounded, size: 15, color: AppColors.ink3),
+                  const Icon(
+                    Icons.schedule_rounded,
+                    size: 15,
+                    color: AppColors.ink3,
+                  ),
                   const SizedBox(width: 6),
                   Text(
                     '打卡時間 ${pickedTime.hour.toString().padLeft(2, '0')}:'
@@ -893,7 +931,11 @@ class _CheckInCard extends StatelessWidget {
                     style: AppText.note,
                   ),
                   const Spacer(),
-                  const Icon(Icons.expand_more, size: 16, color: AppColors.ink3),
+                  const Icon(
+                    Icons.expand_more,
+                    size: 16,
+                    color: AppColors.ink3,
+                  ),
                 ],
               ),
             ),
@@ -905,14 +947,24 @@ class _CheckInCard extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 4),
               child: Row(
                 children: [
-                  const Icon(Icons.timer_outlined, size: 15, color: AppColors.ink3),
+                  const Icon(
+                    Icons.timer_outlined,
+                    size: 15,
+                    color: AppColors.ink3,
+                  ),
                   const SizedBox(width: 6),
                   Text(
-                    pickedDuration == null ? '運動時長（選填）' : '運動時長 $pickedDuration 分鐘',
+                    pickedDuration == null
+                        ? '運動時長（選填）'
+                        : '運動時長 $pickedDuration 分鐘',
                     style: AppText.note,
                   ),
                   const Spacer(),
-                  const Icon(Icons.expand_more, size: 16, color: AppColors.ink3),
+                  const Icon(
+                    Icons.expand_more,
+                    size: 16,
+                    color: AppColors.ink3,
+                  ),
                 ],
               ),
             ),
@@ -1014,7 +1066,9 @@ class _TypeChip extends StatelessWidget {
           color: selected
               ? type.color.withValues(alpha: 0.24)
               : AppColors.glassFill,
-          border: Border.all(color: selected ? type.color : AppColors.glassEdge),
+          border: Border.all(
+            color: selected ? type.color : AppColors.glassEdge,
+          ),
         ),
         child: Text(
           '${type.emoji} ${type.label}',
@@ -1139,7 +1193,10 @@ class _ExportDialogState extends State<_ExportDialog> {
         children: [
           SegmentedButton<_ExportScope>(
             segments: const [
-              ButtonSegment(value: _ExportScope.localOnly, label: Text('僅這台裝置')),
+              ButtonSegment(
+                value: _ExportScope.localOnly,
+                label: Text('僅這台裝置'),
+              ),
               ButtonSegment(value: _ExportScope.withSeed, label: Text('連快照一起')),
             ],
             selected: {_scope},
@@ -1167,7 +1224,9 @@ class _ExportDialogState extends State<_ExportDialog> {
                 );
               }
               final data = snap.data!;
-              final sizeLabel = _formatExportSize(utf8.encode(data.text).length);
+              final sizeLabel = _formatExportSize(
+                utf8.encode(data.text).length,
+              );
               return Text(
                 '$filename\n共 ${data.count} 筆 ・ 約 $sizeLabel',
                 textAlign: TextAlign.center,

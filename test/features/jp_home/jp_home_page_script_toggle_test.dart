@@ -16,9 +16,7 @@ void main() {
   // flutter_test 的 binding reset 對不上，屬於測試環境本身的已知
   // 眉角，不是畫面邏輯的問題）。同一個 pumpWidget 裡順著操作下去就
   // 不會踩到。
-  testWidgets('日文首頁預覽卡片切平／片假名：字要跟著換，選到哪一個不能跑掉', (
-    tester,
-  ) async {
+  testWidgets('日文首頁預覽卡片切平／片假名：字要跟著換，選到哪一個不能跑掉', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [keyValueStoreProvider.overrideWithValue(_MemoryStore())],

@@ -44,7 +44,9 @@ class SyncLogRepository {
     if (fresh.isEmpty) return 0;
     await _store.write(
       _key,
-      jsonEncode([for (final e in [...fresh, ...all]) e.toJson()]),
+      jsonEncode([
+        for (final e in [...fresh, ...all]) e.toJson(),
+      ]),
     );
     return fresh.length;
   }
@@ -56,7 +58,9 @@ class SyncLogRepository {
     final all = await loadAll();
     await _store.write(
       _key,
-      jsonEncode([for (final e in [entry, ...all]) e.toJson()]),
+      jsonEncode([
+        for (final e in [entry, ...all]) e.toJson(),
+      ]),
     );
   }
 }

@@ -8,8 +8,9 @@ import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
-import '../../domain/crypto_watch_stats.dart';
-import '../../domain/models/crypto_watch.dart';
+import '../../domain/habit_config.dart';
+import '../../domain/habit_stats.dart';
+import '../../domain/models/habit_entry.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
@@ -17,19 +18,21 @@ import '../../shared/widgets/glass_card.dart';
 
 const _cooldownLength = Duration(minutes: 10);
 
-/// 看盤記錄（2026-09-24 使用者要求：記錄多久看一次虛擬貨幣價格，督促自己
-/// 不要太常看）。版面取自設計稿 `design-history/看盤頻率記錄設計/`：
+/// 「多久一次」型紀錄頁（看盤／抽菸／喝酒共用，文字與顏色由 [HabitConfig]
+/// 決定；2026-09-24 使用者要求：記錄多久一次，督促自己不要太頻繁）。版面取自設計稿 `design-history/看盤頻率記錄設計/`：
 /// 03 的「距離上次」計時器＋冷靜按鈕、01 的最近紀錄清單、02 的月曆
 /// 日期格子；05 的統計放在右上角統計按鈕進去的子頁。
-class CryptoWatchPage extends ConsumerStatefulWidget {
-  const CryptoWatchPage({super.key});
+class HabitLogPage extends ConsumerStatefulWidget {
+  const HabitLogPage({super.key, required this.config});
+
+  final HabitConfig config;
 
   @override
-  ConsumerState<CryptoWatchPage> createState() => _CryptoWatchPageState();
+  ConsumerState<HabitLogPage> createState() => _HabitLogPageState();
 }
 
-class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
-  List<CryptoWatchEntry> _entries = const [];
+class _HabitLogPageState extends ConsumerState<HabitLogPage> {
+  List<HabitEntry> _entries = const [];
   bool _loaded = false;
   Timer? _tick;
   DateTime _now = DateTime.now();
@@ -61,7 +64,9 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
   }
 
   Future<void> _load() async {
-    final all = await ref.read(cryptoWatchRepositoryProvider).loadAll();
+    final all = await ref
+        .read(habitLogRepositoryProvider(widget.config))
+        .loadAll();
     if (mounted) {
       setState(() {
         _entries = all;
@@ -84,8 +89,8 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                '為什麼想看？（選填）',
+              Text(
+                widget.config.reasonPrompt,
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
@@ -97,7 +102,7 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  for (final r in cryptoWatchReasons)
+                  for (final r in widget.config.reasons)
                     ActionChip(
                       label: Text(r),
                       onPressed: () => Navigator.pop(sheetContext, r),
@@ -120,7 +125,7 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
     // null＝點空白處關掉，不記錄；空字串＝直接記錄、沒選原因。
     if (reason == null) return;
     await ref
-        .read(cryptoWatchRepositoryProvider)
+        .read(habitLogRepositoryProvider(widget.config))
         .add(reason: reason.isEmpty ? null : reason);
     setState(() {
       _cooldownEnd = null;
@@ -131,7 +136,7 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
     await _load();
   }
 
-  Future<void> _confirmDelete(CryptoWatchEntry e) async {
+  Future<void> _confirmDelete(HabitEntry e) async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -151,7 +156,7 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
       ),
     );
     if (ok != true) return;
-    await ref.read(cryptoWatchRepositoryProvider).delete(e.id);
+    await ref.read(habitLogRepositoryProvider(widget.config)).delete(e.id);
     await _load();
   }
 
@@ -168,11 +173,11 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
               children: [
                 const SizedBox(height: Gap.sm),
                 AppTopBar(
-                  title: '看盤記錄',
+                  title: widget.config.title,
                   showBack: false,
                   actions: [
                     IconButton(
-                      onPressed: () => context.push('/crypto-watch/stats'),
+                      onPressed: () => context.push(widget.config.statsRoute),
                       icon: const Icon(Icons.bar_chart_rounded, size: 22),
                       color: AppColors.ink2,
                       tooltip: '統計',
@@ -225,7 +230,7 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
       padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 15),
       child: Column(
         children: [
-          Text('距離上次看價格', style: AppText.note),
+          Text(widget.config.sinceLabel, style: AppText.note),
           const SizedBox(height: Gap.sm),
           Text(
             since == null ? '--:--:--' : _clock(since),
@@ -239,8 +244,8 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
           const SizedBox(height: Gap.sm),
           Text(
             since == null
-                ? '還沒有紀錄，看完價格按下面的按鈕記一筆'
-                : '今天已看 $todayCount 次'
+                ? widget.config.emptyHint
+                : '今天已${widget.config.verb} $todayCount ${widget.config.unit}'
                       '${longest == null ? '' : '・今天最長撐過 ${formatDuration(longest)}'}',
             style: AppText.note,
             textAlign: TextAlign.center,
@@ -264,8 +269,8 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            '想看了嗎？',
+          Text(
+            widget.config.cravingQuestion,
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w700,
@@ -275,7 +280,7 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
           const SizedBox(height: Gap.xs),
           Text(
             remaining == null
-                ? '先深呼吸，10 分鐘後還想看再看。'
+                ? widget.config.cooldownHint
                 : '冷靜中… 還剩 ${_clock(remaining).substring(3)}，撐住。',
             style: AppText.bodyDim,
           ),
@@ -294,7 +299,9 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
                     : Icons.close_rounded,
                 size: 18,
               ),
-              label: Text(remaining == null ? '先冷靜 10 分鐘' : '取消冷靜'),
+              label: Text(
+                remaining == null ? widget.config.cooldownButton : '取消',
+              ),
             ),
           ),
         ],
@@ -308,7 +315,7 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
       child: FilledButton.icon(
         onPressed: _record,
         icon: const Icon(Icons.visibility_outlined, size: 20),
-        label: const Text('我剛看了價格（重新計時）'),
+        label: Text(widget.config.recordLabel),
         style: FilledButton.styleFrom(
           padding: const EdgeInsets.symmetric(vertical: 15),
         ),

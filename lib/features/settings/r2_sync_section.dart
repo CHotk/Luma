@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../domain/habit_config.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
@@ -59,7 +60,7 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
   _FeaturePhase _kanaPracticePhase = _FeaturePhase.idle;
   _FeaturePhase _kanaExamPhase = _FeaturePhase.idle;
   _FeaturePhase _englishPhase = _FeaturePhase.idle;
-  _FeaturePhase _cryptoWatchPhase = _FeaturePhase.idle;
+  final Map<String, _FeaturePhase> _habitPhases = {};
   _FeaturePhase _syncLogPhase = _FeaturePhase.idle;
   _FeaturePhase _errorLogPhase = _FeaturePhase.idle;
 
@@ -147,7 +148,9 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
   /// 對應功能自己的 setState 賦值——日記、健身各自呼叫一次
   /// [R2SyncService] 的 `syncXxx`，用這個共用轉接省得兩邊各寫一份幾乎
   /// 一樣的 callback。
-  void Function(SyncPhase) _phaseCallback(void Function(_FeaturePhase) onUpdate) {
+  void Function(SyncPhase) _phaseCallback(
+    void Function(_FeaturePhase) onUpdate,
+  ) {
     return (phase) {
       if (!mounted) return;
       setState(() {
@@ -172,7 +175,7 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
       _kanaPracticePhase = _FeaturePhase.idle;
       _kanaExamPhase = _FeaturePhase.idle;
       _englishPhase = _FeaturePhase.idle;
-      _cryptoWatchPhase = _FeaturePhase.idle;
+      _habitPhases.clear();
       _syncLogPhase = _FeaturePhase.idle;
       _errorLogPhase = _FeaturePhase.idle;
       _results.clear();
@@ -249,35 +252,45 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
       _record('英文單字紀錄', englishResult);
       if (mounted) setState(() => _englishPhase = _FeaturePhase.done);
 
-      stage = '看盤記錄';
-      final cryptoWatchResult = await service.syncCryptoWatch(
-        ref.read(cryptoWatchRepositoryProvider),
-        onPhase: _phaseCallback((p) => _cryptoWatchPhase = p),
-      );
-      _record('看盤記錄', cryptoWatchResult);
-      if (mounted) setState(() => _cryptoWatchPhase = _FeaturePhase.done);
+      // 看盤／抽菸／喝酒紀錄，一種一個檔案。
+      final habitDetails = <String>[];
+      for (final habit in allHabits) {
+        stage = habit.title;
+        final r = await service.syncHabitLog(
+          ref.read(habitLogRepositoryProvider(habit)),
+          habit.cloudKey,
+          onPhase: _phaseCallback((p) => _habitPhases[habit.id] = p),
+        );
+        _record(habit.title, r);
+        if (mounted) {
+          setState(() => _habitPhases[habit.id] = _FeaturePhase.done);
+        }
+        habitDetails.add('${habit.title} 上傳${r.uploaded}／下載${r.downloaded}');
+      }
 
       final now = DateTime.now();
       await ref
           .read(keyValueStoreProvider)
           .write(_lastSyncedKey, now.toIso8601String());
-      await ref.read(syncLogRepositoryProvider).add(
-        SyncLogEntry(
-          at: now,
-          action: SyncLogAction.sync,
-          success: true,
-          device: currentDeviceLabel(),
-          detail:
-              '日記 上傳${diaryResult.uploaded}／下載${diaryResult.downloaded}；'
-              '健身 上傳${fitnessResult.uploaded}／下載${fitnessResult.downloaded}；'
-              'YT頻道 上傳${ytResult.uploaded}／下載${ytResult.downloaded}；'
-              'YT影片快取 上傳${ytVideoResult.uploaded}／下載${ytVideoResult.downloaded}；'
-              '五十音練習 上傳${kanaPracticeResult.uploaded}／下載${kanaPracticeResult.downloaded}；'
-              '五十音考試 上傳${kanaExamResult.uploaded}／下載${kanaExamResult.downloaded}；'
-              '英文單字紀錄 上傳${englishResult.uploaded}／下載${englishResult.downloaded}；'
-              '看盤記錄 上傳${cryptoWatchResult.uploaded}／下載${cryptoWatchResult.downloaded}',
-        ),
-      );
+      await ref
+          .read(syncLogRepositoryProvider)
+          .add(
+            SyncLogEntry(
+              at: now,
+              action: SyncLogAction.sync,
+              success: true,
+              device: currentDeviceLabel(),
+              detail:
+                  '日記 上傳${diaryResult.uploaded}／下載${diaryResult.downloaded}；'
+                  '健身 上傳${fitnessResult.uploaded}／下載${fitnessResult.downloaded}；'
+                  'YT頻道 上傳${ytResult.uploaded}／下載${ytResult.downloaded}；'
+                  'YT影片快取 上傳${ytVideoResult.uploaded}／下載${ytVideoResult.downloaded}；'
+                  '五十音練習 上傳${kanaPracticeResult.uploaded}／下載${kanaPracticeResult.downloaded}；'
+                  '五十音考試 上傳${kanaExamResult.uploaded}／下載${kanaExamResult.downloaded}；'
+                  '英文單字紀錄 上傳${englishResult.uploaded}／下載${englishResult.downloaded}；'
+                  '${habitDetails.join('；')}',
+            ),
+          );
       stage = '同步紀錄／錯誤日誌';
       try {
         if (mounted) setState(() => _syncLogPhase = _FeaturePhase.downloading);
@@ -319,23 +332,27 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
       // 同步失敗要寫進除錯訊息（原本只跳通知，除錯頁是空的，2026-09-24
       // 使用者回報），連堆疊一起，才查得出是哪一步、為什麼。
       AppLog.add('[同步] $stage 失敗：$e\n$stack', isError: true);
-      await ref.read(syncLogRepositoryProvider).add(
-        SyncLogEntry(
-          at: DateTime.now(),
-          action: SyncLogAction.sync,
-          success: false,
-          device: currentDeviceLabel(),
-          detail: '$stage：$e',
-        ),
-      );
+      await ref
+          .read(syncLogRepositoryProvider)
+          .add(
+            SyncLogEntry(
+              at: DateTime.now(),
+              action: SyncLogAction.sync,
+              success: false,
+              device: currentDeviceLabel(),
+              detail: '$stage：$e',
+            ),
+          );
       widget.onLogged?.call();
       if (!mounted) return;
       setState(() {
         _syncing = false;
-        if (_diaryPhase == _FeaturePhase.downloading || _diaryPhase == _FeaturePhase.uploading) {
+        if (_diaryPhase == _FeaturePhase.downloading ||
+            _diaryPhase == _FeaturePhase.uploading) {
           _diaryPhase = _FeaturePhase.error;
         }
-        if (_fitnessPhase == _FeaturePhase.downloading || _fitnessPhase == _FeaturePhase.uploading) {
+        if (_fitnessPhase == _FeaturePhase.downloading ||
+            _fitnessPhase == _FeaturePhase.uploading) {
           _fitnessPhase = _FeaturePhase.error;
         }
       });
@@ -367,24 +384,61 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
       children: [
         const Text(
           '各功能同步狀況',
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.ink),
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: AppColors.ink,
+          ),
         ),
         const SizedBox(height: Gap.sm),
-        _FeatureStatusRow(label: '日記', phase: _diaryPhase, result: _results['日記']),
-        _FeatureStatusRow(label: '健身', phase: _fitnessPhase, result: _results['健身']),
-        _FeatureStatusRow(label: 'YT 頻道追蹤', phase: _ytPhase, result: _results['YT 頻道追蹤']),
-        _FeatureStatusRow(label: '五十音練習', phase: _kanaPracticePhase, result: _results['五十音練習']),
-        _FeatureStatusRow(label: '五十音考試', phase: _kanaExamPhase, result: _results['五十音考試']),
-        _FeatureStatusRow(label: '英文單字紀錄', phase: _englishPhase, result: _results['英文單字紀錄']),
         _FeatureStatusRow(
-          label: '看盤記錄',
-          phase: _cryptoWatchPhase,
-          result: _results['看盤記錄'],
+          label: '日記',
+          phase: _diaryPhase,
+          result: _results['日記'],
         ),
+        _FeatureStatusRow(
+          label: '健身',
+          phase: _fitnessPhase,
+          result: _results['健身'],
+        ),
+        _FeatureStatusRow(
+          label: 'YT 頻道追蹤',
+          phase: _ytPhase,
+          result: _results['YT 頻道追蹤'],
+        ),
+        _FeatureStatusRow(
+          label: '五十音練習',
+          phase: _kanaPracticePhase,
+          result: _results['五十音練習'],
+        ),
+        _FeatureStatusRow(
+          label: '五十音考試',
+          phase: _kanaExamPhase,
+          result: _results['五十音考試'],
+        ),
+        _FeatureStatusRow(
+          label: '英文單字紀錄',
+          phase: _englishPhase,
+          result: _results['英文單字紀錄'],
+        ),
+        for (final habit in allHabits)
+          _FeatureStatusRow(
+            label: habit.title,
+            phase: _habitPhases[habit.id] ?? _FeaturePhase.idle,
+            result: _results[habit.title],
+          ),
         // 同步紀錄、錯誤日誌本身也是要同步的資料，一樣列出來
         // （2026-09-24 使用者要求）。
-        _FeatureStatusRow(label: '同步紀錄', phase: _syncLogPhase, result: _results['同步紀錄']),
-        _FeatureStatusRow(label: '除錯錯誤日誌', phase: _errorLogPhase, result: _results['除錯錯誤日誌']),
+        _FeatureStatusRow(
+          label: '同步紀錄',
+          phase: _syncLogPhase,
+          result: _results['同步紀錄'],
+        ),
+        _FeatureStatusRow(
+          label: '除錯錯誤日誌',
+          phase: _errorLogPhase,
+          result: _results['除錯錯誤日誌'],
+        ),
       ],
     );
   }
@@ -485,7 +539,11 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
             const SizedBox(width: Gap.xs),
             const Text(
               '已連接雲端',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.ink),
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: AppColors.ink,
+              ),
             ),
             const Spacer(),
             TextButton(
@@ -500,7 +558,9 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
           ],
         ),
         Text(
-          _lastSyncedAt == null ? '還沒同步過' : '上次同步：${_relativeTime(_lastSyncedAt!)}',
+          _lastSyncedAt == null
+              ? '還沒同步過'
+              : '上次同步：${_relativeTime(_lastSyncedAt!)}',
           style: AppText.note,
         ),
         const SizedBox(height: Gap.sm),
@@ -589,7 +649,11 @@ class _FieldState extends State<_Field> {
             const SizedBox(height: 4),
             Text(
               widget.hintNote!,
-              style: const TextStyle(fontSize: 9.5, color: AppColors.ink3, height: 1.5),
+              style: const TextStyle(
+                fontSize: 9.5,
+                color: AppColors.ink3,
+                height: 1.5,
+              ),
             ),
           ],
         ],
@@ -621,7 +685,11 @@ class _FeatureStatusRow extends StatelessWidget {
         children: [
           Text(
             label,
-            style: const TextStyle(fontSize: 12.5, color: AppColors.ink, fontWeight: FontWeight.w600),
+            style: const TextStyle(
+              fontSize: 12.5,
+              color: AppColors.ink,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           const Spacer(),
           if (result != null && phase == _FeaturePhase.done) ...[
@@ -640,7 +708,10 @@ class _FeatureStatusRow extends StatelessWidget {
   Widget _buildStatus() {
     switch (phase) {
       case _FeaturePhase.idle:
-        return const Text('待同步', style: TextStyle(fontSize: 11, color: AppColors.ink3));
+        return const Text(
+          '待同步',
+          style: TextStyle(fontSize: 11, color: AppColors.ink3),
+        );
       case _FeaturePhase.downloading:
         return const _StatusSpinnerLabel(label: '下載中…');
       case _FeaturePhase.uploading:
@@ -680,10 +751,16 @@ class _StatusSpinnerLabel extends StatelessWidget {
         const SizedBox(
           width: 11,
           height: 11,
-          child: CircularProgressIndicator(strokeWidth: 1.6, color: AppColors.accent),
+          child: CircularProgressIndicator(
+            strokeWidth: 1.6,
+            color: AppColors.accent,
+          ),
         ),
         const SizedBox(width: 6),
-        Text(label, style: const TextStyle(fontSize: 11, color: AppColors.ink2)),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 11, color: AppColors.ink2),
+        ),
       ],
     );
   }
@@ -710,7 +787,11 @@ class _StaticButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
       ),
       child: DefaultTextStyle(
-        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: textColor),
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w800,
+          color: textColor,
+        ),
         child: Center(child: child),
       ),
     );

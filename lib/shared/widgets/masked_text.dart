@@ -25,10 +25,19 @@ class MaskedText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final child = Text(text, style: style, maxLines: maxLines, overflow: overflow);
+    final child = Text(
+      text,
+      style: style,
+      maxLines: maxLines,
+      overflow: overflow,
+    );
     if (!masked) return child;
     return ImageFiltered(
-      imageFilter: ImageFilter.blur(sigmaX: 7, sigmaY: 7, tileMode: TileMode.decal),
+      imageFilter: ImageFilter.blur(
+        sigmaX: 7,
+        sigmaY: 7,
+        tileMode: TileMode.decal,
+      ),
       child: child,
     );
   }

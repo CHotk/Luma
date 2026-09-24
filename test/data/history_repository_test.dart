@@ -135,7 +135,8 @@ class _MemoryStore implements KeyValueStore {
 }
 
 class _FakeSeed implements SeedSource {
-  _FakeSeed({required int version, this.history = const []}) : _version = version;
+  _FakeSeed({required int version, this.history = const []})
+    : _version = version;
 
   final int _version;
   final List<HistoryEntry> history;

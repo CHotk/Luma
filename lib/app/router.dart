@@ -1,6 +1,7 @@
 import 'package:go_router/go_router.dart';
-import '../features/crypto_watch/crypto_watch_page.dart';
-import '../features/crypto_watch/crypto_watch_stats_page.dart';
+import '../domain/habit_config.dart';
+import '../features/habit_log/habit_log_page.dart';
+import '../features/habit_log/habit_log_stats_page.dart';
 import '../features/app_home/app_home_page.dart';
 
 import '../features/diary/diary_page.dart';
@@ -40,10 +41,24 @@ final appRouter = GoRouter(
   initialLocation: '/',
   routes: [
     GoRoute(path: '/', builder: (_, _) => const SplashPage()),
-    GoRoute(path: '/crypto-watch', builder: (_, _) => const CryptoWatchPage()),
+    // 看盤／抽菸／喝酒共用同一組頁面，`:id` 對應 `HabitConfig.id`。
     GoRoute(
-      path: '/crypto-watch/stats',
-      builder: (_, _) => const CryptoWatchStatsPage(),
+      path: '/habit/:id',
+      builder: (_, state) {
+        final config = habitConfigById(state.pathParameters['id']!);
+        return config == null
+            ? const AppHomePage()
+            : HabitLogPage(config: config);
+      },
+    ),
+    GoRoute(
+      path: '/habit/:id/stats',
+      builder: (_, state) {
+        final config = habitConfigById(state.pathParameters['id']!);
+        return config == null
+            ? const AppHomePage()
+            : HabitLogStatsPage(config: config);
+      },
     ),
     GoRoute(path: '/start', builder: (_, _) => const AppHomePage()),
     GoRoute(path: '/home', builder: (_, _) => const HomePage()),
@@ -120,9 +135,8 @@ final appRouter = GoRouter(
     ),
     GoRoute(
       path: '/yt-tracker/channel/:id',
-      builder: (_, state) => YtTrackerChannelPage(
-        channelId: state.pathParameters['id'] ?? '',
-      ),
+      builder: (_, state) =>
+          YtTrackerChannelPage(channelId: state.pathParameters['id'] ?? ''),
     ),
     GoRoute(path: '/fitness', builder: (_, _) => const FitnessHomePage()),
     GoRoute(

@@ -27,7 +27,11 @@ class YtResume {
   final int offset;
   final bool end;
 
-  Map<String, dynamic> toJson() => {'token': token, 'offset': offset, 'end': end};
+  Map<String, dynamic> toJson() => {
+    'token': token,
+    'offset': offset,
+    'end': end,
+  };
 
   factory YtResume.fromJson(Map<String, dynamic> json) => YtResume(
     token: json['token'] as String?,
@@ -91,7 +95,8 @@ class YtVideoCacheStore {
     var changed = 0;
     for (final v in videos) {
       final existing = byId[v.videoId];
-      if (existing == null || (existing.duration == null && v.duration != null)) {
+      if (existing == null ||
+          (existing.duration == null && v.duration != null)) {
         byId[v.videoId] = v;
         changed++;
       }
@@ -130,10 +135,9 @@ class YtVideoCacheStore {
       }
     }
     final localAt = await lastFetchedAt(channelId);
-    final newest = [localAt, cloudFetchedAt].whereType<DateTime>().fold<DateTime?>(
-      null,
-      (a, b) => a == null || b.isAfter(a) ? b : a,
-    );
+    final newest = [localAt, cloudFetchedAt]
+        .whereType<DateTime>()
+        .fold<DateTime?>(null, (a, b) => a == null || b.isAfter(a) ? b : a);
     if (changed > 0) {
       await _store.write(
         _keyFor(channelId),

@@ -133,7 +133,10 @@ class R2Client {
   Future<http.Response> _send(AWSHttpRequest request) async {
     final signed = await _signer.sign(
       request,
-      credentialScope: AWSCredentialScope(region: _region, service: AWSService.s3),
+      credentialScope: AWSCredentialScope(
+        region: _region,
+        service: AWSService.s3,
+      ),
       serviceConfiguration: S3ServiceConfiguration(),
     );
     final bytes = await signed.bodyBytes;

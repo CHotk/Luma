@@ -35,10 +35,8 @@ class YtTrackerRepository {
   Future<List<YtCategory>> loadCategories() async =>
       (await _loadCategoriesRaw()).where((c) => c.deletedAt == null).toList();
 
-  Future<void> _writeCategories(List<YtCategory> all) => _store.write(
-    _categoryKey,
-    jsonEncode([for (final c in all) c.toJson()]),
-  );
+  Future<void> _writeCategories(List<YtCategory> all) =>
+      _store.write(_categoryKey, jsonEncode([for (final c in all) c.toJson()]));
 
   Future<void> addCategory(YtCategory category) async {
     final all = [...await _loadCategoriesRaw(), category.stamped()];

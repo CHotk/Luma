@@ -216,12 +216,15 @@ class YoutubeApiService {
       if (res.statusCode != 200) {
         throw YoutubeApiException(_errorMessage(res.statusCode, body));
       }
-      for (final item in ((body['items'] as List?) ?? const [])
-          .cast<Map<String, dynamic>>()) {
+      for (final item
+          in ((body['items'] as List?) ?? const [])
+              .cast<Map<String, dynamic>>()) {
         final stats = item['statistics'] as Map<String, dynamic>? ?? const {};
         final hidden = stats['hiddenSubscriberCount'] == true;
         result[item['id'] as String] = (
-          count: hidden ? null : int.tryParse('${stats['subscriberCount'] ?? ''}'),
+          count: hidden
+              ? null
+              : int.tryParse('${stats['subscriberCount'] ?? ''}'),
           hidden: hidden,
         );
       }
@@ -232,10 +235,8 @@ class YoutubeApiService {
   Future<List<YoutubeVideo>> fetchRecentVideos(
     String uploadsPlaylistId, {
     int maxResults = 6,
-  }) async => (await fetchVideosPage(
-    uploadsPlaylistId,
-    maxResults: maxResults,
-  )).videos;
+  }) async =>
+      (await fetchVideosPage(uploadsPlaylistId, maxResults: maxResults)).videos;
 
   /// 抓一頁上傳影片（新到舊），[pageToken] 給上一頁回傳的
   /// `nextPageToken` 就會接著抓更早的——頻道詳情頁「最近影片」往下滑
@@ -318,9 +319,9 @@ class YoutubeApiService {
       videos.addAll(pageVideos.where((v) => !v.publishedAt.isBefore(since)));
       final oldestInPage = pageVideos.isEmpty
           ? null
-          : pageVideos.map((v) => v.publishedAt).reduce(
-              (a, b) => a.isBefore(b) ? a : b,
-            );
+          : pageVideos
+                .map((v) => v.publishedAt)
+                .reduce((a, b) => a.isBefore(b) ? a : b);
       // 新到舊排序，這頁只要出現任何一部本機已經有的影片，比它更舊的
       // 就一定也都有了，不用再翻下一頁（原本要「整頁都已知」才停，
       // 每次至少多翻一頁、白白多一趟網路來回）。

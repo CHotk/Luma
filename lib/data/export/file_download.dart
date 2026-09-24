@@ -7,4 +7,5 @@
 //
 // 用條件匯入分平台實作，不是判斷 `kIsWeb` 再 if/else：
 // `dart:html` 在非網頁平台編譯不過，一定要用條件匯入才能兩邊都編譯。
-export 'file_download_stub.dart' if (dart.library.html) 'file_download_web.dart';
+export 'file_download_stub.dart'
+    if (dart.library.html) 'file_download_web.dart';

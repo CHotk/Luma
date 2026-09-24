@@ -86,7 +86,11 @@ void main() {
 
     test('還沒打平就是低於 confirmRight，打平之後就超過', () {
       expect(word(right: 9, wrong: 1).masteryWeight(rules), 2, reason: '還差一次');
-      expect(word(right: 15, wrong: 1).masteryWeight(rules), 8, reason: '超過門檻，權重比 confirmRight 高');
+      expect(
+        word(right: 15, wrong: 1).masteryWeight(rules),
+        8,
+        reason: '超過門檻，權重比 confirmRight 高',
+      );
     });
 
     test('權重不夾在 0，錯過沒補回來會是負的', () {

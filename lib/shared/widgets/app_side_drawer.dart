@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
+import '../../domain/habit_config.dart';
 import '../debug/app_log.dart';
 
 /// 全 App 共用的左側選單（毛玻璃抽屜），設計稿見
@@ -31,7 +32,7 @@ class AppSideDrawer extends StatelessWidget {
     final isFitness = location.startsWith('/fitness');
     final isDebugLog = location.startsWith('/debug-log');
     final isSync = location.startsWith('/sync');
-    final isCryptoWatch = location.startsWith('/crypto-watch');
+    final isHabit = location.startsWith('/habit/');
     final isLanguage =
         !isHome &&
         !isDiary &&
@@ -39,7 +40,7 @@ class AppSideDrawer extends StatelessWidget {
         !isFitness &&
         !isDebugLog &&
         !isSync &&
-        !isCryptoWatch;
+        !isHabit;
 
     return Drawer(
       width: 270,
@@ -150,15 +151,18 @@ class AppSideDrawer extends StatelessWidget {
                       if (!isFitness) context.go('/fitness');
                     },
                   ),
-                  _NavItem(
-                    icon: Icons.candlestick_chart_outlined,
-                    label: '看盤記錄',
-                    active: isCryptoWatch,
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      if (!isCryptoWatch) context.go('/crypto-watch');
-                    },
-                  ),
+                  for (final habit in allHabits)
+                    _NavItem(
+                      icon: habit.icon,
+                      label: habit.title,
+                      active: location.startsWith(habit.route),
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        if (!location.startsWith(habit.route)) {
+                          context.go(habit.route);
+                        }
+                      },
+                    ),
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 10),
                     child: Divider(height: 1, color: AppColors.glassEdge),
@@ -235,7 +239,8 @@ class AppSideDrawer extends StatelessWidget {
                     builder: (context, entries, _) {
                       final unread = entries
                           .where(
-                            (e) => e.isError && e.at.isAfter(AppLog.lastViewedAt),
+                            (e) =>
+                                e.isError && e.at.isAfter(AppLog.lastViewedAt),
                           )
                           .length;
                       return _NavItem(
@@ -286,11 +291,7 @@ class _ProfileAvatar extends StatelessWidget {
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [
-                Color(0xFFFFFFFF),
-                Color(0xFF9B7BFF),
-                Color(0xFF7EA6FF),
-              ],
+              colors: [Color(0xFFFFFFFF), Color(0xFF9B7BFF), Color(0xFF7EA6FF)],
             ),
           ),
         ),
@@ -343,7 +344,11 @@ class _NavItem extends StatelessWidget {
                 clipBehavior: Clip.none,
                 children: [
                   imageAsset == null
-                      ? Icon(icon, size: 19, color: active ? AppColors.accent : color)
+                      ? Icon(
+                          icon,
+                          size: 19,
+                          color: active ? AppColors.accent : color,
+                        )
                       : Image.asset(
                           imageAsset!,
                           width: 19,

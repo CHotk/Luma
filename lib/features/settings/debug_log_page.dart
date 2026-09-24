@@ -129,8 +129,8 @@ class _DebugLogPageState extends State<DebugLogPage> {
                             null,
                             (latest, e) =>
                                 latest == null || e.at.isAfter(latest.at)
-                                    ? e
-                                    : latest,
+                                ? e
+                                : latest,
                           );
                       final filtered = switch (_filter) {
                         _Filter.all => entries,
@@ -221,7 +221,9 @@ class _StatRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Expanded(child: _StatCard(value: '$total', label: '總筆數')),
+        Expanded(
+          child: _StatCard(value: '$total', label: '總筆數'),
+        ),
         const SizedBox(width: Gap.sm),
         Expanded(
           child: _StatCard(

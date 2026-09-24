@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lume/domain/crypto_watch_stats.dart';
-import 'package:lume/domain/models/crypto_watch.dart';
+import 'package:lume/domain/habit_stats.dart';
+import 'package:lume/domain/models/habit_entry.dart';
 
-CryptoWatchEntry e(DateTime at, {String? reason}) =>
-    CryptoWatchEntry(id: at.toIso8601String(), at: at, reason: reason);
+HabitEntry e(DateTime at, {String? reason}) =>
+    HabitEntry(id: at.toIso8601String(), at: at, reason: reason);
 
 void main() {
   final now = DateTime(2026, 9, 24, 15, 0);
@@ -36,10 +36,11 @@ void main() {
   });
 
   test('longestGapOnDay：今天要把最後一次到現在也算進去', () {
-    final gap = longestGapOnDay([
-      e(DateTime(2026, 9, 24, 9)),
-      e(DateTime(2026, 9, 24, 10)),
-    ], now, now);
+    final gap = longestGapOnDay(
+      [e(DateTime(2026, 9, 24, 9)), e(DateTime(2026, 9, 24, 10))],
+      now,
+      now,
+    );
     expect(gap, const Duration(hours: 5));
   });
 

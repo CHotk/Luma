@@ -20,8 +20,5 @@ Future<void> showTestNotification() async {
     final granted = await requestNotificationPermission();
     if (!granted) return;
   }
-  html.Notification(
-    'Lume 測試通知',
-    body: '收到這則就代表這個瀏覽器／裝置支援通知。',
-  );
+  html.Notification('Lume 測試通知', body: '收到這則就代表這個瀏覽器／裝置支援通知。');
 }

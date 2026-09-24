@@ -510,7 +510,10 @@ class _KanaExamPageState extends ConsumerState<KanaExamPage> {
                 // 這個畫面就自動跑一次，不用自己管 AnimationController
                 // 的生命週期。
                 TweenAnimationBuilder<double>(
-                  tween: Tween(begin: 0, end: total == 0 ? 0 : _correctCount / total),
+                  tween: Tween(
+                    begin: 0,
+                    end: total == 0 ? 0 : _correctCount / total,
+                  ),
                   duration: const Duration(milliseconds: 900),
                   curve: Curves.easeOutCubic,
                   builder: (context, value, _) {

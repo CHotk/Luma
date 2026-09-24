@@ -59,7 +59,8 @@ class YtTrackerBrowsePage extends ConsumerStatefulWidget {
 }
 
 class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
-  late Future<({List<YtCategory> categories, List<YtChannel> channels})> _future;
+  late Future<({List<YtCategory> categories, List<YtChannel> channels})>
+  _future;
   late final Set<String> _selected = {...widget.initialCategoryIds};
   // 每個分類（含「全部」）點進去都預設「依頻道顯示」（2026-09-24 使用者
   // 要求；之前分類預設依影片，但一進去就要抓影片，太慢）。切換鈕維持
@@ -90,7 +91,8 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
     _future = _load();
   }
 
-  Future<({List<YtCategory> categories, List<YtChannel> channels})> _load() async {
+  Future<({List<YtCategory> categories, List<YtChannel> channels})>
+  _load() async {
     final repo = ref.read(ytTrackerRepositoryProvider);
     final categories = await repo.loadCategories();
     final channels = await repo.loadChannels();
@@ -128,7 +130,9 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
   /// 同人數的維持原本順序（[List.sort] 不保證穩定，所以自己帶原始位置比）。
   List<YtChannel> _sortedChannels(List<YtChannel> channels) {
     if (_sort == _ChannelSort.normal) return channels;
-    final indexed = [for (var i = 0; i < channels.length; i++) (i, channels[i])];
+    final indexed = [
+      for (var i = 0; i < channels.length; i++) (i, channels[i]),
+    ];
     indexed.sort((a, b) {
       final x = a.$2.subscriberCount;
       final y = b.$2.subscriberCount;
@@ -237,8 +241,9 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
         channel = channel.copyWith(
           // 順便拿這次呼叫本來就有的官方頭貼——但只在使用者自己沒貼過
           // 圖片網址時才覆蓋，不要蓋掉使用者手動選的圖。
-          avatarImageUrl:
-              channel.avatarImageUrl.isEmpty ? info.avatarUrl : null,
+          avatarImageUrl: channel.avatarImageUrl.isEmpty
+              ? info.avatarUrl
+              : null,
           youtubeChannelId: info.channelId,
           uploadsPlaylistId: info.uploadsPlaylistId,
           subscriberCount: info.subscriberCount,
@@ -281,9 +286,9 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
     // 這個 App 用量遠遠用不到那個上限。這次失敗就算了，清單照樣顯示，
     // 只是沒有時長角標。
     try {
-      final durations = await service.fetchDurations(
-        [for (final r in results) r.video.videoId],
-      );
+      final durations = await service.fetchDurations([
+        for (final r in results) r.video.videoId,
+      ]);
       for (var i = 0; i < results.length; i++) {
         final d = durations[results[i].video.videoId];
         if (d != null) {
@@ -381,9 +386,9 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
               statusIsError = false;
             });
             try {
-              final result = await YoutubeApiService(apiKey).fetchChannelInfo(
-                handle,
-              );
+              final result = await YoutubeApiService(
+                apiKey,
+              ).fetchChannelInfo(handle);
               if (lastHandle != handle) return; // 網址又改了，這筆過期
               setDialogState(() {
                 info = result;
@@ -779,7 +784,8 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                             title: _title(categories),
                             actions: [
                               IconButton(
-                                onPressed: () => _showAddChannelDialog(categories),
+                                onPressed: () =>
+                                    _showAddChannelDialog(categories),
                                 icon: const Icon(
                                   Icons.add_circle_outline,
                                   size: 20,
@@ -797,7 +803,8 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                                 scrollDirection: Axis.horizontal,
                                 itemCount:
                                     categories.length + (hasUnassigned ? 1 : 0),
-                                separatorBuilder: (_, _) => const SizedBox(width: 6),
+                                separatorBuilder: (_, _) =>
+                                    const SizedBox(width: 6),
                                 itemBuilder: (_, i) {
                                   if (i == categories.length) {
                                     final on = _selected.contains(
@@ -854,37 +861,45 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                               selectedBackgroundColor: AppColors.ytAccent
                                   .withValues(alpha: 0.28),
                               selectedForegroundColor: AppColors.ink,
-                              side: const BorderSide(color: AppColors.glassEdge),
+                              side: const BorderSide(
+                                color: AppColors.glassEdge,
+                              ),
                             ),
                           ),
                           const SizedBox(height: Gap.sm),
                           Expanded(
                             child: _mode == _ViewMode.channel
                                 ? Column(
-                                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
                                     children: [
                                       Wrap(
                                         spacing: 6,
                                         children: [
                                           _TypeChip(
                                             label: '預設排序',
-                                            selected: _sort == _ChannelSort.normal,
+                                            selected:
+                                                _sort == _ChannelSort.normal,
                                             onTap: () => setState(
                                               () => _sort = _ChannelSort.normal,
                                             ),
                                           ),
                                           _TypeChip(
                                             label: '訂閱人數 多→少',
-                                            selected: _sort == _ChannelSort.subsDesc,
+                                            selected:
+                                                _sort == _ChannelSort.subsDesc,
                                             onTap: () => setState(
-                                              () => _sort = _ChannelSort.subsDesc,
+                                              () =>
+                                                  _sort = _ChannelSort.subsDesc,
                                             ),
                                           ),
                                           _TypeChip(
                                             label: '訂閱人數 少→多',
-                                            selected: _sort == _ChannelSort.subsAsc,
+                                            selected:
+                                                _sort == _ChannelSort.subsAsc,
                                             onTap: () => setState(
-                                              () => _sort = _ChannelSort.subsAsc,
+                                              () =>
+                                                  _sort = _ChannelSort.subsAsc,
                                             ),
                                           ),
                                         ],
@@ -921,9 +936,7 @@ class _ChannelGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (channels.isEmpty) {
-      return Center(
-        child: Text('這個篩選條件下沒有頻道', style: AppText.bodyDim),
-      );
+      return Center(child: Text('這個篩選條件下沒有頻道', style: AppText.bodyDim));
     }
     return GridView.builder(
       itemCount: channels.length,
@@ -1008,9 +1021,7 @@ class _CategoryPickChip extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(Radii.chip),
           color: selected ? color.withValues(alpha: 0.22) : AppColors.glassFill,
-          border: Border.all(
-            color: selected ? color : AppColors.glassEdge,
-          ),
+          border: Border.all(color: selected ? color : AppColors.glassEdge),
         ),
         child: Text(
           label,

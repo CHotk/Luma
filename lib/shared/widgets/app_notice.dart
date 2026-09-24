@@ -97,7 +97,10 @@ class _AppNoticeOverlayState extends State<_AppNoticeOverlay>
 
   @override
   Widget build(BuildContext context) {
-    final curved = CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic);
+    final curved = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOutCubic,
+    );
     return Positioned(
       top: 0,
       left: 0,
@@ -105,7 +108,12 @@ class _AppNoticeOverlayState extends State<_AppNoticeOverlay>
       child: SafeArea(
         bottom: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(Gap.screenSide, 10, Gap.screenSide, 0),
+          padding: const EdgeInsets.fromLTRB(
+            Gap.screenSide,
+            10,
+            Gap.screenSide,
+            0,
+          ),
           child: SlideTransition(
             position: Tween<Offset>(
               begin: const Offset(0, -1.4),
@@ -115,7 +123,10 @@ class _AppNoticeOverlayState extends State<_AppNoticeOverlay>
               opacity: curved,
               child: GestureDetector(
                 onTap: _dismiss,
-                child: _NoticeCard(message: widget.message, isError: widget.isError),
+                child: _NoticeCard(
+                  message: widget.message,
+                  isError: widget.isError,
+                ),
               ),
             ),
           ),
@@ -159,7 +170,9 @@ class _NoticeCard extends StatelessWidget {
             child: Row(
               children: [
                 Icon(
-                  isError ? Icons.error_outline_rounded : Icons.check_circle_outline_rounded,
+                  isError
+                      ? Icons.error_outline_rounded
+                      : Icons.check_circle_outline_rounded,
                   size: 18,
                   color: accentColor,
                 ),

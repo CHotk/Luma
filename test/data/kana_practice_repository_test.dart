@@ -75,10 +75,7 @@ void main() {
         .map(KanaPracticeEntry.fromJson)
         .toList();
     expect(decoded.map((e) => e.id).toSet(), {'a1', 'a2'});
-    expect(
-      decoded.firstWhere((e) => e.id == 'a1').strokes.first.first.$1,
-      0.1,
-    );
+    expect(decoded.firstWhere((e) => e.id == 'a1').strokes.first.first.$1, 0.1);
   });
 
   test('mergeSeed：種子跟本機同一個 id，用種子那份蓋掉本機的舊版本', () async {

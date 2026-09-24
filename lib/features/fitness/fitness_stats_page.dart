@@ -106,8 +106,11 @@ class _StatGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
-    final weekStart = DateTime(now.year, now.month, now.day)
-        .subtract(Duration(days: now.weekday - 1));
+    final weekStart = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    ).subtract(Duration(days: now.weekday - 1));
     final days = <DateTime>{
       for (final e in entries) FitnessEntry.dayOnly(e.date),
     };
@@ -171,10 +174,14 @@ class _WeeklyBarChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
-    final thisWeekStart = DateTime(now.year, now.month, now.day)
-        .subtract(Duration(days: now.weekday - 1));
+    final thisWeekStart = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    ).subtract(Duration(days: now.weekday - 1));
     final weekStarts = [
-      for (var i = 7; i >= 0; i--) thisWeekStart.subtract(Duration(days: i * 7)),
+      for (var i = 7; i >= 0; i--)
+        thisWeekStart.subtract(Duration(days: i * 7)),
     ];
     final counts = [
       for (final ws in weekStarts)
@@ -207,7 +214,13 @@ class _WeeklyBarChart extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text('$c', style: const TextStyle(fontSize: 8.5, color: AppColors.ink3)),
+                    Text(
+                      '$c',
+                      style: const TextStyle(
+                        fontSize: 8.5,
+                        color: AppColors.ink3,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -294,13 +307,7 @@ class _DonutPainter extends CustomPainter {
         ..color = t.color
         ..style = PaintingStyle.stroke
         ..strokeWidth = strokeWidth;
-      canvas.drawArc(
-        rect.deflate(strokeWidth / 2),
-        start,
-        sweep,
-        false,
-        paint,
-      );
+      canvas.drawArc(rect.deflate(strokeWidth / 2), start, sweep, false, paint);
       start += sweep;
     }
   }
