@@ -48,5 +48,25 @@
     "url": "https://youtube.com/@shu8126?si=z_geonms1QIo17tN",
     "description": "",
     "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-cyber-soul-city",
+    "name": "Cyber Soul Resonance City",
+    "categoryId": "seed-music",
+    "avatarEmoji": "🎵",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/tdPiYL-Vgnl4wKLdMcXD4WVP-mDj1387oZWAeUmFRglEctynReQ1aI3AEdIUPnuyvhMhL_KHEQ=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://youtube.com/@cybersoulcity?si=3Io4M64JmXE3GzzM",
+    "description": "",
+    "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-pansci",
+    "name": "PanSci 泛科學",
+    "categoryId": "seed-knowledge",
+    "avatarEmoji": "📺",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/ZRtucCIobrD-fQpfv0Jerk2iw02uyQOt2bpDJwcYjyw1d7hoPjg7mB_Y-k6qLPPWBtjX84MT=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://youtube.com/@panscitw?si=ayW5od5WGz_VwVs8",
+    "description": "",
+    "addedAt": "2026-09-24T00:00:00.000"
   }
 ]
