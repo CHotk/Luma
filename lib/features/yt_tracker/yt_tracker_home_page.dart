@@ -136,24 +136,37 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
                   style: AppText.note,
                 ),
                 const SizedBox(height: Gap.sm),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    for (final t in _discoverTopics)
-                      FilterChip(
-                        label: Text(t),
-                        selected: pickedTopics.contains(t),
-                        onSelected: (v) => setDialogState(() {
-                          if (v) {
-                            pickedTopics.add(t);
-                          } else {
-                            pickedTopics.remove(t);
-                          }
-                        }),
+                for (final group in _discoverTopicGroups.entries) ...[
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6, bottom: 4),
+                    child: Text(
+                      group.key,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.ink,
                       ),
-                  ],
-                ),
+                    ),
+                  ),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      for (final t in group.value)
+                        FilterChip(
+                          label: Text(t),
+                          selected: pickedTopics.contains(t),
+                          onSelected: (v) => setDialogState(() {
+                            if (v) {
+                              pickedTopics.add(t);
+                            } else {
+                              pickedTopics.remove(t);
+                            }
+                          }),
+                        ),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: Gap.md),
                 TextField(
                   controller: keywordController,
@@ -836,29 +849,120 @@ String _digQuotaHint({required bool useSeeds, required int keywordCount}) {
   return '預估這次消耗約 $low–$high 單位配額（每天免費 10,000 單位）';
 }
 
-/// 挖掘時可以直接勾選的熱門主題（不限 App 內有的分類），拿來當搜尋關鍵字。
-const _discoverTopics = [
-  '科技',
-  '投資理財',
-  '心理學',
-  '歷史',
-  '科普',
-  '露營',
-  '旅遊',
-  '攝影',
-  '烹飪食譜',
-  '健身',
-  '美妝保養',
-  '寵物',
-  '手作 DIY',
-  '動漫',
-  '電影解說',
-  '語言學習',
-  '房地產',
-  '親子育兒',
-  '醫療健康',
-  '職場成長',
-];
+/// 挖掘時可以直接勾選的主題（不限 App 內有的分類），依群組顯示，拿來當搜尋關鍵字
+/// （2026-09-24 使用者要求：要很多種，例如書籍解說、健康、旅遊、國旅、政治）。
+const _discoverTopicGroups = <String, List<String>>{
+  '知識學習': [
+    '書籍解說',
+    '讀書會',
+    '科普',
+    '歷史',
+    '心理學',
+    '哲學',
+    '語言學習',
+    '英文學習',
+    '日文學習',
+    '教育',
+    '考試升學',
+    '數學',
+    '物理',
+    '天文太空',
+    '生物自然',
+    '地理',
+    '人文藝術',
+    '冷知識',
+  ],
+  '健康醫療': [
+    '健康養生',
+    '醫療知識',
+    '營養飲食',
+    '中醫',
+    '心理健康',
+    '睡眠',
+    '減肥瘦身',
+    '健身重訓',
+    '瑜伽',
+    '運動賽事',
+    '跑步',
+  ],
+  '財經投資': [
+    '投資理財',
+    '股票',
+    'ETF',
+    '房地產',
+    '加密貨幣',
+    '總體經濟',
+    '創業',
+    '副業賺錢',
+    '保險',
+    '職場成長',
+    '商業分析',
+  ],
+  '時事政治': ['政治評論', '國際新聞', '兩岸關係', '台灣時事', '美國政治', '軍事', '社會議題', '法律'],
+  '旅遊': [
+    '旅遊',
+    '國內旅遊',
+    '台灣旅遊',
+    '日本旅遊',
+    '韓國旅遊',
+    '歐洲旅遊',
+    '背包客',
+    '自駕露營',
+    '露營',
+    '離島小旅行',
+    '美食探店',
+    '世界文化',
+  ],
+  '生活': [
+    '生活紀錄',
+    'Vlog',
+    '極簡生活',
+    '居家收納',
+    '手作 DIY',
+    '園藝',
+    '寵物',
+    '貓狗',
+    '親子育兒',
+    '婚姻感情',
+    '兩性關係',
+    '留學移民',
+    '租屋買房',
+  ],
+  '美食': ['烹飪食譜', '美食', '街頭小吃', '甜點烘焙', '咖啡', '調酒', '餐廳評比'],
+  '科技': [
+    '科技',
+    '3C 開箱',
+    '手機評測',
+    'AI 人工智慧',
+    '程式設計',
+    '軟體教學',
+    '電腦硬體',
+    '攝影',
+    '影片剪輯',
+    '電動車',
+    '汽車評測',
+    '機車',
+  ],
+  '娛樂': [
+    '電影解說',
+    '電視劇',
+    '動漫',
+    '遊戲',
+    '手遊',
+    '電競',
+    '實況',
+    '綜藝',
+    '搞笑',
+    '脫口秀',
+    '魔術',
+    '音樂',
+    '翻唱',
+    '演唱會',
+    '明星八卦',
+    'KPOP',
+  ],
+  '其他': ['宗教', '命理星座', '靈異怪談', '犯罪案件', '紀錄片', '公益', '環保', '農業', '工藝職人'],
+};
 
 /// 「挖掘新頻道」分類的固定 ID（見 `yt_tracker_categories.json`）。
 const _discoverCategoryId = 'seed-discover';
