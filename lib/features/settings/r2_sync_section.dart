@@ -152,13 +152,15 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
       // 每個功能自己一結束就馬上標記完成，不是等兩個都做完才一起標記
       // ——不然萬一健身那邊失敗，明明已經同步好的日記那一行也會卡在
       // 「上傳中…」，看起來像日記也失敗了。
-      final diaryResult = await service.syncDiary(
+      // 上傳／下載各異動幾筆的細節，畫面已經有同步狀況卡逐行顯示，
+      // 通知不用再重複塞一次數字，太長（2026-09-24 使用者要求）。
+      await service.syncDiary(
         ref.read(diaryRepositoryProvider),
         onPhase: _phaseCallback((p) => _diaryPhase = p),
       );
       if (mounted) setState(() => _diaryPhase = _FeaturePhase.done);
 
-      final fitnessResult = await service.syncFitness(
+      await service.syncFitness(
         ref.read(fitnessRepositoryProvider),
         onPhase: _phaseCallback((p) => _fitnessPhase = p),
       );
@@ -178,11 +180,7 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
         _lastSyncedAt = now;
         _syncing = false;
       });
-      showAppNotice(
-        context,
-        '同步完成 —— 日記上傳 ${diaryResult.uploaded}／下載 ${diaryResult.downloaded} 筆，'
-        '健身上傳 ${fitnessResult.uploaded}／下載 ${fitnessResult.downloaded} 筆',
-      );
+      showAppNotice(context, '資料雲端同步完成');
     } catch (e) {
       if (!mounted) return;
       setState(() {

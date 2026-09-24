@@ -51,6 +51,10 @@ dependencies:
   # 這個套件裡，直接 import 用到就該直接宣告依賴，不要只靠遞移依賴
   # 悄悄可以用。
   aws_common: ^0.7.13
+  # 英文發音優先試有道辭典的真人錄音（比合成語音自然），這個套件負責
+  # 播放那段 mp3 URL，Web／Android／iOS 同一份 API。播不出來就退回
+  # flutter_tts，見 domain/services/tts_service.dart 的說明。
+  audioplayers: ^6.1.0
 
 dev_dependencies:
   flutter_test:
