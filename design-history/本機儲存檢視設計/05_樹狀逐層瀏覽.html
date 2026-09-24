@@ -1,0 +1,34 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>本機儲存檢視 5 樹狀逐層瀏覽器</title><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet"><style>:root{--bg:#0c0c13;--panel:#161622;--panel2:#1e1e2e;--line:#2a2a3d;--text:#eceaf5;--sub:#8b8ba3;--accent:#7EA6FF;--ok:#5FE08D;--warn:#F5C763;--bad:#FF938B;--yt:#FF2D40;--diary:#8FBF9F;--jp:#EA92AC;--fit:#F2A65A;--sync:#7ED6D0}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-serif;min-height:100vh;padding:32px 16px}
+.intro{max-width:640px;margin:0 auto 24px;text-align:center}
+.eyebrow{color:var(--accent);font-size:12px;letter-spacing:.2em}
+h1{font-size:22px;margin:6px 0}
+.intro p{color:var(--sub);font-size:13px;line-height:1.7}
+.tag{display:inline-block;background:var(--accent);color:#0c0c13;border-radius:99px;padding:2px 10px;font-size:11px;margin-top:8px}
+.phone{width:380px;height:760px;margin:0 auto;border:8px solid #000;border-radius:38px;background:var(--bg);overflow:hidden;display:flex;flex-direction:column}
+.scroll{flex:1;overflow:auto;padding:0 16px 16px;display:flex;flex-direction:column;gap:12px}
+.scroll>*{flex-shrink:0}
+.top{display:flex;align-items:center;gap:8px;padding:18px 16px 10px;flex-shrink:0}
+.top b{font-size:16px;flex:1}
+.ib{width:32px;height:32px;border-radius:10px;background:var(--panel);display:grid;place-items:center;font-size:15px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:13px}
+.sub{color:var(--sub);font-size:12px}
+.mono{font-family:Consolas,monospace;font-size:12px}
+.bar{height:8px;background:var(--panel2);border-radius:9px;overflow:hidden;display:flex}
+.note{max-width:380px;margin:14px auto 0;color:var(--sub);font-size:12px;line-height:1.7;text-align:center}
+.pill{display:inline-block;border-radius:99px;padding:1px 8px;font-size:10.5px;border:1px solid var(--line);color:var(--sub)}
+.btn{display:inline-block;border-radius:10px;padding:6px 12px;font-size:12px;border:1px solid var(--line);background:var(--panel2)}
+.btn.bad{color:var(--bad);border-color:#5a2f2f}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{color:var(--sub);text-align:left;font-weight:500;padding:6px 4px;border-bottom:1px solid var(--line)}
+td{padding:9px 4px;border-bottom:1px solid var(--line)}
+pre{background:#0a0a10;border:1px solid var(--line);border-radius:10px;padding:10px;font-size:11px;line-height:1.6;overflow:auto;color:#b9c7ff}</style></head><body><div class="intro"><div class="eyebrow">INDEXEDDB · 版本 5 / 5</div><h1>樹狀逐層瀏覽器</h1><p>像檔案管理員：資料庫 → key → 紀錄 → 欄位，一層一層點進去，有搜尋列，最底層看到原始 JSON，並可複製。</p></div><div class="phone"><div class="top"><div class="ib">☰</div><b>本機儲存</b><div class="ib">↻</div></div><div class="scroll"><div class="card" style="padding:9px 12px"><span class="sub">🔍 搜尋 key 或 id…</span></div>
+<div class="mono sub">lume › kv › <span style="color:var(--accent)">kana.practice.entries.v1</span></div>
+<div class="card" style="padding:4px 12px"><div style="padding:9px 0;border-bottom:1px solid var(--line);font-size:12.5px;display:flex;justify-content:space-between"><span class="mono">[0] kana-0918-a…・あ・4.2 KB</span><span class="sub">›</span></div><div style="padding:9px 0;border-bottom:1px solid var(--line);font-size:12.5px;display:flex;justify-content:space-between"><span class="mono">[1] kana-0918-b…・い・3.8 KB</span><span class="sub">›</span></div><div style="padding:9px 0;border-bottom:1px solid var(--line);font-size:12.5px;display:flex;justify-content:space-between"><span class="mono">[2] kana-0918-c…・う・5.1 KB</span><span class="sub">›</span></div><div style="padding:9px 0;border-bottom:1px solid var(--line);font-size:12.5px;display:flex;justify-content:space-between"><span class="mono">[3] kana-0919-a…・え・4.4 KB</span><span class="sub">›</span></div><div style="padding:9px 0;border-bottom:1px solid var(--line);font-size:12.5px;display:flex;justify-content:space-between"><span class="mono">[4] kana-0919-b…・お・3.9 KB</span><span class="sub">›</span></div><div class="sub" style="padding:8px 0">… 共 217 筆，每頁 50</div></div>
+<div class="mono sub">↓ 點 [0] 進到欄位</div><pre>id: "kana-0918-a…"
+char: "あ"
+mode: "hiragana"
+strokes: Array(3)
+updatedAt: 2026-09-18T10:22
+deletedAt: null</pre><div style="display:flex;gap:8px"><span class="btn">複製 JSON</span><span class="btn">返回上層</span></div></div></div><p class="note">優點：能查到單筆紀錄的實際內容，除錯最強。缺點：操作層數多，日常看容量不如圓環或卡片。</p></body></html>

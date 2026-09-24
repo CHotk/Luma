@@ -1,0 +1,26 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>本機儲存檢視 3 功能卡片式</title><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet"><style>:root{--bg:#0c0c13;--panel:#161622;--panel2:#1e1e2e;--line:#2a2a3d;--text:#eceaf5;--sub:#8b8ba3;--accent:#7EA6FF;--ok:#5FE08D;--warn:#F5C763;--bad:#FF938B;--yt:#FF2D40;--diary:#8FBF9F;--jp:#EA92AC;--fit:#F2A65A;--sync:#7ED6D0}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-serif;min-height:100vh;padding:32px 16px}
+.intro{max-width:640px;margin:0 auto 24px;text-align:center}
+.eyebrow{color:var(--accent);font-size:12px;letter-spacing:.2em}
+h1{font-size:22px;margin:6px 0}
+.intro p{color:var(--sub);font-size:13px;line-height:1.7}
+.tag{display:inline-block;background:var(--accent);color:#0c0c13;border-radius:99px;padding:2px 10px;font-size:11px;margin-top:8px}
+.phone{width:380px;height:760px;margin:0 auto;border:8px solid #000;border-radius:38px;background:var(--bg);overflow:hidden;display:flex;flex-direction:column}
+.scroll{flex:1;overflow:auto;padding:0 16px 16px;display:flex;flex-direction:column;gap:12px}
+.scroll>*{flex-shrink:0}
+.top{display:flex;align-items:center;gap:8px;padding:18px 16px 10px;flex-shrink:0}
+.top b{font-size:16px;flex:1}
+.ib{width:32px;height:32px;border-radius:10px;background:var(--panel);display:grid;place-items:center;font-size:15px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:13px}
+.sub{color:var(--sub);font-size:12px}
+.mono{font-family:Consolas,monospace;font-size:12px}
+.bar{height:8px;background:var(--panel2);border-radius:9px;overflow:hidden;display:flex}
+.note{max-width:380px;margin:14px auto 0;color:var(--sub);font-size:12px;line-height:1.7;text-align:center}
+.pill{display:inline-block;border-radius:99px;padding:1px 8px;font-size:10.5px;border:1px solid var(--line);color:var(--sub)}
+.btn{display:inline-block;border-radius:10px;padding:6px 12px;font-size:12px;border:1px solid var(--line);background:var(--panel2)}
+.btn.bad{color:var(--bad);border-color:#5a2f2f}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{color:var(--sub);text-align:left;font-weight:500;padding:6px 4px;border-bottom:1px solid var(--line)}
+td{padding:9px 4px;border-bottom:1px solid var(--line)}
+pre{background:#0a0a10;border:1px solid var(--line);border-radius:10px;padding:10px;font-size:11px;line-height:1.6;overflow:auto;color:#b9c7ff}</style></head><body><div class="intro"><div class="eyebrow">INDEXEDDB · 版本 3 / 5</div><h1>功能卡片式</h1><p>用「功能」而不是 key 來分組：每個功能一張卡，顯示筆數、已刪除（墓碑）數、最後修改時間、跟雲端是否一致。</p></div><div class="phone"><div class="top"><div class="ib">☰</div><b>本機儲存</b><div class="ib">↻</div></div><div class="scroll"><div class="card"><div style="display:flex;justify-content:space-between"><b style="font-size:20px">18.4 MB</b><span class="sub">瀏覽器配額約 2.1 GB</span></div><div class="bar" style="margin-top:8px"><div style="width:1%;background:var(--accent)"></div></div><div class="sub" style="margin-top:6px">已用 0.9%・資料庫 lume・store kv</div></div><div class="card" style="border-left:4px solid var(--jp)"><div style="display:flex;justify-content:space-between"><b>日文練習</b><span class="sub">14.2 MB</span></div><div class="sub" style="margin-top:6px">217 筆・0 已刪除・最後修改 2 分鐘前</div><div style="margin-top:6px;font-size:12px;color:var(--ok)">✓ 與雲端一致</div></div><div class="card" style="border-left:4px solid var(--diary)"><div style="display:flex;justify-content:space-between"><b>日記</b><span class="sub">241 KB</span></div><div class="sub" style="margin-top:6px">96 筆・3 已刪除・最後修改 昨天</div><div style="margin-top:6px;font-size:12px;color:var(--ok)">✓ 與雲端一致</div></div><div class="card" style="border-left:4px solid var(--fit)"><div style="display:flex;justify-content:space-between"><b>健身</b><span class="sub">48 KB</span></div><div class="sub" style="margin-top:6px">120 筆・0 已刪除・最後修改 3 天前</div><div style="margin-top:6px;font-size:12px;color:var(--warn)">⚠ 本機有 2 筆未上傳</div></div><div class="card" style="border-left:4px solid var(--yt)"><div style="display:flex;justify-content:space-between"><b>YT 頻道</b><span class="sub">3.1 MB</span></div><div class="sub" style="margin-top:6px">23 個頻道・—・最後修改 剛剛</div><div style="margin-top:6px;font-size:12px;color:var(--ok)">✓ 與雲端一致</div></div></div></div><p class="note">優點：用使用者的語言（功能）看，還能看到同步狀態。缺點：要維護 key→功能的對照表。</p></body></html>

@@ -1,0 +1,28 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>本機儲存檢視 4 排行榜＋清理建議</title><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet"><style>:root{--bg:#0c0c13;--panel:#161622;--panel2:#1e1e2e;--line:#2a2a3d;--text:#eceaf5;--sub:#8b8ba3;--accent:#7EA6FF;--ok:#5FE08D;--warn:#F5C763;--bad:#FF938B;--yt:#FF2D40;--diary:#8FBF9F;--jp:#EA92AC;--fit:#F2A65A;--sync:#7ED6D0}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-serif;min-height:100vh;padding:32px 16px}
+.intro{max-width:640px;margin:0 auto 24px;text-align:center}
+.eyebrow{color:var(--accent);font-size:12px;letter-spacing:.2em}
+h1{font-size:22px;margin:6px 0}
+.intro p{color:var(--sub);font-size:13px;line-height:1.7}
+.tag{display:inline-block;background:var(--accent);color:#0c0c13;border-radius:99px;padding:2px 10px;font-size:11px;margin-top:8px}
+.phone{width:380px;height:760px;margin:0 auto;border:8px solid #000;border-radius:38px;background:var(--bg);overflow:hidden;display:flex;flex-direction:column}
+.scroll{flex:1;overflow:auto;padding:0 16px 16px;display:flex;flex-direction:column;gap:12px}
+.scroll>*{flex-shrink:0}
+.top{display:flex;align-items:center;gap:8px;padding:18px 16px 10px;flex-shrink:0}
+.top b{font-size:16px;flex:1}
+.ib{width:32px;height:32px;border-radius:10px;background:var(--panel);display:grid;place-items:center;font-size:15px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:13px}
+.sub{color:var(--sub);font-size:12px}
+.mono{font-family:Consolas,monospace;font-size:12px}
+.bar{height:8px;background:var(--panel2);border-radius:9px;overflow:hidden;display:flex}
+.note{max-width:380px;margin:14px auto 0;color:var(--sub);font-size:12px;line-height:1.7;text-align:center}
+.pill{display:inline-block;border-radius:99px;padding:1px 8px;font-size:10.5px;border:1px solid var(--line);color:var(--sub)}
+.btn{display:inline-block;border-radius:10px;padding:6px 12px;font-size:12px;border:1px solid var(--line);background:var(--panel2)}
+.btn.bad{color:var(--bad);border-color:#5a2f2f}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{color:var(--sub);text-align:left;font-weight:500;padding:6px 4px;border-bottom:1px solid var(--line)}
+td{padding:9px 4px;border-bottom:1px solid var(--line)}
+pre{background:#0a0a10;border:1px solid var(--line);border-radius:10px;padding:10px;font-size:11px;line-height:1.6;overflow:auto;color:#b9c7ff}</style></head><body><div class="intro"><div class="eyebrow">INDEXEDDB · 版本 4 / 5</div><h1>排行榜＋清理建議</h1><p>依大小排行，最上面直接給建議：「日文練習筆畫佔 77%，建議匯出備份後清除舊紀錄」，附一鍵動作。目的是幫你控制容量。</p></div><div class="phone"><div class="top"><div class="ib">☰</div><b>本機儲存</b><div class="ib">↻</div></div><div class="scroll"><div class="card"><div style="display:flex;justify-content:space-between"><b style="font-size:20px">18.4 MB</b><span class="sub">瀏覽器配額約 2.1 GB</span></div><div class="bar" style="margin-top:8px"><div style="width:1%;background:var(--accent)"></div></div><div class="sub" style="margin-top:6px">已用 0.9%・資料庫 lume・store kv</div></div><div class="card" style="border-color:var(--warn)"><b style="color:var(--warn)">💡 清理建議</b><div style="font-size:13px;margin-top:6px;line-height:1.7">日文練習占 77%（14.2 MB），其中 60% 是 90 天前的筆畫。雲端已有備份。</div><div style="display:flex;gap:8px;margin-top:10px"><span class="btn">匯出備份</span><span class="btn bad">清除 90 天前筆畫</span></div></div>
+<div class="sub" style="padding:0 2px">大小排行</div>
+<div class="card" style="padding:10px 13px"><div style="display:flex;justify-content:space-between;font-size:13px"><span>1. 日文練習</span><span class="sub">14.2 MB</span></div><div class="bar" style="margin-top:6px"><div style="width:92.39999999999999%;min-width:3px;background:var(--jp)"></div></div></div><div class="card" style="padding:10px 13px"><div style="display:flex;justify-content:space-between;font-size:13px"><span>2. YT 影片快取</span><span class="sub">3.1 MB</span></div><div class="bar" style="margin-top:6px"><div style="width:20.4%;min-width:3px;background:var(--yt)"></div></div></div><div class="card" style="padding:10px 13px"><div style="display:flex;justify-content:space-between;font-size:13px"><span>3. 日文考試</span><span class="sub">612 KB</span></div><div class="bar" style="margin-top:6px"><div style="width:4.8%;min-width:3px;background:var(--jp)"></div></div></div><div class="card" style="padding:10px 13px"><div style="display:flex;justify-content:space-between;font-size:13px"><span>4. 日記</span><span class="sub">241 KB</span></div><div class="bar" style="margin-top:6px"><div style="width:1.56%;min-width:3px;background:var(--diary)"></div></div></div><div class="card" style="padding:10px 13px"><div style="display:flex;justify-content:space-between;font-size:13px"><span>5. 健身</span><span class="sub">48 KB</span></div><div class="bar" style="margin-top:6px"><div style="width:0.36%;min-width:3px;background:var(--fit)"></div></div></div><div class="card" style="padding:10px 13px"><div style="display:flex;justify-content:space-between;font-size:13px"><span>6. 同步紀錄</span><span class="sub">21 KB</span></div><div class="bar" style="margin-top:6px"><div style="width:0.12%;min-width:3px;background:var(--sync)"></div></div></div><div class="card" style="padding:10px 13px"><div style="display:flex;justify-content:space-between;font-size:13px"><span>7. 除錯紀錄</span><span class="sub">9 KB</span></div><div class="bar" style="margin-top:6px"><div style="width:0.06%;min-width:3px;background:var(--bad)"></div></div></div></div></div><p class="note">優點：不只看還能處理，適合容量會成長的資料。缺點：清除動作有風險，要二次確認、且只能清雲端已有的。</p></body></html>
