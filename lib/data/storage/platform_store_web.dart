@@ -3,8 +3,6 @@ import 'dart:html' as html;
 // ignore: uri_does_not_exist
 import 'dart:indexed_db' as idb;
 
-import 'package:shared_preferences/shared_preferences.dart';
-
 import 'key_value_store.dart';
 
 /// 網頁版的儲存後端：IndexedDB。
@@ -15,21 +13,12 @@ import 'key_value_store.dart';
 /// （2026-09-24 使用者回報）。IndexedDB 的容量是磁碟等級的，量級差很多。
 ///
 /// 做法：啟動時把整個 object store 讀進記憶體（讀取維持同步速度，跟
-/// 原本 [SharedPrefsStore] 一樣「整包讀寫」的使用方式），寫入時同時
-/// 寫記憶體跟 IndexedDB。第一次啟動會把 localStorage（shared_preferences）
-/// 裡既有的資料**搬**進來——每一筆確認寫進 IndexedDB 成功才從
-/// localStorage 刪掉，中途失敗不會掉資料，也順便釋放舊的配額。
-/// IndexedDB 開不起來（例如某些無痕模式）就退回 shared_preferences。
-Future<KeyValueStore> openPlatformStore() async {
-  final prefs = await SharedPreferences.getInstance();
-  try {
-    final store = await _IndexedDbStore.open();
-    await store._migrateFrom(prefs);
-    return store;
-  } catch (_) {
-    return SharedPrefsStore(prefs);
-  }
-}
+/// 原本「整包讀寫」的使用方式一樣），寫入時同時寫記憶體跟 IndexedDB。
+///
+/// 已經**拿掉**舊的 localStorage 搬家跟「IndexedDB 開不起來就退回
+/// localStorage」的備援（2026-09-24 使用者要求：資料都在雲端、不怕
+/// 沒搬到，也不需要備援）。IndexedDB 開不起來就直接丟例外。
+Future<KeyValueStore> openPlatformStore() => _IndexedDbStore.open();
 
 class _IndexedDbStore implements KeyValueStore {
   _IndexedDbStore._(this._db, this._cache);
@@ -66,21 +55,6 @@ class _IndexedDbStore implements KeyValueStore {
     final txn = _db.transaction(_storeName, 'readwrite');
     txn.objectStore(_storeName).put(value, key);
     await txn.completed;
-  }
-
-  /// localStorage → IndexedDB 一次性搬家（已經搬過的不會再有東西可搬）。
-  Future<void> _migrateFrom(SharedPreferences prefs) async {
-    for (final key in prefs.getKeys().toList()) {
-      final value = prefs.get(key);
-      if (value is! String) continue;
-      // IndexedDB 已經有這個 key 就以它為準（代表上次搬到一半，或這台
-      // 之後已經寫過新的），只是把舊的清掉。
-      if (!_cache.containsKey(key)) {
-        await _put(key, value);
-        _cache[key] = value;
-      }
-      await prefs.remove(key);
-    }
   }
 
   @override

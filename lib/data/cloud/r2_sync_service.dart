@@ -204,6 +204,7 @@ class R2SyncService {
       final bytes = await _client.getObject(key);
       var cloudVideos = <YoutubeVideo>[];
       DateTime? cloudAt;
+      var cloudResumeOffset = -1;
       if (bytes != null) {
         final decoded = jsonDecode(utf8.decode(bytes)) as Map<String, dynamic>;
         cloudAt = DateTime.tryParse(decoded['fetchedAt'] as String? ?? '');
@@ -211,7 +212,18 @@ class R2SyncService {
             .cast<Map<String, dynamic>>()
             .map(YoutubeVideo.fromJson)
             .toList();
-        downloaded += await cache.mergeFromCloud(channel.id, cloudVideos, cloudAt);
+        final resumeJson = decoded['resume'];
+        if (resumeJson is Map<String, dynamic>) {
+          cloudResumeOffset = YtResume.fromJson(resumeJson).offset;
+        }
+        downloaded += await cache.mergeFromCloud(
+          channel.id,
+          cloudVideos,
+          cloudAt,
+          cloudResume: resumeJson is Map<String, dynamic>
+              ? YtResume.fromJson(resumeJson)
+              : null,
+        );
       }
 
       final local = await cache.load(channel.id);
@@ -224,12 +236,18 @@ class R2SyncService {
               (cloudById[v.videoId]!.duration == null && v.duration != null))
             v,
       ];
-      final needsUpload = bytes == null || diff.isNotEmpty || localAt != cloudAt;
+      final localResume = await cache.loadResume(channel.id);
+      final needsUpload =
+          bytes == null ||
+          diff.isNotEmpty ||
+          localAt != cloudAt ||
+          (localResume != null && localResume.offset > cloudResumeOffset);
       if (!needsUpload) continue;
       uploaded += diff.length;
       final body = utf8.encode(
         jsonEncode({
           'fetchedAt': localAt?.toIso8601String(),
+          'resume': localResume?.toJson(),
           'videos': [for (final v in local) v.toJson()],
         }),
       );

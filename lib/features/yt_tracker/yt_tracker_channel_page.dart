@@ -41,6 +41,9 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
   final _scroll = ScrollController();
   String? _uploadsId;
   String? _nextPageToken;
+  List<YoutubeVideo> _firstPage = const [];
+  bool _reachedEnd = false;
+  String? _loadMoreChannelId;
   List<YoutubeVideo> _moreVideos = const [];
   bool _loadingMore = false;
   String? _loadMoreError;
@@ -103,31 +106,103 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     }
   }
 
+  /// 往下滑載入更早的影片。順序：
+  /// 1. 先看本機快取（含其他裝置同步過來的）有沒有「比畫面上最舊那部更
+  ///    早」的影片，有就直接拿來用，**不打 API**。
+  /// 2. 快取用完了才打 API，而且從快取記下的「翻到哪裡」的位置接著抓
+  ///    （見 [YtResume]），已經抓過的那一段整段跳過，不從頭翻。
+  /// 抓回來的影片一律存進快取（之後不用再請求、也會跟著同步），用影片
+  /// id 去重。
   Future<void> _loadMoreVideos() async {
     final apiKey = ref.read(ytApiKeyProvider);
     final uploadsId = _uploadsId;
-    final token = _nextPageToken;
+    final channelId = _loadMoreChannelId;
     if (_loadingMore ||
         _loadMoreError != null ||
-        token == null ||
+        _reachedEnd ||
         uploadsId == null ||
+        channelId == null ||
         apiKey == null ||
         apiKey.isEmpty) {
       return;
     }
     setState(() => _loadingMore = true);
     try {
+      final cache = YtVideoCacheStore(ref.read(keyValueStoreProvider));
+      final shown = [..._firstPage, ..._moreVideos];
+      final shownIds = {for (final v in shown) v.videoId};
+      final oldestShown = shown
+          .map((v) => v.publishedAt)
+          .reduce((a, b) => a.isBefore(b) ? a : b);
+
+      // 1. 本機快取
+      final cached = await cache.load(channelId);
+      final older = [
+        for (final v in cached)
+          if (!shownIds.contains(v.videoId) && v.publishedAt.isBefore(oldestShown))
+            v,
+      ]..sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
+      if (older.isNotEmpty) {
+        if (!mounted) return;
+        setState(() {
+          _moreVideos = [..._moreVideos, ...older.take(20)];
+          _loadingMore = false;
+        });
+        return;
+      }
+
+      // 2. 打 API，從記下的位置續抓
       final service = YoutubeApiService(apiKey);
-      final page = await service.fetchVideosPage(
-        uploadsId,
-        pageToken: token,
-        maxResults: 20,
-      );
-      final withDurations = await _withDurations(service, page.videos);
+      var resume = await cache.loadResume(channelId);
+      if (resume != null && resume.end) {
+        if (!mounted) return;
+        setState(() {
+          _reachedEnd = true;
+          _loadingMore = false;
+        });
+        return;
+      }
+      var token = resume?.token ?? _nextPageToken;
+      var offset = resume?.offset ?? _firstPage.length;
+      if (token == null) {
+        if (!mounted) return;
+        setState(() {
+          _reachedEnd = true;
+          _loadingMore = false;
+        });
+        return;
+      }
+      final fresh = <YoutubeVideo>[];
+      final knownIds = {...shownIds, for (final v in cached) v.videoId};
+      // 位置往後挪過的話這一頁可能全是重複，最多連翻 5 頁找新的。
+      for (var i = 0; i < 5 && fresh.isEmpty && token != null; i++) {
+        final page = await service.fetchVideosPage(
+          uploadsId,
+          pageToken: token,
+          maxResults: 20,
+        );
+        offset += page.videos.length;
+        final newOnes = [
+          for (final v in page.videos)
+            if (!knownIds.contains(v.videoId)) v,
+        ];
+        final withDurations = await _withDurations(service, newOnes);
+        await cache.upsertVideos(channelId, withDurations);
+        await cache.saveResumeIfDeeper(
+          channelId,
+          YtResume(
+            token: page.nextPageToken,
+            offset: offset,
+            end: page.nextPageToken == null,
+          ),
+        );
+        fresh.addAll(withDurations);
+        token = page.nextPageToken;
+      }
       if (!mounted) return;
       setState(() {
-        _moreVideos = [..._moreVideos, ...withDurations];
-        _nextPageToken = page.nextPageToken;
+        _moreVideos = [..._moreVideos, ...fresh];
+        _reachedEnd = token == null && fresh.isEmpty;
         _loadingMore = false;
       });
     } catch (e) {
@@ -162,6 +237,9 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     setState(() {
       _uploadsId = null;
       _nextPageToken = null;
+      _firstPage = const [];
+      _reachedEnd = false;
+      _loadMoreChannelId = channel.id;
       _moreVideos = const [];
       _loadingMore = false;
       _loadMoreError = null;
@@ -200,23 +278,26 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     _uploadsId = uploadsId;
     final page = await service.fetchVideosPage(uploadsId, maxResults: 10);
     _nextPageToken = page.nextPageToken;
+    _loadMoreChannelId = channel.id;
     final videos = page.videos;
     // 時長要多打一次 videos.list 才有，見 youtube_api_service.dart 的
     // 說明。這次失敗就算了，讓影片清單照樣顯示，只是沒有時長角標，
     // 不要因為這個次要資訊讓整個清單抓失敗。
-    try {
-      final durations = await service.fetchDurations(
-        [for (final v in videos) v.videoId],
-      );
-      return [
-        for (final v in videos)
-          durations.containsKey(v.videoId)
-              ? v.withDuration(durations[v.videoId]!)
-              : v,
-      ];
-    } catch (_) {
-      return videos;
-    }
+    final result = await _withDurations(service, videos);
+    // 最近影片也存進快取（跟往下滑載入的更早影片、上傳頻率圖共用同一份），
+    // 之後不用再請求，也會跟著同步（2026-09-24 使用者要求）。
+    final cache = YtVideoCacheStore(ref.read(keyValueStoreProvider));
+    await cache.upsertVideos(channel.id, result);
+    await cache.saveResumeIfDeeper(
+      channel.id,
+      YtResume(
+        token: page.nextPageToken,
+        offset: result.length,
+        end: page.nextPageToken == null,
+      ),
+    );
+    if (mounted) _firstPage = result;
+    return result;
   }
 
   void _ensureHistoryLoaded(YtChannel channel, {bool force = false}) {
@@ -265,11 +346,24 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
       uploadsId = info.uploadsPlaylistId;
     }
 
+    // 「遇到已知影片就停止翻頁」只有在之前**完整抓過一次半年份**（有記錄
+    // 「上次對過 YouTube 的時間」）才成立。最近影片／往下滑載入的影片也會
+    // 寫進同一份快取，快取裡有幾部不代表半年份抓齊了，這時要一路抓到
+    // since 為止，不然常發片的頻道上傳頻率圖會缺資料。
+    final everCompleted = await cache.lastFetchedAt(channel.id) != null;
+    final resumeWrites = <Future<void>>[];
     final fetched = await service.fetchAllVideos(
       uploadsId,
       since: since,
-      knownVideoIds: cachedById.keys.toSet(),
+      knownVideoIds: everCompleted ? cachedById.keys.toSet() : const {},
+      onPage: (token, offset) => resumeWrites.add(
+        cache.saveResumeIfDeeper(
+          channel.id,
+          YtResume(token: token, offset: offset, end: token == null),
+        ),
+      ),
     );
+    await Future.wait(resumeWrites);
 
     // 這次翻頁翻到的影片，扣掉本來就已經快取、時長也已經有的，只有
     // 真的新的才需要多打一次 fetchDurations。
@@ -297,8 +391,9 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
       }
     }
 
-    // 合併快取＋這次抓到的，新的蓋舊的（時長可能剛補上），依發布時間
-    // 過濾在 since 窗口內，落地存回去給下次用。
+    // 合併快取＋這次抓到的，新的蓋舊的（時長可能剛補上），整份落地存回去
+    // 給下次用——**不再裁掉半年以前的**：往下滑載入的更早影片也存在同一份
+    // 快取裡，下次不用重抓。上傳頻率圖只畫 since 窗口內的那部分。
     final merged = {
       for (final v in cached) v.videoId: v,
       // 這次翻頁又翻到的已知影片沒帶時長，別把快取裡已有的時長蓋成 null。
@@ -306,10 +401,13 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
         v.videoId: v.duration == null && cachedById[v.videoId]?.duration != null
             ? cachedById[v.videoId]!
             : v,
-    }.values.where((v) => !v.publishedAt.isBefore(since)).toList()
+    }.values.toList()
       ..sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
     await cache.save(channel.id, merged);
-    return merged;
+    return [
+      for (final v in merged)
+        if (!v.publishedAt.isBefore(since)) v,
+    ];
   }
 
   Widget _buildHistoryChart(YtChannel channel) {
@@ -434,7 +532,7 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                         child: Text('載入失敗：$_loadMoreError（點一下重試）'),
                       ),
                     )
-                  : _nextPageToken == null
+                  : _reachedEnd
                   ? Center(child: Text('沒有更早的影片了', style: AppText.note))
                   : const SizedBox.shrink(),
             ),

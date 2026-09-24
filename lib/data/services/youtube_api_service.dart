@@ -242,9 +242,11 @@ class YoutubeApiService {
     required DateTime since,
     Set<String> knownVideoIds = const {},
     int maxPages = 20,
+    void Function(String? nextToken, int offset)? onPage,
   }) async {
     final videos = <YoutubeVideo>[];
     String? pageToken;
+    var offset = 0;
     for (var page = 0; page < maxPages; page++) {
       final uri = Uri.parse('$_base/playlistItems').replace(
         queryParameters: {
@@ -274,6 +276,8 @@ class YoutubeApiService {
       // 每次至少多翻一頁、白白多一趟網路來回）。
       final hitKnown = pageVideos.any((v) => knownVideoIds.contains(v.videoId));
       pageToken = body['nextPageToken'] as String?;
+      offset += pageVideos.length;
+      onPage?.call(pageToken, offset);
       if (pageToken == null) break;
       if (oldestInPage != null && oldestInPage.isBefore(since)) break;
       if (hitKnown) break;

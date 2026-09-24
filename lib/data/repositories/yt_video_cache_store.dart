@@ -11,6 +11,31 @@ import '../storage/key_value_store.dart';
 /// 畫圖的），不快取「最近影片」那個獨立小清單——那批本來就只抓
 /// 10 筆，一次 API 呼叫的事，快取省下來的配額不多，不值得多一層
 /// 複雜度。
+/// 「往更早翻頁」的續抓位置：YouTube 上傳清單是新到舊，`nextPageToken`
+/// 接著上次翻到的地方往下抓。[offset] 是「這個位置之前已經有幾部影片」，
+/// 拿來比哪個位置比較深；[end] 是已經翻到最早一部、沒有更多了。
+///
+/// 為什麼記這個：頻道詳情頁往下滑要抓更早影片時，本機（含其他裝置同步
+/// 過來的）已經有的那一段不用再請求，直接從這個位置接著抓
+/// （2026-09-24 使用者要求）。token 是位移式的，頻道之後又發了新片會讓
+/// 位置往後挪一點，結果只會是多抓到幾部重複的（用影片 id 去重），不會
+/// 漏掉。
+class YtResume {
+  const YtResume({this.token, required this.offset, this.end = false});
+
+  final String? token;
+  final int offset;
+  final bool end;
+
+  Map<String, dynamic> toJson() => {'token': token, 'offset': offset, 'end': end};
+
+  factory YtResume.fromJson(Map<String, dynamic> json) => YtResume(
+    token: json['token'] as String?,
+    offset: json['offset'] as int? ?? 0,
+    end: json['end'] as bool? ?? false,
+  );
+}
+
 class YtVideoCacheStore {
   YtVideoCacheStore(this._store);
 
@@ -39,6 +64,47 @@ class YtVideoCacheStore {
     return raw == null ? null : DateTime.tryParse(raw);
   }
 
+  static String _resumeKeyFor(String channelId) =>
+      'yt_tracker.video_resume.$channelId.v1';
+
+  Future<YtResume?> loadResume(String channelId) async {
+    final raw = await _store.read(_resumeKeyFor(channelId));
+    if (raw == null) return null;
+    return YtResume.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+  }
+
+  /// 只在新位置比已存的「更深」（或剛好翻到底）才更新。
+  Future<void> saveResumeIfDeeper(String channelId, YtResume next) async {
+    final current = await loadResume(channelId);
+    if (current != null) {
+      if (current.end) return;
+      if (!next.end && next.offset <= current.offset) return;
+    }
+    await _store.write(_resumeKeyFor(channelId), jsonEncode(next.toJson()));
+  }
+
+  /// 把新抓到的影片併進快取（不動「上次對過 YouTube 的時間」）。已經有
+  /// 的影片保留有時長的那份。回傳真的新增／補到時長的部數。
+  Future<int> upsertVideos(String channelId, List<YoutubeVideo> videos) async {
+    if (videos.isEmpty) return 0;
+    final byId = {for (final v in await load(channelId)) v.videoId: v};
+    var changed = 0;
+    for (final v in videos) {
+      final existing = byId[v.videoId];
+      if (existing == null || (existing.duration == null && v.duration != null)) {
+        byId[v.videoId] = v;
+        changed++;
+      }
+    }
+    if (changed > 0) {
+      await _store.write(
+        _keyFor(channelId),
+        jsonEncode([for (final v in byId.values) v.toJson()]),
+      );
+    }
+    return changed;
+  }
+
   /// 把雲端抓下來的快取併進本機（2026-09-24 使用者要求：資料都該可同步）。
   /// 聯集：同一部影片兩邊都有就留有時長的那份（時長是額外打 API 才補上
   /// 的，別被沒補到的版本蓋掉）；「上次對過 YouTube 的時間」取兩邊較晚
@@ -46,8 +112,10 @@ class YtVideoCacheStore {
   Future<int> mergeFromCloud(
     String channelId,
     List<YoutubeVideo> cloud,
-    DateTime? cloudFetchedAt,
-  ) async {
+    DateTime? cloudFetchedAt, {
+    YtResume? cloudResume,
+  }) async {
+    if (cloudResume != null) await saveResumeIfDeeper(channelId, cloudResume);
     final local = await load(channelId);
     final byId = {for (final v in local) v.videoId: v};
     var changed = 0;
