@@ -2241,3 +2241,33 @@
 2026-09-22T15:20:59  R224   soap                  O       type  soap                  0
 2026-09-22T15:20:59  R224   in front of           O       type  在什麼前面            0
 2026-09-22T15:20:59  R224   oral test             O       type  口試                  0
+2026-09-24T10:53:21  R225   envelope              X       type  letter                0
+2026-09-24T10:53:21  R225   ladder                X       type  -                     0
+2026-09-24T10:53:21  R225   anchor                X       type  -                     0
+2026-09-24T10:53:21  R225   leaf                  O       type  leaf                  0
+2026-09-24T10:53:21  R225   cup                   O       type  cup                   0
+2026-09-24T10:53:21  R225   healthy               O       type  健康                  0
+2026-09-24T10:53:21  R225   pear                  X       type  -                     0
+2026-09-24T10:53:21  R225   reluctant             O       type  勉強                  0
+2026-09-24T10:53:21  R225   monitor               X       type  鏡子                  0
+2026-09-24T10:53:21  R225   honeybee              X       type  蜂蜜                  0
+2026-09-24T10:55:21  R226   cousin                O       type  表親                  0
+2026-09-24T10:55:21  R226   lamb                  O       type  小羊                  0
+2026-09-24T10:55:21  R226   exercise              O       type  鍛鍊                  0
+2026-09-24T10:55:21  R226   large                 X       type  -                     0
+2026-09-24T10:55:21  R226   keychain              X       type  -                     0
+2026-09-24T10:55:21  R226   leaf                  O       type  leaf                  0
+2026-09-24T10:55:21  R226   pear                  X       type  -                     0
+2026-09-24T10:55:21  R226   insect                X       type  -                     0
+2026-09-24T10:55:21  R226   puddle                X       type  -                     0
+2026-09-24T10:55:21  R226   no                    O       type  no                    0
+2026-09-24T17:22:22  R227   fridge                X       type  -                     0
+2026-09-24T17:22:22  R227   ship                  O       type  船                    0
+2026-09-24T17:22:22  R227   envelope              X       type  -                     0
+2026-09-24T17:22:22  R227   Swift                 X       type  -                     0
+2026-09-24T17:22:22  R227   desk                  X       type  table                 0
+2026-09-24T17:22:22  R227   healthy               X       type  -                     0
+2026-09-24T17:22:22  R227   fork                  O       type  fork                  0
+2026-09-24T17:22:22  R227   plane                 O       type  飛機                  0
+2026-09-24T17:22:22  R227   rainy                 O       type  下雨                  0
+2026-09-24T17:22:22  R227   sink                  X       type  -                     0
