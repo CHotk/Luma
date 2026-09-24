@@ -40,7 +40,8 @@ class YtTrackerHomePage extends ConsumerStatefulWidget {
 }
 
 class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
-  late Future<({List<YtCategory> categories, List<YtChannel> channels})> _future;
+  late Future<({List<YtCategory> categories, List<YtChannel> channels})>
+  _future;
 
   /// 搜尋框（2026-09-24 使用者要求：放在「全部」上面，直接搜尋頻道）。
   /// 有輸入文字時，分類格子換成符合的頻道清單。
@@ -64,7 +65,8 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
 
   /// 打開這頁那一瞬間先把分類／頻道快照（見 `yt_tracker_seed_loader.dart`）
   /// 併回本機，跟 `diary_page.dart` 的 `_loadWithSeedMerge` 同一套。
-  Future<({List<YtCategory> categories, List<YtChannel> channels})> _load() async {
+  Future<({List<YtCategory> categories, List<YtChannel> channels})>
+  _load() async {
     final repo = ref.read(ytTrackerRepositoryProvider);
     final categorySeed = await loadYtCategoriesSeed();
     if (categorySeed.isNotEmpty) await repo.mergeSeedCategories(categorySeed);
@@ -142,14 +144,16 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
     );
     final name = controller.text.trim();
     if (saved != true || name.isEmpty) return;
-    await ref.read(ytTrackerRepositoryProvider).addCategory(
-      YtCategory(
-        id: DateTime.now().microsecondsSinceEpoch.toString(),
-        name: name,
-        colorValue: colorValue,
-        imageUrl: imageController.text.trim(),
-      ),
-    );
+    await ref
+        .read(ytTrackerRepositoryProvider)
+        .addCategory(
+          YtCategory(
+            id: DateTime.now().microsecondsSinceEpoch.toString(),
+            name: name,
+            colorValue: colorValue,
+            imageUrl: imageController.text.trim(),
+          ),
+        );
     if (!mounted) return;
     _reload();
   }
@@ -197,27 +201,39 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
                     ),
                 ],
               ),
+              // 刪除是破壞性動作：跟一般的「取消／儲存」分開，獨立放在
+              // 內容最底下、紅色外框全寬按鈕（一般手機 App 的慣例），不跟
+              // 底部按鈕列擠在一起，也不用紅色實心搶過主要動作
+              // （2026-09-24 使用者要求重新配置）。
+              const SizedBox(height: Gap.lg),
+              const Divider(height: 1, color: AppColors.glassEdge),
+              const SizedBox(height: Gap.md),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => Navigator.pop(dialogContext, 'delete'),
+                  icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                  label: const Text('刪除分類'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.bad,
+                    side: BorderSide(
+                      color: AppColors.bad.withValues(alpha: 0.5),
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
-          // 刪除縮小放最左邊，跟儲存/取消拉開距離，不容易誤按；儲存在
-          // 取消左邊（2026-09-22 使用者要求，跟頻道編輯對話框同一套）。
+          // 底部按鈕列照慣例：次要的「取消」在左（純文字），主要的「儲存」
+          // 在最右（實心強調色，用藍色不是紅色——紅色留給刪除）。
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, 'delete'),
-              style: TextButton.styleFrom(foregroundColor: AppColors.bad),
-              child: const Text('刪除', style: TextStyle(fontSize: 12)),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, 'save'),
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.ytAccent,
-                foregroundColor: AppColors.ytAccentInk,
-              ),
-              child: const Text('儲存'),
-            ),
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, 'cancel'),
               child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, 'save'),
+              child: const Text('儲存'),
             ),
           ],
         ),
@@ -244,10 +260,7 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
         builder: (dialogContext) => AlertDialog(
           backgroundColor: const Color(0xFF1A1A24),
           title: const Text('刪除這個分類？', style: TextStyle(color: AppColors.ink)),
-          content: Text(
-            '底下的頻道不會被刪除，會變成未分類。',
-            style: AppText.bodyDim,
-          ),
+          content: Text('底下的頻道不會被刪除，會變成未分類。', style: AppText.bodyDim),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
@@ -321,7 +334,10 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
                           value: _YtHomeMenuAction.testNotification,
                           child: Row(
                             children: [
-                              Icon(Icons.notifications_active_outlined, size: 18),
+                              Icon(
+                                Icons.notifications_active_outlined,
+                                size: 18,
+                              ),
                               SizedBox(width: 10),
                               Text('測試通知'),
                             ],
@@ -341,7 +357,10 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
                     ),
                     IconButton(
                       onPressed: _showAddCategoryDialog,
-                      icon: const Icon(Icons.create_new_folder_outlined, size: 20),
+                      icon: const Icon(
+                        Icons.create_new_folder_outlined,
+                        size: 20,
+                      ),
                       color: AppColors.ink2,
                       tooltip: '新增分類',
                     ),
@@ -426,13 +445,17 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
                                 vertical: 12,
                               ),
                               enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(Radii.button),
+                                borderRadius: BorderRadius.circular(
+                                  Radii.button,
+                                ),
                                 borderSide: const BorderSide(
                                   color: AppColors.glassEdge,
                                 ),
                               ),
                               focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(Radii.button),
+                                borderRadius: BorderRadius.circular(
+                                  Radii.button,
+                                ),
                                 borderSide: const BorderSide(
                                   color: AppColors.accentGlassEdge,
                                 ),
@@ -497,31 +520,38 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
                                         delegate: SliverChildBuilderDelegate(
                                           childCount: gridCount,
                                           (_, i) {
-                                      final isUncategorized =
-                                          i == categories.length;
-                                      final cat = isUncategorized
-                                          ? uncategorized!
-                                          : categories[i];
-                                      final catChannels = isUncategorized
-                                          ? unassigned
-                                          : channels
-                                                .where(
-                                                  (c) => c.categoryId == cat.id,
-                                                )
-                                                .toList();
-                                      return _CategoryCard(
-                                        category: cat,
-                                        channels: catChannels,
-                                        maxAvatars: 3,
-                                        count: catChannels.length,
-                                        onTap: () => context.push(
-                                          '/yt-tracker/browse',
-                                          extra: {cat.id},
-                                        ).then((_) => _reload()),
-                                        onLongPress: isUncategorized
-                                            ? null
-                                            : () => _showEditCategoryDialog(cat),
-                                      );
+                                            final isUncategorized =
+                                                i == categories.length;
+                                            final cat = isUncategorized
+                                                ? uncategorized!
+                                                : categories[i];
+                                            final catChannels = isUncategorized
+                                                ? unassigned
+                                                : channels
+                                                      .where(
+                                                        (c) =>
+                                                            c.categoryId ==
+                                                            cat.id,
+                                                      )
+                                                      .toList();
+                                            return _CategoryCard(
+                                              category: cat,
+                                              channels: catChannels,
+                                              maxAvatars: 3,
+                                              count: catChannels.length,
+                                              onTap: () => context
+                                                  .push(
+                                                    '/yt-tracker/browse',
+                                                    extra: {cat.id},
+                                                  )
+                                                  .then((_) => _reload()),
+                                              onLongPress: isUncategorized
+                                                  ? null
+                                                  : () =>
+                                                        _showEditCategoryDialog(
+                                                          cat,
+                                                        ),
+                                            );
                                           },
                                         ),
                                       ),
@@ -723,7 +753,8 @@ class _CategoryCardState extends State<_CategoryCard> {
             if (hasImage)
               _CategoryImage(
                 url: category.imageUrl,
-                errorBuilder: (context, error, stack) => const SizedBox.shrink(),
+                errorBuilder: (context, error, stack) =>
+                    const SizedBox.shrink(),
               ),
             if (hasImage)
               // 底圖上蓋一層深色漸層，不然文字/頭像疊在圖片上會看不清楚。
@@ -913,10 +944,7 @@ class _ExportDialogState extends State<_ExportDialog> {
                 value: _ExportScope.localOnly,
                 label: Text('僅這台裝置'),
               ),
-              ButtonSegment(
-                value: _ExportScope.withSeed,
-                label: Text('連快照一起'),
-              ),
+              ButtonSegment(value: _ExportScope.withSeed, label: Text('連快照一起')),
             ],
             selected: {_scope},
             onSelectionChanged: (s) => _setScope(s.first),
@@ -945,7 +973,9 @@ class _ExportDialogState extends State<_ExportDialog> {
                 );
               }
               final data = snap.data!;
-              final sizeLabel = _formatExportSize(utf8.encode(data.text).length);
+              final sizeLabel = _formatExportSize(
+                utf8.encode(data.text).length,
+              );
               return Text(
                 '$filename\n${data.categoryCount} 個分類、${data.channelCount} 個頻道 ・ 約 $sizeLabel',
                 textAlign: TextAlign.center,
@@ -1002,7 +1032,11 @@ String _exportTodayStamp() {
 }
 
 class _ColorDot extends StatelessWidget {
-  const _ColorDot({required this.color, required this.selected, required this.onTap});
+  const _ColorDot({
+    required this.color,
+    required this.selected,
+    required this.onTap,
+  });
 
   final Color color;
   final bool selected;

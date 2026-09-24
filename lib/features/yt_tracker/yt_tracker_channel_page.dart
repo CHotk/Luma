@@ -145,7 +145,8 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
       final cached = await cache.load(channelId);
       final older = [
         for (final v in cached)
-          if (!shownIds.contains(v.videoId) && v.publishedAt.isBefore(oldestShown))
+          if (!shownIds.contains(v.videoId) &&
+              v.publishedAt.isBefore(oldestShown))
             v,
       ]..sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
       if (older.isNotEmpty) {
@@ -225,7 +226,10 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     final channels = await repo.loadChannels();
     final categories = await repo.loadCategories();
     final channel = channels.where((c) => c.id == widget.channelId);
-    return (channel: channel.isEmpty ? null : channel.first, categories: categories);
+    return (
+      channel: channel.isEmpty ? null : channel.first,
+      categories: categories,
+    );
   }
 
   void _reload() => setState(() => _future = _load());
@@ -329,10 +333,9 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     final cache = YtVideoCacheStore(ref.read(keyValueStoreProvider));
     final cached = await cache.load(channel.id);
     final cachedById = {for (final v in cached) v.videoId: v};
-    final cachedInWindow = cached
-        .where((v) => !v.publishedAt.isBefore(since))
-        .toList()
-      ..sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
+    final cachedInWindow =
+        cached.where((v) => !v.publishedAt.isBefore(since)).toList()
+          ..sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
     if (cached.isNotEmpty && mounted) {
       setState(() => _historyPreview = cachedInWindow);
     }
@@ -401,8 +404,7 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
         v.videoId: v.duration == null && cachedById[v.videoId]?.duration != null
             ? cachedById[v.videoId]!
             : v,
-    }.values.toList()
-      ..sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
+    }.values.toList()..sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
     await cache.save(channel.id, merged);
     return [
       for (final v in merged)
@@ -461,7 +463,11 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.vpn_key_outlined, size: 32, color: AppColors.ink3),
+              const Icon(
+                Icons.vpn_key_outlined,
+                size: 32,
+                color: AppColors.ink3,
+              ),
               const SizedBox(height: Gap.sm),
               Text('還沒有設定 API 金鑰', style: AppText.bodyDim),
               const SizedBox(height: Gap.md),
@@ -542,11 +548,18 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     );
   }
 
-  Future<void> _showEditDialog(YtChannel channel, List<YtCategory> categories) async {
+  Future<void> _showEditDialog(
+    YtChannel channel,
+    List<YtCategory> categories,
+  ) async {
     final nameController = TextEditingController(text: channel.name);
     final urlController = TextEditingController(text: channel.url);
-    final avatarController = TextEditingController(text: channel.avatarImageUrl);
-    final descriptionController = TextEditingController(text: channel.description);
+    final avatarController = TextEditingController(
+      text: channel.avatarImageUrl,
+    );
+    final descriptionController = TextEditingController(
+      text: channel.description,
+    );
     String? categoryId = channel.categoryId;
     final action = await showDialog<String>(
       context: context,
@@ -612,29 +625,40 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                       ),
                   ],
                 ),
+                // 刪除是破壞性動作：跟一般的「取消／儲存」分開，獨立放在
+                // 內容最底下、紅色外框全寬按鈕（一般手機 App 的慣例），不跟
+                // 底部按鈕列擠在一起，也不用紅色實心搶過主要動作
+                // （2026-09-24 使用者要求重新配置）。
+                const SizedBox(height: Gap.lg),
+                const Divider(height: 1, color: AppColors.glassEdge),
+                const SizedBox(height: Gap.md),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => Navigator.pop(dialogContext, 'delete'),
+                    icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                    label: const Text('刪除頻道'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.bad,
+                      side: BorderSide(
+                        color: AppColors.bad.withValues(alpha: 0.5),
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
-          // 刪除是破壞性動作，字體縮小、放最左邊跟儲存/取消拉開距離，
-          // 不要跟常用的兩個動作擠在一起、字級還一樣大，容易誤按
-          // （2026-09-22 使用者要求）。儲存在取消左邊，離刪除比較遠。
+          // 底部按鈕列照慣例：次要的「取消」在左（純文字），主要的「儲存」
+          // 在最右（實心強調色，用藍色不是紅色——紅色留給刪除）。
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, 'delete'),
-              style: TextButton.styleFrom(foregroundColor: AppColors.bad),
-              child: const Text('刪除', style: TextStyle(fontSize: 12)),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, 'save'),
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.ytAccent,
-                foregroundColor: AppColors.ytAccentInk,
-              ),
-              child: const Text('儲存'),
-            ),
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, 'cancel'),
               child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, 'save'),
+              child: const Text('儲存'),
             ),
           ],
         ),
@@ -730,10 +754,12 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                           ],
                         );
                       }
-                      final category = categories
-                          .where((c) => c.id == channel.categoryId);
-                      final categoryLabel =
-                          category.isEmpty ? '未分類' : category.first.name;
+                      final category = categories.where(
+                        (c) => c.id == channel.categoryId,
+                      );
+                      final categoryLabel = category.isEmpty
+                          ? '未分類'
+                          : category.first.name;
 
                       // 不能在 build() 當下直接呼叫（裡面可能觸發
                       // setState），排到這一幀畫完之後——跟
@@ -802,98 +828,94 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Row(
-                            children: [
-                              YtChannelAvatar(channel: channel, radius: 28),
-                              const SizedBox(width: Gap.md),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      channel.name,
-                                      style: const TextStyle(
-                                        fontSize: 16.5,
-                                        fontWeight: FontWeight.w800,
-                                        color: AppColors.ink,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 3),
-                                    Text(
-                                      channel.subscriberLabel == null
-                                          ? categoryLabel
-                                          : '$categoryLabel・${channel.subscriberLabel}',
-                                      style: AppText.note,
-                                    ),
-                                    if (channel.url.isNotEmpty) ...[
-                                      const SizedBox(height: 2),
-                                      InkWell(
-                                        onTap: () => openExternalUrl(
-                                          context,
-                                          channel.url,
-                                        ),
-                                        child: Text(
-                                          channel.url,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: AppText.note.copyWith(
-                                            // 連結照網頁慣例用淡藍色，不用
-                                            // 這個功能自己的紅色強調色——
-                                            // 紅在這個 App 的語意色系裡也
-                                            // 常代表錯誤/警示，用在連結上
-                                            // 會讓人誤會（2026-09-22
-                                            // 使用者回饋）。AppColors.accent
-                                            // 就是既有的淡藍色，不用另外
-                                            // 開新色碼。
-                                            color: AppColors.accent,
-                                            decoration: TextDecoration.underline,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                          if (channel.description.isNotEmpty) ...[
-                            const SizedBox(height: Gap.md),
-                            const PanelLabel('簡介'),
-                            const SizedBox(height: Gap.xs),
-                            Text(channel.description, style: AppText.bodyDim),
-                          ],
-                          const SizedBox(height: Gap.md),
-                          const PanelLabel('上傳頻率（近半年）'),
-                          const SizedBox(height: Gap.xs),
-                          _buildHistoryChart(channel),
-                          const SizedBox(height: Gap.md),
-                          Row(
-                            children: [
-                              const Text(
-                                '最近影片',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.ink,
-                                ),
-                              ),
-                              const Spacer(),
-                              TextButton.icon(
-                                onPressed: () {
-                                  _ensureVideosLoaded(channel, force: true);
-                                  _ensureHistoryLoaded(channel, force: true);
-                                },
-                                icon: const Icon(Icons.refresh, size: 15),
-                                label: const Text('重新整理'),
-                                style: TextButton.styleFrom(
-                                  foregroundColor: AppColors.ink2,
-                                  padding: EdgeInsets.zero,
-                                  minimumSize: const Size(0, 0),
-                                  tapTargetSize:
-                                      MaterialTapTargetSize.shrinkWrap,
-                                ),
-                              ),
-                            ],
-                          ),
+          children: [
+            YtChannelAvatar(channel: channel, radius: 28),
+            const SizedBox(width: Gap.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    channel.name,
+                    style: const TextStyle(
+                      fontSize: 16.5,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.ink,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    channel.subscriberLabel == null
+                        ? categoryLabel
+                        : '$categoryLabel・${channel.subscriberLabel}',
+                    style: AppText.note,
+                  ),
+                  if (channel.url.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    InkWell(
+                      onTap: () => openExternalUrl(context, channel.url),
+                      child: Text(
+                        channel.url,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppText.note.copyWith(
+                          // 連結照網頁慣例用淡藍色，不用
+                          // 這個功能自己的紅色強調色——
+                          // 紅在這個 App 的語意色系裡也
+                          // 常代表錯誤/警示，用在連結上
+                          // 會讓人誤會（2026-09-22
+                          // 使用者回饋）。AppColors.accent
+                          // 就是既有的淡藍色，不用另外
+                          // 開新色碼。
+                          color: AppColors.accent,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+        if (channel.description.isNotEmpty) ...[
+          const SizedBox(height: Gap.md),
+          const PanelLabel('簡介'),
+          const SizedBox(height: Gap.xs),
+          Text(channel.description, style: AppText.bodyDim),
+        ],
+        const SizedBox(height: Gap.md),
+        const PanelLabel('上傳頻率（近半年）'),
+        const SizedBox(height: Gap.xs),
+        _buildHistoryChart(channel),
+        const SizedBox(height: Gap.md),
+        Row(
+          children: [
+            const Text(
+              '最近影片',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: AppColors.ink,
+              ),
+            ),
+            const Spacer(),
+            TextButton.icon(
+              onPressed: () {
+                _ensureVideosLoaded(channel, force: true);
+                _ensureHistoryLoaded(channel, force: true);
+              },
+              icon: const Icon(Icons.refresh, size: 15),
+              label: const Text('重新整理'),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.ink2,
+                padding: EdgeInsets.zero,
+                minimumSize: const Size(0, 0),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
+          ],
+        ),
         const SizedBox(height: Gap.sm),
         _buildVideos(channel),
       ],
