@@ -58,5 +58,11 @@
     "name": "汽車",
     "color": 4292901498,
     "imageUrl": ""
+  },
+  {
+    "id": "seed-news",
+    "name": "新聞",
+    "color": 4285180384,
+    "imageUrl": ""
   }
 ]
