@@ -138,5 +138,15 @@
     "url": "https://youtube.com/@mengnankay666?si=HWdZSMa_sUrUNVGv",
     "description": "",
     "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-wecook123",
+    "name": "Wecook123 料理123",
+    "categoryId": "seed-food",
+    "avatarEmoji": "📺",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/ytc/AIdro_m9qdc55R-AoySqQABpBpL9PcR2dux8Kq8Oe08G-yo6rqc=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://youtube.com/@wecook123?si=xCu4TbGMC9PwOVT1",
+    "description": "",
+    "addedAt": "2026-09-24T00:00:00.000"
   }
 ]
