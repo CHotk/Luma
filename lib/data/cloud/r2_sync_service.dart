@@ -14,7 +14,9 @@ import '../repositories/error_log_repository.dart';
 import '../../domain/models/kana_exam.dart';
 import '../../domain/models/kana_practice.dart';
 import '../../domain/models/history.dart';
+import '../../domain/rules_config.dart';
 import '../repositories/fitness_repository.dart';
+import '../repositories/settings_repository.dart';
 import '../repositories/history_repository.dart';
 import '../repositories/kana_exam_repository.dart';
 import '../repositories/kana_practice_repository.dart';
@@ -322,6 +324,42 @@ class R2SyncService {
     return (downloaded: downloaded, uploaded: uploaded);
   }
 
+  /// 測驗規則設定（2026-09-24）。整份設定當一個單位、以「最後改的時間」
+  /// 比新舊，較新的那邊贏（不是逐欄位合併——設定很小，逐欄位反而容易
+  /// 合出兩台都沒設過的組合）。雲端沒有就上傳本機的。回傳的筆數是 0／1：
+  /// 下載＝套用了雲端的，上傳＝送出了本機的。今日用量跟上次選的語言
+  /// 軌道是各裝置自己的狀態，不同步；YT 金鑰、R2 金鑰是機密，也不同步。
+  Future<({int downloaded, int uploaded, bool applied})> syncSettings(
+    SettingsRepository repo,
+  ) async {
+    final bytes = await _client.getObject('settings.json');
+    var applied = false;
+    DateTime? cloudAt;
+    if (bytes != null) {
+      final decoded = jsonDecode(utf8.decode(bytes)) as Map<String, dynamic>;
+      cloudAt = DateTime.tryParse(decoded['updatedAt'] as String? ?? '');
+      if (cloudAt != null) {
+        applied = await repo.applyFromCloud(
+          RulesConfig.fromJson(decoded['rules'] as Map<String, dynamic>),
+          cloudAt,
+        );
+      }
+    }
+    final local = await repo.rulesForUpload();
+    var uploaded = 0;
+    if (local != null && (cloudAt == null || local.updatedAt.isAfter(cloudAt))) {
+      final body = utf8.encode(
+        jsonEncode({
+          'rules': local.rules.toJson(),
+          'updatedAt': local.updatedAt.toIso8601String(),
+        }),
+      );
+      await _client.putObject('settings.json', Uint8List.fromList(body));
+      uploaded = 1;
+    }
+    return (downloaded: applied ? 1 : 0, uploaded: uploaded, applied: applied);
+  }
+
   /// 五十音手寫練習紀錄（`kana_practice.json`）。
   Future<({int downloaded, int uploaded})> syncKanaPractice(
     KanaPracticeRepository repo, {
@@ -348,10 +386,10 @@ class R2SyncService {
     onPhase: onPhase,
   );
 
-  Future<List<Object?>> _fetchCloudRaw(String key) async {
+  Future<Object?> _fetchCloudRaw(String key) async {
     final bytes = await _client.getObject(key);
-    if (bytes == null) return const [];
-    return (jsonDecode(utf8.decode(bytes)) as List).cast<Object?>();
+    if (bytes == null) return null;
+    return jsonDecode(utf8.decode(bytes));
   }
 
   Future<List<SyncLogEntry>> _fetchCloudLog() async {
@@ -414,6 +452,7 @@ class R2SyncService {
     final ytChannels = await _fetchCloudYtChannels();
     final kanaPractice = await _fetchCloudRaw('kana_practice.json');
     final kanaExam = await _fetchCloudRaw('kana_exam.json');
+    final settings = await _fetchCloudRaw('settings.json');
     final englishHistoryBytes = await _client.getObject('english_history.json');
     final englishHistory = englishHistoryBytes == null
         ? null
@@ -437,6 +476,7 @@ class R2SyncService {
       'kanaPractice': kanaPractice,
       'kanaExam': kanaExam,
       'englishHistory': englishHistory,
+      'settings': settings,
       'syncLog': [for (final e in log) e.toJson()],
       'errorLog': [for (final e in errorLog) e.toJson()],
     });

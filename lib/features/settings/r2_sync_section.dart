@@ -11,6 +11,7 @@ import '../../data/cloud/r2_sync_service.dart';
 import '../../data/export/device_label.dart';
 import '../../data/repositories/yt_video_cache_store.dart';
 import '../../shared/debug/app_log.dart';
+import 'settings_controller.dart';
 import '../../domain/models/sync_log_entry.dart';
 import '../../shared/widgets/app_notice.dart';
 import '../../shared/widgets/glass_card.dart';
@@ -59,6 +60,7 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
   _FeaturePhase _kanaPracticePhase = _FeaturePhase.idle;
   _FeaturePhase _kanaExamPhase = _FeaturePhase.idle;
   _FeaturePhase _englishPhase = _FeaturePhase.idle;
+  _FeaturePhase _settingsPhase = _FeaturePhase.idle;
 
   @override
   void initState() {
@@ -160,6 +162,7 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
       _kanaPracticePhase = _FeaturePhase.idle;
       _kanaExamPhase = _FeaturePhase.idle;
       _englishPhase = _FeaturePhase.idle;
+      _settingsPhase = _FeaturePhase.idle;
     });
     try {
       final client = R2Client(
@@ -224,6 +227,18 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
       ref.read(wordRepositoryProvider).invalidate();
       if (mounted) setState(() => _englishPhase = _FeaturePhase.done);
 
+      stage = '設定';
+      if (mounted) setState(() => _settingsPhase = _FeaturePhase.uploading);
+      final settingsResult = await service.syncSettings(
+        ref.read(settingsRepositoryProvider),
+      );
+      if (settingsResult.applied) {
+        // 雲端的設定套用到本機了，設定頁／出題規則要重讀。
+        ref.invalidate(settingsControllerProvider);
+        ref.read(wordRepositoryProvider).invalidate();
+      }
+      if (mounted) setState(() => _settingsPhase = _FeaturePhase.done);
+
       final now = DateTime.now();
       await ref
           .read(keyValueStoreProvider)
@@ -241,7 +256,8 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
               'YT影片快取 上傳${ytVideoResult.uploaded}／下載${ytVideoResult.downloaded}；'
               '五十音練習 上傳${kanaPracticeResult.uploaded}／下載${kanaPracticeResult.downloaded}；'
               '五十音考試 上傳${kanaExamResult.uploaded}／下載${kanaExamResult.downloaded}；'
-              '英文單字紀錄 上傳${englishResult.uploaded}／下載${englishResult.downloaded}',
+              '英文單字紀錄 上傳${englishResult.uploaded}／下載${englishResult.downloaded}；'
+              '設定 上傳${settingsResult.uploaded}／下載${settingsResult.downloaded}',
         ),
       );
       stage = '同步紀錄／錯誤日誌';
@@ -326,6 +342,7 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
         _FeatureStatusRow(label: '五十音練習', phase: _kanaPracticePhase),
         _FeatureStatusRow(label: '五十音考試', phase: _kanaExamPhase),
         _FeatureStatusRow(label: '英文單字紀錄', phase: _englishPhase),
+        _FeatureStatusRow(label: '設定', phase: _settingsPhase),
       ],
     );
   }
