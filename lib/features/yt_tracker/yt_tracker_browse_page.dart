@@ -54,7 +54,9 @@ class YtTrackerBrowsePage extends ConsumerStatefulWidget {
 class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
   late Future<({List<YtCategory> categories, List<YtChannel> channels})> _future;
   late final Set<String> _selected = {...widget.initialCategoryIds};
-  _ViewMode _mode = _ViewMode.channel;
+  // 預設「依影片顯示」，切換鈕也是影片在左、頻道在右（2026-09-24 使用者
+  // 要求：點進分類大多是想看影片）。
+  _ViewMode _mode = _ViewMode.video;
   _TypeFilter _typeFilter = _TypeFilter.all;
 
   Future<List<_ChannelVideo>>? _videosFuture;
@@ -566,12 +568,12 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                           SegmentedButton<_ViewMode>(
                             segments: const [
                               ButtonSegment(
-                                value: _ViewMode.channel,
-                                label: Text('依頻道顯示'),
-                              ),
-                              ButtonSegment(
                                 value: _ViewMode.video,
                                 label: Text('依影片顯示'),
+                              ),
+                              ButtonSegment(
+                                value: _ViewMode.channel,
+                                label: Text('依頻道顯示'),
                               ),
                             ],
                             selected: {_mode},
