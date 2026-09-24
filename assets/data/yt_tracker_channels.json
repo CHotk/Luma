@@ -548,5 +548,25 @@
     "url": "https://youtube.com/channel/UC9dYo7qdvHsWF94KcE0u0Lg?si=x6yj0oXsnH0Stnif",
     "description": "世界殘酷類解說",
     "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-ourchannel187",
+    "name": "我們OUR CHANNEL",
+    "categoryId": "seed-music",
+    "avatarEmoji": "📺",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/ytc/AIdro_n6UMMMF46epoouGyVyyGe9Yk4p8zoiFnNNtJ30YhcRs7U=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://youtube.com/@ourchannel187?si=CeIWomEPDZjSfEKz",
+    "description": "中文",
+    "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-smalleyes-cryptosmc",
+    "name": "Louis-小眼睛BTC ETH 美股 RSI 時間分型",
+    "categoryId": "seed-crypto",
+    "avatarEmoji": "📺",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/UsjCylKPhwetWR4qjRr4rspgMs3BWDH_gwOHtBB5NSfcrLxu1ajgjWsP_af4fbS0PhV3VzLkXA=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://youtube.com/@smalleyes_cryptosmc?si=_0j47UIKBVrJPgQh",
+    "description": "",
+    "addedAt": "2026-09-24T00:00:00.000"
   }
 ]
