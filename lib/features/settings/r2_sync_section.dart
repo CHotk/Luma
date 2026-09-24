@@ -56,6 +56,8 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
   _FeaturePhase _diaryPhase = _FeaturePhase.idle;
   _FeaturePhase _fitnessPhase = _FeaturePhase.idle;
   _FeaturePhase _ytPhase = _FeaturePhase.idle;
+  _FeaturePhase _kanaPracticePhase = _FeaturePhase.idle;
+  _FeaturePhase _kanaExamPhase = _FeaturePhase.idle;
 
   @override
   void initState() {
@@ -152,6 +154,8 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
       _diaryPhase = _FeaturePhase.downloading;
       _fitnessPhase = _FeaturePhase.idle;
       _ytPhase = _FeaturePhase.idle;
+      _kanaPracticePhase = _FeaturePhase.idle;
+      _kanaExamPhase = _FeaturePhase.idle;
     });
     try {
       final client = R2Client(
@@ -189,6 +193,18 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
       );
       if (mounted) setState(() => _ytPhase = _FeaturePhase.done);
 
+      final kanaPracticeResult = await service.syncKanaPractice(
+        ref.read(kanaPracticeRepositoryProvider),
+        onPhase: _phaseCallback((p) => _kanaPracticePhase = p),
+      );
+      if (mounted) setState(() => _kanaPracticePhase = _FeaturePhase.done);
+
+      final kanaExamResult = await service.syncKanaExam(
+        ref.read(kanaExamRepositoryProvider),
+        onPhase: _phaseCallback((p) => _kanaExamPhase = p),
+      );
+      if (mounted) setState(() => _kanaExamPhase = _FeaturePhase.done);
+
       final now = DateTime.now();
       await ref
           .read(keyValueStoreProvider)
@@ -203,7 +219,9 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
               '日記 上傳${diaryResult.uploaded}／下載${diaryResult.downloaded}；'
               '健身 上傳${fitnessResult.uploaded}／下載${fitnessResult.downloaded}；'
               'YT頻道 上傳${ytResult.uploaded}／下載${ytResult.downloaded}；'
-              'YT影片快取 上傳${ytVideoResult.uploaded}／下載${ytVideoResult.downloaded}',
+              'YT影片快取 上傳${ytVideoResult.uploaded}／下載${ytVideoResult.downloaded}；'
+              '五十音練習 上傳${kanaPracticeResult.uploaded}／下載${kanaPracticeResult.downloaded}；'
+              '五十音考試 上傳${kanaExamResult.uploaded}／下載${kanaExamResult.downloaded}',
         ),
       );
       try {
@@ -281,6 +299,8 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
         _FeatureStatusRow(label: '日記', phase: _diaryPhase),
         _FeatureStatusRow(label: '健身', phase: _fitnessPhase),
         _FeatureStatusRow(label: 'YT 頻道追蹤', phase: _ytPhase),
+        _FeatureStatusRow(label: '五十音練習', phase: _kanaPracticePhase),
+        _FeatureStatusRow(label: '五十音考試', phase: _kanaExamPhase),
       ],
     );
   }

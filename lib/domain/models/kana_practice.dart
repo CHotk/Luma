@@ -11,7 +11,33 @@ class KanaPracticeEntry {
     required this.savedAt,
     required this.strokes,
     this.imageBase64,
+    this.updatedAt,
+    this.deletedAt,
   });
+
+  /// 多裝置同步用（2026-09-24）：刪除是墓碑標記不是物理刪除、合併時刪除
+  /// 永遠贏、其餘比 [syncedAt] 新舊，同 `DiaryEntry.deletedAt`。舊資料
+  /// 沒有這兩欄，[syncedAt] 退回 [savedAt]。
+  final DateTime? updatedAt;
+  final DateTime? deletedAt;
+
+  DateTime get syncedAt => updatedAt ?? savedAt;
+
+  /// 內容有變（新增／編輯／刪除）時蓋上現在的時間，見 [KanaPracticeRepository]。
+  KanaPracticeEntry stamped({bool deleted = false}) {
+    final now = DateTime.now();
+    return KanaPracticeEntry(
+      id: id,
+      kana: kana,
+      romaji: romaji,
+      assisted: assisted,
+      savedAt: savedAt,
+      strokes: strokes,
+      imageBase64: imageBase64,
+      updatedAt: now,
+      deletedAt: deleted ? now : deletedAt,
+    );
+  }
 
   /// 存檔當下的微秒時間戳字串，同時當 id 用，不會重複。
   final String id;
@@ -53,6 +79,8 @@ class KanaPracticeEntry {
     'assisted': assisted,
     'savedAt': savedAt.toIso8601String(),
     'imageBase64': imageBase64,
+    'updatedAt': updatedAt?.toIso8601String(),
+    'deletedAt': deletedAt?.toIso8601String(),
     'strokes': [
       for (final stroke in strokes)
         [for (final p in stroke) [p.$1, p.$2, p.$3]],
@@ -67,6 +95,12 @@ class KanaPracticeEntry {
         assisted: json['assisted'] as bool,
         savedAt: DateTime.parse(json['savedAt'] as String),
         imageBase64: json['imageBase64'] as String?,
+        updatedAt: json['updatedAt'] == null
+            ? null
+            : DateTime.parse(json['updatedAt'] as String),
+        deletedAt: json['deletedAt'] == null
+            ? null
+            : DateTime.parse(json['deletedAt'] as String),
         strokes: [
           for (final stroke in (json['strokes'] as List? ?? const []))
             [

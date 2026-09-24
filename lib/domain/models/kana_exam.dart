@@ -15,7 +15,32 @@ class KanaExamEntry {
     required this.savedAt,
     required this.strokes,
     this.imageBase64,
+    this.updatedAt,
+    this.deletedAt,
   });
+
+  /// 多裝置同步用（2026-09-24），同 `KanaPracticeEntry.updatedAt`。
+  final DateTime? updatedAt;
+  final DateTime? deletedAt;
+
+  DateTime get syncedAt => updatedAt ?? savedAt;
+
+  KanaExamEntry stamped({bool deleted = false}) {
+    final now = DateTime.now();
+    return KanaExamEntry(
+      id: id,
+      roundId: roundId,
+      kana: kana,
+      romaji: romaji,
+      isCorrect: isCorrect,
+      examType: examType,
+      savedAt: savedAt,
+      strokes: strokes,
+      imageBase64: imageBase64,
+      updatedAt: now,
+      deletedAt: deleted ? now : deletedAt,
+    );
+  }
 
   /// 存檔當下的微秒時間戳字串，同時當 id 用。
   final String id;
@@ -62,6 +87,8 @@ class KanaExamEntry {
     'examType': examType,
     'savedAt': savedAt.toIso8601String(),
     'imageBase64': imageBase64,
+    'updatedAt': updatedAt?.toIso8601String(),
+    'deletedAt': deletedAt?.toIso8601String(),
     'strokes': [
       for (final stroke in strokes)
         [
@@ -81,6 +108,12 @@ class KanaExamEntry {
     examType: json['examType'] as String,
     savedAt: DateTime.parse(json['savedAt'] as String),
     imageBase64: json['imageBase64'] as String?,
+    updatedAt: json['updatedAt'] == null
+        ? null
+        : DateTime.parse(json['updatedAt'] as String),
+    deletedAt: json['deletedAt'] == null
+        ? null
+        : DateTime.parse(json['deletedAt'] as String),
     strokes: [
       for (final stroke in (json['strokes'] as List? ?? const []))
         [

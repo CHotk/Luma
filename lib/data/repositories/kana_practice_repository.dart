@@ -3,6 +3,7 @@ import 'dart:convert';
 import '../../domain/models/kana_practice.dart';
 import '../seed/seed_merge.dart';
 import '../storage/key_value_store.dart';
+import 'yt_tracker_repository.dart' show ytDiffCount;
 
 /// 五十音手寫練習的存檔紀錄。
 ///
@@ -17,7 +18,14 @@ class KanaPracticeRepository {
 
   final KeyValueStore _store;
 
-  Future<List<KanaPracticeEntry>> loadAll() async {
+  /// 給 UI 用——已刪除（墓碑）的濾掉。
+  Future<List<KanaPracticeEntry>> loadAll() async =>
+      (await _loadAllRaw()).where((e) => e.deletedAt == null).toList();
+
+  /// 給同步用——連刪除標記都要看得到。
+  Future<List<KanaPracticeEntry>> allForUpload() => _loadAllRaw();
+
+  Future<List<KanaPracticeEntry>> _loadAllRaw() async {
     final raw = await _store.read(_key);
     // 不能回傳 `const []`：[upsert] 拿到這個列表後會直接 `.add()`
     // 進去，const 列表是不可變的，呼叫 `.add()` 會丟例外——而且是在
@@ -34,7 +42,7 @@ class KanaPracticeRepository {
   }
 
   Future<void> add(KanaPracticeEntry entry) async {
-    final all = [...await loadAll(), entry];
+    final all = [...await _loadAllRaw(), entry.stamped()];
     await _store.write(_key, jsonEncode([for (final e in all) e.toJson()]));
   }
 
@@ -47,12 +55,13 @@ class KanaPracticeRepository {
   /// （2026-09-17 使用者要求：不要在一堆地方各自埋存檔時機，畫一次
   /// 就存，直到做別的操作前都算同一筆）。
   Future<void> upsert(KanaPracticeEntry entry) async {
-    final all = await loadAll();
+    final all = await _loadAllRaw();
+    final stamped = entry.stamped();
     final i = all.indexWhere((e) => e.id == entry.id);
     if (i >= 0) {
-      all[i] = entry;
+      all[i] = stamped;
     } else {
-      all.add(entry);
+      all.add(stamped);
     }
     await _store.write(_key, jsonEncode([for (final e in all) e.toJson()]));
   }
@@ -60,8 +69,11 @@ class KanaPracticeRepository {
   /// 「清除重寫」用：這筆之前已經靠 [upsert] 存過幾版了，使用者決定
   /// 不要這次嘗試，要連存過的也一起丟掉，不能留著半成品。
   Future<void> delete(String id) async {
-    final all = await loadAll()
-      ..removeWhere((e) => e.id == id);
+    // 改標記不是真的拿掉，多裝置同步靠它才不會被別台復活。
+    final all = await _loadAllRaw();
+    final i = all.indexWhere((e) => e.id == id);
+    if (i < 0) return;
+    all[i] = all[i].stamped(deleted: true);
     await _store.write(_key, jsonEncode([for (final e in all) e.toJson()]));
   }
 
@@ -74,12 +86,33 @@ class KanaPracticeRepository {
   Future<void> mergeSeed(List<KanaPracticeEntry> incoming) async {
     if (incoming.isEmpty) return;
     final merged = mergeSeedRecords(
-      local: await loadAll(),
+      local: await _loadAllRaw(),
       seed: incoming,
       idOf: (e) => e.id,
       priority: SeedMergePriority.seed,
+      deletedAtOf: (e) => e.deletedAt,
     );
     await _store.write(_key, jsonEncode([for (final e in merged) e.toJson()]));
+  }
+
+  /// 把 R2 雲端抓下來的紀錄併回本機（本機贏、刪除永遠贏、其餘比更新
+  /// 時間），回傳實際異動幾筆，同 `DiaryRepository.mergeFromCloud`。
+  Future<int> mergeFromCloud(List<KanaPracticeEntry> incoming) async {
+    if (incoming.isEmpty) return 0;
+    final before = await _loadAllRaw();
+    final merged = mergeSeedRecords(
+      local: before,
+      seed: incoming,
+      idOf: (e) => e.id,
+      priority: SeedMergePriority.local,
+      deletedAtOf: (e) => e.deletedAt,
+      updatedAtOf: (e) => e.syncedAt,
+    );
+    await _store.write(_key, jsonEncode([for (final e in merged) e.toJson()]));
+    return ytDiffCount(
+      [for (final e in before) e.toJson()],
+      [for (final e in merged) e.toJson()],
+    );
   }
 
   /// 匯出整份紀錄給使用者存成真正的檔案，手動搬進 git 版控的資產裡——

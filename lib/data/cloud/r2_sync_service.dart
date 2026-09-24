@@ -11,7 +11,11 @@ import '../repositories/yt_video_cache_store.dart';
 import '../services/youtube_api_service.dart';
 import '../../shared/debug/app_log.dart';
 import '../repositories/error_log_repository.dart';
+import '../../domain/models/kana_exam.dart';
+import '../../domain/models/kana_practice.dart';
 import '../repositories/fitness_repository.dart';
+import '../repositories/kana_exam_repository.dart';
+import '../repositories/kana_practice_repository.dart';
 import '../repositories/sync_log_repository.dart';
 import 'r2_client.dart';
 
@@ -232,6 +236,71 @@ class R2SyncService {
     return (downloaded: downloaded, uploaded: uploaded);
   }
 
+  /// 「下載合併→上傳覆蓋」的通用做法，給五十音練習／考試共用（日記、
+  /// 健身、YT 是先寫的，各有自己一份幾乎一樣的邏輯，沒動它們）。
+  Future<({int downloaded, int uploaded})> _syncRecords<T>({
+    required String key,
+    required T Function(Map<String, dynamic>) fromJson,
+    required Map<String, dynamic> Function(T) toJson,
+    required Future<int> Function(List<T>) mergeFromCloud,
+    required Future<List<T>> Function() allForUpload,
+    void Function(SyncPhase phase)? onPhase,
+  }) async {
+    onPhase?.call(SyncPhase.downloading);
+    final bytes = await _client.getObject(key);
+    final cloudBefore = bytes == null
+        ? <T>[]
+        : (jsonDecode(utf8.decode(bytes)) as List)
+              .cast<Map<String, dynamic>>()
+              .map(fromJson)
+              .toList();
+    final downloaded = cloudBefore.isEmpty
+        ? 0
+        : await mergeFromCloud(cloudBefore);
+
+    onPhase?.call(SyncPhase.uploading);
+    final all = await allForUpload();
+    final uploaded = ytDiffCount(
+      [for (final e in cloudBefore) toJson(e)],
+      [for (final e in all) toJson(e)],
+    );
+    final body = utf8.encode(jsonEncode([for (final e in all) toJson(e)]));
+    await _client.putObject(key, Uint8List.fromList(body));
+    return (downloaded: downloaded, uploaded: uploaded);
+  }
+
+  /// 五十音手寫練習紀錄（`kana_practice.json`）。
+  Future<({int downloaded, int uploaded})> syncKanaPractice(
+    KanaPracticeRepository repo, {
+    void Function(SyncPhase phase)? onPhase,
+  }) => _syncRecords<KanaPracticeEntry>(
+    key: 'kana_practice.json',
+    fromJson: KanaPracticeEntry.fromJson,
+    toJson: (e) => e.toJson(),
+    mergeFromCloud: repo.mergeFromCloud,
+    allForUpload: repo.allForUpload,
+    onPhase: onPhase,
+  );
+
+  /// 五十音／詞彙考試紀錄（`kana_exam.json`）。
+  Future<({int downloaded, int uploaded})> syncKanaExam(
+    KanaExamRepository repo, {
+    void Function(SyncPhase phase)? onPhase,
+  }) => _syncRecords<KanaExamEntry>(
+    key: 'kana_exam.json',
+    fromJson: KanaExamEntry.fromJson,
+    toJson: (e) => e.toJson(),
+    mergeFromCloud: repo.mergeFromCloud,
+    allForUpload: repo.allForUpload,
+    onPhase: onPhase,
+  );
+
+  Future<List<Object?>> _fetchCloudRaw(String key) async {
+    final bytes = await _client.getObject(key);
+    if (bytes == null) return const [];
+    return (jsonDecode(utf8.decode(bytes)) as List).cast<Object?>();
+  }
+
   Future<List<SyncLogEntry>> _fetchCloudLog() async {
     final bytes = await _client.getObject('sync_log.json');
     if (bytes == null) return const [];
@@ -290,6 +359,8 @@ class R2SyncService {
     final fitness = await _fetchCloudFitness();
     final ytCategories = await _fetchCloudYtCategories();
     final ytChannels = await _fetchCloudYtChannels();
+    final kanaPractice = await _fetchCloudRaw('kana_practice.json');
+    final kanaExam = await _fetchCloudRaw('kana_exam.json');
     final log = await _fetchCloudLog();
     final errorLog = await _fetchCloudErrorLog();
     // 影片快取一個頻道一個檔，跟頻道清單對著逐一抓。
@@ -306,6 +377,8 @@ class R2SyncService {
       'ytCategories': [for (final e in ytCategories) e.toJson()],
       'ytChannels': [for (final e in ytChannels) e.toJson()],
       'ytVideoCache': ytVideoCache,
+      'kanaPractice': kanaPractice,
+      'kanaExam': kanaExam,
       'syncLog': [for (final e in log) e.toJson()],
       'errorLog': [for (final e in errorLog) e.toJson()],
     });

@@ -3,6 +3,7 @@ import 'dart:convert';
 import '../../domain/models/kana_exam.dart';
 import '../seed/seed_merge.dart';
 import '../storage/key_value_store.dart';
+import 'yt_tracker_repository.dart' show ytDiffCount;
 
 /// 50 音考試的存檔紀錄。
 ///
@@ -14,7 +15,14 @@ class KanaExamRepository {
 
   final KeyValueStore _store;
 
-  Future<List<KanaExamEntry>> loadAll() async {
+  /// 給 UI 用——已刪除（墓碑）的濾掉。
+  Future<List<KanaExamEntry>> loadAll() async =>
+      (await _loadAllRaw()).where((e) => e.deletedAt == null).toList();
+
+  /// 給同步用——連刪除標記都要看得到。
+  Future<List<KanaExamEntry>> allForUpload() => _loadAllRaw();
+
+  Future<List<KanaExamEntry>> _loadAllRaw() async {
     final raw = await _store.read(_key);
     if (raw == null) return <KanaExamEntry>[];
     return (jsonDecode(raw) as List)
@@ -27,33 +35,44 @@ class KanaExamRepository {
   ///
   /// 考試完成後呼叫這個，記錄使用者的手寫答案、是否正確等。
   Future<void> add(KanaExamEntry entry) async {
-    final all = [...await loadAll(), entry];
+    final all = [...await _loadAllRaw(), entry.stamped()];
     await _store.write(_key, jsonEncode([for (final e in all) e.toJson()]));
   }
 
   /// 存在就整筆換掉（用於同一題尚未定案時的多次嘗試），不在就加新的。
   Future<void> upsert(KanaExamEntry entry) async {
-    final all = await loadAll();
+    final all = await _loadAllRaw();
+    final stamped = entry.stamped();
     final i = all.indexWhere((e) => e.id == entry.id);
     if (i >= 0) {
-      all[i] = entry;
+      all[i] = stamped;
     } else {
-      all.add(entry);
+      all.add(stamped);
     }
     await _store.write(_key, jsonEncode([for (final e in all) e.toJson()]));
   }
 
   /// 刪除一筆紀錄（例如清除重寫時）。
   Future<void> delete(String id) async {
-    final all = await loadAll()
-      ..removeWhere((e) => e.id == id);
+    // 改標記不是真的拿掉，多裝置同步靠它才不會被別台復活。
+    final all = await _loadAllRaw();
+    final i = all.indexWhere((e) => e.id == id);
+    if (i < 0) return;
+    all[i] = all[i].stamped(deleted: true);
     await _store.write(_key, jsonEncode([for (final e in all) e.toJson()]));
   }
 
   /// 清空整份考試紀錄——不可逆，呼叫端要在按鈕本身做二次確認，這裡
   /// 不重複防呆（2026-09-21 使用者要求：一鍵清空要有防呆詢問）。
   Future<void> clearAll() async {
-    await _store.write(_key, jsonEncode(const <Map<String, dynamic>>[]));
+    // 全部改標記（不是真的清空），清空這件事才會同步到別台裝置。
+    final all = await _loadAllRaw();
+    await _store.write(
+      _key,
+      jsonEncode([
+        for (final e in all) (e.deletedAt == null ? e.stamped(deleted: true) : e).toJson(),
+      ]),
+    );
   }
 
   /// 查詢指定考試類型的所有紀錄。
@@ -79,12 +98,32 @@ class KanaExamRepository {
   Future<void> mergeSeed(List<KanaExamEntry> incoming) async {
     if (incoming.isEmpty) return;
     final merged = mergeSeedRecords(
-      local: await loadAll(),
+      local: await _loadAllRaw(),
       seed: incoming,
       idOf: (e) => e.id,
       priority: SeedMergePriority.seed,
+      deletedAtOf: (e) => e.deletedAt,
     );
     await _store.write(_key, jsonEncode([for (final e in merged) e.toJson()]));
+  }
+
+  /// 把 R2 雲端抓下來的紀錄併回本機，同 [KanaPracticeRepository.mergeFromCloud]。
+  Future<int> mergeFromCloud(List<KanaExamEntry> incoming) async {
+    if (incoming.isEmpty) return 0;
+    final before = await _loadAllRaw();
+    final merged = mergeSeedRecords(
+      local: before,
+      seed: incoming,
+      idOf: (e) => e.id,
+      priority: SeedMergePriority.local,
+      deletedAtOf: (e) => e.deletedAt,
+      updatedAtOf: (e) => e.syncedAt,
+    );
+    await _store.write(_key, jsonEncode([for (final e in merged) e.toJson()]));
+    return ytDiffCount(
+      [for (final e in before) e.toJson()],
+      [for (final e in merged) e.toJson()],
+    );
   }
 
   /// 匯出整份考試紀錄給使用者存成真正的檔案，跟
