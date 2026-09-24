@@ -134,12 +134,13 @@ class ChannelDiscoveryService {
   /// [existing] 是「已知的所有頻道」，**包含已刪除的**（墓碑）——刪掉的頻道
   /// 就是使用者不要的，之後不會再挖到。[seeds] 是拿來讀推薦名單的種子頻道
   /// （使用者選了類型就只從那些分類挑），沒給就用 [existing] 裡沒刪除的。
-  /// [priorityKeyword] 是使用者自己輸入的關鍵字，有的話一定會用它搜尋影片。
+  /// [priorityKeywords] 是使用者指定的主題／自己輸入的關鍵字（不限於 App 內
+  /// 有的分類），有的話每個都會拿去搜尋影片（最多 4 個，每個 100 單位配額）。
   Future<List<DiscoveredChannel>> discover({
     required List<YtChannel> existing,
     required List<String> keywords,
     List<YtChannel>? seeds,
-    String priorityKeyword = '',
+    List<String> priorityKeywords = const [],
     int count = 10,
     void Function(String status)? onProgress,
   }) async {
@@ -179,16 +180,20 @@ class ChannelDiscoveryService {
     }
 
     // 2. 不夠（或使用者指定了關鍵字）就搜尋影片，取影片所屬頻道
+    final priority = [
+      for (final k in priorityKeywords)
+        if (k.trim().isNotEmpty) k.trim(),
+    ];
     final searchWords = [
-      if (priorityKeyword.trim().isNotEmpty) priorityKeyword.trim(),
+      ...priority,
       ...([...keywords]..shuffle(_random)),
     ];
-    if ((candidateIds.length < count * 3 ||
-            priorityKeyword.trim().isNotEmpty) &&
+    if ((candidateIds.length < count * 3 || priority.isNotEmpty) &&
         searchWords.isNotEmpty) {
       final shuffled = searchWords;
+      final searchLimit = priority.isNotEmpty ? min(priority.length, 4) : 2;
       const orders = ['relevance', 'date', 'viewCount'];
-      for (var i = 0; i < 2 && i < shuffled.length; i++) {
+      for (var i = 0; i < searchLimit && i < shuffled.length; i++) {
         final q = shuffled[i];
         onProgress?.call('搜尋「$q」相關影片找新頻道…');
         final body = await _getJson('search', {

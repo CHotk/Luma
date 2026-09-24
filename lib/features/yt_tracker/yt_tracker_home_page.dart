@@ -84,18 +84,22 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
 
   bool _digging = false;
 
-  /// 挖掘前先選類型（可複選，不選＝全部）跟可選的自訂關鍵字
-  /// （2026-09-24 使用者要求可以選挖掘類型）。取消回傳 null。
-  Future<({Set<String> categoryIds, String keyword})?> _showDigOptions(
-    List<YtCategory> categories,
-  ) {
+  /// 挖掘前的選項（2026-09-24 使用者要求）：App 內分類可複選（不選＝全部）、
+  /// 更多熱門主題（不限 App 內有的分類）可複選、自訂關鍵字、要不要參考
+  /// App 內頻道的推薦。取消回傳 null。
+  Future<({Set<String> categoryIds, List<String> keywords, bool useSeeds})?>
+  _showDigOptions(List<YtCategory> categories) {
     final picked = <String>{};
+    final pickedTopics = <String>{};
+    var useSeeds = true;
     final keywordController = TextEditingController();
     final selectable = [
       for (final c in categories)
         if (c.id != _discoverCategoryId && c.id != ytUncategorizedId) c,
     ];
-    return showDialog<({Set<String> categoryIds, String keyword})>(
+    return showDialog<
+      ({Set<String> categoryIds, List<String> keywords, bool useSeeds})
+    >(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
@@ -106,7 +110,7 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('想挖哪些類型？（不選＝全部）', style: AppText.note),
+                Text('App 內的分類（不選＝全部）', style: AppText.note),
                 const SizedBox(height: Gap.sm),
                 Wrap(
                   spacing: 6,
@@ -127,15 +131,51 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
                   ],
                 ),
                 const SizedBox(height: Gap.md),
+                Text('更多主題（不限 App 內有的分類，可複選）', style: AppText.note),
+                const SizedBox(height: Gap.sm),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    for (final t in _discoverTopics)
+                      FilterChip(
+                        label: Text(t),
+                        selected: pickedTopics.contains(t),
+                        onSelected: (v) => setDialogState(() {
+                          if (v) {
+                            pickedTopics.add(t);
+                          } else {
+                            pickedTopics.remove(t);
+                          }
+                        }),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: Gap.md),
                 TextField(
                   controller: keywordController,
                   decoration: const InputDecoration(
                     labelText: '自訂關鍵字（選填）',
-                    hintText: '例如：投資理財、露營',
+                    hintText: '例如：露營裝備',
                   ),
                   style: const TextStyle(color: AppColors.ink),
                 ),
-                const SizedBox(height: Gap.sm),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  value: useSeeds,
+                  onChanged: (v) => setDialogState(() => useSeeds = v),
+                  title: const Text(
+                    '參考 App 內頻道的推薦',
+                    style: TextStyle(fontSize: 13, color: AppColors.ink),
+                  ),
+                  subtitle: Text(
+                    useSeeds
+                        ? '從你已追蹤的頻道推薦區找，省配額、口味相近'
+                        : '不看 App 內頻道，只用關鍵字搜尋，範圍廣但較雜、配額用較多',
+                    style: AppText.note,
+                  ),
+                ),
                 Text('一次挖 10 個 App 裡沒有的頻道，已刪除過的不會再出現。', style: AppText.note),
               ],
             ),
@@ -148,7 +188,12 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
             FilledButton(
               onPressed: () => Navigator.pop(dialogContext, (
                 categoryIds: {...picked},
-                keyword: keywordController.text.trim(),
+                keywords: [
+                  ...pickedTopics,
+                  if (keywordController.text.trim().isNotEmpty)
+                    keywordController.text.trim(),
+                ],
+                useSeeds: useSeeds,
               )),
               child: const Text('開始挖掘'),
             ),
@@ -198,11 +243,13 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
       final found = await ChannelDiscoveryService(apiKey).discover(
         existing: known,
         // 選了類型就只拿那些分類裡的頻道當種子。
-        seeds: chosen.isEmpty
+        seeds: !options.useSeeds
+            ? const []
+            : chosen.isEmpty
             ? channels
             : channels.where((c) => chosen.contains(c.categoryId)).toList(),
         keywords: [for (final c in pickedCategories) c.name],
-        priorityKeyword: options.keyword,
+        priorityKeywords: options.keywords,
         onProgress: (t) => status.value = t,
       );
       for (final d in found) {
@@ -744,6 +791,30 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
 }
 
 enum _YtHomeMenuAction { testNotification, export }
+
+/// 挖掘時可以直接勾選的熱門主題（不限 App 內有的分類），拿來當搜尋關鍵字。
+const _discoverTopics = [
+  '科技',
+  '投資理財',
+  '心理學',
+  '歷史',
+  '科普',
+  '露營',
+  '旅遊',
+  '攝影',
+  '烹飪食譜',
+  '健身',
+  '美妝保養',
+  '寵物',
+  '手作 DIY',
+  '動漫',
+  '電影解說',
+  '語言學習',
+  '房地產',
+  '親子育兒',
+  '醫療健康',
+  '職場成長',
+];
 
 /// 「挖掘新頻道」分類的固定 ID（見 `yt_tracker_categories.json`）。
 const _discoverCategoryId = 'seed-discover';

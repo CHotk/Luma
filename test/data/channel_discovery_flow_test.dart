@@ -261,7 +261,7 @@ void main() {
           existing: [seed, deleted],
           seeds: [seed],
           keywords: const [],
-          priorityKeyword: '露營',
+          priorityKeywords: const ['露營'],
           count: 10,
         );
     final ids = found.map((c) => c.channelId).toSet();
