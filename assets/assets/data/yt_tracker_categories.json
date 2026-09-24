@@ -88,5 +88,11 @@
     "name": "學習",
     "color": 4285511656,
     "imageUrl": "assets/images/yt_tracker/study.png"
+  },
+  {
+    "id": "seed-discover",
+    "name": "挖掘新頻道",
+    "color": 4286502608,
+    "imageUrl": ""
   }
 ]
