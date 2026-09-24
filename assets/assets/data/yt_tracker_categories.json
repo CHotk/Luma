@@ -82,5 +82,11 @@
     "name": "開箱",
     "color": 4293431898,
     "imageUrl": "assets/images/yt_tracker/unboxing.png"
+  },
+  {
+    "id": "seed-learning",
+    "name": "學習",
+    "color": 4285511656,
+    "imageUrl": ""
   }
 ]

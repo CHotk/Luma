@@ -448,5 +448,25 @@
     "url": "https://youtube.com/@brainbrocrypto?si=CliLeieKDJob8AEs",
     "description": "",
     "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-surprisebuyer",
+    "name": "神奇買家",
+    "categoryId": "seed-unboxing",
+    "avatarEmoji": "📺",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/SIfpUlpEAB8K_zDkRW3dtsT-vAgVvcYQzdErw8UZ_WilkgbQnP7hwv2G4UfJvGlfhxIJM-935Q=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://youtube.com/@surprisebuyer?si=wbMo-p_lOBcnquyT",
+    "description": "",
+    "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-vincent-reading",
+    "name": "文森說書",
+    "categoryId": "seed-learning",
+    "avatarEmoji": "📺",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/ytc/AIdro_lBloMrGYaooU6P4D7facFTmTureUSZuThBJjW0On6edg=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://youtube.com/@vincent_reading?si=F8Gm85ZtZWTXDtZi",
+    "description": "",
+    "addedAt": "2026-09-24T00:00:00.000"
   }
 ]
