@@ -1,0 +1,20 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>首頁設計 4 主題色大卡片</title><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet"><style>:root{--bg:#0c0c13;--panel:#161622;--panel2:#1e1e2e;--line:#2a2a3d;--text:#eceaf5;--sub:#8b8ba3;--accent:#7EA6FF;--yt:#FF2D40;--diary:#8FBF9F;--jp:#EA92AC;--fit:#F2A65A;--sync:#7ED6D0;--dbg:#B39DDB}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-serif;min-height:100vh;padding:32px 16px}
+.intro{max-width:640px;margin:0 auto 24px;text-align:center}
+.eyebrow{color:var(--accent);font-size:12px;letter-spacing:.2em}
+h1{font-size:22px;margin:6px 0}
+.intro p{color:var(--sub);font-size:13px;line-height:1.7}
+.tag{display:inline-block;background:var(--accent);color:#0c0c13;border-radius:99px;padding:2px 10px;font-size:11px;margin-top:8px}
+.phone{width:380px;height:760px;margin:0 auto;border:8px solid #000;border-radius:38px;background:var(--bg);overflow:hidden;display:flex;flex-direction:column;position:relative}
+.scroll{flex:1;overflow:auto;padding:0 16px 16px;display:flex;flex-direction:column;gap:12px}
+.scroll>*{flex-shrink:0}
+.top{display:flex;align-items:center;justify-content:space-between;padding:18px 16px 10px;flex-shrink:0}
+.icon-btn{width:36px;height:36px;border-radius:12px;background:var(--panel);display:grid;place-items:center;font-size:16px}
+.top b{font-size:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:14px}
+.sub{color:var(--sub);font-size:12px}
+.note{max-width:380px;margin:14px auto 0;color:var(--sub);font-size:12px;line-height:1.7;text-align:center}
+.nav{display:flex;background:var(--panel);border-top:1px solid var(--line);padding:8px 4px 12px;flex-shrink:0}
+.nav div{flex:1;text-align:center;font-size:10px;color:var(--sub)}.nav div span{display:block;font-size:20px}.nav .on{color:var(--accent)}</style></head><body><div class="intro"><div class="eyebrow">HOME · 版本 4 / 5</div><h1>主題色大卡片</h1><p>每個功能一張滿版大卡，用各自的主題色區分（英文藍、日文櫻、日記綠、健身橘、YT 紅），視覺最鮮明。</p></div><div class="phone"><div class="top"><div class="icon-btn">☰</div><b>Lume</b><div class="icon-btn">⚙</div></div><div class="scroll"><div style="height:110px;border-radius:22px;padding:16px;background:linear-gradient(135deg,var(--accent),#161622 140%);display:flex;flex-direction:column;justify-content:flex-end"><div style="font-size:20px;font-weight:700;color:#fff">🇬🇧 英文學習</div><div style="font-size:12px;color:rgba(255,255,255,.75)">單字・句子・測驗</div></div><div style="height:110px;border-radius:22px;padding:16px;background:linear-gradient(135deg,var(--jp),#161622 140%);display:flex;flex-direction:column;justify-content:flex-end"><div style="font-size:20px;font-weight:700;color:#fff">🇯🇵 日文學習</div><div style="font-size:12px;color:rgba(255,255,255,.75)">50 音・詞彙</div></div><div style="height:110px;border-radius:22px;padding:16px;background:linear-gradient(135deg,var(--diary),#161622 140%);display:flex;flex-direction:column;justify-content:flex-end"><div style="font-size:20px;font-weight:700;color:#fff">📔 日記</div><div style="font-size:12px;color:rgba(255,255,255,.75)">記錄每一天</div></div><div style="height:110px;border-radius:22px;padding:16px;background:linear-gradient(135deg,var(--fit),#161622 140%);display:flex;flex-direction:column;justify-content:flex-end"><div style="font-size:20px;font-weight:700;color:#fff">💪 健身</div><div style="font-size:12px;color:rgba(255,255,255,.75)">訓練紀錄</div></div><div style="height:110px;border-radius:22px;padding:16px;background:linear-gradient(135deg,var(--yt),#161622 140%);display:flex;flex-direction:column;justify-content:flex-end"><div style="font-size:20px;font-weight:700;color:#fff">▶ YT 頻道</div><div style="font-size:12px;color:rgba(255,255,255,.75)">分類・訂閱數</div></div>
+<div style="display:flex;gap:10px"><div class="card sub" style="flex:1;text-align:center">☁ 同步</div><div class="card sub" style="flex:1;text-align:center">🐞 除錯</div></div></div></div><p class="note">優點：好看、有個性、一眼分辨。缺點：一屏只放得下 3～4 張，要捲動。</p></body></html>

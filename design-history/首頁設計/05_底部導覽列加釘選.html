@@ -1,0 +1,23 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>首頁設計 5 底部導覽列＋釘選捷徑</title><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet"><style>:root{--bg:#0c0c13;--panel:#161622;--panel2:#1e1e2e;--line:#2a2a3d;--text:#eceaf5;--sub:#8b8ba3;--accent:#7EA6FF;--yt:#FF2D40;--diary:#8FBF9F;--jp:#EA92AC;--fit:#F2A65A;--sync:#7ED6D0;--dbg:#B39DDB}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-serif;min-height:100vh;padding:32px 16px}
+.intro{max-width:640px;margin:0 auto 24px;text-align:center}
+.eyebrow{color:var(--accent);font-size:12px;letter-spacing:.2em}
+h1{font-size:22px;margin:6px 0}
+.intro p{color:var(--sub);font-size:13px;line-height:1.7}
+.tag{display:inline-block;background:var(--accent);color:#0c0c13;border-radius:99px;padding:2px 10px;font-size:11px;margin-top:8px}
+.phone{width:380px;height:760px;margin:0 auto;border:8px solid #000;border-radius:38px;background:var(--bg);overflow:hidden;display:flex;flex-direction:column;position:relative}
+.scroll{flex:1;overflow:auto;padding:0 16px 16px;display:flex;flex-direction:column;gap:12px}
+.scroll>*{flex-shrink:0}
+.top{display:flex;align-items:center;justify-content:space-between;padding:18px 16px 10px;flex-shrink:0}
+.icon-btn{width:36px;height:36px;border-radius:12px;background:var(--panel);display:grid;place-items:center;font-size:16px}
+.top b{font-size:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:14px}
+.sub{color:var(--sub);font-size:12px}
+.note{max-width:380px;margin:14px auto 0;color:var(--sub);font-size:12px;line-height:1.7;text-align:center}
+.nav{display:flex;background:var(--panel);border-top:1px solid var(--line);padding:8px 4px 12px;flex-shrink:0}
+.nav div{flex:1;text-align:center;font-size:10px;color:var(--sub)}.nav div span{display:block;font-size:20px}.nav .on{color:var(--accent)}</style></head><body><div class="intro"><div class="eyebrow">HOME · 版本 5 / 5</div><h1>底部導覽列＋釘選捷徑</h1><p>底部固定 4 個 Tab（首頁／學習／記錄／更多），首頁只放「我釘選的」捷徑與最近使用，不常用的收進「更多」。</p><span class="tag">主流慣例：底部 Tab 導覽</span></div><div class="phone"><div class="top"><div class="icon-btn">☰</div><b>首頁</b><div class="icon-btn">⚙</div></div><div class="scroll"><div class="sub">釘選（可自己調整）</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><div class="card" style="text-align:center;padding:22px 8px"><div style="font-size:28px;color:var(--diary)">📔</div><div style="margin-top:6px;font-size:13px">日記</div></div><div class="card" style="text-align:center;padding:22px 8px"><div style="font-size:28px;color:var(--fit)">💪</div><div style="margin-top:6px;font-size:13px">健身</div></div><div class="card" style="text-align:center;padding:22px 8px"><div style="font-size:28px;color:var(--yt)">▶</div><div style="margin-top:6px;font-size:13px">YT 頻道</div></div><div class="card" style="text-align:center;padding:22px 8px"><div style="font-size:28px;color:var(--sub)">＋</div><div style="margin-top:6px;font-size:13px">新增釘選</div></div></div>
+<div class="sub" style="margin-top:6px">最近使用</div>
+<div class="card" style="font-size:14px">▶ 老高與小茉 · 今天</div><div class="card" style="font-size:14px">💪 訓練紀錄 · 昨天</div></div>
+<div class="nav"><div class="on"><span>🏠</span>首頁</div><div><span>📚</span>學習</div><div><span>📝</span>記錄</div><div><span>⋯</span>更多</div></div></div><p class="note">優點：符合 App 慣例、單手好按、可個人化。缺點：多一層 Tab，要決定哪些功能放哪個 Tab。</p></body></html>
