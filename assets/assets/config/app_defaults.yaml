@@ -74,6 +74,14 @@ pendingCandidatePoolSize: 30
 # 所以固定唸英文，不用跟著使用者介面語言切換。
 ttsLanguage: en-US
 
+# 日文軌道（50音手寫練習／考試）發音用的語言代碼，跟上面的英文分開
+# 存——用同一顆 TtsService 實例、發音前臨時切換語言，不是各自再建一個
+# FlutterTts 實例（Web 上兩個實例會搶著註冊瀏覽器 SpeechSynthesis
+# 事件，見 lib/domain/services/tts_service.dart 的說明）。原本考試頁的
+# 發音按鈕點下去沒聲音，就是因為唸日文假名時，引擎還是用 en-US 那顆
+# 語音在唸，唸不出來（2026-09-24 使用者回報）。
+ttsLanguageJa: ja-JP
+
 # 音調。1.0 是引擎預設值，語速也刻意用引擎預設，不要調慢
 # （使用者 2026-09-16 決定過一次，不要因為改設定檔又调回去）。
 ttsPitch: 1.0
