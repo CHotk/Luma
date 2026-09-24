@@ -318,5 +318,15 @@
     "url": "https://youtube.com/@joeman?si=ORVSOYLlpBOuzHn1",
     "description": "",
     "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-zamy",
+    "name": "奎丁Zamy",
+    "categoryId": "seed-unboxing",
+    "avatarEmoji": "📺",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/ytc/AIdro_m021GUUCYcacRFvTmCTcC_iilxs-m7QiOhpyvLqrGE3vM=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://www.youtube.com/@zamy_ding",
+    "description": "",
+    "addedAt": "2026-09-24T00:00:00.000"
   }
 ]
