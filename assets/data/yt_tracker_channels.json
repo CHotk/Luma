@@ -268,5 +268,15 @@
     "url": "https://youtube.com/@jaredfaa?si=uZe00i3v2gmEa5eS",
     "description": "",
     "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-dandan",
+    "name": "信誓蛋蛋 - dandan",
+    "categoryId": "seed-entertainment",
+    "avatarEmoji": "📺",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/88NXLePWCHesX9Oiu7uFPKW8XHI3KBdkATCJ6KifgiM7A6scsEYZqvoTTcWy95f0X6Yb8pJfBFQ=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://www.youtube.com/@dandan_video",
+    "description": "",
+    "addedAt": "2026-09-24T00:00:00.000"
   }
 ]
