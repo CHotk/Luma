@@ -110,12 +110,6 @@ class _DebugLogPageState extends State<DebugLogPage> {
                         tooltip: '複製全部',
                       ),
                     ),
-                    IconButton(
-                      onPressed: () => AppLog.clear(),
-                      icon: const Icon(Icons.delete_sweep_outlined, size: 20),
-                      color: AppColors.ink2,
-                      tooltip: '清空',
-                    ),
                   ],
                 ),
                 const SizedBox(height: Gap.sm),
@@ -198,6 +192,8 @@ class _DebugLogPageState extends State<DebugLogPage> {
 
 String _two(int n) => n.toString().padLeft(2, '0');
 
+String _date(DateTime d) => '${d.year}/${_two(d.month)}/${_two(d.day)}';
+
 String _stamp(DateTime d) =>
     '${_two(d.hour)}:${_two(d.minute)}:${_two(d.second)}.'
     '${d.millisecond.toString().padLeft(3, '0')}';
@@ -230,7 +226,7 @@ class _StatRow extends StatelessWidget {
         Expanded(
           child: _StatCard(
             value: '$errorCount',
-            label: '今日錯誤',
+            label: '錯誤總數',
             valueColor: errorCount > 0 ? AppColors.bad : null,
           ),
         ),
@@ -376,7 +372,8 @@ class _LogCard extends StatelessWidget {
 
   final AppLogEntry entry;
 
-  static String formatLine(AppLogEntry e) => '${_stamp(e.at)}  ${e.message}';
+  static String formatLine(AppLogEntry e) =>
+      '${_date(e.at)} ${_stamp(e.at)}  [${e.device ?? '未知裝置'}]  ${e.message}';
 
   @override
   Widget build(BuildContext context) {
@@ -406,12 +403,14 @@ class _LogCard extends StatelessWidget {
                 color: entry.isError ? AppColors.bad : AppColors.ink3,
               ),
               const SizedBox(width: 5),
-              Text(
-                _stamp(entry.at),
-                style: const TextStyle(
-                  fontFamily: 'Consolas',
-                  fontSize: 10,
-                  color: AppColors.ink3,
+              Expanded(
+                child: Text(
+                  '${_date(entry.at)} ${_stamp(entry.at)}  ·  ${entry.device ?? '未知裝置'}',
+                  style: const TextStyle(
+                    fontFamily: 'Consolas',
+                    fontSize: 10,
+                    color: AppColors.ink3,
+                  ),
                 ),
               ),
             ],

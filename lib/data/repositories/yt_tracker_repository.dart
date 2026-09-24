@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show mapEquals;
+
 import '../../domain/models/yt_tracker.dart';
 import '../seed/seed_merge.dart';
 import '../storage/key_value_store.dart';
@@ -18,7 +20,12 @@ class YtTrackerRepository {
 
   final KeyValueStore _store;
 
-  Future<List<YtCategory>> loadCategories() async {
+  /// 刪除是墓碑標記（soft delete），不是物理刪除——多裝置同步要靠它
+  /// 才不會讓刪掉的東西被別台裝置復活（2026-09-24 加上同步，跟日記
+  /// 同一套，見 [YtCategory.deletedAt]）。內部讀寫都走 `_loadXxxRaw`
+  /// （含已刪除的），公開的 `loadCategories`／`loadChannels` 才把已刪除
+  /// 的濾掉給 UI 用。
+  Future<List<YtCategory>> _loadCategoriesRaw() async {
     final raw = await _store.read(_categoryKey);
     if (raw == null) return <YtCategory>[];
     return (jsonDecode(raw) as List)
@@ -27,50 +34,45 @@ class YtTrackerRepository {
         .toList();
   }
 
+  Future<List<YtCategory>> loadCategories() async =>
+      (await _loadCategoriesRaw()).where((c) => c.deletedAt == null).toList();
+
   Future<void> _writeCategories(List<YtCategory> all) => _store.write(
     _categoryKey,
     jsonEncode([for (final c in all) c.toJson()]),
   );
 
   Future<void> addCategory(YtCategory category) async {
-    final all = [...await loadCategories(), category];
+    final all = [...await _loadCategoriesRaw(), category.stamped()];
     await _writeCategories(all);
   }
 
   Future<void> updateCategory(YtCategory category) async {
-    final all = await loadCategories();
+    final all = await _loadCategoriesRaw();
     final index = all.indexWhere((c) => c.id == category.id);
     if (index == -1) return;
-    all[index] = category;
+    all[index] = category.stamped();
     await _writeCategories(all);
   }
 
   /// 刪除分類。底下的頻道不會被一起刪掉，改成「未分類」（[YtChannel.categoryId]
   /// 設為 null），使用者之後可以再重新分類。
   Future<void> deleteCategory(String id) async {
-    final categories = await loadCategories()..removeWhere((c) => c.id == id);
-    await _writeCategories(categories);
+    final categories = await _loadCategoriesRaw();
+    final index = categories.indexWhere((c) => c.id == id);
+    if (index != -1) {
+      categories[index] = categories[index].stamped(deleted: true);
+      await _writeCategories(categories);
+    }
 
-    final channels = await loadChannels();
+    final channels = await _loadChannelsRaw();
     if (!channels.any((c) => c.categoryId == id)) return;
-    final updated = [
-      for (final c in channels)
-        c.categoryId == id
-            ? YtChannel(
-                id: c.id,
-                name: c.name,
-                categoryId: null,
-                avatarEmoji: c.avatarEmoji,
-                avatarImageUrl: c.avatarImageUrl,
-                url: c.url,
-                addedAt: c.addedAt,
-              )
-            : c,
-    ];
-    await _writeChannels(updated);
+    await _writeChannels([
+      for (final c in channels) c.categoryId == id ? c.withoutCategory() : c,
+    ]);
   }
 
-  Future<List<YtChannel>> loadChannels() async {
+  Future<List<YtChannel>> _loadChannelsRaw() async {
     final raw = await _store.read(_channelKey);
     if (raw == null) return <YtChannel>[];
     return (jsonDecode(raw) as List)
@@ -79,24 +81,30 @@ class YtTrackerRepository {
         .toList();
   }
 
+  Future<List<YtChannel>> loadChannels() async =>
+      (await _loadChannelsRaw()).where((c) => c.deletedAt == null).toList();
+
   Future<void> _writeChannels(List<YtChannel> all) =>
       _store.write(_channelKey, jsonEncode([for (final c in all) c.toJson()]));
 
   Future<void> addChannel(YtChannel channel) async {
-    final all = [...await loadChannels(), channel];
+    final all = [...await _loadChannelsRaw(), channel.stamped()];
     await _writeChannels(all);
   }
 
   Future<void> updateChannel(YtChannel channel) async {
-    final all = await loadChannels();
+    final all = await _loadChannelsRaw();
     final index = all.indexWhere((c) => c.id == channel.id);
     if (index == -1) return;
-    all[index] = channel;
+    all[index] = channel.stamped();
     await _writeChannels(all);
   }
 
   Future<void> deleteChannel(String id) async {
-    final all = await loadChannels()..removeWhere((c) => c.id == id);
+    final all = await _loadChannelsRaw();
+    final index = all.indexWhere((c) => c.id == id);
+    if (index == -1) return;
+    all[index] = all[index].stamped(deleted: true);
     await _writeChannels(all);
   }
 
@@ -106,10 +114,11 @@ class YtTrackerRepository {
   Future<void> mergeSeedCategories(List<YtCategory> incoming) async {
     if (incoming.isEmpty) return;
     final merged = mergeSeedRecords(
-      local: await loadCategories(),
+      local: await _loadCategoriesRaw(),
       seed: incoming,
       idOf: (e) => e.id,
       priority: SeedMergePriority.seed,
+      deletedAtOf: (e) => e.deletedAt,
     );
     await _writeCategories(merged);
   }
@@ -117,13 +126,57 @@ class YtTrackerRepository {
   Future<void> mergeSeedChannels(List<YtChannel> incoming) async {
     if (incoming.isEmpty) return;
     final merged = mergeSeedRecords(
-      local: await loadChannels(),
+      local: await _loadChannelsRaw(),
       seed: incoming,
       idOf: (e) => e.id,
       priority: SeedMergePriority.seed,
+      deletedAtOf: (e) => e.deletedAt,
     );
     await _writeChannels(merged);
   }
+
+  /// 把 R2 雲端抓下來的分類／頻道併回本機（本機贏、刪除永遠贏、其餘比
+  /// updatedAt 新舊，同 [DiaryRepository.mergeFromCloud]），回傳實際異動
+  /// 幾筆。
+  Future<int> mergeCategoriesFromCloud(List<YtCategory> incoming) async {
+    if (incoming.isEmpty) return 0;
+    final before = await _loadCategoriesRaw();
+    final merged = mergeSeedRecords(
+      local: before,
+      seed: incoming,
+      idOf: (e) => e.id,
+      priority: SeedMergePriority.local,
+      deletedAtOf: (e) => e.deletedAt,
+      updatedAtOf: (e) => e.syncedAt,
+    );
+    await _writeCategories(merged);
+    return ytDiffCount(
+      [for (final c in before) c.toJson()],
+      [for (final c in merged) c.toJson()],
+    );
+  }
+
+  Future<int> mergeChannelsFromCloud(List<YtChannel> incoming) async {
+    if (incoming.isEmpty) return 0;
+    final before = await _loadChannelsRaw();
+    final merged = mergeSeedRecords(
+      local: before,
+      seed: incoming,
+      idOf: (e) => e.id,
+      priority: SeedMergePriority.local,
+      deletedAtOf: (e) => e.deletedAt,
+      updatedAtOf: (e) => e.syncedAt,
+    );
+    await _writeChannels(merged);
+    return ytDiffCount(
+      [for (final c in before) c.toJson()],
+      [for (final c in merged) c.toJson()],
+    );
+  }
+
+  /// 給同步用——連刪除標記都要有。
+  Future<List<YtCategory>> categoriesForUpload() => _loadCategoriesRaw();
+  Future<List<YtChannel>> channelsForUpload() => _loadChannelsRaw();
 
   /// 匯出分類＋頻道給使用者存成真正的檔案，手動搬進 git 版控的
   /// `assets/data/yt_tracker_categories.json`／`yt_tracker_channels.json`，
@@ -143,4 +196,19 @@ class YtTrackerRepository {
       channelCount: channels.length,
     );
   }
+}
+
+/// 兩份 JSON 清單比對，新增或內容有變的算一筆（同
+/// `diaryDiffCount` 的邏輯，用 `id` 對應）。
+int ytDiffCount(
+  List<Map<String, dynamic>> before,
+  List<Map<String, dynamic>> after,
+) {
+  final beforeById = {for (final e in before) e['id']: e};
+  var changed = 0;
+  for (final e in after) {
+    final prior = beforeById[e['id']];
+    if (prior == null || !mapEquals(prior, e)) changed++;
+  }
+  return changed;
 }

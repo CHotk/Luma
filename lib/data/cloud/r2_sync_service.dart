@@ -5,6 +5,10 @@ import '../../domain/models/diary_entry.dart';
 import '../../domain/models/fitness.dart';
 import '../repositories/diary_repository.dart';
 import '../../domain/models/sync_log_entry.dart';
+import '../../domain/models/yt_tracker.dart';
+import '../repositories/yt_tracker_repository.dart';
+import '../../shared/debug/app_log.dart';
+import '../repositories/error_log_repository.dart';
 import '../repositories/fitness_repository.dart';
 import '../repositories/sync_log_repository.dart';
 import 'r2_client.dart';
@@ -118,6 +122,65 @@ class R2SyncService {
     return (downloaded: downloaded, uploaded: uploaded);
   }
 
+  Future<List<YtCategory>> _fetchCloudYtCategories() async {
+    final bytes = await _client.getObject('yt_categories.json');
+    if (bytes == null) return const [];
+    return (jsonDecode(utf8.decode(bytes)) as List)
+        .cast<Map<String, dynamic>>()
+        .map(YtCategory.fromJson)
+        .toList();
+  }
+
+  Future<List<YtChannel>> _fetchCloudYtChannels() async {
+    final bytes = await _client.getObject('yt_channels.json');
+    if (bytes == null) return const [];
+    return (jsonDecode(utf8.decode(bytes)) as List)
+        .cast<Map<String, dynamic>>()
+        .map(YtChannel.fromJson)
+        .toList();
+  }
+
+  /// YT 頻道追蹤版的 [syncDiary]：分類跟頻道各一個 R2 檔
+  /// （`yt_categories.json`／`yt_channels.json`），下載合併→上傳覆蓋，
+  /// 回傳的筆數是分類＋頻道加總。
+  Future<({int downloaded, int uploaded})> syncYtTracker(
+    YtTrackerRepository repo, {
+    void Function(SyncPhase phase)? onPhase,
+  }) async {
+    onPhase?.call(SyncPhase.downloading);
+    final cloudCategories = await _fetchCloudYtCategories();
+    final cloudChannels = await _fetchCloudYtChannels();
+    final downloaded =
+        await repo.mergeCategoriesFromCloud(cloudCategories) +
+        await repo.mergeChannelsFromCloud(cloudChannels);
+
+    onPhase?.call(SyncPhase.uploading);
+    final categories = await repo.categoriesForUpload();
+    final channels = await repo.channelsForUpload();
+    final uploaded =
+        ytDiffCount(
+          [for (final c in cloudCategories) c.toJson()],
+          [for (final c in categories) c.toJson()],
+        ) +
+        ytDiffCount(
+          [for (final c in cloudChannels) c.toJson()],
+          [for (final c in channels) c.toJson()],
+        );
+    await _client.putObject(
+      'yt_categories.json',
+      Uint8List.fromList(
+        utf8.encode(jsonEncode([for (final c in categories) c.toJson()])),
+      ),
+    );
+    await _client.putObject(
+      'yt_channels.json',
+      Uint8List.fromList(
+        utf8.encode(jsonEncode([for (final c in channels) c.toJson()])),
+      ),
+    );
+    return (downloaded: downloaded, uploaded: uploaded);
+  }
+
   Future<List<SyncLogEntry>> _fetchCloudLog() async {
     final bytes = await _client.getObject('sync_log.json');
     if (bytes == null) return const [];
@@ -141,6 +204,28 @@ class R2SyncService {
     return downloaded;
   }
 
+  Future<List<AppLogEntry>> _fetchCloudErrorLog() async {
+    final bytes = await _client.getObject('error_log.json');
+    if (bytes == null) return const [];
+    final decoded = jsonDecode(utf8.decode(bytes)) as List;
+    return decoded
+        .cast<Map<String, dynamic>>()
+        .map(AppLogEntry.fromJson)
+        .toList();
+  }
+
+  /// 除錯頁的錯誤日誌也同步（2026-09-24 使用者要求），做法跟 [syncLog]
+  /// 一樣：只增不刪，下載聯集合併→上傳完整內容。回傳從雲端新併進來
+  /// 幾筆；呼叫端要接著用 [AppLog.restore] 把合併結果放回畫面。
+  Future<int> syncErrorLog(ErrorLogRepository repo) async {
+    final cloud = await _fetchCloudErrorLog();
+    final downloaded = cloud.isEmpty ? 0 : await repo.mergeFromCloud(cloud);
+    final all = await repo.loadAll();
+    final bytes = utf8.encode(jsonEncode([for (final e in all) e.toJson()]));
+    await _client.putObject('error_log.json', Uint8List.fromList(bytes));
+    return downloaded;
+  }
+
   /// 「備份雲端資料」按鈕用：把 R2 上目前每個功能的資料整包抓下來，
   /// 包成一份 JSON 給使用者下載存到本機——跟 [syncDiary]／[syncFitness]
   /// 不一樣，這裡純讀，不合併也不寫回任何 repository／localStorage
@@ -148,18 +233,29 @@ class R2SyncService {
   /// 方便自己另外備份）。之後同步的功能增加，這裡也要跟著多一個欄位。
   /// 順便回傳各功能筆數，給呼叫端寫進同步紀錄 log 用
   /// （見 `sync_page.dart` 的 `_downloadBackup`）。
-  Future<({String json, int diaryCount, int fitnessCount})>
+  Future<({String json, int diaryCount, int fitnessCount, int ytCount})>
   fetchBackupJson() async {
     final diary = await _fetchCloudDiary();
     final fitness = await _fetchCloudFitness();
+    final ytCategories = await _fetchCloudYtCategories();
+    final ytChannels = await _fetchCloudYtChannels();
     final log = await _fetchCloudLog();
+    final errorLog = await _fetchCloudErrorLog();
     const encoder = JsonEncoder.withIndent('  ');
     final json = encoder.convert({
       'exportedAt': DateTime.now().toIso8601String(),
       'diary': [for (final e in diary) e.toJson()],
       'fitness': [for (final e in fitness) e.toJson()],
+      'ytCategories': [for (final e in ytCategories) e.toJson()],
+      'ytChannels': [for (final e in ytChannels) e.toJson()],
       'syncLog': [for (final e in log) e.toJson()],
+      'errorLog': [for (final e in errorLog) e.toJson()],
     });
-    return (json: json, diaryCount: diary.length, fitnessCount: fitness.length);
+    return (
+      json: json,
+      diaryCount: diary.length,
+      fitnessCount: fitness.length,
+      ytCount: ytChannels.where((c) => c.deletedAt == null).length,
+    );
   }
 }

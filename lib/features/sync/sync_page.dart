@@ -73,7 +73,7 @@ class _SyncPageState extends ConsumerState<SyncPage> {
           success: ok,
           device: currentDeviceLabel(),
           detail: ok
-              ? '日記 ${data.diaryCount} 筆、健身 ${data.fitnessCount} 筆'
+              ? '日記 ${data.diaryCount} 筆、健身 ${data.fitnessCount} 筆、YT 頻道 ${data.ytCount} 個'
               : '這個平台還不支援下載',
         ),
       );

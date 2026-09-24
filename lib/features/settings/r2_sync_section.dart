@@ -9,6 +9,7 @@ import '../../data/cloud/r2_client.dart';
 import '../../data/cloud/r2_credentials_store.dart';
 import '../../data/cloud/r2_sync_service.dart';
 import '../../data/export/device_label.dart';
+import '../../shared/debug/app_log.dart';
 import '../../domain/models/sync_log_entry.dart';
 import '../../shared/widgets/app_notice.dart';
 import '../../shared/widgets/glass_card.dart';
@@ -53,6 +54,7 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
   bool _syncing = false;
   _FeaturePhase _diaryPhase = _FeaturePhase.idle;
   _FeaturePhase _fitnessPhase = _FeaturePhase.idle;
+  _FeaturePhase _ytPhase = _FeaturePhase.idle;
 
   @override
   void initState() {
@@ -148,6 +150,7 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
       _syncing = true;
       _diaryPhase = _FeaturePhase.downloading;
       _fitnessPhase = _FeaturePhase.idle;
+      _ytPhase = _FeaturePhase.idle;
     });
     try {
       final client = R2Client(
@@ -174,6 +177,12 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
       );
       if (mounted) setState(() => _fitnessPhase = _FeaturePhase.done);
 
+      final ytResult = await service.syncYtTracker(
+        ref.read(ytTrackerRepositoryProvider),
+        onPhase: _phaseCallback((p) => _ytPhase = p),
+      );
+      if (mounted) setState(() => _ytPhase = _FeaturePhase.done);
+
       final now = DateTime.now();
       await ref
           .read(keyValueStoreProvider)
@@ -186,11 +195,15 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
           device: currentDeviceLabel(),
           detail:
               '日記 上傳${diaryResult.uploaded}／下載${diaryResult.downloaded}；'
-              '健身 上傳${fitnessResult.uploaded}／下載${fitnessResult.downloaded}',
+              '健身 上傳${fitnessResult.uploaded}／下載${fitnessResult.downloaded}；'
+              'YT頻道 上傳${ytResult.uploaded}／下載${ytResult.downloaded}',
         ),
       );
       try {
         await service.syncLog(ref.read(syncLogRepositoryProvider));
+        final errorRepo = ref.read(errorLogRepositoryProvider);
+        await service.syncErrorLog(errorRepo);
+        AppLog.restore(await errorRepo.loadAll());
       } catch (_) {
         // 紀錄上傳失敗不擋主流程：日記／健身已經同步成功。
       }
@@ -260,6 +273,7 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
         const SizedBox(height: Gap.sm),
         _FeatureStatusRow(label: '日記', phase: _diaryPhase),
         _FeatureStatusRow(label: '健身', phase: _fitnessPhase),
+        _FeatureStatusRow(label: 'YT 頻道追蹤', phase: _ytPhase),
       ],
     );
   }

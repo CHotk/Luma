@@ -774,31 +774,23 @@ class _DayChip extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 7),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
+              // 三種狀態各自一眼分得出來（2026-09-24 重新設計配色）：
+              // 選中＝整格實心鼠尾草綠配深色字，最醒目；今天＝只有一圈
+              // 細綠框加綠字，不填色；有打卡＝淡淡的綠底。不再疊發光、
+              // 半透明綠加粗框，那樣選中跟今天都是「綠綠的一團」分不清。
               color: isSelected
-                  ? AppColors.diaryAccent.withValues(alpha: 0.30)
+                  ? AppColors.diaryAccent
                   : hasEntry
-                  ? AppColors.diaryAccent.withValues(alpha: 0.16)
+                  ? AppColors.diaryAccent.withValues(alpha: 0.12)
                   : AppColors.glassFill,
               border: Border.all(
                 color: isSelected
                     ? AppColors.diaryAccent
                     : isToday
-                    ? AppColors.diaryAccent.withValues(alpha: 0.55)
+                    ? AppColors.diaryAccent
                     : AppColors.glassEdge,
-                width: isSelected
-                    ? 1.6
-                    : isToday
-                    ? 1.4
-                    : 1,
+                width: isToday && !isSelected ? 1.2 : 1,
               ),
-              boxShadow: isSelected
-                  ? [
-                      BoxShadow(
-                        color: AppColors.diaryAccent.withValues(alpha: 0.35),
-                        blurRadius: 8,
-                      ),
-                    ]
-                  : null,
             ),
             child: Column(
               children: [
@@ -807,19 +799,23 @@ class _DayChip extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w800,
-                    // 當天（沒被選中時）文字跟外框改用同一個顏色，兩個
-                    // 一起變才看得出「這是今天」，不是只有框變、數字還是
-                    // 跟其他天一樣白（2026-09-23 使用者要求文字跟框要
-                    // 統一）。有被選中時已經有實心底色＋外框整個變色夠
-                    // 明顯，文字維持白色才好讀。
-                    color: isToday && !isSelected
+                    // 今天（沒被選中）文字跟外框同色；選中時是實心綠底，
+                    // 用深色字才有對比。
+                    color: isSelected
+                        ? AppColors.diaryAccentInk
+                        : isToday
                         ? AppColors.diaryAccent
                         : AppColors.ink,
                   ),
                 ),
                 Text(
                   '週${_weekdayLabels[day.weekday - 1]}',
-                  style: const TextStyle(fontSize: 9, color: AppColors.ink3),
+                  style: TextStyle(
+                    fontSize: 9,
+                    color: isSelected
+                        ? AppColors.diaryAccentInk.withValues(alpha: 0.7)
+                        : AppColors.ink3,
+                  ),
                 ),
               ],
             ),
@@ -831,8 +827,10 @@ class _DayChip extends StatelessWidget {
               child: Container(
                 width: 6,
                 height: 6,
-                decoration: const BoxDecoration(
-                  color: AppColors.diaryAccent,
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? AppColors.diaryAccentInk
+                      : AppColors.diaryAccent,
                   shape: BoxShape.circle,
                 ),
               ),
@@ -941,21 +939,15 @@ class _MonthCell extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(8),
               color: isSelected
-                  ? AppColors.diaryAccent.withValues(alpha: 0.30)
+                  ? AppColors.diaryAccent
                   : hasEntry
-                  ? AppColors.diaryAccent.withValues(alpha: 0.16)
+                  ? AppColors.diaryAccent.withValues(alpha: 0.12)
                   : Colors.transparent,
               border: Border.all(
-                color: isSelected
+                color: isSelected || isToday
                     ? AppColors.diaryAccent
-                    : isToday
-                    ? AppColors.diaryAccent.withValues(alpha: 0.55)
                     : Colors.transparent,
-                width: isSelected
-                    ? 1.6
-                    : isToday
-                    ? 1.4
-                    : 1,
+                width: isToday && !isSelected ? 1.2 : 1,
               ),
             ),
             child: Text(
@@ -963,9 +955,10 @@ class _MonthCell extends StatelessWidget {
               style: TextStyle(
                 fontSize: 11.5,
                 fontWeight: hasEntry ? FontWeight.w800 : FontWeight.w500,
-                // 跟 _DayChip 同一套：當天（沒被選中時）文字跟外框統一
-                // 用同一個顏色才看得出「這是今天」。
-                color: isToday && !isSelected
+                // 跟 _DayChip 同一套配色。
+                color: isSelected
+                    ? AppColors.diaryAccentInk
+                    : isToday
                     ? AppColors.diaryAccent
                     : hasEntry
                     ? AppColors.ink
@@ -974,7 +967,7 @@ class _MonthCell extends StatelessWidget {
             ),
           ),
           if (hasEntry)
-            const Positioned(
+            Positioned(
               top: 1,
               left: 3,
               child: SizedBox(
@@ -982,7 +975,9 @@ class _MonthCell extends StatelessWidget {
                 height: 5,
                 child: DecoratedBox(
                   decoration: BoxDecoration(
-                    color: AppColors.diaryAccent,
+                    color: isSelected
+                        ? AppColors.diaryAccentInk
+                        : AppColors.diaryAccent,
                     shape: BoxShape.circle,
                   ),
                 ),

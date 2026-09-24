@@ -28,10 +28,20 @@ class YtCategory {
     required this.name,
     required this.colorValue,
     this.imageUrl = '',
+    this.updatedAt,
+    this.deletedAt,
   });
 
   final String id;
   final String name;
+
+  /// 多裝置同步用（2026-09-24），跟 [DiaryEntry.deletedAt]／`updatedAt`
+  /// 同一套：刪除是墓碑標記不是物理刪除，合併時刪除永遠贏、其餘比
+  /// [updatedAt] 新舊。舊資料沒有這兩欄，null 當作最舊。
+  final DateTime? updatedAt;
+  final DateTime? deletedAt;
+
+  DateTime get syncedAt => updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
 
   /// 存 ARGB int 而不是 [Color]，因為要進 JSON；顯示時用 [color] 轉回來。
   final int colorValue;
@@ -42,11 +52,26 @@ class YtCategory {
 
   Color get color => Color(colorValue);
 
+  /// 內容有變（新增／編輯／刪除）時蓋上現在的時間，見 [YtTrackerRepository]。
+  YtCategory stamped({bool deleted = false}) {
+    final now = DateTime.now();
+    return YtCategory(
+      id: id,
+      name: name,
+      colorValue: colorValue,
+      imageUrl: imageUrl,
+      updatedAt: now,
+      deletedAt: deleted ? now : deletedAt,
+    );
+  }
+
   Map<String, dynamic> toJson() => {
     'id': id,
     'name': name,
     'color': colorValue,
     'imageUrl': imageUrl,
+    'updatedAt': updatedAt?.toIso8601String(),
+    'deletedAt': deletedAt?.toIso8601String(),
   };
 
   factory YtCategory.fromJson(Map<String, dynamic> json) => YtCategory(
@@ -54,6 +79,8 @@ class YtCategory {
     name: json['name'] as String,
     colorValue: json['color'] as int,
     imageUrl: json['imageUrl'] as String? ?? '',
+    updatedAt: _parseTime(json['updatedAt']),
+    deletedAt: _parseTime(json['deletedAt']),
   );
 }
 
@@ -75,11 +102,55 @@ class YtChannel {
     this.youtubeChannelId = '',
     this.uploadsPlaylistId = '',
     required this.addedAt,
+    this.updatedAt,
+    this.deletedAt,
   });
 
   final String id;
   final String name;
   final String? categoryId;
+
+  /// 多裝置同步用，同 [YtCategory.updatedAt]。沒有的話退回 [addedAt]。
+  final DateTime? updatedAt;
+  final DateTime? deletedAt;
+
+  DateTime get syncedAt => updatedAt ?? addedAt;
+
+  YtChannel _copy({
+    required String? categoryId,
+    required DateTime updatedAt,
+    required DateTime? deletedAt,
+  }) => YtChannel(
+    id: id,
+    name: name,
+    categoryId: categoryId,
+    avatarEmoji: avatarEmoji,
+    avatarImageUrl: avatarImageUrl,
+    url: url,
+    description: description,
+    youtubeChannelId: youtubeChannelId,
+    uploadsPlaylistId: uploadsPlaylistId,
+    addedAt: addedAt,
+    updatedAt: updatedAt,
+    deletedAt: deletedAt,
+  );
+
+  /// 內容有變時蓋上現在的時間，見 [YtTrackerRepository]。
+  YtChannel stamped({bool deleted = false}) {
+    final now = DateTime.now();
+    return _copy(
+      categoryId: categoryId,
+      updatedAt: now,
+      deletedAt: deleted ? now : deletedAt,
+    );
+  }
+
+  /// 所屬分類被刪掉時，頻道改成「未分類」。
+  YtChannel withoutCategory() => _copy(
+    categoryId: null,
+    updatedAt: DateTime.now(),
+    deletedAt: deletedAt,
+  );
 
   /// [avatarImageUrl] 沒填、或圖片載入失敗時的退回佔位。
   final String avatarEmoji;
@@ -117,6 +188,8 @@ class YtChannel {
     'youtubeChannelId': youtubeChannelId,
     'uploadsPlaylistId': uploadsPlaylistId,
     'addedAt': addedAt.toIso8601String(),
+    'updatedAt': updatedAt?.toIso8601String(),
+    'deletedAt': deletedAt?.toIso8601String(),
   };
 
   factory YtChannel.fromJson(Map<String, dynamic> json) => YtChannel(
@@ -130,5 +203,10 @@ class YtChannel {
     youtubeChannelId: json['youtubeChannelId'] as String? ?? '',
     uploadsPlaylistId: json['uploadsPlaylistId'] as String? ?? '',
     addedAt: DateTime.parse(json['addedAt'] as String),
+    updatedAt: _parseTime(json['updatedAt']),
+    deletedAt: _parseTime(json['deletedAt']),
   );
 }
+
+DateTime? _parseTime(Object? raw) =>
+    raw == null ? null : DateTime.parse(raw as String);

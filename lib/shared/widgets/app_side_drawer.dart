@@ -197,7 +197,7 @@ class AppSideDrawer extends StatelessWidget {
                     active: isSync,
                     onTap: () {
                       Navigator.of(context).pop();
-                      if (!isSync) context.push('/sync');
+                      if (!isSync) context.go('/sync');
                     },
                   ),
                   // 除錯放整個選單最後一項，圖示角標式（設計稿 04）：
@@ -220,7 +220,7 @@ class AppSideDrawer extends StatelessWidget {
                         badgeCount: unread,
                         onTap: () {
                           Navigator.of(context).pop();
-                          if (!isDebugLog) context.push('/debug-log');
+                          if (!isDebugLog) context.go('/debug-log');
                         },
                       );
                     },

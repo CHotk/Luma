@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/cloud/r2_client.dart';
 import '../data/repositories/diary_repository.dart';
+import '../data/repositories/error_log_repository.dart';
 import '../data/repositories/fitness_repository.dart';
 import '../data/repositories/history_repository.dart';
 import '../data/repositories/kana_exam_repository.dart';
@@ -62,6 +63,10 @@ final ytTrackerRepositoryProvider = Provider<YtTrackerRepository>(
 
 final fitnessRepositoryProvider = Provider<FitnessRepository>(
   (ref) => FitnessRepository(ref.watch(keyValueStoreProvider)),
+);
+
+final errorLogRepositoryProvider = Provider<ErrorLogRepository>(
+  (ref) => ErrorLogRepository(ref.watch(keyValueStoreProvider)),
 );
 
 final syncLogRepositoryProvider = Provider<SyncLogRepository>(
