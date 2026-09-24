@@ -115,7 +115,7 @@ class _UploadFrequencyChartState extends State<UploadFrequencyChart> {
           children: [
             _LegendDot(color: AppColors.accent, label: '一般影片'),
             const SizedBox(width: 14),
-            _LegendDot(color: AppColors.ytAccent, label: 'Shorts（估計，≤60秒）'),
+            _LegendDot(color: AppColors.ytAccent, label: 'Shorts'),
           ],
         ),
         const SizedBox(height: 8),

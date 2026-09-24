@@ -5,9 +5,12 @@ import 'package:http/http.dart' as http;
 /// YouTube Data API v3 回錯誤（金鑰不對、配額用完、頻道不存在……）時
 /// 丟這個，訊息已經是給使用者看的中文，呼叫端直接顯示就好。
 class YoutubeApiException implements Exception {
-  YoutubeApiException(this.message);
+  YoutubeApiException(this.message, {this.status});
 
   final String message;
+
+  /// HTTP 狀態碼（有的話），例如 404＝播放清單不存在。
+  final int? status;
 
   @override
   String toString() => message;
@@ -45,6 +48,7 @@ class YoutubeVideo {
     required this.publishedAt,
     required this.thumbnailUrl,
     this.duration,
+    this.isShort,
   });
 
   final String videoId;
@@ -59,6 +63,11 @@ class YoutubeVideo {
   /// 不是硬顯示 0:00 誤導人。
   final Duration? duration;
 
+  /// 是不是真的 Shorts：從 YouTube 自己的 Shorts 播放清單（UUSH）比對出來的
+  /// 結果（2026-09-24 使用者要求：折線圖不要再用秒數估）。null＝還沒比對過，
+  /// 這時 [isLikelyShort] 退回用時長估。
+  final bool? isShort;
+
   String get watchUrl => 'https://www.youtube.com/watch?v=$videoId';
 
   /// Shorts／一般影片的分辨啟發式判斷。YouTube Data API **沒有**任何
@@ -70,7 +79,10 @@ class YoutubeVideo {
   /// Shorts（2026-09-23 使用者問「api給的資料有區分嗎」，答案是沒有，
   /// 這是退而求其次的做法）。[duration] 還沒抓到時回傳 false，不猜。
   bool get isLikelyShort =>
-      duration != null && duration!.inSeconds > 0 && duration!.inSeconds <= 60;
+      isShort ??
+      (duration != null &&
+          duration!.inSeconds > 0 &&
+          duration!.inSeconds <= 60);
 
   YoutubeVideo withDuration(Duration value) => YoutubeVideo(
     videoId: videoId,
@@ -78,6 +90,16 @@ class YoutubeVideo {
     publishedAt: publishedAt,
     thumbnailUrl: thumbnailUrl,
     duration: value,
+    isShort: isShort,
+  );
+
+  YoutubeVideo withShort(bool value) => YoutubeVideo(
+    videoId: videoId,
+    title: title,
+    publishedAt: publishedAt,
+    thumbnailUrl: thumbnailUrl,
+    duration: duration,
+    isShort: value,
   );
 
   /// 給 `yt_video_cache_store.dart` 落地快取用——只有歷史影片（上傳
@@ -88,6 +110,7 @@ class YoutubeVideo {
     'publishedAt': publishedAt.toIso8601String(),
     'thumbnailUrl': thumbnailUrl,
     'durationSeconds': duration?.inSeconds,
+    'isShort': isShort,
   };
 
   factory YoutubeVideo.fromJson(Map<String, dynamic> json) => YoutubeVideo(
@@ -98,6 +121,7 @@ class YoutubeVideo {
     duration: json['durationSeconds'] == null
         ? null
         : Duration(seconds: json['durationSeconds'] as int),
+    isShort: json['isShort'] as bool?,
   );
 }
 
@@ -143,26 +167,34 @@ class YoutubeApiService {
         onTimeout: () => throw YoutubeApiException('連線 YouTube 逾時，檢查網路後重試'),
       );
 
-  /// 從頻道網址解析出 `@handle`——YouTube Data API 的 `forHandle` 參數
-  /// 可以直接吃這個字串去查頻道，不用自己先轉成頻道 ID。網址格式抓不
-  /// 到 handle（例如根本沒填網址）就回傳 null。
+  /// 從頻道網址解析出 `@handle` 或頻道 ID（`UC…`）——YouTube Data API 的
+  /// `forHandle`／`id` 參數可以直接吃，不用自己先轉。網址是
+  /// `youtube.com/channel/UC…` 這種沒有 @handle 的格式時回傳 `UC…`
+  /// （2026-09-24 修：這種網址原本解析不出來，頻道打開永遠顯示沒影片）。
+  /// 都抓不到（例如根本沒填網址）就回傳 null。
   static String? parseHandle(String url) {
-    final match = RegExp(r'@[\w.\-]+').firstMatch(url);
-    return match?.group(0);
+    final handle = RegExp(r'@[\w.\-]+').firstMatch(url);
+    if (handle != null) return handle.group(0);
+    return RegExp(r'/channel/(UC[\w\-]+)').firstMatch(url)?.group(1);
   }
 
+  /// [handle] 是 `@帳號`，或頻道 ID（`UC…`，見 [parseHandle]）。
   Future<YoutubeChannelInfo> fetchChannelInfo(String handle) async {
+    final byId = handle.startsWith('UC');
     final uri = Uri.parse('$_base/channels').replace(
       queryParameters: {
         'part': 'snippet,contentDetails,statistics',
-        'forHandle': handle,
+        if (byId) 'id': handle else 'forHandle': handle,
         'key': apiKey,
       },
     );
     final res = await _get(uri);
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     if (res.statusCode != 200) {
-      throw YoutubeApiException(_errorMessage(res.statusCode, body));
+      throw YoutubeApiException(
+        _errorMessage(res.statusCode, body),
+        status: res.statusCode,
+      );
     }
     final items = (body['items'] as List?) ?? const [];
     if (items.isEmpty) {
@@ -214,7 +246,10 @@ class YoutubeApiService {
       final res = await _get(uri);
       final body = jsonDecode(res.body) as Map<String, dynamic>;
       if (res.statusCode != 200) {
-        throw YoutubeApiException(_errorMessage(res.statusCode, body));
+        throw YoutubeApiException(
+          _errorMessage(res.statusCode, body),
+          status: res.statusCode,
+        );
       }
       for (final item
           in ((body['items'] as List?) ?? const [])
@@ -259,7 +294,10 @@ class YoutubeApiService {
     final res = await _get(uri);
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     if (res.statusCode != 200) {
-      throw YoutubeApiException(_errorMessage(res.statusCode, body));
+      throw YoutubeApiException(
+        _errorMessage(res.statusCode, body),
+        status: res.statusCode,
+      );
     }
     final items = ((body['items'] as List?) ?? const [])
         .cast<Map<String, dynamic>>();
@@ -311,7 +349,10 @@ class YoutubeApiService {
       final res = await _get(uri);
       final body = jsonDecode(res.body) as Map<String, dynamic>;
       if (res.statusCode != 200) {
-        throw YoutubeApiException(_errorMessage(res.statusCode, body));
+        throw YoutubeApiException(
+          _errorMessage(res.statusCode, body),
+          status: res.statusCode,
+        );
       }
       final items = ((body['items'] as List?) ?? const [])
           .cast<Map<String, dynamic>>();
@@ -371,7 +412,10 @@ class YoutubeApiService {
       final res = await _get(uri);
       final body = jsonDecode(res.body) as Map<String, dynamic>;
       if (res.statusCode != 200) {
-        throw YoutubeApiException(_errorMessage(res.statusCode, body));
+        throw YoutubeApiException(
+          _errorMessage(res.statusCode, body),
+          status: res.statusCode,
+        );
       }
       final items = ((body['items'] as List?) ?? const [])
           .cast<Map<String, dynamic>>();

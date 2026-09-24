@@ -405,9 +405,49 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
             ? cachedById[v.videoId]!
             : v,
     }.values.toList()..sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
-    await cache.save(channel.id, merged);
+    // Shorts 用 YouTube 自己的 Shorts 播放清單（UUSH）比對，不再靠「≤60 秒」
+    // 估（2026-09-24 使用者要求）。頻道沒有 Shorts 清單（404）就代表沒有
+    // Shorts；其他錯誤（網路、配額）就先不動，維持原本的判斷。
+    var classified = merged;
+    if (uploadsId.startsWith('UU')) {
+      Set<String>? shortIds;
+      try {
+        final knownShorts = everCompleted
+            ? {
+                for (final v in merged)
+                  if (v.isShort == true ||
+                      cachedById[v.videoId]?.isShort == true)
+                    v.videoId,
+              }
+            : <String>{};
+        final shorts = await service.fetchAllVideos(
+          'UUSH${uploadsId.substring(2)}',
+          since: since,
+          knownVideoIds: knownShorts,
+        );
+        shortIds = {for (final v in shorts) v.videoId};
+      } on YoutubeApiException catch (e) {
+        if (e.status == 404) shortIds = <String>{};
+      } catch (_) {
+        // 忽略，維持原本的判斷。
+      }
+      if (shortIds != null) {
+        final ids = shortIds;
+        classified = [
+          for (final v in merged)
+            v.publishedAt.isBefore(since)
+                ? v
+                : v.withShort(
+                    ids.contains(v.videoId) ||
+                        v.isShort == true ||
+                        cachedById[v.videoId]?.isShort == true,
+                  ),
+        ];
+      }
+    }
+    await cache.save(channel.id, classified);
     return [
-      for (final v in merged)
+      for (final v in classified)
         if (!v.publishedAt.isBefore(since)) v,
     ];
   }

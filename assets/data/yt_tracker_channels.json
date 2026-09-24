@@ -477,7 +477,9 @@
     "avatarImageUrl": "https://yt3.googleusercontent.com/S3GeGJjM77kk4Dm76abiB4z3_d6i4rcTa4vo2wLZ_RB0r3ttVQ_Rm3eqV2pVa8Y8Bkp5ZVJ9=s160-c-k-c0x00ffffff-no-rj",
     "url": "https://youtube.com/channel/UCuYFKZ_VPKi4LBw2n4IPRug?si=UTQ89V1OxiteKGGf",
     "description": "",
-    "addedAt": "2026-09-24T00:00:00.000"
+    "addedAt": "2026-09-24T00:00:00.000",
+    "youtubeChannelId": "UCuYFKZ_VPKi4LBw2n4IPRug",
+    "uploadsPlaylistId": "UUuYFKZ_VPKi4LBw2n4IPRug"
   },
   {
     "id": "seed-bluepigeon0810",
@@ -507,7 +509,9 @@
     "avatarImageUrl": "https://yt3.googleusercontent.com/ytc/AIdro_mWwce0FReAeILAiRmy_9epkhjKhYuHLYsLn4OeW_6MPA=s160-c-k-c0x00ffffff-no-rj",
     "url": "https://youtube.com/channel/UC5DGiN7-nlPno2kjHUdcdCg?si=hKdJGldv8LLvAs2D",
     "description": "",
-    "addedAt": "2026-09-24T00:00:00.000"
+    "addedAt": "2026-09-24T00:00:00.000",
+    "youtubeChannelId": "UC5DGiN7-nlPno2kjHUdcdCg",
+    "uploadsPlaylistId": "UU5DGiN7-nlPno2kjHUdcdCg"
   },
   {
     "id": "seed-cheapaoe",
@@ -537,7 +541,9 @@
     "avatarImageUrl": "https://yt3.googleusercontent.com/wc8PH7FIFqy1LncVfPv8hB_EzKDVELrqYPeeUzv7VNcBtRd2Fw_oiGPiUeC1fkKvNCLWUL3h=s160-c-k-c0x00ffffff-no-rj",
     "url": "https://youtube.com/channel/UCxL1vANyRmde1hzPj7A_UPQ?si=BYTAywTFpXkoT2Rm",
     "description": "美國出警實錄",
-    "addedAt": "2026-09-24T00:00:00.000"
+    "addedAt": "2026-09-24T00:00:00.000",
+    "youtubeChannelId": "UCxL1vANyRmde1hzPj7A_UPQ",
+    "uploadsPlaylistId": "UUxL1vANyRmde1hzPj7A_UPQ"
   },
   {
     "id": "seed-uc9dyo7qdvhswf94kce0u0lg",
@@ -547,7 +553,9 @@
     "avatarImageUrl": "https://yt3.googleusercontent.com/fVC4_uQtu5hz62DX-494YfZCQXLrJRlE9qZsz3WlgQWb0U5HtfXYxRm9MkKnO2D1H2Qmz5e3ohY=s160-c-k-c0x00ffffff-no-rj",
     "url": "https://youtube.com/channel/UC9dYo7qdvHsWF94KcE0u0Lg?si=x6yj0oXsnH0Stnif",
     "description": "世界殘酷類解說",
-    "addedAt": "2026-09-24T00:00:00.000"
+    "addedAt": "2026-09-24T00:00:00.000",
+    "youtubeChannelId": "UC9dYo7qdvHsWF94KcE0u0Lg",
+    "uploadsPlaylistId": "UU9dYo7qdvHsWF94KcE0u0Lg"
   },
   {
     "id": "seed-ourchannel187",
