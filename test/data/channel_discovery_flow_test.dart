@@ -193,4 +193,80 @@ void main() {
     expect(found.length, 10);
     expect(found.map((c) => c.channelId).toSet().length, 10);
   });
+
+  test('已刪除的頻道不會再被挖到；自訂關鍵字一定會拿去搜尋影片', () async {
+    final searchedQueries = <String>[];
+    final client = MockClient((request) async {
+      final path = request.url.path;
+      final Map<String, dynamic> body;
+      if (path.endsWith('/channelSections')) {
+        body = {
+          'items': [
+            {
+              'contentDetails': {
+                'channels': ['DELETED', 'FRESH'],
+              },
+            },
+          ],
+        };
+      } else if (path.endsWith('/search')) {
+        searchedQueries.add(request.url.queryParameters['q']!);
+        body = {
+          'items': [
+            {
+              'snippet': {'channelId': 'FROMSEARCH'},
+            },
+          ],
+        };
+      } else if (path.endsWith('/channels')) {
+        body = {
+          'items': [
+            for (final id in request.url.queryParameters['id']!.split(','))
+              channelItem(id),
+          ],
+        };
+      } else {
+        body = {
+          'items': [
+            {
+              'contentDetails': {'videoPublishedAt': iso(now)},
+            },
+          ],
+        };
+      }
+      return _json(body);
+    });
+
+    final deleted = YtChannel(
+      id: 'gone',
+      name: '刪掉的',
+      categoryId: null,
+      youtubeChannelId: 'DELETED',
+      addedAt: now,
+      deletedAt: now,
+    );
+    final seed = YtChannel(
+      id: 'seed',
+      name: 's',
+      categoryId: 'cat',
+      youtubeChannelId: 'SEED',
+      addedAt: now,
+    );
+    final found =
+        await ChannelDiscoveryService(
+          'fake-key',
+          random: Random(3),
+          client: client,
+        ).discover(
+          existing: [seed, deleted],
+          seeds: [seed],
+          keywords: const [],
+          priorityKeyword: '露營',
+          count: 10,
+        );
+    final ids = found.map((c) => c.channelId).toSet();
+    expect(ids, {'FRESH', 'FROMSEARCH'});
+    expect(ids, isNot(contains('DELETED')));
+    expect(searchedQueries.first, '露營');
+  });
 }

@@ -84,6 +84,80 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
 
   bool _digging = false;
 
+  /// 挖掘前先選類型（可複選，不選＝全部）跟可選的自訂關鍵字
+  /// （2026-09-24 使用者要求可以選挖掘類型）。取消回傳 null。
+  Future<({Set<String> categoryIds, String keyword})?> _showDigOptions(
+    List<YtCategory> categories,
+  ) {
+    final picked = <String>{};
+    final keywordController = TextEditingController();
+    final selectable = [
+      for (final c in categories)
+        if (c.id != _discoverCategoryId && c.id != ytUncategorizedId) c,
+    ];
+    return showDialog<({Set<String> categoryIds, String keyword})>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: const Color(0xFF1A1A24),
+          title: const Text('挖掘新頻道', style: TextStyle(color: AppColors.ink)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('想挖哪些類型？（不選＝全部）', style: AppText.note),
+                const SizedBox(height: Gap.sm),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    for (final c in selectable)
+                      FilterChip(
+                        label: Text(c.name),
+                        selected: picked.contains(c.id),
+                        onSelected: (v) => setDialogState(() {
+                          if (v) {
+                            picked.add(c.id);
+                          } else {
+                            picked.remove(c.id);
+                          }
+                        }),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: Gap.md),
+                TextField(
+                  controller: keywordController,
+                  decoration: const InputDecoration(
+                    labelText: '自訂關鍵字（選填）',
+                    hintText: '例如：投資理財、露營',
+                  ),
+                  style: const TextStyle(color: AppColors.ink),
+                ),
+                const SizedBox(height: Gap.sm),
+                Text('一次挖 10 個 App 裡沒有的頻道，已刪除過的不會再出現。', style: AppText.note),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, (
+                categoryIds: {...picked},
+                keyword: keywordController.text.trim(),
+              )),
+              child: const Text('開始挖掘'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   /// 挖掘新頻道（2026-09-24 使用者要求）：一次挖 10 個 App 裡沒有的頻道，
   /// 放進「挖掘新頻道」分類，自己再看要不要移到別的分類或刪掉。挖掘流程
   /// 見 [ChannelDiscoveryService]。
@@ -94,6 +168,12 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
       await showYtApiKeyDialog(context, ref);
       return;
     }
+    final categories0 = await ref
+        .read(ytTrackerRepositoryProvider)
+        .loadCategories();
+    if (!mounted) return;
+    final options = await _showDigOptions(categories0);
+    if (options == null || !mounted) return;
     _digging = true;
     final status = ValueNotifier<String>('準備中…');
     showDialog<void>(
@@ -105,12 +185,24 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
       final repo = ref.read(ytTrackerRepositoryProvider);
       final categories = await repo.loadCategories();
       final channels = await repo.loadChannels();
+      // 已知頻道要包含已刪除的：刪掉的就是不要的，不會再被挖出來。
+      final known = await repo.channelsForUpload();
+      final chosen = options.categoryIds;
+      final pickedCategories = [
+        for (final c in categories)
+          if (c.id != _discoverCategoryId &&
+              c.id != ytUncategorizedId &&
+              (chosen.isEmpty || chosen.contains(c.id)))
+            c,
+      ];
       final found = await ChannelDiscoveryService(apiKey).discover(
-        existing: channels,
-        keywords: [
-          for (final c in categories)
-            if (c.id != _discoverCategoryId && c.id != ytUncategorizedId) c.name,
-        ],
+        existing: known,
+        // 選了類型就只拿那些分類裡的頻道當種子。
+        seeds: chosen.isEmpty
+            ? channels
+            : channels.where((c) => chosen.contains(c.categoryId)).toList(),
+        keywords: [for (final c in pickedCategories) c.name],
+        priorityKeyword: options.keyword,
         onProgress: (t) => status.value = t,
       );
       for (final d in found) {

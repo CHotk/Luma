@@ -131,9 +131,15 @@ class ChannelDiscoveryService {
     return body;
   }
 
+  /// [existing] 是「已知的所有頻道」，**包含已刪除的**（墓碑）——刪掉的頻道
+  /// 就是使用者不要的，之後不會再挖到。[seeds] 是拿來讀推薦名單的種子頻道
+  /// （使用者選了類型就只從那些分類挑），沒給就用 [existing] 裡沒刪除的。
+  /// [priorityKeyword] 是使用者自己輸入的關鍵字，有的話一定會用它搜尋影片。
   Future<List<DiscoveredChannel>> discover({
     required List<YtChannel> existing,
     required List<String> keywords,
+    List<YtChannel>? seeds,
+    String priorityKeyword = '',
     int count = 10,
     void Function(String status)? onProgress,
   }) async {
@@ -142,10 +148,13 @@ class ChannelDiscoveryService {
         !isKnownChannel(channelId: id, customUrl: '', existing: existing);
 
     // 1. 種子頻道的精選／推薦頻道
-    final seeds = existing.where((c) => c.youtubeChannelId.isNotEmpty).toList()
-      ..shuffle(_random);
+    final seedPool =
+        (seeds ?? existing.where((c) => c.deletedAt == null))
+            .where((c) => c.youtubeChannelId.isNotEmpty)
+            .toList()
+          ..shuffle(_random);
     var seedTried = 0;
-    for (final seed in seeds.take(6)) {
+    for (final seed in seedPool.take(6)) {
       seedTried++;
       onProgress?.call('讀取「${seed.name}」推薦的頻道…（$seedTried/6）');
       try {
@@ -169,9 +178,15 @@ class ChannelDiscoveryService {
       if (candidateIds.length >= count * 6) break;
     }
 
-    // 2. 不夠就用分類名稱搜尋影片，取影片所屬頻道
-    if (candidateIds.length < count * 3 && keywords.isNotEmpty) {
-      final shuffled = [...keywords]..shuffle(_random);
+    // 2. 不夠（或使用者指定了關鍵字）就搜尋影片，取影片所屬頻道
+    final searchWords = [
+      if (priorityKeyword.trim().isNotEmpty) priorityKeyword.trim(),
+      ...([...keywords]..shuffle(_random)),
+    ];
+    if ((candidateIds.length < count * 3 ||
+            priorityKeyword.trim().isNotEmpty) &&
+        searchWords.isNotEmpty) {
+      final shuffled = searchWords;
       const orders = ['relevance', 'date', 'viewCount'];
       for (var i = 0; i < 2 && i < shuffled.length; i++) {
         final q = shuffled[i];

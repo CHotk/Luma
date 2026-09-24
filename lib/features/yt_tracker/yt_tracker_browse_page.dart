@@ -593,6 +593,79 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
     _reload();
   }
 
+  Future<void> _moveChannel(YtChannel c, List<YtCategory> categories) async {
+    final result = await showDialog<({String? id})>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A24),
+        title: Text(
+          '「${c.name}」移到…',
+          style: const TextStyle(color: AppColors.ink, fontSize: 16),
+        ),
+        content: SingleChildScrollView(
+          child: Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              _CategoryPickChip(
+                label: '未分類',
+                color: AppColors.ink3,
+                selected: c.categoryId == null,
+                onTap: () => Navigator.pop(dialogContext, (id: null)),
+              ),
+              for (final cat in categories)
+                _CategoryPickChip(
+                  label: cat.name,
+                  color: cat.color,
+                  selected: c.categoryId == cat.id,
+                  onTap: () => Navigator.pop(dialogContext, (id: cat.id)),
+                ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('取消'),
+          ),
+        ],
+      ),
+    );
+    if (result == null) return;
+    await ref
+        .read(ytTrackerRepositoryProvider)
+        .updateChannel(c.copyWith(categoryId: result.id));
+    if (mounted) _reload();
+  }
+
+  Future<void> _deleteChannel(YtChannel c) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A24),
+        title: Text(
+          '刪除「${c.name}」？',
+          style: const TextStyle(color: AppColors.ink, fontSize: 16),
+        ),
+        content: Text('刪除後挖掘新頻道也不會再挖到它。', style: AppText.bodyDim),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.bad),
+            child: const Text('刪除'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await ref.read(ytTrackerRepositoryProvider).deleteChannel(c.id);
+    if (mounted) _reload();
+  }
+
   Widget _buildVideoPanel(List<YtChannel> channels) {
     final apiKey = ref.watch(ytApiKeyProvider);
     if (apiKey == null || apiKey.isEmpty) {
@@ -908,6 +981,14 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                                       Expanded(
                                         child: _ChannelGrid(
                                           channels: _sortedChannels(channels),
+                                          onOpen: (c) => context
+                                              .push(
+                                                '/yt-tracker/channel/${c.id}',
+                                              )
+                                              .then((_) => _reload()),
+                                          onMove: (c) =>
+                                              _moveChannel(c, categories),
+                                          onDelete: _deleteChannel,
                                         ),
                                       ),
                                     ],
@@ -928,10 +1009,20 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
   }
 }
 
+enum _ChannelMenuAction { edit, move, delete }
+
 class _ChannelGrid extends StatelessWidget {
-  const _ChannelGrid({required this.channels});
+  const _ChannelGrid({
+    required this.channels,
+    required this.onOpen,
+    required this.onMove,
+    required this.onDelete,
+  });
 
   final List<YtChannel> channels;
+  final void Function(YtChannel) onOpen;
+  final void Function(YtChannel) onMove;
+  final void Function(YtChannel) onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -949,7 +1040,7 @@ class _ChannelGrid extends StatelessWidget {
       itemBuilder: (_, i) {
         final c = channels[i];
         return InkWell(
-          onTap: () => context.push('/yt-tracker/channel/${c.id}'),
+          onTap: () => onOpen(c),
           borderRadius: BorderRadius.circular(Radii.card),
           child: Container(
             padding: const EdgeInsets.all(10),
@@ -988,6 +1079,37 @@ class _ChannelGrid extends StatelessWidget {
                       ],
                     ],
                   ),
+                ),
+                // 每個頻道右邊的選單：編輯（進詳情頁）／移到分類／刪除。
+                PopupMenuButton<_ChannelMenuAction>(
+                  icon: const Icon(Icons.more_vert_rounded, size: 18),
+                  color: AppColors.ink2,
+                  padding: EdgeInsets.zero,
+                  tooltip: '更多',
+                  onSelected: (action) {
+                    switch (action) {
+                      case _ChannelMenuAction.edit:
+                        onOpen(c);
+                      case _ChannelMenuAction.move:
+                        onMove(c);
+                      case _ChannelMenuAction.delete:
+                        onDelete(c);
+                    }
+                  },
+                  itemBuilder: (context) => const [
+                    PopupMenuItem(
+                      value: _ChannelMenuAction.edit,
+                      child: Text('編輯'),
+                    ),
+                    PopupMenuItem(
+                      value: _ChannelMenuAction.move,
+                      child: Text('移到分類'),
+                    ),
+                    PopupMenuItem(
+                      value: _ChannelMenuAction.delete,
+                      child: Text('刪除'),
+                    ),
+                  ],
                 ),
               ],
             ),
