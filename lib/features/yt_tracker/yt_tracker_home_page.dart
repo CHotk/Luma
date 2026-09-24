@@ -1,4 +1,5 @@
 import 'dart:convert' show utf8, JsonEncoder;
+import 'dart:math' show Random;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
@@ -391,9 +392,8 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
                                                 imageUrl:
                                                     'assets/images/yt_tracker/all.png',
                                               ),
-                                              channels: channels
-                                                  .take(8)
-                                                  .toList(),
+                                              channels: channels,
+                                              maxAvatars: 7,
                                               count: channels.length,
                                               onTap: () => context
                                                   .push(
@@ -431,7 +431,8 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
                                                 .toList();
                                       return _CategoryCard(
                                         category: cat,
-                                        channels: catChannels.take(4).toList(),
+                                        channels: catChannels,
+                                        maxAvatars: 3,
                                         count: catChannels.length,
                                         onTap: () => context.push(
                                           '/yt-tracker/browse',
@@ -513,10 +514,11 @@ class _CategoryImage extends StatelessWidget {
   }
 }
 
-class _CategoryCard extends StatelessWidget {
+class _CategoryCard extends StatefulWidget {
   const _CategoryCard({
     required this.category,
     required this.channels,
+    required this.maxAvatars,
     required this.count,
     required this.onTap,
     required this.onLongPress,
@@ -524,12 +526,33 @@ class _CategoryCard extends StatelessWidget {
 
   final YtCategory category;
   final List<YtChannel> channels;
+
+  /// 底下那排小頭像最多顯示幾個（2026-09-24 使用者要求：「全部」7 個、
+  /// 其他分類 3 個，從全部頻道隨機抓；超過就在最後多顯示「⋯」）。
+  final int maxAvatars;
   final int count;
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
 
   @override
+  State<_CategoryCard> createState() => _CategoryCardState();
+}
+
+class _CategoryCardState extends State<_CategoryCard> {
+  // 亂數種子固定在這張卡的生命週期內，重繪不會頭像一直跳；重新進首頁才重抽。
+  final int _seed = Random().nextInt(1 << 30);
+
+  @override
   Widget build(BuildContext context) {
+    final category = widget.category;
+    final count = widget.count;
+    final onTap = widget.onTap;
+    final onLongPress = widget.onLongPress;
+    final all = widget.channels;
+    final channels = (all.toList()..shuffle(Random(_seed)))
+        .take(widget.maxAvatars)
+        .toList();
+    final hasMore = all.length > widget.maxAvatars;
     final hasImage = category.imageUrl.isNotEmpty;
     return InkWell(
       onTap: onTap,
@@ -603,6 +626,16 @@ class _CategoryCard extends StatelessWidget {
                         Padding(
                           padding: const EdgeInsets.only(right: 4),
                           child: YtChannelAvatar(channel: c, radius: 11),
+                        ),
+                      if (hasMore)
+                        Text(
+                          '⋯',
+                          style: TextStyle(
+                            fontSize: 16,
+                            height: 1,
+                            fontWeight: FontWeight.w700,
+                            color: hasImage ? Colors.white : AppColors.ink2,
+                          ),
                         ),
                     ],
                   ),
