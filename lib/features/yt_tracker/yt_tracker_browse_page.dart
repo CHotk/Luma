@@ -835,13 +835,15 @@ class _ChannelGrid extends StatelessWidget {
                           color: AppColors.ink,
                         ),
                       ),
-                      if (c.subscriberLabel != null)
+                      if (c.subscriberLabel != null) ...[
+                        const SizedBox(height: 4),
                         Text(
                           c.subscriberLabel!,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: AppText.note,
                         ),
+                      ],
                     ],
                   ),
                 ),
