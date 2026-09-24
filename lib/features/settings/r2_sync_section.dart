@@ -8,6 +8,7 @@ import '../../app/theme/typography.dart';
 import '../../data/cloud/r2_client.dart';
 import '../../data/cloud/r2_credentials_store.dart';
 import '../../data/cloud/r2_sync_service.dart';
+import '../../domain/models/sync_log_entry.dart';
 import '../../shared/widgets/app_notice.dart';
 import '../../shared/widgets/glass_card.dart';
 
@@ -28,7 +29,13 @@ enum _FeaturePhase { idle, downloading, uploading, done, error }
 /// 同步」——第一階段（打地基）「立即同步」只做下載，還沒有上傳
 /// （2026-09-23 使用者決定分階段開發，先驗證連線/簽章/資料格式）。
 class R2SyncSection extends ConsumerStatefulWidget {
-  const R2SyncSection({super.key});
+  const R2SyncSection({super.key, this.onLogged});
+
+  /// 每次同步結束（不管成功失敗）寫完 [SyncLogEntry] 之後呼叫一次，讓
+  /// 外層（`sync_page.dart`）知道要重讀同步紀錄卡的列表——同步紀錄的
+  /// 儲存跟顯示分屬不同 widget，用這個回呼串起來，不用共用 provider
+  /// 硬湊（2026-09-24）。
+  final VoidCallback? onLogged;
 
   @override
   ConsumerState<R2SyncSection> createState() => _R2SyncSectionState();
@@ -152,15 +159,15 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
       // 每個功能自己一結束就馬上標記完成，不是等兩個都做完才一起標記
       // ——不然萬一健身那邊失敗，明明已經同步好的日記那一行也會卡在
       // 「上傳中…」，看起來像日記也失敗了。
-      // 上傳／下載各異動幾筆的細節，畫面已經有同步狀況卡逐行顯示，
-      // 通知不用再重複塞一次數字，太長（2026-09-24 使用者要求）。
-      await service.syncDiary(
+      // 上傳／下載各異動幾筆不再塞進通知（太長，2026-09-24 使用者
+      // 要求），但同步紀錄 log 還是要留這個細節，所以結果還是要接住。
+      final diaryResult = await service.syncDiary(
         ref.read(diaryRepositoryProvider),
         onPhase: _phaseCallback((p) => _diaryPhase = p),
       );
       if (mounted) setState(() => _diaryPhase = _FeaturePhase.done);
 
-      await service.syncFitness(
+      final fitnessResult = await service.syncFitness(
         ref.read(fitnessRepositoryProvider),
         onPhase: _phaseCallback((p) => _fitnessPhase = p),
       );
@@ -170,6 +177,17 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
       await ref
           .read(keyValueStoreProvider)
           .write(_lastSyncedKey, now.toIso8601String());
+      await ref.read(syncLogRepositoryProvider).add(
+        SyncLogEntry(
+          at: now,
+          action: SyncLogAction.sync,
+          success: true,
+          detail:
+              '日記 上傳${diaryResult.uploaded}／下載${diaryResult.downloaded}；'
+              '健身 上傳${fitnessResult.uploaded}／下載${fitnessResult.downloaded}',
+        ),
+      );
+      widget.onLogged?.call();
       // 同步抓回來的資料要讓日記頁／健身頁（可能還留在導覽堆疊底下沒被
       // 重建）知道要重讀，不然使用者按返回時畫面還是同步前的舊資料
       // （2026-09-23 使用者回報）——跟練習紀錄頁那套「存檔完 bump 這個
@@ -182,6 +200,15 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
       });
       showAppNotice(context, '資料雲端同步完成');
     } catch (e) {
+      await ref.read(syncLogRepositoryProvider).add(
+        SyncLogEntry(
+          at: DateTime.now(),
+          action: SyncLogAction.sync,
+          success: false,
+          detail: '$e',
+        ),
+      );
+      widget.onLogged?.call();
       if (!mounted) return;
       setState(() {
         _syncing = false;

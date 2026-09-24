@@ -7,6 +7,7 @@ import '../data/repositories/history_repository.dart';
 import '../data/repositories/kana_exam_repository.dart';
 import '../data/repositories/kana_practice_repository.dart';
 import '../data/repositories/settings_repository.dart';
+import '../data/repositories/sync_log_repository.dart';
 import '../data/repositories/word_repository.dart';
 import '../data/repositories/yt_tracker_repository.dart';
 import '../data/seed/app_defaults_loader.dart';
@@ -61,6 +62,10 @@ final ytTrackerRepositoryProvider = Provider<YtTrackerRepository>(
 
 final fitnessRepositoryProvider = Provider<FitnessRepository>(
   (ref) => FitnessRepository(ref.watch(keyValueStoreProvider)),
+);
+
+final syncLogRepositoryProvider = Provider<SyncLogRepository>(
+  (ref) => SyncLogRepository(ref.watch(keyValueStoreProvider)),
 );
 
 final historyRepositoryProvider = Provider<HistoryRepository>(

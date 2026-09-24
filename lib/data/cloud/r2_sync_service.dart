@@ -115,4 +115,24 @@ class R2SyncService {
 
     return (downloaded: downloaded, uploaded: uploaded);
   }
+
+  /// 「備份雲端資料」按鈕用：把 R2 上目前每個功能的資料整包抓下來，
+  /// 包成一份 JSON 給使用者下載存到本機——跟 [syncDiary]／[syncFitness]
+  /// 不一樣，這裡純讀，不合併也不寫回任何 repository／localStorage
+  /// （2026-09-24 使用者要求：想要一顆按鈕直接把雲端資料整包抓下來
+  /// 方便自己另外備份）。之後同步的功能增加，這裡也要跟著多一個欄位。
+  /// 順便回傳各功能筆數，給呼叫端寫進同步紀錄 log 用
+  /// （見 `sync_page.dart` 的 `_downloadBackup`）。
+  Future<({String json, int diaryCount, int fitnessCount})>
+  fetchBackupJson() async {
+    final diary = await _fetchCloudDiary();
+    final fitness = await _fetchCloudFitness();
+    const encoder = JsonEncoder.withIndent('  ');
+    final json = encoder.convert({
+      'exportedAt': DateTime.now().toIso8601String(),
+      'diary': [for (final e in diary) e.toJson()],
+      'fitness': [for (final e in fitness) e.toJson()],
+    });
+    return (json: json, diaryCount: diary.length, fitnessCount: fitness.length);
+  }
 }
