@@ -24,6 +24,10 @@ enum _ViewMode { channel, video }
 /// 使用者問「api給的資料有區分嗎」，這是能做到的最接近做法）。
 enum _TypeFilter { all, regular, shorts }
 
+/// 「依頻道顯示」的排序（2026-09-24 使用者要求）。訂閱人數沒有資料的
+/// （還沒更新到、或頻道隱藏訂閱數）一律排最後，不管升冪降冪。
+enum _ChannelSort { normal, subsDesc, subsAsc }
+
 /// 一部影片＋它屬於哪個頻道，「依影片顯示」要混合多個頻道的影片，
 /// 每一列要能同時秀出影片跟頻道兩邊的資訊。
 class _ChannelVideo {
@@ -62,6 +66,7 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
       ? _ViewMode.channel
       : _ViewMode.video;
   _TypeFilter _typeFilter = _TypeFilter.all;
+  _ChannelSort _sort = _ChannelSort.normal;
 
   Future<List<_ChannelVideo>>? _videosFuture;
   List<String>? _videosLoadedFor;
@@ -117,6 +122,25 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
     setState(() {
       _videosFuture = _fetchVideos(channels, apiKey);
     });
+  }
+
+  /// 依目前排序方式排好的頻道。訂閱人數沒資料（沒更新到、或隱藏）的排最後，
+  /// 同人數的維持原本順序（[List.sort] 不保證穩定，所以自己帶原始位置比）。
+  List<YtChannel> _sortedChannels(List<YtChannel> channels) {
+    if (_sort == _ChannelSort.normal) return channels;
+    final indexed = [for (var i = 0; i < channels.length; i++) (i, channels[i])];
+    indexed.sort((a, b) {
+      final x = a.$2.subscriberCount;
+      final y = b.$2.subscriberCount;
+      if (x == null && y == null) return a.$1.compareTo(b.$1);
+      if (x == null) return 1;
+      if (y == null) return -1;
+      final byCount = _sort == _ChannelSort.subsDesc
+          ? y.compareTo(x)
+          : x.compareTo(y);
+      return byCount != 0 ? byCount : a.$1.compareTo(b.$1);
+    });
+    return [for (final e in indexed) e.$2];
   }
 
   /// 訂閱人數更新：超過 12 小時沒問過的頻道，一次批次問（50 個頻道 1 單位
@@ -707,7 +731,43 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                           const SizedBox(height: Gap.sm),
                           Expanded(
                             child: _mode == _ViewMode.channel
-                                ? _ChannelGrid(channels: channels)
+                                ? Column(
+                                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                                    children: [
+                                      Wrap(
+                                        spacing: 6,
+                                        children: [
+                                          _TypeChip(
+                                            label: '預設排序',
+                                            selected: _sort == _ChannelSort.normal,
+                                            onTap: () => setState(
+                                              () => _sort = _ChannelSort.normal,
+                                            ),
+                                          ),
+                                          _TypeChip(
+                                            label: '訂閱人數 多→少',
+                                            selected: _sort == _ChannelSort.subsDesc,
+                                            onTap: () => setState(
+                                              () => _sort = _ChannelSort.subsDesc,
+                                            ),
+                                          ),
+                                          _TypeChip(
+                                            label: '訂閱人數 少→多',
+                                            selected: _sort == _ChannelSort.subsAsc,
+                                            onTap: () => setState(
+                                              () => _sort = _ChannelSort.subsAsc,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: Gap.sm),
+                                      Expanded(
+                                        child: _ChannelGrid(
+                                          channels: _sortedChannels(channels),
+                                        ),
+                                      ),
+                                    ],
+                                  )
                                 : _buildVideoPanel(channels),
                           ),
                         ],
