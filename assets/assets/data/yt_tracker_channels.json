@@ -88,5 +88,15 @@
     "url": "https://youtube.com/@japanesezenmusic?si=oqiCyzvEdwlaUAuT",
     "description": "日本佛系音樂家",
     "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-astrobunny",
+    "name": "原子邦妮 AstroBunny",
+    "categoryId": "seed-music",
+    "avatarEmoji": "🎵",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/4iivmKu5IBoeH5cK8XHC9tXjsZcuCsZMu-AhfMe78onqBAQCMVSeDZJQsv3h5FqLtbTUasM_2rI=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://youtube.com/@astrobunny7325?si=R-fyvaHJrad8WWjd",
+    "description": "",
+    "addedAt": "2026-09-24T00:00:00.000"
   }
 ]
