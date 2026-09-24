@@ -3,9 +3,9 @@ const MANIFEST = 'flutter-app-manifest';
 const TEMP = 'flutter-temp-cache';
 const CACHE_NAME = 'flutter-app-cache';
 
-const RESOURCES = {"assets/AssetManifest.bin": "b31b761378e0ddceccba00e7353f222b",
-"assets/AssetManifest.bin.json": "9a362d2f00ace26a028ff5851c60959a",
-"assets/AssetManifest.json": "0d42a68d5ba629f3865b1183fbc922e6",
+const RESOURCES = {"assets/AssetManifest.bin": "2adb2881034f95648b553c661bd3ff86",
+"assets/AssetManifest.bin.json": "7dafd67d492c2ef66da779931fb2348a",
+"assets/AssetManifest.json": "1d962087a4e11810b91abe5e2df9fc72",
 "assets/assets/config/app_defaults.yaml": "f52eccc6d8df9e48f90e659277eea80d",
 "assets/assets/data/diary.json": "58e0494c51d30eb3494f7c9198986bb9",
 "assets/assets/data/fitness_entries.json": "58e0494c51d30eb3494f7c9198986bb9",
@@ -21,7 +21,7 @@ const RESOURCES = {"assets/AssetManifest.bin": "b31b761378e0ddceccba00e7353f222b
 "assets/assets/data/word-choices.md": "bee2e0e2120c6019cbad559df309d207",
 "assets/assets/data/words.txt": "bc7e42092bc81b5750bdcb835919bf9d",
 "assets/assets/data/yt_tracker_categories.json": "13c8dac980a3bc96f209f0b422527342",
-"assets/assets/data/yt_tracker_channels.json": "60f8536e6474b25a6f51c139b6befd7f",
+"assets/assets/data/yt_tracker_channels.json": "14229c918e6dd3ed793e033b4ba407c6",
 "assets/assets/images/app_logo/logo.png": "bf62f559c24560e6490d5930fbc2962e",
 "assets/assets/images/fitness/setting_icon.png": "190732e8bb1fa35ea038dbe8d021ceb6",
 "assets/assets/images/fitness/stats_icon.png": "9e567479ad47d1d203a9776c3c08e5ac",
@@ -33,6 +33,7 @@ const RESOURCES = {"assets/AssetManifest.bin": "b31b761378e0ddceccba00e7353f222b
 "assets/assets/images/nav_icons/yt_tracker002.png": "b8a9d31736d4547bfad566f79df21a57",
 "assets/assets/images/user_profile/user_profile.png": "617cc1b9a125a10347285fb7dfb9d39c",
 "assets/assets/images/yt_tracker/all.png": "ddf3f07d7837197721e8571a864893df",
+"assets/assets/images/yt_tracker/car_1200x800.png": "94b1eb0b3a8c129b128ddd3701433dde",
 "assets/assets/images/yt_tracker/crypto.png": "7928d04dd40b2654cb1d9f971fc29fcf",
 "assets/assets/images/yt_tracker/current_affairs.png": "3eb4af02c9c57c34ca2f17bdac6d9ac9",
 "assets/assets/images/yt_tracker/disliked.png": "f58e3d15145210f52277c41f86abc891",
@@ -60,7 +61,7 @@ const RESOURCES = {"assets/AssetManifest.bin": "b31b761378e0ddceccba00e7353f222b
 "favicon.png": "aa61c0b19e621cecf4646c189cfab221",
 "favicon.svg": "f389abc7848afd594ce4b368cfdb516e",
 "flutter.js": "888483df48293866f9f41d3d9274a779",
-"flutter_bootstrap.js": "35707314be480ad0dd5958ca10200b8f",
+"flutter_bootstrap.js": "e689aca905b4f24f89b8885e3f7029e6",
 "icons/Icon-192.png": "240c35e6f89a1a62556d56a6aaa38999",
 "icons/Icon-512.png": "52f5fe4099f4338efb1289d24a7cdfe0",
 "icons/Icon-maskable-192.png": "d5731d79d8a5c02c0fa1774eb475cefc",

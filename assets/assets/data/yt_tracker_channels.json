@@ -78,5 +78,15 @@
     "url": "https://youtube.com/@marz2370?si=JV1lahVU0kKl9MvR",
     "description": "",
     "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-japanese-zen-music",
+    "name": "藥師寺寛邦",
+    "categoryId": "seed-music",
+    "avatarEmoji": "🎵",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/ZMxNYkxdvVHS0yv5o7YZKWMeemKoA0fUX9RcOVQOAUmvyfrR-45i-Lf2sfZJBMQBN4XxiELmeQ=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://youtube.com/@japanesezenmusic?si=oqiCyzvEdwlaUAuT",
+    "description": "日本佛系音樂家",
+    "addedAt": "2026-09-24T00:00:00.000"
   }
 ]
