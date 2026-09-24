@@ -328,5 +328,15 @@
     "url": "https://www.youtube.com/@zamy_ding",
     "description": "",
     "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-bclowy",
+    "name": "B.C.&Lowy",
+    "categoryId": "seed-entertainment",
+    "avatarEmoji": "📺",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/ytc/AIdro_kN4RbucKt_4o6iSKM-k7mnLRiLEqOg6xPjFMzepzGxHxg=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://youtube.com/@bclowy1?si=OHH0DjnUaPyrdTJd",
+    "description": "",
+    "addedAt": "2026-09-24T00:00:00.000"
   }
 ]
