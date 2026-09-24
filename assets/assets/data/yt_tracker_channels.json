@@ -158,5 +158,25 @@
     "url": "https://youtube.com/@allieallie?si=bvhaqOOOUN-FEZzd",
     "description": "",
     "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-jjaltoon",
+    "name": "短漫",
+    "categoryId": "seed-entertainment",
+    "avatarEmoji": "📺",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/2QHnlfTB3zfeykU-3EI1zhsZy5IEooJpbcIgpALYanbvsMKe0BD0kMPukVOZW9O1E8zNI9Hz=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://youtube.com/@jjaltoon_tw?si=HVYZv7yzFm7yjBJo",
+    "description": "",
+    "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-global-golden-line",
+    "name": "地球黃金線",
+    "categoryId": "seed-cars",
+    "avatarEmoji": "📺",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/9wN55CvFl5yuPwA8-gMTx7HNxQznKoyPYRoMa6q_u-6_5h3oPV_2Zcim-UujZfIwBHSe2UcJ0XA=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://youtube.com/@globalgoldenline?si=rS2wYiXMpK75MiNM",
+    "description": "",
+    "addedAt": "2026-09-24T00:00:00.000"
   }
 ]
