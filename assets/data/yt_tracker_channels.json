@@ -582,10 +582,20 @@
   {
     "id": "seed-rayduenglish",
     "name": "阿滴",
-    "categoryId": "seed-knowledge",
+    "categoryId": "seed-learning",
     "avatarEmoji": "📺",
     "avatarImageUrl": "https://yt3.googleusercontent.com/eeXtTw-TTXzkT-mw-T6XklPuPeJKyrSdIvUPSw-MaCzQzZpvbaYJbb8RmWUn8MUjVCKZGDZQiQ=s160-c-k-c0x00ffffff-no-rj",
     "url": "https://youtube.com/@rayduenglish?si=wF_GTnGFGPEBt8_Q",
+    "description": "",
+    "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-good-car",
+    "name": "阿慈車庫-Dream garage",
+    "categoryId": "seed-cars",
+    "avatarEmoji": "📺",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/4P9HbqarEobipHKn8KSfSqineupmd6TB5rS-tn1iQVtiY-HXZCe20lxJQf0P2kVTlw_hH0EJNQ=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://youtube.com/@good_car?si=SFODZDFeMUYLAm_I",
     "description": "",
     "addedAt": "2026-09-24T00:00:00.000"
   }
