@@ -627,7 +627,29 @@ class _CategoryCardState extends State<_CategoryCard> {
                           padding: const EdgeInsets.only(right: 4),
                           child: YtChannelAvatar(channel: c, radius: 11),
                         ),
-                      if (hasMore)
+                      // 超過顯示上限才出現：黑底「+N」（N＝沒顯示的頻道數）
+                      // 加後面的「⋯」（2026-09-24 使用者要求）。
+                      if (hasMore) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.black,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            '+${all.length - channels.length}',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              height: 1.2,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
                         Text(
                           '⋯',
                           style: TextStyle(
@@ -637,6 +659,7 @@ class _CategoryCardState extends State<_CategoryCard> {
                             color: hasImage ? Colors.white : AppColors.ink2,
                           ),
                         ),
+                      ],
                     ],
                   ),
                 ],
