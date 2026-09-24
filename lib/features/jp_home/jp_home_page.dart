@@ -11,6 +11,7 @@ import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/glass_card.dart';
 import '../../shared/widgets/open_settings.dart';
+import '../../shared/widgets/sakura_petals.dart';
 import '../../shared/widgets/ring_progress.dart';
 import '../../shared/widgets/settings_icon.dart';
 import '../../shared/widgets/stats_icon.dart';
@@ -46,15 +47,18 @@ class JpHomePage extends ConsumerWidget {
           AppColors.jpAmb3,
           AppColors.jpAmb4,
         ],
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: Gap.screenSide),
-            child: async.when(
-              loading: () =>
-                  const Center(child: CircularProgressIndicator.adaptive()),
-              error: (e, _) =>
-                  Center(child: Text('讀不到資料：$e', style: AppText.bodyDim)),
-              data: (state) => _Body(state: state),
+        // 偶爾飄一片櫻花瓣的特效疊在整頁上面（見 [SakuraPetals]）。
+        child: SakuraPetals(
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: Gap.screenSide),
+              child: async.when(
+                loading: () =>
+                    const Center(child: CircularProgressIndicator.adaptive()),
+                error: (e, _) =>
+                    Center(child: Text('讀不到資料：$e', style: AppText.bodyDim)),
+                data: (state) => _Body(state: state),
+              ),
             ),
           ),
         ),

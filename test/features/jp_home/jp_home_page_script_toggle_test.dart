@@ -4,8 +4,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lume/app/providers.dart';
 import 'package:lume/data/storage/key_value_store.dart';
 import 'package:lume/features/jp_home/jp_home_page.dart';
+import 'package:lume/shared/widgets/sakura_petals.dart';
 
 void main() {
+  // 櫻花特效是連續動畫，會讓 pumpAndSettle 永遠等不完。
+  sakuraPetalsEnabled = false;
   // 兩個情境放同一個 testWidgets、共用一次 pumpWidget，不要拆成兩個
   // 各自 pumpWidget 的 test——曾經拆過，兩個各自都能單獨跑過，但
   // 兩個放同一個檔案接連跑，第二個的第一次 pumpAndSettle 就會卡死
