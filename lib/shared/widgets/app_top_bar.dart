@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
+import 'open_settings.dart';
 import 'settings_icon.dart';
 
 /// 全 App 共用的頁面頂部列：左邊固定三條線選單（開抽屜），右邊固定
@@ -75,7 +75,7 @@ class AppTopBar extends StatelessWidget {
         ...actions,
         if (showSettings)
           IconButton(
-            onPressed: () => context.push('/settings'),
+            onPressed: () => openSettings(context),
             icon: const SettingsIcon(size: 20),
             color: AppColors.ink2,
             tooltip: '設定',

@@ -244,14 +244,14 @@ class YoutubeApiService {
           : pageVideos.map((v) => v.publishedAt).reduce(
               (a, b) => a.isBefore(b) ? a : b,
             );
-      final allKnown =
-          knownVideoIds.isNotEmpty &&
-          pageVideos.isNotEmpty &&
-          pageVideos.every((v) => knownVideoIds.contains(v.videoId));
+      // 新到舊排序，這頁只要出現任何一部本機已經有的影片，比它更舊的
+      // 就一定也都有了，不用再翻下一頁（原本要「整頁都已知」才停，
+      // 每次至少多翻一頁、白白多一趟網路來回）。
+      final hitKnown = pageVideos.any((v) => knownVideoIds.contains(v.videoId));
       pageToken = body['nextPageToken'] as String?;
       if (pageToken == null) break;
       if (oldestInPage != null && oldestInPage.isBefore(since)) break;
-      if (allKnown) break;
+      if (hitKnown) break;
     }
     return videos;
   }

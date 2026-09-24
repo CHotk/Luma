@@ -2,16 +2,20 @@ import 'dart:convert';
 
 import '../storage/key_value_store.dart';
 
-/// YouTube API 金鑰現在存 localStorage，但帶「隔天 00:00 就過期」的
-/// 效期——不是永久留著（2026-09-23 使用者決定：原本堅持只存記憶體、
-/// 關分頁就消失，後來覺得每次重整都要重貼太麻煩，改成存本機但每天
-/// 都會自動失效，兩邊各退一步：不用一直重貼，但也不會無限期留著）。
+/// YouTube API 金鑰存 localStorage，帶效期 [validFor]，過了就自動失效
+/// ——不是永久留著（2026-09-23 使用者決定：原本堅持只存記憶體、關分頁
+/// 就消失，後來覺得每次重整都要重貼太麻煩，改成存本機但會自動失效，
+/// 兩邊各退一步）。效期一開始是「隔天 00:00」，2026-09-24 使用者要求
+/// 改成存一週。
 ///
 /// 跟其他 repository 一樣包一層，不要讓畫面層直接戳 [KeyValueStore]。
 class YtApiKeyStore {
   YtApiKeyStore(this._store);
 
   static const _key = 'yt_tracker.api_key.v1';
+
+  /// 從存進去那一刻起算的有效時間。
+  static const validFor = Duration(days: 7);
 
   final KeyValueStore _store;
 
@@ -29,13 +33,9 @@ class YtApiKeyStore {
     return json['key'] as String;
   }
 
-  /// 存金鑰，效期算到「明天 00:00」——不管現在幾點存的，最晚活到明天
-  /// 凌晨，不是存進去那一刻起算滿 24 小時（2026-09-23 使用者原話：
-  /// 「只存24h 超過00:00就銷毀」，取的是「過了 00:00 這個時間點」，
-  /// 不是「滿 24 小時」這個時長）。
+  /// 存金鑰，從現在起算 [validFor]（一週）後失效。
   Future<void> save(String key) async {
-    final now = DateTime.now();
-    final expiresAt = DateTime(now.year, now.month, now.day + 1);
+    final expiresAt = DateTime.now().add(validFor);
     await _store.write(
       _key,
       jsonEncode({'key': key, 'expiresAt': expiresAt.toIso8601String()}),

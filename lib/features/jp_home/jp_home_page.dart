@@ -10,6 +10,7 @@ import '../../domain/time_of_day_label.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/glass_card.dart';
+import '../../shared/widgets/open_settings.dart';
 import '../../shared/widgets/ring_progress.dart';
 import '../../shared/widgets/settings_icon.dart';
 import '../../shared/widgets/stats_icon.dart';
@@ -219,7 +220,7 @@ class _TopBar extends StatelessWidget {
           constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
         ),
         IconButton(
-          onPressed: () => context.push('/settings'),
+          onPressed: () => openSettings(context),
           icon: const SettingsIcon(size: 20, color: AppColors.ink2),
           color: AppColors.ink2,
           tooltip: '設定',

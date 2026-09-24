@@ -112,7 +112,7 @@ final stealthModeProvider = StateProvider<bool>((ref) => false);
 
 /// YouTube API 金鑰。原本堅持只放記憶體、不寫進 localStorage
 /// （2026-09-22），後來使用者覺得每次重新整理都要重貼太麻煩，改成存
-/// `KeyValueStore`／localStorage，但帶「隔天 00:00 就過期」的效期
+/// `KeyValueStore`／localStorage，但帶效期（現在是一週）會自動過期
 /// （2026-09-23 使用者決定，見 `data/repositories/yt_api_key_store.dart`）
 /// ——不是永久留著，兩邊各退一步。這裡的初始值預設是 null，真正「有
 /// 存過、還沒過期」的值是在 `main.dart` 用 `overrideWith` 蓋進來的；

@@ -28,9 +28,25 @@ class YtVideoCacheStore {
         .toList();
   }
 
-  Future<void> save(String channelId, List<YoutubeVideo> videos) =>
-      _store.write(
-        _keyFor(channelId),
-        jsonEncode([for (final v in videos) v.toJson()]),
-      );
+  static String _stampKeyFor(String channelId) =>
+      'yt_tracker.video_cache_at.$channelId.v1';
+
+  /// 上一次「真的跟 YouTube 對過」的時間，沒有就是 null。頻道詳情頁靠
+  /// 這個判斷快取夠不夠新，夠新就完全不打 API、直接用本機資料畫圖
+  /// （2026-09-24 使用者抱怨：資料明明存了，每次進來還是等很久像重抓）。
+  Future<DateTime?> lastFetchedAt(String channelId) async {
+    final raw = await _store.read(_stampKeyFor(channelId));
+    return raw == null ? null : DateTime.tryParse(raw);
+  }
+
+  Future<void> save(String channelId, List<YoutubeVideo> videos) async {
+    await _store.write(
+      _keyFor(channelId),
+      jsonEncode([for (final v in videos) v.toJson()]),
+    );
+    await _store.write(
+      _stampKeyFor(channelId),
+      DateTime.now().toIso8601String(),
+    );
+  }
 }

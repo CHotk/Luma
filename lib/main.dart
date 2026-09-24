@@ -23,7 +23,7 @@ Future<void> main() async {
   AppLog.persistError = errorLog.add;
   AppLog.restore(await errorLog.loadAll());
   final tagOrder = await loadLibraryTagOrder();
-  // 過期（隔天 00:00 之後）就是 null，跟原本沒存過一樣——見
+  // 過期（存進去一週之後）就是 null，跟原本沒存過一樣——見
   // yt_api_key_store.dart 的說明。
   final savedYtApiKey = await YtApiKeyStore(store).load();
   final r2BucketName = await loadR2BucketName();

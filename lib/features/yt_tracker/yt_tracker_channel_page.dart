@@ -44,6 +44,12 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
   /// 進頁面抓過一次就夠，不用時間到就重抓，只有手動按重新整理（跟最近
   /// 影片共用那顆按鈕）才會強制重抓。
   Future<List<YoutubeVideo>>? _historyFuture;
+
+  /// 快取有點舊、背景補抓新影片期間，先拿本機資料把圖畫出來的預覽。
+  List<YoutubeVideo>? _historyPreview;
+
+  /// 快取在這段時間內對過 YouTube 就不再打 API。
+  static const _historyFreshFor = Duration(hours: 6);
   String? _historyLoadedForChannelId;
 
   /// 跟 `yt_tracker_browse_page.dart` 同一個節流理由：不是把影片清單
@@ -135,33 +141,53 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     if (!force && _historyLoadedForChannelId == channel.id) return;
     _historyLoadedForChannelId = channel.id;
     setState(() {
-      _historyFuture = _fetchHistory(channel);
+      _historyPreview = null;
+      _historyFuture = _fetchHistory(channel, force: force);
     });
   }
 
-  Future<List<YoutubeVideo>> _fetchHistory(YtChannel channel) async {
+  Future<List<YoutubeVideo>> _fetchHistory(
+    YtChannel channel, {
+    bool force = false,
+  }) async {
     final apiKey = ref.read(ytApiKeyProvider);
     if (apiKey == null || apiKey.isEmpty) return const [];
-    final service = YoutubeApiService(apiKey);
-    var uploadsId = channel.uploadsPlaylistId;
-    if (uploadsId.isEmpty) {
-      final handle = YoutubeApiService.parseHandle(channel.url);
-      if (handle == null) return const [];
-      final info = await service.fetchChannelInfo(handle);
-      uploadsId = info.uploadsPlaylistId;
-    }
     final now = DateTime.now();
     // 只抓近半年，不是全部歷史——時間範圍固定，不會因為頻道發片多寡
     // 讓等待時間跟配額失控（2026-09-23 使用者要求）。
     final since = DateTime(now.year, now.month - 6, now.day);
 
-    // 本機已經快取過的影片（見 yt_video_cache_store.dart）：翻頁翻到
-    // 整頁都已經在快取裡就會提早停止，之前抓過的影片不會重抓，也不會
-    // 重打一次 fetchDurations（2026-09-23 使用者要求：本機已經有的
-    // 資料不用再往後拿，省配額）。
+    // 本機已經快取過的影片（見 yt_video_cache_store.dart）。
+    // 1. 快取夠新（[_historyFreshFor] 之內對過 YouTube）而且不是使用者
+    //    按重新整理：完全不碰網路，直接用本機資料，圖立刻出來
+    //    （2026-09-24 使用者抱怨：資料明明存了，每次進頁面還是等很久）。
+    // 2. 快取有點舊：先把本機資料畫出來當預覽，背景只補「上次之後新發的
+    //    影片」——翻頁遇到已知影片就停，也不會重打已知影片的時長
+    //    （2026-09-23 使用者要求：本機已經有的資料不用再往後拿，省配額）。
     final cache = YtVideoCacheStore(ref.read(keyValueStoreProvider));
     final cached = await cache.load(channel.id);
     final cachedById = {for (final v in cached) v.videoId: v};
+    final cachedInWindow = cached
+        .where((v) => !v.publishedAt.isBefore(since))
+        .toList()
+      ..sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
+    final lastFetchedAt = await cache.lastFetchedAt(channel.id);
+    final fresh =
+        lastFetchedAt != null &&
+        now.difference(lastFetchedAt) < _historyFreshFor;
+    if (!force && cached.isNotEmpty && fresh) return cachedInWindow;
+    if (cached.isNotEmpty && mounted) {
+      setState(() => _historyPreview = cachedInWindow);
+    }
+
+    final service = YoutubeApiService(apiKey);
+    var uploadsId = channel.uploadsPlaylistId;
+    if (uploadsId.isEmpty) {
+      final handle = YoutubeApiService.parseHandle(channel.url);
+      if (handle == null) return cachedInWindow;
+      final info = await service.fetchChannelInfo(handle);
+      uploadsId = info.uploadsPlaylistId;
+    }
 
     final fetched = await service.fetchAllVideos(
       uploadsId,
@@ -199,7 +225,11 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     // 過濾在 since 窗口內，落地存回去給下次用。
     final merged = {
       for (final v in cached) v.videoId: v,
-      for (final v in withDurations) v.videoId: v,
+      // 這次翻頁又翻到的已知影片沒帶時長，別把快取裡已有的時長蓋成 null。
+      for (final v in withDurations)
+        v.videoId: v.duration == null && cachedById[v.videoId]?.duration != null
+            ? cachedById[v.videoId]!
+            : v,
     }.values.where((v) => !v.publishedAt.isBefore(since)).toList()
       ..sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
     await cache.save(channel.id, merged);
@@ -219,6 +249,12 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
       future: _historyFuture,
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
+          // 背景補抓新影片期間，先用本機快取把圖畫出來，不讓使用者對著
+          // 轉圈圈乾等。
+          final preview = _historyPreview;
+          if (preview != null) {
+            return UploadFrequencyChart(data: bucketVideosByMonth(preview));
+          }
           return const SizedBox(
             height: 160,
             child: Center(child: CircularProgressIndicator.adaptive()),

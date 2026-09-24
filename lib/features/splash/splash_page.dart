@@ -62,7 +62,15 @@ class _SplashPageState extends ConsumerState<SplashPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const LumeMark(size: 96),
+              // App 圖示（使用者換上的 logo，2026-09-24），讀不到就退回原本畫
+              // 出來的標誌。
+              Image.asset(
+                'assets/images/app_logo/logo.png',
+                width: 120,
+                height: 120,
+                errorBuilder: (context, error, stack) =>
+                    const LumeMark(size: 96),
+              ),
               const SizedBox(height: 14),
               const Text(
                 'Lume',
