@@ -76,5 +76,11 @@
     "name": "生活",
     "color": 4294100075,
     "imageUrl": "assets/images/yt_tracker/life.png"
+  },
+  {
+    "id": "seed-unboxing",
+    "name": "開箱",
+    "color": 4293431898,
+    "imageUrl": "assets/images/yt_tracker/unboxing.png"
   }
 ]
