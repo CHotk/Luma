@@ -248,5 +248,15 @@
     "url": "https://youtube.com/@laoming?si=CDeW6KYs46p0-Up3",
     "description": "",
     "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-linvo",
+    "name": "Linvo說宇宙",
+    "categoryId": "seed-knowledge",
+    "avatarEmoji": "📺",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/ZZzKOlVhacSQwYLS21zXWHdLADgsW_4mg2ForX6jce0KXTtINsSZNSzY_CgoW3dlRdDzjndx=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://youtube.com/@linvo?si=rNZisirgEkKuP-8-",
+    "description": "",
+    "addedAt": "2026-09-24T00:00:00.000"
   }
 ]
