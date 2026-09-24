@@ -298,5 +298,15 @@
     "url": "https://youtube.com/@spacenw?si=OEBHUpSC_hdzP0Qe",
     "description": "",
     "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-amazingtalker",
+    "name": "AmazingTalker - 1 對 1 線上家教平台",
+    "categoryId": "seed-current-affairs",
+    "avatarEmoji": "📺",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/zfQL8OGcpFfYHoJekRvWPAGaGq9Uv2qyWSWpo3YZk5ZMXPmRoWtcQyug9LXZKIJD1zEYQnwW=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://youtube.com/@amazingtalker?si=ubxuXnsl5GQNo4Gn",
+    "description": "",
+    "addedAt": "2026-09-24T00:00:00.000"
   }
 ]
