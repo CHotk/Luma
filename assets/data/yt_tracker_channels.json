@@ -568,5 +568,15 @@
     "url": "https://youtube.com/@smalleyes_cryptosmc?si=_0j47UIKBVrJPgQh",
     "description": "",
     "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-ehpmusicchannelii",
+    "name": "EHPMusicChannel",
+    "categoryId": "seed-music",
+    "avatarEmoji": "📺",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/137HioghAwb0qn-BudjF32mgLwmUIxNHWTu2Ju4gfSmRK2tcGxYMMaVrrPBlCyQgxlwFu6tM=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://youtube.com/@ehpmusicchannelii?si=xNQCYG2FjeppiDIs",
+    "description": "",
+    "addedAt": "2026-09-24T00:00:00.000"
   }
 ]
