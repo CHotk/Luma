@@ -9,6 +9,7 @@ import '../../data/cloud/r2_client.dart';
 import '../../data/cloud/r2_credentials_store.dart';
 import '../../data/cloud/r2_sync_service.dart';
 import '../../data/export/device_label.dart';
+import '../../data/repositories/yt_video_cache_store.dart';
 import '../../shared/debug/app_log.dart';
 import '../../domain/models/sync_log_entry.dart';
 import '../../shared/widgets/app_notice.dart';
@@ -181,6 +182,11 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
         ref.read(ytTrackerRepositoryProvider),
         onPhase: _phaseCallback((p) => _ytPhase = p),
       );
+      // 頻道詳情頁上傳頻率圖用的歷史影片快取，每個頻道一份，跟著一起同步。
+      final ytVideoResult = await service.syncYtVideoCache(
+        YtVideoCacheStore(ref.read(keyValueStoreProvider)),
+        await ref.read(ytTrackerRepositoryProvider).loadChannels(),
+      );
       if (mounted) setState(() => _ytPhase = _FeaturePhase.done);
 
       final now = DateTime.now();
@@ -196,7 +202,8 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
           detail:
               '日記 上傳${diaryResult.uploaded}／下載${diaryResult.downloaded}；'
               '健身 上傳${fitnessResult.uploaded}／下載${fitnessResult.downloaded}；'
-              'YT頻道 上傳${ytResult.uploaded}／下載${ytResult.downloaded}',
+              'YT頻道 上傳${ytResult.uploaded}／下載${ytResult.downloaded}；'
+              'YT影片快取 上傳${ytVideoResult.uploaded}／下載${ytVideoResult.downloaded}',
         ),
       );
       try {

@@ -31,12 +31,51 @@ class YtVideoCacheStore {
   static String _stampKeyFor(String channelId) =>
       'yt_tracker.video_cache_at.$channelId.v1';
 
-  /// 上一次「真的跟 YouTube 對過」的時間，沒有就是 null。頻道詳情頁靠
-  /// 這個判斷快取夠不夠新，夠新就完全不打 API、直接用本機資料畫圖
-  /// （2026-09-24 使用者抱怨：資料明明存了，每次進來還是等很久像重抓）。
+  /// 上一次「真的跟 YouTube 對過」的時間，沒有就是 null。目前只是記錄、
+  /// 跟著同步，不拿來擋 API——頻道隨時可能發新片，不設「多久內不重抓」
+  /// （2026-09-24 使用者要求）。
   Future<DateTime?> lastFetchedAt(String channelId) async {
     final raw = await _store.read(_stampKeyFor(channelId));
     return raw == null ? null : DateTime.tryParse(raw);
+  }
+
+  /// 把雲端抓下來的快取併進本機（2026-09-24 使用者要求：資料都該可同步）。
+  /// 聯集：同一部影片兩邊都有就留有時長的那份（時長是額外打 API 才補上
+  /// 的，別被沒補到的版本蓋掉）；「上次對過 YouTube 的時間」取兩邊較晚
+  /// 的（純記錄，不拿來擋 API）。回傳本機實際變動幾部影片。
+  Future<int> mergeFromCloud(
+    String channelId,
+    List<YoutubeVideo> cloud,
+    DateTime? cloudFetchedAt,
+  ) async {
+    final local = await load(channelId);
+    final byId = {for (final v in local) v.videoId: v};
+    var changed = 0;
+    for (final v in cloud) {
+      final existing = byId[v.videoId];
+      if (existing == null) {
+        byId[v.videoId] = v;
+        changed++;
+      } else if (existing.duration == null && v.duration != null) {
+        byId[v.videoId] = v;
+        changed++;
+      }
+    }
+    final localAt = await lastFetchedAt(channelId);
+    final newest = [localAt, cloudFetchedAt].whereType<DateTime>().fold<DateTime?>(
+      null,
+      (a, b) => a == null || b.isAfter(a) ? b : a,
+    );
+    if (changed > 0) {
+      await _store.write(
+        _keyFor(channelId),
+        jsonEncode([for (final v in byId.values) v.toJson()]),
+      );
+    }
+    if (newest != null && newest != localAt) {
+      await _store.write(_stampKeyFor(channelId), newest.toIso8601String());
+    }
+    return changed;
   }
 
   Future<void> save(String channelId, List<YoutubeVideo> videos) async {

@@ -47,9 +47,6 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
 
   /// 快取有點舊、背景補抓新影片期間，先拿本機資料把圖畫出來的預覽。
   List<YoutubeVideo>? _historyPreview;
-
-  /// 快取在這段時間內對過 YouTube 就不再打 API。
-  static const _historyFreshFor = Duration(hours: 6);
   String? _historyLoadedForChannelId;
 
   /// 跟 `yt_tracker_browse_page.dart` 同一個節流理由：不是把影片清單
@@ -142,14 +139,11 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     _historyLoadedForChannelId = channel.id;
     setState(() {
       _historyPreview = null;
-      _historyFuture = _fetchHistory(channel, force: force);
+      _historyFuture = _fetchHistory(channel);
     });
   }
 
-  Future<List<YoutubeVideo>> _fetchHistory(
-    YtChannel channel, {
-    bool force = false,
-  }) async {
+  Future<List<YoutubeVideo>> _fetchHistory(YtChannel channel) async {
     final apiKey = ref.read(ytApiKeyProvider);
     if (apiKey == null || apiKey.isEmpty) return const [];
     final now = DateTime.now();
@@ -157,13 +151,13 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     // 讓等待時間跟配額失控（2026-09-23 使用者要求）。
     final since = DateTime(now.year, now.month - 6, now.day);
 
-    // 本機已經快取過的影片（見 yt_video_cache_store.dart）。
-    // 1. 快取夠新（[_historyFreshFor] 之內對過 YouTube）而且不是使用者
-    //    按重新整理：完全不碰網路，直接用本機資料，圖立刻出來
-    //    （2026-09-24 使用者抱怨：資料明明存了，每次進頁面還是等很久）。
-    // 2. 快取有點舊：先把本機資料畫出來當預覽，背景只補「上次之後新發的
-    //    影片」——翻頁遇到已知影片就停，也不會重打已知影片的時長
-    //    （2026-09-23 使用者要求：本機已經有的資料不用再往後拿，省配額）。
+    // 本機已經快取過的影片（見 yt_video_cache_store.dart）。頻道隨時
+    // 可能發新片（10 秒、5 分鐘、15 分鐘都有可能），所以**不設**「多久內
+    // 不用重抓」的時間限制，每次進頁面都補抓一次；但不讓使用者乾等——
+    // 先把本機（含其他裝置同步過來的）資料畫出來當預覽，背景只補「上次
+    // 之後新發的影片」：翻頁遇到已知影片就停（通常只要 1 次 API 呼叫），
+    // 也不會重打已知影片的時長（2026-09-23 使用者要求：本機已經有的資料
+    // 不用再往後拿，省配額）。
     final cache = YtVideoCacheStore(ref.read(keyValueStoreProvider));
     final cached = await cache.load(channel.id);
     final cachedById = {for (final v in cached) v.videoId: v};
@@ -171,11 +165,6 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
         .where((v) => !v.publishedAt.isBefore(since))
         .toList()
       ..sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
-    final lastFetchedAt = await cache.lastFetchedAt(channel.id);
-    final fresh =
-        lastFetchedAt != null &&
-        now.difference(lastFetchedAt) < _historyFreshFor;
-    if (!force && cached.isNotEmpty && fresh) return cachedInWindow;
     if (cached.isNotEmpty && mounted) {
       setState(() => _historyPreview = cachedInWindow);
     }

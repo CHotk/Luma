@@ -7,6 +7,8 @@ import '../repositories/diary_repository.dart';
 import '../../domain/models/sync_log_entry.dart';
 import '../../domain/models/yt_tracker.dart';
 import '../repositories/yt_tracker_repository.dart';
+import '../repositories/yt_video_cache_store.dart';
+import '../services/youtube_api_service.dart';
 import '../../shared/debug/app_log.dart';
 import '../repositories/error_log_repository.dart';
 import '../repositories/fitness_repository.dart';
@@ -181,6 +183,55 @@ class R2SyncService {
     return (downloaded: downloaded, uploaded: uploaded);
   }
 
+  /// YT 上傳頻率圖用的歷史影片快取也同步（2026-09-24 使用者要求：資料
+  /// 都該可同步）。一個頻道一個 R2 檔（`yt_video_cache/<頻道id>.json`，
+  /// 內容 `{fetchedAt, videos}`），不塞成一份大檔，每次只動有變的頻道。
+  /// 下載聯集合併→本機比雲端多東西才上傳。回傳影片部數（不是頻道數）。
+  Future<({int downloaded, int uploaded})> syncYtVideoCache(
+    YtVideoCacheStore cache,
+    List<YtChannel> channels,
+  ) async {
+    var downloaded = 0;
+    var uploaded = 0;
+    for (final channel in channels) {
+      final key = 'yt_video_cache/${channel.id}.json';
+      final bytes = await _client.getObject(key);
+      var cloudVideos = <YoutubeVideo>[];
+      DateTime? cloudAt;
+      if (bytes != null) {
+        final decoded = jsonDecode(utf8.decode(bytes)) as Map<String, dynamic>;
+        cloudAt = DateTime.tryParse(decoded['fetchedAt'] as String? ?? '');
+        cloudVideos = (decoded['videos'] as List)
+            .cast<Map<String, dynamic>>()
+            .map(YoutubeVideo.fromJson)
+            .toList();
+        downloaded += await cache.mergeFromCloud(channel.id, cloudVideos, cloudAt);
+      }
+
+      final local = await cache.load(channel.id);
+      if (local.isEmpty) continue;
+      final localAt = await cache.lastFetchedAt(channel.id);
+      final cloudById = {for (final v in cloudVideos) v.videoId: v};
+      final diff = [
+        for (final v in local)
+          if (cloudById[v.videoId] == null ||
+              (cloudById[v.videoId]!.duration == null && v.duration != null))
+            v,
+      ];
+      final needsUpload = bytes == null || diff.isNotEmpty || localAt != cloudAt;
+      if (!needsUpload) continue;
+      uploaded += diff.length;
+      final body = utf8.encode(
+        jsonEncode({
+          'fetchedAt': localAt?.toIso8601String(),
+          'videos': [for (final v in local) v.toJson()],
+        }),
+      );
+      await _client.putObject(key, Uint8List.fromList(body));
+    }
+    return (downloaded: downloaded, uploaded: uploaded);
+  }
+
   Future<List<SyncLogEntry>> _fetchCloudLog() async {
     final bytes = await _client.getObject('sync_log.json');
     if (bytes == null) return const [];
@@ -241,6 +292,12 @@ class R2SyncService {
     final ytChannels = await _fetchCloudYtChannels();
     final log = await _fetchCloudLog();
     final errorLog = await _fetchCloudErrorLog();
+    // 影片快取一個頻道一個檔，跟頻道清單對著逐一抓。
+    final ytVideoCache = <String, Object?>{};
+    for (final c in ytChannels.where((c) => c.deletedAt == null)) {
+      final bytes = await _client.getObject('yt_video_cache/${c.id}.json');
+      if (bytes != null) ytVideoCache[c.id] = jsonDecode(utf8.decode(bytes));
+    }
     const encoder = JsonEncoder.withIndent('  ');
     final json = encoder.convert({
       'exportedAt': DateTime.now().toIso8601String(),
@@ -248,6 +305,7 @@ class R2SyncService {
       'fitness': [for (final e in fitness) e.toJson()],
       'ytCategories': [for (final e in ytCategories) e.toJson()],
       'ytChannels': [for (final e in ytChannels) e.toJson()],
+      'ytVideoCache': ytVideoCache,
       'syncLog': [for (final e in log) e.toJson()],
       'errorLog': [for (final e in errorLog) e.toJson()],
     });
