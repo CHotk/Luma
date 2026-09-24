@@ -378,5 +378,75 @@
     "url": "https://youtube.com/@blockchaindailynews?si=833_RWJcEfn82V-W",
     "description": "",
     "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-kolunitevip",
+    "name": "Kolunite社区",
+    "categoryId": "seed-crypto",
+    "avatarEmoji": "📺",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/Gpi1KIDI7NLttoPcYdpK0eOcs-7sM47xxYfyP7MSZNskfdHZNSQWPLMXn4hMfownRlivHYS1dg=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://youtube.com/@kolunitevip?si=c2yP8ER6ju72Hhm9",
+    "description": "",
+    "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-cakebaba",
+    "name": "CakeBaBa",
+    "categoryId": "seed-crypto",
+    "avatarEmoji": "📺",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/6ibCkTlYCbi3aSz4MU3w4Z5Tr4wkbKs_SAaLAlkHP8CM6xFpUkzLe4mtqYnVxrdQ6TZCAEgH=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://youtube.com/@cakebaba?si=BVG7Jlkhx_tHT9Cd",
+    "description": "",
+    "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-crypto-punks",
+    "name": "加密龐克",
+    "categoryId": "seed-crypto",
+    "avatarEmoji": "📺",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/AMm4ThdgICJpIpHBvaTqE7MI02CGFtEOAGlVoUeCd9lEovcQ4HPLHDt1J8FoJIlVHVkns9q4mg=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://youtube.com/@crypto_punks?si=Y7RTiKUgjB8smywL",
+    "description": "",
+    "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-yuriblockchain",
+    "name": "優里區塊鏈 Yuri Blockchain",
+    "categoryId": "seed-crypto",
+    "avatarEmoji": "📺",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/4lDxGMT5Ej81Hpx0jl7e8RMVuP3H4Mw7rrXwfeSZhWiTkluXaK_GB7YPTI7cyPOSUN2EBtvcjtg=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://youtube.com/@yuriblockchain?si=9-ov9-x703M0BPZ0",
+    "description": "",
+    "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-gongyouchai",
+    "name": "龔有柴-比特币老玩家",
+    "categoryId": "seed-crypto",
+    "avatarEmoji": "📺",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/64YD_42WOy5jiqlc9Y4VzW1-Okof5hMRKKoLtK1kuCsx_bR8kOeZU_bMq_KPkiI45R2iQWsZDw=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://youtube.com/@gongyouchai?si=xgDmZNR0NLDKbe_K",
+    "description": "",
+    "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-traderchenge",
+    "name": "TraderChenge",
+    "categoryId": "seed-crypto",
+    "avatarEmoji": "📺",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/YYrD3vLyj-pn8WCH1UBFSh3-f_vW7_qwywomZTpQm-hF3XuDbKuvBwbZKx9k0ErYJr_HMpv3=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://youtube.com/@traderchenge?si=gDS31_Wyp8AKfcG-",
+    "description": "",
+    "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-brainbrocrypto",
+    "name": "腦哥 Chill塊鏈",
+    "categoryId": "seed-crypto",
+    "avatarEmoji": "📺",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/ytc/AIdro_lhPNbGbpbGd6cHcUVc01gedGOZTCxMISdfRKOu9BxaDA=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://youtube.com/@brainbrocrypto?si=CliLeieKDJob8AEs",
+    "description": "",
+    "addedAt": "2026-09-24T00:00:00.000"
   }
 ]
