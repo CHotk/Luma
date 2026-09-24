@@ -430,7 +430,7 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
             return UploadFrequencyChart(data: bucketVideosByMonth(preview));
           }
           return const SizedBox(
-            height: 160,
+            height: 110,
             child: Center(child: CircularProgressIndicator.adaptive()),
           );
         }
@@ -868,7 +868,14 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                           const SizedBox(height: Gap.md),
                           Row(
                             children: [
-                              const PanelLabel('最近影片'),
+                              const Text(
+                                '最近影片',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.ink,
+                                ),
+                              ),
                               const Spacer(),
                               TextButton.icon(
                                 onPressed: () {

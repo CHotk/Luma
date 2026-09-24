@@ -63,7 +63,7 @@ class UploadFrequencyChart extends StatefulWidget {
   final List<MonthlyUploadCount> data;
 
   static const _minPxPerMonth = 34.0;
-  static const _height = 176.0;
+  static const _height = 110.0;
 
   @override
   State<UploadFrequencyChart> createState() => _UploadFrequencyChartState();
