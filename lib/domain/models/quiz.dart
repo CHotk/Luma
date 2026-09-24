@@ -95,8 +95,6 @@ class RoundResult {
 
   /// 已掌握的回考題有幾題，跟 [countOf] 分開算。
   int masteredCount({required bool correctOnly}) => answers
-      .where(
-        (a) => a.question.isMasteredReview && (!correctOnly || a.correct),
-      )
+      .where((a) => a.question.isMasteredReview && (!correctOnly || a.correct))
       .length;
 }

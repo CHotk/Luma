@@ -61,7 +61,8 @@ class RulesConfig {
 
   /// 真正沒考過的字要出幾題。剩下的位置扣掉句型之後才是新字。
   int get freshPerRound {
-    final fresh = roundSize - pendingPerRound - masteredPerRound - sentencePerRound;
+    final fresh =
+        roundSize - pendingPerRound - masteredPerRound - sentencePerRound;
     return fresh < 0 ? 0 : fresh;
   }
 
@@ -168,8 +169,7 @@ class RulesConfig {
       pendingCandidatePoolSize:
           json['pendingCandidatePoolSize'] as int? ??
           d.pendingCandidatePoolSize,
-      sentencePerRound:
-          json['sentencePerRound'] as int? ?? d.sentencePerRound,
+      sentencePerRound: json['sentencePerRound'] as int? ?? d.sentencePerRound,
     );
   }
 }

@@ -31,8 +31,15 @@ class AppSideDrawer extends StatelessWidget {
     final isFitness = location.startsWith('/fitness');
     final isDebugLog = location.startsWith('/debug-log');
     final isSync = location.startsWith('/sync');
+    final isCryptoWatch = location.startsWith('/crypto-watch');
     final isLanguage =
-        !isHome && !isDiary && !isYtTracker && !isFitness && !isDebugLog && !isSync;
+        !isHome &&
+        !isDiary &&
+        !isYtTracker &&
+        !isFitness &&
+        !isDebugLog &&
+        !isSync &&
+        !isCryptoWatch;
 
     return Drawer(
       width: 270,
@@ -141,6 +148,15 @@ class AppSideDrawer extends StatelessWidget {
                     onTap: () {
                       Navigator.of(context).pop();
                       if (!isFitness) context.go('/fitness');
+                    },
+                  ),
+                  _NavItem(
+                    icon: Icons.candlestick_chart_outlined,
+                    label: '看盤記錄',
+                    active: isCryptoWatch,
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      if (!isCryptoWatch) context.go('/crypto-watch');
                     },
                   ),
                   const Padding(

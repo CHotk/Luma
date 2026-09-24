@@ -167,7 +167,11 @@ class Word {
   static List<String> parseTags(String? raw) {
     final text = raw?.trim() ?? '';
     if (text.isEmpty || text == '-') return const [];
-    return text.split('、').map((t) => t.trim()).where((t) => t.isNotEmpty).toList();
+    return text
+        .split('、')
+        .map((t) => t.trim())
+        .where((t) => t.isNotEmpty)
+        .toList();
   }
 
   /// 從沒被考過的字。出新題時只從這裡面挑。

@@ -59,12 +59,10 @@ class YtTrackerBrowsePage extends ConsumerStatefulWidget {
 class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
   late Future<({List<YtCategory> categories, List<YtChannel> channels})> _future;
   late final Set<String> _selected = {...widget.initialCategoryIds};
-  // 點進分類預設「依影片顯示」，切換鈕也是影片在左、頻道在右（2026-09-24
-  // 使用者要求）。但從首頁「全部」進來（沒有指定分類）改成先顯示頻道列表：
-  // 全部頻道一起抓影片要轉很久、體驗很差，要看影片自己再切過去。
-  late _ViewMode _mode = widget.initialCategoryIds.isEmpty
-      ? _ViewMode.channel
-      : _ViewMode.video;
+  // 每個分類（含「全部」）點進去都預設「依頻道顯示」（2026-09-24 使用者
+  // 要求；之前分類預設依影片，但一進去就要抓影片，太慢）。切換鈕維持
+  // 影片在左、頻道在右，要看影片自己再切。
+  _ViewMode _mode = _ViewMode.channel;
   _TypeFilter _typeFilter = _TypeFilter.all;
   _ChannelSort _sort = _ChannelSort.normal;
 

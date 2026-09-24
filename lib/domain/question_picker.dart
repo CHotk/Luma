@@ -64,7 +64,9 @@ class QuestionPicker {
             .take(rules.pendingCandidatePoolSize)
             .toList()
           ..shuffle(_random);
-    pending.addAll(pendingCandidates.take(rules.pendingPerRound - pending.length));
+    pending.addAll(
+      pendingCandidates.take(rules.pendingPerRound - pending.length),
+    );
 
     final mastered = masteredPool.take(rules.masteredPerRound).toList();
     final fresh = freshPool
@@ -76,7 +78,11 @@ class QuestionPicker {
     // 上面算 fresh 時已經把 sentences 的缺額算進去了，新字會自動多補一題，
     // 這個名額本來就是從新字挪過去的，缺額退回去很自然。
     int shortfall() =>
-        target - pending.length - mastered.length - fresh.length - sentences.length;
+        target -
+        pending.length -
+        mastered.length -
+        fresh.length -
+        sentences.length;
 
     if (shortfall() > 0) {
       // 補額不用再隨機，直接照優先順序拿剩下最需要練的，
@@ -148,7 +154,10 @@ class QuestionPicker {
   /// 所以先洗牌再取。
   List<Word> _freshPool(List<Word> all) =>
       all
-          .where((w) => !_isSentence(w) && w.statusWith(rules) == WordStatus.untested)
+          .where(
+            (w) =>
+                !_isSentence(w) && w.statusWith(rules) == WordStatus.untested,
+          )
           .toList()
         ..shuffle(_random);
 
@@ -164,7 +173,9 @@ class QuestionPicker {
   /// 不然同一個字會一直霸著候選池的前段。
   List<Word> _pendingPool(List<Word> all) =>
       all
-          .where((w) => !_isSentence(w) && w.statusWith(rules) == WordStatus.pending)
+          .where(
+            (w) => !_isSentence(w) && w.statusWith(rules) == WordStatus.pending,
+          )
           .toList()
         ..sort(_byRightNeededDesc);
 
@@ -172,28 +183,38 @@ class QuestionPicker {
   /// 只有在新字和待複習都用完時才會動到這批。
   List<Word> _confirmedPool(List<Word> all) =>
       all
-          .where((w) => !_isSentence(w) && w.statusWith(rules) == WordStatus.confirmed)
+          .where(
+            (w) =>
+                !_isSentence(w) && w.statusWith(rules) == WordStatus.confirmed,
+          )
           .toList()
         ..sort(_byOldestLastTestFirst);
 
   /// 句型版的待複習池，規則跟 [_pendingPool] 一模一樣，只是只看句型。
   List<Word> _sentencePendingPool(List<Word> all) =>
       all
-          .where((w) => _isSentence(w) && w.statusWith(rules) == WordStatus.pending)
+          .where(
+            (w) => _isSentence(w) && w.statusWith(rules) == WordStatus.pending,
+          )
           .toList()
         ..sort(_byRightNeededDesc);
 
   /// 句型版的新字池，規則跟 [_freshPool] 一模一樣，只是只看句型。
   List<Word> _sentenceFreshPool(List<Word> all) =>
       all
-          .where((w) => _isSentence(w) && w.statusWith(rules) == WordStatus.untested)
+          .where(
+            (w) => _isSentence(w) && w.statusWith(rules) == WordStatus.untested,
+          )
           .toList()
         ..shuffle(_random);
 
   /// 句型版的已掌握池，規則跟 [_confirmedPool] 一模一樣，只是只看句型。
   List<Word> _sentenceConfirmedPool(List<Word> all) =>
       all
-          .where((w) => _isSentence(w) && w.statusWith(rules) == WordStatus.confirmed)
+          .where(
+            (w) =>
+                _isSentence(w) && w.statusWith(rules) == WordStatus.confirmed,
+          )
           .toList()
         ..sort(_byOldestLastTestFirst);
 

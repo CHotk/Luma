@@ -1,4 +1,6 @@
 import 'package:go_router/go_router.dart';
+import '../features/crypto_watch/crypto_watch_page.dart';
+import '../features/crypto_watch/crypto_watch_stats_page.dart';
 import '../features/app_home/app_home_page.dart';
 
 import '../features/diary/diary_page.dart';
@@ -38,6 +40,11 @@ final appRouter = GoRouter(
   initialLocation: '/',
   routes: [
     GoRoute(path: '/', builder: (_, _) => const SplashPage()),
+    GoRoute(path: '/crypto-watch', builder: (_, _) => const CryptoWatchPage()),
+    GoRoute(
+      path: '/crypto-watch/stats',
+      builder: (_, _) => const CryptoWatchStatsPage(),
+    ),
     GoRoute(path: '/start', builder: (_, _) => const AppHomePage()),
     GoRoute(path: '/home', builder: (_, _) => const HomePage()),
     GoRoute(path: '/jp-home', builder: (_, _) => const JpHomePage()),

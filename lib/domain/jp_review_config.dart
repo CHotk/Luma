@@ -33,8 +33,7 @@ class JpReviewConfig {
           json['jpDailyMinutesTarget'] as int? ?? d.dailyMinutesTarget,
       masteryPracticeCount:
           json['jpMasteryPracticeCount'] as int? ?? d.masteryPracticeCount,
-      reviewStaleDays:
-          json['jpReviewStaleDays'] as int? ?? d.reviewStaleDays,
+      reviewStaleDays: json['jpReviewStaleDays'] as int? ?? d.reviewStaleDays,
     );
   }
 }

@@ -61,6 +61,12 @@ class AppHomePage extends ConsumerWidget {
         route: '/fitness',
       ),
       const _HomeItem(
+        label: '看盤記錄',
+        icon: Icons.candlestick_chart_outlined,
+        color: Color(0xFFF7931A),
+        route: '/crypto-watch',
+      ),
+      const _HomeItem(
         label: '多裝置同步',
         icon: Icons.cloud_sync_outlined,
         color: Color(0xFF7ED6D0),

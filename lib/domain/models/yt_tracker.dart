@@ -137,6 +137,7 @@ class YtChannel {
       final t = v.toStringAsFixed(1);
       return t.endsWith('.0') ? t.substring(0, t.length - 2) : t;
     }
+
     if (n >= 100000000) return '約 ${trim(n / 100000000)} 億位訂閱';
     if (n >= 10000) return '約 ${trim(n / 10000)} 萬位訂閱';
     return '$n 位訂閱';
@@ -209,11 +210,8 @@ class YtChannel {
   }
 
   /// 所屬分類被刪掉時，頻道改成「未分類」。
-  YtChannel withoutCategory() => _copy(
-    categoryId: null,
-    updatedAt: DateTime.now(),
-    deletedAt: deletedAt,
-  );
+  YtChannel withoutCategory() =>
+      _copy(categoryId: null, updatedAt: DateTime.now(), deletedAt: deletedAt);
 
   /// [avatarImageUrl] 沒填、或圖片載入失敗時的退回佔位。
   final String avatarEmoji;

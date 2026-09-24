@@ -59,6 +59,7 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
   _FeaturePhase _kanaPracticePhase = _FeaturePhase.idle;
   _FeaturePhase _kanaExamPhase = _FeaturePhase.idle;
   _FeaturePhase _englishPhase = _FeaturePhase.idle;
+  _FeaturePhase _cryptoWatchPhase = _FeaturePhase.idle;
   _FeaturePhase _syncLogPhase = _FeaturePhase.idle;
   _FeaturePhase _errorLogPhase = _FeaturePhase.idle;
 
@@ -171,6 +172,7 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
       _kanaPracticePhase = _FeaturePhase.idle;
       _kanaExamPhase = _FeaturePhase.idle;
       _englishPhase = _FeaturePhase.idle;
+      _cryptoWatchPhase = _FeaturePhase.idle;
       _syncLogPhase = _FeaturePhase.idle;
       _errorLogPhase = _FeaturePhase.idle;
       _results.clear();
@@ -247,6 +249,14 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
       _record('英文單字紀錄', englishResult);
       if (mounted) setState(() => _englishPhase = _FeaturePhase.done);
 
+      stage = '看盤記錄';
+      final cryptoWatchResult = await service.syncCryptoWatch(
+        ref.read(cryptoWatchRepositoryProvider),
+        onPhase: _phaseCallback((p) => _cryptoWatchPhase = p),
+      );
+      _record('看盤記錄', cryptoWatchResult);
+      if (mounted) setState(() => _cryptoWatchPhase = _FeaturePhase.done);
+
       final now = DateTime.now();
       await ref
           .read(keyValueStoreProvider)
@@ -264,7 +274,8 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
               'YT影片快取 上傳${ytVideoResult.uploaded}／下載${ytVideoResult.downloaded}；'
               '五十音練習 上傳${kanaPracticeResult.uploaded}／下載${kanaPracticeResult.downloaded}；'
               '五十音考試 上傳${kanaExamResult.uploaded}／下載${kanaExamResult.downloaded}；'
-              '英文單字紀錄 上傳${englishResult.uploaded}／下載${englishResult.downloaded}',
+              '英文單字紀錄 上傳${englishResult.uploaded}／下載${englishResult.downloaded}；'
+              '看盤記錄 上傳${cryptoWatchResult.uploaded}／下載${cryptoWatchResult.downloaded}',
         ),
       );
       stage = '同步紀錄／錯誤日誌';
@@ -365,6 +376,11 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
         _FeatureStatusRow(label: '五十音練習', phase: _kanaPracticePhase, result: _results['五十音練習']),
         _FeatureStatusRow(label: '五十音考試', phase: _kanaExamPhase, result: _results['五十音考試']),
         _FeatureStatusRow(label: '英文單字紀錄', phase: _englishPhase, result: _results['英文單字紀錄']),
+        _FeatureStatusRow(
+          label: '看盤記錄',
+          phase: _cryptoWatchPhase,
+          result: _results['看盤記錄'],
+        ),
         // 同步紀錄、錯誤日誌本身也是要同步的資料，一樣列出來
         // （2026-09-24 使用者要求）。
         _FeatureStatusRow(label: '同步紀錄', phase: _syncLogPhase, result: _results['同步紀錄']),

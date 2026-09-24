@@ -83,7 +83,9 @@ class KanaPracticeEntry {
     'deletedAt': deletedAt?.toIso8601String(),
     'strokes': [
       for (final stroke in strokes)
-        [for (final p in stroke) [p.$1, p.$2, p.$3]],
+        [
+          for (final p in stroke) [p.$1, p.$2, p.$3],
+        ],
     ],
   };
 

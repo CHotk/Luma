@@ -16,6 +16,7 @@ import '../../data/repositories/yt_tracker_repository.dart';
 import '../../data/seed/seed_merge.dart';
 import '../../data/seed/yt_tracker_seed_loader.dart';
 import '../../domain/models/yt_tracker.dart';
+import '../../shared/text/zh_normalize.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_notice.dart';
 import '../../shared/widgets/app_side_drawer.dart';
@@ -404,7 +405,7 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
                           : channels
                                 // 只比對頻道名稱：網址（含分享連結的 ?si= 亂碼）跟簡介
                                 // 也比對的話，打一個字母會冒出一堆名字不含它的頻道。
-                                .where((c) => c.name.toLowerCase().contains(q))
+                                .where((c) => zhContains(c.name, q))
                                 .toList();
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,

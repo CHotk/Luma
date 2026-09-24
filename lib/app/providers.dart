@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/cloud/r2_client.dart';
+import '../data/repositories/crypto_watch_repository.dart';
 import '../data/repositories/diary_repository.dart';
 import '../data/repositories/error_log_repository.dart';
 import '../data/repositories/fitness_repository.dart';
@@ -59,6 +60,10 @@ final diaryRepositoryProvider = Provider<DiaryRepository>(
 
 final ytTrackerRepositoryProvider = Provider<YtTrackerRepository>(
   (ref) => YtTrackerRepository(ref.watch(keyValueStoreProvider)),
+);
+
+final cryptoWatchRepositoryProvider = Provider<CryptoWatchRepository>(
+  (ref) => CryptoWatchRepository(ref.watch(keyValueStoreProvider)),
 );
 
 final fitnessRepositoryProvider = Provider<FitnessRepository>(
