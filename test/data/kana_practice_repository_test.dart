@@ -25,6 +25,18 @@ void main() {
     ],
   );
 
+  test('mergeFromCloud：雲端內容跟本機一樣（含巢狀筆畫）時異動數是 0', () async {
+    await repo.upsert(entry('a1'));
+    await repo.upsert(entry('a2'));
+    final cloud = [
+      for (final e in await repo.allForUpload())
+        KanaPracticeEntry.fromJson(
+          jsonDecode(jsonEncode(e.toJson())) as Map<String, dynamic>,
+        ),
+    ];
+    expect(await repo.mergeFromCloud(cloud), 0);
+  });
+
   test('upsert：同一個 id 是換掉整筆，不是加一筆', () async {
     await repo.upsert(entry('a1'));
     await repo.upsert(entry('a1', kana: 'い'));
