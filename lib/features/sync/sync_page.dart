@@ -10,6 +10,7 @@ import '../../data/cloud/r2_sync_service.dart';
 import '../../data/export/device_label.dart';
 import '../../data/export/file_download.dart';
 import '../../domain/models/sync_log_entry.dart';
+import '../../shared/debug/app_log.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_notice.dart';
 import '../../shared/widgets/app_side_drawer.dart';
@@ -81,7 +82,8 @@ class _SyncPageState extends ConsumerState<SyncPage> {
       if (!mounted) return;
       setState(() => _downloading = false);
       showAppNotice(context, ok ? '已下載 $filename' : '這個平台還不支援下載', isError: !ok);
-    } catch (e) {
+    } catch (e, stack) {
+      AppLog.add('[備份] 下載失敗：$e\n$stack', isError: true);
       await ref.read(syncLogRepositoryProvider).add(
         SyncLogEntry(
           at: DateTime.now(),

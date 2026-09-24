@@ -8,7 +8,7 @@ import 'data/cloud/r2_credentials_store.dart';
 import 'data/repositories/error_log_repository.dart';
 import 'data/repositories/yt_api_key_store.dart';
 import 'data/seed/app_defaults_loader.dart';
-import 'data/storage/key_value_store.dart';
+import 'data/storage/platform_store.dart';
 import 'shared/debug/app_log.dart';
 
 /// 開機流程做兩件事：把要非同步準備的儲存後端先開好，
@@ -17,7 +17,7 @@ import 'shared/debug/app_log.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   _wireAppLog();
-  final store = await SharedPrefsStore.open();
+  final store = await openPlatformStore();
   // 錯誤日誌持久化：之後的錯誤寫進本機儲存，先把上次留下的讀回來。
   final errorLog = ErrorLogRepository(store);
   AppLog.persistError = errorLog.add;

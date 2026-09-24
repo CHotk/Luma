@@ -150,6 +150,8 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
   Future<void> _syncNow() async {
     final credentials = ref.read(r2CredentialsProvider);
     if (credentials == null || _syncing) return;
+    // 目前跑到哪個功能，失敗時要能講出是哪一個出的錯。
+    var stage = '日記';
     setState(() {
       _syncing = true;
       _diaryPhase = _FeaturePhase.downloading;
@@ -172,41 +174,48 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
       // 「上傳中…」，看起來像日記也失敗了。
       // 上傳／下載各異動幾筆不再塞進通知（太長，2026-09-24 使用者
       // 要求），但同步紀錄 log 還是要留這個細節，所以結果還是要接住。
+      stage = '日記';
       final diaryResult = await service.syncDiary(
         ref.read(diaryRepositoryProvider),
         onPhase: _phaseCallback((p) => _diaryPhase = p),
       );
       if (mounted) setState(() => _diaryPhase = _FeaturePhase.done);
 
+      stage = '健身';
       final fitnessResult = await service.syncFitness(
         ref.read(fitnessRepositoryProvider),
         onPhase: _phaseCallback((p) => _fitnessPhase = p),
       );
       if (mounted) setState(() => _fitnessPhase = _FeaturePhase.done);
 
+      stage = 'YT 頻道／分類';
       final ytResult = await service.syncYtTracker(
         ref.read(ytTrackerRepositoryProvider),
         onPhase: _phaseCallback((p) => _ytPhase = p),
       );
       // 頻道詳情頁上傳頻率圖用的歷史影片快取，每個頻道一份，跟著一起同步。
+      stage = 'YT 影片快取';
       final ytVideoResult = await service.syncYtVideoCache(
         YtVideoCacheStore(ref.read(keyValueStoreProvider)),
         await ref.read(ytTrackerRepositoryProvider).loadChannels(),
       );
       if (mounted) setState(() => _ytPhase = _FeaturePhase.done);
 
+      stage = '五十音練習';
       final kanaPracticeResult = await service.syncKanaPractice(
         ref.read(kanaPracticeRepositoryProvider),
         onPhase: _phaseCallback((p) => _kanaPracticePhase = p),
       );
       if (mounted) setState(() => _kanaPracticePhase = _FeaturePhase.done);
 
+      stage = '五十音考試';
       final kanaExamResult = await service.syncKanaExam(
         ref.read(kanaExamRepositoryProvider),
         onPhase: _phaseCallback((p) => _kanaExamPhase = p),
       );
       if (mounted) setState(() => _kanaExamPhase = _FeaturePhase.done);
 
+      stage = '英文單字紀錄';
       final englishResult = await service.syncEnglishHistory(
         ref.read(historyRepositoryProvider),
         onPhase: _phaseCallback((p) => _englishPhase = p),
@@ -235,6 +244,7 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
               '英文單字紀錄 上傳${englishResult.uploaded}／下載${englishResult.downloaded}',
         ),
       );
+      stage = '同步紀錄／錯誤日誌';
       try {
         await service.syncLog(ref.read(syncLogRepositoryProvider));
         final errorRepo = ref.read(errorLogRepositoryProvider);
@@ -255,14 +265,17 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
         _syncing = false;
       });
       showAppNotice(context, '資料雲端同步完成');
-    } catch (e) {
+    } catch (e, stack) {
+      // 同步失敗要寫進除錯訊息（原本只跳通知，除錯頁是空的，2026-09-24
+      // 使用者回報），連堆疊一起，才查得出是哪一步、為什麼。
+      AppLog.add('[同步] $stage 失敗：$e\n$stack', isError: true);
       await ref.read(syncLogRepositoryProvider).add(
         SyncLogEntry(
           at: DateTime.now(),
           action: SyncLogAction.sync,
           success: false,
           device: currentDeviceLabel(),
-          detail: '$e',
+          detail: '$stage：$e',
         ),
       );
       widget.onLogged?.call();
@@ -276,7 +289,7 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
           _fitnessPhase = _FeaturePhase.error;
         }
       });
-      showAppNotice(context, '同步失敗：$e', isError: true);
+      showAppNotice(context, '同步失敗（$stage）：$e', isError: true);
     }
   }
 

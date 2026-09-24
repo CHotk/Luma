@@ -413,6 +413,23 @@ class _LogCard extends StatelessWidget {
                   ),
                 ),
               ),
+              // 每則訊息都能單獨複製（2026-09-24 使用者要求），貼給人看
+              // 錯誤內容時不用整份複製再自己挑。
+              InkWell(
+                onTap: () {
+                  Clipboard.setData(ClipboardData(text: formatLine(entry)));
+                  showAppNotice(context, '已複製這則訊息');
+                },
+                borderRadius: BorderRadius.circular(6),
+                child: const Padding(
+                  padding: EdgeInsets.all(4),
+                  child: Icon(
+                    Icons.copy_rounded,
+                    size: 14,
+                    color: AppColors.ink3,
+                  ),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 4),

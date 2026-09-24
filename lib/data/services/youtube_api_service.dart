@@ -126,6 +126,16 @@ class YoutubeApiService {
 
   static const _base = 'https://www.googleapis.com/youtube/v3';
 
+  /// 所有 API 請求共用：加逾時，避免手機網路怪怪時請求永遠不回來、
+  /// 畫面一直轉圈轉不出東西（2026-09-24 使用者回報），逾時會變成看得到
+  /// 的錯誤訊息。
+  Future<http.Response> _get(Uri uri) => http
+      .get(uri)
+      .timeout(
+        const Duration(seconds: 25),
+        onTimeout: () => throw YoutubeApiException('連線 YouTube 逾時，檢查網路後重試'),
+      );
+
   /// 從頻道網址解析出 `@handle`——YouTube Data API 的 `forHandle` 參數
   /// 可以直接吃這個字串去查頻道，不用自己先轉成頻道 ID。網址格式抓不
   /// 到 handle（例如根本沒填網址）就回傳 null。
@@ -142,7 +152,7 @@ class YoutubeApiService {
         'key': apiKey,
       },
     );
-    final res = await http.get(uri);
+    final res = await _get(uri);
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     if (res.statusCode != 200) {
       throw YoutubeApiException(_errorMessage(res.statusCode, body));
@@ -181,7 +191,7 @@ class YoutubeApiService {
         'key': apiKey,
       },
     );
-    final res = await http.get(uri);
+    final res = await _get(uri);
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     if (res.statusCode != 200) {
       throw YoutubeApiException(_errorMessage(res.statusCode, body));
@@ -230,7 +240,7 @@ class YoutubeApiService {
           if (pageToken != null) 'pageToken': pageToken,
         },
       );
-      final res = await http.get(uri);
+      final res = await _get(uri);
       final body = jsonDecode(res.body) as Map<String, dynamic>;
       if (res.statusCode != 200) {
         throw YoutubeApiException(_errorMessage(res.statusCode, body));
@@ -288,7 +298,7 @@ class YoutubeApiService {
           'key': apiKey,
         },
       );
-      final res = await http.get(uri);
+      final res = await _get(uri);
       final body = jsonDecode(res.body) as Map<String, dynamic>;
       if (res.statusCode != 200) {
         throw YoutubeApiException(_errorMessage(res.statusCode, body));
