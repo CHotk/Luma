@@ -198,5 +198,15 @@
     "url": "https://youtube.com/@muse_family?si=LDgQTxrr3ipYK0UK",
     "description": "",
     "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-muse-tw",
+    "name": "Muse木棉花-TW",
+    "categoryId": "seed-film",
+    "avatarEmoji": "📺",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/4osUNFW5VqcTvmGkShQtJ9JcrbpGUw9GX2291F9rW6fu9sx9q-VatUciXgqkNLiWh5u-b5OMMRo=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://youtube.com/@musetw?si=g92XGifS9XjseEPe",
+    "description": "",
+    "addedAt": "2026-09-24T00:00:00.000"
   }
 ]
