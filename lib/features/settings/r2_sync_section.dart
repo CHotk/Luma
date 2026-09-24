@@ -59,6 +59,17 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
   _FeaturePhase _kanaPracticePhase = _FeaturePhase.idle;
   _FeaturePhase _kanaExamPhase = _FeaturePhase.idle;
   _FeaturePhase _englishPhase = _FeaturePhase.idle;
+  _FeaturePhase _syncLogPhase = _FeaturePhase.idle;
+  _FeaturePhase _errorLogPhase = _FeaturePhase.idle;
+
+  /// 各功能這次同步的上傳／下載筆數，顯示在「各功能同步狀況」每一列
+  /// 右邊（2026-09-24 使用者要求：各功能同步狀況也要看得到結果）。
+  final Map<String, String> _results = {};
+
+  void _record(String label, ({int downloaded, int uploaded}) r) {
+    if (!mounted) return;
+    setState(() => _results[label] = '↑${r.uploaded} ↓${r.downloaded}');
+  }
 
   @override
   void initState() {
@@ -160,6 +171,9 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
       _kanaPracticePhase = _FeaturePhase.idle;
       _kanaExamPhase = _FeaturePhase.idle;
       _englishPhase = _FeaturePhase.idle;
+      _syncLogPhase = _FeaturePhase.idle;
+      _errorLogPhase = _FeaturePhase.idle;
+      _results.clear();
     });
     try {
       final client = R2Client(
@@ -179,6 +193,7 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
         ref.read(diaryRepositoryProvider),
         onPhase: _phaseCallback((p) => _diaryPhase = p),
       );
+      _record('日記', diaryResult);
       if (mounted) setState(() => _diaryPhase = _FeaturePhase.done);
 
       stage = '健身';
@@ -186,6 +201,7 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
         ref.read(fitnessRepositoryProvider),
         onPhase: _phaseCallback((p) => _fitnessPhase = p),
       );
+      _record('健身', fitnessResult);
       if (mounted) setState(() => _fitnessPhase = _FeaturePhase.done);
 
       stage = 'YT 頻道／分類';
@@ -199,6 +215,10 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
         YtVideoCacheStore(ref.read(keyValueStoreProvider)),
         await ref.read(ytTrackerRepositoryProvider).loadChannels(),
       );
+      _record('YT 頻道追蹤', (
+        downloaded: ytResult.downloaded + ytVideoResult.downloaded,
+        uploaded: ytResult.uploaded + ytVideoResult.uploaded,
+      ));
       if (mounted) setState(() => _ytPhase = _FeaturePhase.done);
 
       stage = '五十音練習';
@@ -206,6 +226,7 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
         ref.read(kanaPracticeRepositoryProvider),
         onPhase: _phaseCallback((p) => _kanaPracticePhase = p),
       );
+      _record('五十音練習', kanaPracticeResult);
       if (mounted) setState(() => _kanaPracticePhase = _FeaturePhase.done);
 
       stage = '五十音考試';
@@ -213,6 +234,7 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
         ref.read(kanaExamRepositoryProvider),
         onPhase: _phaseCallback((p) => _kanaExamPhase = p),
       );
+      _record('五十音考試', kanaExamResult);
       if (mounted) setState(() => _kanaExamPhase = _FeaturePhase.done);
 
       stage = '英文單字紀錄';
@@ -222,6 +244,7 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
       );
       // 單字庫有記憶體快取（對錯次數是從紀錄現算的），紀錄變了要丟掉重算。
       ref.read(wordRepositoryProvider).invalidate();
+      _record('英文單字紀錄', englishResult);
       if (mounted) setState(() => _englishPhase = _FeaturePhase.done);
 
       final now = DateTime.now();
@@ -246,9 +269,25 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
       );
       stage = '同步紀錄／錯誤日誌';
       try {
-        await service.syncLog(ref.read(syncLogRepositoryProvider));
+        if (mounted) setState(() => _syncLogPhase = _FeaturePhase.downloading);
+        final logDownloaded = await service.syncLog(
+          ref.read(syncLogRepositoryProvider),
+        );
+        if (mounted) {
+          setState(() {
+            _syncLogPhase = _FeaturePhase.done;
+            _results['同步紀錄'] = '↓$logDownloaded';
+            _errorLogPhase = _FeaturePhase.downloading;
+          });
+        }
         final errorRepo = ref.read(errorLogRepositoryProvider);
-        await service.syncErrorLog(errorRepo);
+        final errDownloaded = await service.syncErrorLog(errorRepo);
+        if (mounted) {
+          setState(() {
+            _errorLogPhase = _FeaturePhase.done;
+            _results['除錯錯誤日誌'] = '↓$errDownloaded';
+          });
+        }
         AppLog.restore(await errorRepo.loadAll());
       } catch (_) {
         // 紀錄上傳失敗不擋主流程：日記／健身已經同步成功。
@@ -320,12 +359,16 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
           style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.ink),
         ),
         const SizedBox(height: Gap.sm),
-        _FeatureStatusRow(label: '日記', phase: _diaryPhase),
-        _FeatureStatusRow(label: '健身', phase: _fitnessPhase),
-        _FeatureStatusRow(label: 'YT 頻道追蹤', phase: _ytPhase),
-        _FeatureStatusRow(label: '五十音練習', phase: _kanaPracticePhase),
-        _FeatureStatusRow(label: '五十音考試', phase: _kanaExamPhase),
-        _FeatureStatusRow(label: '英文單字紀錄', phase: _englishPhase),
+        _FeatureStatusRow(label: '日記', phase: _diaryPhase, result: _results['日記']),
+        _FeatureStatusRow(label: '健身', phase: _fitnessPhase, result: _results['健身']),
+        _FeatureStatusRow(label: 'YT 頻道追蹤', phase: _ytPhase, result: _results['YT 頻道追蹤']),
+        _FeatureStatusRow(label: '五十音練習', phase: _kanaPracticePhase, result: _results['五十音練習']),
+        _FeatureStatusRow(label: '五十音考試', phase: _kanaExamPhase, result: _results['五十音考試']),
+        _FeatureStatusRow(label: '英文單字紀錄', phase: _englishPhase, result: _results['英文單字紀錄']),
+        // 同步紀錄、錯誤日誌本身也是要同步的資料，一樣列出來
+        // （2026-09-24 使用者要求）。
+        _FeatureStatusRow(label: '同步紀錄', phase: _syncLogPhase, result: _results['同步紀錄']),
+        _FeatureStatusRow(label: '除錯錯誤日誌', phase: _errorLogPhase, result: _results['除錯錯誤日誌']),
       ],
     );
   }
@@ -542,10 +585,17 @@ class _FieldState extends State<_Field> {
 /// 同步狀況卡片裡的一行：功能名稱＋目前狀態（閒置／下載中／上傳中／
 /// 完成打勾／失敗）。
 class _FeatureStatusRow extends StatelessWidget {
-  const _FeatureStatusRow({required this.label, required this.phase});
+  const _FeatureStatusRow({
+    required this.label,
+    required this.phase,
+    this.result,
+  });
 
   final String label;
   final _FeaturePhase phase;
+
+  /// 這次同步的結果（↑上傳 ↓下載筆數），沒有就不顯示。
+  final String? result;
 
   @override
   Widget build(BuildContext context) {
@@ -558,6 +608,13 @@ class _FeatureStatusRow extends StatelessWidget {
             style: const TextStyle(fontSize: 12.5, color: AppColors.ink, fontWeight: FontWeight.w600),
           ),
           const Spacer(),
+          if (result != null && phase == _FeaturePhase.done) ...[
+            Text(
+              result!,
+              style: const TextStyle(fontSize: 11, color: AppColors.ink2),
+            ),
+            const SizedBox(width: 8),
+          ],
           _buildStatus(),
         ],
       ),

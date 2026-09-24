@@ -41,10 +41,31 @@ class _SyncPageState extends ConsumerState<SyncPage> {
   List<SyncLogEntry> _log = const [];
   bool _downloading = false;
 
+  /// 同步紀錄一次只顯示 10 筆，往下滑到底附近才多顯示下一個 10 筆
+  /// （2026-09-24 使用者要求）。
+  static const _logPageSize = 10;
+  int _visibleLogCount = _logPageSize;
+  final _scrollController = ScrollController();
+
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     _reloadLog();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    final pos = _scrollController.position;
+    if (pos.pixels >= pos.maxScrollExtent - 200 &&
+        _visibleLogCount < _log.length) {
+      setState(() => _visibleLogCount += _logPageSize);
+    }
   }
 
   Future<void> _reloadLog() async {
@@ -136,6 +157,7 @@ class _SyncPageState extends ConsumerState<SyncPage> {
                 const SizedBox(height: Gap.md),
                 Expanded(
                   child: SingleChildScrollView(
+                    controller: _scrollController,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -172,7 +194,15 @@ class _SyncPageState extends ConsumerState<SyncPage> {
         if (_log.isEmpty)
           Text('還沒有同步或備份紀錄', style: AppText.bodyDim)
         else
-          for (final entry in _log) _SyncLogRow(entry: entry),
+          for (final entry in _log.take(_visibleLogCount))
+            _SyncLogRow(entry: entry),
+        if (_log.length > _visibleLogCount)
+          Padding(
+            padding: const EdgeInsets.only(top: Gap.sm),
+            child: Center(
+              child: Text('往下滑載入更多', style: AppText.note),
+            ),
+          ),
       ],
     );
   }
