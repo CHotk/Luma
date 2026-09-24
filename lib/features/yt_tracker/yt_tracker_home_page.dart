@@ -131,7 +131,10 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
                   ],
                 ),
                 const SizedBox(height: Gap.md),
-                Text('更多主題（不限 App 內有的分類，可複選）', style: AppText.note),
+                Text(
+                  '更多主題（不限 App 內有的分類，可複選；每個約 100 單位配額）',
+                  style: AppText.note,
+                ),
                 const SizedBox(height: Gap.sm),
                 Wrap(
                   spacing: 6,
@@ -171,12 +174,32 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
                   ),
                   subtitle: Text(
                     useSeeds
-                        ? '從你已追蹤的頻道推薦區找，省配額、口味相近'
-                        : '不看 App 內頻道，只用關鍵字搜尋，範圍廣但較雜、配額用較多',
+                        ? '從已追蹤頻道的推薦區找，每個約 1 單位，省配額、口味相近'
+                        : '不看 App 內頻道，只用關鍵字搜尋（每次搜尋 100 單位），範圍廣但較雜',
                     style: AppText.note,
                   ),
                 ),
                 Text('一次挖 10 個 App 裡沒有的頻道，已刪除過的不會再出現。', style: AppText.note),
+                const SizedBox(height: Gap.sm),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.mid.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: AppColors.mid.withValues(alpha: 0.4),
+                    ),
+                  ),
+                  child: Text(
+                    _digQuotaHint(
+                      useSeeds: useSeeds,
+                      keywordCount:
+                          pickedTopics.length +
+                          (keywordController.text.trim().isEmpty ? 0 : 1),
+                    ),
+                    style: const TextStyle(fontSize: 12, color: AppColors.mid),
+                  ),
+                ),
               ],
             ),
           ),
@@ -799,6 +822,19 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
 }
 
 enum _YtHomeMenuAction { testNotification, export }
+
+/// 挖掘一次大概要花多少 YouTube API 配額（每天免費 10,000 單位），顯示在
+/// 挖掘選項最下面提醒使用者（2026-09-24 使用者要求：不標示的話忘記會消耗一堆）。
+/// 搜尋影片每次 100 單位、其餘（推薦名單、批次驗證、檢查更新）每個 1 單位。
+String _digQuotaHint({required bool useSeeds, required int keywordCount}) {
+  // 指定關鍵字／主題：每個搜一次（最多 4 次）；沒指定：參考推薦時只有推薦
+  // 不夠才會搜（最多 2 次），不參考推薦就一定搜 2 次。
+  final searches = keywordCount > 0 ? (keywordCount > 4 ? 4 : keywordCount) : 2;
+  final fixedSearch = keywordCount > 0 || !useSeeds;
+  final low = (fixedSearch ? searches * 100 : 0) + (useSeeds ? 6 : 0) + 13;
+  final high = searches * 100 + (useSeeds ? 6 : 0) + 33;
+  return '預估這次消耗約 $low–$high 單位配額（每天免費 10,000 單位）';
+}
 
 /// 挖掘時可以直接勾選的熱門主題（不限 App 內有的分類），拿來當搜尋關鍵字。
 const _discoverTopics = [
