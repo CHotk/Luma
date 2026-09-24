@@ -316,6 +316,7 @@ class _KanaExamPageState extends ConsumerState<KanaExamPage> {
                                 color: question.$3
                                     ? AppColors.bgDeep
                                     : AppColors.jpAccentInk,
+                                japanese: true,
                               ),
                             ),
                             const SizedBox(width: Gap.lg),
@@ -367,6 +368,7 @@ class _KanaExamPageState extends ConsumerState<KanaExamPage> {
                               text: question.$2,
                               size: 24,
                               color: AppColors.jpAccent,
+                              japanese: true,
                             ),
                           ],
                         ),

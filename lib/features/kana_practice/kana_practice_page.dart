@@ -10,6 +10,7 @@ import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
 import '../../shared/widgets/glass_card.dart';
+import '../../shared/widgets/speaker_button.dart';
 import 'gojuon_data.dart';
 import 'kana_paper.dart';
 
@@ -290,6 +291,13 @@ class _KanaPracticePageState extends ConsumerState<KanaPracticePage> {
                                 fontSize: 14,
                                 color: AppColors.ink3,
                               ),
+                            ),
+                            const SizedBox(width: Gap.xs),
+                            SpeakerButton(
+                              text: _selected.$1,
+                              size: 16,
+                              color: AppColors.jpAccent,
+                              japanese: true,
                             ),
                             const Spacer(),
                             TextButton.icon(

@@ -12,6 +12,7 @@ class SpeakerButton extends ConsumerWidget {
     required this.text,
     this.size = 20,
     this.color = AppColors.accent,
+    this.japanese = false,
   });
 
   final String text;
@@ -22,12 +23,17 @@ class SpeakerButton extends ConsumerWidget {
   /// 畫面各自複製一份 IconButton 出來改色（2026-09-21）。
   final Color color;
 
+  /// [text] 是日文假名／詞彙就要傳 true——TTS 引擎預設是英文語音，唸
+  /// 日文假名會沒聲音（2026-09-24 使用者回報考試頁發音按鈕沒反應，就
+  /// 是這個原因），見 [TtsService.speak] 的說明。
+  final bool japanese;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return IconButton(
       onPressed: () async {
         final tts = await ref.read(ttsServiceProvider.future);
-        await tts.speak(text);
+        await tts.speak(text, japanese: japanese);
       },
       icon: Icon(Icons.volume_up_rounded, size: size),
       color: color,

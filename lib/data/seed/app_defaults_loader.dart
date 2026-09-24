@@ -34,8 +34,16 @@ Future<RulesConfig> loadDefaultRulesConfig() async {
 
 /// 發音設定。唯一來源，沒有 code 端備份值。
 class TtsDefaults {
-  const TtsDefaults({required this.language, required this.pitch});
+  const TtsDefaults({
+    required this.language,
+    required this.languageJa,
+    required this.pitch,
+  });
   final String language;
+
+  /// 日文軌道（50音練習／考試）發音用的語言代碼，見
+  /// `lib/domain/services/tts_service.dart` 的說明。
+  final String languageJa;
   final double pitch;
 }
 
@@ -43,6 +51,7 @@ Future<TtsDefaults> loadTtsDefaults() async {
   final doc = await _loadDoc();
   return TtsDefaults(
     language: doc['ttsLanguage'] as String,
+    languageJa: doc['ttsLanguageJa'] as String,
     pitch: (doc['ttsPitch'] as num).toDouble(),
   );
 }

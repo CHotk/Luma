@@ -89,7 +89,11 @@ final clockProvider = Provider<DateTime Function()>((ref) => DateTime.now);
 /// `FutureProvider`，讀取端用 `ref.read(ttsServiceProvider.future)`。
 final ttsServiceProvider = FutureProvider<TtsService>((ref) async {
   final defaults = await loadTtsDefaults();
-  return TtsService(language: defaults.language, pitch: defaults.pitch);
+  return TtsService(
+    language: defaults.language,
+    languageJa: defaults.languageJa,
+    pitch: defaults.pitch,
+  );
 });
 
 /// 偽裝模式。開著的時候這一輪不出打字題，
