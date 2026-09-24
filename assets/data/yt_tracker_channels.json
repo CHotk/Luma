@@ -578,5 +578,15 @@
     "url": "https://youtube.com/@ehpmusicchannelii?si=xNQCYG2FjeppiDIs",
     "description": "",
     "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-rayduenglish",
+    "name": "阿滴",
+    "categoryId": "seed-knowledge",
+    "avatarEmoji": "📺",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/eeXtTw-TTXzkT-mw-T6XklPuPeJKyrSdIvUPSw-MaCzQzZpvbaYJbb8RmWUn8MUjVCKZGDZQiQ=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://youtube.com/@rayduenglish?si=wF_GTnGFGPEBt8_Q",
+    "description": "",
+    "addedAt": "2026-09-24T00:00:00.000"
   }
 ]

@@ -13,9 +13,11 @@ import '../../app/theme/typography.dart';
 import '../../data/export/file_download.dart';
 import '../../data/notifications/test_notification_action.dart';
 import '../../data/repositories/yt_tracker_repository.dart';
+import '../../data/services/channel_discovery_service.dart';
 import '../../data/seed/seed_merge.dart';
 import '../../data/seed/yt_tracker_seed_loader.dart';
 import '../../domain/models/yt_tracker.dart';
+import '../../shared/debug/app_log.dart';
 import '../../shared/text/zh_normalize.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_notice.dart';
@@ -79,6 +81,75 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
   }
 
   void _reload() => setState(() => _future = _load());
+
+  bool _digging = false;
+
+  /// 挖掘新頻道（2026-09-24 使用者要求）：一次挖 10 個 App 裡沒有的頻道，
+  /// 放進「挖掘新頻道」分類，自己再看要不要移到別的分類或刪掉。挖掘流程
+  /// 見 [ChannelDiscoveryService]。
+  Future<void> _digNewChannels() async {
+    if (_digging) return;
+    final apiKey = ref.read(ytApiKeyProvider);
+    if (apiKey == null || apiKey.isEmpty) {
+      await showYtApiKeyDialog(context, ref);
+      return;
+    }
+    _digging = true;
+    final status = ValueNotifier<String>('準備中…');
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _DigProgressDialog(status: status),
+    );
+    try {
+      final repo = ref.read(ytTrackerRepositoryProvider);
+      final categories = await repo.loadCategories();
+      final channels = await repo.loadChannels();
+      final found = await ChannelDiscoveryService(apiKey).discover(
+        existing: channels,
+        keywords: [
+          for (final c in categories)
+            if (c.id != _discoverCategoryId && c.id != ytUncategorizedId) c.name,
+        ],
+        onProgress: (t) => status.value = t,
+      );
+      for (final d in found) {
+        await repo.addChannel(
+          YtChannel(
+            id: 'found-${d.channelId}',
+            name: d.title,
+            categoryId: _discoverCategoryId,
+            avatarImageUrl: d.avatarUrl,
+            url: d.url,
+            description: d.description,
+            addedAt: DateTime.now(),
+            youtubeChannelId: d.channelId,
+            uploadsPlaylistId: d.uploadsPlaylistId,
+            subscriberCount: d.subscriberCount,
+            statsUpdatedAt: DateTime.now(),
+          ),
+        );
+      }
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop();
+      _reload();
+      showAppNotice(
+        context,
+        found.isEmpty
+            ? '這次沒挖到符合條件的新頻道，再按一次試試'
+            : '挖到 ${found.length} 個新頻道，放在「挖掘新頻道」分類',
+      );
+    } catch (e, stack) {
+      AppLog.add('[YT] 挖掘新頻道失敗：$e\n$stack', isError: true);
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+        showAppNotice(context, '挖掘失敗：$e', isError: true);
+      }
+    } finally {
+      _digging = false;
+      status.dispose();
+    }
+  }
 
   Future<void> _showAddCategoryDialog() async {
     final controller = TextEditingController();
@@ -318,6 +389,12 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
                     // 本來就已經很擠，使用者反應找不到測試通知按鈕，很可能
                     // 就是這排太擠，眼睛掃過去沒認出來（2026-09-23）。收進
                     // 選單後項目有文字標籤，比一顆顆小圖示更好辨識。
+                    IconButton(
+                      onPressed: _digNewChannels,
+                      icon: const Icon(Icons.travel_explore_rounded, size: 20),
+                      color: AppColors.ink2,
+                      tooltip: '挖掘新頻道',
+                    ),
                     PopupMenuButton<_YtHomeMenuAction>(
                       icon: const Icon(Icons.more_vert_rounded, size: 20),
                       color: AppColors.ink2,
@@ -575,6 +652,41 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
 }
 
 enum _YtHomeMenuAction { testNotification, export }
+
+/// 「挖掘新頻道」分類的固定 ID（見 `yt_tracker_categories.json`）。
+const _discoverCategoryId = 'seed-discover';
+
+/// 挖掘進行中的等待視窗，顯示目前進度文字。
+class _DigProgressDialog extends StatelessWidget {
+  const _DigProgressDialog({required this.status});
+
+  final ValueNotifier<String> status;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: false,
+      child: AlertDialog(
+        backgroundColor: const Color(0xFF1A1A24),
+        title: const Text('挖掘新頻道中', style: TextStyle(color: AppColors.ink)),
+        content: ValueListenableBuilder<String>(
+          valueListenable: status,
+          builder: (context, text, _) => Row(
+            children: [
+              const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              const SizedBox(width: 14),
+              Expanded(child: Text(text, style: AppText.bodyDim)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 /// 搜尋結果清單：頭像、名字、分類（跟訂閱人數），點了直接進頻道詳情。
 class _SearchResults extends StatelessWidget {
