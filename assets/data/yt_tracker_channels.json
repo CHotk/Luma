@@ -118,5 +118,15 @@
     "url": "https://youtube.com/@4kmusicmake?si=ZiK1dzn0ETLcM_vH",
     "description": "",
     "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-kd-music",
+    "name": "K.D",
+    "categoryId": "seed-music",
+    "avatarEmoji": "🎵",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/p80RpdNOOklZJLQ3vF843F9lZ5PAqpqw9ZMQh3oBUMkYnSbBlolfYF4xFY_q5JKSDGLeLFub=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://www.youtube.com/@k.dmusic",
+    "description": "",
+    "addedAt": "2026-09-24T00:00:00.000"
   }
 ]
