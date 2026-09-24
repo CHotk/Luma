@@ -46,5 +46,11 @@
     "name": "音樂",
     "color": 4292897184,
     "imageUrl": "assets/images/yt_tracker/music.png"
+  },
+  {
+    "id": "seed-knowledge",
+    "name": "知識",
+    "color": 4284463305,
+    "imageUrl": ""
   }
 ]
