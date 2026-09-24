@@ -148,5 +148,15 @@
     "url": "https://youtube.com/@wecook123?si=xCu4TbGMC9PwOVT1",
     "description": "",
     "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-allie",
+    "name": "愛里 ALLIE",
+    "categoryId": "seed-disliked",
+    "avatarEmoji": "📺",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/Smk-u6XXPyNIZDLxH03iBr9vonqJdrIqNFmJRL5ga-Ut3cWY37EY0rSnJksVglzZEO_vMPE2SA=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://youtube.com/@allieallie?si=bvhaqOOOUN-FEZzd",
+    "description": "",
+    "addedAt": "2026-09-24T00:00:00.000"
   }
 ]
