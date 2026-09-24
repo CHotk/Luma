@@ -278,5 +278,15 @@
     "url": "https://www.youtube.com/@dandan_video",
     "description": "",
     "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-amogood",
+    "name": "主頻道【谷阿莫】",
+    "categoryId": "seed-entertainment",
+    "avatarEmoji": "📺",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/ytc/AIdro_lGleBBukEg0OmQwm6xZYP-NjgP914JZ7GIrd8onkZVlIg=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://www.youtube.com/amogood",
+    "description": "",
+    "addedAt": "2026-09-24T00:00:00.000"
   }
 ]
