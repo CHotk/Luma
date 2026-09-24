@@ -1039,84 +1039,119 @@ class _ChannelGrid extends StatelessWidget {
       ),
       itemBuilder: (_, i) {
         final c = channels[i];
-        return InkWell(
-          onTap: () => onOpen(c),
-          borderRadius: BorderRadius.circular(Radii.card),
-          child: Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(Radii.card),
-              color: AppColors.glassFill,
-              border: Border.all(color: AppColors.glassEdge),
-            ),
-            child: Row(
-              children: [
-                YtChannelAvatar(channel: c, radius: 17),
-                const SizedBox(width: Gap.sm),
-                Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        c.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.ink,
-                        ),
-                      ),
-                      if (c.subscriberLabel != null) ...[
-                        const SizedBox(height: 4),
+        // 長按整張卡片也跳出同一份選單（2026-09-24 使用者要求）。
+        return GestureDetector(
+          onLongPressStart: (d) => _showMenuAt(context, d.globalPosition, c),
+          child: InkWell(
+            onTap: () => onOpen(c),
+            borderRadius: BorderRadius.circular(Radii.card),
+            child: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(Radii.card),
+                color: AppColors.glassFill,
+                border: Border.all(color: AppColors.glassEdge),
+              ),
+              child: Row(
+                children: [
+                  YtChannelAvatar(channel: c, radius: 17),
+                  const SizedBox(width: Gap.sm),
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Text(
-                          c.subscriberLabel!,
+                          c.name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: AppText.note,
+                          style: const TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.ink,
+                          ),
                         ),
+                        if (c.subscriberLabel != null) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            c.subscriberLabel!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppText.note,
+                          ),
+                        ],
                       ],
+                    ),
+                  ),
+                  // 每個頻道右邊的選單：編輯（進詳情頁）／移到分類／刪除。
+                  PopupMenuButton<_ChannelMenuAction>(
+                    icon: const Icon(Icons.more_vert_rounded, size: 18),
+                    color: AppColors.ink2,
+                    padding: EdgeInsets.zero,
+                    tooltip: '更多',
+                    onSelected: (action) {
+                      switch (action) {
+                        case _ChannelMenuAction.edit:
+                          onOpen(c);
+                        case _ChannelMenuAction.move:
+                          onMove(c);
+                        case _ChannelMenuAction.delete:
+                          onDelete(c);
+                      }
+                    },
+                    itemBuilder: (context) => const [
+                      PopupMenuItem(
+                        value: _ChannelMenuAction.edit,
+                        child: Text('編輯'),
+                      ),
+                      PopupMenuItem(
+                        value: _ChannelMenuAction.move,
+                        child: Text('移到分類'),
+                      ),
+                      PopupMenuItem(
+                        value: _ChannelMenuAction.delete,
+                        child: Text('刪除'),
+                      ),
                     ],
                   ),
-                ),
-                // 每個頻道右邊的選單：編輯（進詳情頁）／移到分類／刪除。
-                PopupMenuButton<_ChannelMenuAction>(
-                  icon: const Icon(Icons.more_vert_rounded, size: 18),
-                  color: AppColors.ink2,
-                  padding: EdgeInsets.zero,
-                  tooltip: '更多',
-                  onSelected: (action) {
-                    switch (action) {
-                      case _ChannelMenuAction.edit:
-                        onOpen(c);
-                      case _ChannelMenuAction.move:
-                        onMove(c);
-                      case _ChannelMenuAction.delete:
-                        onDelete(c);
-                    }
-                  },
-                  itemBuilder: (context) => const [
-                    PopupMenuItem(
-                      value: _ChannelMenuAction.edit,
-                      child: Text('編輯'),
-                    ),
-                    PopupMenuItem(
-                      value: _ChannelMenuAction.move,
-                      child: Text('移到分類'),
-                    ),
-                    PopupMenuItem(
-                      value: _ChannelMenuAction.delete,
-                      child: Text('刪除'),
-                    ),
-                  ],
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         );
       },
     );
+  }
+
+  Future<void> _showMenuAt(
+    BuildContext context,
+    Offset position,
+    YtChannel c,
+  ) async {
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final action = await showMenu<_ChannelMenuAction>(
+      context: context,
+      position: RelativeRect.fromRect(
+        position & const Size(1, 1),
+        Offset.zero & overlay.size,
+      ),
+      color: AppColors.ink2,
+      items: const [
+        PopupMenuItem(value: _ChannelMenuAction.edit, child: Text('編輯')),
+        PopupMenuItem(value: _ChannelMenuAction.move, child: Text('移到分類')),
+        PopupMenuItem(value: _ChannelMenuAction.delete, child: Text('刪除')),
+      ],
+    );
+    switch (action) {
+      case _ChannelMenuAction.edit:
+        onOpen(c);
+      case _ChannelMenuAction.move:
+        onMove(c);
+      case _ChannelMenuAction.delete:
+        onDelete(c);
+      case null:
+        break;
+    }
   }
 }
 
