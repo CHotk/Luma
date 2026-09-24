@@ -288,5 +288,25 @@
     "url": "https://www.youtube.com/amogood",
     "description": "",
     "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-spacenw",
+    "name": "大時叔叔",
+    "categoryId": "seed-knowledge",
+    "avatarEmoji": "📺",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/caHEi3r-QqwMUNJEgYfirlt7evC_HuYkskGJLW3S22o21feE5r3oNukZmtcjtWX2b9gTQ4Vt8g=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://youtube.com/@spacenw?si=OEBHUpSC_hdzP0Qe",
+    "description": "",
+    "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-amazingtalker",
+    "name": "AmazingTalker - 1 對 1 線上家教平台",
+    "categoryId": "seed-current-affairs",
+    "avatarEmoji": "📺",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/zfQL8OGcpFfYHoJekRvWPAGaGq9Uv2qyWSWpo3YZk5ZMXPmRoWtcQyug9LXZKIJD1zEYQnwW=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://youtube.com/@amazingtalker?si=ubxuXnsl5GQNo4Gn",
+    "description": "",
+    "addedAt": "2026-09-24T00:00:00.000"
   }
 ]
