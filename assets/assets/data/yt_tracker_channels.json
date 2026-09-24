@@ -38,5 +38,15 @@
     "url": "https://youtube.com/@karendaidaimusicchannel?si=e5uuf-rLjEXpvden",
     "description": "",
     "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-shu-crypto",
+    "name": "Shu Crypto",
+    "categoryId": "seed-crypto",
+    "avatarEmoji": "📺",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/8rSa0aAFIw5_kN3-RRKUMsi5S-AH0M4WX7hVPXA3nxikVCrIoAMdao8lAhFi0nQTnhCvFhLjDw=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://youtube.com/@shu8126?si=z_geonms1QIo17tN",
+    "description": "",
+    "addedAt": "2026-09-24T00:00:00.000"
   }
 ]
