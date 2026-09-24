@@ -35,6 +35,15 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
   late Future<({YtChannel? channel, List<YtCategory> categories})> _future;
 
   Future<List<YoutubeVideo>>? _videosFuture;
+
+  /// 「最近影片」往下滑到底繼續載入更早影片（2026-09-24 使用者要求）：
+  /// 第一頁 10 部由 [_videosFuture] 抓，之後每頁 20 部接在 [_moreVideos]。
+  final _scroll = ScrollController();
+  String? _uploadsId;
+  String? _nextPageToken;
+  List<YoutubeVideo> _moreVideos = const [];
+  bool _loadingMore = false;
+  String? _loadMoreError;
   String? _videosLoadedForChannelId;
   DateTime? _videosLoadedAt;
 
@@ -58,6 +67,76 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
   void initState() {
     super.initState();
     _future = _load();
+    _scroll.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scroll.hasClients) return;
+    final pos = _scroll.position;
+    if (pos.pixels >= pos.maxScrollExtent - 300) _loadMoreVideos();
+  }
+
+  Future<List<YoutubeVideo>> _withDurations(
+    YoutubeApiService service,
+    List<YoutubeVideo> videos,
+  ) async {
+    // 時長要多打一次 videos.list 才有，這次失敗就算了，讓影片清單照樣
+    // 顯示，只是沒有時長角標。
+    try {
+      final durations = await service.fetchDurations([
+        for (final v in videos) v.videoId,
+      ]);
+      return [
+        for (final v in videos)
+          durations.containsKey(v.videoId)
+              ? v.withDuration(durations[v.videoId]!)
+              : v,
+      ];
+    } catch (_) {
+      return videos;
+    }
+  }
+
+  Future<void> _loadMoreVideos() async {
+    final apiKey = ref.read(ytApiKeyProvider);
+    final uploadsId = _uploadsId;
+    final token = _nextPageToken;
+    if (_loadingMore ||
+        _loadMoreError != null ||
+        token == null ||
+        uploadsId == null ||
+        apiKey == null ||
+        apiKey.isEmpty) {
+      return;
+    }
+    setState(() => _loadingMore = true);
+    try {
+      final service = YoutubeApiService(apiKey);
+      final page = await service.fetchVideosPage(
+        uploadsId,
+        pageToken: token,
+        maxResults: 20,
+      );
+      final withDurations = await _withDurations(service, page.videos);
+      if (!mounted) return;
+      setState(() {
+        _moreVideos = [..._moreVideos, ...withDurations];
+        _nextPageToken = page.nextPageToken;
+        _loadingMore = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loadingMore = false;
+        _loadMoreError = '$e';
+      });
+    }
   }
 
   Future<({YtChannel? channel, List<YtCategory> categories})> _load() async {
@@ -81,6 +160,11 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     _videosLoadedForChannelId = channel.id;
     _videosLoadedAt = DateTime.now();
     setState(() {
+      _uploadsId = null;
+      _nextPageToken = null;
+      _moreVideos = const [];
+      _loadingMore = false;
+      _loadMoreError = null;
       _videosFuture = _fetchVideos(channel);
     });
   }
@@ -113,7 +197,10 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
       );
       await ref.read(ytTrackerRepositoryProvider).updateChannel(updated);
     }
-    final videos = await service.fetchRecentVideos(uploadsId, maxResults: 10);
+    _uploadsId = uploadsId;
+    final page = await service.fetchVideosPage(uploadsId, maxResults: 10);
+    _nextPageToken = page.nextPageToken;
+    final videos = page.videos;
     // 時長要多打一次 videos.list 才有，見 youtube_api_service.dart 的
     // 說明。這次失敗就算了，讓影片清單照樣顯示，只是沒有時長角標，
     // 不要因為這個次要資訊讓整個清單抓失敗。
@@ -314,10 +401,11 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
             ),
           );
         }
-        final videos = snap.data ?? const [];
-        if (videos.isEmpty) {
+        final firstPage = snap.data ?? const [];
+        if (firstPage.isEmpty) {
           return Center(child: Text('這個頻道抓不到影片', style: AppText.bodyDim));
         }
+        final videos = [...firstPage, ..._moreVideos];
         // 用 Column 不用 ListView.separated——這塊現在是外層
         // SingleChildScrollView 的一部分，自己不用再是獨立的可捲動
         // 區域（見 build() 的說明：簡介／圖表／影片要一起滑動）。
@@ -330,6 +418,26 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                 subtitle: ytRelativeTime(videos[i].publishedAt),
               ),
             ],
+            // 往下滑到底會自動載入更早的影片；載入中轉圈、失敗給重試、
+            // 沒有更多了就說一聲。
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: _loadingMore
+                  ? const Center(child: CircularProgressIndicator.adaptive())
+                  : _loadMoreError != null
+                  ? Center(
+                      child: TextButton(
+                        onPressed: () {
+                          setState(() => _loadMoreError = null);
+                          _loadMoreVideos();
+                        },
+                        child: Text('載入失敗：$_loadMoreError（點一下重試）'),
+                      ),
+                    )
+                  : _nextPageToken == null
+                  ? Center(child: Text('沒有更早的影片了', style: AppText.note))
+                  : const SizedBox.shrink(),
+            ),
           ],
         );
       },
@@ -562,6 +670,7 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                           // 使用者回報）。只有頂部列固定在外面。
                           Expanded(
                             child: SingleChildScrollView(
+                              controller: _scroll,
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [

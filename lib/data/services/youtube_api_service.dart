@@ -182,6 +182,19 @@ class YoutubeApiService {
   Future<List<YoutubeVideo>> fetchRecentVideos(
     String uploadsPlaylistId, {
     int maxResults = 6,
+  }) async => (await fetchVideosPage(
+    uploadsPlaylistId,
+    maxResults: maxResults,
+  )).videos;
+
+  /// 抓一頁上傳影片（新到舊），[pageToken] 給上一頁回傳的
+  /// `nextPageToken` 就會接著抓更早的——頻道詳情頁「最近影片」往下滑
+  /// 到底時繼續載入更早影片用（2026-09-24 使用者要求）。一次呼叫
+  /// 1 單位配額。沒有下一頁時 `nextPageToken` 是 null。
+  Future<({List<YoutubeVideo> videos, String? nextPageToken})> fetchVideosPage(
+    String uploadsPlaylistId, {
+    String? pageToken,
+    int maxResults = 10,
   }) async {
     final uri = Uri.parse('$_base/playlistItems').replace(
       queryParameters: {
@@ -189,6 +202,7 @@ class YoutubeApiService {
         'playlistId': uploadsPlaylistId,
         'maxResults': '$maxResults',
         'key': apiKey,
+        if (pageToken != null) 'pageToken': pageToken,
       },
     );
     final res = await _get(uri);
@@ -198,9 +212,10 @@ class YoutubeApiService {
     }
     final items = ((body['items'] as List?) ?? const [])
         .cast<Map<String, dynamic>>();
-    return [
-      for (final item in items) _videoFrom(item),
-    ];
+    return (
+      videos: [for (final item in items) _videoFrom(item)],
+      nextPageToken: body['nextPageToken'] as String?,
+    );
   }
 
   /// 抓一個頻道「`since` 之後」的全部上傳影片，給統計圖用——不是抓從
