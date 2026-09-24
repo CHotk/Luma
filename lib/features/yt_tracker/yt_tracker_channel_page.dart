@@ -1,929 +1,935 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../../app/providers.dart';
-import '../../app/theme/colors.dart';
-import '../../app/theme/spacing.dart';
-import '../../app/theme/typography.dart';
-import '../../data/repositories/yt_video_cache_store.dart';
-import '../../data/services/youtube_api_service.dart';
-import '../../domain/models/yt_tracker.dart';
-import '../../shared/widgets/ambient_background.dart';
-import '../../shared/widgets/app_side_drawer.dart';
-import '../../shared/widgets/app_top_bar.dart';
-import '../../shared/widgets/glass_card.dart';
-import 'upload_frequency_chart.dart';
-import 'yt_api_key_dialog.dart';
-import 'yt_channel_avatar.dart';
-import 'yt_video_row.dart';
-
-/// 頻道詳情。基本資料（名稱、分類、網址、簡介）可以編輯／刪除，網址點
-/// 下去會開新分頁；「最近影片」真的接了 YouTube Data API（2026-09-22，
-/// 之前漏接，跟 `yt_tracker_browse_page.dart` 的「依影片顯示」補齊成
-/// 同一套邏輯，見 `yt_video_row.dart` 共用元件）。
-class YtTrackerChannelPage extends ConsumerStatefulWidget {
-  const YtTrackerChannelPage({super.key, required this.channelId});
-
-  final String channelId;
-
-  @override
-  ConsumerState<YtTrackerChannelPage> createState() =>
-      _YtTrackerChannelPageState();
-}
-
-class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
-  late Future<({YtChannel? channel, List<YtCategory> categories})> _future;
-
-  Future<List<YoutubeVideo>>? _videosFuture;
-
-  /// 「最近影片」往下滑到底繼續載入更早影片（2026-09-24 使用者要求）：
-  /// 第一頁 10 部由 [_videosFuture] 抓，之後每頁 20 部接在 [_moreVideos]。
-  final _scroll = ScrollController();
-  String? _uploadsId;
-  String? _nextPageToken;
-  List<YoutubeVideo> _firstPage = const [];
-  bool _reachedEnd = false;
-  String? _loadMoreChannelId;
-  List<YoutubeVideo> _moreVideos = const [];
-  bool _loadingMore = false;
-  String? _loadMoreError;
-  String? _videosLoadedForChannelId;
-  DateTime? _videosLoadedAt;
-
-  /// 「上傳頻率」摺線圖用的近半年影片，跟「最近影片」分開抓、分開快取
-  /// ——這支可能要翻好幾頁 API、抓不少影片的時長，比最近影片貴，用同一
-  /// 個 5 分鐘節流太浪費；半年內的資料不會突然變，只要同一個頻道同一次
-  /// 進頁面抓過一次就夠，不用時間到就重抓，只有手動按重新整理（跟最近
-  /// 影片共用那顆按鈕）才會強制重抓。
-  Future<List<YoutubeVideo>>? _historyFuture;
-
-  /// 快取有點舊、背景補抓新影片期間，先拿本機資料把圖畫出來的預覽。
-  List<YoutubeVideo>? _historyPreview;
-  String? _historyLoadedForChannelId;
-
-  /// 跟 `yt_tracker_browse_page.dart` 同一個節流理由：不是把影片清單
-  /// 長期快取，只是不要每次重繪都重打 API，超過這個時間或按「重新
-  /// 整理」都會重抓一次真的資料。
-  static const _staleAfter = Duration(minutes: 5);
-
-  @override
-  void initState() {
-    super.initState();
-    _future = _load();
-    _scroll.addListener(_onScroll);
-  }
-
-  @override
-  void dispose() {
-    _scroll.dispose();
-    super.dispose();
-  }
-
-  void _onScroll() {
-    if (!_scroll.hasClients) return;
-    final pos = _scroll.position;
-    if (pos.pixels >= pos.maxScrollExtent - 300) _loadMoreVideos();
-  }
-
-  Future<List<YoutubeVideo>> _withDurations(
-    YoutubeApiService service,
-    List<YoutubeVideo> videos,
-  ) async {
-    // 時長要多打一次 videos.list 才有，這次失敗就算了，讓影片清單照樣
-    // 顯示，只是沒有時長角標。
-    try {
-      final durations = await service.fetchDurations([
-        for (final v in videos) v.videoId,
-      ]);
-      return [
-        for (final v in videos)
-          durations.containsKey(v.videoId)
-              ? v.withDuration(durations[v.videoId]!)
-              : v,
-      ];
-    } catch (_) {
-      return videos;
-    }
-  }
-
-  /// 往下滑載入更早的影片。順序：
-  /// 1. 先看本機快取（含其他裝置同步過來的）有沒有「比畫面上最舊那部更
-  ///    早」的影片，有就直接拿來用，**不打 API**。
-  /// 2. 快取用完了才打 API，而且從快取記下的「翻到哪裡」的位置接著抓
-  ///    （見 [YtResume]），已經抓過的那一段整段跳過，不從頭翻。
-  /// 抓回來的影片一律存進快取（之後不用再請求、也會跟著同步），用影片
-  /// id 去重。
-  Future<void> _loadMoreVideos() async {
-    final apiKey = ref.read(ytApiKeyProvider);
-    final uploadsId = _uploadsId;
-    final channelId = _loadMoreChannelId;
-    if (_loadingMore ||
-        _loadMoreError != null ||
-        _reachedEnd ||
-        uploadsId == null ||
-        channelId == null ||
-        apiKey == null ||
-        apiKey.isEmpty) {
-      return;
-    }
-    setState(() => _loadingMore = true);
-    try {
-      final cache = YtVideoCacheStore(ref.read(keyValueStoreProvider));
-      final shown = [..._firstPage, ..._moreVideos];
-      final shownIds = {for (final v in shown) v.videoId};
-      final oldestShown = shown
-          .map((v) => v.publishedAt)
-          .reduce((a, b) => a.isBefore(b) ? a : b);
-
-      // 1. 本機快取
-      final cached = await cache.load(channelId);
-      final older = [
-        for (final v in cached)
-          if (!shownIds.contains(v.videoId) && v.publishedAt.isBefore(oldestShown))
-            v,
-      ]..sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
-      if (older.isNotEmpty) {
-        if (!mounted) return;
-        setState(() {
-          _moreVideos = [..._moreVideos, ...older.take(20)];
-          _loadingMore = false;
-        });
-        return;
-      }
-
-      // 2. 打 API，從記下的位置續抓
-      final service = YoutubeApiService(apiKey);
-      var resume = await cache.loadResume(channelId);
-      if (resume != null && resume.end) {
-        if (!mounted) return;
-        setState(() {
-          _reachedEnd = true;
-          _loadingMore = false;
-        });
-        return;
-      }
-      var token = resume?.token ?? _nextPageToken;
-      var offset = resume?.offset ?? _firstPage.length;
-      if (token == null) {
-        if (!mounted) return;
-        setState(() {
-          _reachedEnd = true;
-          _loadingMore = false;
-        });
-        return;
-      }
-      final fresh = <YoutubeVideo>[];
-      final knownIds = {...shownIds, for (final v in cached) v.videoId};
-      // 位置往後挪過的話這一頁可能全是重複，最多連翻 5 頁找新的。
-      for (var i = 0; i < 5 && fresh.isEmpty && token != null; i++) {
-        final page = await service.fetchVideosPage(
-          uploadsId,
-          pageToken: token,
-          maxResults: 20,
-        );
-        offset += page.videos.length;
-        final newOnes = [
-          for (final v in page.videos)
-            if (!knownIds.contains(v.videoId)) v,
-        ];
-        final withDurations = await _withDurations(service, newOnes);
-        await cache.upsertVideos(channelId, withDurations);
-        await cache.saveResumeIfDeeper(
-          channelId,
-          YtResume(
-            token: page.nextPageToken,
-            offset: offset,
-            end: page.nextPageToken == null,
-          ),
-        );
-        fresh.addAll(withDurations);
-        token = page.nextPageToken;
-      }
-      if (!mounted) return;
-      setState(() {
-        _moreVideos = [..._moreVideos, ...fresh];
-        _reachedEnd = token == null && fresh.isEmpty;
-        _loadingMore = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _loadingMore = false;
-        _loadMoreError = '$e';
-      });
-    }
-  }
-
-  Future<({YtChannel? channel, List<YtCategory> categories})> _load() async {
-    final repo = ref.read(ytTrackerRepositoryProvider);
-    final channels = await repo.loadChannels();
-    final categories = await repo.loadCategories();
-    final channel = channels.where((c) => c.id == widget.channelId);
-    return (channel: channel.isEmpty ? null : channel.first, categories: categories);
-  }
-
-  void _reload() => setState(() => _future = _load());
-
-  void _ensureVideosLoaded(YtChannel channel, {bool force = false}) {
-    final apiKey = ref.read(ytApiKeyProvider);
-    if (apiKey == null || apiKey.isEmpty) return;
-    final sameChannel = _videosLoadedForChannelId == channel.id;
-    final stillFresh =
-        _videosLoadedAt != null &&
-        DateTime.now().difference(_videosLoadedAt!) < _staleAfter;
-    if (!force && sameChannel && stillFresh) return;
-    _videosLoadedForChannelId = channel.id;
-    _videosLoadedAt = DateTime.now();
-    setState(() {
-      _uploadsId = null;
-      _nextPageToken = null;
-      _firstPage = const [];
-      _reachedEnd = false;
-      _loadMoreChannelId = channel.id;
-      _moreVideos = const [];
-      _loadingMore = false;
-      _loadMoreError = null;
-      _videosFuture = _fetchVideos(channel);
-    });
-  }
-
-  Future<List<YoutubeVideo>> _fetchVideos(YtChannel channel) async {
-    final apiKey = ref.read(ytApiKeyProvider);
-    if (apiKey == null || apiKey.isEmpty) return const [];
-    final service = YoutubeApiService(apiKey);
-    var uploadsId = channel.uploadsPlaylistId;
-    if (uploadsId.isEmpty) {
-      final handle = YoutubeApiService.parseHandle(channel.url);
-      if (handle == null) {
-        throw YoutubeApiException('這個頻道沒有網址，或網址裡找不到 @帳號，先去編輯頻道補上');
-      }
-      final info = await service.fetchChannelInfo(handle);
-      uploadsId = info.uploadsPlaylistId;
-      final updated = YtChannel(
-        id: channel.id,
-        name: channel.name,
-        categoryId: channel.categoryId,
-        avatarEmoji: channel.avatarEmoji,
-        avatarImageUrl: channel.avatarImageUrl.isEmpty
-            ? info.avatarUrl
-            : channel.avatarImageUrl,
-        url: channel.url,
-        description: channel.description,
-        youtubeChannelId: info.channelId,
-        uploadsPlaylistId: info.uploadsPlaylistId,
-        addedAt: channel.addedAt,
-      );
-      await ref.read(ytTrackerRepositoryProvider).updateChannel(updated);
-    }
-    _uploadsId = uploadsId;
-    final page = await service.fetchVideosPage(uploadsId, maxResults: 10);
-    _nextPageToken = page.nextPageToken;
-    _loadMoreChannelId = channel.id;
-    final videos = page.videos;
-    // 時長要多打一次 videos.list 才有，見 youtube_api_service.dart 的
-    // 說明。這次失敗就算了，讓影片清單照樣顯示，只是沒有時長角標，
-    // 不要因為這個次要資訊讓整個清單抓失敗。
-    final result = await _withDurations(service, videos);
-    // 最近影片也存進快取（跟往下滑載入的更早影片、上傳頻率圖共用同一份），
-    // 之後不用再請求，也會跟著同步（2026-09-24 使用者要求）。
-    final cache = YtVideoCacheStore(ref.read(keyValueStoreProvider));
-    await cache.upsertVideos(channel.id, result);
-    await cache.saveResumeIfDeeper(
-      channel.id,
-      YtResume(
-        token: page.nextPageToken,
-        offset: result.length,
-        end: page.nextPageToken == null,
-      ),
-    );
-    if (mounted) _firstPage = result;
-    return result;
-  }
-
-  void _ensureHistoryLoaded(YtChannel channel, {bool force = false}) {
-    final apiKey = ref.read(ytApiKeyProvider);
-    if (apiKey == null || apiKey.isEmpty) return;
-    if (!force && _historyLoadedForChannelId == channel.id) return;
-    _historyLoadedForChannelId = channel.id;
-    setState(() {
-      _historyPreview = null;
-      _historyFuture = _fetchHistory(channel);
-    });
-  }
-
-  Future<List<YoutubeVideo>> _fetchHistory(YtChannel channel) async {
-    final apiKey = ref.read(ytApiKeyProvider);
-    if (apiKey == null || apiKey.isEmpty) return const [];
-    final now = DateTime.now();
-    // 只抓近半年，不是全部歷史——時間範圍固定，不會因為頻道發片多寡
-    // 讓等待時間跟配額失控（2026-09-23 使用者要求）。
-    final since = DateTime(now.year, now.month - 6, now.day);
-
-    // 本機已經快取過的影片（見 yt_video_cache_store.dart）。頻道隨時
-    // 可能發新片（10 秒、5 分鐘、15 分鐘都有可能），所以**不設**「多久內
-    // 不用重抓」的時間限制，每次進頁面都補抓一次；但不讓使用者乾等——
-    // 先把本機（含其他裝置同步過來的）資料畫出來當預覽，背景只補「上次
-    // 之後新發的影片」：翻頁遇到已知影片就停（通常只要 1 次 API 呼叫），
-    // 也不會重打已知影片的時長（2026-09-23 使用者要求：本機已經有的資料
-    // 不用再往後拿，省配額）。
-    final cache = YtVideoCacheStore(ref.read(keyValueStoreProvider));
-    final cached = await cache.load(channel.id);
-    final cachedById = {for (final v in cached) v.videoId: v};
-    final cachedInWindow = cached
-        .where((v) => !v.publishedAt.isBefore(since))
-        .toList()
-      ..sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
-    if (cached.isNotEmpty && mounted) {
-      setState(() => _historyPreview = cachedInWindow);
-    }
-
-    final service = YoutubeApiService(apiKey);
-    var uploadsId = channel.uploadsPlaylistId;
-    if (uploadsId.isEmpty) {
-      final handle = YoutubeApiService.parseHandle(channel.url);
-      if (handle == null) return cachedInWindow;
-      final info = await service.fetchChannelInfo(handle);
-      uploadsId = info.uploadsPlaylistId;
-    }
-
-    // 「遇到已知影片就停止翻頁」只有在之前**完整抓過一次半年份**（有記錄
-    // 「上次對過 YouTube 的時間」）才成立。最近影片／往下滑載入的影片也會
-    // 寫進同一份快取，快取裡有幾部不代表半年份抓齊了，這時要一路抓到
-    // since 為止，不然常發片的頻道上傳頻率圖會缺資料。
-    final everCompleted = await cache.lastFetchedAt(channel.id) != null;
-    final resumeWrites = <Future<void>>[];
-    final fetched = await service.fetchAllVideos(
-      uploadsId,
-      since: since,
-      knownVideoIds: everCompleted ? cachedById.keys.toSet() : const {},
-      onPage: (token, offset) => resumeWrites.add(
-        cache.saveResumeIfDeeper(
-          channel.id,
-          YtResume(token: token, offset: offset, end: token == null),
-        ),
-      ),
-    );
-    await Future.wait(resumeWrites);
-
-    // 這次翻頁翻到的影片，扣掉本來就已經快取、時長也已經有的，只有
-    // 真的新的才需要多打一次 fetchDurations。
-    final newIds = [
-      for (final v in fetched)
-        if (!cachedById.containsKey(v.videoId) ||
-            cachedById[v.videoId]!.duration == null)
-          v.videoId,
-    ];
-    var withDurations = fetched;
-    if (newIds.isNotEmpty) {
-      // 時長抓失敗不影響圖能不能畫，只是 Shorts／一般影片分不出來，
-      // 兩條線會全部算進「一般影片」那條（isLikelyShort 需要 duration
-      // 才能判斷，沒有就當作不是 Shorts）。
-      try {
-        final durations = await service.fetchDurations(newIds);
-        withDurations = [
-          for (final v in fetched)
-            durations.containsKey(v.videoId)
-                ? v.withDuration(durations[v.videoId]!)
-                : v,
-        ];
-      } catch (_) {
-        // 忽略，withDurations 保持沒補時長的版本。
-      }
-    }
-
-    // 合併快取＋這次抓到的，新的蓋舊的（時長可能剛補上），整份落地存回去
-    // 給下次用——**不再裁掉半年以前的**：往下滑載入的更早影片也存在同一份
-    // 快取裡，下次不用重抓。上傳頻率圖只畫 since 窗口內的那部分。
-    final merged = {
-      for (final v in cached) v.videoId: v,
-      // 這次翻頁又翻到的已知影片沒帶時長，別把快取裡已有的時長蓋成 null。
-      for (final v in withDurations)
-        v.videoId: v.duration == null && cachedById[v.videoId]?.duration != null
-            ? cachedById[v.videoId]!
-            : v,
-    }.values.toList()
-      ..sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
-    await cache.save(channel.id, merged);
-    return [
-      for (final v in merged)
-        if (!v.publishedAt.isBefore(since)) v,
-    ];
-  }
-
-  Widget _buildHistoryChart(YtChannel channel) {
-    final apiKey = ref.watch(ytApiKeyProvider);
-    if (apiKey == null || apiKey.isEmpty) return const SizedBox.shrink();
-    if (_historyFuture == null) {
-      return const SizedBox(
-        height: 60,
-        child: Center(child: CircularProgressIndicator.adaptive()),
-      );
-    }
-    return FutureBuilder<List<YoutubeVideo>>(
-      future: _historyFuture,
-      builder: (context, snap) {
-        if (snap.connectionState == ConnectionState.waiting) {
-          // 背景補抓新影片期間，先用本機快取把圖畫出來，不讓使用者對著
-          // 轉圈圈乾等。
-          final preview = _historyPreview;
-          if (preview != null) {
-            return UploadFrequencyChart(data: bucketVideosByMonth(preview));
-          }
-          return const SizedBox(
-            height: 160,
-            child: Center(child: CircularProgressIndicator.adaptive()),
-          );
-        }
-        if (snap.hasError) {
-          return SizedBox(
-            height: 60,
-            child: Center(
-              child: Text(
-                '抓不到歷史影片：${snap.error}',
-                style: AppText.note,
-                textAlign: TextAlign.center,
-              ),
-            ),
-          );
-        }
-        final videos = snap.data ?? const [];
-        return UploadFrequencyChart(data: bucketVideosByMonth(videos));
-      },
-    );
-  }
-
-  Widget _buildVideos(YtChannel channel) {
-    final apiKey = ref.watch(ytApiKeyProvider);
-    if (apiKey == null || apiKey.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.vpn_key_outlined, size: 32, color: AppColors.ink3),
-              const SizedBox(height: Gap.sm),
-              Text('還沒有設定 API 金鑰', style: AppText.bodyDim),
-              const SizedBox(height: Gap.md),
-              FilledButton(
-                onPressed: () => showYtApiKeyDialog(context, ref),
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.ytAccent,
-                  foregroundColor: AppColors.ytAccentInk,
-                ),
-                child: const Text('設定金鑰'),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-    if (_videosFuture == null) {
-      return const Center(child: CircularProgressIndicator.adaptive());
-    }
-    return FutureBuilder<List<YoutubeVideo>>(
-      future: _videosFuture,
-      builder: (context, snap) {
-        if (snap.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator.adaptive());
-        }
-        if (snap.hasError) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Text(
-                '${snap.error}',
-                style: AppText.bodyDim,
-                textAlign: TextAlign.center,
-              ),
-            ),
-          );
-        }
-        final firstPage = snap.data ?? const [];
-        if (firstPage.isEmpty) {
-          return Center(child: Text('這個頻道抓不到影片', style: AppText.bodyDim));
-        }
-        final videos = [...firstPage, ..._moreVideos];
-        // 用 Column 不用 ListView.separated——這塊現在是外層
-        // SingleChildScrollView 的一部分，自己不用再是獨立的可捲動
-        // 區域（見 build() 的說明：簡介／圖表／影片要一起滑動）。
-        return Column(
-          children: [
-            for (var i = 0; i < videos.length; i++) ...[
-              if (i > 0) const Divider(height: 1, color: AppColors.glassEdge),
-              YtVideoRow(
-                video: videos[i],
-                subtitle: ytRelativeTime(videos[i].publishedAt),
-              ),
-            ],
-            // 往下滑到底會自動載入更早的影片；載入中轉圈、失敗給重試、
-            // 沒有更多了就說一聲。
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              child: _loadingMore
-                  ? const Center(child: CircularProgressIndicator.adaptive())
-                  : _loadMoreError != null
-                  ? Center(
-                      child: TextButton(
-                        onPressed: () {
-                          setState(() => _loadMoreError = null);
-                          _loadMoreVideos();
-                        },
-                        child: Text('載入失敗：$_loadMoreError（點一下重試）'),
-                      ),
-                    )
-                  : _reachedEnd
-                  ? Center(child: Text('沒有更早的影片了', style: AppText.note))
-                  : const SizedBox.shrink(),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<void> _showEditDialog(YtChannel channel, List<YtCategory> categories) async {
-    final nameController = TextEditingController(text: channel.name);
-    final urlController = TextEditingController(text: channel.url);
-    final avatarController = TextEditingController(text: channel.avatarImageUrl);
-    final descriptionController = TextEditingController(text: channel.description);
-    String? categoryId = channel.categoryId;
-    final action = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          backgroundColor: const Color(0xFF1A1A24),
-          title: const Text('編輯頻道', style: TextStyle(color: AppColors.ink)),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TextField(
-                  controller: nameController,
-                  autofocus: true,
-                  maxLength: 30,
-                  decoration: const InputDecoration(
-                    labelText: '頻道名稱',
-                    counterText: '',
-                  ),
-                  style: const TextStyle(color: AppColors.ink),
-                ),
-                const SizedBox(height: Gap.xs),
-                TextField(
-                  controller: urlController,
-                  decoration: const InputDecoration(labelText: '頻道網址'),
-                  style: const TextStyle(fontSize: 12.5, color: AppColors.ink),
-                ),
-                const SizedBox(height: Gap.xs),
-                TextField(
-                  controller: avatarController,
-                  decoration: const InputDecoration(labelText: '頭像圖片網址'),
-                  style: const TextStyle(fontSize: 12.5, color: AppColors.ink),
-                ),
-                const SizedBox(height: Gap.xs),
-                TextField(
-                  controller: descriptionController,
-                  minLines: 1,
-                  maxLines: 4,
-                  maxLength: 200,
-                  decoration: const InputDecoration(labelText: '簡介'),
-                  style: const TextStyle(fontSize: 12.5, color: AppColors.ink),
-                ),
-                const SizedBox(height: Gap.sm),
-                Text('分類', style: AppText.note),
-                const SizedBox(height: Gap.xs),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    _Pick(
-                      label: '未分類',
-                      color: AppColors.ink3,
-                      selected: categoryId == null,
-                      onTap: () => setDialogState(() => categoryId = null),
-                    ),
-                    for (final cat in categories)
-                      _Pick(
-                        label: cat.name,
-                        color: cat.color,
-                        selected: categoryId == cat.id,
-                        onTap: () => setDialogState(() => categoryId = cat.id),
-                      ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          // 刪除是破壞性動作，字體縮小、放最左邊跟儲存/取消拉開距離，
-          // 不要跟常用的兩個動作擠在一起、字級還一樣大，容易誤按
-          // （2026-09-22 使用者要求）。儲存在取消左邊，離刪除比較遠。
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, 'delete'),
-              style: TextButton.styleFrom(foregroundColor: AppColors.bad),
-              child: const Text('刪除', style: TextStyle(fontSize: 12)),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, 'save'),
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.ytAccent,
-                foregroundColor: AppColors.ytAccentInk,
-              ),
-              child: const Text('儲存'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, 'cancel'),
-              child: const Text('取消'),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    final repo = ref.read(ytTrackerRepositoryProvider);
-    if (action == 'save') {
-      final name = nameController.text.trim();
-      if (name.isEmpty) return;
-      await repo.updateChannel(
-        YtChannel(
-          id: channel.id,
-          name: name,
-          categoryId: categoryId,
-          avatarEmoji: channel.avatarEmoji,
-          avatarImageUrl: avatarController.text.trim(),
-          url: urlController.text.trim(),
-          description: descriptionController.text.trim(),
-          addedAt: channel.addedAt,
-        ),
-      );
-      if (!mounted) return;
-      _reload();
-    } else if (action == 'delete') {
-      if (!mounted) return;
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          backgroundColor: const Color(0xFF1A1A24),
-          title: const Text('刪除這個頻道？', style: TextStyle(color: AppColors.ink)),
-          content: Text('這個動作無法復原。', style: AppText.bodyDim),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('取消'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              style: TextButton.styleFrom(foregroundColor: AppColors.bad),
-              child: const Text('刪除'),
-            ),
-          ],
-        ),
-      );
-      if (confirmed != true) return;
-      await repo.deleteChannel(channel.id);
-      if (!mounted) return;
-      Navigator.of(context).maybePop();
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      drawer: const AppSideDrawer(),
-      body: AmbientBackground(
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: Gap.screenSide),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: Gap.sm),
-                Expanded(
-                  child: FutureBuilder(
-                    future: _future,
-                    builder: (context, snap) {
-                      if (!snap.hasData) {
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            const AppTopBar(title: '頻道'),
-                            const Expanded(
-                              child: Center(
-                                child: CircularProgressIndicator.adaptive(),
-                              ),
-                            ),
-                          ],
-                        );
-                      }
-                      final channel = snap.data!.channel;
-                      final categories = snap.data!.categories;
-                      if (channel == null) {
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            const AppTopBar(title: '頻道'),
-                            Expanded(
-                              child: Center(
-                                child: Text('找不到這個頻道', style: AppText.bodyDim),
-                              ),
-                            ),
-                          ],
-                        );
-                      }
-                      final category = categories
-                          .where((c) => c.id == channel.categoryId);
-                      final categoryLabel =
-                          category.isEmpty ? '未分類' : category.first.name;
-
-                      // 不能在 build() 當下直接呼叫（裡面可能觸發
-                      // setState），排到這一幀畫完之後——跟
-                      // `yt_tracker_browse_page.dart` 同一套做法。
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        if (!mounted) return;
-                        _ensureVideosLoaded(channel);
-                        _ensureHistoryLoaded(channel);
-                      });
-
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          AppTopBar(
-                            title: channel.name,
-                            actions: [
-                              IconButton(
-                                onPressed: () =>
-                                    _showEditDialog(channel, categories),
-                                icon: const Icon(Icons.edit_outlined, size: 20),
-                                color: AppColors.ink2,
-                                tooltip: '編輯頻道',
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: Gap.md),
-                          // 簡介／上傳頻率圖／最近影片全部包進同一個可捲動
-                          // 區域，不要只有最近影片自己捲、上面的內容固定
-                          // 不動——不然滑最近影片清單時，簡介跟圖表卻停在
-                          // 原地不會一起往上滑，體驗很奇怪（2026-09-23
-                          // 使用者回報）。只有頂部列固定在外面。
-                          Expanded(
-                            child: SingleChildScrollView(
-                              controller: _scroll,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  _buildChannelBody(
-                                    channel,
-                                    categories,
-                                    categoryLabel,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildChannelBody(
-    YtChannel channel,
-    List<YtCategory> categories,
-    String categoryLabel,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-                            children: [
-                              YtChannelAvatar(channel: channel, radius: 28),
-                              const SizedBox(width: Gap.md),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      channel.name,
-                                      style: const TextStyle(
-                                        fontSize: 16.5,
-                                        fontWeight: FontWeight.w800,
-                                        color: AppColors.ink,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 3),
-                                    Text(categoryLabel, style: AppText.note),
-                                    if (channel.url.isNotEmpty) ...[
-                                      const SizedBox(height: 2),
-                                      InkWell(
-                                        onTap: () => openExternalUrl(
-                                          context,
-                                          channel.url,
-                                        ),
-                                        child: Text(
-                                          channel.url,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: AppText.note.copyWith(
-                                            // 連結照網頁慣例用淡藍色，不用
-                                            // 這個功能自己的紅色強調色——
-                                            // 紅在這個 App 的語意色系裡也
-                                            // 常代表錯誤/警示，用在連結上
-                                            // 會讓人誤會（2026-09-22
-                                            // 使用者回饋）。AppColors.accent
-                                            // 就是既有的淡藍色，不用另外
-                                            // 開新色碼。
-                                            color: AppColors.accent,
-                                            decoration: TextDecoration.underline,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                          if (channel.description.isNotEmpty) ...[
-                            const SizedBox(height: Gap.md),
-                            const PanelLabel('簡介'),
-                            const SizedBox(height: Gap.xs),
-                            Text(channel.description, style: AppText.bodyDim),
-                          ],
-                          const SizedBox(height: Gap.md),
-                          const PanelLabel('上傳頻率（近半年）'),
-                          const SizedBox(height: Gap.xs),
-                          _buildHistoryChart(channel),
-                          const SizedBox(height: Gap.md),
-                          Row(
-                            children: [
-                              const PanelLabel('最近影片'),
-                              const Spacer(),
-                              TextButton.icon(
-                                onPressed: () {
-                                  _ensureVideosLoaded(channel, force: true);
-                                  _ensureHistoryLoaded(channel, force: true);
-                                },
-                                icon: const Icon(Icons.refresh, size: 15),
-                                label: const Text('重新整理'),
-                                style: TextButton.styleFrom(
-                                  foregroundColor: AppColors.ink2,
-                                  padding: EdgeInsets.zero,
-                                  minimumSize: const Size(0, 0),
-                                  tapTargetSize:
-                                      MaterialTapTargetSize.shrinkWrap,
-                                ),
-                              ),
-                            ],
-                          ),
-        const SizedBox(height: Gap.sm),
-        _buildVideos(channel),
-      ],
-    );
-  }
-}
-
-class _Pick extends StatelessWidget {
-  const _Pick({
-    required this.label,
-    required this.color,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final Color color;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(999),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(999),
-          color: selected ? color.withValues(alpha: 0.22) : AppColors.glassFill,
-          border: Border.all(color: selected ? color : AppColors.glassEdge),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 11.5,
-            fontWeight: FontWeight.w600,
-            color: selected ? AppColors.ink : AppColors.ink2,
-          ),
-        ),
-      ),
-    );
-  }
-}
+`import 'package:flutter/material.dart';
+`import 'package:flutter_riverpod/flutter_riverpod.dart';
+`
+`import '../../app/providers.dart';
+`import '../../app/theme/colors.dart';
+`import '../../app/theme/spacing.dart';
+`import '../../app/theme/typography.dart';
+`import '../../data/repositories/yt_video_cache_store.dart';
+`import '../../data/services/youtube_api_service.dart';
+`import '../../domain/models/yt_tracker.dart';
+`import '../../shared/widgets/ambient_background.dart';
+`import '../../shared/widgets/app_side_drawer.dart';
+`import '../../shared/widgets/app_top_bar.dart';
+`import '../../shared/widgets/glass_card.dart';
+`import 'upload_frequency_chart.dart';
+`import 'yt_api_key_dialog.dart';
+`import 'yt_channel_avatar.dart';
+`import 'yt_video_row.dart';
+`
+`/// 頻道詳情。基本資料（名稱、分類、網址、簡介）可以編輯／刪除，網址點
+`/// 下去會開新分頁；「最近影片」真的接了 YouTube Data API（2026-09-22，
+`/// 之前漏接，跟 `yt_tracker_browse_page.dart` 的「依影片顯示」補齊成
+`/// 同一套邏輯，見 `yt_video_row.dart` 共用元件）。
+`class YtTrackerChannelPage extends ConsumerStatefulWidget {
+`  const YtTrackerChannelPage({super.key, required this.channelId});
+`
+`  final String channelId;
+`
+`  @override
+`  ConsumerState<YtTrackerChannelPage> createState() =>
+`      _YtTrackerChannelPageState();
+`}
+`
+`class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
+`  late Future<({YtChannel? channel, List<YtCategory> categories})> _future;
+`
+`  Future<List<YoutubeVideo>>? _videosFuture;
+`
+`  /// 「最近影片」往下滑到底繼續載入更早影片（2026-09-24 使用者要求）：
+`  /// 第一頁 10 部由 [_videosFuture] 抓，之後每頁 20 部接在 [_moreVideos]。
+`  final _scroll = ScrollController();
+`
+`  /// 往下滑每次載入幾部。YouTube \`playlistItems.list\` 一次最多 50 部，
+`  /// 不管要 5 部還是 50 部都是 1 單位配額，所以直接拉滿（2026-09-24
+`  /// 使用者要求）；補時長的 \`videos.list\` 一次也最多吃 50 個 id、同樣
+`  /// 1 單位，所以一批 50 部總共 2 單位。
+`  static const _loadMoreBatch = 50;
+`  String? _uploadsId;
+`  String? _nextPageToken;
+`  List<YoutubeVideo> _firstPage = const [];
+`  bool _reachedEnd = false;
+`  String? _loadMoreChannelId;
+`  List<YoutubeVideo> _moreVideos = const [];
+`  bool _loadingMore = false;
+`  String? _loadMoreError;
+`  String? _videosLoadedForChannelId;
+`  DateTime? _videosLoadedAt;
+`
+`  /// 「上傳頻率」摺線圖用的近半年影片，跟「最近影片」分開抓、分開快取
+`  /// ——這支可能要翻好幾頁 API、抓不少影片的時長，比最近影片貴，用同一
+`  /// 個 5 分鐘節流太浪費；半年內的資料不會突然變，只要同一個頻道同一次
+`  /// 進頁面抓過一次就夠，不用時間到就重抓，只有手動按重新整理（跟最近
+`  /// 影片共用那顆按鈕）才會強制重抓。
+`  Future<List<YoutubeVideo>>? _historyFuture;
+`
+`  /// 快取有點舊、背景補抓新影片期間，先拿本機資料把圖畫出來的預覽。
+`  List<YoutubeVideo>? _historyPreview;
+`  String? _historyLoadedForChannelId;
+`
+`  /// 跟 `yt_tracker_browse_page.dart` 同一個節流理由：不是把影片清單
+`  /// 長期快取，只是不要每次重繪都重打 API，超過這個時間或按「重新
+`  /// 整理」都會重抓一次真的資料。
+`  static const _staleAfter = Duration(minutes: 5);
+`
+`  @override
+`  void initState() {
+`    super.initState();
+`    _future = _load();
+`    _scroll.addListener(_onScroll);
+`  }
+`
+`  @override
+`  void dispose() {
+`    _scroll.dispose();
+`    super.dispose();
+`  }
+`
+`  void _onScroll() {
+`    if (!_scroll.hasClients) return;
+`    final pos = _scroll.position;
+`    if (pos.pixels >= pos.maxScrollExtent - 300) _loadMoreVideos();
+`  }
+`
+`  Future<List<YoutubeVideo>> _withDurations(
+`    YoutubeApiService service,
+`    List<YoutubeVideo> videos,
+`  ) async {
+`    // 時長要多打一次 videos.list 才有，這次失敗就算了，讓影片清單照樣
+`    // 顯示，只是沒有時長角標。
+`    try {
+`      final durations = await service.fetchDurations([
+`        for (final v in videos) v.videoId,
+`      ]);
+`      return [
+`        for (final v in videos)
+`          durations.containsKey(v.videoId)
+`              ? v.withDuration(durations[v.videoId]!)
+`              : v,
+`      ];
+`    } catch (_) {
+`      return videos;
+`    }
+`  }
+`
+`  /// 往下滑載入更早的影片。順序：
+`  /// 1. 先看本機快取（含其他裝置同步過來的）有沒有「比畫面上最舊那部更
+`  ///    早」的影片，有就直接拿來用，**不打 API**。
+`  /// 2. 快取用完了才打 API，而且從快取記下的「翻到哪裡」的位置接著抓
+`  ///    （見 [YtResume]），已經抓過的那一段整段跳過，不從頭翻。
+`  /// 抓回來的影片一律存進快取（之後不用再請求、也會跟著同步），用影片
+`  /// id 去重。
+`  Future<void> _loadMoreVideos() async {
+`    final apiKey = ref.read(ytApiKeyProvider);
+`    final uploadsId = _uploadsId;
+`    final channelId = _loadMoreChannelId;
+`    if (_loadingMore ||
+`        _loadMoreError != null ||
+`        _reachedEnd ||
+`        uploadsId == null ||
+`        channelId == null ||
+`        apiKey == null ||
+`        apiKey.isEmpty) {
+`      return;
+`    }
+`    setState(() => _loadingMore = true);
+`    try {
+`      final cache = YtVideoCacheStore(ref.read(keyValueStoreProvider));
+`      final shown = [..._firstPage, ..._moreVideos];
+`      final shownIds = {for (final v in shown) v.videoId};
+`      final oldestShown = shown
+`          .map((v) => v.publishedAt)
+`          .reduce((a, b) => a.isBefore(b) ? a : b);
+`
+`      // 1. 本機快取
+`      final cached = await cache.load(channelId);
+`      final older = [
+`        for (final v in cached)
+`          if (!shownIds.contains(v.videoId) && v.publishedAt.isBefore(oldestShown))
+`            v,
+`      ]..sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
+`      if (older.isNotEmpty) {
+`        if (!mounted) return;
+`        setState(() {
+`          _moreVideos = [..._moreVideos, ...older.take(_loadMoreBatch)];
+`          _loadingMore = false;
+`        });
+`        return;
+`      }
+`
+`      // 2. 打 API，從記下的位置續抓
+`      final service = YoutubeApiService(apiKey);
+`      var resume = await cache.loadResume(channelId);
+`      if (resume != null && resume.end) {
+`        if (!mounted) return;
+`        setState(() {
+`          _reachedEnd = true;
+`          _loadingMore = false;
+`        });
+`        return;
+`      }
+`      var token = resume?.token ?? _nextPageToken;
+`      var offset = resume?.offset ?? _firstPage.length;
+`      if (token == null) {
+`        if (!mounted) return;
+`        setState(() {
+`          _reachedEnd = true;
+`          _loadingMore = false;
+`        });
+`        return;
+`      }
+`      final fresh = <YoutubeVideo>[];
+`      final knownIds = {...shownIds, for (final v in cached) v.videoId};
+`      // 位置往後挪過的話這一頁可能全是重複，最多連翻 5 頁找新的。
+`      for (var i = 0; i < 5 && fresh.isEmpty && token != null; i++) {
+`        final page = await service.fetchVideosPage(
+`          uploadsId,
+`          pageToken: token,
+`          maxResults: _loadMoreBatch,
+`        );
+`        offset += page.videos.length;
+`        final newOnes = [
+`          for (final v in page.videos)
+`            if (!knownIds.contains(v.videoId)) v,
+`        ];
+`        final withDurations = await _withDurations(service, newOnes);
+`        await cache.upsertVideos(channelId, withDurations);
+`        await cache.saveResumeIfDeeper(
+`          channelId,
+`          YtResume(
+`            token: page.nextPageToken,
+`            offset: offset,
+`            end: page.nextPageToken == null,
+`          ),
+`        );
+`        fresh.addAll(withDurations);
+`        token = page.nextPageToken;
+`      }
+`      if (!mounted) return;
+`      setState(() {
+`        _moreVideos = [..._moreVideos, ...fresh];
+`        _reachedEnd = token == null && fresh.isEmpty;
+`        _loadingMore = false;
+`      });
+`    } catch (e) {
+`      if (!mounted) return;
+`      setState(() {
+`        _loadingMore = false;
+`        _loadMoreError = '$e';
+`      });
+`    }
+`  }
+`
+`  Future<({YtChannel? channel, List<YtCategory> categories})> _load() async {
+`    final repo = ref.read(ytTrackerRepositoryProvider);
+`    final channels = await repo.loadChannels();
+`    final categories = await repo.loadCategories();
+`    final channel = channels.where((c) => c.id == widget.channelId);
+`    return (channel: channel.isEmpty ? null : channel.first, categories: categories);
+`  }
+`
+`  void _reload() => setState(() => _future = _load());
+`
+`  void _ensureVideosLoaded(YtChannel channel, {bool force = false}) {
+`    final apiKey = ref.read(ytApiKeyProvider);
+`    if (apiKey == null || apiKey.isEmpty) return;
+`    final sameChannel = _videosLoadedForChannelId == channel.id;
+`    final stillFresh =
+`        _videosLoadedAt != null &&
+`        DateTime.now().difference(_videosLoadedAt!) < _staleAfter;
+`    if (!force && sameChannel && stillFresh) return;
+`    _videosLoadedForChannelId = channel.id;
+`    _videosLoadedAt = DateTime.now();
+`    setState(() {
+`      _uploadsId = null;
+`      _nextPageToken = null;
+`      _firstPage = const [];
+`      _reachedEnd = false;
+`      _loadMoreChannelId = channel.id;
+`      _moreVideos = const [];
+`      _loadingMore = false;
+`      _loadMoreError = null;
+`      _videosFuture = _fetchVideos(channel);
+`    });
+`  }
+`
+`  Future<List<YoutubeVideo>> _fetchVideos(YtChannel channel) async {
+`    final apiKey = ref.read(ytApiKeyProvider);
+`    if (apiKey == null || apiKey.isEmpty) return const [];
+`    final service = YoutubeApiService(apiKey);
+`    var uploadsId = channel.uploadsPlaylistId;
+`    if (uploadsId.isEmpty) {
+`      final handle = YoutubeApiService.parseHandle(channel.url);
+`      if (handle == null) {
+`        throw YoutubeApiException('這個頻道沒有網址，或網址裡找不到 @帳號，先去編輯頻道補上');
+`      }
+`      final info = await service.fetchChannelInfo(handle);
+`      uploadsId = info.uploadsPlaylistId;
+`      final updated = YtChannel(
+`        id: channel.id,
+`        name: channel.name,
+`        categoryId: channel.categoryId,
+`        avatarEmoji: channel.avatarEmoji,
+`        avatarImageUrl: channel.avatarImageUrl.isEmpty
+`            ? info.avatarUrl
+`            : channel.avatarImageUrl,
+`        url: channel.url,
+`        description: channel.description,
+`        youtubeChannelId: info.channelId,
+`        uploadsPlaylistId: info.uploadsPlaylistId,
+`        addedAt: channel.addedAt,
+`      );
+`      await ref.read(ytTrackerRepositoryProvider).updateChannel(updated);
+`    }
+`    _uploadsId = uploadsId;
+`    final page = await service.fetchVideosPage(uploadsId, maxResults: 10);
+`    _nextPageToken = page.nextPageToken;
+`    _loadMoreChannelId = channel.id;
+`    final videos = page.videos;
+`    // 時長要多打一次 videos.list 才有，見 youtube_api_service.dart 的
+`    // 說明。這次失敗就算了，讓影片清單照樣顯示，只是沒有時長角標，
+`    // 不要因為這個次要資訊讓整個清單抓失敗。
+`    final result = await _withDurations(service, videos);
+`    // 最近影片也存進快取（跟往下滑載入的更早影片、上傳頻率圖共用同一份），
+`    // 之後不用再請求，也會跟著同步（2026-09-24 使用者要求）。
+`    final cache = YtVideoCacheStore(ref.read(keyValueStoreProvider));
+`    await cache.upsertVideos(channel.id, result);
+`    await cache.saveResumeIfDeeper(
+`      channel.id,
+`      YtResume(
+`        token: page.nextPageToken,
+`        offset: result.length,
+`        end: page.nextPageToken == null,
+`      ),
+`    );
+`    if (mounted) _firstPage = result;
+`    return result;
+`  }
+`
+`  void _ensureHistoryLoaded(YtChannel channel, {bool force = false}) {
+`    final apiKey = ref.read(ytApiKeyProvider);
+`    if (apiKey == null || apiKey.isEmpty) return;
+`    if (!force && _historyLoadedForChannelId == channel.id) return;
+`    _historyLoadedForChannelId = channel.id;
+`    setState(() {
+`      _historyPreview = null;
+`      _historyFuture = _fetchHistory(channel);
+`    });
+`  }
+`
+`  Future<List<YoutubeVideo>> _fetchHistory(YtChannel channel) async {
+`    final apiKey = ref.read(ytApiKeyProvider);
+`    if (apiKey == null || apiKey.isEmpty) return const [];
+`    final now = DateTime.now();
+`    // 只抓近半年，不是全部歷史——時間範圍固定，不會因為頻道發片多寡
+`    // 讓等待時間跟配額失控（2026-09-23 使用者要求）。
+`    final since = DateTime(now.year, now.month - 6, now.day);
+`
+`    // 本機已經快取過的影片（見 yt_video_cache_store.dart）。頻道隨時
+`    // 可能發新片（10 秒、5 分鐘、15 分鐘都有可能），所以**不設**「多久內
+`    // 不用重抓」的時間限制，每次進頁面都補抓一次；但不讓使用者乾等——
+`    // 先把本機（含其他裝置同步過來的）資料畫出來當預覽，背景只補「上次
+`    // 之後新發的影片」：翻頁遇到已知影片就停（通常只要 1 次 API 呼叫），
+`    // 也不會重打已知影片的時長（2026-09-23 使用者要求：本機已經有的資料
+`    // 不用再往後拿，省配額）。
+`    final cache = YtVideoCacheStore(ref.read(keyValueStoreProvider));
+`    final cached = await cache.load(channel.id);
+`    final cachedById = {for (final v in cached) v.videoId: v};
+`    final cachedInWindow = cached
+`        .where((v) => !v.publishedAt.isBefore(since))
+`        .toList()
+`      ..sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
+`    if (cached.isNotEmpty && mounted) {
+`      setState(() => _historyPreview = cachedInWindow);
+`    }
+`
+`    final service = YoutubeApiService(apiKey);
+`    var uploadsId = channel.uploadsPlaylistId;
+`    if (uploadsId.isEmpty) {
+`      final handle = YoutubeApiService.parseHandle(channel.url);
+`      if (handle == null) return cachedInWindow;
+`      final info = await service.fetchChannelInfo(handle);
+`      uploadsId = info.uploadsPlaylistId;
+`    }
+`
+`    // 「遇到已知影片就停止翻頁」只有在之前**完整抓過一次半年份**（有記錄
+`    // 「上次對過 YouTube 的時間」）才成立。最近影片／往下滑載入的影片也會
+`    // 寫進同一份快取，快取裡有幾部不代表半年份抓齊了，這時要一路抓到
+`    // since 為止，不然常發片的頻道上傳頻率圖會缺資料。
+`    final everCompleted = await cache.lastFetchedAt(channel.id) != null;
+`    final resumeWrites = <Future<void>>[];
+`    final fetched = await service.fetchAllVideos(
+`      uploadsId,
+`      since: since,
+`      knownVideoIds: everCompleted ? cachedById.keys.toSet() : const {},
+`      onPage: (token, offset) => resumeWrites.add(
+`        cache.saveResumeIfDeeper(
+`          channel.id,
+`          YtResume(token: token, offset: offset, end: token == null),
+`        ),
+`      ),
+`    );
+`    await Future.wait(resumeWrites);
+`
+`    // 這次翻頁翻到的影片，扣掉本來就已經快取、時長也已經有的，只有
+`    // 真的新的才需要多打一次 fetchDurations。
+`    final newIds = [
+`      for (final v in fetched)
+`        if (!cachedById.containsKey(v.videoId) ||
+`            cachedById[v.videoId]!.duration == null)
+`          v.videoId,
+`    ];
+`    var withDurations = fetched;
+`    if (newIds.isNotEmpty) {
+`      // 時長抓失敗不影響圖能不能畫，只是 Shorts／一般影片分不出來，
+`      // 兩條線會全部算進「一般影片」那條（isLikelyShort 需要 duration
+`      // 才能判斷，沒有就當作不是 Shorts）。
+`      try {
+`        final durations = await service.fetchDurations(newIds);
+`        withDurations = [
+`          for (final v in fetched)
+`            durations.containsKey(v.videoId)
+`                ? v.withDuration(durations[v.videoId]!)
+`                : v,
+`        ];
+`      } catch (_) {
+`        // 忽略，withDurations 保持沒補時長的版本。
+`      }
+`    }
+`
+`    // 合併快取＋這次抓到的，新的蓋舊的（時長可能剛補上），整份落地存回去
+`    // 給下次用——**不再裁掉半年以前的**：往下滑載入的更早影片也存在同一份
+`    // 快取裡，下次不用重抓。上傳頻率圖只畫 since 窗口內的那部分。
+`    final merged = {
+`      for (final v in cached) v.videoId: v,
+`      // 這次翻頁又翻到的已知影片沒帶時長，別把快取裡已有的時長蓋成 null。
+`      for (final v in withDurations)
+`        v.videoId: v.duration == null && cachedById[v.videoId]?.duration != null
+`            ? cachedById[v.videoId]!
+`            : v,
+`    }.values.toList()
+`      ..sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
+`    await cache.save(channel.id, merged);
+`    return [
+`      for (final v in merged)
+`        if (!v.publishedAt.isBefore(since)) v,
+`    ];
+`  }
+`
+`  Widget _buildHistoryChart(YtChannel channel) {
+`    final apiKey = ref.watch(ytApiKeyProvider);
+`    if (apiKey == null || apiKey.isEmpty) return const SizedBox.shrink();
+`    if (_historyFuture == null) {
+`      return const SizedBox(
+`        height: 60,
+`        child: Center(child: CircularProgressIndicator.adaptive()),
+`      );
+`    }
+`    return FutureBuilder<List<YoutubeVideo>>(
+`      future: _historyFuture,
+`      builder: (context, snap) {
+`        if (snap.connectionState == ConnectionState.waiting) {
+`          // 背景補抓新影片期間，先用本機快取把圖畫出來，不讓使用者對著
+`          // 轉圈圈乾等。
+`          final preview = _historyPreview;
+`          if (preview != null) {
+`            return UploadFrequencyChart(data: bucketVideosByMonth(preview));
+`          }
+`          return const SizedBox(
+`            height: 160,
+`            child: Center(child: CircularProgressIndicator.adaptive()),
+`          );
+`        }
+`        if (snap.hasError) {
+`          return SizedBox(
+`            height: 60,
+`            child: Center(
+`              child: Text(
+`                '抓不到歷史影片：${snap.error}',
+`                style: AppText.note,
+`                textAlign: TextAlign.center,
+`              ),
+`            ),
+`          );
+`        }
+`        final videos = snap.data ?? const [];
+`        return UploadFrequencyChart(data: bucketVideosByMonth(videos));
+`      },
+`    );
+`  }
+`
+`  Widget _buildVideos(YtChannel channel) {
+`    final apiKey = ref.watch(ytApiKeyProvider);
+`    if (apiKey == null || apiKey.isEmpty) {
+`      return Center(
+`        child: Padding(
+`          padding: const EdgeInsets.all(24),
+`          child: Column(
+`            mainAxisSize: MainAxisSize.min,
+`            children: [
+`              const Icon(Icons.vpn_key_outlined, size: 32, color: AppColors.ink3),
+`              const SizedBox(height: Gap.sm),
+`              Text('還沒有設定 API 金鑰', style: AppText.bodyDim),
+`              const SizedBox(height: Gap.md),
+`              FilledButton(
+`                onPressed: () => showYtApiKeyDialog(context, ref),
+`                style: FilledButton.styleFrom(
+`                  backgroundColor: AppColors.ytAccent,
+`                  foregroundColor: AppColors.ytAccentInk,
+`                ),
+`                child: const Text('設定金鑰'),
+`              ),
+`            ],
+`          ),
+`        ),
+`      );
+`    }
+`    if (_videosFuture == null) {
+`      return const Center(child: CircularProgressIndicator.adaptive());
+`    }
+`    return FutureBuilder<List<YoutubeVideo>>(
+`      future: _videosFuture,
+`      builder: (context, snap) {
+`        if (snap.connectionState == ConnectionState.waiting) {
+`          return const Center(child: CircularProgressIndicator.adaptive());
+`        }
+`        if (snap.hasError) {
+`          return Center(
+`            child: Padding(
+`              padding: const EdgeInsets.all(24),
+`              child: Text(
+`                '${snap.error}',
+`                style: AppText.bodyDim,
+`                textAlign: TextAlign.center,
+`              ),
+`            ),
+`          );
+`        }
+`        final firstPage = snap.data ?? const [];
+`        if (firstPage.isEmpty) {
+`          return Center(child: Text('這個頻道抓不到影片', style: AppText.bodyDim));
+`        }
+`        final videos = [...firstPage, ..._moreVideos];
+`        // 用 Column 不用 ListView.separated——這塊現在是外層
+`        // SingleChildScrollView 的一部分，自己不用再是獨立的可捲動
+`        // 區域（見 build() 的說明：簡介／圖表／影片要一起滑動）。
+`        return Column(
+`          children: [
+`            for (var i = 0; i < videos.length; i++) ...[
+`              if (i > 0) const Divider(height: 1, color: AppColors.glassEdge),
+`              YtVideoRow(
+`                video: videos[i],
+`                subtitle: ytRelativeTime(videos[i].publishedAt),
+`              ),
+`            ],
+`            // 往下滑到底會自動載入更早的影片；載入中轉圈、失敗給重試、
+`            // 沒有更多了就說一聲。
+`            Padding(
+`              padding: const EdgeInsets.symmetric(vertical: 16),
+`              child: _loadingMore
+`                  ? const Center(child: CircularProgressIndicator.adaptive())
+`                  : _loadMoreError != null
+`                  ? Center(
+`                      child: TextButton(
+`                        onPressed: () {
+`                          setState(() => _loadMoreError = null);
+`                          _loadMoreVideos();
+`                        },
+`                        child: Text('載入失敗：$_loadMoreError（點一下重試）'),
+`                      ),
+`                    )
+`                  : _reachedEnd
+`                  ? Center(child: Text('沒有更早的影片了', style: AppText.note))
+`                  : const SizedBox.shrink(),
+`            ),
+`          ],
+`        );
+`      },
+`    );
+`  }
+`
+`  Future<void> _showEditDialog(YtChannel channel, List<YtCategory> categories) async {
+`    final nameController = TextEditingController(text: channel.name);
+`    final urlController = TextEditingController(text: channel.url);
+`    final avatarController = TextEditingController(text: channel.avatarImageUrl);
+`    final descriptionController = TextEditingController(text: channel.description);
+`    String? categoryId = channel.categoryId;
+`    final action = await showDialog<String>(
+`      context: context,
+`      builder: (dialogContext) => StatefulBuilder(
+`        builder: (context, setDialogState) => AlertDialog(
+`          backgroundColor: const Color(0xFF1A1A24),
+`          title: const Text('編輯頻道', style: TextStyle(color: AppColors.ink)),
+`          content: SingleChildScrollView(
+`            child: Column(
+`              mainAxisSize: MainAxisSize.min,
+`              crossAxisAlignment: CrossAxisAlignment.start,
+`              children: [
+`                TextField(
+`                  controller: nameController,
+`                  autofocus: true,
+`                  maxLength: 30,
+`                  decoration: const InputDecoration(
+`                    labelText: '頻道名稱',
+`                    counterText: '',
+`                  ),
+`                  style: const TextStyle(color: AppColors.ink),
+`                ),
+`                const SizedBox(height: Gap.xs),
+`                TextField(
+`                  controller: urlController,
+`                  decoration: const InputDecoration(labelText: '頻道網址'),
+`                  style: const TextStyle(fontSize: 12.5, color: AppColors.ink),
+`                ),
+`                const SizedBox(height: Gap.xs),
+`                TextField(
+`                  controller: avatarController,
+`                  decoration: const InputDecoration(labelText: '頭像圖片網址'),
+`                  style: const TextStyle(fontSize: 12.5, color: AppColors.ink),
+`                ),
+`                const SizedBox(height: Gap.xs),
+`                TextField(
+`                  controller: descriptionController,
+`                  minLines: 1,
+`                  maxLines: 4,
+`                  maxLength: 200,
+`                  decoration: const InputDecoration(labelText: '簡介'),
+`                  style: const TextStyle(fontSize: 12.5, color: AppColors.ink),
+`                ),
+`                const SizedBox(height: Gap.sm),
+`                Text('分類', style: AppText.note),
+`                const SizedBox(height: Gap.xs),
+`                Wrap(
+`                  spacing: 6,
+`                  runSpacing: 6,
+`                  children: [
+`                    _Pick(
+`                      label: '未分類',
+`                      color: AppColors.ink3,
+`                      selected: categoryId == null,
+`                      onTap: () => setDialogState(() => categoryId = null),
+`                    ),
+`                    for (final cat in categories)
+`                      _Pick(
+`                        label: cat.name,
+`                        color: cat.color,
+`                        selected: categoryId == cat.id,
+`                        onTap: () => setDialogState(() => categoryId = cat.id),
+`                      ),
+`                  ],
+`                ),
+`              ],
+`            ),
+`          ),
+`          // 刪除是破壞性動作，字體縮小、放最左邊跟儲存/取消拉開距離，
+`          // 不要跟常用的兩個動作擠在一起、字級還一樣大，容易誤按
+`          // （2026-09-22 使用者要求）。儲存在取消左邊，離刪除比較遠。
+`          actions: [
+`            TextButton(
+`              onPressed: () => Navigator.pop(dialogContext, 'delete'),
+`              style: TextButton.styleFrom(foregroundColor: AppColors.bad),
+`              child: const Text('刪除', style: TextStyle(fontSize: 12)),
+`            ),
+`            FilledButton(
+`              onPressed: () => Navigator.pop(dialogContext, 'save'),
+`              style: FilledButton.styleFrom(
+`                backgroundColor: AppColors.ytAccent,
+`                foregroundColor: AppColors.ytAccentInk,
+`              ),
+`              child: const Text('儲存'),
+`            ),
+`            TextButton(
+`              onPressed: () => Navigator.pop(dialogContext, 'cancel'),
+`              child: const Text('取消'),
+`            ),
+`          ],
+`        ),
+`      ),
+`    );
+`
+`    final repo = ref.read(ytTrackerRepositoryProvider);
+`    if (action == 'save') {
+`      final name = nameController.text.trim();
+`      if (name.isEmpty) return;
+`      await repo.updateChannel(
+`        YtChannel(
+`          id: channel.id,
+`          name: name,
+`          categoryId: categoryId,
+`          avatarEmoji: channel.avatarEmoji,
+`          avatarImageUrl: avatarController.text.trim(),
+`          url: urlController.text.trim(),
+`          description: descriptionController.text.trim(),
+`          addedAt: channel.addedAt,
+`        ),
+`      );
+`      if (!mounted) return;
+`      _reload();
+`    } else if (action == 'delete') {
+`      if (!mounted) return;
+`      final confirmed = await showDialog<bool>(
+`        context: context,
+`        builder: (dialogContext) => AlertDialog(
+`          backgroundColor: const Color(0xFF1A1A24),
+`          title: const Text('刪除這個頻道？', style: TextStyle(color: AppColors.ink)),
+`          content: Text('這個動作無法復原。', style: AppText.bodyDim),
+`          actions: [
+`            TextButton(
+`              onPressed: () => Navigator.pop(dialogContext, false),
+`              child: const Text('取消'),
+`            ),
+`            TextButton(
+`              onPressed: () => Navigator.pop(dialogContext, true),
+`              style: TextButton.styleFrom(foregroundColor: AppColors.bad),
+`              child: const Text('刪除'),
+`            ),
+`          ],
+`        ),
+`      );
+`      if (confirmed != true) return;
+`      await repo.deleteChannel(channel.id);
+`      if (!mounted) return;
+`      Navigator.of(context).maybePop();
+`    }
+`  }
+`
+`  @override
+`  Widget build(BuildContext context) {
+`    return Scaffold(
+`      drawer: const AppSideDrawer(),
+`      body: AmbientBackground(
+`        child: SafeArea(
+`          child: Padding(
+`            padding: const EdgeInsets.symmetric(horizontal: Gap.screenSide),
+`            child: Column(
+`              crossAxisAlignment: CrossAxisAlignment.stretch,
+`              children: [
+`                const SizedBox(height: Gap.sm),
+`                Expanded(
+`                  child: FutureBuilder(
+`                    future: _future,
+`                    builder: (context, snap) {
+`                      if (!snap.hasData) {
+`                        return Column(
+`                          crossAxisAlignment: CrossAxisAlignment.stretch,
+`                          children: [
+`                            const AppTopBar(title: '頻道'),
+`                            const Expanded(
+`                              child: Center(
+`                                child: CircularProgressIndicator.adaptive(),
+`                              ),
+`                            ),
+`                          ],
+`                        );
+`                      }
+`                      final channel = snap.data!.channel;
+`                      final categories = snap.data!.categories;
+`                      if (channel == null) {
+`                        return Column(
+`                          crossAxisAlignment: CrossAxisAlignment.stretch,
+`                          children: [
+`                            const AppTopBar(title: '頻道'),
+`                            Expanded(
+`                              child: Center(
+`                                child: Text('找不到這個頻道', style: AppText.bodyDim),
+`                              ),
+`                            ),
+`                          ],
+`                        );
+`                      }
+`                      final category = categories
+`                          .where((c) => c.id == channel.categoryId);
+`                      final categoryLabel =
+`                          category.isEmpty ? '未分類' : category.first.name;
+`
+`                      // 不能在 build() 當下直接呼叫（裡面可能觸發
+`                      // setState），排到這一幀畫完之後——跟
+`                      // `yt_tracker_browse_page.dart` 同一套做法。
+`                      WidgetsBinding.instance.addPostFrameCallback((_) {
+`                        if (!mounted) return;
+`                        _ensureVideosLoaded(channel);
+`                        _ensureHistoryLoaded(channel);
+`                      });
+`
+`                      return Column(
+`                        crossAxisAlignment: CrossAxisAlignment.stretch,
+`                        children: [
+`                          AppTopBar(
+`                            title: channel.name,
+`                            actions: [
+`                              IconButton(
+`                                onPressed: () =>
+`                                    _showEditDialog(channel, categories),
+`                                icon: const Icon(Icons.edit_outlined, size: 20),
+`                                color: AppColors.ink2,
+`                                tooltip: '編輯頻道',
+`                              ),
+`                            ],
+`                          ),
+`                          const SizedBox(height: Gap.md),
+`                          // 簡介／上傳頻率圖／最近影片全部包進同一個可捲動
+`                          // 區域，不要只有最近影片自己捲、上面的內容固定
+`                          // 不動——不然滑最近影片清單時，簡介跟圖表卻停在
+`                          // 原地不會一起往上滑，體驗很奇怪（2026-09-23
+`                          // 使用者回報）。只有頂部列固定在外面。
+`                          Expanded(
+`                            child: SingleChildScrollView(
+`                              controller: _scroll,
+`                              child: Column(
+`                                crossAxisAlignment: CrossAxisAlignment.stretch,
+`                                children: [
+`                                  _buildChannelBody(
+`                                    channel,
+`                                    categories,
+`                                    categoryLabel,
+`                                  ),
+`                                ],
+`                              ),
+`                            ),
+`                          ),
+`                        ],
+`                      );
+`                    },
+`                  ),
+`                ),
+`              ],
+`            ),
+`          ),
+`        ),
+`      ),
+`    );
+`  }
+`
+`  Widget _buildChannelBody(
+`    YtChannel channel,
+`    List<YtCategory> categories,
+`    String categoryLabel,
+`  ) {
+`    return Column(
+`      crossAxisAlignment: CrossAxisAlignment.stretch,
+`      children: [
+`        Row(
+`                            children: [
+`                              YtChannelAvatar(channel: channel, radius: 28),
+`                              const SizedBox(width: Gap.md),
+`                              Expanded(
+`                                child: Column(
+`                                  crossAxisAlignment: CrossAxisAlignment.start,
+`                                  children: [
+`                                    Text(
+`                                      channel.name,
+`                                      style: const TextStyle(
+`                                        fontSize: 16.5,
+`                                        fontWeight: FontWeight.w800,
+`                                        color: AppColors.ink,
+`                                      ),
+`                                    ),
+`                                    const SizedBox(height: 3),
+`                                    Text(categoryLabel, style: AppText.note),
+`                                    if (channel.url.isNotEmpty) ...[
+`                                      const SizedBox(height: 2),
+`                                      InkWell(
+`                                        onTap: () => openExternalUrl(
+`                                          context,
+`                                          channel.url,
+`                                        ),
+`                                        child: Text(
+`                                          channel.url,
+`                                          maxLines: 1,
+`                                          overflow: TextOverflow.ellipsis,
+`                                          style: AppText.note.copyWith(
+`                                            // 連結照網頁慣例用淡藍色，不用
+`                                            // 這個功能自己的紅色強調色——
+`                                            // 紅在這個 App 的語意色系裡也
+`                                            // 常代表錯誤/警示，用在連結上
+`                                            // 會讓人誤會（2026-09-22
+`                                            // 使用者回饋）。AppColors.accent
+`                                            // 就是既有的淡藍色，不用另外
+`                                            // 開新色碼。
+`                                            color: AppColors.accent,
+`                                            decoration: TextDecoration.underline,
+`                                          ),
+`                                        ),
+`                                      ),
+`                                    ],
+`                                  ],
+`                                ),
+`                              ),
+`                            ],
+`                          ),
+`                          if (channel.description.isNotEmpty) ...[
+`                            const SizedBox(height: Gap.md),
+`                            const PanelLabel('簡介'),
+`                            const SizedBox(height: Gap.xs),
+`                            Text(channel.description, style: AppText.bodyDim),
+`                          ],
+`                          const SizedBox(height: Gap.md),
+`                          const PanelLabel('上傳頻率（近半年）'),
+`                          const SizedBox(height: Gap.xs),
+`                          _buildHistoryChart(channel),
+`                          const SizedBox(height: Gap.md),
+`                          Row(
+`                            children: [
+`                              const PanelLabel('最近影片'),
+`                              const Spacer(),
+`                              TextButton.icon(
+`                                onPressed: () {
+`                                  _ensureVideosLoaded(channel, force: true);
+`                                  _ensureHistoryLoaded(channel, force: true);
+`                                },
+`                                icon: const Icon(Icons.refresh, size: 15),
+`                                label: const Text('重新整理'),
+`                                style: TextButton.styleFrom(
+`                                  foregroundColor: AppColors.ink2,
+`                                  padding: EdgeInsets.zero,
+`                                  minimumSize: const Size(0, 0),
+`                                  tapTargetSize:
+`                                      MaterialTapTargetSize.shrinkWrap,
+`                                ),
+`                              ),
+`                            ],
+`                          ),
+`        const SizedBox(height: Gap.sm),
+`        _buildVideos(channel),
+`      ],
+`    );
+`  }
+`}
+`
+`class _Pick extends StatelessWidget {
+`  const _Pick({
+`    required this.label,
+`    required this.color,
+`    required this.selected,
+`    required this.onTap,
+`  });
+`
+`  final String label;
+`  final Color color;
+`  final bool selected;
+`  final VoidCallback onTap;
+`
+`  @override
+`  Widget build(BuildContext context) {
+`    return InkWell(
+`      onTap: onTap,
+`      borderRadius: BorderRadius.circular(999),
+`      child: Container(
+`        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+`        decoration: BoxDecoration(
+`          borderRadius: BorderRadius.circular(999),
+`          color: selected ? color.withValues(alpha: 0.22) : AppColors.glassFill,
+`          border: Border.all(color: selected ? color : AppColors.glassEdge),
+`        ),
+`        child: Text(
+`          label,
+`          style: TextStyle(
+`            fontSize: 11.5,
+`            fontWeight: FontWeight.w600,
+`            color: selected ? AppColors.ink : AppColors.ink2,
+`          ),
+`        ),
+`      ),
+`    );
+`  }
+`}
