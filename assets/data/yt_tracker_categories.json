@@ -52,5 +52,11 @@
     "name": "知識",
     "color": 4284463305,
     "imageUrl": ""
+  },
+  {
+    "id": "seed-cars",
+    "name": "汽車",
+    "color": 4292901498,
+    "imageUrl": ""
   }
 ]
