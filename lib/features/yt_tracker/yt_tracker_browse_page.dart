@@ -6,6 +6,7 @@ import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
+import '../../data/repositories/yt_video_cache_store.dart';
 import '../../data/services/youtube_api_service.dart';
 import '../../domain/models/yt_tracker.dart';
 import '../../shared/widgets/ambient_background.dart';
@@ -173,6 +174,17 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
       }
     } catch (_) {
       // 忽略，影片清單本身已經抓到了。
+    }
+    // 抓到的影片存進本機快取（跟頻道詳情頁共用同一份，也會跟著同步），
+    // 用影片 id 去重——每次進來都抓最近 10 部，大部分跟上次重複，只有
+    // 真的新的才會新增，已存的不會被寫兩次（2026-09-24 使用者要求）。
+    final cache = YtVideoCacheStore(ref.read(keyValueStoreProvider));
+    final byChannel = <String, List<YoutubeVideo>>{};
+    for (final r in results) {
+      byChannel.putIfAbsent(r.channel.id, () => []).add(r.video);
+    }
+    for (final entry in byChannel.entries) {
+      await cache.upsertVideos(entry.key, entry.value);
     }
     results.sort((a, b) => b.video.publishedAt.compareTo(a.video.publishedAt));
     return results;

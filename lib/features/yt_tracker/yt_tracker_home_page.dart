@@ -19,7 +19,6 @@ import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_notice.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
-import '../../shared/widgets/glass_card.dart';
 import 'yt_api_key_dialog.dart';
 import 'yt_channel_avatar.dart';
 
@@ -372,7 +371,8 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
                             child: gridCount == 0
                                 ? _EmptyState(onAdd: _showAddCategoryDialog)
                                 : GridView.builder(
-                                    itemCount: gridCount,
+                                    // 第一格固定是「全部」，所以多一格。
+                                    itemCount: gridCount + 1,
                                     gridDelegate:
                                         const SliverGridDelegateWithFixedCrossAxisCount(
                                           crossAxisCount: 2,
@@ -380,7 +380,31 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
                                           crossAxisSpacing: 10,
                                           childAspectRatio: 1.5,
                                         ),
-                                    itemBuilder: (_, i) {
+                                    itemBuilder: (_, gridIndex) {
+                                      // 「全部」放第一個（2026-09-24 使用者要求）：
+                                      // 不是真的分類，就是不篩選、看所有頻道，用
+                                      // all.png 當底圖，沒有編輯／刪除。
+                                      if (gridIndex == 0) {
+                                        return _CategoryCard(
+                                          category: const YtCategory(
+                                            id: '__all__',
+                                            name: '全部',
+                                            colorValue: 0xFF7EA6FF,
+                                            imageUrl:
+                                                'assets/images/yt_tracker/all.png',
+                                          ),
+                                          channels: channels.take(4).toList(),
+                                          count: channels.length,
+                                          onTap: () => context
+                                              .push(
+                                                '/yt-tracker/browse',
+                                                extra: <String>{},
+                                              )
+                                              .then((_) => _reload()),
+                                          onLongPress: null,
+                                        );
+                                      }
+                                      final i = gridIndex - 1;
                                       final isUncategorized =
                                           i == categories.length;
                                       final cat = isUncategorized
@@ -407,32 +431,6 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
                                       );
                                     },
                                   ),
-                          ),
-                          const SizedBox(height: Gap.sm),
-                          GlassCard(
-                            onTap: () => context
-                                .push('/yt-tracker/browse', extra: <String>{})
-                                .then((_) => _reload()),
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.subscriptions_outlined,
-                                  size: 18,
-                                  color: AppColors.ink2,
-                                ),
-                                const SizedBox(width: Gap.sm),
-                                Text(
-                                  '全部頻道（共 ${channels.length} 個）',
-                                  style: AppText.bodyDim,
-                                ),
-                                const Spacer(),
-                                const Icon(
-                                  Icons.chevron_right,
-                                  size: 18,
-                                  color: AppColors.ink3,
-                                ),
-                              ],
-                            ),
                           ),
                           const SizedBox(height: Gap.md),
                         ],
