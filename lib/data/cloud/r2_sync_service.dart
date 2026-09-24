@@ -13,7 +13,9 @@ import '../../shared/debug/app_log.dart';
 import '../repositories/error_log_repository.dart';
 import '../../domain/models/kana_exam.dart';
 import '../../domain/models/kana_practice.dart';
+import '../../domain/models/history.dart';
 import '../repositories/fitness_repository.dart';
+import '../repositories/history_repository.dart';
 import '../repositories/kana_exam_repository.dart';
 import '../repositories/kana_practice_repository.dart';
 import '../repositories/sync_log_repository.dart';
@@ -269,6 +271,57 @@ class R2SyncService {
     return (downloaded: downloaded, uploaded: uploaded);
   }
 
+  /// 英文單字作答紀錄（2026-09-24）。作答紀錄只增不改，所以不需要墓碑，
+  /// 合併是聯集（見 [HistoryRepository.mergeFromCloud]）；每輪摘要一起放
+  /// 在同一個檔案 `english_history.json`（`{entries, rounds}`）。單字本身
+  /// 的資料是打包進 App 的，沒有使用者編輯，不用同步；對錯次數從紀錄現算。
+  Future<({int downloaded, int uploaded})> syncEnglishHistory(
+    HistoryRepository repo, {
+    void Function(SyncPhase phase)? onPhase,
+  }) async {
+    onPhase?.call(SyncPhase.downloading);
+    final bytes = await _client.getObject('english_history.json');
+    var cloudEntries = <HistoryEntry>[];
+    var cloudRounds = <RoundLog>[];
+    if (bytes != null) {
+      final decoded = jsonDecode(utf8.decode(bytes)) as Map<String, dynamic>;
+      cloudEntries = (decoded['entries'] as List)
+          .cast<Map<String, dynamic>>()
+          .map(HistoryEntry.fromJson)
+          .toList();
+      cloudRounds = (decoded['rounds'] as List)
+          .cast<Map<String, dynamic>>()
+          .map(RoundLog.fromJson)
+          .toList();
+    }
+    final downloaded = bytes == null
+        ? 0
+        : await repo.mergeFromCloud(cloudEntries, cloudRounds);
+
+    onPhase?.call(SyncPhase.uploading);
+    final all = await repo.allForUpload();
+    final cloudPrints = {
+      for (final e in cloudEntries) HistoryRepository.fingerprint(e),
+    };
+    final cloudRoundsByAt = {for (final r in cloudRounds) r.at: r};
+    final uploaded =
+        all.entries
+            .where((e) => !cloudPrints.contains(HistoryRepository.fingerprint(e)))
+            .length +
+        all.rounds.where((r) {
+          final c = cloudRoundsByAt[r.at];
+          return c == null || c.seconds != r.seconds || c.total != r.total;
+        }).length;
+    final body = utf8.encode(
+      jsonEncode({
+        'entries': [for (final e in all.entries) e.toJson()],
+        'rounds': [for (final r in all.rounds) r.toJson()],
+      }),
+    );
+    await _client.putObject('english_history.json', Uint8List.fromList(body));
+    return (downloaded: downloaded, uploaded: uploaded);
+  }
+
   /// 五十音手寫練習紀錄（`kana_practice.json`）。
   Future<({int downloaded, int uploaded})> syncKanaPractice(
     KanaPracticeRepository repo, {
@@ -361,6 +414,10 @@ class R2SyncService {
     final ytChannels = await _fetchCloudYtChannels();
     final kanaPractice = await _fetchCloudRaw('kana_practice.json');
     final kanaExam = await _fetchCloudRaw('kana_exam.json');
+    final englishHistoryBytes = await _client.getObject('english_history.json');
+    final englishHistory = englishHistoryBytes == null
+        ? null
+        : jsonDecode(utf8.decode(englishHistoryBytes));
     final log = await _fetchCloudLog();
     final errorLog = await _fetchCloudErrorLog();
     // 影片快取一個頻道一個檔，跟頻道清單對著逐一抓。
@@ -379,6 +436,7 @@ class R2SyncService {
       'ytVideoCache': ytVideoCache,
       'kanaPractice': kanaPractice,
       'kanaExam': kanaExam,
+      'englishHistory': englishHistory,
       'syncLog': [for (final e in log) e.toJson()],
       'errorLog': [for (final e in errorLog) e.toJson()],
     });

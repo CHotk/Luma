@@ -35,6 +35,30 @@ void main() {
     expect(entries.length, 1, reason: '指紋（at+word+correct）對得上，不該疊成兩筆');
   });
 
+  test('mergeFromCloud：聯集去重，重複合併不會疊加；輪次留秒數大的', () async {
+    final repo = HistoryRepository(store, seed: null);
+    final at = DateTime(2026, 9, 20, 9, 0);
+    await repo.appendAnswer(log('rain', ok: true, at: at), stealth: false);
+
+    final cloudEntries = [
+      log('rain', ok: true, at: at), // 本機已有
+      log('snow', ok: false, at: at), // 只有雲端有
+    ];
+    final cloudRounds = [
+      RoundLog(at: at, seconds: 90, total: 2, right: 1, stealth: false),
+    ];
+
+    final first = await repo.mergeFromCloud(cloudEntries, cloudRounds);
+    final second = await repo.mergeFromCloud(cloudEntries, cloudRounds);
+
+    expect(first, greaterThan(0));
+    expect(second, 0, reason: '同樣的雲端資料再合併一次不該有任何異動');
+    expect((await repo.entries()).length, 2);
+    final rounds = await repo.rounds();
+    expect(rounds.length, 1);
+    expect(rounds.first.seconds, 90);
+  });
+
   test('appendAnswer：同一個 at 的題目會被歸成同一輪', () async {
     final repo = HistoryRepository(store, seed: null);
     final at = DateTime(2026, 9, 17, 10, 0);

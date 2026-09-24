@@ -30,8 +30,8 @@ import 'yt_channel_avatar.dart';
 /// 不是為了照 YouTube 那樣逛訂閱的人，是想先分類、想不知道看誰的時候
 /// 能照分類找。所以首頁不是影片清單，是分類資料夾（2026-09-22 使用者
 /// 要求）。「依影片顯示」真的接了 YouTube Data API（2026-09-22），但
-/// 金鑰只存記憶體，不進 localStorage／Git，所以一進這頁、金鑰還沒存的
-/// 話會先跳懸浮視窗問（見 `yt_api_key_dialog.dart`）。
+/// 金鑰存本機一週，不進 Git，沒金鑰時在需要它的頁面點按鈕才會跳輸入
+/// 視窗（見 `yt_api_key_dialog.dart`），不會一進首頁就跳。
 class YtTrackerHomePage extends ConsumerStatefulWidget {
   const YtTrackerHomePage({super.key});
 
@@ -46,16 +46,9 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
   void initState() {
     super.initState();
     _future = _load();
-    // 一進頁面就問金鑰，但不擋categorization——沒金鑰一樣能用分類/頻道
-    // 管理，只有「依影片顯示」需要（2026-09-22 使用者要求：剛進來先
-    // 跳懸浮視窗輸入）。
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final key = ref.read(ytApiKeyProvider);
-      if (key == null || key.isEmpty) {
-        showYtApiKeyDialog(context, ref);
-      }
-    });
+    // 不再一進頁面就自動跳金鑰輸入視窗（2026-09-24 使用者要求：手機一進來
+    // 就跳出貼上選項很煩、而且貼了也沒真的貼進去，先拿掉）。需要金鑰的
+    // 「依影片顯示」跟頻道詳情頁，沒金鑰時自己會顯示「設定 API 金鑰」按鈕。
   }
 
   /// 打開這頁那一瞬間先把分類／頻道快照（見 `yt_tracker_seed_loader.dart`）

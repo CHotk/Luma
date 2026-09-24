@@ -179,6 +179,52 @@ class HistoryRepository {
       ..sort((a, b) => b.at.compareTo(a.at));
   }
 
+  /// 給多裝置同步上傳用：整份作答紀錄跟每輪摘要（含打包進來的）。
+  Future<({List<HistoryEntry> entries, List<RoundLog> rounds})>
+  allForUpload() async => (entries: await entries(), rounds: await rounds());
+
+  /// 把 R2 雲端抓下來的紀錄併回本機（2026-09-24 英文單字紀錄同步）。
+  ///
+  /// 作答紀錄只增不改，所以合併就是聯集，去重用 [fingerprint]（同
+  /// [_syncBundle]）；每輪摘要以 `at` 對應，兩邊都有就留「秒數比較大」
+  /// 的那份（[finishRound] 會把每題累加的秒數換成整輪實際耗時，比較大
+  /// 的通常是補過的），秒數一樣就留筆數多的。單字的對錯次數是從紀錄
+  /// 現算的，不用另外同步。回傳新增的作答筆數＋內容有變的輪次數。
+  Future<int> mergeFromCloud(
+    List<HistoryEntry> cloudEntries,
+    List<RoundLog> cloudRounds,
+  ) async {
+    final existing = await entries();
+    final seen = {for (final e in existing) _fingerprint(e)};
+    final added = [
+      for (final e in cloudEntries)
+        if (seen.add(_fingerprint(e))) e,
+    ];
+    var changed = added.length;
+    final mergedEntries = added.isEmpty
+        ? existing
+        : ([...existing, ...added]..sort((a, b) => a.at.compareTo(b.at)));
+    if (added.isNotEmpty) await _writeEntries(mergedEntries);
+
+    final localRounds = await rounds();
+    final byAt = {for (final r in localRounds) r.at: r};
+    for (final r in cloudRounds) {
+      final mine = byAt[r.at];
+      if (mine == null) {
+        byAt[r.at] = r;
+        changed++;
+      } else if (r.seconds > mine.seconds ||
+          (r.seconds == mine.seconds && r.total > mine.total)) {
+        byAt[r.at] = r;
+        changed++;
+      }
+    }
+    // 雲端有作答但沒帶到摘要的輪次，也要能兜出來。
+    final merged = _rebuildRounds(mergedEntries, byAt.values.toList());
+    await _writeRounds(merged);
+    return changed;
+  }
+
   /// 把打包進來的紀錄合併進本機。
   ///
   /// 每次打包版本變新就跑一次，不是只跑一次。
@@ -219,6 +265,8 @@ class HistoryRepository {
   /// correct 已經足夠唯一識別一筆紀錄，round 只是內部分組 id，混進來
   /// 是多餘的（使用者 2026-09-17 決定拿掉）。這個字串是即時算出來的，
   /// 不是存在本機的固定格式，改公式不用另外跑遷移版本號。
+  static String fingerprint(HistoryEntry e) => _fingerprint(e);
+
   static String _fingerprint(HistoryEntry e) =>
       '${e.at.toIso8601String()}|${e.word.toLowerCase()}|${e.correct}';
 

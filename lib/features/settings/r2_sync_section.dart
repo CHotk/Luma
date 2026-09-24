@@ -58,6 +58,7 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
   _FeaturePhase _ytPhase = _FeaturePhase.idle;
   _FeaturePhase _kanaPracticePhase = _FeaturePhase.idle;
   _FeaturePhase _kanaExamPhase = _FeaturePhase.idle;
+  _FeaturePhase _englishPhase = _FeaturePhase.idle;
 
   @override
   void initState() {
@@ -156,6 +157,7 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
       _ytPhase = _FeaturePhase.idle;
       _kanaPracticePhase = _FeaturePhase.idle;
       _kanaExamPhase = _FeaturePhase.idle;
+      _englishPhase = _FeaturePhase.idle;
     });
     try {
       final client = R2Client(
@@ -205,6 +207,14 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
       );
       if (mounted) setState(() => _kanaExamPhase = _FeaturePhase.done);
 
+      final englishResult = await service.syncEnglishHistory(
+        ref.read(historyRepositoryProvider),
+        onPhase: _phaseCallback((p) => _englishPhase = p),
+      );
+      // 單字庫有記憶體快取（對錯次數是從紀錄現算的），紀錄變了要丟掉重算。
+      ref.read(wordRepositoryProvider).invalidate();
+      if (mounted) setState(() => _englishPhase = _FeaturePhase.done);
+
       final now = DateTime.now();
       await ref
           .read(keyValueStoreProvider)
@@ -221,7 +231,8 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
               'YT頻道 上傳${ytResult.uploaded}／下載${ytResult.downloaded}；'
               'YT影片快取 上傳${ytVideoResult.uploaded}／下載${ytVideoResult.downloaded}；'
               '五十音練習 上傳${kanaPracticeResult.uploaded}／下載${kanaPracticeResult.downloaded}；'
-              '五十音考試 上傳${kanaExamResult.uploaded}／下載${kanaExamResult.downloaded}',
+              '五十音考試 上傳${kanaExamResult.uploaded}／下載${kanaExamResult.downloaded}；'
+              '英文單字紀錄 上傳${englishResult.uploaded}／下載${englishResult.downloaded}',
         ),
       );
       try {
@@ -301,6 +312,7 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
         _FeatureStatusRow(label: 'YT 頻道追蹤', phase: _ytPhase),
         _FeatureStatusRow(label: '五十音練習', phase: _kanaPracticePhase),
         _FeatureStatusRow(label: '五十音考試', phase: _kanaExamPhase),
+        _FeatureStatusRow(label: '英文單字紀錄', phase: _englishPhase),
       ],
     );
   }
