@@ -104,6 +104,9 @@ class YtChannel {
     required this.addedAt,
     this.updatedAt,
     this.deletedAt,
+    this.subscriberCount,
+    this.subscribersHidden = false,
+    this.statsUpdatedAt,
   });
 
   final String id;
@@ -115,6 +118,63 @@ class YtChannel {
   final DateTime? deletedAt;
 
   DateTime get syncedAt => updatedAt ?? addedAt;
+
+  /// 訂閱人數（2026-09-24 加）。YouTube API 回的是「無條件捨去到三位有效
+  /// 數字」的概略值，不是精確人數；頻道可以選擇隱藏，隱藏時
+  /// [subscribersHidden] 是 true、[subscriberCount] 是 null。[statsUpdatedAt]
+  /// 是上次問 API 的時間，拿來決定要不要重新更新。頻道詳情頁只讀這裡存的
+  /// 值，不會另外打 API。
+  final int? subscriberCount;
+  final bool subscribersHidden;
+  final DateTime? statsUpdatedAt;
+
+  /// 顯示用的訂閱人數文字，沒有資料就是 null（畫面就不顯示這一行）。
+  String? get subscriberLabel {
+    if (subscribersHidden) return '訂閱數未公開';
+    final n = subscriberCount;
+    if (n == null) return null;
+    String trim(double v) {
+      final t = v.toStringAsFixed(1);
+      return t.endsWith('.0') ? t.substring(0, t.length - 2) : t;
+    }
+    if (n >= 100000000) return '約 ${trim(n / 100000000)} 億位訂閱';
+    if (n >= 10000) return '約 ${trim(n / 10000)} 萬位訂閱';
+    return '$n 位訂閱';
+  }
+
+  /// 只改指定欄位的複製（不動 [updatedAt]／[deletedAt]，要蓋時間請用
+  /// [stamped]）。[categoryId] 用 [_keep] 當「不改」的標記，因為 null 本身
+  /// 是有意義的值（未分類）。
+  YtChannel copyWith({
+    String? name,
+    Object? categoryId = _keep,
+    String? avatarImageUrl,
+    String? url,
+    String? description,
+    String? youtubeChannelId,
+    String? uploadsPlaylistId,
+    int? subscriberCount,
+    bool? subscribersHidden,
+    DateTime? statsUpdatedAt,
+  }) => YtChannel(
+    id: id,
+    name: name ?? this.name,
+    categoryId: identical(categoryId, _keep)
+        ? this.categoryId
+        : categoryId as String?,
+    avatarEmoji: avatarEmoji,
+    avatarImageUrl: avatarImageUrl ?? this.avatarImageUrl,
+    url: url ?? this.url,
+    description: description ?? this.description,
+    youtubeChannelId: youtubeChannelId ?? this.youtubeChannelId,
+    uploadsPlaylistId: uploadsPlaylistId ?? this.uploadsPlaylistId,
+    addedAt: addedAt,
+    updatedAt: updatedAt,
+    deletedAt: deletedAt,
+    subscriberCount: subscriberCount ?? this.subscriberCount,
+    subscribersHidden: subscribersHidden ?? this.subscribersHidden,
+    statsUpdatedAt: statsUpdatedAt ?? this.statsUpdatedAt,
+  );
 
   YtChannel _copy({
     required String? categoryId,
@@ -133,6 +193,9 @@ class YtChannel {
     addedAt: addedAt,
     updatedAt: updatedAt,
     deletedAt: deletedAt,
+    subscriberCount: subscriberCount,
+    subscribersHidden: subscribersHidden,
+    statsUpdatedAt: statsUpdatedAt,
   );
 
   /// 內容有變時蓋上現在的時間，見 [YtTrackerRepository]。
@@ -190,6 +253,9 @@ class YtChannel {
     'addedAt': addedAt.toIso8601String(),
     'updatedAt': updatedAt?.toIso8601String(),
     'deletedAt': deletedAt?.toIso8601String(),
+    'subscriberCount': subscriberCount,
+    'subscribersHidden': subscribersHidden,
+    'statsUpdatedAt': statsUpdatedAt?.toIso8601String(),
   };
 
   factory YtChannel.fromJson(Map<String, dynamic> json) => YtChannel(
@@ -205,8 +271,14 @@ class YtChannel {
     addedAt: DateTime.parse(json['addedAt'] as String),
     updatedAt: _parseTime(json['updatedAt']),
     deletedAt: _parseTime(json['deletedAt']),
+    subscriberCount: json['subscriberCount'] as int?,
+    subscribersHidden: json['subscribersHidden'] as bool? ?? false,
+    statsUpdatedAt: _parseTime(json['statsUpdatedAt']),
   );
 }
+
+/// [YtChannel.copyWith] 的「不改這個欄位」標記。
+const Object _keep = Object();
 
 DateTime? _parseTime(Object? raw) =>
     raw == null ? null : DateTime.parse(raw as String);

@@ -265,19 +265,13 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
       }
       final info = await service.fetchChannelInfo(handle);
       uploadsId = info.uploadsPlaylistId;
-      final updated = YtChannel(
-        id: channel.id,
-        name: channel.name,
-        categoryId: channel.categoryId,
-        avatarEmoji: channel.avatarEmoji,
-        avatarImageUrl: channel.avatarImageUrl.isEmpty
-            ? info.avatarUrl
-            : channel.avatarImageUrl,
-        url: channel.url,
-        description: channel.description,
+      final updated = channel.copyWith(
+        avatarImageUrl: channel.avatarImageUrl.isEmpty ? info.avatarUrl : null,
         youtubeChannelId: info.channelId,
         uploadsPlaylistId: info.uploadsPlaylistId,
-        addedAt: channel.addedAt,
+        subscriberCount: info.subscriberCount,
+        subscribersHidden: info.subscribersHidden,
+        statsUpdatedAt: DateTime.now(),
       );
       await ref.read(ytTrackerRepositoryProvider).updateChannel(updated);
     }
@@ -652,15 +646,14 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
       final name = nameController.text.trim();
       if (name.isEmpty) return;
       await repo.updateChannel(
-        YtChannel(
-          id: channel.id,
+        // 用 copyWith 保留已解析的頻道 ID／上傳清單 ID／訂閱人數（原本整個
+        // 重建會把這些洗掉，編輯完下次又要重新問 API）。
+        channel.copyWith(
           name: name,
           categoryId: categoryId,
-          avatarEmoji: channel.avatarEmoji,
           avatarImageUrl: avatarController.text.trim(),
           url: urlController.text.trim(),
           description: descriptionController.text.trim(),
-          addedAt: channel.addedAt,
         ),
       );
       if (!mounted) return;
@@ -825,7 +818,12 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                                       ),
                                     ),
                                     const SizedBox(height: 3),
-                                    Text(categoryLabel, style: AppText.note),
+                                    Text(
+                                      channel.subscriberLabel == null
+                                          ? categoryLabel
+                                          : '$categoryLabel・${channel.subscriberLabel}',
+                                      style: AppText.note,
+                                    ),
                                     if (channel.url.isNotEmpty) ...[
                                       const SizedBox(height: 2),
                                       InkWell(

@@ -9,6 +9,7 @@ import '../../app/theme/typography.dart';
 import '../../data/repositories/yt_video_cache_store.dart';
 import '../../data/services/youtube_api_service.dart';
 import '../../domain/models/yt_tracker.dart';
+import '../../shared/debug/app_log.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
@@ -115,6 +116,73 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
     });
   }
 
+  /// 訂閱人數更新：超過 12 小時沒問過的頻道，一次批次問（50 個頻道 1 單位
+  /// 額度）。還沒解析過頻道 ID 的頻道先用 @handle 解析（順便拿人數）。
+  /// 這個 session 已經試過的頻道不再試，避免解析不出來的頻道每次重繪都
+  /// 重打 API。頻道詳情頁只讀存下來的值，不打 API（2026-09-24 使用者要求）。
+  final Set<String> _statsTried = {};
+  bool _statsInFlight = false;
+
+  Future<void> _ensureStats(List<YtChannel> channels) async {
+    final apiKey = ref.read(ytApiKeyProvider);
+    if (apiKey == null || apiKey.isEmpty || _statsInFlight) return;
+    final now = DateTime.now();
+    final stale = [
+      for (final c in channels)
+        if (!_statsTried.contains(c.id) &&
+            (c.statsUpdatedAt == null ||
+                now.difference(c.statsUpdatedAt!) > const Duration(hours: 12)))
+          c,
+    ];
+    if (stale.isEmpty) return;
+    _statsInFlight = true;
+    _statsTried.addAll(stale.map((c) => c.id));
+    try {
+      final service = YoutubeApiService(apiKey);
+      final updated = <YtChannel>[];
+      final withId = <YtChannel>[];
+      for (final c in stale) {
+        if (c.youtubeChannelId.isNotEmpty) {
+          withId.add(c);
+          continue;
+        }
+        final handle = YoutubeApiService.parseHandle(c.url);
+        if (handle == null) continue;
+        final info = await service.fetchChannelInfo(handle);
+        updated.add(
+          c.copyWith(
+            avatarImageUrl: c.avatarImageUrl.isEmpty ? info.avatarUrl : null,
+            youtubeChannelId: info.channelId,
+            uploadsPlaylistId: info.uploadsPlaylistId,
+            subscriberCount: info.subscriberCount,
+            subscribersHidden: info.subscribersHidden,
+            statsUpdatedAt: now,
+          ),
+        );
+      }
+      final stats = await service.fetchSubscriberStats([
+        for (final c in withId) c.youtubeChannelId,
+      ]);
+      for (final c in withId) {
+        final s = stats[c.youtubeChannelId];
+        if (s == null) continue;
+        updated.add(
+          c.copyWith(
+            subscriberCount: s.count,
+            subscribersHidden: s.hidden,
+            statsUpdatedAt: now,
+          ),
+        );
+      }
+      await ref.read(ytTrackerRepositoryProvider).updateChannels(updated);
+      if (mounted && updated.isNotEmpty) _reload();
+    } catch (e, stack) {
+      AppLog.add('[YT] 訂閱人數更新失敗：$e\n$stack', isError: true);
+    } finally {
+      _statsInFlight = false;
+    }
+  }
+
   bool _listEquals(List<String> a, List<String> b) {
     if (a.length != b.length) return false;
     for (var i = 0; i < a.length; i++) {
@@ -139,21 +207,16 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
         final handle = YoutubeApiService.parseHandle(channel.url);
         if (handle == null) continue; // 沒網址／沒 @handle，這個頻道跳過
         final info = await service.fetchChannelInfo(handle);
-        channel = YtChannel(
-          id: channel.id,
-          name: channel.name,
-          categoryId: channel.categoryId,
-          avatarEmoji: channel.avatarEmoji,
+        channel = channel.copyWith(
           // 順便拿這次呼叫本來就有的官方頭貼——但只在使用者自己沒貼過
           // 圖片網址時才覆蓋，不要蓋掉使用者手動選的圖。
-          avatarImageUrl: channel.avatarImageUrl.isEmpty
-              ? info.avatarUrl
-              : channel.avatarImageUrl,
-          url: channel.url,
-          description: channel.description,
+          avatarImageUrl:
+              channel.avatarImageUrl.isEmpty ? info.avatarUrl : null,
           youtubeChannelId: info.channelId,
           uploadsPlaylistId: info.uploadsPlaylistId,
-          addedAt: channel.addedAt,
+          subscriberCount: info.subscriberCount,
+          subscribersHidden: info.subscribersHidden,
+          statsUpdatedAt: DateTime.now(),
         );
         // 解析結果快取回本機，下次同一個頻道不用再打一次 channels.list。
         await repo.updateChannel(channel);
@@ -536,6 +599,12 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                                 )
                                 .toList();
 
+                      // 訂閱人數（頻道列表要顯示）：不管哪種視圖都排程更新一次，
+                      // 內部會挑出超過 12 小時沒更新的頻道。
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (mounted) _ensureStats(channels);
+                      });
+
                       // 只在「依影片顯示」時才需要抓影片；[_ensureVideosLoaded]
                       // 內部會比對篩選範圍有沒有變，沒變就直接跳過，所以每次
                       // build 都排程呼叫也不會一直重打 API。不能在 build()
@@ -689,15 +758,28 @@ class _ChannelGrid extends StatelessWidget {
                 YtChannelAvatar(channel: c, radius: 17),
                 const SizedBox(width: Gap.sm),
                 Expanded(
-                  child: Text(
-                    c.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.ink,
-                    ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        c.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.ink,
+                        ),
+                      ),
+                      if (c.subscriberLabel != null)
+                        Text(
+                          c.subscriberLabel!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppText.note,
+                        ),
+                    ],
                   ),
                 ),
               ],

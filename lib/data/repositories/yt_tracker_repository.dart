@@ -100,6 +100,16 @@ class YtTrackerRepository {
     await _writeChannels(all);
   }
 
+  /// 一次更新一批頻道（例如訂閱人數更新），只寫一次儲存。
+  Future<void> updateChannels(List<YtChannel> updated) async {
+    if (updated.isEmpty) return;
+    final all = await _loadChannelsRaw();
+    final byId = {for (final c in updated) c.id: c};
+    await _writeChannels([
+      for (final c in all) byId.containsKey(c.id) ? byId[c.id]!.stamped() : c,
+    ]);
+  }
+
   Future<void> deleteChannel(String id) async {
     final all = await _loadChannelsRaw();
     final index = all.indexWhere((c) => c.id == id);
@@ -125,13 +135,38 @@ class YtTrackerRepository {
 
   Future<void> mergeSeedChannels(List<YtChannel> incoming) async {
     if (incoming.isEmpty) return;
-    final merged = mergeSeedRecords(
-      local: await _loadChannelsRaw(),
+    final before = await _loadChannelsRaw();
+    final priorById = {for (final c in before) c.id: c};
+    final seedMerged = mergeSeedRecords(
+      local: before,
       seed: incoming,
       idOf: (e) => e.id,
       priority: SeedMergePriority.seed,
       deletedAtOf: (e) => e.deletedAt,
     );
+    // 快照只帶基本資料；本機已經解析好的頻道 ID／上傳清單 ID／訂閱人數
+    // 不能被快照蓋回空的，不然每次進首頁都要重新問 API（原本就會有這個
+    // 問題，加訂閱人數後更明顯）。
+    final merged = [
+      for (final c in seedMerged)
+        () {
+          final prior = priorById[c.id];
+          if (prior == null) return c;
+          return c.copyWith(
+            youtubeChannelId: c.youtubeChannelId.isEmpty
+                ? prior.youtubeChannelId
+                : null,
+            uploadsPlaylistId: c.uploadsPlaylistId.isEmpty
+                ? prior.uploadsPlaylistId
+                : null,
+            subscriberCount: c.subscriberCount ?? prior.subscriberCount,
+            subscribersHidden: c.statsUpdatedAt == null
+                ? prior.subscribersHidden
+                : null,
+            statsUpdatedAt: c.statsUpdatedAt ?? prior.statsUpdatedAt,
+          );
+        }(),
+    ];
     await _writeChannels(merged);
   }
 

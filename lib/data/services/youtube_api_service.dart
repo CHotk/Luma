@@ -19,7 +19,14 @@ class YoutubeChannelInfo {
     required this.uploadsPlaylistId,
     required this.title,
     required this.avatarUrl,
+    this.subscriberCount,
+    this.subscribersHidden = false,
   });
+
+  /// 訂閱人數（概略值，隱藏時是 null）。跟頻道資料同一次 `channels.list`
+  /// 請求順便拿到，不用另外花額度。
+  final int? subscriberCount;
+  final bool subscribersHidden;
 
   final String channelId;
 
@@ -147,7 +154,7 @@ class YoutubeApiService {
   Future<YoutubeChannelInfo> fetchChannelInfo(String handle) async {
     final uri = Uri.parse('$_base/channels').replace(
       queryParameters: {
-        'part': 'snippet,contentDetails',
+        'part': 'snippet,contentDetails,statistics',
         'forHandle': handle,
         'key': apiKey,
       },
@@ -171,12 +178,55 @@ class YoutubeApiService {
     final avatar =
         (thumbnails['high'] ?? thumbnails['medium'] ?? thumbnails['default'])
             as Map<String, dynamic>;
+    final stats = item['statistics'] as Map<String, dynamic>?;
+    final hidden = stats?['hiddenSubscriberCount'] == true;
     return YoutubeChannelInfo(
+      subscriberCount: hidden
+          ? null
+          : int.tryParse('${stats?['subscriberCount'] ?? ''}'),
+      subscribersHidden: hidden,
       channelId: item['id'] as String,
       uploadsPlaylistId: uploads,
       title: snippet['title'] as String,
       avatarUrl: avatar['url'] as String,
     );
+  }
+
+  /// 一次問一批頻道的訂閱人數（`channels.list` 的 `id` 參數一次最多 50
+  /// 個，1 單位配額）。回傳「頻道 ID → 人數（隱藏時 count 是 null）」。
+  Future<Map<String, ({int? count, bool hidden})>> fetchSubscriberStats(
+    List<String> channelIds,
+  ) async {
+    final result = <String, ({int? count, bool hidden})>{};
+    for (var i = 0; i < channelIds.length; i += 50) {
+      final batch = channelIds.sublist(
+        i,
+        i + 50 > channelIds.length ? channelIds.length : i + 50,
+      );
+      final uri = Uri.parse('$_base/channels').replace(
+        queryParameters: {
+          'part': 'statistics',
+          'id': batch.join(','),
+          'maxResults': '50',
+          'key': apiKey,
+        },
+      );
+      final res = await _get(uri);
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      if (res.statusCode != 200) {
+        throw YoutubeApiException(_errorMessage(res.statusCode, body));
+      }
+      for (final item in ((body['items'] as List?) ?? const [])
+          .cast<Map<String, dynamic>>()) {
+        final stats = item['statistics'] as Map<String, dynamic>? ?? const {};
+        final hidden = stats['hiddenSubscriberCount'] == true;
+        result[item['id'] as String] = (
+          count: hidden ? null : int.tryParse('${stats['subscriberCount'] ?? ''}'),
+          hidden: hidden,
+        );
+      }
+    }
+    return result;
   }
 
   Future<List<YoutubeVideo>> fetchRecentVideos(
