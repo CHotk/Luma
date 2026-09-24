@@ -61,6 +61,7 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
 
   Future<List<_ChannelVideo>>? _videosFuture;
   List<String>? _videosLoadedFor;
+  _TypeFilter? _videosLoadedType;
   DateTime? _videosLoadedAt;
 
   /// 「篩選範圍沒變就不重抓」是為了不要每次畫面重繪（一秒可能好幾次）
@@ -96,13 +97,18 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
     final apiKey = ref.read(ytApiKeyProvider);
     if (apiKey == null || apiKey.isEmpty) return;
     final ids = channels.map((c) => c.id).toList()..sort();
+    // 篩選類型（全部／一般影片／Shorts）變了也要重抓：現在是直接抓對應的
+    // 播放清單，不是抓回來再自己挑。
     final sameSelection =
-        _videosLoadedFor != null && _listEquals(_videosLoadedFor!, ids);
+        _videosLoadedFor != null &&
+        _listEquals(_videosLoadedFor!, ids) &&
+        _videosLoadedType == _typeFilter;
     final stillFresh =
         _videosLoadedAt != null &&
         DateTime.now().difference(_videosLoadedAt!) < _staleAfter;
     if (!force && sameSelection && stillFresh) return;
     _videosLoadedFor = ids;
+    _videosLoadedType = _typeFilter;
     _videosLoadedAt = DateTime.now();
     setState(() {
       _videosFuture = _fetchVideos(channels, apiKey);
@@ -123,7 +129,10 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
   ) async {
     final service = YoutubeApiService(apiKey);
     final repo = ref.read(ytTrackerRepositoryProvider);
+    final type = _typeFilter;
     final results = <_ChannelVideo>[];
+    // 特殊播放清單抓不到、退回「抓全部再自己依長度挑」的頻道。
+    final fallbackChannelIds = <String>{};
     for (final original in channels) {
       var channel = original;
       if (channel.uploadsPlaylistId.isEmpty) {
@@ -149,10 +158,30 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
         // 解析結果快取回本機，下次同一個頻道不用再打一次 channels.list。
         await repo.updateChannel(channel);
       }
-      final videos = await service.fetchRecentVideos(
-        channel.uploadsPlaylistId,
-        maxResults: _videosPerChannel,
-      );
+      final typed = _typedPlaylistId(channel.uploadsPlaylistId, type);
+      List<YoutubeVideo> videos;
+      if (typed == null) {
+        videos = await service.fetchRecentVideos(
+          channel.uploadsPlaylistId,
+          maxResults: _videosPerChannel,
+        );
+      } else {
+        try {
+          videos = await service.fetchRecentVideos(
+            typed,
+            maxResults: _videosPerChannel,
+          );
+        } on YoutubeApiException {
+          // 這個頻道沒有對應的清單（例如根本沒發過 Shorts），或 API 不認得
+          // 這種清單：退回抓全部上傳，之後依影片長度自己挑。金鑰／額度
+          // 這類真的出問題的話，這次呼叫一樣會丟出同樣的錯，照樣顯示出來。
+          fallbackChannelIds.add(channel.id);
+          videos = await service.fetchRecentVideos(
+            channel.uploadsPlaylistId,
+            maxResults: _videosPerChannel,
+          );
+        }
+      }
       for (final v in videos) {
         results.add(_ChannelVideo(video: v, channel: channel));
       }
@@ -177,6 +206,14 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
     } catch (_) {
       // 忽略，影片清單本身已經抓到了。
     }
+    // 退回做法的頻道，這時才有長度可以挑。
+    if (fallbackChannelIds.isNotEmpty) {
+      results.removeWhere(
+        (r) =>
+            fallbackChannelIds.contains(r.channel.id) &&
+            (type == _TypeFilter.shorts) != r.video.isLikelyShort,
+      );
+    }
     // 抓到的影片存進本機快取（跟頻道詳情頁共用同一份，也會跟著同步），
     // 用影片 id 去重——每次進來都抓最近 10 部，大部分跟上次重複，只有
     // 真的新的才會新增，已存的不會被寫兩次（2026-09-24 使用者要求）。
@@ -190,6 +227,17 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
     }
     results.sort((a, b) => b.video.publishedAt.compareTo(a.video.publishedAt));
     return results;
+  }
+
+  /// 依類型換成 YouTube 的特殊上傳播放清單：上傳清單 ID 是 `UU` 開頭，
+  /// 換成 `UUSH` 是只有 Shorts、`UULF` 是只有一般影片（非官方文件保證的
+  /// 做法，2026-09-24 用志祺七七實測：`UU` 8,360 部＝`UUSH` 5,330＋`UULF`
+  /// 3,029＋`UULV` 1，而且 `UUSH` 的每一部在 YouTube 網站上都是 Shorts
+  /// 版型）。全部就維持原本的上傳清單，回傳 null。
+  String? _typedPlaylistId(String uploads, _TypeFilter type) {
+    if (type == _TypeFilter.all || !uploads.startsWith('UU')) return null;
+    final rest = uploads.substring(2);
+    return type == _TypeFilter.shorts ? 'UUSH$rest' : 'UULF$rest';
   }
 
   String _title(List<YtCategory> categories) {
@@ -420,18 +468,14 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                         ),
                       );
                     }
-                    final all = snap.data ?? const [];
-                    final videos = switch (_typeFilter) {
-                      _TypeFilter.all => all,
-                      _TypeFilter.regular =>
-                        all.where((v) => !v.video.isLikelyShort).toList(),
-                      _TypeFilter.shorts =>
-                        all.where((v) => v.video.isLikelyShort).toList(),
-                    };
+                    // 類型篩選已經在抓的時候做掉了（見 _fetchVideos），這裡直接用。
+                    final videos = snap.data ?? const [];
                     if (videos.isEmpty) {
                       return Center(
                         child: Text(
-                          all.isEmpty ? '這些頻道抓不到影片' : '這個篩選條件下沒有影片',
+                          _typeFilter == _TypeFilter.all
+                              ? '這些頻道抓不到影片'
+                              : '這個篩選條件下沒有影片',
                           style: AppText.bodyDim,
                         ),
                       );
