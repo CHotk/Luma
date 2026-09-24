@@ -468,5 +468,35 @@
     "url": "https://youtube.com/@vincent_reading?si=F8Gm85ZtZWTXDtZi",
     "description": "",
     "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-ucuyfkz-vpki4lbw2n4iprug",
+    "name": "Crypto_半夜戰神企鵝哥 加密貨幣 BTC比特幣 ICT SMC聰明錢",
+    "categoryId": "seed-crypto",
+    "avatarEmoji": "📺",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/S3GeGJjM77kk4Dm76abiB4z3_d6i4rcTa4vo2wLZ_RB0r3ttVQ_Rm3eqV2pVa8Y8Bkp5ZVJ9=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://youtube.com/channel/UCuYFKZ_VPKi4LBw2n4IPRug?si=UTQ89V1OxiteKGGf",
+    "description": "",
+    "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-bluepigeon0810",
+    "name": "蒼藍鴿的醫學天地",
+    "categoryId": "seed-knowledge",
+    "avatarEmoji": "📺",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/ytc/AIdro_kQkJYq34JWGMTCTfgPKvVjflW9Vnahn0XYrUEdQCsEmNI=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://youtube.com/@bluepigeon0810?si=IM8VkEcLfv4wmc9n",
+    "description": "",
+    "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-chaiknowsofficialchannel982",
+    "name": "柴知道ChaiKnows Official Channel",
+    "categoryId": "seed-knowledge",
+    "avatarEmoji": "📺",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/3_egpakzc59tA4uAHeiRUK1S5tTInRA_BGEdEljt59hVcnf_OHzN3DzUWiFCWeO-kep6IKLOTaM=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://youtube.com/@chaiknowsofficialchannel982?si=vONuurg1W8pGa9vI",
+    "description": "",
+    "addedAt": "2026-09-24T00:00:00.000"
   }
 ]
