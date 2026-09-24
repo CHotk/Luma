@@ -508,5 +508,75 @@
     "url": "https://youtube.com/channel/UC5DGiN7-nlPno2kjHUdcdCg?si=hKdJGldv8LLvAs2D",
     "description": "",
     "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-cheapaoe",
+    "name": "cheap",
+    "categoryId": "seed-knowledge",
+    "avatarEmoji": "📺",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/n3_fHolvwjagC9m7-WTvLHdhYy0TxTp0eQfD5DuT3YcEtPWxYgyaIvp6iq-JXNzpLJSbF--UuOg=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://youtube.com/@cheapaoe?si=g9-vJO22007ecvu4",
+    "description": "",
+    "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-smtown",
+    "name": "SMTOWN",
+    "categoryId": "seed-music",
+    "avatarEmoji": "📺",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/42gxi39XmaHVEYxeuzdXitmJ_ig7QGPHczWLt2oPLG0g7AzuIWnNhYzSBXxAaQmPiVSM7Fi6=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://youtube.com/@smtown?si=HTZaDE4RxvxN4Fw-",
+    "description": "韓國",
+    "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-ucxl1vanyrmde1hzpj7a-upq",
+    "name": "警动宇宙",
+    "categoryId": "seed-entertainment",
+    "avatarEmoji": "📺",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/wc8PH7FIFqy1LncVfPv8hB_EzKDVELrqYPeeUzv7VNcBtRd2Fw_oiGPiUeC1fkKvNCLWUL3h=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://youtube.com/channel/UCxL1vANyRmde1hzPj7A_UPQ?si=BYTAywTFpXkoT2Rm",
+    "description": "美國出警實錄",
+    "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-uc9dyo7qdvhswf94kce0u0lg",
+    "name": "见世君",
+    "categoryId": "seed-entertainment",
+    "avatarEmoji": "📺",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/fVC4_uQtu5hz62DX-494YfZCQXLrJRlE9qZsz3WlgQWb0U5HtfXYxRm9MkKnO2D1H2Qmz5e3ohY=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://youtube.com/channel/UC9dYo7qdvHsWF94KcE0u0Lg?si=x6yj0oXsnH0Stnif",
+    "description": "世界殘酷類解說",
+    "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-ourchannel187",
+    "name": "我們OUR CHANNEL",
+    "categoryId": "seed-music",
+    "avatarEmoji": "📺",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/ytc/AIdro_n6UMMMF46epoouGyVyyGe9Yk4p8zoiFnNNtJ30YhcRs7U=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://youtube.com/@ourchannel187?si=CeIWomEPDZjSfEKz",
+    "description": "中文",
+    "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-smalleyes-cryptosmc",
+    "name": "Louis-小眼睛BTC ETH 美股 RSI 時間分型",
+    "categoryId": "seed-crypto",
+    "avatarEmoji": "📺",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/UsjCylKPhwetWR4qjRr4rspgMs3BWDH_gwOHtBB5NSfcrLxu1ajgjWsP_af4fbS0PhV3VzLkXA=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://youtube.com/@smalleyes_cryptosmc?si=_0j47UIKBVrJPgQh",
+    "description": "",
+    "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-ehpmusicchannelii",
+    "name": "EHPMusicChannel",
+    "categoryId": "seed-music",
+    "avatarEmoji": "📺",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/137HioghAwb0qn-BudjF32mgLwmUIxNHWTu2Ju4gfSmRK2tcGxYMMaVrrPBlCyQgxlwFu6tM=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://youtube.com/@ehpmusicchannelii?si=xNQCYG2FjeppiDIs",
+    "description": "",
+    "addedAt": "2026-09-24T00:00:00.000"
   }
 ]
