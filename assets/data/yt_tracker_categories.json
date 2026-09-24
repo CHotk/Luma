@@ -70,5 +70,11 @@
     "name": "影視",
     "color": 4291399648,
     "imageUrl": "assets/images/yt_tracker/film_and_television.png"
+  },
+  {
+    "id": "seed-life",
+    "name": "生活",
+    "color": 4294100075,
+    "imageUrl": ""
   }
 ]
