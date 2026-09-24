@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -338,6 +340,10 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
     return '已選 ${_selected.length} 個分類';
   }
 
+  /// 新增頻道：貼網址就會自動用 YouTube API 抓頻道名稱跟大頭貼（2026-09-24
+  /// 使用者要求：只想貼網址、選分類）。抓到的資料一起存進頻道（頻道 ID、
+  /// 上傳清單 ID、訂閱人數），之後不用再解析一次。沒有 API 金鑰或抓不到
+  /// 時退回手動填名稱／頭像網址。
   Future<void> _showAddChannelDialog(List<YtCategory> categories) async {
     final nameController = TextEditingController();
     final urlController = TextEditingController();
@@ -347,112 +353,237 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
         _selected.length == 1 && _selected.first != ytUncategorizedId
         ? _selected.first
         : null;
+
+    YoutubeChannelInfo? info;
+    String? status; // 給使用者看的一行狀態
+    var statusIsError = false;
+    var fetching = false;
+    var nameTouched = false; // 使用者自己改過名稱就不要再蓋掉
+    String? lastHandle;
+    Timer? debounce;
+
     final saved = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          backgroundColor: const Color(0xFF1A1A24),
-          title: const Text('新增頻道', style: TextStyle(color: AppColors.ink)),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TextField(
-                  controller: nameController,
-                  autofocus: true,
-                  maxLength: 30,
-                  decoration: const InputDecoration(
-                    labelText: '頻道名稱',
-                    counterText: '',
-                  ),
-                  style: const TextStyle(color: AppColors.ink),
-                ),
-                const SizedBox(height: Gap.xs),
-                TextField(
-                  controller: urlController,
-                  decoration: const InputDecoration(
-                    labelText: '頻道網址',
-                    hintText: '例如 https://www.youtube.com/@shasha77',
-                  ),
-                  style: const TextStyle(fontSize: 12.5, color: AppColors.ink),
-                ),
-                const SizedBox(height: Gap.xs),
-                TextField(
-                  controller: avatarController,
-                  decoration: const InputDecoration(
-                    labelText: '頭像圖片網址',
-                    hintText: '去頻道頁面複製大頭貼圖片網址',
-                  ),
-                  style: const TextStyle(fontSize: 12.5, color: AppColors.ink),
-                ),
-                const SizedBox(height: Gap.xs),
-                TextField(
-                  controller: descriptionController,
-                  minLines: 1,
-                  maxLines: 4,
-                  maxLength: 200,
-                  decoration: const InputDecoration(
-                    labelText: '簡介',
-                    hintText: '這個頻道在做什麼',
-                  ),
-                  style: const TextStyle(fontSize: 12.5, color: AppColors.ink),
-                ),
-                const SizedBox(height: Gap.sm),
-                Text('分類', style: AppText.note),
-                const SizedBox(height: Gap.xs),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    _CategoryPickChip(
-                      label: '未分類',
-                      color: AppColors.ink3,
-                      selected: categoryId == null,
-                      onTap: () => setDialogState(() => categoryId = null),
+        builder: (context, setDialogState) {
+          Future<void> fetchInfo(String handle) async {
+            final apiKey = ref.read(ytApiKeyProvider);
+            if (apiKey == null || apiKey.isEmpty) {
+              setDialogState(() {
+                status = '還沒設定 API 金鑰，無法自動抓取，請手動填名稱與頭像';
+                statusIsError = true;
+              });
+              return;
+            }
+            setDialogState(() {
+              fetching = true;
+              status = '讀取頻道資料中…';
+              statusIsError = false;
+            });
+            try {
+              final result = await YoutubeApiService(apiKey).fetchChannelInfo(
+                handle,
+              );
+              if (lastHandle != handle) return; // 網址又改了，這筆過期
+              setDialogState(() {
+                info = result;
+                fetching = false;
+                if (!nameTouched) nameController.text = result.title;
+                avatarController.text = result.avatarUrl.replaceFirst(
+                  RegExp(r'=s\d+.*$'),
+                  '=s160-c-k-c0x00ffffff-no-rj',
+                );
+                status = '已抓到：${result.title}';
+                statusIsError = false;
+              });
+            } catch (e) {
+              if (lastHandle != handle) return;
+              setDialogState(() {
+                info = null;
+                fetching = false;
+                status = '自動抓取失敗（$e），請手動填名稱與頭像';
+                statusIsError = true;
+              });
+            }
+          }
+
+          void onUrlChanged(String value) {
+            debounce?.cancel();
+            final handle = YoutubeApiService.parseHandle(value);
+            if (handle == null) {
+              lastHandle = null;
+              setDialogState(() {
+                info = null;
+                status = null;
+              });
+              return;
+            }
+            if (handle == lastHandle) return;
+            lastHandle = handle;
+            debounce = Timer(const Duration(milliseconds: 500), () {
+              fetchInfo(handle);
+            });
+          }
+
+          final hasAvatar = avatarController.text.trim().isNotEmpty;
+          return AlertDialog(
+            backgroundColor: const Color(0xFF1A1A24),
+            title: const Text('新增頻道', style: TextStyle(color: AppColors.ink)),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    controller: urlController,
+                    autofocus: true,
+                    onChanged: onUrlChanged,
+                    decoration: const InputDecoration(
+                      labelText: '頻道網址',
+                      hintText: '貼上 https://www.youtube.com/@帳號',
                     ),
-                    for (final cat in categories)
-                      _CategoryPickChip(
-                        label: cat.name,
-                        color: cat.color,
-                        selected: categoryId == cat.id,
-                        onTap: () => setDialogState(() => categoryId = cat.id),
-                      ),
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      color: AppColors.ink,
+                    ),
+                  ),
+                  if (status != null) ...[
+                    const SizedBox(height: Gap.xs),
+                    Row(
+                      children: [
+                        if (fetching)
+                          const Padding(
+                            padding: EdgeInsets.only(right: 8),
+                            child: SizedBox(
+                              width: 12,
+                              height: 12,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          ),
+                        Expanded(
+                          child: Text(
+                            status!,
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              color: statusIsError
+                                  ? AppColors.mid
+                                  : AppColors.ok,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('取消'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.ytAccent,
-                foregroundColor: AppColors.ytAccentInk,
+                  const SizedBox(height: Gap.sm),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      if (hasAvatar)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 12, bottom: 6),
+                          child: ClipOval(
+                            child: Image.network(
+                              avatarController.text.trim(),
+                              width: 40,
+                              height: 40,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stack) =>
+                                  const SizedBox(width: 40, height: 40),
+                            ),
+                          ),
+                        ),
+                      Expanded(
+                        child: TextField(
+                          controller: nameController,
+                          onChanged: (_) => nameTouched = true,
+                          maxLength: 40,
+                          decoration: const InputDecoration(
+                            labelText: '頻道名稱（可改）',
+                            counterText: '',
+                          ),
+                          style: const TextStyle(color: AppColors.ink),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (!hasAvatar || info == null) ...[
+                    const SizedBox(height: Gap.xs),
+                    TextField(
+                      controller: avatarController,
+                      onChanged: (_) => setDialogState(() {}),
+                      decoration: const InputDecoration(
+                        labelText: '頭像圖片網址（沒自動抓到才需要）',
+                      ),
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        color: AppColors.ink,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: Gap.sm),
+                  Text('分類', style: AppText.note),
+                  const SizedBox(height: Gap.xs),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      _CategoryPickChip(
+                        label: '未分類',
+                        color: AppColors.ink3,
+                        selected: categoryId == null,
+                        onTap: () => setDialogState(() => categoryId = null),
+                      ),
+                      for (final cat in categories)
+                        _CategoryPickChip(
+                          label: cat.name,
+                          color: cat.color,
+                          selected: categoryId == cat.id,
+                          onTap: () =>
+                              setDialogState(() => categoryId = cat.id),
+                        ),
+                    ],
+                  ),
+                ],
               ),
-              child: const Text('新增'),
             ),
-          ],
-        ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('取消'),
+              ),
+              FilledButton(
+                onPressed: fetching
+                    ? null
+                    : () => Navigator.pop(dialogContext, true),
+                child: const Text('新增'),
+              ),
+            ],
+          );
+        },
       ),
     );
+    debounce?.cancel();
     final name = nameController.text.trim();
     if (saved != true || name.isEmpty) return;
-    await ref.read(ytTrackerRepositoryProvider).addChannel(
-      YtChannel(
-        id: DateTime.now().microsecondsSinceEpoch.toString(),
-        name: name,
-        categoryId: categoryId,
-        avatarImageUrl: avatarController.text.trim(),
-        url: urlController.text.trim(),
-        description: descriptionController.text.trim(),
-        addedAt: DateTime.now(),
-      ),
-    );
+    final fetched = info;
+    await ref
+        .read(ytTrackerRepositoryProvider)
+        .addChannel(
+          YtChannel(
+            id: DateTime.now().microsecondsSinceEpoch.toString(),
+            name: name,
+            categoryId: categoryId,
+            avatarImageUrl: avatarController.text.trim(),
+            url: urlController.text.trim(),
+            description: descriptionController.text.trim(),
+            addedAt: DateTime.now(),
+            youtubeChannelId: fetched?.channelId ?? '',
+            uploadsPlaylistId: fetched?.uploadsPlaylistId ?? '',
+            subscriberCount: fetched?.subscriberCount,
+            subscribersHidden: fetched?.subscribersHidden ?? false,
+            statsUpdatedAt: fetched == null ? null : DateTime.now(),
+          ),
+        );
     if (!mounted) return;
     _reload();
   }
