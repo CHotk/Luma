@@ -228,5 +228,15 @@
     "url": "https://youtube.com/@scp-cn?si=hVkzgIaJNwPn2wXF",
     "description": "",
     "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-tiabtc",
+    "name": "提阿非羅大人TiaBTC",
+    "categoryId": "seed-crypto",
+    "avatarEmoji": "📺",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/i2y5dhQNB6056qUnChsWWXWUW7x83polwONU125gCqNBwUwbehlV-waqhKEiIqJf5MrrrwC1qw=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://youtube.com/@tiabtc?si=GHMBR--EEy6IqmLR",
+    "description": "",
+    "addedAt": "2026-09-24T00:00:00.000"
   }
 ]

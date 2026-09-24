@@ -1,4 +1,5 @@
 import 'package:go_router/go_router.dart';
+import '../features/app_home/app_home_page.dart';
 
 import '../features/diary/diary_page.dart';
 import '../features/fitness/fitness_home_page.dart';
@@ -37,6 +38,7 @@ final appRouter = GoRouter(
   initialLocation: '/',
   routes: [
     GoRoute(path: '/', builder: (_, _) => const SplashPage()),
+    GoRoute(path: '/start', builder: (_, _) => const AppHomePage()),
     GoRoute(path: '/home', builder: (_, _) => const HomePage()),
     GoRoute(path: '/jp-home', builder: (_, _) => const JpHomePage()),
     GoRoute(path: '/jp-stats', builder: (_, _) => const JpStatsPage()),

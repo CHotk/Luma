@@ -25,13 +25,14 @@ class AppSideDrawer extends StatelessWidget {
     // 選中的還是語言學習，沒有跟著換）。只有這三個大類別是真的做
     // 出來的，日記／YT 頻道追蹤以外的網址都算語言學習底下的頁面。
     final location = GoRouterState.of(context).uri.path;
+    final isHome = location.startsWith('/start');
     final isDiary = location.startsWith('/diary');
     final isYtTracker = location.startsWith('/yt-tracker');
     final isFitness = location.startsWith('/fitness');
     final isDebugLog = location.startsWith('/debug-log');
     final isSync = location.startsWith('/sync');
     final isLanguage =
-        !isDiary && !isYtTracker && !isFitness && !isDebugLog && !isSync;
+        !isHome && !isDiary && !isYtTracker && !isFitness && !isDebugLog && !isSync;
 
     return Drawer(
       width: 270,
@@ -77,6 +78,15 @@ class AppSideDrawer extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: Gap.md),
+                  _NavItem(
+                    icon: Icons.home_rounded,
+                    label: '首頁',
+                    active: isHome,
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      if (!isHome) context.go('/start');
+                    },
+                  ),
                   _NavItem(
                     icon: Icons.school_rounded,
                     imageAsset: 'assets/images/nav_icons/language.png',

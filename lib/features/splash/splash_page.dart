@@ -4,12 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
 import '../../data/seed/app_defaults_loader.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/lume_mark.dart';
-import '../../shared/widgets/track_switcher.dart';
 
 /// 啟動畫面。
 ///
@@ -38,10 +36,8 @@ class _SplashPageState extends ConsumerState<SplashPage> {
     // 開 App 都要手動切一次（2026-09-18 使用者要求，見
     // [SettingsRepository.loadLastTrack]）。沒存過（全新使用者）才
     // 用預設的英文。
-    final lastTrack = await ref.read(settingsRepositoryProvider).loadLastTrack();
-    final route = lastTrack == LearningTrack.ja.name
-        ? LearningTrack.ja.homeRoute
-        : LearningTrack.en.homeRoute;
+    // 2026-09-24：功能變多，開機改進 App 首頁（圖示格），不再直接進語言學習。
+    const route = '/start';
     if (!mounted) return;
     _timer = Timer(hold, () {
       if (mounted) context.go(route);
