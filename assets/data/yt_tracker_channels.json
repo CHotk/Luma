@@ -508,5 +508,15 @@
     "url": "https://youtube.com/channel/UC5DGiN7-nlPno2kjHUdcdCg?si=hKdJGldv8LLvAs2D",
     "description": "",
     "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-cheapaoe",
+    "name": "cheap",
+    "categoryId": "seed-knowledge",
+    "avatarEmoji": "📺",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/n3_fHolvwjagC9m7-WTvLHdhYy0TxTp0eQfD5DuT3YcEtPWxYgyaIvp6iq-JXNzpLJSbF--UuOg=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://youtube.com/@cheapaoe?si=g9-vJO22007ecvu4",
+    "description": "",
+    "addedAt": "2026-09-24T00:00:00.000"
   }
 ]

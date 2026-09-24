@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
-import '../../domain/habit_config.dart';
 import '../debug/app_log.dart';
 
 /// 全 App 共用的左側選單（毛玻璃抽屜），設計稿見
@@ -32,7 +31,9 @@ class AppSideDrawer extends StatelessWidget {
     final isFitness = location.startsWith('/fitness');
     final isDebugLog = location.startsWith('/debug-log');
     final isSync = location.startsWith('/sync');
-    final isHabit = location.startsWith('/habit/');
+    final isCryptoWatch = location.startsWith('/crypto-watch');
+    final isSmoking = location.startsWith('/smoking-log');
+    final isDrinking = location.startsWith('/drinking-log');
     final isLanguage =
         !isHome &&
         !isDiary &&
@@ -40,7 +41,9 @@ class AppSideDrawer extends StatelessWidget {
         !isFitness &&
         !isDebugLog &&
         !isSync &&
-        !isHabit;
+        !isCryptoWatch &&
+        !isSmoking &&
+        !isDrinking;
 
     return Drawer(
       width: 270,
@@ -151,18 +154,33 @@ class AppSideDrawer extends StatelessWidget {
                       if (!isFitness) context.go('/fitness');
                     },
                   ),
-                  for (final habit in allHabits)
-                    _NavItem(
-                      icon: habit.icon,
-                      label: habit.title,
-                      active: location.startsWith(habit.route),
-                      onTap: () {
-                        Navigator.of(context).pop();
-                        if (!location.startsWith(habit.route)) {
-                          context.go(habit.route);
-                        }
-                      },
-                    ),
+                  _NavItem(
+                    icon: Icons.candlestick_chart_outlined,
+                    label: '看盤記錄',
+                    active: isCryptoWatch,
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      if (!isCryptoWatch) context.go('/crypto-watch');
+                    },
+                  ),
+                  _NavItem(
+                    icon: Icons.smoking_rooms_outlined,
+                    label: '抽菸記錄',
+                    active: isSmoking,
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      if (!isSmoking) context.go('/smoking-log');
+                    },
+                  ),
+                  _NavItem(
+                    icon: Icons.local_bar_outlined,
+                    label: '喝酒記錄',
+                    active: isDrinking,
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      if (!isDrinking) context.go('/drinking-log');
+                    },
+                  ),
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 10),
                     child: Divider(height: 1, color: AppColors.glassEdge),

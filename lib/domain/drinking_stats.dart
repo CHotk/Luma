@@ -1,11 +1,11 @@
-import 'models/habit_entry.dart';
+import 'models/drinking_entry.dart';
 
 /// 看盤紀錄的統計（純函式，給統計頁跟測試用）。
 
 DateTime dayOf(DateTime t) => DateTime(t.year, t.month, t.day);
 
 /// 每天看幾次。
-Map<DateTime, int> countsByDay(List<HabitEntry> entries) {
+Map<DateTime, int> countsByDay(List<DrinkingEntry> entries) {
   final map = <DateTime, int>{};
   for (final e in entries) {
     final d = dayOf(e.at);
@@ -16,7 +16,7 @@ Map<DateTime, int> countsByDay(List<HabitEntry> entries) {
 
 /// 最近 [days] 天（含今天）每天次數，由舊到新。
 List<({DateTime day, int count})> lastDays(
-  List<HabitEntry> entries,
+  List<DrinkingEntry> entries,
   DateTime now,
   int days,
 ) {
@@ -32,7 +32,7 @@ List<({DateTime day, int count})> lastDays(
 }
 
 /// 相鄰兩次之間的平均間隔（只看 [since] 之後的紀錄），不到兩筆回傳 null。
-Duration? averageInterval(List<HabitEntry> entries, DateTime since) {
+Duration? averageInterval(List<DrinkingEntry> entries, DateTime since) {
   final times =
       entries.where((e) => !e.at.isBefore(since)).map((e) => e.at).toList()
         ..sort();
@@ -44,7 +44,7 @@ Duration? averageInterval(List<HabitEntry> entries, DateTime since) {
 /// 某一天內，相鄰兩次之間（含「當天第一次距離 0 點」不算）最長的間隔；
 /// 如果是今天，最後一次到現在也算一段。不到一筆回傳 null。
 Duration? longestGapOnDay(
-  List<HabitEntry> entries,
+  List<DrinkingEntry> entries,
   DateTime day,
   DateTime now,
 ) {
@@ -75,7 +75,7 @@ String timeBucket(DateTime t) {
 
 const timeBuckets = ['早上 06–12', '下午 12–18', '晚上 18–22', '深夜 22–06'];
 
-Map<String, int> countsByBucket(List<HabitEntry> entries) {
+Map<String, int> countsByBucket(List<DrinkingEntry> entries) {
   final map = {for (final b in timeBuckets) b: 0};
   for (final e in entries) {
     final b = timeBucket(e.at);
@@ -85,7 +85,7 @@ Map<String, int> countsByBucket(List<HabitEntry> entries) {
 }
 
 /// 觸發原因次數（沒填的歸「未填」）。
-Map<String, int> countsByReason(List<HabitEntry> entries) {
+Map<String, int> countsByReason(List<DrinkingEntry> entries) {
   final map = <String, int>{};
   for (final e in entries) {
     final r = e.reason ?? '未填';

@@ -1,8 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/cloud/r2_client.dart';
-import '../data/repositories/habit_log_repository.dart';
-import '../domain/habit_config.dart';
+import '../data/repositories/crypto_watch_repository.dart';
+import '../data/repositories/smoking_repository.dart';
+import '../data/repositories/drinking_repository.dart';
 import '../data/repositories/diary_repository.dart';
 import '../data/repositories/error_log_repository.dart';
 import '../data/repositories/fitness_repository.dart';
@@ -63,14 +64,17 @@ final ytTrackerRepositoryProvider = Provider<YtTrackerRepository>(
   (ref) => YtTrackerRepository(ref.watch(keyValueStoreProvider)),
 );
 
-/// 看盤／抽菸／喝酒紀錄，依 [HabitConfig] 各一個（同一個 const 設定同一個實例）。
-final habitLogRepositoryProvider =
-    Provider.family<HabitLogRepository, HabitConfig>(
-      (ref, config) => HabitLogRepository(
-        ref.watch(keyValueStoreProvider),
-        config.storageKey,
-      ),
-    );
+final cryptoWatchRepositoryProvider = Provider<CryptoWatchRepository>(
+  (ref) => CryptoWatchRepository(ref.watch(keyValueStoreProvider)),
+);
+
+final smokingRepositoryProvider = Provider<SmokingRepository>(
+  (ref) => SmokingRepository(ref.watch(keyValueStoreProvider)),
+);
+
+final drinkingRepositoryProvider = Provider<DrinkingRepository>(
+  (ref) => DrinkingRepository(ref.watch(keyValueStoreProvider)),
+);
 
 final fitnessRepositoryProvider = Provider<FitnessRepository>(
   (ref) => FitnessRepository(ref.watch(keyValueStoreProvider)),

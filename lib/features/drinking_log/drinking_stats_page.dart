@@ -5,28 +5,25 @@ import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
-import '../../domain/habit_config.dart';
-import '../../domain/habit_stats.dart';
-import '../../domain/models/habit_entry.dart';
+import '../../domain/drinking_stats.dart';
+import '../../domain/models/drinking_entry.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
 import '../../shared/widgets/glass_card.dart';
 
-/// 「多久一次」型紀錄的統計（看盤／抽菸／喝酒共用；設計稿 05）：今天次數、平均間隔、近 7 天長條圖、最常看的
-/// 時段、觸發原因分布。從看盤記錄頁右上角統計按鈕進來。
-class HabitLogStatsPage extends ConsumerStatefulWidget {
-  const HabitLogStatsPage({super.key, required this.config});
-
-  final HabitConfig config;
+/// 喝酒記錄統計（設計稿 05）：今天次數、平均間隔、近 7 天長條圖、最常看
+/// 的時段、觸發原因分布。從喝酒記錄頁右上角統計按鈕進來。
+class DrinkingStatsPage extends ConsumerStatefulWidget {
+  const DrinkingStatsPage({super.key});
 
   @override
-  ConsumerState<HabitLogStatsPage> createState() => _HabitLogStatsPageState();
+  ConsumerState<DrinkingStatsPage> createState() => _DrinkingStatsPageState();
 }
 
-class _HabitLogStatsPageState extends ConsumerState<HabitLogStatsPage> {
-  late final Future<List<HabitEntry>> _future = ref
-      .read(habitLogRepositoryProvider(widget.config))
+class _DrinkingStatsPageState extends ConsumerState<DrinkingStatsPage> {
+  late final Future<List<DrinkingEntry>> _future = ref
+      .read(drinkingRepositoryProvider)
       .loadAll();
 
   @override
@@ -41,7 +38,7 @@ class _HabitLogStatsPageState extends ConsumerState<HabitLogStatsPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: Gap.sm),
-                AppTopBar(title: '${widget.config.title}統計'),
+                AppTopBar(title: '喝酒記錄統計'),
                 const SizedBox(height: Gap.md),
                 Expanded(
                   child: FutureBuilder(
@@ -52,7 +49,7 @@ class _HabitLogStatsPageState extends ConsumerState<HabitLogStatsPage> {
                           child: CircularProgressIndicator.adaptive(),
                         );
                       }
-                      return _Body(config: widget.config, entries: snap.data!);
+                      return _Body(entries: snap.data!);
                     },
                   ),
                 ),
@@ -66,10 +63,9 @@ class _HabitLogStatsPageState extends ConsumerState<HabitLogStatsPage> {
 }
 
 class _Body extends StatelessWidget {
-  const _Body({required this.config, required this.entries});
+  const _Body({required this.entries});
 
-  final HabitConfig config;
-  final List<HabitEntry> entries;
+  final List<DrinkingEntry> entries;
 
   @override
   Widget build(BuildContext context) {
@@ -91,9 +87,7 @@ class _Body extends StatelessWidget {
       children: [
         Row(
           children: [
-            Expanded(
-              child: _statCard('今天', '$today ${config.unit}', AppColors.mid),
-            ),
+            Expanded(child: _statCard('今天', '$today 杯', AppColors.mid)),
             const SizedBox(width: Gap.md),
             Expanded(
               child: _statCard(
@@ -185,7 +179,7 @@ class _Body extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(config.reasonStatsTitle, style: AppText.note),
+              Text('為什麼喝？', style: AppText.note),
               const SizedBox(height: Gap.sm),
               Text(
                 [

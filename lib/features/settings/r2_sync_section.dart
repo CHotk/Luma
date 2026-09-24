@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../domain/habit_config.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
@@ -61,6 +60,13 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
   _FeaturePhase _kanaExamPhase = _FeaturePhase.idle;
   _FeaturePhase _englishPhase = _FeaturePhase.idle;
   final Map<String, _FeaturePhase> _habitPhases = {};
+
+  /// 看盤／抽菸／喝酒記錄的同步狀況列（id 對應 [_habitPhases]）。
+  static const _habitRows = [
+    ('crypto', '看盤記錄'),
+    ('smoking', '抽菸記錄'),
+    ('drinking', '喝酒記錄'),
+  ];
   _FeaturePhase _syncLogPhase = _FeaturePhase.idle;
   _FeaturePhase _errorLogPhase = _FeaturePhase.idle;
 
@@ -252,20 +258,46 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
       _record('英文單字紀錄', englishResult);
       if (mounted) setState(() => _englishPhase = _FeaturePhase.done);
 
-      // 看盤／抽菸／喝酒紀錄，一種一個檔案。
+      // 看盤／抽菸／喝酒紀錄，各自一份、各自一個雲端檔案。
       final habitDetails = <String>[];
-      for (final habit in allHabits) {
-        stage = habit.title;
-        final r = await service.syncHabitLog(
-          ref.read(habitLogRepositoryProvider(habit)),
-          habit.cloudKey,
-          onPhase: _phaseCallback((p) => _habitPhases[habit.id] = p),
-        );
-        _record(habit.title, r);
-        if (mounted) {
-          setState(() => _habitPhases[habit.id] = _FeaturePhase.done);
-        }
-        habitDetails.add('${habit.title} 上傳${r.uploaded}／下載${r.downloaded}');
+      final habitJobs = <(
+        String,
+        String,
+        Future<({int downloaded, int uploaded})> Function(
+          void Function(SyncPhase),
+        ),
+      )>[
+        (
+          'crypto',
+          '看盤記錄',
+          (onPhase) => service.syncCryptoWatch(
+            ref.read(cryptoWatchRepositoryProvider),
+            onPhase: onPhase,
+          ),
+        ),
+        (
+          'smoking',
+          '抽菸記錄',
+          (onPhase) => service.syncSmoking(
+            ref.read(smokingRepositoryProvider),
+            onPhase: onPhase,
+          ),
+        ),
+        (
+          'drinking',
+          '喝酒記錄',
+          (onPhase) => service.syncDrinking(
+            ref.read(drinkingRepositoryProvider),
+            onPhase: onPhase,
+          ),
+        ),
+      ];
+      for (final (id, title, run) in habitJobs) {
+        stage = title;
+        final r = await run(_phaseCallback((p) => _habitPhases[id] = p));
+        _record(title, r);
+        if (mounted) setState(() => _habitPhases[id] = _FeaturePhase.done);
+        habitDetails.add('$title 上傳${r.uploaded}／下載${r.downloaded}');
       }
 
       final now = DateTime.now();
@@ -421,11 +453,11 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
           phase: _englishPhase,
           result: _results['英文單字紀錄'],
         ),
-        for (final habit in allHabits)
+        for (final (id, title) in _habitRows)
           _FeatureStatusRow(
-            label: habit.title,
-            phase: _habitPhases[habit.id] ?? _FeaturePhase.idle,
-            result: _results[habit.title],
+            label: title,
+            phase: _habitPhases[id] ?? _FeaturePhase.idle,
+            result: _results[title],
           ),
         // 同步紀錄、錯誤日誌本身也是要同步的資料，一樣列出來
         // （2026-09-24 使用者要求）。

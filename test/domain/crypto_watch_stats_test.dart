@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lume/domain/habit_stats.dart';
-import 'package:lume/domain/models/habit_entry.dart';
+import 'package:lume/domain/crypto_watch_stats.dart';
+import 'package:lume/domain/models/crypto_watch_entry.dart';
 
-HabitEntry e(DateTime at, {String? reason}) =>
-    HabitEntry(id: at.toIso8601String(), at: at, reason: reason);
+CryptoWatchEntry e(DateTime at, {String? reason}) =>
+    CryptoWatchEntry(id: at.toIso8601String(), at: at, reason: reason);
 
 void main() {
   final now = DateTime(2026, 9, 24, 15, 0);

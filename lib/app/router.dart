@@ -1,7 +1,10 @@
 import 'package:go_router/go_router.dart';
-import '../domain/habit_config.dart';
-import '../features/habit_log/habit_log_page.dart';
-import '../features/habit_log/habit_log_stats_page.dart';
+import '../features/crypto_watch/crypto_watch_page.dart';
+import '../features/crypto_watch/crypto_watch_stats_page.dart';
+import '../features/smoking_log/smoking_page.dart';
+import '../features/smoking_log/smoking_stats_page.dart';
+import '../features/drinking_log/drinking_page.dart';
+import '../features/drinking_log/drinking_stats_page.dart';
 import '../features/app_home/app_home_page.dart';
 
 import '../features/diary/diary_page.dart';
@@ -41,24 +44,21 @@ final appRouter = GoRouter(
   initialLocation: '/',
   routes: [
     GoRoute(path: '/', builder: (_, _) => const SplashPage()),
-    // 看盤／抽菸／喝酒共用同一組頁面，`:id` 對應 `HabitConfig.id`。
+    // 看盤／抽菸／喝酒各自獨立的頁面（不共用）。
+    GoRoute(path: '/crypto-watch', builder: (_, _) => const CryptoWatchPage()),
     GoRoute(
-      path: '/habit/:id',
-      builder: (_, state) {
-        final config = habitConfigById(state.pathParameters['id']!);
-        return config == null
-            ? const AppHomePage()
-            : HabitLogPage(config: config);
-      },
+      path: '/crypto-watch/stats',
+      builder: (_, _) => const CryptoWatchStatsPage(),
     ),
+    GoRoute(path: '/smoking-log', builder: (_, _) => const SmokingPage()),
     GoRoute(
-      path: '/habit/:id/stats',
-      builder: (_, state) {
-        final config = habitConfigById(state.pathParameters['id']!);
-        return config == null
-            ? const AppHomePage()
-            : HabitLogStatsPage(config: config);
-      },
+      path: '/smoking-log/stats',
+      builder: (_, _) => const SmokingStatsPage(),
+    ),
+    GoRoute(path: '/drinking-log', builder: (_, _) => const DrinkingPage()),
+    GoRoute(
+      path: '/drinking-log/stats',
+      builder: (_, _) => const DrinkingStatsPage(),
     ),
     GoRoute(path: '/start', builder: (_, _) => const AppHomePage()),
     GoRoute(path: '/home', builder: (_, _) => const HomePage()),

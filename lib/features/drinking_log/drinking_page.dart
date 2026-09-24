@@ -8,9 +8,8 @@ import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
-import '../../domain/habit_config.dart';
-import '../../domain/habit_stats.dart';
-import '../../domain/models/habit_entry.dart';
+import '../../domain/drinking_stats.dart';
+import '../../domain/models/drinking_entry.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
@@ -18,21 +17,19 @@ import '../../shared/widgets/glass_card.dart';
 
 const _cooldownLength = Duration(minutes: 10);
 
-/// 「多久一次」型紀錄頁（看盤／抽菸／喝酒共用，文字與顏色由 [HabitConfig]
-/// 決定；2026-09-24 使用者要求：記錄多久一次，督促自己不要太頻繁）。版面取自設計稿 `design-history/看盤頻率記錄設計/`：
-/// 03 的「距離上次」計時器＋冷靜按鈕、01 的最近紀錄清單、02 的月曆
-/// 日期格子；05 的統計放在右上角統計按鈕進去的子頁。
-class HabitLogPage extends ConsumerStatefulWidget {
-  const HabitLogPage({super.key, required this.config});
-
-  final HabitConfig config;
+/// 喝酒記錄（2026-09-24 使用者要求：記錄多久一次，督促自己不要太頻繁；
+/// 看盤／抽菸／喝酒各自獨立一份，不共用程式）。版面取自設計稿
+/// `design-history/看盤頻率記錄設計/`：03 的「距離上次」計時器＋冷靜按鈕、
+/// 01 的最近紀錄清單、02 的月曆日期格子；05 的統計放在右上角統計按鈕進去的子頁。
+class DrinkingPage extends ConsumerStatefulWidget {
+  const DrinkingPage({super.key});
 
   @override
-  ConsumerState<HabitLogPage> createState() => _HabitLogPageState();
+  ConsumerState<DrinkingPage> createState() => _DrinkingPageState();
 }
 
-class _HabitLogPageState extends ConsumerState<HabitLogPage> {
-  List<HabitEntry> _entries = const [];
+class _DrinkingPageState extends ConsumerState<DrinkingPage> {
+  List<DrinkingEntry> _entries = const [];
   bool _loaded = false;
   Timer? _tick;
   DateTime _now = DateTime.now();
@@ -64,9 +61,7 @@ class _HabitLogPageState extends ConsumerState<HabitLogPage> {
   }
 
   Future<void> _load() async {
-    final all = await ref
-        .read(habitLogRepositoryProvider(widget.config))
-        .loadAll();
+    final all = await ref.read(drinkingRepositoryProvider).loadAll();
     if (mounted) {
       setState(() {
         _entries = all;
@@ -90,7 +85,7 @@ class _HabitLogPageState extends ConsumerState<HabitLogPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                widget.config.reasonPrompt,
+                '為什麼想喝？（選填）',
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
@@ -102,7 +97,7 @@ class _HabitLogPageState extends ConsumerState<HabitLogPage> {
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  for (final r in widget.config.reasons)
+                  for (final r in const ['社交', '壓力', '無聊', '慶祝', '睡前', '其他'])
                     ActionChip(
                       label: Text(r),
                       onPressed: () => Navigator.pop(sheetContext, r),
@@ -125,7 +120,7 @@ class _HabitLogPageState extends ConsumerState<HabitLogPage> {
     // null＝點空白處關掉，不記錄；空字串＝直接記錄、沒選原因。
     if (reason == null) return;
     await ref
-        .read(habitLogRepositoryProvider(widget.config))
+        .read(drinkingRepositoryProvider)
         .add(reason: reason.isEmpty ? null : reason);
     setState(() {
       _cooldownEnd = null;
@@ -136,7 +131,7 @@ class _HabitLogPageState extends ConsumerState<HabitLogPage> {
     await _load();
   }
 
-  Future<void> _confirmDelete(HabitEntry e) async {
+  Future<void> _confirmDelete(DrinkingEntry e) async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -156,7 +151,7 @@ class _HabitLogPageState extends ConsumerState<HabitLogPage> {
       ),
     );
     if (ok != true) return;
-    await ref.read(habitLogRepositoryProvider(widget.config)).delete(e.id);
+    await ref.read(drinkingRepositoryProvider).delete(e.id);
     await _load();
   }
 
@@ -173,11 +168,11 @@ class _HabitLogPageState extends ConsumerState<HabitLogPage> {
               children: [
                 const SizedBox(height: Gap.sm),
                 AppTopBar(
-                  title: widget.config.title,
+                  title: '喝酒記錄',
                   showBack: false,
                   actions: [
                     IconButton(
-                      onPressed: () => context.push(widget.config.statsRoute),
+                      onPressed: () => context.push('/drinking-log/stats'),
                       icon: const Icon(Icons.bar_chart_rounded, size: 22),
                       color: AppColors.ink2,
                       tooltip: '統計',
@@ -230,7 +225,7 @@ class _HabitLogPageState extends ConsumerState<HabitLogPage> {
       padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 15),
       child: Column(
         children: [
-          Text(widget.config.sinceLabel, style: AppText.note),
+          Text('距離上次喝酒', style: AppText.note),
           const SizedBox(height: Gap.sm),
           Text(
             since == null ? '--:--:--' : _clock(since),
@@ -244,8 +239,8 @@ class _HabitLogPageState extends ConsumerState<HabitLogPage> {
           const SizedBox(height: Gap.sm),
           Text(
             since == null
-                ? widget.config.emptyHint
-                : '今天已${widget.config.verb} $todayCount ${widget.config.unit}'
+                ? '還沒有紀錄，喝完按下面的按鈕記一筆'
+                : '今天已喝 $todayCount 杯'
                       '${longest == null ? '' : '・今天最長撐過 ${formatDuration(longest)}'}',
             style: AppText.note,
             textAlign: TextAlign.center,
@@ -270,7 +265,7 @@ class _HabitLogPageState extends ConsumerState<HabitLogPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            widget.config.cravingQuestion,
+            '想喝了嗎？',
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w700,
@@ -280,7 +275,7 @@ class _HabitLogPageState extends ConsumerState<HabitLogPage> {
           const SizedBox(height: Gap.xs),
           Text(
             remaining == null
-                ? widget.config.cooldownHint
+                ? '先喝杯水，10 分鐘後還想喝再喝。'
                 : '冷靜中… 還剩 ${_clock(remaining).substring(3)}，撐住。',
             style: AppText.bodyDim,
           ),
@@ -299,9 +294,7 @@ class _HabitLogPageState extends ConsumerState<HabitLogPage> {
                     : Icons.close_rounded,
                 size: 18,
               ),
-              label: Text(
-                remaining == null ? widget.config.cooldownButton : '取消',
-              ),
+              label: Text(remaining == null ? '先忍 10 分鐘' : '取消'),
             ),
           ),
         ],
@@ -315,7 +308,7 @@ class _HabitLogPageState extends ConsumerState<HabitLogPage> {
       child: FilledButton.icon(
         onPressed: _record,
         icon: const Icon(Icons.visibility_outlined, size: 20),
-        label: Text(widget.config.recordLabel),
+        label: Text('我剛喝了一杯（重新計時）'),
         style: FilledButton.styleFrom(
           padding: const EdgeInsets.symmetric(vertical: 15),
         ),

@@ -14,8 +14,12 @@ import '../repositories/error_log_repository.dart';
 import '../../domain/models/kana_exam.dart';
 import '../../domain/models/kana_practice.dart';
 import '../../domain/models/history.dart';
-import '../../domain/models/habit_entry.dart';
-import '../repositories/habit_log_repository.dart';
+import '../../domain/models/crypto_watch_entry.dart';
+import '../repositories/crypto_watch_repository.dart';
+import '../../domain/models/smoking_entry.dart';
+import '../repositories/smoking_repository.dart';
+import '../../domain/models/drinking_entry.dart';
+import '../repositories/drinking_repository.dart';
 import '../repositories/fitness_repository.dart';
 import '../repositories/history_repository.dart';
 import '../repositories/kana_exam_repository.dart';
@@ -360,14 +364,39 @@ class R2SyncService {
     onPhase: onPhase,
   );
 
-  /// 看盤／抽菸／喝酒紀錄，[cloudKey] 是各自的雲端檔名（見 `HabitConfig`）。
-  Future<({int downloaded, int uploaded})> syncHabitLog(
-    HabitLogRepository repo,
-    String cloudKey, {
+  /// 看盤記錄（`crypto_watch.json`），各自獨立一份，不跟其他紀錄共用。
+  Future<({int downloaded, int uploaded})> syncCryptoWatch(
+    CryptoWatchRepository repo, {
     void Function(SyncPhase phase)? onPhase,
-  }) => _syncRecords<HabitEntry>(
-    key: cloudKey,
-    fromJson: HabitEntry.fromJson,
+  }) => _syncRecords<CryptoWatchEntry>(
+    key: 'crypto_watch.json',
+    fromJson: CryptoWatchEntry.fromJson,
+    toJson: (e) => e.toJson(),
+    mergeFromCloud: repo.mergeFromCloud,
+    allForUpload: repo.allForUpload,
+    onPhase: onPhase,
+  );
+
+  /// 抽菸記錄（`smoking.json`），各自獨立一份，不跟其他紀錄共用。
+  Future<({int downloaded, int uploaded})> syncSmoking(
+    SmokingRepository repo, {
+    void Function(SyncPhase phase)? onPhase,
+  }) => _syncRecords<SmokingEntry>(
+    key: 'smoking.json',
+    fromJson: SmokingEntry.fromJson,
+    toJson: (e) => e.toJson(),
+    mergeFromCloud: repo.mergeFromCloud,
+    allForUpload: repo.allForUpload,
+    onPhase: onPhase,
+  );
+
+  /// 喝酒記錄（`drinking.json`），各自獨立一份，不跟其他紀錄共用。
+  Future<({int downloaded, int uploaded})> syncDrinking(
+    DrinkingRepository repo, {
+    void Function(SyncPhase phase)? onPhase,
+  }) => _syncRecords<DrinkingEntry>(
+    key: 'drinking.json',
+    fromJson: DrinkingEntry.fromJson,
     toJson: (e) => e.toJson(),
     mergeFromCloud: repo.mergeFromCloud,
     allForUpload: repo.allForUpload,

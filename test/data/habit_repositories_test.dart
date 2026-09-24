@@ -1,37 +1,34 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lume/data/repositories/habit_log_repository.dart';
+import 'package:lume/data/repositories/crypto_watch_repository.dart';
+import 'package:lume/data/repositories/drinking_repository.dart';
+import 'package:lume/data/repositories/smoking_repository.dart';
 import 'package:lume/data/storage/key_value_store.dart';
-import 'package:lume/domain/habit_config.dart';
 
 void main() {
-  test('看盤／抽菸／喝酒各存各的 key，互不影響', () async {
+  test('看盤／抽菸／喝酒各自一份資料，互不影響', () async {
     final store = _MemoryStore();
-    final crypto = HabitLogRepository(store, cryptoWatchHabit.storageKey);
-    final smoking = HabitLogRepository(store, smokingHabit.storageKey);
+    final crypto = CryptoWatchRepository(store);
+    final smoking = SmokingRepository(store);
+    final drinking = DrinkingRepository(store);
     await crypto.add(reason: '焦慮');
     await crypto.add();
     await smoking.add(reason: '壓力');
 
     expect((await crypto.loadAll()).length, 2);
     expect((await smoking.loadAll()).length, 1);
-    expect(
-      {for (final h in allHabits) h.storageKey}.length,
-      allHabits.length,
-      reason: '儲存 key 不能重複',
-    );
+    expect(await drinking.loadAll(), isEmpty);
   });
 
   test('刪除是墓碑：畫面看不到，但同步用的清單還在', () async {
-    final repo = HabitLogRepository(_MemoryStore(), drinkingHabit.storageKey);
+    final repo = DrinkingRepository(_MemoryStore());
     final e = await repo.add();
     await repo.delete(e.id);
     expect(await repo.loadAll(), isEmpty);
-    final raw = await repo.allForUpload();
-    expect(raw.single.deletedAt, isNotNull);
+    expect((await repo.allForUpload()).single.deletedAt, isNotNull);
   });
 
   test('雲端內容跟本機一樣時 mergeFromCloud 異動數是 0', () async {
-    final repo = HabitLogRepository(_MemoryStore(), smokingHabit.storageKey);
+    final repo = SmokingRepository(_MemoryStore());
     await repo.add();
     expect(await repo.mergeFromCloud(await repo.allForUpload()), 0);
   });

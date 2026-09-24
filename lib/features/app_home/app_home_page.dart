@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../domain/habit_config.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -61,13 +60,24 @@ class AppHomePage extends ConsumerWidget {
         color: Color(0xFFF2A65A),
         route: '/fitness',
       ),
-      for (final habit in allHabits)
-        _HomeItem(
-          label: habit.title,
-          icon: habit.icon,
-          color: habit.color,
-          route: habit.route,
-        ),
+      const _HomeItem(
+        label: '看盤記錄',
+        icon: Icons.candlestick_chart_outlined,
+        color: Color(0xFFF7931A),
+        route: '/crypto-watch',
+      ),
+      const _HomeItem(
+        label: '抽菸記錄',
+        icon: Icons.smoking_rooms_outlined,
+        color: Color(0xFFB0B7C3),
+        route: '/smoking-log',
+      ),
+      const _HomeItem(
+        label: '喝酒記錄',
+        icon: Icons.local_bar_outlined,
+        color: Color(0xFFE0607E),
+        route: '/drinking-log',
+      ),
       const _HomeItem(
         label: '多裝置同步',
         icon: Icons.cloud_sync_outlined,
