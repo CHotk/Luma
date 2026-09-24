@@ -383,12 +383,9 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
                       final matches = q.isEmpty
                           ? const <YtChannel>[]
                           : channels
-                                .where(
-                                  (c) =>
-                                      c.name.toLowerCase().contains(q) ||
-                                      c.description.toLowerCase().contains(q) ||
-                                      c.url.toLowerCase().contains(q),
-                                )
+                                // 只比對頻道名稱：網址（含分享連結的 ?si= 亂碼）跟簡介
+                                // 也比對的話，打一個字母會冒出一堆名字不含它的頻道。
+                                .where((c) => c.name.toLowerCase().contains(q))
                                 .toList();
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
