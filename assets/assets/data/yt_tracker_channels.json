@@ -218,5 +218,15 @@
     "url": "https://youtube.com/@laogao?si=VZE1VHMv0mMDBSIK",
     "description": "",
     "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-scp-cn",
+    "name": "靈佑奇談 by 腦洞大開",
+    "categoryId": "seed-entertainment",
+    "avatarEmoji": "📺",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/ytc/AIdro_nC0-__rFZ6TZXnugCHeu4dQIeTdu4R363a-CveFRcY=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://youtube.com/@scp-cn?si=hVkzgIaJNwPn2wXF",
+    "description": "",
+    "addedAt": "2026-09-24T00:00:00.000"
   }
 ]
