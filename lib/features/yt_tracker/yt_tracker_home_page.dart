@@ -42,6 +42,17 @@ class YtTrackerHomePage extends ConsumerStatefulWidget {
 class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
   late Future<({List<YtCategory> categories, List<YtChannel> channels})> _future;
 
+  /// 搜尋框（2026-09-24 使用者要求：放在「全部」上面，直接搜尋頻道）。
+  /// 有輸入文字時，分類格子換成符合的頻道清單。
+  final _searchController = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -365,11 +376,83 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
                             );
                       final gridCount =
                           categories.length + (uncategorized == null ? 0 : 1);
+                      final q = _query.trim().toLowerCase();
+                      final categoryNameById = {
+                        for (final c in categories) c.id: c.name,
+                      };
+                      final matches = q.isEmpty
+                          ? const <YtChannel>[]
+                          : channels
+                                .where(
+                                  (c) =>
+                                      c.name.toLowerCase().contains(q) ||
+                                      c.description.toLowerCase().contains(q) ||
+                                      c.url.toLowerCase().contains(q),
+                                )
+                                .toList();
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
+                          TextField(
+                            controller: _searchController,
+                            onChanged: (v) => setState(() => _query = v),
+                            textInputAction: TextInputAction.search,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: AppColors.ink,
+                            ),
+                            decoration: InputDecoration(
+                              isDense: true,
+                              hintText: '搜尋頻道',
+                              hintStyle: const TextStyle(
+                                fontSize: 14,
+                                color: AppColors.ink3,
+                              ),
+                              prefixIcon: const Icon(
+                                Icons.search_rounded,
+                                size: 20,
+                                color: AppColors.ink2,
+                              ),
+                              suffixIcon: _query.isEmpty
+                                  ? null
+                                  : IconButton(
+                                      icon: const Icon(Icons.close, size: 18),
+                                      color: AppColors.ink2,
+                                      onPressed: () {
+                                        _searchController.clear();
+                                        setState(() => _query = '');
+                                      },
+                                    ),
+                              filled: true,
+                              fillColor: AppColors.glassFill,
+                              contentPadding: const EdgeInsets.symmetric(
+                                vertical: 12,
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(Radii.button),
+                                borderSide: const BorderSide(
+                                  color: AppColors.glassEdge,
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(Radii.button),
+                                borderSide: const BorderSide(
+                                  color: AppColors.accentGlassEdge,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: Gap.md),
                           Expanded(
-                            child: gridCount == 0
+                            child: q.isNotEmpty
+                                ? _SearchResults(
+                                    channels: matches,
+                                    categoryNameById: categoryNameById,
+                                    onOpen: (c) => context
+                                        .push('/yt-tracker/channel/${c.id}')
+                                        .then((_) => _reload()),
+                                  )
+                                : gridCount == 0
                                 ? _EmptyState(onAdd: _showAddCategoryDialog)
                                 : CustomScrollView(
                                     slivers: [
@@ -464,6 +547,76 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
 }
 
 enum _YtHomeMenuAction { testNotification, export }
+
+/// 搜尋結果清單：頭像、名字、分類（跟訂閱人數），點了直接進頻道詳情。
+class _SearchResults extends StatelessWidget {
+  const _SearchResults({
+    required this.channels,
+    required this.categoryNameById,
+    required this.onOpen,
+  });
+
+  final List<YtChannel> channels;
+  final Map<String, String> categoryNameById;
+  final void Function(YtChannel) onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    if (channels.isEmpty) {
+      return Center(child: Text('找不到符合的頻道', style: AppText.bodyDim));
+    }
+    return ListView.separated(
+      itemCount: channels.length,
+      separatorBuilder: (_, _) =>
+          const Divider(height: 1, color: AppColors.glassEdge),
+      itemBuilder: (context, i) {
+        final c = channels[i];
+        final category = categoryNameById[c.categoryId] ?? '未分類';
+        return InkWell(
+          onTap: () => onOpen(c),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Row(
+              children: [
+                YtChannelAvatar(channel: c, radius: 18),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        c.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.ink,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        c.subscriberLabel == null
+                            ? category
+                            : '$category・${c.subscriberLabel}',
+                        style: AppText.note,
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  size: 20,
+                  color: AppColors.ink3,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
 
 class _EmptyState extends StatelessWidget {
   const _EmptyState({required this.onAdd});
