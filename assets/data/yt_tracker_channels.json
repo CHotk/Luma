@@ -208,5 +208,15 @@
     "url": "https://youtube.com/@musetw?si=g92XGifS9XjseEPe",
     "description": "",
     "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-laogao",
+    "name": "老高與小茉 Mr & Mrs Gao",
+    "categoryId": "seed-knowledge",
+    "avatarEmoji": "📺",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/WkqPeeZSOxzUz3eNJ-ztvIkHXqNvIqDy6_cGiIZIQm2PGDNnGW6DfIIUfQ8_CsqKoiAT2oz6FQ=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://youtube.com/@laogao?si=VZE1VHMv0mMDBSIK",
+    "description": "",
+    "addedAt": "2026-09-24T00:00:00.000"
   }
 ]
