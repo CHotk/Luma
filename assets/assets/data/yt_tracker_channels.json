@@ -308,5 +308,15 @@
     "url": "https://youtube.com/@amazingtalker?si=ubxuXnsl5GQNo4Gn",
     "description": "",
     "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-joeman",
+    "name": "Joeman",
+    "categoryId": "seed-life",
+    "avatarEmoji": "📺",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/BXZOvDXXPP-WksJl9XmJRXw2HRs3pWBsB-NHQrxol8gfdiUi6hZCyTLlZan-K8E2jL0cTonf3Q=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://youtube.com/@joeman?si=ORVSOYLlpBOuzHn1",
+    "description": "",
+    "addedAt": "2026-09-24T00:00:00.000"
   }
 ]
