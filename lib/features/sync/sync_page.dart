@@ -7,6 +7,7 @@ import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
 import '../../data/cloud/r2_client.dart';
 import '../../data/cloud/r2_sync_service.dart';
+import '../../data/export/device_label.dart';
 import '../../data/export/file_download.dart';
 import '../../domain/models/sync_log_entry.dart';
 import '../../shared/widgets/ambient_background.dart';
@@ -70,6 +71,7 @@ class _SyncPageState extends ConsumerState<SyncPage> {
           at: DateTime.now(),
           action: SyncLogAction.backup,
           success: ok,
+          device: currentDeviceLabel(),
           detail: ok
               ? '日記 ${data.diaryCount} 筆、健身 ${data.fitnessCount} 筆'
               : '這個平台還不支援下載',
@@ -85,6 +87,7 @@ class _SyncPageState extends ConsumerState<SyncPage> {
           at: DateTime.now(),
           action: SyncLogAction.backup,
           success: false,
+          device: currentDeviceLabel(),
           detail: '$e',
         ),
       );
@@ -160,19 +163,7 @@ class _SyncPageState extends ConsumerState<SyncPage> {
               style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.ink),
             ),
             const Spacer(),
-            if (_log.isNotEmpty)
-              TextButton(
-                onPressed: () async {
-                  await ref.read(syncLogRepositoryProvider).clear();
-                  await _reloadLog();
-                },
-                style: TextButton.styleFrom(
-                  foregroundColor: AppColors.ink3,
-                  padding: EdgeInsets.zero,
-                  minimumSize: const Size(0, 0),
-                ),
-                child: const Text('清空', style: TextStyle(fontSize: 11)),
-              ),
+            Text('共 ${_log.length} 筆', style: AppText.note),
           ],
         ),
         const SizedBox(height: Gap.sm),
@@ -199,6 +190,19 @@ String _relativeTime(DateTime t) {
   return '${diff.inDays} 天前';
 }
 
+String _absoluteTime(DateTime t) {
+  String two(int n) => n.toString().padLeft(2, '0');
+  return '${t.year}/${two(t.month)}/${two(t.day)}  ${two(t.hour)}:${two(t.minute)}:${two(t.second)}';
+}
+
+/// detail 是「；」分功能、「、」分項目的一整串文字（見 r2_sync_section
+/// 跟備份下載寫入的格式），畫面上拆成一項一行才不會全擠在同一行。
+List<String> _detailLines(String detail) => detail
+    .split(RegExp('[；、]'))
+    .map((s) => s.trim())
+    .where((s) => s.isNotEmpty)
+    .toList();
+
 class _SyncLogRow extends StatelessWidget {
   const _SyncLogRow({required this.entry});
 
@@ -206,48 +210,70 @@ class _SyncLogRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
+    final color = entry.success ? AppColors.ok : AppColors.bad;
+    final lines = entry.detail == null ? const <String>[] : _detailLines(entry.detail!);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(12),
+        border: Border(left: BorderSide(color: color, width: 3)),
+      ),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            entry.success ? Icons.check_circle : Icons.error_outline,
-            size: 14,
-            color: entry.success ? AppColors.ok : AppColors.bad,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      entry.action.label,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.ink,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(_relativeTime(entry.at), style: AppText.note),
-                  ],
+          Row(
+            children: [
+              Icon(
+                entry.success ? Icons.check_circle : Icons.error_outline,
+                size: 15,
+                color: color,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                '${entry.action.label}${entry.success ? '' : '失敗'}',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.ink,
                 ),
-                if (entry.detail != null) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    entry.detail!,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: entry.success ? AppColors.ink3 : AppColors.bad,
-                    ),
-                  ),
-                ],
-              ],
+              ),
+              const Spacer(),
+              Text(_relativeTime(entry.at), style: AppText.note),
+            ],
+          ),
+          const SizedBox(height: 2),
+          Padding(
+            padding: const EdgeInsets.only(left: 21),
+            child: Text(
+              '${_absoluteTime(entry.at)}  ·  ${entry.device ?? '未知裝置'}',
+              style: AppText.note,
             ),
           ),
+          if (lines.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.only(left: 21),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (final line in lines)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 3),
+                      child: Text(
+                        line,
+                        style: TextStyle(
+                          fontSize: 12,
+                          height: 1.4,
+                          color: entry.success ? AppColors.ink2 : AppColors.bad,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );

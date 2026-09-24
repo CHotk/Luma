@@ -9,13 +9,14 @@ import '../storage/key_value_store.dart';
 /// 跟 `AppLog`（`shared/debug/app_log.dart`）不一樣：那個是「剛剛發生
 /// 了什麼」的除錯記憶體記錄，重新整理就清空；這個是要留著回頭查「上次
 /// 同步是什麼時候、動了幾筆」的持久化紀錄（2026-09-24 使用者要求：
-/// 每次同步、每次備份下載都要留 log 記錄詳情）。只留最新
-/// [_maxEntries] 筆，不無限長大。
+/// 每次同步、每次備份下載都要留 log 記錄詳情）。
+///
+/// 這是 log，只增不刪：不提供清空、也不設筆數上限（2026-09-24 使用者
+/// 明確要求「log 不可清除」；每筆很小，不會撐爆儲存空間）。
 class SyncLogRepository {
   SyncLogRepository(this._store);
 
   static const _key = 'r2_sync.log.v1';
-  static const _maxEntries = 50;
 
   final KeyValueStore _store;
 
@@ -30,17 +31,32 @@ class SyncLogRepository {
     return list..sort((a, b) => b.at.compareTo(a.at));
   }
 
-  Future<void> add(SyncLogEntry entry) async {
+  /// 把雲端的紀錄併進本機，回傳新增了幾筆。log 只增不刪、不會被修改，
+  /// 所以合併就是「聯集」：用時間＋動作當識別，本機沒有的才加進來，
+  /// 不需要墓碑或比對更新時間（多台裝置各自的紀錄就這樣匯集成同一份）。
+  Future<int> mergeFromCloud(List<SyncLogEntry> cloud) async {
     final all = await loadAll();
-    final next = [entry, ...all];
-    final trimmed = next.length > _maxEntries
-        ? next.sublist(0, _maxEntries)
-        : next;
+    final known = {for (final e in all) _identity(e)};
+    final fresh = [
+      for (final e in cloud)
+        if (known.add(_identity(e))) e,
+    ];
+    if (fresh.isEmpty) return 0;
     await _store.write(
       _key,
-      jsonEncode([for (final e in trimmed) e.toJson()]),
+      jsonEncode([for (final e in [...fresh, ...all]) e.toJson()]),
     );
+    return fresh.length;
   }
 
-  Future<void> clear() => _store.write(_key, jsonEncode(const []));
+  static String _identity(SyncLogEntry e) =>
+      '${e.at.toUtc().toIso8601String()}|${e.action.name}|${e.device}';
+
+  Future<void> add(SyncLogEntry entry) async {
+    final all = await loadAll();
+    await _store.write(
+      _key,
+      jsonEncode([for (final e in [entry, ...all]) e.toJson()]),
+    );
+  }
 }

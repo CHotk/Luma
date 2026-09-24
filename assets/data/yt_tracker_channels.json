@@ -28,5 +28,15 @@
     "url": "https://youtube.com/@traderfengge?si=JsKheshSx09kxBrI",
     "description": "虛擬貨幣KOL",
     "addedAt": "2026-09-23T14:06:00.000"
+  },
+  {
+    "id": "seed-karendaidai-music",
+    "name": "KarenDaidai 音樂頻道",
+    "categoryId": "seed-music",
+    "avatarEmoji": "🎵",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/DVVcLlaI0WVyFS1HHca_R2GVn1CjLDpE0HDn2BeFOvjeQthRVw4NH3l7kxqJXqEQ9R-20KXxzg=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://youtube.com/@karendaidaimusicchannel?si=e5uuf-rLjEXpvden",
+    "description": "",
+    "addedAt": "2026-09-24T00:00:00.000"
   }
 ]

@@ -8,6 +8,7 @@ import '../../app/theme/typography.dart';
 import '../../data/cloud/r2_client.dart';
 import '../../data/cloud/r2_credentials_store.dart';
 import '../../data/cloud/r2_sync_service.dart';
+import '../../data/export/device_label.dart';
 import '../../domain/models/sync_log_entry.dart';
 import '../../shared/widgets/app_notice.dart';
 import '../../shared/widgets/glass_card.dart';
@@ -182,11 +183,17 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
           at: now,
           action: SyncLogAction.sync,
           success: true,
+          device: currentDeviceLabel(),
           detail:
               '日記 上傳${diaryResult.uploaded}／下載${diaryResult.downloaded}；'
               '健身 上傳${fitnessResult.uploaded}／下載${fitnessResult.downloaded}',
         ),
       );
+      try {
+        await service.syncLog(ref.read(syncLogRepositoryProvider));
+      } catch (_) {
+        // 紀錄上傳失敗不擋主流程：日記／健身已經同步成功。
+      }
       widget.onLogged?.call();
       // 同步抓回來的資料要讓日記頁／健身頁（可能還留在導覽堆疊底下沒被
       // 重建）知道要重讀，不然使用者按返回時畫面還是同步前的舊資料
@@ -205,6 +212,7 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
           at: DateTime.now(),
           action: SyncLogAction.sync,
           success: false,
+          device: currentDeviceLabel(),
           detail: '$e',
         ),
       );

@@ -19,7 +19,12 @@ class SyncLogEntry {
     required this.action,
     required this.success,
     this.detail,
+    this.device,
   });
+
+  /// 做這個動作的裝置名稱（如「Android・Chrome」）。舊紀錄沒有這欄，
+  /// 是 null。
+  final String? device;
 
   final DateTime at;
   final SyncLogAction action;
@@ -33,6 +38,7 @@ class SyncLogEntry {
     'action': action.name,
     'success': success,
     'detail': detail,
+    'device': device,
   };
 
   factory SyncLogEntry.fromJson(Map<String, dynamic> json) => SyncLogEntry(
@@ -43,5 +49,6 @@ class SyncLogEntry {
     ),
     success: json['success'] as bool,
     detail: json['detail'] as String?,
+    device: json['device'] as String?,
   );
 }
