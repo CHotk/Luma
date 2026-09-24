@@ -178,5 +178,15 @@
     "url": "https://youtube.com/@globalgoldenline?si=rS2wYiXMpK75MiNM",
     "description": "",
     "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-77boss",
+    "name": "77老大",
+    "categoryId": "seed-knowledge",
+    "avatarEmoji": "📺",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/qlA2GjaPAjS9vBRUud0yKbUB1HVmCSjbBE5PKAC6jR1j1iLO3KbujJguK2Sn7QtnDR7IMhoN=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://www.youtube.com/@77bossloveu",
+    "description": "",
+    "addedAt": "2026-09-24T00:00:00.000"
   }
 ]
