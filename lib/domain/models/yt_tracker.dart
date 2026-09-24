@@ -20,6 +20,10 @@ const ytCategoryColors = <int>[
 /// （2026-09-22 使用者要求：未分類頻道首頁也要看得到）。
 const ytUncategorizedId = '__uncategorized__';
 
+/// 「看過但不喜歡」分類的固定 ID（見 `yt_tracker_categories.json`），列表裡
+/// 固定排最後一個。
+const ytDislikedCategoryId = 'seed-disliked';
+
 /// 使用者自訂的頻道分類。一個頻道只屬於一個分類（單選，資料夾邏輯），
 /// 不是可複選的標籤——跟設計稿 06 版定案的做法一致。
 class YtCategory {

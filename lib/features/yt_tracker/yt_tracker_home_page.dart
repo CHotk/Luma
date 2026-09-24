@@ -610,8 +610,18 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
                               name: '未分類',
                               colorValue: 0xFF74738A,
                             );
-                      final gridCount =
-                          categories.length + (uncategorized == null ? 0 : 1);
+                      // 格子順序：一般分類 → 未分類 → 「看過但不喜歡」固定最後一個
+                      // （2026-09-24 使用者要求）。
+                      final gridCats = [
+                        ...categories.where(
+                          (c) => c.id != ytDislikedCategoryId,
+                        ),
+                        ?uncategorized,
+                        ...categories.where(
+                          (c) => c.id == ytDislikedCategoryId,
+                        ),
+                      ];
+                      final gridCount = gridCats.length;
                       final q = _query.trim().toLowerCase();
                       final categoryNameById = {
                         for (final c in categories) c.id: c.name,
@@ -737,11 +747,9 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
                                         delegate: SliverChildBuilderDelegate(
                                           childCount: gridCount,
                                           (_, i) {
+                                            final cat = gridCats[i];
                                             final isUncategorized =
-                                                i == categories.length;
-                                            final cat = isUncategorized
-                                                ? uncategorized!
-                                                : categories[i];
+                                                cat.id == ytUncategorizedId;
                                             final catChannels = isUncategorized
                                                 ? unassigned
                                                 : channels

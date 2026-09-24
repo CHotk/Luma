@@ -32,8 +32,17 @@ class YtTrackerRepository {
         .toList();
   }
 
-  Future<List<YtCategory>> loadCategories() async =>
-      (await _loadCategoriesRaw()).where((c) => c.deletedAt == null).toList();
+  /// 「看過但不喜歡」固定排最後一個（2026-09-24 使用者要求），其他維持
+  /// 原本順序。
+  Future<List<YtCategory>> loadCategories() async {
+    final all = (await _loadCategoriesRaw())
+        .where((c) => c.deletedAt == null)
+        .toList();
+    return [
+      ...all.where((c) => c.id != ytDislikedCategoryId),
+      ...all.where((c) => c.id == ytDislikedCategoryId),
+    ];
+  }
 
   Future<void> _writeCategories(List<YtCategory> all) =>
       _store.write(_categoryKey, jsonEncode([for (final c in all) c.toJson()]));
