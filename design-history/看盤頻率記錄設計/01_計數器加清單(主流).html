@@ -1,0 +1,24 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>看盤頻率記錄 1 計數器＋歷史清單</title><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet"><style>:root{--bg:#0c0c13;--panel:#161622;--panel2:#1e1e2e;--line:#2a2a3d;--text:#eceaf5;--sub:#8b8ba3;--accent:#7EA6FF;--ok:#5FE08D;--warn:#F5C763;--bad:#FF938B;--btc:#F7931A}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-serif;min-height:100vh;padding:32px 16px}
+.intro{max-width:640px;margin:0 auto 24px;text-align:center}
+.eyebrow{color:var(--accent);font-size:12px;letter-spacing:.2em}
+h1{font-size:22px;margin:6px 0}
+.intro p{color:var(--sub);font-size:13px;line-height:1.7}
+.tag{display:inline-block;background:var(--accent);color:#0c0c13;border-radius:99px;padding:2px 10px;font-size:11px;margin-top:8px}
+.phone{width:380px;height:760px;margin:0 auto;border:8px solid #000;border-radius:38px;background:var(--bg);overflow:hidden;display:flex;flex-direction:column}
+.scroll{flex:1;overflow:auto;padding:0 16px 16px;display:flex;flex-direction:column;gap:12px}
+.scroll>*{flex-shrink:0}
+.top{display:flex;align-items:center;gap:8px;padding:18px 16px 10px;flex-shrink:0}
+.top b{font-size:16px;flex:1}
+.ib{width:32px;height:32px;border-radius:10px;background:var(--panel);display:grid;place-items:center;font-size:15px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px}
+.sub{color:var(--sub);font-size:12px}
+.big{font-size:44px;font-weight:700;line-height:1}
+.btn{display:block;text-align:center;border-radius:14px;padding:14px;font-size:15px;font-weight:700;background:linear-gradient(180deg,#5b86e6,#2E6BFF);color:#fff}
+.btn.ghost{background:var(--panel2);color:var(--text);border:1px solid var(--line);font-weight:500}
+.row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line);font-size:13px}
+.bar{height:8px;background:var(--panel2);border-radius:9px;overflow:hidden}
+.note{max-width:380px;margin:14px auto 0;color:var(--sub);font-size:12px;line-height:1.7;text-align:center}
+.dot{display:inline-block;width:14px;height:14px;border-radius:50%;margin:2px}</style></head><body><div class="intro"><div class="eyebrow">看盤頻率 · 版本 1 / 5</div><h1>計數器＋歷史清單</h1><p>每次看完價格就按一下「我剛看了」，記下時間；上面大數字是今天次數，下面是歷史清單。最像一般習慣追蹤 App。</p><span class="tag">主流慣例：習慣追蹤 App（打卡＋紀錄清單）</span></div><div class="phone"><div class="top"><div class="ib">☰</div><b>看盤記錄</b><div class="ib">⚙</div></div><div class="scroll"><div class="card" style="text-align:center"><div class="sub">今天已看</div><div class="big" style="margin:8px 0;color:var(--warn)">4 <span style="font-size:18px">次</span></div><div class="sub">目標：每天 ≤ 3 次　<span style="color:var(--bad)">已超過 1 次</span></div></div>
+<div class="btn">👀 我剛看了價格</div><div class="sub" style="padding:0 2px">最近紀錄</div><div class="card" style="padding:4px 14px"><div class="row"><span>14:32 <span class="sub">剛剛 · 今天第 4 次</span></span><span class="sub">焦慮</span></div><div class="row"><span>11:05 <span class="sub">3 小時前</span></span><span class="sub">無聊</span></div><div class="row"><span>09:48 <span class="sub">5 小時前</span></span><span class="sub">例行</span></div><div class="row"><span>昨天 22:10 <span class="sub"></span></span><span class="sub">睡前</span></div></div></div></div><p class="note">優點：最直覺、一鍵記錄。缺點：只有數字，比較沒有「督促」的力道。</p></body></html>

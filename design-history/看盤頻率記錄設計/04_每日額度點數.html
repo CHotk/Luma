@@ -1,0 +1,23 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>看盤頻率記錄 4 每日額度點數</title><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet"><style>:root{--bg:#0c0c13;--panel:#161622;--panel2:#1e1e2e;--line:#2a2a3d;--text:#eceaf5;--sub:#8b8ba3;--accent:#7EA6FF;--ok:#5FE08D;--warn:#F5C763;--bad:#FF938B;--btc:#F7931A}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-serif;min-height:100vh;padding:32px 16px}
+.intro{max-width:640px;margin:0 auto 24px;text-align:center}
+.eyebrow{color:var(--accent);font-size:12px;letter-spacing:.2em}
+h1{font-size:22px;margin:6px 0}
+.intro p{color:var(--sub);font-size:13px;line-height:1.7}
+.tag{display:inline-block;background:var(--accent);color:#0c0c13;border-radius:99px;padding:2px 10px;font-size:11px;margin-top:8px}
+.phone{width:380px;height:760px;margin:0 auto;border:8px solid #000;border-radius:38px;background:var(--bg);overflow:hidden;display:flex;flex-direction:column}
+.scroll{flex:1;overflow:auto;padding:0 16px 16px;display:flex;flex-direction:column;gap:12px}
+.scroll>*{flex-shrink:0}
+.top{display:flex;align-items:center;gap:8px;padding:18px 16px 10px;flex-shrink:0}
+.top b{font-size:16px;flex:1}
+.ib{width:32px;height:32px;border-radius:10px;background:var(--panel);display:grid;place-items:center;font-size:15px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px}
+.sub{color:var(--sub);font-size:12px}
+.big{font-size:44px;font-weight:700;line-height:1}
+.btn{display:block;text-align:center;border-radius:14px;padding:14px;font-size:15px;font-weight:700;background:linear-gradient(180deg,#5b86e6,#2E6BFF);color:#fff}
+.btn.ghost{background:var(--panel2);color:var(--text);border:1px solid var(--line);font-weight:500}
+.row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line);font-size:13px}
+.bar{height:8px;background:var(--panel2);border-radius:9px;overflow:hidden}
+.note{max-width:380px;margin:14px auto 0;color:var(--sub);font-size:12px;line-height:1.7;text-align:center}
+.dot{display:inline-block;width:14px;height:14px;border-radius:50%;margin:2px}</style></head><body><div class="intro"><div class="eyebrow">看盤頻率 · 版本 4 / 5</div><h1>每日額度點數</h1><p>每天給自己 3 顆點數（代表 3 次額度），每看一次消耗一顆，用完變紅並跳出提醒。像遊戲血量一樣有節制感。</p></div><div class="phone"><div class="top"><div class="ib">☰</div><b>看盤記錄</b><div class="ib">⚙</div></div><div class="scroll"><div class="card" style="text-align:center"><div class="sub">今天剩餘額度</div><div style="margin:14px 0"><span class="dot" style="width:36px;height:36px;background:var(--panel2);border:2px solid var(--line)"></span><span class="dot" style="width:36px;height:36px;background:var(--panel2);border:2px solid var(--line)"></span><span class="dot" style="width:36px;height:36px;background:var(--panel2);border:2px solid var(--line)"></span><span class="dot" style="width:36px;height:36px;background:var(--bad)"></span></div><div style="color:var(--bad);font-size:14px">額度用完了，已超支 1 次</div></div><div class="card" style="border-color:#5a2f2f"><b style="color:var(--bad)">🚫 今天已經看夠了</b><div class="sub" style="margin-top:6px;line-height:1.7">價格不會因為多看一眼就改變。明天再看吧。</div></div><div class="btn ghost">仍要記錄一次（超支）</div><div class="sub" style="padding:0 2px">額度可在設定調整（每天 1～10 次）</div></div></div><p class="note">優點：有明確「上限」概念，最有約束力。缺點：上限要自己訂，訂太嚴會有挫折感。</p></body></html>
