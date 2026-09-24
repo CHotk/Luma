@@ -228,5 +228,25 @@
     "url": "https://youtube.com/@scp-cn?si=hVkzgIaJNwPn2wXF",
     "description": "",
     "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-tiabtc",
+    "name": "提阿非羅大人TiaBTC",
+    "categoryId": "seed-crypto",
+    "avatarEmoji": "📺",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/i2y5dhQNB6056qUnChsWWXWUW7x83polwONU125gCqNBwUwbehlV-waqhKEiIqJf5MrrrwC1qw=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://youtube.com/@tiabtc?si=GHMBR--EEy6IqmLR",
+    "description": "",
+    "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-laoming",
+    "name": "老鳴TV",
+    "categoryId": "seed-knowledge",
+    "avatarEmoji": "📺",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/ePXz08WL9pmVl1LK1dP_w0chI7CejH_VxDAg_RvlxUBMxMJXRcQLKX1R6IQzYceq2SH8Iv11PQ=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://youtube.com/@laoming?si=CDeW6KYs46p0-Up3",
+    "description": "",
+    "addedAt": "2026-09-24T00:00:00.000"
   }
 ]
