@@ -67,6 +67,10 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
   /// 放好幾天看到的都是舊清單（2026-09-22 使用者糾正）。
   static const _staleAfter = Duration(minutes: 5);
 
+  /// 依影片顯示：每個頻道抓最近幾部，湊在一起依時間排序。不支援往下滑
+  /// 載入更多（頻道多，資料量會太大，2026-09-24 使用者決定）。
+  static const _videosPerChannel = 10;
+
   @override
   void initState() {
     super.initState();
@@ -142,7 +146,10 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
         // 解析結果快取回本機，下次同一個頻道不用再打一次 channels.list。
         await repo.updateChannel(channel);
       }
-      final videos = await service.fetchRecentVideos(channel.uploadsPlaylistId);
+      final videos = await service.fetchRecentVideos(
+        channel.uploadsPlaylistId,
+        maxResults: _videosPerChannel,
+      );
       for (final v in videos) {
         results.add(_ChannelVideo(video: v, channel: channel));
       }
