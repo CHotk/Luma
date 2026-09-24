@@ -64,5 +64,11 @@
     "name": "新聞",
     "color": 4285180384,
     "imageUrl": "assets/images/yt_tracker/news.png"
+  },
+  {
+    "id": "seed-film",
+    "name": "影視",
+    "color": 4291399648,
+    "imageUrl": ""
   }
 ]

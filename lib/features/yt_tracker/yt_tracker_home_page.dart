@@ -370,41 +370,53 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
                           Expanded(
                             child: gridCount == 0
                                 ? _EmptyState(onAdd: _showAddCategoryDialog)
-                                : GridView.builder(
-                                    // 第一格固定是「全部」，所以多一格。
-                                    itemCount: gridCount + 1,
-                                    gridDelegate:
-                                        const SliverGridDelegateWithFixedCrossAxisCount(
-                                          crossAxisCount: 2,
-                                          mainAxisSpacing: 10,
-                                          crossAxisSpacing: 10,
-                                          childAspectRatio: 1.5,
-                                        ),
-                                    itemBuilder: (_, gridIndex) {
-                                      // 「全部」放第一個（2026-09-24 使用者要求）：
-                                      // 不是真的分類，就是不篩選、看所有頻道，用
-                                      // all.png 當底圖，沒有編輯／刪除。
-                                      if (gridIndex == 0) {
-                                        return _CategoryCard(
-                                          category: const YtCategory(
-                                            id: '__all__',
-                                            name: '全部',
-                                            colorValue: 0xFF7EA6FF,
-                                            imageUrl:
-                                                'assets/images/yt_tracker/all.png',
+                                : CustomScrollView(
+                                    slivers: [
+                                      // 「全部」獨佔整行、放第一個（2026-09-24 使用者
+                                      // 要求）：不是真的分類，就是不篩選、看所有頻道，
+                                      // 用 all.png 當底圖，沒有編輯／刪除。整行比一般
+                                      // 分類卡寬很多，底圖建議 1800×600（3:1）。
+                                      SliverToBoxAdapter(
+                                        child: Padding(
+                                          padding: const EdgeInsets.only(
+                                            bottom: 10,
                                           ),
-                                          channels: channels.take(4).toList(),
-                                          count: channels.length,
-                                          onTap: () => context
-                                              .push(
-                                                '/yt-tracker/browse',
-                                                extra: <String>{},
-                                              )
-                                              .then((_) => _reload()),
-                                          onLongPress: null,
-                                        );
-                                      }
-                                      final i = gridIndex - 1;
+                                          child: AspectRatio(
+                                            aspectRatio: 3,
+                                            child: _CategoryCard(
+                                              category: const YtCategory(
+                                                id: '__all__',
+                                                name: '全部',
+                                                colorValue: 0xFF7EA6FF,
+                                                imageUrl:
+                                                    'assets/images/yt_tracker/all.png',
+                                              ),
+                                              channels: channels
+                                                  .take(8)
+                                                  .toList(),
+                                              count: channels.length,
+                                              onTap: () => context
+                                                  .push(
+                                                    '/yt-tracker/browse',
+                                                    extra: <String>{},
+                                                  )
+                                                  .then((_) => _reload()),
+                                              onLongPress: null,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      SliverGrid(
+                                        gridDelegate:
+                                            const SliverGridDelegateWithFixedCrossAxisCount(
+                                              crossAxisCount: 2,
+                                              mainAxisSpacing: 10,
+                                              crossAxisSpacing: 10,
+                                              childAspectRatio: 1.5,
+                                            ),
+                                        delegate: SliverChildBuilderDelegate(
+                                          childCount: gridCount,
+                                          (_, i) {
                                       final isUncategorized =
                                           i == categories.length;
                                       final cat = isUncategorized
@@ -429,7 +441,10 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
                                             ? null
                                             : () => _showEditCategoryDialog(cat),
                                       );
-                                    },
+                                          },
+                                        ),
+                                      ),
+                                    ],
                                   ),
                           ),
                           const SizedBox(height: Gap.md),
