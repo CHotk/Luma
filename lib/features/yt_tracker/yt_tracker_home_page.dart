@@ -809,8 +809,8 @@ class _CategoryCardState extends State<_CategoryCard> {
                           padding: const EdgeInsets.only(right: 4),
                           child: YtChannelAvatar(channel: c, radius: 11),
                         ),
-                      // 超過顯示上限才出現：黑底「+N」（N＝沒顯示的頻道數）
-                      // 加後面的「⋯」（2026-09-24 使用者要求）。
+                      // 超過顯示上限才出現：黑底「+N」（N＝沒顯示的頻道數）。原本後面還有
+                      // 「⋯」，有 +N 之後多餘，2026-09-24 使用者要求拿掉。
                       if (hasMore) ...[
                         Container(
                           padding: const EdgeInsets.symmetric(
@@ -829,16 +829,6 @@ class _CategoryCardState extends State<_CategoryCard> {
                               fontWeight: FontWeight.w700,
                               color: Colors.white,
                             ),
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '⋯',
-                          style: TextStyle(
-                            fontSize: 16,
-                            height: 1,
-                            fontWeight: FontWeight.w700,
-                            color: hasImage ? Colors.white : AppColors.ink2,
                           ),
                         ),
                       ],

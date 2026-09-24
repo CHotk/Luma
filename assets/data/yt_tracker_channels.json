@@ -368,5 +368,15 @@
     "url": "https://youtube.com/@03oversleep?si=iv-agJ0ux3bn_7GP",
     "description": "",
     "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-blockchaindailynews",
+    "name": "區塊鏈日報 Blockchain Daily",
+    "categoryId": "seed-crypto",
+    "avatarEmoji": "📺",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/U36AWnzY9k707Wa4GH9q8RRzt2kVb6gH0R16Ff3x-uHdz6L0ZiQAlLlMYSNhun1D3qWeLIrw=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://youtube.com/@blockchaindailynews?si=833_RWJcEfn82V-W",
+    "description": "",
+    "addedAt": "2026-09-24T00:00:00.000"
   }
 ]
