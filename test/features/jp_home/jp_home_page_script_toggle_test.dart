@@ -29,6 +29,11 @@ void main() {
     expect(find.text('あ'), findsWidgets);
     expect(find.text('ア'), findsNothing);
 
+    // 2026-09-29 首頁最上面多了打卡熱度月曆卡片（見 jp_home_page.dart 的
+    // _MonthlyCalendarCard），頁面變長，這幾個按鈕不一定在測試預設的
+    // 螢幕高度內，點之前先捲到看得到，不然點擊會落空
+    // （tester.tap 只按座標，不像真人手指會自動滑過去）。
+    await tester.ensureVisible(find.text('片'));
     await tester.tap(find.text('片'));
     await tester.pumpAndSettle();
 
@@ -37,15 +42,19 @@ void main() {
     expect(find.text('ア'), findsWidgets);
     expect(find.text('あ'), findsNothing);
 
+    await tester.ensureVisible(find.text('平'));
     await tester.tap(find.text('平'));
     await tester.pumpAndSettle();
 
     // 換到「か行」，選第二個字「き」。
+    await tester.ensureVisible(find.text('か行'));
     await tester.tap(find.text('か行'));
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('き'));
     await tester.tap(find.text('き'));
     await tester.pumpAndSettle();
 
+    await tester.ensureVisible(find.text('片'));
     await tester.tap(find.text('片'));
     await tester.pumpAndSettle();
 

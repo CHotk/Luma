@@ -338,22 +338,29 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
             ),
           );
       try {
-        if (mounted) setState(() => _syncLogPhase = _FeaturePhase.downloading);
-        final logResult = await service.syncLog(
-          ref.read(syncLogRepositoryProvider),
-        );
-        _record('同步紀錄', logResult);
+        // 除錯日誌先同步、同步紀錄最後才做（2026-09-29 使用者指出：同步
+        // 紀錄是這整次同步的「收據」，理論上該排在最後，不該夾在除錯
+        // 日誌前面）。除錯日誌本身也可能收到這次同步過程中任何功能失敗
+        // 寫進 AppLog 的錯誤（見上面 `run` 的 catch），所以放前面同步剛好
+        // 也比較新；同步紀錄墊底才是真的「這次同步全部做完」的最終記錄。
         if (mounted) {
-          setState(() {
-            _syncLogPhase = _FeaturePhase.done;
-            _errorLogPhase = _FeaturePhase.downloading;
-          });
+          setState(() => _errorLogPhase = _FeaturePhase.downloading);
         }
         final errorRepo = ref.read(errorLogRepositoryProvider);
         final errorResult = await service.syncErrorLog(errorRepo);
         _record('除錯錯誤日誌', errorResult);
-        if (mounted) setState(() => _errorLogPhase = _FeaturePhase.done);
         AppLog.restore(await errorRepo.loadAll());
+        if (mounted) {
+          setState(() {
+            _errorLogPhase = _FeaturePhase.done;
+            _syncLogPhase = _FeaturePhase.downloading;
+          });
+        }
+        final logResult = await service.syncLog(
+          ref.read(syncLogRepositoryProvider),
+        );
+        _record('同步紀錄', logResult);
+        if (mounted) setState(() => _syncLogPhase = _FeaturePhase.done);
       } catch (_) {
         // 紀錄上傳失敗不擋主流程：其他功能已經同步成功。
       }
@@ -468,16 +475,18 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
             result: _results[title],
           ),
         // 同步紀錄、錯誤日誌本身也是要同步的資料，一樣列出來
-        // （2026-09-24 使用者要求）。
-        _FeatureStatusRow(
-          label: '同步紀錄',
-          phase: _syncLogPhase,
-          result: _results['同步紀錄'],
-        ),
+        // （2026-09-24 使用者要求）。除錯日誌在前、同步紀錄墊底——同步
+        // 紀錄是這次同步的「收據」，順序上該是最後一項（2026-09-29
+        // 使用者要求，跟實際同步順序一致，見 `_syncNow` 的說明）。
         _FeatureStatusRow(
           label: '除錯錯誤日誌',
           phase: _errorLogPhase,
           result: _results['除錯錯誤日誌'],
+        ),
+        _FeatureStatusRow(
+          label: '同步紀錄',
+          phase: _syncLogPhase,
+          result: _results['同步紀錄'],
         ),
       ],
     );

@@ -94,6 +94,14 @@ class _Body extends StatelessWidget {
                   _TopBar(now: DateTime.now()),
                   const SizedBox(height: Gap.lg),
 
+                  // 打卡熱度月曆卡片（2026-09-29 使用者要求：日文首頁加一個
+                  // 當月日曆＋簡單數據看板，一目了然這個月練了幾天）。是
+                  // 加在原有版面「之上」，不是取代——下面進度環／五十音
+                  // 預覽／下一輪清單全部照舊，只是最上面多這一張卡。設計稿
+                  // 見 `design-history/日文月曆看板設計/01_打卡熱度月曆(主流)`。
+                  GlassCard(child: _MonthlyCalendarCard(state: state)),
+                  const SizedBox(height: Gap.md),
+
                   GlassCard(
                     padding: const EdgeInsets.fromLTRB(10, 16, 10, 14),
                     child: Column(
@@ -588,4 +596,162 @@ class _Row extends StatelessWidget {
       ),
     );
   }
+}
+
+/// 打卡熱度月曆（設計稿 01 定案）：這個月的日曆，練過的日子塗色，
+/// 底下兩顆數字「連續天數」「本月達成率」——2026-09-29 使用者要求
+/// 加在日文首頁最上面，不是取代原本的進度環／五十音預覽／下一輪清單，
+/// 那些照舊排在這張卡片下面。
+class _MonthlyCalendarCard extends StatelessWidget {
+  const _MonthlyCalendarCard({required this.state});
+
+  final JpHomeState state;
+
+  static const _weekdayLabels = ['日', '一', '二', '三', '四', '五', '六'];
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
+    final firstWeekday = DateTime(now.year, now.month).weekday % 7; // 週日=0
+    final practiced = state.practicedDaysThisMonth;
+    final rate = daysInMonth == 0
+        ? 0
+        : (practiced.length * 100 / daysInMonth).round();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            Text('${now.month} 月練習', style: AppText.bodyDim),
+            const Spacer(),
+            Text(
+              '${practiced.length}',
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                color: AppColors.jpAccent,
+              ),
+            ),
+            Text(' / $daysInMonth 天', style: AppText.note),
+          ],
+        ),
+        const SizedBox(height: Gap.sm),
+        Row(
+          children: [
+            for (final w in _weekdayLabels)
+              Expanded(
+                child: Center(child: Text(w, style: AppText.note)),
+              ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        // 不用 GridView：這張卡片包在日文首頁最外層的 IntrinsicHeight 裡
+        // （撐住「按鈕釘底部」那個版面），GridView 內部是 Viewport，量不出
+        // 「intrinsic 高度」，會直接丟例外（2026-09-29 加這張卡片時，單元
+        // 測試才抓到這個問題）。改用 Row／Column 手排 7 欄格子，一樣是
+        // 純版面元件，沒有 Viewport，intrinsic 量測沒問題。
+        _weekGrid(
+          [
+            for (var i = 0; i < firstWeekday; i++) null,
+            for (var d = 1; d <= daysInMonth; d++) d,
+          ],
+          now,
+          practiced,
+        ),
+        const SizedBox(height: Gap.sm),
+        Row(
+          children: [
+            Expanded(child: _statPill('🔥 ${state.streakDays}', '連續天數')),
+            const SizedBox(width: Gap.sm),
+            Expanded(child: _statPill('$rate%', '本月達成率')),
+          ],
+        ),
+      ],
+    );
+  }
+
+  /// [days] 是這個月的日期，前面補 `null` 代表當月 1 號前的空格。
+  Widget _weekGrid(List<int?> days, DateTime now, Set<int> practiced) {
+    final rows = <Widget>[];
+    for (var i = 0; i < days.length; i += 7) {
+      final week = days.sublist(i, i + 7 > days.length ? days.length : i + 7);
+      rows.add(
+        Padding(
+          padding: const EdgeInsets.only(bottom: 5),
+          child: Row(
+            children: [
+              for (final d in week)
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 2.5),
+                    child: AspectRatio(
+                      aspectRatio: 1,
+                      child: d == null
+                          ? const SizedBox.shrink()
+                          : _dayCell(d, now, practiced),
+                    ),
+                  ),
+                ),
+              // 最後一週天數不滿 7 天就補空格，維持格子寬度一致。
+              for (var pad = week.length; pad < 7; pad++)
+                const Expanded(child: SizedBox.shrink()),
+            ],
+          ),
+        ),
+      );
+    }
+    return Column(children: rows);
+  }
+
+  Widget _dayCell(int day, DateTime now, Set<int> practiced) {
+    final done = practiced.contains(day);
+    final isToday = day == now.day;
+    return Container(
+      decoration: BoxDecoration(
+        color: done
+            ? AppColors.jpAccent
+            : AppColors.jpAccent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: isToday
+            ? Border.all(color: AppColors.jpAccent, width: 1.5)
+            : null,
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        '$day',
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: done ? FontWeight.w700 : FontWeight.w400,
+          color: done ? AppColors.jpAccentInk : AppColors.ink2,
+        ),
+      ),
+    );
+  }
+
+  Widget _statPill(String value, String label) => Container(
+    padding: const EdgeInsets.symmetric(vertical: 10),
+    decoration: BoxDecoration(
+      color: AppColors.jpAccent.withValues(alpha: 0.1),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: AppColors.jpAccent.withValues(alpha: 0.3)),
+    ),
+    child: Column(
+      children: [
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+            color: AppColors.jpAccent,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(label, style: AppText.note),
+      ],
+    ),
+  );
 }
