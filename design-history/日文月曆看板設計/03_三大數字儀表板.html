@@ -1,0 +1,32 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>日文月曆看板 3 三大數字儀表板</title><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;800&display=swap" rel="stylesheet"><style>:root{--bg:#1B1420;--panel:#241a28;--panel2:#2c1f32;--line:#3a2836;--text:#f6eef1;--sub:#b79aa6;--accent:#EA92AC;--accent2:#F7B8CB;--ok:#8FBF9F;--amb1:#4A2036;--amb2:#6B3550}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-serif;min-height:100vh;padding:32px 16px}
+.intro{max-width:640px;margin:0 auto 24px;text-align:center}
+.eyebrow{color:var(--accent);font-size:12px;letter-spacing:.2em}
+h1{font-size:22px;margin:6px 0}
+.intro p{color:var(--sub);font-size:13px;line-height:1.7}
+.tag{display:inline-block;background:var(--accent);color:#1B1420;border-radius:99px;padding:2px 10px;font-size:11px;margin-top:8px;font-weight:700}
+.phone{width:380px;height:760px;margin:0 auto;border:8px solid #000;border-radius:38px;background:var(--bg);overflow:hidden;display:flex;flex-direction:column}
+.scroll{flex:1;overflow:auto;padding:0 16px 16px;display:flex;flex-direction:column;gap:12px}
+.scroll>*{flex-shrink:0}
+.top{display:flex;align-items:center;gap:10px;padding:18px 16px 10px;flex-shrink:0}
+.top b{font-size:16px;flex:1}
+.ib{width:32px;height:32px;border-radius:10px;background:var(--panel);display:grid;place-items:center;font-size:15px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:14px}
+.sub{color:var(--sub);font-size:12px}
+.note{max-width:380px;margin:14px auto 0;color:var(--sub);font-size:12px;line-height:1.7;text-align:center}
+.big{font-size:30px;font-weight:800;color:var(--accent)}
+table{width:100%}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.cal .wd{text-align:center;font-size:10.5px;color:var(--sub);padding-bottom:2px}
+.cal .day{aspect-ratio:1;border-radius:8px;display:grid;place-items:center;font-size:11px;color:var(--sub);background:var(--panel2)}
+.cal .day.done{background:var(--accent);color:#1B1420;font-weight:700}
+.cal .day.today{border:1.5px solid var(--accent2)}
+.stat-row{display:flex;gap:10px}
+.stat{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px;text-align:center}
+.stat .n{font-size:22px;font-weight:800;color:var(--accent)}
+.stat .l{font-size:10.5px;color:var(--sub);margin-top:2px}</style></head><body><div class="intro"><div class="eyebrow">日文首頁 · 月曆看板 · 版本 3 / 5</div><h1>三大數字儀表板</h1><p>仿統計頁做法：連續天數、本月天數、總練習次數三個大數字排一排最上面，月曆放下面當明細查詢用，資訊量最多。</p></div><div class="phone"><div class="top"><div class="ib">☰</div><b>日文</b><div class="ib">⚙</div></div><div class="scroll">
+<div class="stat-row"><div class="stat"><div class="n">🔥3</div><div class="l">連續天數</div></div><div class="stat"><div class="n">21</div><div class="l">本月天數</div></div><div class="stat"><div class="n">86</div><div class="l">本月練習次數</div></div></div>
+<div class="card"><div style="display:flex;justify-content:space-between;margin-bottom:8px"><span class="sub">9 月</span><span class="sub">70% 達成率</span></div><div class="cal"><div class="wd">日</div><div class="wd">一</div><div class="wd">二</div><div class="wd">三</div><div class="wd">四</div><div class="wd">五</div><div class="wd">六</div><div></div><div></div><div class="day done ">1</div><div class="day done ">2</div><div class="day done ">3</div><div class="day  ">4</div><div class="day done ">5</div><div class="day done ">6</div><div class="day  ">7</div><div class="day done ">8</div><div class="day done ">9</div><div class="day done ">10</div><div class="day  ">11</div><div class="day done ">12</div><div class="day done ">13</div><div class="day  ">14</div><div class="day done ">15</div><div class="day done ">16</div><div class="day done ">17</div><div class="day  ">18</div><div class="day done ">19</div><div class="day done ">20</div><div class="day  ">21</div><div class="day done ">22</div><div class="day  ">23</div><div class="day done today">24</div><div class="day done ">25</div><div class="day  ">26</div><div class="day done ">27</div><div class="day done ">28</div><div class="day done ">29</div><div class="day  ">30</div></div></div>
+<div class="card" style="text-align:center;padding:16px;font-size:13px;color:var(--accent);font-weight:700">今天練習：あ 平假名手寫 →</div>
+</div></div><p class="note">優點：資訊最完整，數字控會喜歡。缺點：一進頁面資訊量偏大，沒有前兩版乾淨。</p></body></html>

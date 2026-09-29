@@ -1,0 +1,35 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>日文月曆看板 2 圓環進度＋迷你月曆</title><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;800&display=swap" rel="stylesheet"><style>:root{--bg:#1B1420;--panel:#241a28;--panel2:#2c1f32;--line:#3a2836;--text:#f6eef1;--sub:#b79aa6;--accent:#EA92AC;--accent2:#F7B8CB;--ok:#8FBF9F;--amb1:#4A2036;--amb2:#6B3550}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-serif;min-height:100vh;padding:32px 16px}
+.intro{max-width:640px;margin:0 auto 24px;text-align:center}
+.eyebrow{color:var(--accent);font-size:12px;letter-spacing:.2em}
+h1{font-size:22px;margin:6px 0}
+.intro p{color:var(--sub);font-size:13px;line-height:1.7}
+.tag{display:inline-block;background:var(--accent);color:#1B1420;border-radius:99px;padding:2px 10px;font-size:11px;margin-top:8px;font-weight:700}
+.phone{width:380px;height:760px;margin:0 auto;border:8px solid #000;border-radius:38px;background:var(--bg);overflow:hidden;display:flex;flex-direction:column}
+.scroll{flex:1;overflow:auto;padding:0 16px 16px;display:flex;flex-direction:column;gap:12px}
+.scroll>*{flex-shrink:0}
+.top{display:flex;align-items:center;gap:10px;padding:18px 16px 10px;flex-shrink:0}
+.top b{font-size:16px;flex:1}
+.ib{width:32px;height:32px;border-radius:10px;background:var(--panel);display:grid;place-items:center;font-size:15px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:14px}
+.sub{color:var(--sub);font-size:12px}
+.note{max-width:380px;margin:14px auto 0;color:var(--sub);font-size:12px;line-height:1.7;text-align:center}
+.big{font-size:30px;font-weight:800;color:var(--accent)}
+table{width:100%}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.cal .wd{text-align:center;font-size:10.5px;color:var(--sub);padding-bottom:2px}
+.cal .day{aspect-ratio:1;border-radius:8px;display:grid;place-items:center;font-size:11px;color:var(--sub);background:var(--panel2)}
+.cal .day.done{background:var(--accent);color:#1B1420;font-weight:700}
+.cal .day.today{border:1.5px solid var(--accent2)}
+.stat-row{display:flex;gap:10px}
+.stat{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px;text-align:center}
+.stat .n{font-size:22px;font-weight:800;color:var(--accent)}
+.stat .l{font-size:10.5px;color:var(--sub);margin-top:2px}</style></head><body><div class="intro"><div class="eyebrow">日文首頁 · 月曆看板 · 版本 2 / 5</div><h1>圓環進度＋迷你月曆</h1><p>最上面一個大圓環，直接告訴你「這個月練了幾天／幾天」的比例，月曆縮小放下面當輔助，不是主角，適合喜歡看「一個數字」勝過一堆格子的人。</p></div><div class="phone"><div class="top"><div class="ib">☰</div><b>日文</b><div class="ib">⚙</div></div><div class="scroll">
+<div class="card" style="display:flex;flex-direction:column;align-items:center;padding:22px 14px">
+<div style="width:132px;height:132px;border-radius:50%;background:conic-gradient(var(--accent) 0 252deg,var(--panel2) 0deg);display:grid;place-items:center">
+<div style="width:98px;height:98px;border-radius:50%;background:var(--panel);display:grid;place-items:center;text-align:center"><div><div class="big" style="font-size:26px">21</div><div class="sub">/ 30 天</div></div></div></div>
+<div class="sub" style="margin-top:10px">本月練習率 70%・連續 3 天</div>
+</div>
+<div class="card"><div class="sub" style="margin-bottom:8px">9 月</div><div class="cal"><div class="wd">日</div><div class="wd">一</div><div class="wd">二</div><div class="wd">三</div><div class="wd">四</div><div class="wd">五</div><div class="wd">六</div><div></div><div></div><div class="day done ">1</div><div class="day done ">2</div><div class="day done ">3</div><div class="day  ">4</div><div class="day done ">5</div><div class="day done ">6</div><div class="day  ">7</div><div class="day done ">8</div><div class="day done ">9</div><div class="day done ">10</div><div class="day  ">11</div><div class="day done ">12</div><div class="day done ">13</div><div class="day  ">14</div><div class="day done ">15</div><div class="day done ">16</div><div class="day done ">17</div><div class="day  ">18</div><div class="day done ">19</div><div class="day done ">20</div><div class="day  ">21</div><div class="day done ">22</div><div class="day  ">23</div><div class="day done today">24</div><div class="day done ">25</div><div class="day  ">26</div><div class="day done ">27</div><div class="day done ">28</div><div class="day done ">29</div><div class="day  ">30</div></div></div>
+</div></div><p class="note">優點：核心資訊（練了幾天）最醒目，很有成就感。缺點：月曆變輔助，想查「哪幾天沒練」要多看一眼。</p></body></html>
