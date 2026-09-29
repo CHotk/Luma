@@ -43,7 +43,9 @@ class YtTrackerHomePage extends ConsumerStatefulWidget {
 }
 
 class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
-  late Future<({List<YtCategory> categories, List<YtChannel> channels})>
+  late Future<
+    ({List<YtCategory> categories, List<YtChannel> channels, int trashCount})
+  >
   _future;
 
   /// 搜尋框（2026-09-24 使用者要求：放在「全部」上面，直接搜尋頻道）。
@@ -68,7 +70,9 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
 
   /// 打開這頁那一瞬間先把分類／頻道快照（見 `yt_tracker_seed_loader.dart`）
   /// 併回本機，跟 `diary_page.dart` 的 `_loadWithSeedMerge` 同一套。
-  Future<({List<YtCategory> categories, List<YtChannel> channels})>
+  Future<
+    ({List<YtCategory> categories, List<YtChannel> channels, int trashCount})
+  >
   _load() async {
     final repo = ref.read(ytTrackerRepositoryProvider);
     final categorySeed = await loadYtCategoriesSeed();
@@ -77,7 +81,8 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
     if (channelSeed.isNotEmpty) await repo.mergeSeedChannels(channelSeed);
     final categories = await repo.loadCategories();
     final channels = await repo.loadChannels();
-    return (categories: categories, channels: channels);
+    final trashCount = (await repo.loadDeletedChannels()).length;
+    return (categories: categories, channels: channels, trashCount: trashCount);
   }
 
   void _reload() => setState(() => _future = _load());
@@ -87,133 +92,290 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
   /// 挖掘前的選項（2026-09-24 使用者要求）：App 內分類可複選（不選＝全部）、
   /// 更多熱門主題（不限 App 內有的分類）可複選、自訂關鍵字、要不要參考
   /// App 內頻道的推薦。取消回傳 null。
-  Future<({Set<String> categoryIds, List<String> keywords, bool useSeeds})?>
+  Future<
+    ({
+      Set<String> categoryIds,
+      List<String> keywords,
+      bool useSeeds,
+      int? minSubscribers,
+      int? maxSubscribers,
+      bool allowHiddenSubscribers,
+      Set<String> countries,
+    })?
+  >
   _showDigOptions(List<YtCategory> categories) {
     final picked = <String>{};
     final pickedTopics = <String>{};
+    final pickedCountries = <String>{};
     var useSeeds = true;
+    var allowHidden = false;
     final keywordController = TextEditingController();
+    final minSubsController = TextEditingController(text: '1000');
+    final maxSubsController = TextEditingController();
     final selectable = [
       for (final c in categories)
         if (c.id != _discoverCategoryId && c.id != ytUncategorizedId) c,
     ];
     return showDialog<
-      ({Set<String> categoryIds, List<String> keywords, bool useSeeds})
+      ({
+        Set<String> categoryIds,
+        List<String> keywords,
+        bool useSeeds,
+        int? minSubscribers,
+        int? maxSubscribers,
+        bool allowHiddenSubscribers,
+        Set<String> countries,
+      })
     >(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           backgroundColor: const Color(0xFF1A1A24),
-          title: const Text('挖掘新頻道', style: TextStyle(color: AppColors.ink)),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('App 內的分類（不選＝全部）', style: AppText.note),
-                const SizedBox(height: Gap.sm),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    for (final c in selectable)
-                      FilterChip(
-                        label: Text(c.name),
-                        selected: picked.contains(c.id),
-                        onSelected: (v) => setDialogState(() {
-                          if (v) {
-                            picked.add(c.id);
-                          } else {
-                            picked.remove(c.id);
-                          }
-                        }),
-                      ),
-                  ],
+          titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+          title: Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: AppColors.accent.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                const SizedBox(height: Gap.md),
-                Text(
-                  '更多主題（不限 App 內有的分類，可複選；每個約 100 單位配額）',
-                  style: AppText.note,
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.travel_explore_rounded,
+                  size: 18,
+                  color: AppColors.accent,
                 ),
-                const SizedBox(height: Gap.sm),
-                for (final group in _discoverTopicGroups.entries) ...[
-                  Padding(
-                    padding: const EdgeInsets.only(top: 6, bottom: 4),
-                    child: Text(
-                      group.key,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.ink,
-                      ),
-                    ),
+              ),
+              const SizedBox(width: 10),
+              const Text('挖掘新頻道', style: TextStyle(color: AppColors.ink)),
+            ],
+          ),
+          content: SizedBox(
+            width: 340,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const _DigSectionHeader(
+                    icon: Icons.folder_outlined,
+                    label: 'App 內的分類',
+                    hint: '不選＝全部',
                   ),
+                  const SizedBox(height: Gap.sm),
                   Wrap(
                     spacing: 6,
                     runSpacing: 6,
                     children: [
-                      for (final t in group.value)
+                      for (final c in selectable)
                         FilterChip(
-                          label: Text(t),
-                          selected: pickedTopics.contains(t),
+                          label: Text(c.name),
+                          selected: picked.contains(c.id),
                           onSelected: (v) => setDialogState(() {
                             if (v) {
-                              pickedTopics.add(t);
+                              picked.add(c.id);
                             } else {
-                              pickedTopics.remove(t);
+                              picked.remove(c.id);
                             }
                           }),
                         ),
                     ],
                   ),
+                  const _DigSectionDivider(),
+                  const _DigSectionHeader(
+                    icon: Icons.groups_outlined,
+                    label: '訂閱人數範圍',
+                  ),
+                  const SizedBox(height: Gap.sm),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: minSubsController,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: '最少',
+                            hintText: '不限',
+                            isDense: true,
+                          ),
+                          style: const TextStyle(color: AppColors.ink),
+                        ),
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: Gap.sm),
+                        child: Icon(
+                          Icons.remove_rounded,
+                          size: 16,
+                          color: AppColors.ink3,
+                        ),
+                      ),
+                      Expanded(
+                        child: TextField(
+                          controller: maxSubsController,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: '最多',
+                            hintText: '不限',
+                            isDense: true,
+                          ),
+                          style: const TextStyle(color: AppColors.ink),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                    value: allowHidden,
+                    onChanged: (v) => setDialogState(() => allowHidden = v),
+                    title: const Text(
+                      '也要隱藏訂閱數的頻道',
+                      style: TextStyle(fontSize: 13, color: AppColors.ink),
+                    ),
+                    subtitle: Text(
+                      allowHidden
+                          ? '隱藏訂閱數的頻道不看訂閱人數範圍，其他條件照樣篩'
+                          : '預設排除，訂閱數看不到就沒辦法判斷符不符合範圍',
+                      style: AppText.note,
+                    ),
+                  ),
+                  const _DigSectionDivider(),
+                  const _DigSectionHeader(
+                    icon: Icons.public_rounded,
+                    label: '頻道所在地',
+                    hint: '不選＝不限',
+                  ),
+                  const SizedBox(height: Gap.xs),
+                  Text('沒填地區的頻道會被當成不確定，一起排除', style: AppText.note),
+                  const SizedBox(height: Gap.sm),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      for (final entry in _discoverCountries)
+                        FilterChip(
+                          label: Text(entry.$2),
+                          selected: pickedCountries.contains(entry.$1),
+                          onSelected: (v) => setDialogState(() {
+                            if (v) {
+                              pickedCountries.add(entry.$1);
+                            } else {
+                              pickedCountries.remove(entry.$1);
+                            }
+                          }),
+                        ),
+                    ],
+                  ),
+                  const _DigSectionDivider(),
+                  const _DigSectionHeader(
+                    icon: Icons.local_fire_department_outlined,
+                    label: '更多主題',
+                    hint: '約 100 單位／個',
+                  ),
+                  const SizedBox(height: Gap.xs),
+                  Text('不限 App 內有的分類，可複選', style: AppText.note),
+                  const SizedBox(height: Gap.sm),
+                  for (final group in _discoverTopicGroups.entries) ...[
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6, bottom: 4),
+                      child: Text(
+                        group.key,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.ink2,
+                        ),
+                      ),
+                    ),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        for (final t in group.value)
+                          FilterChip(
+                            label: Text(t),
+                            selected: pickedTopics.contains(t),
+                            onSelected: (v) => setDialogState(() {
+                              if (v) {
+                                pickedTopics.add(t);
+                              } else {
+                                pickedTopics.remove(t);
+                              }
+                            }),
+                          ),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: Gap.md),
+                  TextField(
+                    controller: keywordController,
+                    decoration: const InputDecoration(
+                      labelText: '自訂關鍵字（選填）',
+                      hintText: '例如：露營裝備',
+                    ),
+                    style: const TextStyle(color: AppColors.ink),
+                  ),
+                  const _DigSectionDivider(),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                    value: useSeeds,
+                    onChanged: (v) => setDialogState(() => useSeeds = v),
+                    title: const Text(
+                      '參考 App 內頻道的推薦',
+                      style: TextStyle(fontSize: 13, color: AppColors.ink),
+                    ),
+                    subtitle: Text(
+                      useSeeds
+                          ? '從已追蹤頻道的推薦區找，每個約 1 單位，省配額、口味相近'
+                          : '不看 App 內頻道，只用關鍵字搜尋（每次搜尋 100 單位），範圍廣但較雜',
+                      style: AppText.note,
+                    ),
+                  ),
+                  const SizedBox(height: Gap.sm),
+                  Text('一次挖 10 個 App 裡沒有的頻道，已刪除過的不會再出現。', style: AppText.note),
+                  const SizedBox(height: Gap.sm),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppColors.mid.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: AppColors.mid.withValues(alpha: 0.4),
+                      ),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(
+                          Icons.bolt_rounded,
+                          size: 15,
+                          color: AppColors.mid,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            _digQuotaHint(
+                              useSeeds: useSeeds,
+                              keywordCount:
+                                  pickedTopics.length +
+                                  (keywordController.text.trim().isEmpty
+                                      ? 0
+                                      : 1),
+                            ),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.mid,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
-                const SizedBox(height: Gap.md),
-                TextField(
-                  controller: keywordController,
-                  decoration: const InputDecoration(
-                    labelText: '自訂關鍵字（選填）',
-                    hintText: '例如：露營裝備',
-                  ),
-                  style: const TextStyle(color: AppColors.ink),
-                ),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  dense: true,
-                  value: useSeeds,
-                  onChanged: (v) => setDialogState(() => useSeeds = v),
-                  title: const Text(
-                    '參考 App 內頻道的推薦',
-                    style: TextStyle(fontSize: 13, color: AppColors.ink),
-                  ),
-                  subtitle: Text(
-                    useSeeds
-                        ? '從已追蹤頻道的推薦區找，每個約 1 單位，省配額、口味相近'
-                        : '不看 App 內頻道，只用關鍵字搜尋（每次搜尋 100 單位），範圍廣但較雜',
-                    style: AppText.note,
-                  ),
-                ),
-                Text('一次挖 10 個 App 裡沒有的頻道，已刪除過的不會再出現。', style: AppText.note),
-                const SizedBox(height: Gap.sm),
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: AppColors.mid.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: AppColors.mid.withValues(alpha: 0.4),
-                    ),
-                  ),
-                  child: Text(
-                    _digQuotaHint(
-                      useSeeds: useSeeds,
-                      keywordCount:
-                          pickedTopics.length +
-                          (keywordController.text.trim().isEmpty ? 0 : 1),
-                    ),
-                    style: const TextStyle(fontSize: 12, color: AppColors.mid),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
           actions: [
@@ -221,7 +383,7 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
               onPressed: () => Navigator.pop(dialogContext),
               child: const Text('取消'),
             ),
-            FilledButton(
+            FilledButton.icon(
               onPressed: () => Navigator.pop(dialogContext, (
                 categoryIds: {...picked},
                 keywords: [
@@ -230,8 +392,13 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
                     keywordController.text.trim(),
                 ],
                 useSeeds: useSeeds,
+                minSubscribers: int.tryParse(minSubsController.text.trim()),
+                maxSubscribers: int.tryParse(maxSubsController.text.trim()),
+                allowHiddenSubscribers: allowHidden,
+                countries: {...pickedCountries},
               )),
-              child: const Text('開始挖掘'),
+              icon: const Icon(Icons.travel_explore_rounded, size: 17),
+              label: const Text('開始挖掘'),
             ),
           ],
         ),
@@ -286,6 +453,12 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
             : channels.where((c) => chosen.contains(c.categoryId)).toList(),
         keywords: [for (final c in pickedCategories) c.name],
         priorityKeywords: options.keywords,
+        criteria: DiscoverCriteria(
+          minSubscribers: options.minSubscribers,
+          maxSubscribers: options.maxSubscribers,
+          allowHiddenSubscribers: options.allowHiddenSubscribers,
+          countries: options.countries,
+        ),
         onProgress: (t) => status.value = t,
       );
       for (final d in found) {
@@ -646,8 +819,21 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
                               name: '未分類',
                               colorValue: 0xFF74738A,
                             );
-                      // 格子順序：一般分類 → 未分類 → 「看過但不喜歡」固定最後一個
-                      // （2026-09-24 使用者要求）。
+                      final trashCount = snap.data!.trashCount;
+                      // 「垃圾桶」也不是真的分類，是已刪除頻道的統稱，固定排在
+                      // 最後一個，比「看過但不喜歡」還後面（2026-09-29 使用者
+                      // 要求：新增垃圾桶專門看刪除的頻道）。沒有任何刪除紀錄就
+                      // 不出現，不然新使用者一打開就看到一個空的垃圾桶格子。
+                      final trash = trashCount == 0
+                          ? null
+                          : const YtCategory(
+                              id: ytTrashCategoryId,
+                              name: '垃圾桶',
+                              colorValue: 0xFF74738A,
+                              imageUrl: 'assets/images/yt_tracker/ashcan.png',
+                            );
+                      // 格子順序：一般分類 → 未分類 → 「看過但不喜歡」→ 垃圾桶
+                      // （2026-09-24／2026-09-29 使用者要求）。
                       final gridCats = [
                         ...categories.where(
                           (c) => c.id != ytDislikedCategoryId,
@@ -656,6 +842,7 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
                         ...categories.where(
                           (c) => c.id == ytDislikedCategoryId,
                         ),
+                        ?trash,
                       ];
                       final gridCount = gridCats.length;
                       final q = _query.trim().toLowerCase();
@@ -786,8 +973,12 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
                                             final cat = gridCats[i];
                                             final isUncategorized =
                                                 cat.id == ytUncategorizedId;
+                                            final isTrash =
+                                                cat.id == ytTrashCategoryId;
                                             final catChannels = isUncategorized
                                                 ? unassigned
+                                                : isTrash
+                                                ? const <YtChannel>[]
                                                 : channels
                                                       .where(
                                                         (c) =>
@@ -799,14 +990,23 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
                                               category: cat,
                                               channels: catChannels,
                                               maxAvatars: 3,
-                                              count: catChannels.length,
-                                              onTap: () => context
-                                                  .push(
-                                                    '/yt-tracker/browse',
-                                                    extra: {cat.id},
-                                                  )
-                                                  .then((_) => _reload()),
-                                              onLongPress: isUncategorized
+                                              count: isTrash
+                                                  ? trashCount
+                                                  : catChannels.length,
+                                              onTap: isTrash
+                                                  ? () => context
+                                                        .push(
+                                                          '/yt-tracker/trash',
+                                                        )
+                                                        .then((_) => _reload())
+                                                  : () => context
+                                                        .push(
+                                                          '/yt-tracker/browse',
+                                                          extra: {cat.id},
+                                                        )
+                                                        .then((_) => _reload()),
+                                              onLongPress:
+                                                  isUncategorized || isTrash
                                                   ? null
                                                   : () =>
                                                         _showEditCategoryDialog(
@@ -851,6 +1051,22 @@ String _digQuotaHint({required bool useSeeds, required int keywordCount}) {
 
 /// 挖掘時可以直接勾選的主題（不限 App 內有的分類），依群組顯示，拿來當搜尋關鍵字
 /// （2026-09-24 使用者要求：要很多種，例如書籍解說、健康、旅遊、國旅、政治）。
+/// 挖掘時可以勾選的國家（ISO 3166-1 alpha-2 國碼, 顯示名稱），依常見程度
+/// 排序（2026-09-29 使用者要求：一直跑出世界各國的都有，想限定地區）。
+const _discoverCountries = <(String, String)>[
+  ('TW', '台灣'),
+  ('HK', '香港'),
+  ('CN', '中國'),
+  ('SG', '新加坡'),
+  ('MY', '馬來西亞'),
+  ('JP', '日本'),
+  ('KR', '韓國'),
+  ('US', '美國'),
+  ('GB', '英國'),
+  ('CA', '加拿大'),
+  ('AU', '澳洲'),
+];
+
 const _discoverTopicGroups = <String, List<String>>{
   '知識學習': [
     '書籍解說',
@@ -967,7 +1183,49 @@ const _discoverTopicGroups = <String, List<String>>{
 /// 「挖掘新頻道」分類的固定 ID（見 `yt_tracker_categories.json`）。
 const _discoverCategoryId = 'seed-discover';
 
-/// 挖掘進行中的等待視窗，顯示目前進度文字。
+/// 挖掘選項對話框裡每個區塊的小標題：圖示＋標題＋右邊選填的淡色提示字
+/// （2026-09-29 使用者要求：功能不變，畫面精緻一點——原本整頁都是同一種
+/// 灰字小標，長長一串很難一眼分清楚區塊，加圖示跟分隔線切開）。
+class _DigSectionHeader extends StatelessWidget {
+  const _DigSectionHeader({required this.icon, required this.label, this.hint});
+
+  final IconData icon;
+  final String label;
+  final String? hint;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 15, color: AppColors.accent),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: AppColors.ink,
+          ),
+        ),
+        if (hint != null) ...[const Spacer(), Text(hint!, style: AppText.note)],
+      ],
+    );
+  }
+}
+
+class _DigSectionDivider extends StatelessWidget {
+  const _DigSectionDivider();
+
+  @override
+  Widget build(BuildContext context) => const Padding(
+    padding: EdgeInsets.symmetric(vertical: Gap.md),
+    child: Divider(height: 1, color: AppColors.glassEdge),
+  );
+}
+
+/// 挖掘進行中的等待視窗，顯示目前進度文字（2026-09-29 使用者要求畫面
+/// 精緻一點：原本只是一顆小轉圈＋一行字，改成置中的圖示徽章＋標題＋
+/// 進度文字，跟 App 其他「處理中」畫面的份量感一致）。
 class _DigProgressDialog extends StatelessWidget {
   const _DigProgressDialog({required this.status});
 
@@ -977,20 +1235,63 @@ class _DigProgressDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     return PopScope(
       canPop: false,
-      child: AlertDialog(
+      child: Dialog(
         backgroundColor: const Color(0xFF1A1A24),
-        title: const Text('挖掘新頻道中', style: TextStyle(color: AppColors.ink)),
-        content: ValueListenableBuilder<String>(
-          valueListenable: status,
-          builder: (context, text, _) => Row(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(28, 30, 28, 26),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
+              SizedBox(
+                width: 56,
+                height: 56,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    const SizedBox(
+                      width: 56,
+                      height: 56,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: AppColors.accent,
+                      ),
+                    ),
+                    Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: AppColors.accent.withValues(alpha: 0.16),
+                        shape: BoxShape.circle,
+                      ),
+                      alignment: Alignment.center,
+                      child: const Icon(
+                        Icons.travel_explore_rounded,
+                        size: 19,
+                        color: AppColors.accent,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(width: 14),
-              Expanded(child: Text(text, style: AppText.bodyDim)),
+              const SizedBox(height: Gap.md),
+              const Text(
+                '挖掘新頻道中',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.ink,
+                ),
+              ),
+              const SizedBox(height: 6),
+              ValueListenableBuilder<String>(
+                valueListenable: status,
+                builder: (context, text, _) => Text(
+                  text,
+                  textAlign: TextAlign.center,
+                  style: AppText.bodyDim,
+                ),
+              ),
             ],
           ),
         ),

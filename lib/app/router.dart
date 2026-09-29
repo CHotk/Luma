@@ -38,6 +38,7 @@ import '../features/sync/sync_page.dart';
 import '../features/yt_tracker/yt_tracker_browse_page.dart';
 import '../features/yt_tracker/yt_tracker_channel_page.dart';
 import '../features/yt_tracker/yt_tracker_home_page.dart';
+import '../features/yt_tracker/yt_trash_page.dart';
 
 /// 全 App 的路徑只在這裡定義，畫面裡不准自己組路徑字串。
 final appRouter = GoRouter(
@@ -138,6 +139,7 @@ final appRouter = GoRouter(
       builder: (_, state) =>
           YtTrackerChannelPage(channelId: state.pathParameters['id'] ?? ''),
     ),
+    GoRoute(path: '/yt-tracker/trash', builder: (_, _) => const YtTrashPage()),
     GoRoute(path: '/fitness', builder: (_, _) => const FitnessHomePage()),
     GoRoute(
       path: '/fitness/stats',

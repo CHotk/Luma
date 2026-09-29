@@ -32,14 +32,30 @@ class YtTrackerRepository {
         .toList();
   }
 
-  /// 「看過但不喜歡」固定排最後一個（2026-09-24 使用者要求），其他維持
-  /// 原本順序。
+  /// 指定幾個分類固定排在最前面（2026-09-29 使用者要求：知識、學習、
+  /// 娛樂、影視、幣圈依序放最前面，其餘分類維持原順序接在後面），
+  /// 「看過但不喜歡」固定排最後一個（2026-09-24 使用者要求）。
+  static const _pinnedFirst = [
+    'seed-knowledge',
+    'seed-learning',
+    'seed-entertainment',
+    'seed-film',
+    'seed-life',
+    'seed-crypto',
+  ];
+
   Future<List<YtCategory>> loadCategories() async {
     final all = (await _loadCategoriesRaw())
         .where((c) => c.deletedAt == null)
         .toList();
+    final byId = {for (final c in all) c.id: c};
+    final rest = all.where(
+      (c) => !_pinnedFirst.contains(c.id) && c.id != ytDislikedCategoryId,
+    );
     return [
-      ...all.where((c) => c.id != ytDislikedCategoryId),
+      for (final id in _pinnedFirst)
+        if (byId[id] != null) byId[id]!,
+      ...rest,
       ...all.where((c) => c.id == ytDislikedCategoryId),
     ];
   }
@@ -120,6 +136,33 @@ class YtTrackerRepository {
     final index = all.indexWhere((c) => c.id == id);
     if (index == -1) return;
     all[index] = all[index].stamped(deleted: true);
+    await _writeChannels(all);
+  }
+
+  /// 垃圾桶列表用：只看已刪除（墓碑標記）的頻道（2026-09-29 使用者要求）。
+  Future<List<YtChannel>> loadDeletedChannels() async =>
+      (await _loadChannelsRaw()).where((c) => c.deletedAt != null).toList();
+
+  /// 從垃圾桶還原：清掉墓碑標記，頻道恢復成原本的分類（分類如果也被刪掉
+  /// 了，會退回未分類，跟 [withoutCategory] 那套邏輯是分開兩回事，這裡
+  /// 不特別處理分類是否還存在，交給讀取端自然當成未分類顯示）。
+  Future<void> restoreChannel(String id) async {
+    final all = await _loadChannelsRaw();
+    final index = all.indexWhere((c) => c.id == id);
+    if (index == -1) return;
+    all[index] = all[index].restored();
+    await _writeChannels(all);
+  }
+
+  /// 從垃圾桶「永久刪除」：真的從本機清單移除，不是墓碑標記
+  /// （2026-09-29 使用者要求）。**注意**：這只保證這台裝置看不到了——
+  /// 如果雲端還留著這筆的墓碑、且還有別台裝置沒同步過這次清除，下次
+  /// 同步合併時雲端那份還是會補回來（一樣是已刪除狀態，不會變回啟用，
+  /// 只是又會出現在垃圾桶列表）。先同步過一輪讓所有裝置都知道刪除了，
+  /// 再永久清除，比較不會遇到這個情況。
+  Future<void> purgeChannel(String id) async {
+    final all = await _loadChannelsRaw();
+    all.removeWhere((c) => c.id == id);
     await _writeChannels(all);
   }
 

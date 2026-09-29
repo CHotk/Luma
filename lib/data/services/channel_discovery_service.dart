@@ -43,6 +43,7 @@ class ChannelCandidate {
     required this.subscribersHidden,
     required this.videoCount,
     required this.uploadsPlaylistId,
+    this.country,
   });
 
   final String channelId;
@@ -56,11 +57,36 @@ class ChannelCandidate {
   final bool subscribersHidden;
   final int videoCount;
   final String uploadsPlaylistId;
+
+  /// 頻道擁有者自己填的所在地（ISO 3166-1 alpha-2，例如 `TW`、`JP`），
+  /// 沒填就是 null（2026-09-29 使用者要求可以篩選國家；很多頻道沒填這
+  /// 欄，選了國家篩選的話這些頻道會被當作「不確定」排除，見 [passesQuality]）。
+  final String? country;
 }
 
-/// 篩選門檻（2026-09-24 使用者提供的挖掘流程：訂閱數範圍、影片數排除空
-/// 帳號、排除隱藏訂閱數、排除很久沒更新的頻道）。
-const discoverMinSubscribers = 1000;
+/// 品質篩選門檻，可自訂（2026-09-29 使用者要求：訂閱數範圍、要不要允許
+/// 隱藏訂閱數的頻道、限定國家自己選）。[minSubscribers]／[maxSubscribers]
+/// 是 null 代表不限下限／上限；[countries] 是空集合代表不限國家。
+class DiscoverCriteria {
+  const DiscoverCriteria({
+    this.minSubscribers = 1000,
+    this.maxSubscribers,
+    this.allowHiddenSubscribers = false,
+    this.countries = const {},
+    this.minVideos = discoverMinVideos,
+    this.maxIdleDays = discoverMaxIdleDays,
+  });
+
+  final int? minSubscribers;
+  final int? maxSubscribers;
+  final bool allowHiddenSubscribers;
+
+  /// ISO 3166-1 alpha-2 國碼集合（大寫），空集合＝不限。
+  final Set<String> countries;
+  final int minVideos;
+  final int maxIdleDays;
+}
+
 const discoverMinVideos = 10;
 const discoverMaxIdleDays = 180;
 
@@ -84,11 +110,32 @@ bool isKnownChannel({
   return false;
 }
 
-/// 品質篩選（不含「最近有沒有上傳」，那要另外打 API）。
-bool passesQuality(ChannelCandidate c) =>
-    !c.subscribersHidden &&
-    (c.subscriberCount ?? 0) >= discoverMinSubscribers &&
-    c.videoCount >= discoverMinVideos;
+/// 品質篩選（不含「最近有沒有上傳」，那要另外打 API）。[criteria] 可自訂
+/// 訂閱數範圍、要不要允許隱藏訂閱數、限定國家（2026-09-29 使用者要求）。
+bool passesQuality(
+  ChannelCandidate c, [
+  DiscoverCriteria criteria = const DiscoverCriteria(),
+]) {
+  if (c.videoCount < criteria.minVideos) return false;
+  if (c.subscribersHidden) {
+    if (!criteria.allowHiddenSubscribers) return false;
+  } else {
+    final n = c.subscriberCount ?? 0;
+    if (criteria.minSubscribers != null && n < criteria.minSubscribers!) {
+      return false;
+    }
+    if (criteria.maxSubscribers != null && n > criteria.maxSubscribers!) {
+      return false;
+    }
+  }
+  if (criteria.countries.isNotEmpty) {
+    // 沒填國家的頻道算「不確定」，選了國家篩選就一起排除，不能猜。
+    if (c.country == null || !criteria.countries.contains(c.country)) {
+      return false;
+    }
+  }
+  return true;
+}
 
 /// 挖掘新頻道（2026-09-24 使用者要求，流程參考使用者貼的方法）：
 /// 1. 「種子頻道滾雪球」：挑幾個 App 裡已有的頻道，讀它們首頁的「精選／
@@ -141,6 +188,7 @@ class ChannelDiscoveryService {
     required List<String> keywords,
     List<YtChannel>? seeds,
     List<String> priorityKeywords = const [],
+    DiscoverCriteria criteria = const DiscoverCriteria(),
     int count = 10,
     void Function(String status)? onProgress,
   }) async {
@@ -196,13 +244,16 @@ class ChannelDiscoveryService {
       for (var i = 0; i < searchLimit && i < shuffled.length; i++) {
         final q = shuffled[i];
         onProgress?.call('搜尋「$q」相關影片找新頻道…');
+        final region = criteria.countries.isNotEmpty
+            ? criteria.countries.first
+            : 'TW';
         final body = await _getJson('search', {
           'part': 'snippet',
           'type': 'video',
           'q': q,
           'maxResults': '50',
           'order': orders[_random.nextInt(orders.length)],
-          'regionCode': 'TW',
+          'regionCode': region,
           'relevanceLanguage': 'zh-Hant',
         });
         for (final item in (body['items'] as List? ?? const [])) {
@@ -237,7 +288,7 @@ class ChannelDiscoveryService {
         candidates
             .where(
               (c) =>
-                  passesQuality(c) &&
+                  passesQuality(c, criteria) &&
                   !isKnownChannel(
                     channelId: c.channelId,
                     customUrl: c.customUrl,
@@ -254,7 +305,7 @@ class ChannelDiscoveryService {
       if (found.length >= count) break;
       onProgress?.call('檢查「${c.title}」是否還在更新…（已挖到 ${found.length}/$count）');
       final last = await _latestUpload(c.uploadsPlaylistId);
-      if (last == null || now.difference(last).inDays > discoverMaxIdleDays) {
+      if (last == null || now.difference(last).inDays > criteria.maxIdleDays) {
         continue;
       }
       found.add(
@@ -304,6 +355,7 @@ class ChannelDiscoveryService {
       subscribersHidden: hidden,
       videoCount: int.tryParse('${stats?['videoCount'] ?? ''}') ?? 0,
       uploadsPlaylistId: uploads,
+      country: (snippet['country'] as String?)?.toUpperCase(),
     );
   }
 

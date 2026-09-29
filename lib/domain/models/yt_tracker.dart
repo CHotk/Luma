@@ -24,6 +24,12 @@ const ytUncategorizedId = '__uncategorized__';
 /// 固定排最後一個。
 const ytDislikedCategoryId = 'seed-disliked';
 
+/// 「垃圾桶」不是一筆真的存在 [YtCategory] 記錄，是已刪除（墓碑標記）頻道
+/// 的統稱，跟 [ytUncategorizedId] 同一套做法——刪掉的頻道原本完全看不到，
+/// 點錯刪除鍵沒地方後悔（2026-09-29 使用者要求：新增垃圾桶專門看刪除的
+/// 頻道，可以還原）。固定排在分類列表最後一個，比「看過但不喜歡」更後面。
+const ytTrashCategoryId = '__trash__';
+
 /// 使用者自訂的頻道分類。一個頻道只屬於一個分類（單選，資料夾邏輯），
 /// 不是可複選的標籤——跟設計稿 06 版定案的做法一致。
 class YtCategory {
@@ -216,6 +222,12 @@ class YtChannel {
   /// 所屬分類被刪掉時，頻道改成「未分類」。
   YtChannel withoutCategory() =>
       _copy(categoryId: null, updatedAt: DateTime.now(), deletedAt: deletedAt);
+
+  /// 從垃圾桶還原：[stamped] 沒辦法把 [deletedAt] 蓋回 null（`deleted`
+  /// 參數只能設成刪除，不能反過來），這裡另外開一個方法直接清掉墓碑標記
+  /// （2026-09-29 使用者要求：垃圾桶要能還原）。
+  YtChannel restored() =>
+      _copy(categoryId: categoryId, updatedAt: DateTime.now(), deletedAt: null);
 
   /// [avatarImageUrl] 沒填、或圖片載入失敗時的退回佔位。
   final String avatarEmoji;
