@@ -17,6 +17,7 @@ class JpHomeState {
     required this.streakDays,
     required this.firstPracticedAt,
     required this.daysSinceStart,
+    required this.allPracticedDates,
   });
 
   final JpReviewConfig config;
@@ -46,6 +47,10 @@ class JpHomeState {
   /// 從第一次練習那天算到今天，含頭尾兩端各算一天（今天開始學就是
   /// 「已經 1 天」，不是 0）。沒練過就是 0。
   final int daysSinceStart;
+
+  /// 全部有練習過的日期（不限這個月），給月曆卡片切換月份用
+  /// （2026-09-29 使用者要求：點月份標題要能選其他月，不是只能看當月）。
+  final Set<DateTime> allPracticedDates;
 }
 
 /// autoDispose：離開日文首頁就丟掉，回來時重新算，practice 頁自動存檔
@@ -126,5 +131,6 @@ final jpHomeStateProvider = FutureProvider.autoDispose<JpHomeState>((
     streakDays: streakDays,
     firstPracticedAt: firstPracticedAt,
     daysSinceStart: daysSinceStart,
+    allPracticedDates: practicedDates,
   );
 });

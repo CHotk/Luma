@@ -602,19 +602,79 @@ class _Row extends StatelessWidget {
 /// 底下兩顆數字「連續天數」「本月達成率」——2026-09-29 使用者要求
 /// 加在日文首頁最上面，不是取代原本的進度環／五十音預覽／下一輪清單，
 /// 那些照舊排在這張卡片下面。
-class _MonthlyCalendarCard extends StatelessWidget {
+class _MonthlyCalendarCard extends StatefulWidget {
   const _MonthlyCalendarCard({required this.state});
 
   final JpHomeState state;
 
+  @override
+  State<_MonthlyCalendarCard> createState() => _MonthlyCalendarCardState();
+}
+
+class _MonthlyCalendarCardState extends State<_MonthlyCalendarCard> {
   static const _weekdayLabels = ['日', '一', '二', '三', '四', '五', '六'];
+
+  late DateTime _viewedMonth;
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _viewedMonth = DateTime(now.year, now.month);
+  }
+
+  /// 點月份標題開的選單（2026-09-29 使用者要求：不是只能看當月，點了
+  /// 要能選別的月）。範圍從第一次練習的那個月列到現在這個月，最新的
+  /// 排最上面。
+  Future<void> _pickMonth() async {
+    final now = DateTime.now();
+    final earliestSource = widget.state.firstPracticedAt ?? now;
+    final earliest = DateTime(earliestSource.year, earliestSource.month);
+    final months = <DateTime>[];
+    var cursor = DateTime(now.year, now.month);
+    while (!cursor.isBefore(earliest)) {
+      months.add(cursor);
+      cursor = DateTime(cursor.year, cursor.month - 1);
+    }
+    final picked = await showDialog<DateTime>(
+      context: context,
+      builder: (dialogContext) => SimpleDialog(
+        backgroundColor: const Color(0xFF1A1A24),
+        title: const Text('選擇月份', style: TextStyle(color: AppColors.ink)),
+        children: [
+          for (final m in months)
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(dialogContext, m),
+              child: Text(
+                '${m.year} 年 ${m.month} 月',
+                style: TextStyle(
+                  fontWeight: m.year == _viewedMonth.year && m.month == _viewedMonth.month
+                      ? FontWeight.w700
+                      : FontWeight.normal,
+                  color: m.year == _viewedMonth.year && m.month == _viewedMonth.month
+                      ? AppColors.jpAccent
+                      : AppColors.ink,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+    if (picked != null) setState(() => _viewedMonth = picked);
+  }
 
   @override
   Widget build(BuildContext context) {
+    final state = widget.state;
     final now = DateTime.now();
-    final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
-    final firstWeekday = DateTime(now.year, now.month).weekday % 7; // 週日=0
-    final practiced = state.practicedDaysThisMonth;
+    final viewed = _viewedMonth;
+    final isCurrentMonth = viewed.year == now.year && viewed.month == now.month;
+    final daysInMonth = DateTime(viewed.year, viewed.month + 1, 0).day;
+    final firstWeekday = DateTime(viewed.year, viewed.month).weekday % 7; // 週日=0
+    final practiced = {
+      for (final d in state.allPracticedDates)
+        if (d.year == viewed.year && d.month == viewed.month) d.day,
+    };
     final rate = daysInMonth == 0
         ? 0
         : (practiced.length * 100 / daysInMonth).round();
@@ -623,10 +683,23 @@ class _MonthlyCalendarCard extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Row(
-          crossAxisAlignment: CrossAxisAlignment.baseline,
-          textBaseline: TextBaseline.alphabetic,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Text('${now.month} 月練習', style: AppText.bodyDim),
+            InkWell(
+              onTap: _pickMonth,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('${viewed.month} 月練習', style: AppText.bodyDim),
+                  const SizedBox(width: 2),
+                  const Icon(
+                    Icons.expand_more_rounded,
+                    size: 16,
+                    color: AppColors.ink3,
+                  ),
+                ],
+              ),
+            ),
             const Spacer(),
             Text(
               '${practiced.length}',
@@ -661,6 +734,7 @@ class _MonthlyCalendarCard extends StatelessWidget {
           ],
           now,
           practiced,
+          isCurrentMonth,
         ),
         const SizedBox(height: Gap.sm),
         Row(
@@ -686,7 +760,12 @@ class _MonthlyCalendarCard extends StatelessWidget {
   }
 
   /// [days] 是這個月的日期，前面補 `null` 代表當月 1 號前的空格。
-  Widget _weekGrid(List<int?> days, DateTime now, Set<int> practiced) {
+  Widget _weekGrid(
+    List<int?> days,
+    DateTime now,
+    Set<int> practiced,
+    bool isCurrentMonth,
+  ) {
     final rows = <Widget>[];
     for (var i = 0; i < days.length; i += 7) {
       final week = days.sublist(i, i + 7 > days.length ? days.length : i + 7);
@@ -699,11 +778,14 @@ class _MonthlyCalendarCard extends StatelessWidget {
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 2.5),
+                    // 格子矮一點，整張卡高度矮約 1/5（2026-09-29 使用者
+                    // 要求）：長寬比從 1（正方形）改成 1.25，高度＝寬度
+                    // ÷1.25＝寬度×0.8，只動這裡，不用一個個改邊距。
                     child: AspectRatio(
-                      aspectRatio: 1,
+                      aspectRatio: 1.25,
                       child: d == null
                           ? const SizedBox.shrink()
-                          : _dayCell(d, now, practiced),
+                          : _dayCell(d, now, practiced, isCurrentMonth),
                     ),
                   ),
                 ),
@@ -718,9 +800,14 @@ class _MonthlyCalendarCard extends StatelessWidget {
     return Column(children: rows);
   }
 
-  Widget _dayCell(int day, DateTime now, Set<int> practiced) {
+  Widget _dayCell(
+    int day,
+    DateTime now,
+    Set<int> practiced,
+    bool isCurrentMonth,
+  ) {
     final done = practiced.contains(day);
-    final isToday = day == now.day;
+    final isToday = isCurrentMonth && day == now.day;
     return Container(
       decoration: BoxDecoration(
         color: done
