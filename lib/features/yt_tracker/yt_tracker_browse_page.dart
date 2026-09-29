@@ -981,6 +981,12 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                                       Expanded(
                                         child: _ChannelGrid(
                                           channels: _sortedChannels(channels),
+                                          // 只有單獨看「挖掘新頻道」分類時才秀來源標籤
+                                          // （2026-09-29 使用者要求：僅在挖掘分類才顯示）。
+                                          showDiscoveredBadge:
+                                              _selected.length == 1 &&
+                                              _selected.single ==
+                                                  ytDiscoverCategoryId,
                                           onOpen: (c) => context
                                               .push(
                                                 '/yt-tracker/channel/${c.id}',
@@ -1011,18 +1017,53 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
 
 enum _ChannelMenuAction { edit, move, delete }
 
+/// 「挖掘新頻道」分類卡右上角的小標籤，顯示是靠哪個關鍵字／哪個頻道推薦
+/// 挖到的（2026-09-29 使用者要求，見 [YtChannel.discoveredVia]）。
+class _DiscoveredViaBadge extends StatelessWidget {
+  const _DiscoveredViaBadge({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 90),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: AppColors.accent.withValues(alpha: 0.85),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        text,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(
+          fontSize: 9.5,
+          fontWeight: FontWeight.w700,
+          color: Colors.white,
+        ),
+      ),
+    );
+  }
+}
+
 class _ChannelGrid extends StatelessWidget {
   const _ChannelGrid({
     required this.channels,
     required this.onOpen,
     required this.onMove,
     required this.onDelete,
+    this.showDiscoveredBadge = false,
   });
 
   final List<YtChannel> channels;
   final void Function(YtChannel) onOpen;
   final void Function(YtChannel) onMove;
   final void Function(YtChannel) onDelete;
+
+  /// 只有正在單獨看「挖掘新頻道」分類時才是 true，其他情況一律不顯示
+  /// 挖掘來源標籤（2026-09-29 使用者要求：僅在挖掘分類才顯示）。
+  final bool showDiscoveredBadge;
 
   @override
   Widget build(BuildContext context) {
@@ -1045,77 +1086,87 @@ class _ChannelGrid extends StatelessWidget {
           child: InkWell(
             onTap: () => onOpen(c),
             borderRadius: BorderRadius.circular(Radii.card),
-            child: Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(Radii.card),
-                color: AppColors.glassFill,
-                border: Border.all(color: AppColors.glassEdge),
-              ),
-              child: Row(
-                children: [
-                  YtChannelAvatar(channel: c, radius: 17),
-                  const SizedBox(width: Gap.sm),
-                  Expanded(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          c.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.ink,
-                          ),
+            child: Stack(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(Radii.card),
+                    color: AppColors.glassFill,
+                    border: Border.all(color: AppColors.glassEdge),
+                  ),
+                  child: Row(
+                    children: [
+                      YtChannelAvatar(channel: c, radius: 17),
+                      const SizedBox(width: Gap.sm),
+                      Expanded(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              c.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.ink,
+                              ),
+                            ),
+                            if (c.subscriberLabel != null) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                c.subscriberLabel!,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppText.note,
+                              ),
+                            ],
+                          ],
                         ),
-                        if (c.subscriberLabel != null) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            c.subscriberLabel!,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppText.note,
+                      ),
+                      // 每個頻道右邊的選單：編輯（進詳情頁）／移到分類／刪除。
+                      PopupMenuButton<_ChannelMenuAction>(
+                        icon: const Icon(Icons.more_vert_rounded, size: 18),
+                        color: AppColors.ink2,
+                        padding: EdgeInsets.zero,
+                        tooltip: '更多',
+                        onSelected: (action) {
+                          switch (action) {
+                            case _ChannelMenuAction.edit:
+                              onOpen(c);
+                            case _ChannelMenuAction.move:
+                              onMove(c);
+                            case _ChannelMenuAction.delete:
+                              onDelete(c);
+                          }
+                        },
+                        itemBuilder: (context) => const [
+                          PopupMenuItem(
+                            value: _ChannelMenuAction.edit,
+                            child: Text('編輯'),
+                          ),
+                          PopupMenuItem(
+                            value: _ChannelMenuAction.move,
+                            child: Text('移到分類'),
+                          ),
+                          PopupMenuItem(
+                            value: _ChannelMenuAction.delete,
+                            child: Text('刪除'),
                           ),
                         ],
-                      ],
-                    ),
-                  ),
-                  // 每個頻道右邊的選單：編輯（進詳情頁）／移到分類／刪除。
-                  PopupMenuButton<_ChannelMenuAction>(
-                    icon: const Icon(Icons.more_vert_rounded, size: 18),
-                    color: AppColors.ink2,
-                    padding: EdgeInsets.zero,
-                    tooltip: '更多',
-                    onSelected: (action) {
-                      switch (action) {
-                        case _ChannelMenuAction.edit:
-                          onOpen(c);
-                        case _ChannelMenuAction.move:
-                          onMove(c);
-                        case _ChannelMenuAction.delete:
-                          onDelete(c);
-                      }
-                    },
-                    itemBuilder: (context) => const [
-                      PopupMenuItem(
-                        value: _ChannelMenuAction.edit,
-                        child: Text('編輯'),
-                      ),
-                      PopupMenuItem(
-                        value: _ChannelMenuAction.move,
-                        child: Text('移到分類'),
-                      ),
-                      PopupMenuItem(
-                        value: _ChannelMenuAction.delete,
-                        child: Text('刪除'),
                       ),
                     ],
                   ),
-                ],
-              ),
+                ),
+                if (showDiscoveredBadge && c.discoveredVia.isNotEmpty)
+                  Positioned(
+                    top: 4,
+                    right: 4,
+                    child: _DiscoveredViaBadge(text: c.discoveredVia),
+                  ),
+              ],
             ),
           ),
         );

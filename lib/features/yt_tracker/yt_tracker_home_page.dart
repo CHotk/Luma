@@ -114,7 +114,7 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
     final maxSubsController = TextEditingController();
     final selectable = [
       for (final c in categories)
-        if (c.id != _discoverCategoryId && c.id != ytUncategorizedId) c,
+        if (c.id != ytDiscoverCategoryId && c.id != ytUncategorizedId) c,
     ];
     return showDialog<
       ({
@@ -438,7 +438,7 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
       final chosen = options.categoryIds;
       final pickedCategories = [
         for (final c in categories)
-          if (c.id != _discoverCategoryId &&
+          if (c.id != ytDiscoverCategoryId &&
               c.id != ytUncategorizedId &&
               (chosen.isEmpty || chosen.contains(c.id)))
             c,
@@ -466,7 +466,7 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
           YtChannel(
             id: 'found-${d.channelId}',
             name: d.title,
-            categoryId: _discoverCategoryId,
+            categoryId: ytDiscoverCategoryId,
             avatarImageUrl: d.avatarUrl,
             url: d.url,
             description: d.description,
@@ -475,6 +475,7 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
             uploadsPlaylistId: d.uploadsPlaylistId,
             subscriberCount: d.subscriberCount,
             statsUpdatedAt: DateTime.now(),
+            discoveredVia: d.foundVia,
           ),
         );
       }
@@ -1179,9 +1180,6 @@ const _discoverTopicGroups = <String, List<String>>{
   ],
   '其他': ['宗教', '命理星座', '靈異怪談', '犯罪案件', '紀錄片', '公益', '環保', '農業', '工藝職人'],
 };
-
-/// 「挖掘新頻道」分類的固定 ID（見 `yt_tracker_categories.json`）。
-const _discoverCategoryId = 'seed-discover';
 
 /// 挖掘選項對話框裡每個區塊的小標題：圖示＋標題＋右邊選填的淡色提示字
 /// （2026-09-29 使用者要求：功能不變，畫面精緻一點——原本整頁都是同一種

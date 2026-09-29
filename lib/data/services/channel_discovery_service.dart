@@ -17,6 +17,7 @@ class DiscoveredChannel {
     required this.subscriberCount,
     required this.videoCount,
     required this.uploadsPlaylistId,
+    required this.foundVia,
     this.lastUploadAt,
   });
 
@@ -29,6 +30,10 @@ class DiscoveredChannel {
   final int videoCount;
   final String uploadsPlaylistId;
   final DateTime? lastUploadAt;
+
+  /// 是靠哪個關鍵字／哪個頻道的推薦挖到的（2026-09-29 使用者要求：挖掘
+  /// 分類的頻道卡右上角要看得出來），例如「露營」或「「老高與小茉」推薦」。
+  final String foundVia;
 }
 
 /// `channels.list` 回來的原始資料（篩選前）。
@@ -192,7 +197,10 @@ class ChannelDiscoveryService {
     int count = 10,
     void Function(String status)? onProgress,
   }) async {
-    final candidateIds = <String>{};
+    // 頻道 ID → 挖到它的原因（關鍵字文字，或「「某頻道」推薦」），同一個
+    // ID 第一次登記的來源為準，不會被之後的步驟覆蓋（2026-09-29 使用者
+    // 要求：挖掘分類的頻道卡要看得出是用哪個關鍵字挖到的）。
+    final candidateSources = <String, String>{};
     bool isNew(String id) =>
         !isKnownChannel(channelId: id, customUrl: '', existing: existing);
 
@@ -216,7 +224,9 @@ class ChannelDiscoveryService {
           final ids = details?['channels'] as List?;
           if (ids == null) continue;
           for (final id in ids) {
-            if (isNew(id as String)) candidateIds.add(id);
+            if (isNew(id as String)) {
+              candidateSources.putIfAbsent(id, () => '「${seed.name}」推薦');
+            }
           }
         }
       } on YoutubeApiException {
@@ -224,7 +234,7 @@ class ChannelDiscoveryService {
       } catch (_) {
         // 某個種子頻道讀不到（沒有推薦區塊等），換下一個。
       }
-      if (candidateIds.length >= count * 6) break;
+      if (candidateSources.length >= count * 6) break;
     }
 
     // 2. 不夠（或使用者指定了關鍵字）就搜尋影片，取影片所屬頻道
@@ -236,7 +246,7 @@ class ChannelDiscoveryService {
       ...priority,
       ...([...keywords]..shuffle(_random)),
     ];
-    if ((candidateIds.length < count * 3 || priority.isNotEmpty) &&
+    if ((candidateSources.length < count * 3 || priority.isNotEmpty) &&
         searchWords.isNotEmpty) {
       final shuffled = searchWords;
       final searchLimit = priority.isNotEmpty ? min(priority.length, 4) : 2;
@@ -259,15 +269,17 @@ class ChannelDiscoveryService {
         for (final item in (body['items'] as List? ?? const [])) {
           final id =
               ((item as Map)['snippet'] as Map?)?['channelId'] as String?;
-          if (id != null && isNew(id)) candidateIds.add(id);
+          if (id != null && isNew(id)) {
+            candidateSources.putIfAbsent(id, () => q);
+          }
         }
       }
     }
 
-    if (candidateIds.isEmpty) return const [];
+    if (candidateSources.isEmpty) return const [];
 
     // 3. 批次驗證
-    final ids = candidateIds.toList()..shuffle(_random);
+    final ids = candidateSources.keys.toList()..shuffle(_random);
     final capped = ids.take(150).toList();
     final candidates = <ChannelCandidate>[];
     for (var i = 0; i < capped.length; i += 50) {
@@ -313,6 +325,7 @@ class ChannelDiscoveryService {
           channelId: c.channelId,
           title: c.title,
           avatarUrl: c.avatarUrl,
+          foundVia: candidateSources[c.channelId] ?? '',
           url: c.customUrl.isNotEmpty
               ? 'https://www.youtube.com/${c.customUrl}'
               : 'https://www.youtube.com/channel/${c.channelId}',

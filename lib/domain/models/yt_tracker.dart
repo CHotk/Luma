@@ -24,6 +24,12 @@ const ytUncategorizedId = '__uncategorized__';
 /// 固定排最後一個。
 const ytDislikedCategoryId = 'seed-disliked';
 
+/// 「挖掘新頻道」分類的固定 ID（見 `yt_tracker_categories.json`）——挖到的
+/// 頻道都先放這裡。公開成共用常數（不是 `yt_tracker_home_page.dart` 裡的
+/// 私有常數），瀏覽頁才能判斷「現在是不是正在看這個分類」，決定要不要秀
+/// 挖掘來源標籤（2026-09-29 使用者要求，見 `yt_tracker_browse_page.dart`）。
+const ytDiscoverCategoryId = 'seed-discover';
+
 /// 「垃圾桶」不是一筆真的存在 [YtCategory] 記錄，是已刪除（墓碑標記）頻道
 /// 的統稱，跟 [ytUncategorizedId] 同一套做法——刪掉的頻道原本完全看不到，
 /// 點錯刪除鍵沒地方後悔（2026-09-29 使用者要求：新增垃圾桶專門看刪除的
@@ -117,11 +123,19 @@ class YtChannel {
     this.subscriberCount,
     this.subscribersHidden = false,
     this.statsUpdatedAt,
+    this.discoveredVia = '',
   });
 
   final String id;
   final String name;
   final String? categoryId;
+
+  /// 用「挖掘新頻道」加進來的話，記著是靠哪個關鍵字／哪個頻道推薦挖到的
+  /// （見 [DiscoveredChannel.foundVia]），空字串代表不是挖掘來的、或還沒
+  /// 記錄。畫面只在瀏覽「挖掘新頻道」分類時才把這個顯示成頻道卡右上角的
+  /// 小標籤（2026-09-29 使用者要求，見 `yt_tracker_browse_page.dart`），
+  /// 不會因為頻道被移到別的分類就消失——這欄只是紀錄，不影響分類判斷。
+  final String discoveredVia;
 
   /// 多裝置同步用，同 [YtCategory.updatedAt]。沒有的話退回 [addedAt]。
   final DateTime? updatedAt;
@@ -207,6 +221,7 @@ class YtChannel {
     subscriberCount: subscriberCount,
     subscribersHidden: subscribersHidden,
     statsUpdatedAt: statsUpdatedAt,
+    discoveredVia: discoveredVia,
   );
 
   /// 內容有變時蓋上現在的時間，見 [YtTrackerRepository]。
@@ -270,6 +285,7 @@ class YtChannel {
     'subscriberCount': subscriberCount,
     'subscribersHidden': subscribersHidden,
     'statsUpdatedAt': statsUpdatedAt?.toIso8601String(),
+    'discoveredVia': discoveredVia,
   };
 
   factory YtChannel.fromJson(Map<String, dynamic> json) => YtChannel(
@@ -288,6 +304,7 @@ class YtChannel {
     subscriberCount: json['subscriberCount'] as int?,
     subscribersHidden: json['subscribersHidden'] as bool? ?? false,
     statsUpdatedAt: _parseTime(json['statsUpdatedAt']),
+    discoveredVia: json['discoveredVia'] as String? ?? '',
   );
 }
 
