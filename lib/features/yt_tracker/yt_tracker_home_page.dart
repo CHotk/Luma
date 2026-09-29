@@ -786,6 +786,8 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
                               id: ytUncategorizedId,
                               name: '未分類',
                               colorValue: 0xFF74738A,
+                              imageUrl:
+                                  'assets/images/yt_tracker/uncategorized.png',
                             );
                       final trashCount = snap.data!.trashCount;
                       // 「垃圾桶」也不是真的分類，是已刪除頻道的統稱，固定排在
