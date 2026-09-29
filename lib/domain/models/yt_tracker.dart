@@ -199,6 +199,11 @@ class YtChannel {
     subscriberCount: subscriberCount ?? this.subscriberCount,
     subscribersHidden: subscribersHidden ?? this.subscribersHidden,
     statsUpdatedAt: statsUpdatedAt ?? this.statsUpdatedAt,
+    // 這個方法原本漏掉這欄，沒帶就退回建構子預設值空字串，結果訂閱人數
+    // 一自動更新（`_ensureStats` 每 12 小時呼叫一次 copyWith）就把挖掘
+    // 來源標籤悄悄洗掉（2026-09-29 使用者回報：挖到的頻道右上角標籤
+    // 不見了，就是這個 bug）。
+    discoveredVia: discoveredVia,
   );
 
   YtChannel _copy({
