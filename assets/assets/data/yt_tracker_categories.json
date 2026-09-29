@@ -94,5 +94,11 @@
     "name": "挖掘新頻道",
     "color": 4286502608,
     "imageUrl": ""
+  },
+  {
+    "id": "seed-pending",
+    "name": "待分類",
+    "color": 4286943968,
+    "imageUrl": ""
   }
 ]
