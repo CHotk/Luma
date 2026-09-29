@@ -498,12 +498,12 @@ class R2SyncService {
     final downloaded = await store.mergeFromCloud(cloud);
 
     final all = await store.loadAll();
+    // 每支影片存的是時間戳清單（只增不改），本地筆數比雲端原本的多，
+    // 代表這支影片有新的點開事件要上傳。
     final uploaded = all.entries
         .where(
           (e) =>
-              cloud[e.key] == null ||
-              cloud[e.key]!.lastOpenedAt != e.value.lastOpenedAt ||
-              cloud[e.key]!.firstWatchedAt != e.value.firstWatchedAt,
+              (cloud[e.key]?.openedAt.length ?? 0) < e.value.openedAt.length,
         )
         .length;
     final body = utf8.encode(

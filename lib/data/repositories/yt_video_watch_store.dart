@@ -33,24 +33,23 @@ class YtVideoWatchStore {
     jsonEncode(all.map((k, v) => MapEntry(k, v.toJson()))),
   );
 
-  /// 標記一支影片被點開了：第一次記下 `firstWatchedAt`，之後每次點開
-  /// 只更新 `lastOpenedAt`，不會動 `firstWatchedAt`。
+  /// 標記一支影片被點開了：每一次點開都追加一筆時間戳，不是只記第一次
+  /// 跟最近一次（2026-09-29 使用者糾正：每一次都該紀錄）。
   Future<YtVideoWatchRecord> markOpened(String videoId) async {
     final all = await loadAll();
-    final now = DateTime.now();
     final existing = all[videoId];
     final updated = YtVideoWatchRecord(
-      firstWatchedAt: existing?.firstWatchedAt ?? now,
-      lastOpenedAt: now,
+      openedAt: [...?existing?.openedAt, DateTime.now()],
     );
     all[videoId] = updated;
     await _writeAll(all);
     return updated;
   }
 
-  /// 多裝置同步用：跟雲端的 map 合併，同一支影片取「較早」的
-  /// `firstWatchedAt`、「較晚」的 `lastOpenedAt`——都是取極值，不管重複
-  /// 同步幾次結果都一樣（不像次數用加總，那樣每同步一次就會多算）。
+  /// 多裝置同步用：跟雲端的 map 合併，同一支影片的時間戳清單做聯集
+  /// （跟 `yt_subscriber_history_store.dart` 的 [mergeFromCloud] 同一套
+  /// 「只增不改」邏輯）——不是取極值蓋過去，每一次點開都是獨立事件，
+  /// 兩邊都要保留。
   Future<int> mergeFromCloud(Map<String, YtVideoWatchRecord> cloud) async {
     if (cloud.isEmpty) return 0;
     final local = await loadAll();
@@ -62,17 +61,14 @@ class YtVideoWatchStore {
         changed++;
         continue;
       }
-      final merged = YtVideoWatchRecord(
-        firstWatchedAt: l.firstWatchedAt.isBefore(entry.value.firstWatchedAt)
-            ? l.firstWatchedAt
-            : entry.value.firstWatchedAt,
-        lastOpenedAt: l.lastOpenedAt.isAfter(entry.value.lastOpenedAt)
-            ? l.lastOpenedAt
-            : entry.value.lastOpenedAt,
-      );
-      if (merged.firstWatchedAt != l.firstWatchedAt ||
-          merged.lastOpenedAt != l.lastOpenedAt) {
-        local[entry.key] = merged;
+      final known = {for (final t in l.openedAt) t.toUtc().toIso8601String()};
+      final fresh = [
+        for (final t in entry.value.openedAt)
+          if (known.add(t.toUtc().toIso8601String())) t,
+      ];
+      if (fresh.isNotEmpty) {
+        final merged = [...l.openedAt, ...fresh]..sort();
+        local[entry.key] = YtVideoWatchRecord(openedAt: merged);
         changed++;
       }
     }

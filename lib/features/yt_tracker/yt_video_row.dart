@@ -139,9 +139,10 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
                       ),
                     ),
                   ),
-                // 左上角「已看過」小標籤，滑鼠停留／長按顯示第一次跟最近
-                // 一次點開的時間（2026-09-29 使用者要求：要有小提示或
-                // 小標籤，且要記時間戳）。
+                // 左上角「已看過」小標籤，滑鼠停留／長按顯示第一次、最近
+                // 一次點開的時間跟總共看過幾次（2026-09-29 使用者要求：
+                // 要有小提示或小標籤，且每一次點開都要記時間戳，不是只記
+                // 第一次跟最近一次）。
                 if (_watched != null)
                   Positioned(
                     left: 3,
@@ -149,7 +150,8 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
                     child: Tooltip(
                       message:
                           '已看過・${ytRelativeTime(_watched!.firstWatchedAt)}\n'
-                          '最近一次：${ytRelativeTime(_watched!.lastOpenedAt)}',
+                          '最近一次：${ytRelativeTime(_watched!.lastOpenedAt)}'
+                          '${_watched!.openedAt.length > 1 ? '\n共看過 ${_watched!.openedAt.length} 次' : ''}',
                       child: Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 4,
