@@ -9,8 +9,9 @@ class YtStatsRefreshSettingStore {
 
   static const _key = 'yt_tracker.stats_refresh_days.v1';
 
-  /// 沒設定過就是一天一輪。
-  static const defaultDays = 1;
+  /// 沒設定過就是一週一輪（2026-09-29 使用者把原本的「一天」改成
+  /// 「一週」，訂閱人數本來就不會天天大變，沒必要這麼常問 API）。
+  static const defaultDays = 7;
 
   final KeyValueStore _store;
 

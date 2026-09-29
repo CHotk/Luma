@@ -106,9 +106,12 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
   _showDigOptions(List<YtCategory> categories) {
     final picked = <String>{};
     final pickedTopics = <String>{};
-    // 預設先鎖台灣（2026-09-29 使用者要求），使用者自己可以取消或加別的
-    // 國家；跟搜尋影片那步原本就預設 TW 當 regionCode 一致。
-    final pickedCountries = <String>{'TW'};
+    // 預設不限國家（2026-09-29 使用者一度要求鎖台灣，後來自己發現問題
+    // 又改回來）：很多頻道其實是台灣頻道，但沒填 YouTube 的「所在地」
+    // 欄位，選了國家篩選會被當「不確定」一起排除，反而漏掉一堆真的
+    // 是台灣的頻道。搜尋影片那步的 regionCode 還是預設 TW，那個只是
+    // 排序偏好、不是硬性篩選，兩者不衝突，這裡的國家 chip 純粹選填。
+    final pickedCountries = <String>{};
     var useSeeds = true;
     var allowHidden = false;
     final keywordController = TextEditingController();
