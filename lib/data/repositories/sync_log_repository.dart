@@ -51,8 +51,7 @@ class SyncLogRepository {
     return fresh.length;
   }
 
-  static String _identity(SyncLogEntry e) =>
-      '${e.at.toUtc().toIso8601String()}|${e.action.name}|${e.device}';
+  static String _identity(SyncLogEntry e) => e.identity;
 
   Future<void> add(SyncLogEntry entry) async {
     final all = await loadAll();

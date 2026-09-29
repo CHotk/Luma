@@ -30,6 +30,14 @@ class SyncLogEntry {
   final SyncLogAction action;
   final bool success;
 
+  /// 跟雲端合併、算上傳異動筆數用的識別（2026-09-29）：時間＋動作＋裝置，
+  /// 同一台裝置在同一毫秒不會做兩次同一種動作，夠當唯一鍵，跟
+  /// [SyncLogRepository] 原本 `_identity` 私有方法算法一致，這裡公開
+  /// 出來給 `r2_sync_service.dart` 也能用（同步紀錄本身要同步時，也要能
+  /// 算出「這次上傳了幾筆新的」，不是只有下載那邊有數字）。
+  String get identity =>
+      '${at.toUtc().toIso8601String()}|${action.name}|$device';
+
   /// 成功時是各功能異動／筆數的細節文字，失敗時是錯誤訊息。
   final String? detail;
 

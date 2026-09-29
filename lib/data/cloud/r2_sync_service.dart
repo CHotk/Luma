@@ -146,8 +146,20 @@ class R2SyncService {
     DiaryRepository repo, {
     void Function(SyncPhase phase)? onPhase,
   }) async {
+    const key = 'diary.json';
+    final beforeBytes = utf8.encode(
+      jsonEncode([for (final e in await repo.allForUpload()) e.toJson()]),
+    );
+    if (await _canSkip(key, beforeBytes)) return (downloaded: 0, uploaded: 0);
+
     onPhase?.call(SyncPhase.downloading);
-    final cloudBefore = await _fetchCloudDiary();
+    final fetched = await _client.getObjectWithEtag(key);
+    final cloudBefore = fetched.bytes == null
+        ? <DiaryEntry>[]
+        : (jsonDecode(utf8.decode(fetched.bytes!)) as List)
+              .cast<Map<String, dynamic>>()
+              .map(DiaryEntry.fromJson)
+              .toList();
     final downloaded = cloudBefore.isEmpty
         ? 0
         : await repo.mergeFromCloud(cloudBefore);
@@ -155,8 +167,9 @@ class R2SyncService {
     onPhase?.call(SyncPhase.uploading);
     final all = await repo.allForUpload();
     final uploaded = diaryDiffCount(cloudBefore, all);
-    final bytes = utf8.encode(jsonEncode([for (final e in all) e.toJson()]));
-    await _client.putObject('diary.json', Uint8List.fromList(bytes));
+    final body = utf8.encode(jsonEncode([for (final e in all) e.toJson()]));
+    final etag = await _client.putObject(key, Uint8List.fromList(body));
+    await _writeMeta(key, body, etag);
 
     return (downloaded: downloaded, uploaded: uploaded);
   }
@@ -180,8 +193,20 @@ class R2SyncService {
     FitnessRepository repo, {
     void Function(SyncPhase phase)? onPhase,
   }) async {
+    const key = 'fitness.json';
+    final beforeBytes = utf8.encode(
+      jsonEncode([for (final e in await repo.allForUpload()) e.toJson()]),
+    );
+    if (await _canSkip(key, beforeBytes)) return (downloaded: 0, uploaded: 0);
+
     onPhase?.call(SyncPhase.downloading);
-    final cloudBefore = await _fetchCloudFitness();
+    final fetched = await _client.getObjectWithEtag(key);
+    final cloudBefore = fetched.bytes == null
+        ? <FitnessEntry>[]
+        : (jsonDecode(utf8.decode(fetched.bytes!)) as List)
+              .cast<Map<String, dynamic>>()
+              .map(FitnessEntry.fromJson)
+              .toList();
     final downloaded = cloudBefore.isEmpty
         ? 0
         : await repo.mergeFromCloud(cloudBefore);
@@ -189,8 +214,9 @@ class R2SyncService {
     onPhase?.call(SyncPhase.uploading);
     final all = await repo.allForUpload();
     final uploaded = fitnessDiffCount(cloudBefore, all);
-    final bytes = utf8.encode(jsonEncode([for (final e in all) e.toJson()]));
-    await _client.putObject('fitness.json', Uint8List.fromList(bytes));
+    final body = utf8.encode(jsonEncode([for (final e in all) e.toJson()]));
+    final etag = await _client.putObject(key, Uint8List.fromList(body));
+    await _writeMeta(key, body, etag);
 
     return (downloaded: downloaded, uploaded: uploaded);
   }
@@ -220,37 +246,74 @@ class R2SyncService {
     YtTrackerRepository repo, {
     void Function(SyncPhase phase)? onPhase,
   }) async {
+    // 分類、頻道是兩個各自獨立的 R2 檔，各自檢查能不能跳過——常見情況是
+    // 頻道常常變動（新增／挖掘新頻道）但分類幾乎不動，沒理由分類那份
+    // 沒事也整包重傳一次（2026-09-29 使用者要求加速）。
+    const catKey = 'yt_categories.json';
+    const chKey = 'yt_channels.json';
+    final catBeforeBytes = utf8.encode(
+      jsonEncode([
+        for (final c in await repo.categoriesForUpload()) c.toJson(),
+      ]),
+    );
+    final chBeforeBytes = utf8.encode(
+      jsonEncode([for (final c in await repo.channelsForUpload()) c.toJson()]),
+    );
+    final catSkip = await _canSkip(catKey, catBeforeBytes);
+    final chSkip = await _canSkip(chKey, chBeforeBytes);
+    if (catSkip && chSkip) return (downloaded: 0, uploaded: 0);
+
     onPhase?.call(SyncPhase.downloading);
-    final cloudCategories = await _fetchCloudYtCategories();
-    final cloudChannels = await _fetchCloudYtChannels();
-    final downloaded =
-        await repo.mergeCategoriesFromCloud(cloudCategories) +
-        await repo.mergeChannelsFromCloud(cloudChannels);
+    var downloaded = 0;
+    var cloudCategories = <YtCategory>[];
+    if (!catSkip) {
+      final fetched = await _client.getObjectWithEtag(catKey);
+      cloudCategories = fetched.bytes == null
+          ? <YtCategory>[]
+          : (jsonDecode(utf8.decode(fetched.bytes!)) as List)
+                .cast<Map<String, dynamic>>()
+                .map(YtCategory.fromJson)
+                .toList();
+      downloaded += await repo.mergeCategoriesFromCloud(cloudCategories);
+    }
+    var cloudChannels = <YtChannel>[];
+    if (!chSkip) {
+      final fetched = await _client.getObjectWithEtag(chKey);
+      cloudChannels = fetched.bytes == null
+          ? <YtChannel>[]
+          : (jsonDecode(utf8.decode(fetched.bytes!)) as List)
+                .cast<Map<String, dynamic>>()
+                .map(YtChannel.fromJson)
+                .toList();
+      downloaded += await repo.mergeChannelsFromCloud(cloudChannels);
+    }
 
     onPhase?.call(SyncPhase.uploading);
-    final categories = await repo.categoriesForUpload();
-    final channels = await repo.channelsForUpload();
-    final uploaded =
-        ytDiffCount(
-          [for (final c in cloudCategories) c.toJson()],
-          [for (final c in categories) c.toJson()],
-        ) +
-        ytDiffCount(
-          [for (final c in cloudChannels) c.toJson()],
-          [for (final c in channels) c.toJson()],
-        );
-    await _client.putObject(
-      'yt_categories.json',
-      Uint8List.fromList(
-        utf8.encode(jsonEncode([for (final c in categories) c.toJson()])),
-      ),
-    );
-    await _client.putObject(
-      'yt_channels.json',
-      Uint8List.fromList(
-        utf8.encode(jsonEncode([for (final c in channels) c.toJson()])),
-      ),
-    );
+    var uploaded = 0;
+    if (!catSkip) {
+      final categories = await repo.categoriesForUpload();
+      uploaded += ytDiffCount(
+        [for (final c in cloudCategories) c.toJson()],
+        [for (final c in categories) c.toJson()],
+      );
+      final body = utf8.encode(
+        jsonEncode([for (final c in categories) c.toJson()]),
+      );
+      final etag = await _client.putObject(catKey, Uint8List.fromList(body));
+      await _writeMeta(catKey, body, etag);
+    }
+    if (!chSkip) {
+      final channels = await repo.channelsForUpload();
+      uploaded += ytDiffCount(
+        [for (final c in cloudChannels) c.toJson()],
+        [for (final c in channels) c.toJson()],
+      );
+      final body = utf8.encode(
+        jsonEncode([for (final c in channels) c.toJson()]),
+      );
+      final etag = await _client.putObject(chKey, Uint8List.fromList(body));
+      await _writeMeta(chKey, body, etag);
+    }
     return (downloaded: downloaded, uploaded: uploaded);
   }
 
@@ -415,8 +478,19 @@ class R2SyncService {
     HistoryRepository repo, {
     void Function(SyncPhase phase)? onPhase,
   }) async {
+    const key = 'english_history.json';
+    final beforeAll = await repo.allForUpload();
+    final beforeBytes = utf8.encode(
+      jsonEncode({
+        'entries': [for (final e in beforeAll.entries) e.toJson()],
+        'rounds': [for (final r in beforeAll.rounds) r.toJson()],
+      }),
+    );
+    if (await _canSkip(key, beforeBytes)) return (downloaded: 0, uploaded: 0);
+
     onPhase?.call(SyncPhase.downloading);
-    final bytes = await _client.getObject('english_history.json');
+    final fetched = await _client.getObjectWithEtag(key);
+    final bytes = fetched.bytes;
     var cloudEntries = <HistoryEntry>[];
     var cloudRounds = <RoundLog>[];
     if (bytes != null) {
@@ -456,7 +530,8 @@ class R2SyncService {
         'rounds': [for (final r in all.rounds) r.toJson()],
       }),
     );
-    await _client.putObject('english_history.json', Uint8List.fromList(body));
+    final etag = await _client.putObject(key, Uint8List.fromList(body));
+    await _writeMeta(key, body, etag);
     return (downloaded: downloaded, uploaded: uploaded);
   }
 
@@ -545,13 +620,19 @@ class R2SyncService {
   /// 把合併後的完整紀錄上傳覆蓋。log 只增不刪，所以不會有覆蓋掉別台
   /// 資料的問題。呼叫端要在寫完「這次同步」那筆紀錄之後才呼叫，這樣
   /// 這筆也會一起上傳。回傳從雲端新併進來幾筆。
-  Future<int> syncLog(SyncLogRepository repo) async {
+  Future<({int downloaded, int uploaded})> syncLog(
+    SyncLogRepository repo,
+  ) async {
     final cloud = await _fetchCloudLog();
     final downloaded = cloud.isEmpty ? 0 : await repo.mergeFromCloud(cloud);
     final all = await repo.loadAll();
+    // log 只增不刪，上傳異動＝本機比雲端多出來、雲端還沒有的那幾筆
+    // （2026-09-29 使用者發現：原本只回傳下載數，上傳一直看不到）。
+    final cloudIds = {for (final e in cloud) e.identity};
+    final uploaded = all.where((e) => !cloudIds.contains(e.identity)).length;
     final bytes = utf8.encode(jsonEncode([for (final e in all) e.toJson()]));
     await _client.putObject('sync_log.json', Uint8List.fromList(bytes));
-    return downloaded;
+    return (downloaded: downloaded, uploaded: uploaded);
   }
 
   Future<List<AppLogEntry>> _fetchCloudErrorLog() async {
@@ -567,13 +648,18 @@ class R2SyncService {
   /// 除錯頁的錯誤日誌也同步（2026-09-24 使用者要求），做法跟 [syncLog]
   /// 一樣：只增不刪，下載聯集合併→上傳完整內容。回傳從雲端新併進來
   /// 幾筆；呼叫端要接著用 [AppLog.restore] 把合併結果放回畫面。
-  Future<int> syncErrorLog(ErrorLogRepository repo) async {
+  Future<({int downloaded, int uploaded})> syncErrorLog(
+    ErrorLogRepository repo,
+  ) async {
     final cloud = await _fetchCloudErrorLog();
     final downloaded = cloud.isEmpty ? 0 : await repo.mergeFromCloud(cloud);
     final all = await repo.loadAll();
+    // 同 [syncLog]：只增不刪，上傳異動＝本機有、雲端還沒有的那幾筆。
+    final cloudIds = {for (final e in cloud) e.identity};
+    final uploaded = all.where((e) => !cloudIds.contains(e.identity)).length;
     final bytes = utf8.encode(jsonEncode([for (final e in all) e.toJson()]));
     await _client.putObject('error_log.json', Uint8List.fromList(bytes));
-    return downloaded;
+    return (downloaded: downloaded, uploaded: uploaded);
   }
 
   /// 「備份雲端資料」按鈕用：把 R2 上目前每個功能的資料整包抓下來，

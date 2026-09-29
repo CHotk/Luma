@@ -171,21 +171,29 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
   Future<void> _syncNow() async {
     final credentials = ref.read(r2CredentialsProvider);
     if (credentials == null || _syncing) return;
-    // 目前跑到哪個功能，失敗時要能講出是哪一個出的錯。
-    var stage = '日記';
     setState(() {
       _syncing = true;
       _diaryPhase = _FeaturePhase.downloading;
-      _fitnessPhase = _FeaturePhase.idle;
-      _ytPhase = _FeaturePhase.idle;
-      _kanaPracticePhase = _FeaturePhase.idle;
-      _kanaExamPhase = _FeaturePhase.idle;
-      _englishPhase = _FeaturePhase.idle;
-      _habitPhases.clear();
+      _fitnessPhase = _FeaturePhase.downloading;
+      _ytPhase = _FeaturePhase.downloading;
+      _kanaPracticePhase = _FeaturePhase.downloading;
+      _kanaExamPhase = _FeaturePhase.downloading;
+      _englishPhase = _FeaturePhase.downloading;
+      _habitPhases
+        ..clear()
+        ..addEntries(
+          _habitRows.map((r) => MapEntry(r.$1, _FeaturePhase.downloading)),
+        );
       _syncLogPhase = _FeaturePhase.idle;
       _errorLogPhase = _FeaturePhase.idle;
       _results.clear();
     });
+    // 這次同步整體有沒有出過錯，寫進同步紀錄用；單一功能失敗不會擋住
+    // 其他功能（2026-09-29 使用者要求：互不相關的功能要能同時做，不能
+    // 因為其中一個掛了就整批放棄，明明其他已經做完的）。
+    final details = <String>[];
+    final failures = <String>[];
+
     try {
       final client = R2Client(
         credentials: credentials,
@@ -195,117 +203,122 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
       // 下次兩邊都沒變就整段跳過（2026-09-29 使用者要求加速，見
       // `R2SyncService` 建構子跟 `_canSkip` 的說明）。
       final service = R2SyncService(client, ref.read(keyValueStoreProvider));
-      // 日記、健身依序同步，不是同時打——避免兩邊同時搶著寫 R2 造成
-      // 混亂的請求時序，個人手動按同步的使用情境對速度沒有要求。
-      // 每個功能自己一結束就馬上標記完成，不是等兩個都做完才一起標記
-      // ——不然萬一健身那邊失敗，明明已經同步好的日記那一行也會卡在
-      // 「上傳中…」，看起來像日記也失敗了。
-      // 上傳／下載各異動幾筆不再塞進通知（太長，2026-09-24 使用者
-      // 要求），但同步紀錄 log 還是要留這個細節，所以結果還是要接住。
-      stage = '日記';
-      final diaryResult = await service.syncDiary(
-        ref.read(diaryRepositoryProvider),
-        onPhase: _phaseCallback((p) => _diaryPhase = p),
-      );
-      _record('日記', diaryResult);
-      if (mounted) setState(() => _diaryPhase = _FeaturePhase.done);
 
-      stage = '健身';
-      final fitnessResult = await service.syncFitness(
-        ref.read(fitnessRepositoryProvider),
-        onPhase: _phaseCallback((p) => _fitnessPhase = p),
-      );
-      _record('健身', fitnessResult);
-      if (mounted) setState(() => _fitnessPhase = _FeaturePhase.done);
-
-      stage = 'YT 頻道／分類';
-      final ytResult = await service.syncYtTracker(
-        ref.read(ytTrackerRepositoryProvider),
-        onPhase: _phaseCallback((p) => _ytPhase = p),
-      );
-      // 頻道詳情頁上傳頻率圖用的歷史影片快取，每個頻道一份，跟著一起同步。
-      stage = 'YT 影片快取';
-      final ytVideoResult = await service.syncYtVideoCache(
-        YtVideoCacheStore(ref.read(keyValueStoreProvider)),
-        await ref.read(ytTrackerRepositoryProvider).loadChannels(),
-      );
-      _record('YT 頻道追蹤', (
-        downloaded: ytResult.downloaded + ytVideoResult.downloaded,
-        uploaded: ytResult.uploaded + ytVideoResult.uploaded,
-      ));
-      if (mounted) setState(() => _ytPhase = _FeaturePhase.done);
-
-      stage = '五十音練習';
-      final kanaPracticeResult = await service.syncKanaPractice(
-        ref.read(kanaPracticeRepositoryProvider),
-        onPhase: _phaseCallback((p) => _kanaPracticePhase = p),
-      );
-      _record('五十音練習', kanaPracticeResult);
-      if (mounted) setState(() => _kanaPracticePhase = _FeaturePhase.done);
-
-      stage = '五十音考試';
-      final kanaExamResult = await service.syncKanaExam(
-        ref.read(kanaExamRepositoryProvider),
-        onPhase: _phaseCallback((p) => _kanaExamPhase = p),
-      );
-      _record('五十音考試', kanaExamResult);
-      if (mounted) setState(() => _kanaExamPhase = _FeaturePhase.done);
-
-      stage = '英文單字紀錄';
-      final englishResult = await service.syncEnglishHistory(
-        ref.read(historyRepositoryProvider),
-        onPhase: _phaseCallback((p) => _englishPhase = p),
-      );
-      // 單字庫有記憶體快取（對錯次數是從紀錄現算的），紀錄變了要丟掉重算。
-      ref.read(wordRepositoryProvider).invalidate();
-      _record('英文單字紀錄', englishResult);
-      if (mounted) setState(() => _englishPhase = _FeaturePhase.done);
-
-      // 看盤／抽菸／喝酒紀錄，各自一份、各自一個雲端檔案。
-      final habitDetails = <String>[];
-      final habitJobs =
-          <
-            (
-              String,
-              String,
-              Future<({int downloaded, int uploaded})> Function(
-                void Function(SyncPhase),
-              ),
-            )
-          >[
-            (
-              'crypto',
-              '看盤記錄',
-              (onPhase) => service.syncCryptoWatch(
-                ref.read(cryptoWatchRepositoryProvider),
-                onPhase: onPhase,
-              ),
-            ),
-            (
-              'smoking',
-              '抽菸記錄',
-              (onPhase) => service.syncSmoking(
-                ref.read(smokingRepositoryProvider),
-                onPhase: onPhase,
-              ),
-            ),
-            (
-              'drinking',
-              '喝酒記錄',
-              (onPhase) => service.syncDrinking(
-                ref.read(drinkingRepositoryProvider),
-                onPhase: onPhase,
-              ),
-            ),
-          ];
-      for (final (id, title, run) in habitJobs) {
-        stage = title;
-        final r = await run(_phaseCallback((p) => _habitPhases[id] = p));
-        _record(title, r);
-        if (mounted) setState(() => _habitPhases[id] = _FeaturePhase.done);
-        habitDetails.add('$title 上傳${r.uploaded}／下載${r.downloaded}');
+      // 單一功能同步的共用包裝：跑完記結果、標記完成；失敗記下來、標記
+      // 失敗，不往外丟例外——這樣外層才能用 `Future.wait` 讓每個功能
+      // 同時跑，一個失敗不會讓 `Future.wait` 直接中斷、拖累還在跑的
+      // 其他功能（2026-09-29 使用者問「怎現在還是線性的」，這裡改成
+      // 真的平行：日記、健身、YT、五十音練習/考試、英文紀錄、看盤/
+      // 抽菸/喝酒，全部同時打，不用排隊）。
+      Future<void> run(
+        String label,
+        void Function(_FeaturePhase) setPhase,
+        Future<({int downloaded, int uploaded})> Function(
+          void Function(SyncPhase)?,
+        )
+        task,
+      ) async {
+        try {
+          final r = await task(_phaseCallback(setPhase));
+          _record(label, r);
+          details.add('$label 上傳${r.uploaded}／下載${r.downloaded}');
+          if (mounted) setState(() => setPhase(_FeaturePhase.done));
+        } catch (e, stack) {
+          AppLog.add('[同步] $label 失敗：$e\n$stack', isError: true);
+          failures.add('$label：$e');
+          if (mounted) setState(() => setPhase(_FeaturePhase.error));
+        }
       }
 
+      await Future.wait([
+        run(
+          '日記',
+          (p) => _diaryPhase = p,
+          (onPhase) => service.syncDiary(
+            ref.read(diaryRepositoryProvider),
+            onPhase: onPhase,
+          ),
+        ),
+        run(
+          '健身',
+          (p) => _fitnessPhase = p,
+          (onPhase) => service.syncFitness(
+            ref.read(fitnessRepositoryProvider),
+            onPhase: onPhase,
+          ),
+        ),
+        run('YT 頻道追蹤', (p) => _ytPhase = p, (onPhase) async {
+          // YT 分類／頻道要先同步完，影片快取才能拿到最新的頻道清單，
+          // 這兩步本來就有先後依賴，包成同一個「功能」一起跑，跟其他
+          // 互不相關的功能平行，不是說「YT 也要平行」就硬拆開兩步。
+          final ytResult = await service.syncYtTracker(
+            ref.read(ytTrackerRepositoryProvider),
+            onPhase: onPhase,
+          );
+          final ytVideoResult = await service.syncYtVideoCache(
+            YtVideoCacheStore(ref.read(keyValueStoreProvider)),
+            await ref.read(ytTrackerRepositoryProvider).loadChannels(),
+          );
+          return (
+            downloaded: ytResult.downloaded + ytVideoResult.downloaded,
+            uploaded: ytResult.uploaded + ytVideoResult.uploaded,
+          );
+        }),
+        run(
+          '五十音練習',
+          (p) => _kanaPracticePhase = p,
+          (onPhase) => service.syncKanaPractice(
+            ref.read(kanaPracticeRepositoryProvider),
+            onPhase: onPhase,
+          ),
+        ),
+        run(
+          '五十音考試',
+          (p) => _kanaExamPhase = p,
+          (onPhase) => service.syncKanaExam(
+            ref.read(kanaExamRepositoryProvider),
+            onPhase: onPhase,
+          ),
+        ),
+        run('英文單字紀錄', (p) => _englishPhase = p, (onPhase) async {
+          final r = await service.syncEnglishHistory(
+            ref.read(historyRepositoryProvider),
+            onPhase: onPhase,
+          );
+          // 單字庫有記憶體快取（對錯次數是從紀錄現算的），紀錄變了要
+          // 丟掉重算。
+          ref.read(wordRepositoryProvider).invalidate();
+          return r;
+        }),
+        run(
+          '看盤記錄',
+          (p) => _habitPhases['crypto'] = p,
+          (onPhase) => service.syncCryptoWatch(
+            ref.read(cryptoWatchRepositoryProvider),
+            onPhase: onPhase,
+          ),
+        ),
+        run(
+          '抽菸記錄',
+          (p) => _habitPhases['smoking'] = p,
+          (onPhase) => service.syncSmoking(
+            ref.read(smokingRepositoryProvider),
+            onPhase: onPhase,
+          ),
+        ),
+        run(
+          '喝酒記錄',
+          (p) => _habitPhases['drinking'] = p,
+          (onPhase) => service.syncDrinking(
+            ref.read(drinkingRepositoryProvider),
+            onPhase: onPhase,
+          ),
+        ),
+      ]);
+
+      // 同步紀錄本身這筆內容就是「這次同步的結果」，一定要等上面全部
+      // 功能都做完（不管成功失敗）才能寫，所以留在 Future.wait 之後、
+      // 序列做，不是漏掉平行化。
       final now = DateTime.now();
       await ref
           .read(keyValueStoreProvider)
@@ -316,43 +329,33 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
             SyncLogEntry(
               at: now,
               action: SyncLogAction.sync,
-              success: true,
+              success: failures.isEmpty,
               device: currentDeviceLabel(),
-              detail:
-                  '日記 上傳${diaryResult.uploaded}／下載${diaryResult.downloaded}；'
-                  '健身 上傳${fitnessResult.uploaded}／下載${fitnessResult.downloaded}；'
-                  'YT頻道 上傳${ytResult.uploaded}／下載${ytResult.downloaded}；'
-                  'YT影片快取 上傳${ytVideoResult.uploaded}／下載${ytVideoResult.downloaded}；'
-                  '五十音練習 上傳${kanaPracticeResult.uploaded}／下載${kanaPracticeResult.downloaded}；'
-                  '五十音考試 上傳${kanaExamResult.uploaded}／下載${kanaExamResult.downloaded}；'
-                  '英文單字紀錄 上傳${englishResult.uploaded}／下載${englishResult.downloaded}；'
-                  '${habitDetails.join('；')}',
+              detail: [
+                ...details,
+                if (failures.isNotEmpty) '失敗：${failures.join('；')}',
+              ].join('；'),
             ),
           );
-      stage = '同步紀錄／錯誤日誌';
       try {
         if (mounted) setState(() => _syncLogPhase = _FeaturePhase.downloading);
-        final logDownloaded = await service.syncLog(
+        final logResult = await service.syncLog(
           ref.read(syncLogRepositoryProvider),
         );
+        _record('同步紀錄', logResult);
         if (mounted) {
           setState(() {
             _syncLogPhase = _FeaturePhase.done;
-            _results['同步紀錄'] = '↓$logDownloaded';
             _errorLogPhase = _FeaturePhase.downloading;
           });
         }
         final errorRepo = ref.read(errorLogRepositoryProvider);
-        final errDownloaded = await service.syncErrorLog(errorRepo);
-        if (mounted) {
-          setState(() {
-            _errorLogPhase = _FeaturePhase.done;
-            _results['除錯錯誤日誌'] = '↓$errDownloaded';
-          });
-        }
+        final errorResult = await service.syncErrorLog(errorRepo);
+        _record('除錯錯誤日誌', errorResult);
+        if (mounted) setState(() => _errorLogPhase = _FeaturePhase.done);
         AppLog.restore(await errorRepo.loadAll());
       } catch (_) {
-        // 紀錄上傳失敗不擋主流程：日記／健身已經同步成功。
+        // 紀錄上傳失敗不擋主流程：其他功能已經同步成功。
       }
       widget.onLogged?.call();
       // 同步抓回來的資料要讓日記頁／健身頁（可能還留在導覽堆疊底下沒被
@@ -365,11 +368,20 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
         _lastSyncedAt = now;
         _syncing = false;
       });
-      showAppNotice(context, '資料雲端同步完成');
+      if (failures.isEmpty) {
+        showAppNotice(context, '資料雲端同步完成');
+      } else {
+        showAppNotice(
+          context,
+          '同步完成，但有 ${failures.length} 項失敗：${failures.join('、')}',
+          isError: true,
+        );
+      }
     } catch (e, stack) {
-      // 同步失敗要寫進除錯訊息（原本只跳通知，除錯頁是空的，2026-09-24
-      // 使用者回報），連堆疊一起，才查得出是哪一步、為什麼。
-      AppLog.add('[同步] $stage 失敗：$e\n$stack', isError: true);
+      // 這裡接住的是「不屬於任何單一功能」的意外錯誤（例如建立 R2Client
+      // 本身出問題）——各功能自己的失敗已經在 `run` 裡接住了，不會
+      // 跑到這裡。
+      AppLog.add('[同步] 意外錯誤：$e\n$stack', isError: true);
       await ref
           .read(syncLogRepositoryProvider)
           .add(
@@ -378,23 +390,13 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
               action: SyncLogAction.sync,
               success: false,
               device: currentDeviceLabel(),
-              detail: '$stage：$e',
+              detail: '意外錯誤：$e',
             ),
           );
       widget.onLogged?.call();
       if (!mounted) return;
-      setState(() {
-        _syncing = false;
-        if (_diaryPhase == _FeaturePhase.downloading ||
-            _diaryPhase == _FeaturePhase.uploading) {
-          _diaryPhase = _FeaturePhase.error;
-        }
-        if (_fitnessPhase == _FeaturePhase.downloading ||
-            _fitnessPhase == _FeaturePhase.uploading) {
-          _fitnessPhase = _FeaturePhase.error;
-        }
-      });
-      showAppNotice(context, '同步失敗（$stage）：$e', isError: true);
+      setState(() => _syncing = false);
+      showAppNotice(context, '同步失敗：$e', isError: true);
     }
   }
 
