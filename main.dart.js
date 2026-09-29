@@ -118594,7 +118594,7 @@ r=d.b
 q=J.aV(r)
 p=q.cw(r,new A.b42())
 o=A.E(p,p.$ti.h("p.E"))
-n=o.length===0?e:B.agx
+n=o.length===0?e:B.agy
 m=d.c
 l=m===0?e:B.agw
 d=J.aV(s)
@@ -118615,7 +118615,7 @@ f=A.E(g,g.$ti.h("p.E"))}g=j.y.length===0?e:A.bZ(B.o,e,e,B.ve,e,e,new A.b46(j),e,
 g=A.fS(e,!1,j.x,A.J9(e,e,e,B.eC,e,e,e,e,!0,new A.k5(4,A.an(15),B.bF),e,e,e,e,e,B.Z,!0,e,e,e,e,new A.k5(4,A.an(15),B.IV),e,e,e,e,e,e,e,e,B.pX,"\u641c\u5c0b\u983b\u9053",e,e,e,e,e,!0,e,e,e,!0,!0,e,B.Rm,e,e,e,e,e,e,g,e,e,e,e,e),!0,e,e,e,e,e,1,e,!1,new A.b47(j),e,e,B.dI,B.ba,B.GG)
 if(!d)d=new A.ab5(f,h,new A.b48(j,a),e)
 else if(k===0)d=new A.a5O(j.ga1M(),e)
-else{d=A.a([new A.a1d(new A.af(B.Oi,new A.zA(3,new A.u8(B.agy,r,7,q.gp(r),new A.b49(j,a),e,e),e),e),e),A.bj6(new A.D1(new A.b4a(j,p,o,r,m,a),k,!0,!0,!0,A.bdz(),e),B.a6g)],t.p)
+else{d=A.a([new A.a1d(new A.af(B.Oi,new A.zA(3,new A.u8(B.agx,r,7,q.gp(r),new A.b49(j,a),e,e),e),e),e),A.bj6(new A.D1(new A.b4a(j,p,o,r,m,a),k,!0,!0,!0,A.bdz(),e),B.a6g)],t.p)
 d=new A.Wl(d,B.a6,!1,e,e,B.j3,e,!1,e,0,e,e,B.hb,B.af,e,e,B.X,B.b7,e)}return A.X(A.a([g,B.x,A.aK(d,1),B.x],t.p),B.E,B.f,B.h)},
 $S:911}
 A.b42.prototype={
@@ -131565,8 +131565,8 @@ B.qp=new A.NB(0,"start")
 B.agu=new A.NB(1,"end")
 B.agv=new A.NB(2,"center")
 B.agw=new A.dA("__trash__","\u5783\u573e\u6876",null,null,4285821834,"assets/images/yt_tracker/ashcan.png")
-B.agx=new A.dA("__uncategorized__","\u672a\u5206\u985e",null,null,4285821834,"")
-B.agy=new A.dA("__all__","\u5168\u90e8",null,null,4286490367,"assets/images/yt_tracker/all.png")
+B.agx=new A.dA("__all__","\u5168\u90e8",null,null,4286490367,"assets/images/yt_tracker/all.png")
+B.agy=new A.dA("__uncategorized__","\u672a\u5206\u985e",null,null,4285821834,"assets/images/yt_tracker/uncategorized.png")
 B.agz=new A.yb(null)
 B.agA=new A.yc(null)
 B.agB=new A.a2Z(null)
