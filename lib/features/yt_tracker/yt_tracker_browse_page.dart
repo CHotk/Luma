@@ -856,16 +856,21 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                           AppTopBar(
                             title: _title(categories),
                             actions: [
-                              IconButton(
-                                onPressed: () =>
-                                    _showAddChannelDialog(categories),
-                                icon: const Icon(
-                                  Icons.add_circle_outline,
-                                  size: 20,
+                              // 「挖掘新頻道」是特別的分類，只是用來放挖到的頻道，
+                              // 不是使用者自己手動整理的地方，所以不給「新增頻道」
+                              // （2026-09-29 使用者要求）。
+                              if (!(_selected.length == 1 &&
+                                  _selected.single == ytDiscoverCategoryId))
+                                IconButton(
+                                  onPressed: () =>
+                                      _showAddChannelDialog(categories),
+                                  icon: const Icon(
+                                    Icons.add_circle_outline,
+                                    size: 20,
+                                  ),
+                                  color: AppColors.ink2,
+                                  tooltip: '新增頻道',
                                 ),
-                                color: AppColors.ink2,
-                                tooltip: '新增頻道',
-                              ),
                             ],
                           ),
                           const SizedBox(height: Gap.sm),
