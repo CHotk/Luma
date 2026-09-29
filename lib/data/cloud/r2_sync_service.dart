@@ -202,67 +202,90 @@ class R2SyncService {
   /// 都該可同步）。一個頻道一個 R2 檔（`yt_video_cache/<頻道id>.json`，
   /// 內容 `{fetchedAt, videos}`），不塞成一份大檔，每次只動有變的頻道。
   /// 下載聯集合併→本機比雲端多東西才上傳。回傳影片部數（不是頻道數）。
+  ///
+  /// 頻道之間互不相關，原本一個一個 `await`（30 個頻道＝30 次序列網路
+  /// 往返，光這段就要跑到十幾秒），改成分批平行處理（2026-09-29 使用者
+  /// 要求加速）——[_channelSyncConcurrency] 限制同時處理幾個頻道，不是
+  /// 全部一次丟出去：瀏覽器對同網域的併發連線本來就有上限（通常 6），
+  /// 開太多批次反而互相排隊，一樣沒有變快。
+  static const _channelSyncConcurrency = 6;
+
   Future<({int downloaded, int uploaded})> syncYtVideoCache(
     YtVideoCacheStore cache,
     List<YtChannel> channels,
   ) async {
     var downloaded = 0;
     var uploaded = 0;
-    for (final channel in channels) {
-      final key = 'yt_video_cache/${channel.id}.json';
-      final bytes = await _client.getObject(key);
-      var cloudVideos = <YoutubeVideo>[];
-      DateTime? cloudAt;
-      var cloudResumeOffset = -1;
-      if (bytes != null) {
-        final decoded = jsonDecode(utf8.decode(bytes)) as Map<String, dynamic>;
-        cloudAt = DateTime.tryParse(decoded['fetchedAt'] as String? ?? '');
-        cloudVideos = (decoded['videos'] as List)
-            .cast<Map<String, dynamic>>()
-            .map(YoutubeVideo.fromJson)
-            .toList();
-        final resumeJson = decoded['resume'];
-        if (resumeJson is Map<String, dynamic>) {
-          cloudResumeOffset = YtResume.fromJson(resumeJson).offset;
-        }
-        downloaded += await cache.mergeFromCloud(
-          channel.id,
-          cloudVideos,
-          cloudAt,
-          cloudResume: resumeJson is Map<String, dynamic>
-              ? YtResume.fromJson(resumeJson)
-              : null,
-        );
-      }
-
-      final local = await cache.load(channel.id);
-      if (local.isEmpty) continue;
-      final localAt = await cache.lastFetchedAt(channel.id);
-      final cloudById = {for (final v in cloudVideos) v.videoId: v};
-      final diff = [
-        for (final v in local)
-          if (cloudById[v.videoId] == null ||
-              (cloudById[v.videoId]!.duration == null && v.duration != null))
-            v,
-      ];
-      final localResume = await cache.loadResume(channel.id);
-      final needsUpload =
-          bytes == null ||
-          diff.isNotEmpty ||
-          localAt != cloudAt ||
-          (localResume != null && localResume.offset > cloudResumeOffset);
-      if (!needsUpload) continue;
-      uploaded += diff.length;
-      final body = utf8.encode(
-        jsonEncode({
-          'fetchedAt': localAt?.toIso8601String(),
-          'resume': localResume?.toJson(),
-          'videos': [for (final v in local) v.toJson()],
-        }),
+    for (var i = 0; i < channels.length; i += _channelSyncConcurrency) {
+      final batch = channels.skip(i).take(_channelSyncConcurrency);
+      final results = await Future.wait(
+        batch.map((c) => _syncOneChannelVideoCache(cache, c)),
       );
-      await _client.putObject(key, Uint8List.fromList(body));
+      for (final r in results) {
+        downloaded += r.downloaded;
+        uploaded += r.uploaded;
+      }
     }
     return (downloaded: downloaded, uploaded: uploaded);
+  }
+
+  Future<({int downloaded, int uploaded})> _syncOneChannelVideoCache(
+    YtVideoCacheStore cache,
+    YtChannel channel,
+  ) async {
+    final key = 'yt_video_cache/${channel.id}.json';
+    final bytes = await _client.getObject(key);
+    var downloaded = 0;
+    var cloudVideos = <YoutubeVideo>[];
+    DateTime? cloudAt;
+    var cloudResumeOffset = -1;
+    if (bytes != null) {
+      final decoded = jsonDecode(utf8.decode(bytes)) as Map<String, dynamic>;
+      cloudAt = DateTime.tryParse(decoded['fetchedAt'] as String? ?? '');
+      cloudVideos = (decoded['videos'] as List)
+          .cast<Map<String, dynamic>>()
+          .map(YoutubeVideo.fromJson)
+          .toList();
+      final resumeJson = decoded['resume'];
+      if (resumeJson is Map<String, dynamic>) {
+        cloudResumeOffset = YtResume.fromJson(resumeJson).offset;
+      }
+      downloaded += await cache.mergeFromCloud(
+        channel.id,
+        cloudVideos,
+        cloudAt,
+        cloudResume: resumeJson is Map<String, dynamic>
+            ? YtResume.fromJson(resumeJson)
+            : null,
+      );
+    }
+
+    final local = await cache.load(channel.id);
+    if (local.isEmpty) return (downloaded: downloaded, uploaded: 0);
+    final localAt = await cache.lastFetchedAt(channel.id);
+    final cloudById = {for (final v in cloudVideos) v.videoId: v};
+    final diff = [
+      for (final v in local)
+        if (cloudById[v.videoId] == null ||
+            (cloudById[v.videoId]!.duration == null && v.duration != null))
+          v,
+    ];
+    final localResume = await cache.loadResume(channel.id);
+    final needsUpload =
+        bytes == null ||
+        diff.isNotEmpty ||
+        localAt != cloudAt ||
+        (localResume != null && localResume.offset > cloudResumeOffset);
+    if (!needsUpload) return (downloaded: downloaded, uploaded: 0);
+    final body = utf8.encode(
+      jsonEncode({
+        'fetchedAt': localAt?.toIso8601String(),
+        'resume': localResume?.toJson(),
+        'videos': [for (final v in local) v.toJson()],
+      }),
+    );
+    await _client.putObject(key, Uint8List.fromList(body));
+    return (downloaded: downloaded, uploaded: diff.length);
   }
 
   /// 「下載合併→上傳覆蓋」的通用做法，給五十音練習／考試共用（日記、
