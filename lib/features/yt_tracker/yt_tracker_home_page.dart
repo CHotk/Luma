@@ -285,58 +285,8 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
       _reload();
     } else if (action == 'delete') {
       if (!mounted) return;
-      // 底下的頻道要搬去哪：預設「未分類」，也能選別的分類（2026-09-29
-      // 使用者要求：合併重複分類時，希望刪掉其中一個能直接把頻道搬到
-      // 留著的那個，不用一個個手動改）。
-      final otherCategories = (await repo.loadCategories())
-          .where((c) => c.id != category.id && c.id != ytDislikedCategoryId)
-          .toList();
-      if (!mounted) return;
-      String? moveTo;
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (dialogContext) => StatefulBuilder(
-          builder: (context, setDialogState) => AlertDialog(
-            backgroundColor: const Color(0xFF1A1A24),
-            title: const Text('刪除這個分類？', style: TextStyle(color: AppColors.ink)),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('底下的頻道要搬去哪個分類：', style: AppText.bodyDim),
-                const SizedBox(height: Gap.sm),
-                DropdownButtonFormField<String?>(
-                  initialValue: moveTo,
-                  dropdownColor: const Color(0xFF1A1A24),
-                  decoration: const InputDecoration(isDense: true),
-                  style: const TextStyle(color: AppColors.ink, fontSize: 14),
-                  items: [
-                    const DropdownMenuItem(value: null, child: Text('未分類')),
-                    for (final c in otherCategories)
-                      DropdownMenuItem(value: c.id, child: Text(c.name)),
-                  ],
-                  onChanged: (v) => setDialogState(() => moveTo = v),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext, false),
-                child: const Text('取消'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext, true),
-                style: TextButton.styleFrom(foregroundColor: AppColors.bad),
-                child: const Text('刪除'),
-              ),
-            ],
-          ),
-        ),
-      );
-      if (confirmed != true) return;
-      await repo.deleteCategory(category.id, moveChannelsTo: moveTo);
-      if (!mounted) return;
-      _reload();
+      final deleted = await deleteYtCategory(context, ref, category);
+      if (deleted && mounted) _reload();
     }
   }
 
@@ -649,6 +599,104 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
 /// 「挖掘新頻道」分類頁都要能觸發，不是只有首頁），所以改成模組層級
 /// 的旗標，不是掛在某個 State 底下的欄位。
 bool _ytDiggingInFlight = false;
+
+/// 刪除分類的共用流程（2026-09-29 使用者要求：頻道分類頁上面也要能
+/// 直接刪這個分類，不是只有 YT 首頁長按才刪得到——公開成頂層函式讓
+/// `yt_tracker_browse_page.dart` 也能呼叫，跟 [runYtChannelDiscovery]／
+/// [refreshYtSubscriberStats]／[showAddYtChannelDialog] 同一種做法）。
+///
+/// 底下有頻道才問要搬去哪個分類；沒有頻道（0 個）就直接問「確定刪除
+/// 嗎」，不多問一次搬去哪（2026-09-29 使用者要求：沒東西要搬，問了是
+/// 多此一舉）。回傳是不是真的刪除了，呼叫端自己決定要不要重新整理或
+/// 離開這一頁。
+Future<bool> deleteYtCategory(
+  BuildContext context,
+  WidgetRef ref,
+  YtCategory category,
+) async {
+  final repo = ref.read(ytTrackerRepositoryProvider);
+  final count = (await repo.loadChannels())
+      .where((c) => c.categoryId == category.id)
+      .length;
+  if (!context.mounted) return false;
+
+  if (count == 0) {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A24),
+        title: const Text('刪除這個分類？', style: TextStyle(color: AppColors.ink)),
+        content: Text('這個分類目前沒有任何頻道。', style: AppText.bodyDim),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.bad),
+            child: const Text('刪除'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return false;
+    await repo.deleteCategory(category.id);
+    return true;
+  }
+
+  // 底下的頻道要搬去哪：預設「未分類」，也能選別的分類（2026-09-29
+  // 使用者要求：合併重複分類時，希望刪掉其中一個能直接把頻道搬到留著
+  // 的那個，不用一個個手動改）。
+  final otherCategories = (await repo.loadCategories())
+      .where((c) => c.id != category.id && c.id != ytDislikedCategoryId)
+      .toList();
+  if (!context.mounted) return false;
+  String? moveTo;
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => StatefulBuilder(
+      builder: (context, setDialogState) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A24),
+        title: const Text('刪除這個分類？', style: TextStyle(color: AppColors.ink)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('底下有 $count 個頻道要搬去哪個分類：', style: AppText.bodyDim),
+            const SizedBox(height: Gap.sm),
+            DropdownButtonFormField<String?>(
+              initialValue: moveTo,
+              dropdownColor: const Color(0xFF1A1A24),
+              decoration: const InputDecoration(isDense: true),
+              style: const TextStyle(color: AppColors.ink, fontSize: 14),
+              items: [
+                const DropdownMenuItem(value: null, child: Text('未分類')),
+                for (final c in otherCategories)
+                  DropdownMenuItem(value: c.id, child: Text(c.name)),
+              ],
+              onChanged: (v) => setDialogState(() => moveTo = v),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.bad),
+            child: const Text('刪除'),
+          ),
+        ],
+      ),
+    ),
+  );
+  if (confirmed != true) return false;
+  await repo.deleteCategory(category.id, moveChannelsTo: moveTo);
+  return true;
+}
 
   /// 挖掘前的選項（2026-09-24 使用者要求）：App 內分類可複選（不選＝全部）、
   /// 更多熱門主題（不限 App 內有的分類）可複選、自訂關鍵字、要不要參考

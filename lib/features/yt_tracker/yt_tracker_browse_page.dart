@@ -20,7 +20,8 @@ import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
 import 'yt_api_key_dialog.dart';
 import 'yt_channel_avatar.dart';
-import 'yt_tracker_home_page.dart' show runYtChannelDiscovery;
+import 'yt_tracker_home_page.dart'
+    show deleteYtCategory, runYtChannelDiscovery;
 import 'yt_video_row.dart';
 
 enum _ViewMode { channel, video }
@@ -583,6 +584,22 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                         });
                       }
 
+                      // 選中剛好一個「真的」分類（不是未分類、也不是挖掘
+                      // 新頻道那個系統用的特殊分類）才給「刪除分類」按鈕
+                      // （2026-09-29 使用者要求：進了分類頁上面也要能直接
+                      // 刪，不是只有 YT 首頁長按才刪得到）。
+                      YtCategory? selectedCategory;
+                      if (_selected.length == 1 &&
+                          _selected.single != ytUncategorizedId &&
+                          _selected.single != ytDiscoverCategoryId) {
+                        for (final c in categories) {
+                          if (c.id == _selected.single) {
+                            selectedCategory = c;
+                            break;
+                          }
+                        }
+                      }
+
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
@@ -619,6 +636,27 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                                   ),
                                   color: AppColors.ink2,
                                   tooltip: '新增頻道',
+                                ),
+                              if (selectedCategory != null)
+                                IconButton(
+                                  onPressed: () async {
+                                    final deleted = await deleteYtCategory(
+                                      context,
+                                      ref,
+                                      selectedCategory!,
+                                    );
+                                    // 分類本身沒了，留在這頁沒意義，刪完
+                                    // 直接退回分類格子那頁。
+                                    if (deleted && context.mounted) {
+                                      Navigator.of(context).pop();
+                                    }
+                                  },
+                                  icon: const Icon(
+                                    Icons.delete_outline_rounded,
+                                    size: 20,
+                                  ),
+                                  color: AppColors.ink2,
+                                  tooltip: '刪除分類',
                                 ),
                             ],
                           ),
