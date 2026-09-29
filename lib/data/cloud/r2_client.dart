@@ -99,7 +99,42 @@ class R2Client {
     return res.bodyBytes;
   }
 
-  Future<void> putObject(
+  /// 同 [getObject]，但連 ETag 一起回傳——同步時想知道「這次抓下來的
+  /// 內容之後要記住的版本標記」，不用另外再打一次 [headObject]
+  /// （2026-09-29 使用者要求加速：省掉沒必要的下載/上傳，見
+  /// `r2_sync_service.dart` 的說明）。
+  Future<({Uint8List? bytes, String? etag})> getObjectWithEtag(
+    String key,
+  ) async {
+    final res = await _send(AWSHttpRequest.get(_uriFor(key)));
+    if (res.statusCode == 404) return (bytes: null, etag: null);
+    if (res.statusCode >= 300) {
+      throw R2Exception(_errorMessage(res));
+    }
+    return (bytes: res.bodyBytes, etag: _etagOf(res));
+  }
+
+  /// 只問「這個 key 現在的版本標記（ETag）」，不下載內容本身——S3／R2
+  /// 相容 API 對單次 PUT 上傳的物件，ETag 就是內容的 MD5 雜湊值，能拿來
+  /// 判斷「雲端內容跟我上次看到的是不是同一份」，不用整包 GET 才知道
+  /// （2026-09-29 使用者問「不下載怎麼知道雲端有沒有新資料」，答案是
+  /// 用這個）。物件不存在回傳 null，不算錯誤。
+  Future<String?> headObject(String key) async {
+    final res = await _send(AWSHttpRequest.head(_uriFor(key)));
+    if (res.statusCode == 404) return null;
+    if (res.statusCode >= 300) {
+      throw R2Exception(_errorMessage(res));
+    }
+    return _etagOf(res);
+  }
+
+  String? _etagOf(http.Response res) =>
+      res.headers['etag']?.replaceAll('"', '');
+
+  /// 回傳寫進去之後的 ETag（給呼叫端記住這次上傳內容的版本標記用），
+  /// 拿不到（少數伺服器行為差異）就回傳 null，呼叫端要能處理沒有 ETag
+  /// 的情況，不能假設一定有。
+  Future<String?> putObject(
     String key,
     Uint8List body, {
     String contentType = 'application/json',
@@ -114,6 +149,7 @@ class R2Client {
     if (res.statusCode >= 300) {
       throw R2Exception(_errorMessage(res));
     }
+    return _etagOf(res);
   }
 
   Future<void> deleteObject(String key) async {

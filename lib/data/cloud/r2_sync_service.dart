@@ -25,6 +25,7 @@ import '../repositories/history_repository.dart';
 import '../repositories/kana_exam_repository.dart';
 import '../repositories/kana_practice_repository.dart';
 import '../repositories/sync_log_repository.dart';
+import '../storage/key_value_store.dart';
 import 'r2_client.dart';
 
 /// 「立即同步」跑到哪一步了，給畫面顯示用（見 `r2_sync_section.dart`
@@ -39,9 +40,64 @@ enum SyncPhase { downloading, uploading }
 /// 說明）——之後每加一個功能的同步，就在這個 class 上加一組對應的
 /// `syncXxx`，不要另外開新檔案，同步邏輯要集中在一個地方找得到。
 class R2SyncService {
-  R2SyncService(this._client);
+  /// [_metaStore] 是選填的（2026-09-29 加）：用來記「這個 key 上次同步完
+  /// 之後，本地內容的指紋跟雲端的 ETag」，下次同步先比對這兩個，兩邊都
+  /// 沒變就整段跳過（見 [_syncRecords] 的說明）。不給（例如測試連線、
+  /// 下載備份那兩個用途）就退回每次都整包做一輪的舊行為，不會出錯，
+  /// 只是沒有這項加速。
+  R2SyncService(this._client, [this._metaStore]);
 
   final R2Client _client;
+  final KeyValueStore? _metaStore;
+
+  /// 純粹判斷「內容有沒有變」用的指紋，不是拿來防碰撞的雜湊——夠快、
+  /// 每次執行結果都一樣（不像 Dart 內建 `String.hashCode`，同一個字串在
+  /// 不同次啟動可能算出不同值，沒辦法跨 session 比對）。FNV-1a 32 位元。
+  static String _fingerprint(List<int> bytes) {
+    var hash = 0x811c9dc5;
+    for (final b in bytes) {
+      hash ^= b;
+      hash = (hash * 0x01000193) & 0xFFFFFFFF;
+    }
+    return hash.toRadixString(16);
+  }
+
+  Future<({String localHash, String etag})?> _readMeta(String key) async {
+    final store = _metaStore;
+    if (store == null) return null;
+    final raw = await store.read('r2_sync.meta.$key');
+    if (raw == null) return null;
+    final map = jsonDecode(raw) as Map<String, dynamic>;
+    final hash = map['localHash'] as String?;
+    final etag = map['etag'] as String?;
+    if (hash == null || etag == null) return null;
+    return (localHash: hash, etag: etag);
+  }
+
+  Future<void> _writeMeta(String key, List<int> bodyBytes, String? etag) async {
+    final store = _metaStore;
+    // 拿不到 ETag（少數伺服器行為差異）就不記，下次退回照樣整包做一輪，
+    // 不能拿 null 去跟下次的 null 誤判成「一樣」。
+    if (store == null || etag == null) return;
+    await store.write(
+      'r2_sync.meta.$key',
+      jsonEncode({'localHash': _fingerprint(bodyBytes), 'etag': etag}),
+    );
+  }
+
+  /// 這次同步前先問「本地跟雲端各自有沒有變過」：本地內容指紋跟上次記住
+  /// 的一樣、雲端 ETag 也跟上次記住的一樣，代表兩邊自從上次同步完都沒人
+  /// 動過，可以整段跳過，只花一次很輕的 `HEAD` 請求，不用整包 GET／PUT
+  /// （2026-09-29 使用者要求：多裝置同步最常見的情境就是「兩邊都沒
+  /// 動」，這種時候該幾乎是瞬間完成，不是跟真的有異動時一樣整包重傳）。
+  Future<bool> _canSkip(String key, List<int> currentLocalBytes) async {
+    final meta = await _readMeta(key);
+    if (meta == null || meta.localHash != _fingerprint(currentLocalBytes)) {
+      return false;
+    }
+    final remoteEtag = await _client.headObject(key);
+    return remoteEtag != null && remoteEtag == meta.etag;
+  }
 
   /// 「測試連線」按下去實際做的事：R2 沒有專門的測試 API（見
   /// `r2_client.dart` 的 [R2Client] 說明），組合兩個真實請求：
@@ -234,7 +290,22 @@ class R2SyncService {
     YtChannel channel,
   ) async {
     final key = 'yt_video_cache/${channel.id}.json';
-    final bytes = await _client.getObject(key);
+    final local0 = await cache.load(channel.id);
+    final localAt0 = await cache.lastFetchedAt(channel.id);
+    final localResume0 = await cache.loadResume(channel.id);
+    final beforeBytes = utf8.encode(
+      jsonEncode({
+        'fetchedAt': localAt0?.toIso8601String(),
+        'resume': localResume0?.toJson(),
+        'videos': [for (final v in local0) v.toJson()],
+      }),
+    );
+    if (await _canSkip(key, beforeBytes)) {
+      return (downloaded: 0, uploaded: 0);
+    }
+
+    final fetched = await _client.getObjectWithEtag(key);
+    final bytes = fetched.bytes;
     var downloaded = 0;
     var cloudVideos = <YoutubeVideo>[];
     DateTime? cloudAt;
@@ -276,7 +347,12 @@ class R2SyncService {
         diff.isNotEmpty ||
         localAt != cloudAt ||
         (localResume != null && localResume.offset > cloudResumeOffset);
-    if (!needsUpload) return (downloaded: downloaded, uploaded: 0);
+    if (!needsUpload) {
+      // 沒有要上傳，代表本地跟雲端這次抓下來的內容一致——把這份記下來，
+      // 下次同一台裝置再同步、雲端 ETag 沒變的話就能直接跳過。
+      await _writeMeta(key, bytes, fetched.etag);
+      return (downloaded: downloaded, uploaded: 0);
+    }
     final body = utf8.encode(
       jsonEncode({
         'fetchedAt': localAt?.toIso8601String(),
@@ -284,7 +360,8 @@ class R2SyncService {
         'videos': [for (final v in local) v.toJson()],
       }),
     );
-    await _client.putObject(key, Uint8List.fromList(body));
+    final etag = await _client.putObject(key, Uint8List.fromList(body));
+    await _writeMeta(key, body, etag);
     return (downloaded: downloaded, uploaded: diff.length);
   }
 
@@ -298,8 +375,16 @@ class R2SyncService {
     required Future<List<T>> Function() allForUpload,
     void Function(SyncPhase phase)? onPhase,
   }) async {
+    final beforeBytes = utf8.encode(
+      jsonEncode([for (final e in await allForUpload()) toJson(e)]),
+    );
+    if (await _canSkip(key, beforeBytes)) {
+      return (downloaded: 0, uploaded: 0);
+    }
+
     onPhase?.call(SyncPhase.downloading);
-    final bytes = await _client.getObject(key);
+    final fetched = await _client.getObjectWithEtag(key);
+    final bytes = fetched.bytes;
     final cloudBefore = bytes == null
         ? <T>[]
         : (jsonDecode(utf8.decode(bytes)) as List)
@@ -317,7 +402,8 @@ class R2SyncService {
       [for (final e in all) toJson(e)],
     );
     final body = utf8.encode(jsonEncode([for (final e in all) toJson(e)]));
-    await _client.putObject(key, Uint8List.fromList(body));
+    final etag = await _client.putObject(key, Uint8List.fromList(body));
+    await _writeMeta(key, body, etag);
     return (downloaded: downloaded, uploaded: uploaded);
   }
 

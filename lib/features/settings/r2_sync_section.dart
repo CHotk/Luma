@@ -191,7 +191,10 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
         credentials: credentials,
         bucket: ref.read(r2BucketNameProvider),
       );
-      final service = R2SyncService(client);
+      // 帶本機儲存進去，同步才能記住「上次同步完的內容指紋／雲端 ETag」，
+      // 下次兩邊都沒變就整段跳過（2026-09-29 使用者要求加速，見
+      // `R2SyncService` 建構子跟 `_canSkip` 的說明）。
+      final service = R2SyncService(client, ref.read(keyValueStoreProvider));
       // 日記、健身依序同步，不是同時打——避免兩邊同時搶著寫 R2 造成
       // 混亂的請求時序，個人手動按同步的使用情境對速度沒有要求。
       // 每個功能自己一結束就馬上標記完成，不是等兩個都做完才一起標記
@@ -260,38 +263,41 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
 
       // 看盤／抽菸／喝酒紀錄，各自一份、各自一個雲端檔案。
       final habitDetails = <String>[];
-      final habitJobs = <(
-        String,
-        String,
-        Future<({int downloaded, int uploaded})> Function(
-          void Function(SyncPhase),
-        ),
-      )>[
-        (
-          'crypto',
-          '看盤記錄',
-          (onPhase) => service.syncCryptoWatch(
-            ref.read(cryptoWatchRepositoryProvider),
-            onPhase: onPhase,
-          ),
-        ),
-        (
-          'smoking',
-          '抽菸記錄',
-          (onPhase) => service.syncSmoking(
-            ref.read(smokingRepositoryProvider),
-            onPhase: onPhase,
-          ),
-        ),
-        (
-          'drinking',
-          '喝酒記錄',
-          (onPhase) => service.syncDrinking(
-            ref.read(drinkingRepositoryProvider),
-            onPhase: onPhase,
-          ),
-        ),
-      ];
+      final habitJobs =
+          <
+            (
+              String,
+              String,
+              Future<({int downloaded, int uploaded})> Function(
+                void Function(SyncPhase),
+              ),
+            )
+          >[
+            (
+              'crypto',
+              '看盤記錄',
+              (onPhase) => service.syncCryptoWatch(
+                ref.read(cryptoWatchRepositoryProvider),
+                onPhase: onPhase,
+              ),
+            ),
+            (
+              'smoking',
+              '抽菸記錄',
+              (onPhase) => service.syncSmoking(
+                ref.read(smokingRepositoryProvider),
+                onPhase: onPhase,
+              ),
+            ),
+            (
+              'drinking',
+              '喝酒記錄',
+              (onPhase) => service.syncDrinking(
+                ref.read(drinkingRepositoryProvider),
+                onPhase: onPhase,
+              ),
+            ),
+          ];
       for (final (id, title, run) in habitJobs) {
         stage = title;
         final r = await run(_phaseCallback((p) => _habitPhases[id] = p));
