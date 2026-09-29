@@ -7,6 +7,7 @@ import 'app/providers.dart';
 import 'data/cloud/r2_credentials_store.dart';
 import 'data/repositories/error_log_repository.dart';
 import 'data/repositories/yt_api_key_store.dart';
+import 'data/repositories/yt_stats_refresh_setting_store.dart';
 import 'data/seed/app_defaults_loader.dart';
 import 'data/storage/platform_store.dart';
 import 'shared/debug/app_log.dart';
@@ -26,6 +27,9 @@ Future<void> main() async {
   // 過期（存進去一週之後）就是 null，跟原本沒存過一樣——見
   // yt_api_key_store.dart 的說明。
   final savedYtApiKey = await YtApiKeyStore(store).load();
+  final savedYtStatsRefreshDays = await YtStatsRefreshSettingStore(
+    store,
+  ).load();
   final r2BucketName = await loadR2BucketName();
   final savedR2Credentials = await R2CredentialsStore(store).load();
 
@@ -35,6 +39,9 @@ Future<void> main() async {
         keyValueStoreProvider.overrideWithValue(store),
         libraryTagOrderProvider.overrideWithValue(tagOrder),
         ytApiKeyProvider.overrideWith((ref) => savedYtApiKey),
+        ytStatsRefreshDaysProvider.overrideWith(
+          (ref) => savedYtStatsRefreshDays,
+        ),
         r2BucketNameProvider.overrideWithValue(r2BucketName),
         r2CredentialsProvider.overrideWith((ref) => savedR2Credentials),
       ],

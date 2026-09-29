@@ -13,6 +13,7 @@ import '../data/repositories/kana_practice_repository.dart';
 import '../data/repositories/settings_repository.dart';
 import '../data/repositories/sync_log_repository.dart';
 import '../data/repositories/word_repository.dart';
+import '../data/repositories/yt_stats_refresh_setting_store.dart';
 import '../data/repositories/yt_tracker_repository.dart';
 import '../data/seed/app_defaults_loader.dart';
 import '../data/seed/word_seed_loader.dart';
@@ -135,6 +136,14 @@ final stealthModeProvider = StateProvider<bool>((ref) => false);
 /// 寫回本機，這個 provider 本身不會自動幫你寫（它只是純記憶體狀態，
 /// 跟開機時讀一次是兩件事）。
 final ytApiKeyProvider = StateProvider<String?>((ref) => null);
+
+/// 訂閱人數多久重新問一次 API，天數，使用者在設定頁調（2026-09-29 使用者
+/// 要求：預設一天一輪，見 `YtStatsRefreshSettingStore`）。跟 [ytApiKeyProvider]
+/// 同一套模式：記憶體 provider 讓畫面即時反映，實際持久化交給 store，
+/// 開機時 `main.dart` 讀一次存進去的值 override 進來。
+final ytStatsRefreshDaysProvider = StateProvider<int>(
+  (ref) => YtStatsRefreshSettingStore.defaultDays,
+);
 
 /// 剛結束那一輪的成績，給結果頁讀。
 /// 不用 autoDispose，因為從測驗頁跳到結果頁的過程中測驗頁會被銷毀。

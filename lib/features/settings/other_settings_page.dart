@@ -5,6 +5,7 @@ import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
+import '../../data/repositories/yt_stats_refresh_setting_store.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
@@ -122,8 +123,72 @@ class _YtTrackerSettings extends ConsumerWidget {
                   ),
                 ],
               ),
+              const Divider(height: Gap.lg, color: AppColors.glassEdge),
+              const _StatsRefreshRow(),
             ],
           ),
+        ),
+      ],
+    );
+  }
+}
+
+/// 訂閱人數多久重新問一次 API，這裡調（2026-09-29 使用者要求：原本寫死
+/// 12 小時，改成可設定天數，預設一天一輪）。只影響「依頻道顯示」畫面
+/// 自動更新訂閱人數的節奏，跟多裝置同步無關，不用跨裝置同步這個值。
+class _StatsRefreshRow extends ConsumerWidget {
+  const _StatsRefreshRow();
+
+  static const _min = 1;
+  static const _max = 14;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final days = ref.watch(ytStatsRefreshDaysProvider);
+
+    Future<void> setDays(int value) async {
+      final clamped = value.clamp(_min, _max);
+      ref.read(ytStatsRefreshDaysProvider.notifier).state = clamped;
+      await YtStatsRefreshSettingStore(
+        ref.read(keyValueStoreProvider),
+      ).save(clamped);
+    }
+
+    return Row(
+      children: [
+        const Icon(Icons.groups_outlined, size: 18, color: AppColors.ink2),
+        const SizedBox(width: Gap.sm),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '訂閱人數更新頻率',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.ink,
+                ),
+              ),
+              Text('每 $days 天重新問一次 API', style: AppText.note),
+            ],
+          ),
+        ),
+        IconButton(
+          onPressed: days > _min ? () => setDays(days - 1) : null,
+          icon: const Icon(Icons.remove_circle_outline, size: 20),
+          color: AppColors.ink2,
+          padding: EdgeInsets.zero,
+          visualDensity: VisualDensity.compact,
+          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+        ),
+        IconButton(
+          onPressed: days < _max ? () => setDays(days + 1) : null,
+          icon: const Icon(Icons.add_circle_outline, size: 20),
+          color: AppColors.ink2,
+          padding: EdgeInsets.zero,
+          visualDensity: VisualDensity.compact,
+          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
         ),
       ],
     );

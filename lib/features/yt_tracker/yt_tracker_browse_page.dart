@@ -159,11 +159,16 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
     final apiKey = ref.read(ytApiKeyProvider);
     if (apiKey == null || apiKey.isEmpty || _statsInFlight) return;
     final now = DateTime.now();
+    // 多久重新問一次，使用者在設定頁調（2026-09-29 使用者要求：原本寫死
+    // 12 小時，改成可設定天數，預設一天一輪）。只有 loadChannels() 讀出來
+    // 的（已排除刪除）頻道才會走到這裡，垃圾桶裡的頻道不會更新訂閱人數
+    // ——沒必要為了已經不追蹤的頻道消耗配額。
+    final refreshEvery = Duration(days: ref.read(ytStatsRefreshDaysProvider));
     final stale = [
       for (final c in channels)
         if (!_statsTried.contains(c.id) &&
             (c.statsUpdatedAt == null ||
-                now.difference(c.statsUpdatedAt!) > const Duration(hours: 12)))
+                now.difference(c.statsUpdatedAt!) > refreshEvery))
           c,
     ];
     if (stale.isEmpty) return;
