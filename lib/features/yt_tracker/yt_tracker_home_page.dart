@@ -23,6 +23,7 @@ import '../../shared/widgets/app_notice.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
 import 'yt_api_key_dialog.dart';
+import 'yt_tracker_browse_page.dart' show showAddYtChannelDialog;
 import 'yt_channel_avatar.dart';
 
 /// YT 頻道追蹤首頁：分類資料夾格子（設計稿 06/07/08 定案，見
@@ -720,8 +721,28 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
                   showBack: false,
                   // API 金鑰、匯出分類／頻道移進設定齒輪了（2026-09-29
                   // 使用者要求），測試通知整個拿掉（不是這頁該有的功能，
-                  // debug 頁還留著）——頂部列只剩下這頁真的常用的兩個。
+                  // debug 頁還留著）。
                   actions: [
+                    // 直接在分類列表這頁就能新增頻道，不用先點進某個分類
+                    // 才有這顆按鈕（2026-09-29 使用者要求：每次都要進去
+                    // 分類裡面才能新增太麻煩）。沒選特定分類，新增後預設
+                    // 未分類，使用者自己再移到想要的分類。
+                    IconButton(
+                      onPressed: () async {
+                        final repo = ref.read(ytTrackerRepositoryProvider);
+                        final categories = await repo.loadCategories();
+                        if (!context.mounted) return;
+                        final added = await showAddYtChannelDialog(
+                          context,
+                          ref,
+                          categories: categories,
+                        );
+                        if (added) _reload();
+                      },
+                      icon: const Icon(Icons.add_circle_outline, size: 20),
+                      color: AppColors.ink2,
+                      tooltip: '新增頻道',
+                    ),
                     IconButton(
                       onPressed: _digNewChannels,
                       icon: const Icon(Icons.travel_explore_rounded, size: 20),
