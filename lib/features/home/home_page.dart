@@ -77,6 +77,13 @@ class _Body extends StatelessWidget {
                   _TopBar(now: DateTime.now()),
                   const SizedBox(height: Gap.lg),
 
+                  // 打卡熱度月曆卡片（2026-09-29 使用者要求：跟日文首頁
+                  // 一樣要有，在原本版面上加，不是取代——見
+                  // `jp_home_page.dart` 的 `_MonthlyCalendarCard`，這裡是
+                  // 英文軌道自己獨立一份，不共用）。
+                  GlassCard(child: _EnMonthlyCalendarCard(state: state)),
+                  const SizedBox(height: Gap.md),
+
                   GlassCard(
                     padding: const EdgeInsets.fromLTRB(10, 16, 10, 14),
                     child: Column(
@@ -300,4 +307,319 @@ class _StartButton extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// 英文軌道的打卡熱度月曆卡片，跟 `jp_home_page.dart` 的
+/// `_MonthlyCalendarCard` 是同一個概念但各自獨立一份實作（2026-09-29
+/// 使用者要求：英文首頁也要有一樣的日期卡片；兩個軌道的資料來源、
+/// 主色都不一樣，不共用元件——跟英文/日文其他地方分開兩份的慣例一致）。
+class _EnMonthlyCalendarCard extends StatefulWidget {
+  const _EnMonthlyCalendarCard({required this.state});
+
+  final HomeState state;
+
+  @override
+  State<_EnMonthlyCalendarCard> createState() =>
+      _EnMonthlyCalendarCardState();
+}
+
+class _EnMonthlyCalendarCardState extends State<_EnMonthlyCalendarCard> {
+  static const _weekdayLabels = ['日', '一', '二', '三', '四', '五', '六'];
+
+  /// 點某一天的練習摘要最多列幾個單字，超過就截斷＋顯示「還有幾個」
+  /// （2026-09-29 使用者要求：練得多的一天不該把清單塞爆）。
+  static const _maxWordsShown = 30;
+
+  late DateTime _viewedMonth;
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _viewedMonth = DateTime(now.year, now.month);
+  }
+
+  Future<void> _pickMonth() async {
+    final now = DateTime.now();
+    final earliestSource = widget.state.firstPracticedAt ?? now;
+    final earliest = DateTime(earliestSource.year, earliestSource.month);
+    final months = <DateTime>[];
+    var cursor = DateTime(now.year, now.month);
+    while (!cursor.isBefore(earliest)) {
+      months.add(cursor);
+      cursor = DateTime(cursor.year, cursor.month - 1);
+    }
+    final picked = await showDialog<DateTime>(
+      context: context,
+      builder: (dialogContext) => SimpleDialog(
+        backgroundColor: const Color(0xFF1A1A24),
+        title: const Text('選擇月份', style: TextStyle(color: AppColors.ink)),
+        children: [
+          for (final m in months)
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(dialogContext, m),
+              child: Text(
+                '${m.year} 年 ${m.month} 月',
+                style: TextStyle(
+                  fontWeight:
+                      m.year == _viewedMonth.year && m.month == _viewedMonth.month
+                      ? FontWeight.w700
+                      : FontWeight.normal,
+                  color:
+                      m.year == _viewedMonth.year && m.month == _viewedMonth.month
+                      ? AppColors.accent
+                      : AppColors.ink,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+    if (picked != null) setState(() => _viewedMonth = picked);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = widget.state;
+    final now = DateTime.now();
+    final viewed = _viewedMonth;
+    final isCurrentMonth = viewed.year == now.year && viewed.month == now.month;
+    final daysInMonth = DateTime(viewed.year, viewed.month + 1, 0).day;
+    final firstWeekday = DateTime(viewed.year, viewed.month).weekday % 7;
+    final practiced = {
+      for (final d in state.allPracticedDates)
+        if (d.year == viewed.year && d.month == viewed.month) d.day,
+    };
+    final rate = daysInMonth == 0
+        ? 0
+        : (practiced.length * 100 / daysInMonth).round();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            InkWell(
+              onTap: _pickMonth,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('${viewed.month} 月練習', style: AppText.bodyDim),
+                  const SizedBox(width: 2),
+                  const Icon(
+                    Icons.expand_more_rounded,
+                    size: 16,
+                    color: AppColors.ink3,
+                  ),
+                ],
+              ),
+            ),
+            const Spacer(),
+            Text(
+              '${practiced.length}',
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                color: AppColors.accent,
+              ),
+            ),
+            Text(' / $daysInMonth 天', style: AppText.note),
+          ],
+        ),
+        const SizedBox(height: Gap.sm),
+        Row(
+          children: [
+            for (final w in _weekdayLabels)
+              Expanded(
+                child: Center(child: Text(w, style: AppText.note)),
+              ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        // 不用 GridView：這張卡片包在首頁最外層的 IntrinsicHeight 裡
+        // （撐住「按鈕釘底部」那個版面），GridView 內部是 Viewport，量不出
+        // 「intrinsic 高度」，會直接丟例外——跟日文首頁那張卡片同一個坑
+        // （見 `jp_home_page.dart` 的說明），改用 Row／Column 手排格子。
+        _weekGrid(
+          [
+            for (var i = 0; i < firstWeekday; i++) null,
+            for (var d = 1; d <= daysInMonth; d++) d,
+          ],
+          now,
+          practiced,
+          isCurrentMonth,
+        ),
+        const SizedBox(height: Gap.sm),
+        Row(
+          children: [
+            Expanded(child: _statPill('🔥 ${state.streakDays}', '連續天數')),
+            const SizedBox(width: Gap.sm),
+            Expanded(child: _statPill('$rate%', '本月達成率')),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _weekGrid(
+    List<int?> days,
+    DateTime now,
+    Set<int> practiced,
+    bool isCurrentMonth,
+  ) {
+    final rows = <Widget>[];
+    for (var i = 0; i < days.length; i += 7) {
+      final week = days.sublist(i, i + 7 > days.length ? days.length : i + 7);
+      rows.add(
+        Padding(
+          padding: const EdgeInsets.only(bottom: 5),
+          child: Row(
+            children: [
+              for (final d in week)
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 2.5),
+                    child: AspectRatio(
+                      aspectRatio: 1.25,
+                      child: d == null
+                          ? const SizedBox.shrink()
+                          : _dayCell(d, now, practiced, isCurrentMonth),
+                    ),
+                  ),
+                ),
+              for (var pad = week.length; pad < 7; pad++)
+                const Expanded(child: SizedBox.shrink()),
+            ],
+          ),
+        ),
+      );
+    }
+    return Column(children: rows);
+  }
+
+  Widget _dayCell(
+    int day,
+    DateTime now,
+    Set<int> practiced,
+    bool isCurrentMonth,
+  ) {
+    final done = practiced.contains(day);
+    final isToday = isCurrentMonth && day == now.day;
+    final date = DateTime(_viewedMonth.year, _viewedMonth.month, day);
+    return InkWell(
+      onTap: () => _showDaySummary(date),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        decoration: BoxDecoration(
+          color: done
+              ? AppColors.accent
+              : AppColors.accent.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(8),
+          border: isToday
+              ? Border.all(color: AppColors.accent, width: 1.5)
+              : null,
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          '$day',
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: done ? FontWeight.w700 : FontWeight.w400,
+            color: done ? AppColors.bgDeep : AppColors.ink2,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showDaySummary(DateTime date) async {
+    final summary = widget.state.daySummaries[date];
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A24),
+        title: Text(
+          '${date.month} 月 ${date.day} 日',
+          style: const TextStyle(color: AppColors.ink),
+        ),
+        content: summary == null
+            ? Text('這天沒有練習紀錄', style: AppText.bodyDim)
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '答了 ${summary.count} 題・共 ${summary.minutes} 分鐘',
+                    style: AppText.bodyDim,
+                  ),
+                  const SizedBox(height: Gap.sm),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      for (final w in summary.words.take(_maxWordsShown))
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.accent.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color: AppColors.accent.withValues(alpha: 0.35),
+                            ),
+                          ),
+                          child: Text(
+                            w.count > 1 ? '${w.word} ×${w.count}' : w.word,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.ink,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  if (summary.words.length > _maxWordsShown) ...[
+                    const SizedBox(height: Gap.xs),
+                    Text(
+                      '還有 ${summary.words.length - _maxWordsShown} 個單字沒列出來',
+                      style: AppText.note,
+                    ),
+                  ],
+                ],
+              ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('關閉'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _statPill(String value, String label) => Container(
+    padding: const EdgeInsets.symmetric(vertical: 10),
+    decoration: BoxDecoration(
+      color: AppColors.accent.withValues(alpha: 0.1),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
+    ),
+    child: Column(
+      children: [
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w800,
+            color: AppColors.ink,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(label, style: AppText.note),
+      ],
+    ),
+  );
 }

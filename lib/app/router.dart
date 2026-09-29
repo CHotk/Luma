@@ -35,9 +35,11 @@ import '../features/settings/settings_page.dart';
 import '../features/splash/splash_page.dart';
 import '../features/stealth/stealth_page.dart';
 import '../features/sync/sync_page.dart';
+import '../features/yt_tracker/yt_category_order_page.dart';
 import '../features/yt_tracker/yt_tracker_browse_page.dart';
 import '../features/yt_tracker/yt_tracker_channel_page.dart';
 import '../features/yt_tracker/yt_tracker_home_page.dart';
+import '../features/yt_tracker/yt_trash_browse_page.dart';
 import '../features/yt_tracker/yt_trash_page.dart';
 
 /// 全 App 的路徑只在這裡定義，畫面裡不准自己組路徑字串。
@@ -140,6 +142,15 @@ final appRouter = GoRouter(
           YtTrackerChannelPage(channelId: state.pathParameters['id'] ?? ''),
     ),
     GoRoute(path: '/yt-tracker/trash', builder: (_, _) => const YtTrashPage()),
+    GoRoute(
+      path: '/yt-tracker/trash/browse',
+      builder: (_, state) =>
+          YtTrashBrowsePage(categoryIds: state.extra as Set<String>),
+    ),
+    GoRoute(
+      path: '/yt-tracker/category-order',
+      builder: (_, _) => const YtCategoryOrderPage(),
+    ),
     GoRoute(path: '/fitness', builder: (_, _) => const FitnessHomePage()),
     GoRoute(
       path: '/fitness/stats',

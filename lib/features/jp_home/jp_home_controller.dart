@@ -3,7 +3,28 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/providers.dart';
 import '../../data/seed/app_defaults_loader.dart';
 import '../../domain/jp_review_config.dart';
+import '../../domain/models/kana_practice.dart';
 import 'jp_review_state.dart';
+
+/// 月曆卡片點某一天要顯示的內容（2026-09-29 使用者要求：點某一天要能
+/// 看到一些資訊，不是只有塗色）。
+class JpDaySummary {
+  const JpDaySummary({
+    required this.count,
+    required this.minutes,
+    required this.kana,
+  });
+
+  /// 那天存了幾筆練習紀錄。
+  final int count;
+
+  /// 那天練習花的分鐘數，算法跟 [JpHomeState.todayMinutes] 同一套。
+  final int minutes;
+
+  /// 那天練過的假名，依練習次數由多到少排序，同一個假名出現幾次
+  /// 就算幾次（不去重成只顯示一次）。
+  final List<({String kana, String romaji, int count})> kana;
+}
 
 /// 日文首頁要顯示的東西，一次算好，畫面只負責排版
 /// （跟英文軌道的 [HomeState] 同一個做法）。
@@ -18,6 +39,7 @@ class JpHomeState {
     required this.firstPracticedAt,
     required this.daysSinceStart,
     required this.allPracticedDates,
+    required this.daySummaries,
   });
 
   final JpReviewConfig config;
@@ -51,6 +73,10 @@ class JpHomeState {
   /// 全部有練習過的日期（不限這個月），給月曆卡片切換月份用
   /// （2026-09-29 使用者要求：點月份標題要能選其他月，不是只能看當月）。
   final Set<DateTime> allPracticedDates;
+
+  /// 每一天的練習摘要，key 是那天零點的日期（2026-09-29 使用者要求：
+  /// 月曆卡片點某一天要能看到資訊）。沒練過的日子不會有 entry。
+  final Map<DateTime, JpDaySummary> daySummaries;
 }
 
 /// autoDispose：離開日文首頁就丟掉，回來時重新算，practice 頁自動存檔
@@ -122,6 +148,16 @@ final jpHomeStateProvider = FutureProvider.autoDispose<JpHomeState>((
             ).difference(firstPracticedAt).inDays +
             1;
 
+  final entriesByDay = <DateTime, List<KanaPracticeEntry>>{};
+  for (final e in entries) {
+    final d = DateTime(e.savedAt.year, e.savedAt.month, e.savedAt.day);
+    entriesByDay.putIfAbsent(d, () => []).add(e);
+  }
+  final daySummaries = {
+    for (final entry in entriesByDay.entries)
+      entry.key: _buildDaySummary(entry.value),
+  };
+
   return JpHomeState(
     config: config,
     todayCount: today.length,
@@ -132,5 +168,35 @@ final jpHomeStateProvider = FutureProvider.autoDispose<JpHomeState>((
     firstPracticedAt: firstPracticedAt,
     daysSinceStart: daysSinceStart,
     allPracticedDates: practicedDates,
+    daySummaries: daySummaries,
   );
 });
+
+/// 算某一天的練習摘要，邏輯跟算「今天」那段（[todayMs]）同一套，只是
+/// 換成任一天的紀錄清單。
+JpDaySummary _buildDaySummary(List<KanaPracticeEntry> dayEntries) {
+  var ms = 0.0;
+  final kanaCounts = <String, int>{};
+  final romajiByKana = <String, String>{};
+  for (final e in dayEntries) {
+    var entryMs = 0.0;
+    for (final stroke in e.strokes) {
+      if (stroke.isEmpty) continue;
+      final last = stroke.last.$3;
+      if (last > entryMs) entryMs = last;
+    }
+    ms += entryMs;
+    kanaCounts[e.kana] = (kanaCounts[e.kana] ?? 0) + 1;
+    romajiByKana[e.kana] = e.romaji;
+  }
+  final sortedKana = kanaCounts.entries.toList()
+    ..sort((a, b) => b.value.compareTo(a.value));
+  return JpDaySummary(
+    count: dayEntries.length,
+    minutes: ms ~/ 60000,
+    kana: [
+      for (final e in sortedKana)
+        (kana: e.key, romaji: romajiByKana[e.key]!, count: e.value),
+    ],
+  );
+}

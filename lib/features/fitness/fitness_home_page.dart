@@ -549,6 +549,7 @@ class _FitnessHomePageState extends ConsumerState<FitnessHomePage> {
                 const SizedBox(height: Gap.sm),
                 AppTopBar(
                   title: '健身打卡',
+                  titleIcon: Icons.fitness_center_rounded,
                   showBack: false,
                   actions: [
                     IconButton(

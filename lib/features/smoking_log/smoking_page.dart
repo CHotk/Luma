@@ -169,6 +169,7 @@ class _SmokingPageState extends ConsumerState<SmokingPage> {
                 const SizedBox(height: Gap.sm),
                 AppTopBar(
                   title: '抽菸記錄',
+                  titleIcon: Icons.smoking_rooms_outlined,
                   showBack: false,
                   actions: [
                     IconButton(

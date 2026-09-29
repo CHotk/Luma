@@ -77,6 +77,7 @@ class _DebugLogPageState extends State<DebugLogPage> {
                 const SizedBox(height: Gap.sm),
                 AppTopBar(
                   title: '除錯訊息',
+                  titleIcon: Icons.bug_report_outlined,
                   showBack: false,
                   actions: [
                     IconButton(

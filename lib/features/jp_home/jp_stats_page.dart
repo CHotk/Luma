@@ -122,6 +122,19 @@ class _PracticeSection extends StatelessWidget {
               ),
             ],
           ),
+          // 第一次練習是幾號、算到今天已經幾天（2026-09-29 使用者要求：
+          // 學習統計這頁也要能看到，不是只有 jp_home 首頁的月曆卡片有）。
+          if (state.firstPracticedAt != null) ...[
+            const SizedBox(height: Gap.sm),
+            const Divider(height: 1, color: AppColors.glassEdge),
+            const SizedBox(height: Gap.sm),
+            Center(
+              child: Text(
+                '${state.firstPracticedAt!.year}/${state.firstPracticedAt!.month}/${state.firstPracticedAt!.day} 開始學習・已經 ${state.daysSinceStart} 天',
+                style: AppText.note,
+              ),
+            ),
+          ],
         ],
       ),
     );

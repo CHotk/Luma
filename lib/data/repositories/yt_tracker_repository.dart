@@ -3,6 +3,7 @@ import 'dart:convert';
 import '../../domain/models/yt_tracker.dart';
 import '../seed/seed_merge.dart';
 import '../storage/key_value_store.dart';
+import 'yt_category_order_store.dart';
 
 /// YT 頻道追蹤的分類／頻道管理。分類、頻道各存一份 JSON blob，跟
 /// 其他功能同一套「整包讀出來、整包寫回去」的存法。
@@ -49,6 +50,26 @@ class YtTrackerRepository {
         .where((c) => c.deletedAt == null)
         .toList();
     final byId = {for (final c in all) c.id: c};
+    final disliked = all.where((c) => c.id == ytDislikedCategoryId);
+
+    // 使用者自己拖拉排過的順序優先（2026-09-29 使用者要求：YT 管理要能
+    // 自己設定分類顯示順序），沒設定過才退回舊的寫死 pinned-first 預設。
+    // 「看過但不喜歡」不在自訂順序管的範圍內，一律固定排最後。
+    final customOrder = await YtCategoryOrderStore(_store).load();
+    if (customOrder != null) {
+      final ordered = [
+        for (final id in customOrder)
+          if (byId[id] != null && id != ytDislikedCategoryId) byId[id]!,
+      ];
+      final orderedIds = ordered.map((c) => c.id).toSet();
+      // 自訂順序存下來之後才新增的分類，不在那份清單裡，接在後面，
+      // 不會消失不見。
+      final missing = all.where(
+        (c) => c.id != ytDislikedCategoryId && !orderedIds.contains(c.id),
+      );
+      return [...ordered, ...missing, ...disliked];
+    }
+
     final rest = all.where(
       (c) => !_pinnedFirst.contains(c.id) && c.id != ytDislikedCategoryId,
     );
@@ -56,7 +77,7 @@ class YtTrackerRepository {
       for (final id in _pinnedFirst)
         if (byId[id] != null) byId[id]!,
       ...rest,
-      ...all.where((c) => c.id == ytDislikedCategoryId),
+      ...disliked,
     ];
   }
 
@@ -76,9 +97,14 @@ class YtTrackerRepository {
     await _writeCategories(all);
   }
 
-  /// 刪除分類。底下的頻道不會被一起刪掉，改成「未分類」（[YtChannel.categoryId]
-  /// 設為 null），使用者之後可以再重新分類。
-  Future<void> deleteCategory(String id) async {
+  /// 刪除分類。底下的頻道不會被一起刪掉，預設改成「未分類」
+  /// （[YtChannel.categoryId] 設為 null），使用者之後可以再重新分類。
+  ///
+  /// [moveChannelsTo] 選填：指定的話頻道改搬去那個分類，不是變未分類
+  /// ——例如合併兩個重複的分類，刪掉其中一個時把底下頻道直接搬到留著
+  /// 的那個（2026-09-29 使用者要求）。呼叫端要自己保證這個 id 是還存在
+  /// 的分類，這裡不驗證。
+  Future<void> deleteCategory(String id, {String? moveChannelsTo}) async {
     final categories = await _loadCategoriesRaw();
     final index = categories.indexWhere((c) => c.id == id);
     if (index != -1) {
@@ -89,7 +115,8 @@ class YtTrackerRepository {
     final channels = await _loadChannelsRaw();
     if (!channels.any((c) => c.categoryId == id)) return;
     await _writeChannels([
-      for (final c in channels) c.categoryId == id ? c.withoutCategory() : c,
+      for (final c in channels)
+        c.categoryId == id ? c.copyWith(categoryId: moveChannelsTo) : c,
     ]);
   }
 

@@ -442,6 +442,7 @@ class _DiaryPageState extends ConsumerState<DiaryPage> {
                 const SizedBox(height: Gap.sm),
                 const AppTopBar(
                   title: '日記',
+                  titleIcon: Icons.auto_stories_rounded,
                   showBack: false,
                   showSettings: false,
                 ),
@@ -608,6 +609,7 @@ class _DiaryPageState extends ConsumerState<DiaryPage> {
                 const SizedBox(height: Gap.sm),
                 AppTopBar(
                   title: '日記',
+                  titleIcon: Icons.auto_stories_rounded,
                   showBack: false,
                   actions: [
                     IconButton(

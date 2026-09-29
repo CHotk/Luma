@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
@@ -30,28 +31,63 @@ class OtherSettingsPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isYtTracker = fromLocation?.startsWith('/yt-tracker') ?? false;
     final isDiary = fromLocation?.startsWith('/diary') ?? false;
-    return Scaffold(
-      drawer: const AppSideDrawer(),
-      body: AmbientBackground(
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: Gap.screenSide),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: Gap.sm),
-                const AppTopBar(title: '設定', showSettings: false),
-                const SizedBox(height: Gap.md),
-                Expanded(
-                  child: isYtTracker
-                      ? const _YtTrackerSettings()
-                      : isDiary
-                      ? const _DiarySettings()
-                      : Center(
-                          child: Text('這個功能還沒有設定項目', style: AppText.bodyDim),
-                        ),
-                ),
-              ],
+    // 訂閱人數更新頻率調了但還沒按儲存，按上一頁要提醒（2026-09-29
+    // 使用者要求），不然改動白調了。只有在 YT 設定頁才需要看這個旗標。
+    final hasUnsaved = isYtTracker && ref.watch(ytStatsRefreshDirtyProvider);
+    return PopScope(
+      canPop: !hasUnsaved,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        final leave = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            backgroundColor: const Color(0xFF1A1A24),
+            title: const Text('還沒儲存', style: TextStyle(color: AppColors.ink)),
+            content: Text(
+              '訂閱人數更新頻率調整了但還沒按儲存，確定要離開嗎？',
+              style: AppText.bodyDim,
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('留下繼續調'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                style: TextButton.styleFrom(foregroundColor: AppColors.bad),
+                child: const Text('不儲存，離開'),
+              ),
+            ],
+          ),
+        );
+        if (leave == true && context.mounted) {
+          ref.read(ytStatsRefreshDirtyProvider.notifier).state = false;
+          Navigator.of(context).pop();
+        }
+      },
+      child: Scaffold(
+        drawer: const AppSideDrawer(),
+        body: AmbientBackground(
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: Gap.screenSide),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: Gap.sm),
+                  const AppTopBar(title: '設定', showSettings: false),
+                  const SizedBox(height: Gap.md),
+                  Expanded(
+                    child: isYtTracker
+                        ? const _YtTrackerSettings()
+                        : isDiary
+                        ? const _DiarySettings()
+                        : Center(
+                            child: Text('這個功能還沒有設定項目', style: AppText.bodyDim),
+                          ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -126,6 +162,32 @@ class _YtTrackerSettings extends ConsumerWidget {
                   TextButton(
                     onPressed: () => showYtExportDialog(context, ref),
                     child: const Text('匯出'),
+                  ),
+                ],
+              ),
+              const Divider(height: Gap.lg, color: AppColors.glassEdge),
+              Row(
+                children: [
+                  const Icon(
+                    Icons.reorder_rounded,
+                    size: 18,
+                    color: AppColors.ink2,
+                  ),
+                  const SizedBox(width: Gap.sm),
+                  const Expanded(
+                    child: Text(
+                      '分類顯示順序',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.ink,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () =>
+                        context.push('/yt-tracker/category-order'),
+                    child: const Text('調整'),
                   ),
                 ],
               ),
@@ -252,6 +314,16 @@ class _StatsRefreshRowState extends ConsumerState<_StatsRefreshRow> {
   void initState() {
     super.initState();
     _draft = ref.read(ytStatsRefreshDaysProvider);
+    // 每次重新進這個設定頁都先歸零，避免上次選了「不儲存離開」殘留下來
+    // 的髒旗標一直卡著（2026-09-29 使用者要求加離開提醒後才需要注意
+    // 這個，見下面 [_setDraft] 跟 `OtherSettingsPage` 的 `PopScope`）。
+    ref.read(ytStatsRefreshDirtyProvider.notifier).state = false;
+  }
+
+  void _setDraft(int value) {
+    setState(() => _draft = value);
+    final saved = ref.read(ytStatsRefreshDaysProvider);
+    ref.read(ytStatsRefreshDirtyProvider.notifier).state = _draft != saved;
   }
 
   Future<void> _save() async {
@@ -259,6 +331,7 @@ class _StatsRefreshRowState extends ConsumerState<_StatsRefreshRow> {
     setState(() => _saving = true);
     try {
       ref.read(ytStatsRefreshDaysProvider.notifier).state = _draft;
+      ref.read(ytStatsRefreshDirtyProvider.notifier).state = false;
       await YtStatsRefreshSettingStore(
         ref.read(keyValueStoreProvider),
       ).save(_draft);
@@ -302,37 +375,61 @@ class _StatsRefreshRowState extends ConsumerState<_StatsRefreshRow> {
                   color: AppColors.ink,
                 ),
               ),
-              Text(
-                dirty ? '每 $_draft 天重新問一次 API（還沒儲存）' : '每 $_draft 天重新問一次 API',
-                style: AppText.note,
+              // 天數數字改沒存的時候變色提醒，存了才變回原本顏色
+              // （2026-09-29 使用者要求：不用另外寫「還沒儲存」文字，
+              // 數字變色本身就是提示）。
+              RichText(
+                text: TextSpan(
+                  style: AppText.note,
+                  children: [
+                    const TextSpan(text: '每 '),
+                    TextSpan(
+                      text: '$_draft',
+                      style: TextStyle(
+                        color: dirty ? AppColors.mid : AppColors.ink3,
+                        fontWeight: dirty ? FontWeight.w700 : FontWeight.normal,
+                      ),
+                    ),
+                    const TextSpan(text: ' 天重新問一次 API'),
+                  ],
+                ),
               ),
               const SizedBox(height: Gap.xs),
               Row(
                 children: [
-                  IconButton(
-                    onPressed: _draft > _min
-                        ? () => setState(() => _draft--)
-                        : null,
-                    icon: const Icon(Icons.remove_circle_outline, size: 20),
-                    color: AppColors.ink2,
-                    padding: EdgeInsets.zero,
-                    visualDensity: VisualDensity.compact,
-                    constraints: const BoxConstraints(
-                      minWidth: 32,
-                      minHeight: 32,
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: _draft < _max
-                        ? () => setState(() => _draft++)
-                        : null,
-                    icon: const Icon(Icons.add_circle_outline, size: 20),
-                    color: AppColors.ink2,
-                    padding: EdgeInsets.zero,
-                    visualDensity: VisualDensity.compact,
-                    constraints: const BoxConstraints(
-                      minWidth: 32,
-                      minHeight: 32,
+                  // 加減做成膠囊狀，不用「圓圈裡一個加減號」那種圖示
+                  // （2026-09-29 使用者要求：圓點很醜）。
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(999),
+                    child: Container(
+                      height: 30,
+                      decoration: BoxDecoration(
+                        color: AppColors.glassFill,
+                        border: Border.all(color: AppColors.glassEdge),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _StepperButton(
+                            icon: Icons.remove,
+                            onTap: _draft > _min
+                                ? () => _setDraft(_draft - 1)
+                                : null,
+                          ),
+                          Container(
+                            width: 1,
+                            height: 16,
+                            color: AppColors.glassEdge,
+                          ),
+                          _StepperButton(
+                            icon: Icons.add,
+                            onTap: _draft < _max
+                                ? () => _setDraft(_draft + 1)
+                                : null,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                   const SizedBox(width: Gap.sm),
@@ -341,8 +438,11 @@ class _StatsRefreshRowState extends ConsumerState<_StatsRefreshRow> {
                     child: FilledButton(
                       onPressed: dirty && !_saving ? _save : null,
                       style: FilledButton.styleFrom(
-                        backgroundColor: AppColors.ytAccent,
-                        foregroundColor: AppColors.ytAccentInk,
+                        // 一般藍色主色，不用 ytAccent 的紅——「儲存」不是
+                        // 危險動作，紅色看起來像警告（2026-09-29 使用者
+                        // 要求）。
+                        backgroundColor: AppColors.accentSolid,
+                        foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(horizontal: 14),
                         visualDensity: VisualDensity.compact,
                       ),
@@ -364,6 +464,34 @@ class _StatsRefreshRowState extends ConsumerState<_StatsRefreshRow> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// 膠囊狀加減按鈕裡的其中一顆（2026-09-29 使用者要求：不要「圓圈裡一個
+/// 加減號」那種圖示，改成膠囊裡分兩半點）。
+class _StepperButton extends StatelessWidget {
+  const _StepperButton({required this.icon, required this.onTap});
+
+  final IconData icon;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = onTap != null;
+    return InkWell(
+      onTap: onTap,
+      child: SizedBox(
+        width: 34,
+        height: 30,
+        child: Icon(
+          icon,
+          size: 16,
+          color: enabled
+              ? AppColors.ink2
+              : AppColors.ink3.withValues(alpha: 0.4),
+        ),
+      ),
     );
   }
 }

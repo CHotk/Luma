@@ -614,6 +614,9 @@ class _MonthlyCalendarCard extends StatefulWidget {
 class _MonthlyCalendarCardState extends State<_MonthlyCalendarCard> {
   static const _weekdayLabels = ['日', '一', '二', '三', '四', '五', '六'];
 
+  /// 點某一天的練習摘要最多列幾個假名（2026-09-29 使用者要求設上限）。
+  static const _maxKanaShown = 30;
+
   late DateTime _viewedMonth;
 
   @override
@@ -744,17 +747,9 @@ class _MonthlyCalendarCardState extends State<_MonthlyCalendarCard> {
             Expanded(child: _statPill('$rate%', '本月達成率')),
           ],
         ),
-        // 「幾號開始學習、已經幾天」（2026-09-29 使用者要求：統計也要能
-        // 看到這個），放在月曆卡片最底下一行，不佔額外一整個 pill 的份量。
-        if (state.firstPracticedAt != null) ...[
-          const SizedBox(height: Gap.sm),
-          Center(
-            child: Text(
-              '${state.firstPracticedAt!.month}/${state.firstPracticedAt!.day} 開始學習・已經 ${state.daysSinceStart} 天',
-              style: AppText.note,
-            ),
-          ),
-        ],
+        // 「幾號開始學習、已經幾天」改放到「學習統計」那頁
+        // （`jp_stats_page.dart`），首頁月曆卡片不重複顯示
+        // （2026-09-29 使用者要求）。
       ],
     );
   }
@@ -808,24 +803,106 @@ class _MonthlyCalendarCardState extends State<_MonthlyCalendarCard> {
   ) {
     final done = practiced.contains(day);
     final isToday = isCurrentMonth && day == now.day;
-    return Container(
-      decoration: BoxDecoration(
-        color: done
-            ? AppColors.jpAccent
-            : AppColors.jpAccent.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(8),
-        border: isToday
-            ? Border.all(color: AppColors.jpAccent, width: 1.5)
-            : null,
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        '$day',
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: done ? FontWeight.w700 : FontWeight.w400,
-          color: done ? AppColors.jpAccentInk : AppColors.ink2,
+    final date = DateTime(_viewedMonth.year, _viewedMonth.month, day);
+    return InkWell(
+      // 點某一天要能看到那天的練習資訊，不是只能看塗色（2026-09-29
+      // 使用者要求）。
+      onTap: () => _showDaySummary(date),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        decoration: BoxDecoration(
+          color: done
+              ? AppColors.jpAccent
+              : AppColors.jpAccent.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(8),
+          border: isToday
+              ? Border.all(color: AppColors.jpAccent, width: 1.5)
+              : null,
         ),
+        alignment: Alignment.center,
+        child: Text(
+          '$day',
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: done ? FontWeight.w700 : FontWeight.w400,
+            color: done ? AppColors.jpAccentInk : AppColors.ink2,
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 點某一天彈出的資訊視窗：有練習就顯示筆數、分鐘數跟練過哪些假名
+  /// （依練習次數排序），沒練過就老實說沒有紀錄。
+  Future<void> _showDaySummary(DateTime date) async {
+    final summary = widget.state.daySummaries[date];
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A24),
+        title: Text(
+          '${date.month} 月 ${date.day} 日',
+          style: const TextStyle(color: AppColors.ink),
+        ),
+        content: summary == null
+            ? Text('這天沒有練習紀錄', style: AppText.bodyDim)
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '練習了 ${summary.count} 筆・共 ${summary.minutes} 分鐘',
+                    style: AppText.bodyDim,
+                  ),
+                  const SizedBox(height: Gap.sm),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      // 最多列這麼多種，練得多的一天不會把清單塞爆
+                      // （2026-09-29 使用者要求設上限；本來就已經是依
+                      // 「不同假名」歸類、不是每筆練習各佔一個，但還是
+                      // 加個保險上限）。
+                      for (final k in summary.kana.take(_maxKanaShown))
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.jpAccent.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color: AppColors.jpAccent.withValues(alpha: 0.35),
+                            ),
+                          ),
+                          child: Text(
+                            k.count > 1
+                                ? '${k.kana}（${k.romaji}）×${k.count}'
+                                : '${k.kana}（${k.romaji}）',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.ink,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  if (summary.kana.length > _maxKanaShown) ...[
+                    const SizedBox(height: Gap.xs),
+                    Text(
+                      '還有 ${summary.kana.length - _maxKanaShown} 個字沒列出來',
+                      style: AppText.note,
+                    ),
+                  ],
+                ],
+              ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('關閉'),
+          ),
+        ],
       ),
     );
   }

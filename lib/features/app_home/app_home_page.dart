@@ -103,7 +103,11 @@ class AppHomePage extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: Gap.sm),
-                const AppTopBar(title: 'Lume', showBack: false),
+                const AppTopBar(
+                  title: 'Lume',
+                  titleIcon: Icons.home_rounded,
+                  showBack: false,
+                ),
                 const SizedBox(height: Gap.lg),
                 Expanded(
                   child: SingleChildScrollView(

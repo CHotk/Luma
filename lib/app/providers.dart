@@ -145,6 +145,11 @@ final ytStatsRefreshDaysProvider = StateProvider<int>(
   (ref) => YtStatsRefreshSettingStore.defaultDays,
 );
 
+/// 更新頻率調了但還沒按「儲存」（2026-09-29 使用者要求：離開設定頁前
+/// 要提醒，不然調完忘記存，改動就白調了）。設定頁自己在草稿值改變、
+/// 儲存成功時更新這個旗標，`OtherSettingsPage` 用 [PopScope] 攔截返回。
+final ytStatsRefreshDirtyProvider = StateProvider<bool>((ref) => false);
+
 /// 使用者選的 App Logo 資產路徑，null＝沒選過、用預設的
 /// `assets/images/app_logo/logo.png`（2026-09-29 使用者要求：設定頁能換
 /// Logo，見 `AppLogoStore`／`app_logo_loader.dart`）。

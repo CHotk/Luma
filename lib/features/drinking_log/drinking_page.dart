@@ -169,6 +169,7 @@ class _DrinkingPageState extends ConsumerState<DrinkingPage> {
                 const SizedBox(height: Gap.sm),
                 AppTopBar(
                   title: '喝酒記錄',
+                  titleIcon: Icons.local_bar_outlined,
                   showBack: false,
                   actions: [
                     IconButton(

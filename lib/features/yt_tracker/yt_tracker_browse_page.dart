@@ -20,6 +20,7 @@ import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
 import 'yt_api_key_dialog.dart';
 import 'yt_channel_avatar.dart';
+import 'yt_tracker_home_page.dart' show runYtChannelDiscovery;
 import 'yt_video_row.dart';
 
 enum _ViewMode { channel, video }
@@ -70,7 +71,10 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
   // 影片在左、頻道在右，要看影片自己再切。
   _ViewMode _mode = _ViewMode.channel;
   _TypeFilter _typeFilter = _TypeFilter.all;
-  _ChannelSort _sort = _ChannelSort.normal;
+  // 預設依訂閱人數排序，不是加入順序（2026-09-29 使用者要求：每個分類
+  // 預設頻道排序要照訂閱人數）。使用者還是能用排序鈕切回原本順序或
+  // 升冪，這裡只是改預設值。
+  _ChannelSort _sort = _ChannelSort.subsDesc;
 
   Future<List<_ChannelVideo>>? _videosFuture;
   List<String>? _videosLoadedFor;
@@ -587,9 +591,25 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                             actions: [
                               // 「挖掘新頻道」是特別的分類，只是用來放挖到的頻道，
                               // 不是使用者自己手動整理的地方，所以不給「新增頻道」
-                              // （2026-09-29 使用者要求）。
-                              if (!(_selected.length == 1 &&
-                                  _selected.single == ytDiscoverCategoryId))
+                              // （2026-09-29 使用者要求），改給「挖掘新頻道」按鈕
+                              // ——本來只有 YT 首頁有，進了這個分類頁還要回首頁
+                              // 才能再挖一次太繞（2026-09-29 使用者要求）。
+                              if (_selected.length == 1 &&
+                                  _selected.single == ytDiscoverCategoryId)
+                                IconButton(
+                                  onPressed: () => runYtChannelDiscovery(
+                                    context,
+                                    ref,
+                                    onDone: _reload,
+                                  ),
+                                  icon: const Icon(
+                                    Icons.travel_explore_rounded,
+                                    size: 20,
+                                  ),
+                                  color: AppColors.ink2,
+                                  tooltip: '挖掘新頻道',
+                                )
+                              else
                                 IconButton(
                                   onPressed: () =>
                                       _showAddChannelDialog(categories),

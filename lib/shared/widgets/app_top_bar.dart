@@ -23,12 +23,19 @@ class AppTopBar extends StatelessWidget {
   const AppTopBar({
     super.key,
     required this.title,
+    this.titleIcon,
     this.showBack = true,
     this.showSettings = true,
     this.actions = const [],
   });
 
   final String title;
+
+  /// 標題前面帶的小圖示，跟側邊選單那個功能用的圖示一致（2026-09-29
+  /// 使用者要求：每個功能第一頁的標題本來就是功能名稱，該功能在選單
+  /// 裡的圖示也要一起帶上標題）。只有各功能首頁（[showBack] 為 false
+  /// 那些）才會傳，一般子頁面不用。
+  final IconData? titleIcon;
 
   /// 大部分子頁面是 true（從別的頁面點進來的）；只有那種本來就是靠
   /// 選單／首頁進來、退回去也沒地方好退的頁面才會是 false。
@@ -67,10 +74,20 @@ class AppTopBar extends StatelessWidget {
           ),
         const SizedBox(width: Gap.sm),
         Expanded(
-          child: Text(
-            title,
-            style: AppText.title,
-            overflow: TextOverflow.ellipsis,
+          child: Row(
+            children: [
+              if (titleIcon != null) ...[
+                Icon(titleIcon, size: 19, color: AppColors.ink2),
+                const SizedBox(width: 6),
+              ],
+              Flexible(
+                child: Text(
+                  title,
+                  style: AppText.title,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
           ),
         ),
         ...actions,

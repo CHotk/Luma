@@ -109,7 +109,546 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
 
   void _reload() => setState(() => _future = _load());
 
-  bool _digging = false;
+  Future<void> _showAddCategoryDialog() async {
+    final controller = TextEditingController();
+    final imageController = TextEditingController();
+    var colorValue = ytCategoryColors.first;
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: const Color(0xFF1A1A24),
+          title: const Text('新增分類', style: TextStyle(color: AppColors.ink)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                controller: controller,
+                autofocus: true,
+                maxLength: 20,
+                decoration: const InputDecoration(
+                  labelText: '分類名稱',
+                  hintText: '例如：遊戲實況',
+                  counterText: '',
+                ),
+                style: const TextStyle(color: AppColors.ink),
+              ),
+              const SizedBox(height: Gap.xs),
+              TextField(
+                controller: imageController,
+                decoration: const InputDecoration(labelText: '底圖網址（選填）'),
+                style: const TextStyle(fontSize: 12.5, color: AppColors.ink),
+              ),
+              const SizedBox(height: Gap.sm),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final c in ytCategoryColors)
+                    _ColorDot(
+                      color: Color(c),
+                      selected: c == colorValue,
+                      onTap: () => setDialogState(() => colorValue = c),
+                    ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.ytAccent,
+                foregroundColor: AppColors.ytAccentInk,
+              ),
+              child: const Text('新增'),
+            ),
+          ],
+        ),
+      ),
+    );
+    final name = controller.text.trim();
+    if (saved != true || name.isEmpty) return;
+    await ref
+        .read(ytTrackerRepositoryProvider)
+        .addCategory(
+          YtCategory(
+            id: DateTime.now().microsecondsSinceEpoch.toString(),
+            name: name,
+            colorValue: colorValue,
+            imageUrl: imageController.text.trim(),
+          ),
+        );
+    if (!mounted) return;
+    _reload();
+  }
+
+  Future<void> _showEditCategoryDialog(YtCategory category) async {
+    final controller = TextEditingController(text: category.name);
+    final imageController = TextEditingController(text: category.imageUrl);
+    var colorValue = category.colorValue;
+    final action = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: const Color(0xFF1A1A24),
+          title: const Text('編輯分類', style: TextStyle(color: AppColors.ink)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                controller: controller,
+                autofocus: true,
+                maxLength: 20,
+                decoration: const InputDecoration(
+                  labelText: '分類名稱',
+                  counterText: '',
+                ),
+                style: const TextStyle(color: AppColors.ink),
+              ),
+              const SizedBox(height: Gap.xs),
+              TextField(
+                controller: imageController,
+                decoration: const InputDecoration(labelText: '底圖網址（選填）'),
+                style: const TextStyle(fontSize: 12.5, color: AppColors.ink),
+              ),
+              const SizedBox(height: Gap.sm),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final c in ytCategoryColors)
+                    _ColorDot(
+                      color: Color(c),
+                      selected: c == colorValue,
+                      onTap: () => setDialogState(() => colorValue = c),
+                    ),
+                ],
+              ),
+              // 刪除是破壞性動作：跟一般的「取消／儲存」分開，獨立放在
+              // 內容最底下、紅色外框全寬按鈕（一般手機 App 的慣例），不跟
+              // 底部按鈕列擠在一起，也不用紅色實心搶過主要動作
+              // （2026-09-24 使用者要求重新配置）。
+              const SizedBox(height: Gap.lg),
+              const Divider(height: 1, color: AppColors.glassEdge),
+              const SizedBox(height: Gap.md),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => Navigator.pop(dialogContext, 'delete'),
+                  icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                  label: const Text('刪除分類'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.bad,
+                    side: BorderSide(
+                      color: AppColors.bad.withValues(alpha: 0.5),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          // 底部按鈕列照慣例：次要的「取消」在左（純文字），主要的「儲存」
+          // 在最右（實心強調色，用藍色不是紅色——紅色留給刪除）。
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, 'cancel'),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, 'save'),
+              child: const Text('儲存'),
+            ),
+          ],
+        ),
+      ),
+    );
+    final repo = ref.read(ytTrackerRepositoryProvider);
+    if (action == 'save') {
+      final name = controller.text.trim();
+      if (name.isEmpty) return;
+      await repo.updateCategory(
+        YtCategory(
+          id: category.id,
+          name: name,
+          colorValue: colorValue,
+          imageUrl: imageController.text.trim(),
+        ),
+      );
+      if (!mounted) return;
+      _reload();
+    } else if (action == 'delete') {
+      if (!mounted) return;
+      // 底下的頻道要搬去哪：預設「未分類」，也能選別的分類（2026-09-29
+      // 使用者要求：合併重複分類時，希望刪掉其中一個能直接把頻道搬到
+      // 留著的那個，不用一個個手動改）。
+      final otherCategories = (await repo.loadCategories())
+          .where((c) => c.id != category.id && c.id != ytDislikedCategoryId)
+          .toList();
+      if (!mounted) return;
+      String? moveTo;
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => StatefulBuilder(
+          builder: (context, setDialogState) => AlertDialog(
+            backgroundColor: const Color(0xFF1A1A24),
+            title: const Text('刪除這個分類？', style: TextStyle(color: AppColors.ink)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('底下的頻道要搬去哪個分類：', style: AppText.bodyDim),
+                const SizedBox(height: Gap.sm),
+                DropdownButtonFormField<String?>(
+                  initialValue: moveTo,
+                  dropdownColor: const Color(0xFF1A1A24),
+                  decoration: const InputDecoration(isDense: true),
+                  style: const TextStyle(color: AppColors.ink, fontSize: 14),
+                  items: [
+                    const DropdownMenuItem(value: null, child: Text('未分類')),
+                    for (final c in otherCategories)
+                      DropdownMenuItem(value: c.id, child: Text(c.name)),
+                  ],
+                  onChanged: (v) => setDialogState(() => moveTo = v),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('取消'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                style: TextButton.styleFrom(foregroundColor: AppColors.bad),
+                child: const Text('刪除'),
+              ),
+            ],
+          ),
+        ),
+      );
+      if (confirmed != true) return;
+      await repo.deleteCategory(category.id, moveChannelsTo: moveTo);
+      if (!mounted) return;
+      _reload();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      drawer: const AppSideDrawer(),
+      body: AmbientBackground(
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: Gap.screenSide),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: Gap.sm),
+                AppTopBar(
+                  title: 'YT 頻道追蹤',
+                  titleIcon: Icons.subscriptions_rounded,
+                  showBack: false,
+                  // API 金鑰、匯出分類／頻道移進設定齒輪了（2026-09-29
+                  // 使用者要求），測試通知整個拿掉（不是這頁該有的功能，
+                  // debug 頁還留著）。
+                  actions: [
+                    // 直接在分類列表這頁就能新增頻道，不用先點進某個分類
+                    // 才有這顆按鈕（2026-09-29 使用者要求：每次都要進去
+                    // 分類裡面才能新增太麻煩）。沒選特定分類，新增後預設
+                    // 未分類，使用者自己再移到想要的分類。
+                    IconButton(
+                      onPressed: () async {
+                        final repo = ref.read(ytTrackerRepositoryProvider);
+                        final categories = await repo.loadCategories();
+                        if (!context.mounted) return;
+                        final added = await showAddYtChannelDialog(
+                          context,
+                          ref,
+                          categories: categories,
+                        );
+                        if (added) _reload();
+                      },
+                      icon: const Icon(Icons.add_circle_outline, size: 20),
+                      color: AppColors.ink2,
+                      tooltip: '新增頻道',
+                    ),
+                    IconButton(
+                      onPressed: () => runYtChannelDiscovery(
+                        context,
+                        ref,
+                        onDone: _reload,
+                      ),
+                      icon: const Icon(Icons.travel_explore_rounded, size: 20),
+                      color: AppColors.ink2,
+                      tooltip: '挖掘新頻道',
+                    ),
+                    IconButton(
+                      onPressed: _showAddCategoryDialog,
+                      icon: const Icon(
+                        Icons.create_new_folder_outlined,
+                        size: 20,
+                      ),
+                      color: AppColors.ink2,
+                      tooltip: '新增分類',
+                    ),
+                  ],
+                ),
+                const SizedBox(height: Gap.md),
+                Expanded(
+                  child: FutureBuilder(
+                    future: _future,
+                    builder: (context, snap) {
+                      if (!snap.hasData) {
+                        return const Center(
+                          child: CircularProgressIndicator.adaptive(),
+                        );
+                      }
+                      final categories = snap.data!.categories;
+                      final channels = snap.data!.channels;
+                      final unassigned = channels
+                          .where((c) => c.categoryId == null)
+                          .toList();
+                      // 「未分類」不是真的存在的分類，是頻道沒選分類（或
+                      // 分類被刪掉）的統稱——之前只能從「全部頻道」找，
+                      // 首頁完全看不到它們存在，補一張跟真分類長得一樣
+                      // 但沒有編輯/刪除功能的卡片（2026-09-22 使用者
+                      // 要求：未分類頻道首頁也要看得到）。
+                      final uncategorized = unassigned.isEmpty
+                          ? null
+                          : const YtCategory(
+                              id: ytUncategorizedId,
+                              name: '未分類',
+                              colorValue: 0xFF74738A,
+                              imageUrl:
+                                  'assets/images/yt_tracker/uncategorized.png',
+                            );
+                      final trashCount = snap.data!.trashCount;
+                      // 「垃圾桶」也不是真的分類，是已刪除頻道的統稱，固定排在
+                      // 最後一個，比「看過但不喜歡」還後面（2026-09-29 使用者
+                      // 要求：新增垃圾桶專門看刪除的頻道）。沒有任何刪除紀錄就
+                      // 不出現，不然新使用者一打開就看到一個空的垃圾桶格子。
+                      final trash = trashCount == 0
+                          ? null
+                          : const YtCategory(
+                              id: ytTrashCategoryId,
+                              name: '垃圾桶',
+                              colorValue: 0xFF74738A,
+                              imageUrl: 'assets/images/yt_tracker/ashcan.png',
+                            );
+                      // 格子順序：一般分類 → 未分類 → 「看過但不喜歡」→ 垃圾桶
+                      // （2026-09-24／2026-09-29 使用者要求）。
+                      final gridCats = [
+                        ...categories.where(
+                          (c) => c.id != ytDislikedCategoryId,
+                        ),
+                        ?uncategorized,
+                        ...categories.where(
+                          (c) => c.id == ytDislikedCategoryId,
+                        ),
+                        ?trash,
+                      ];
+                      final gridCount = gridCats.length;
+                      final q = _query.trim().toLowerCase();
+                      final categoryNameById = {
+                        for (final c in categories) c.id: c.name,
+                      };
+                      final matches = q.isEmpty
+                          ? const <YtChannel>[]
+                          : channels
+                                // 只比對頻道名稱：網址（含分享連結的 ?si= 亂碼）跟簡介
+                                // 也比對的話，打一個字母會冒出一堆名字不含它的頻道。
+                                .where((c) => zhContains(c.name, q))
+                                .toList();
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          TextField(
+                            controller: _searchController,
+                            onChanged: (v) => setState(() => _query = v),
+                            textInputAction: TextInputAction.search,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: AppColors.ink,
+                            ),
+                            decoration: InputDecoration(
+                              isDense: true,
+                              hintText: '搜尋頻道',
+                              hintStyle: const TextStyle(
+                                fontSize: 14,
+                                color: AppColors.ink3,
+                              ),
+                              prefixIcon: const Icon(
+                                Icons.search_rounded,
+                                size: 20,
+                                color: AppColors.ink2,
+                              ),
+                              suffixIcon: _query.isEmpty
+                                  ? null
+                                  : IconButton(
+                                      icon: const Icon(Icons.close, size: 18),
+                                      color: AppColors.ink2,
+                                      onPressed: () {
+                                        _searchController.clear();
+                                        setState(() => _query = '');
+                                      },
+                                    ),
+                              filled: true,
+                              fillColor: AppColors.glassFill,
+                              contentPadding: const EdgeInsets.symmetric(
+                                vertical: 12,
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(
+                                  Radii.button,
+                                ),
+                                borderSide: const BorderSide(
+                                  color: AppColors.glassEdge,
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(
+                                  Radii.button,
+                                ),
+                                borderSide: const BorderSide(
+                                  color: AppColors.accentGlassEdge,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: Gap.md),
+                          Expanded(
+                            child: q.isNotEmpty
+                                ? _SearchResults(
+                                    channels: matches,
+                                    categoryNameById: categoryNameById,
+                                    onOpen: (c) => context
+                                        .push('/yt-tracker/channel/${c.id}')
+                                        .then((_) => _reload()),
+                                  )
+                                : gridCount == 0
+                                ? _EmptyState(onAdd: _showAddCategoryDialog)
+                                : CustomScrollView(
+                                    slivers: [
+                                      // 「全部」獨佔整行、放第一個（2026-09-24 使用者
+                                      // 要求）：不是真的分類，就是不篩選、看所有頻道，
+                                      // 用 all.png 當底圖，沒有編輯／刪除。整行比一般
+                                      // 分類卡寬很多，底圖建議 1800×600（3:1）。
+                                      SliverToBoxAdapter(
+                                        child: Padding(
+                                          padding: const EdgeInsets.only(
+                                            bottom: 10,
+                                          ),
+                                          child: AspectRatio(
+                                            aspectRatio: 3,
+                                            child: YtCategoryCard(
+                                              category: const YtCategory(
+                                                id: '__all__',
+                                                name: '全部',
+                                                colorValue: 0xFF7EA6FF,
+                                                imageUrl:
+                                                    'assets/images/yt_tracker/all.png',
+                                              ),
+                                              channels: channels,
+                                              maxAvatars: 7,
+                                              count: channels.length,
+                                              onTap: () => context
+                                                  .push(
+                                                    '/yt-tracker/browse',
+                                                    extra: <String>{},
+                                                  )
+                                                  .then((_) => _reload()),
+                                              onLongPress: null,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      SliverGrid(
+                                        gridDelegate:
+                                            const SliverGridDelegateWithFixedCrossAxisCount(
+                                              crossAxisCount: 2,
+                                              mainAxisSpacing: 10,
+                                              crossAxisSpacing: 10,
+                                              childAspectRatio: 1.5,
+                                            ),
+                                        delegate: SliverChildBuilderDelegate(
+                                          childCount: gridCount,
+                                          (_, i) {
+                                            final cat = gridCats[i];
+                                            final isUncategorized =
+                                                cat.id == ytUncategorizedId;
+                                            final isTrash =
+                                                cat.id == ytTrashCategoryId;
+                                            final catChannels = isUncategorized
+                                                ? unassigned
+                                                : isTrash
+                                                ? const <YtChannel>[]
+                                                : channels
+                                                      .where(
+                                                        (c) =>
+                                                            c.categoryId ==
+                                                            cat.id,
+                                                      )
+                                                      .toList();
+                                            return YtCategoryCard(
+                                              category: cat,
+                                              channels: catChannels,
+                                              maxAvatars: 3,
+                                              count: isTrash
+                                                  ? trashCount
+                                                  : catChannels.length,
+                                              onTap: isTrash
+                                                  ? () => context
+                                                        .push(
+                                                          '/yt-tracker/trash',
+                                                        )
+                                                        .then((_) => _reload())
+                                                  : () => context
+                                                        .push(
+                                                          '/yt-tracker/browse',
+                                                          extra: {cat.id},
+                                                        )
+                                                        .then((_) => _reload()),
+                                              onLongPress:
+                                                  isUncategorized || isTrash
+                                                  ? null
+                                                  : () =>
+                                                        _showEditCategoryDialog(
+                                                          cat,
+                                                        ),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                          ),
+                          const SizedBox(height: Gap.md),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 這個 session 有沒有正在挖掘中（2026-09-29 使用者要求：YT 首頁跟
+/// 「挖掘新頻道」分類頁都要能觸發，不是只有首頁），所以改成模組層級
+/// 的旗標，不是掛在某個 State 底下的欄位。
+bool _ytDiggingInFlight = false;
 
   /// 挖掘前的選項（2026-09-24 使用者要求）：App 內分類可複選（不選＝全部）、
   /// 更多熱門主題（不限 App 內有的分類）可複選、自訂關鍵字、要不要參考
@@ -125,7 +664,7 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
       Set<String> countries,
     })?
   >
-  _showDigOptions(List<YtCategory> categories) {
+  _showDigOptions(BuildContext context, List<YtCategory> categories) {
     final picked = <String>{};
     final pickedTopics = <String>{};
     // 預設不限國家（2026-09-29 使用者一度要求鎖台灣，後來自己發現問題
@@ -137,7 +676,9 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
     var useSeeds = true;
     var allowHidden = false;
     final keywordController = TextEditingController();
-    final minSubsController = TextEditingController(text: '1000');
+    // 預設最低 10 萬訂閱（2026-09-29 使用者要求，原本 1000 太低，
+    // 挖出來的頻道太小眾）。
+    final minSubsController = TextEditingController(text: '100000');
     final maxSubsController = TextEditingController();
     final selectable = [
       for (final c in categories)
@@ -436,8 +977,12 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
   /// 挖掘新頻道（2026-09-24 使用者要求）：一次挖 10 個 App 裡沒有的頻道，
   /// 放進「挖掘新頻道」分類，自己再看要不要移到別的分類或刪掉。挖掘流程
   /// 見 [ChannelDiscoveryService]。
-  Future<void> _digNewChannels() async {
-    if (_digging) return;
+  Future<void> runYtChannelDiscovery(
+  BuildContext context,
+  WidgetRef ref, {
+  required VoidCallback onDone,
+}) async {
+    if (_ytDiggingInFlight) return;
     final apiKey = ref.read(ytApiKeyProvider);
     if (apiKey == null || apiKey.isEmpty) {
       await showYtApiKeyDialog(context, ref);
@@ -446,10 +991,10 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
     final categories0 = await ref
         .read(ytTrackerRepositoryProvider)
         .loadCategories();
-    if (!mounted) return;
-    final options = await _showDigOptions(categories0);
-    if (options == null || !mounted) return;
-    _digging = true;
+    if (!context.mounted) return;
+    final options = await _showDigOptions(context, categories0);
+    if (options == null || !context.mounted) return;
+    _ytDiggingInFlight = true;
     final status = ValueNotifier<String>('準備中…');
     showDialog<void>(
       context: context,
@@ -506,9 +1051,9 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
           ),
         );
       }
-      if (!mounted) return;
+      if (!context.mounted) return;
       Navigator.of(context, rootNavigator: true).pop();
-      _reload();
+      onDone();
       showAppNotice(
         context,
         found.isEmpty
@@ -517,517 +1062,16 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
       );
     } catch (e, stack) {
       AppLog.add('[YT] 挖掘新頻道失敗：$e\n$stack', isError: true);
-      if (mounted) {
+      if (context.mounted) {
         Navigator.of(context, rootNavigator: true).pop();
         showAppNotice(context, '挖掘失敗：$e', isError: true);
       }
     } finally {
-      _digging = false;
+      _ytDiggingInFlight = false;
       status.dispose();
     }
   }
 
-  Future<void> _showAddCategoryDialog() async {
-    final controller = TextEditingController();
-    final imageController = TextEditingController();
-    var colorValue = ytCategoryColors.first;
-    final saved = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          backgroundColor: const Color(0xFF1A1A24),
-          title: const Text('新增分類', style: TextStyle(color: AppColors.ink)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TextField(
-                controller: controller,
-                autofocus: true,
-                maxLength: 20,
-                decoration: const InputDecoration(
-                  labelText: '分類名稱',
-                  hintText: '例如：遊戲實況',
-                  counterText: '',
-                ),
-                style: const TextStyle(color: AppColors.ink),
-              ),
-              const SizedBox(height: Gap.xs),
-              TextField(
-                controller: imageController,
-                decoration: const InputDecoration(labelText: '底圖網址（選填）'),
-                style: const TextStyle(fontSize: 12.5, color: AppColors.ink),
-              ),
-              const SizedBox(height: Gap.sm),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (final c in ytCategoryColors)
-                    _ColorDot(
-                      color: Color(c),
-                      selected: c == colorValue,
-                      onTap: () => setDialogState(() => colorValue = c),
-                    ),
-                ],
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('取消'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.ytAccent,
-                foregroundColor: AppColors.ytAccentInk,
-              ),
-              child: const Text('新增'),
-            ),
-          ],
-        ),
-      ),
-    );
-    final name = controller.text.trim();
-    if (saved != true || name.isEmpty) return;
-    await ref
-        .read(ytTrackerRepositoryProvider)
-        .addCategory(
-          YtCategory(
-            id: DateTime.now().microsecondsSinceEpoch.toString(),
-            name: name,
-            colorValue: colorValue,
-            imageUrl: imageController.text.trim(),
-          ),
-        );
-    if (!mounted) return;
-    _reload();
-  }
-
-  Future<void> _showEditCategoryDialog(YtCategory category) async {
-    final controller = TextEditingController(text: category.name);
-    final imageController = TextEditingController(text: category.imageUrl);
-    var colorValue = category.colorValue;
-    final action = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          backgroundColor: const Color(0xFF1A1A24),
-          title: const Text('編輯分類', style: TextStyle(color: AppColors.ink)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TextField(
-                controller: controller,
-                autofocus: true,
-                maxLength: 20,
-                decoration: const InputDecoration(
-                  labelText: '分類名稱',
-                  counterText: '',
-                ),
-                style: const TextStyle(color: AppColors.ink),
-              ),
-              const SizedBox(height: Gap.xs),
-              TextField(
-                controller: imageController,
-                decoration: const InputDecoration(labelText: '底圖網址（選填）'),
-                style: const TextStyle(fontSize: 12.5, color: AppColors.ink),
-              ),
-              const SizedBox(height: Gap.sm),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (final c in ytCategoryColors)
-                    _ColorDot(
-                      color: Color(c),
-                      selected: c == colorValue,
-                      onTap: () => setDialogState(() => colorValue = c),
-                    ),
-                ],
-              ),
-              // 刪除是破壞性動作：跟一般的「取消／儲存」分開，獨立放在
-              // 內容最底下、紅色外框全寬按鈕（一般手機 App 的慣例），不跟
-              // 底部按鈕列擠在一起，也不用紅色實心搶過主要動作
-              // （2026-09-24 使用者要求重新配置）。
-              const SizedBox(height: Gap.lg),
-              const Divider(height: 1, color: AppColors.glassEdge),
-              const SizedBox(height: Gap.md),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () => Navigator.pop(dialogContext, 'delete'),
-                  icon: const Icon(Icons.delete_outline_rounded, size: 18),
-                  label: const Text('刪除分類'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.bad,
-                    side: BorderSide(
-                      color: AppColors.bad.withValues(alpha: 0.5),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          // 底部按鈕列照慣例：次要的「取消」在左（純文字），主要的「儲存」
-          // 在最右（實心強調色，用藍色不是紅色——紅色留給刪除）。
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, 'cancel'),
-              child: const Text('取消'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, 'save'),
-              child: const Text('儲存'),
-            ),
-          ],
-        ),
-      ),
-    );
-    final repo = ref.read(ytTrackerRepositoryProvider);
-    if (action == 'save') {
-      final name = controller.text.trim();
-      if (name.isEmpty) return;
-      await repo.updateCategory(
-        YtCategory(
-          id: category.id,
-          name: name,
-          colorValue: colorValue,
-          imageUrl: imageController.text.trim(),
-        ),
-      );
-      if (!mounted) return;
-      _reload();
-    } else if (action == 'delete') {
-      if (!mounted) return;
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          backgroundColor: const Color(0xFF1A1A24),
-          title: const Text('刪除這個分類？', style: TextStyle(color: AppColors.ink)),
-          content: Text('底下的頻道不會被刪除，會變成未分類。', style: AppText.bodyDim),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('取消'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              style: TextButton.styleFrom(foregroundColor: AppColors.bad),
-              child: const Text('刪除'),
-            ),
-          ],
-        ),
-      );
-      if (confirmed != true) return;
-      await repo.deleteCategory(category.id);
-      if (!mounted) return;
-      _reload();
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      drawer: const AppSideDrawer(),
-      body: AmbientBackground(
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: Gap.screenSide),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: Gap.sm),
-                AppTopBar(
-                  title: 'YT 頻道追蹤',
-                  showBack: false,
-                  // API 金鑰、匯出分類／頻道移進設定齒輪了（2026-09-29
-                  // 使用者要求），測試通知整個拿掉（不是這頁該有的功能，
-                  // debug 頁還留著）。
-                  actions: [
-                    // 直接在分類列表這頁就能新增頻道，不用先點進某個分類
-                    // 才有這顆按鈕（2026-09-29 使用者要求：每次都要進去
-                    // 分類裡面才能新增太麻煩）。沒選特定分類，新增後預設
-                    // 未分類，使用者自己再移到想要的分類。
-                    IconButton(
-                      onPressed: () async {
-                        final repo = ref.read(ytTrackerRepositoryProvider);
-                        final categories = await repo.loadCategories();
-                        if (!context.mounted) return;
-                        final added = await showAddYtChannelDialog(
-                          context,
-                          ref,
-                          categories: categories,
-                        );
-                        if (added) _reload();
-                      },
-                      icon: const Icon(Icons.add_circle_outline, size: 20),
-                      color: AppColors.ink2,
-                      tooltip: '新增頻道',
-                    ),
-                    IconButton(
-                      onPressed: _digNewChannels,
-                      icon: const Icon(Icons.travel_explore_rounded, size: 20),
-                      color: AppColors.ink2,
-                      tooltip: '挖掘新頻道',
-                    ),
-                    IconButton(
-                      onPressed: _showAddCategoryDialog,
-                      icon: const Icon(
-                        Icons.create_new_folder_outlined,
-                        size: 20,
-                      ),
-                      color: AppColors.ink2,
-                      tooltip: '新增分類',
-                    ),
-                  ],
-                ),
-                const SizedBox(height: Gap.md),
-                Expanded(
-                  child: FutureBuilder(
-                    future: _future,
-                    builder: (context, snap) {
-                      if (!snap.hasData) {
-                        return const Center(
-                          child: CircularProgressIndicator.adaptive(),
-                        );
-                      }
-                      final categories = snap.data!.categories;
-                      final channels = snap.data!.channels;
-                      final unassigned = channels
-                          .where((c) => c.categoryId == null)
-                          .toList();
-                      // 「未分類」不是真的存在的分類，是頻道沒選分類（或
-                      // 分類被刪掉）的統稱——之前只能從「全部頻道」找，
-                      // 首頁完全看不到它們存在，補一張跟真分類長得一樣
-                      // 但沒有編輯/刪除功能的卡片（2026-09-22 使用者
-                      // 要求：未分類頻道首頁也要看得到）。
-                      final uncategorized = unassigned.isEmpty
-                          ? null
-                          : const YtCategory(
-                              id: ytUncategorizedId,
-                              name: '未分類',
-                              colorValue: 0xFF74738A,
-                              imageUrl:
-                                  'assets/images/yt_tracker/uncategorized.png',
-                            );
-                      final trashCount = snap.data!.trashCount;
-                      // 「垃圾桶」也不是真的分類，是已刪除頻道的統稱，固定排在
-                      // 最後一個，比「看過但不喜歡」還後面（2026-09-29 使用者
-                      // 要求：新增垃圾桶專門看刪除的頻道）。沒有任何刪除紀錄就
-                      // 不出現，不然新使用者一打開就看到一個空的垃圾桶格子。
-                      final trash = trashCount == 0
-                          ? null
-                          : const YtCategory(
-                              id: ytTrashCategoryId,
-                              name: '垃圾桶',
-                              colorValue: 0xFF74738A,
-                              imageUrl: 'assets/images/yt_tracker/ashcan.png',
-                            );
-                      // 格子順序：一般分類 → 未分類 → 「看過但不喜歡」→ 垃圾桶
-                      // （2026-09-24／2026-09-29 使用者要求）。
-                      final gridCats = [
-                        ...categories.where(
-                          (c) => c.id != ytDislikedCategoryId,
-                        ),
-                        ?uncategorized,
-                        ...categories.where(
-                          (c) => c.id == ytDislikedCategoryId,
-                        ),
-                        ?trash,
-                      ];
-                      final gridCount = gridCats.length;
-                      final q = _query.trim().toLowerCase();
-                      final categoryNameById = {
-                        for (final c in categories) c.id: c.name,
-                      };
-                      final matches = q.isEmpty
-                          ? const <YtChannel>[]
-                          : channels
-                                // 只比對頻道名稱：網址（含分享連結的 ?si= 亂碼）跟簡介
-                                // 也比對的話，打一個字母會冒出一堆名字不含它的頻道。
-                                .where((c) => zhContains(c.name, q))
-                                .toList();
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          TextField(
-                            controller: _searchController,
-                            onChanged: (v) => setState(() => _query = v),
-                            textInputAction: TextInputAction.search,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: AppColors.ink,
-                            ),
-                            decoration: InputDecoration(
-                              isDense: true,
-                              hintText: '搜尋頻道',
-                              hintStyle: const TextStyle(
-                                fontSize: 14,
-                                color: AppColors.ink3,
-                              ),
-                              prefixIcon: const Icon(
-                                Icons.search_rounded,
-                                size: 20,
-                                color: AppColors.ink2,
-                              ),
-                              suffixIcon: _query.isEmpty
-                                  ? null
-                                  : IconButton(
-                                      icon: const Icon(Icons.close, size: 18),
-                                      color: AppColors.ink2,
-                                      onPressed: () {
-                                        _searchController.clear();
-                                        setState(() => _query = '');
-                                      },
-                                    ),
-                              filled: true,
-                              fillColor: AppColors.glassFill,
-                              contentPadding: const EdgeInsets.symmetric(
-                                vertical: 12,
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(
-                                  Radii.button,
-                                ),
-                                borderSide: const BorderSide(
-                                  color: AppColors.glassEdge,
-                                ),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(
-                                  Radii.button,
-                                ),
-                                borderSide: const BorderSide(
-                                  color: AppColors.accentGlassEdge,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: Gap.md),
-                          Expanded(
-                            child: q.isNotEmpty
-                                ? _SearchResults(
-                                    channels: matches,
-                                    categoryNameById: categoryNameById,
-                                    onOpen: (c) => context
-                                        .push('/yt-tracker/channel/${c.id}')
-                                        .then((_) => _reload()),
-                                  )
-                                : gridCount == 0
-                                ? _EmptyState(onAdd: _showAddCategoryDialog)
-                                : CustomScrollView(
-                                    slivers: [
-                                      // 「全部」獨佔整行、放第一個（2026-09-24 使用者
-                                      // 要求）：不是真的分類，就是不篩選、看所有頻道，
-                                      // 用 all.png 當底圖，沒有編輯／刪除。整行比一般
-                                      // 分類卡寬很多，底圖建議 1800×600（3:1）。
-                                      SliverToBoxAdapter(
-                                        child: Padding(
-                                          padding: const EdgeInsets.only(
-                                            bottom: 10,
-                                          ),
-                                          child: AspectRatio(
-                                            aspectRatio: 3,
-                                            child: _CategoryCard(
-                                              category: const YtCategory(
-                                                id: '__all__',
-                                                name: '全部',
-                                                colorValue: 0xFF7EA6FF,
-                                                imageUrl:
-                                                    'assets/images/yt_tracker/all.png',
-                                              ),
-                                              channels: channels,
-                                              maxAvatars: 7,
-                                              count: channels.length,
-                                              onTap: () => context
-                                                  .push(
-                                                    '/yt-tracker/browse',
-                                                    extra: <String>{},
-                                                  )
-                                                  .then((_) => _reload()),
-                                              onLongPress: null,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      SliverGrid(
-                                        gridDelegate:
-                                            const SliverGridDelegateWithFixedCrossAxisCount(
-                                              crossAxisCount: 2,
-                                              mainAxisSpacing: 10,
-                                              crossAxisSpacing: 10,
-                                              childAspectRatio: 1.5,
-                                            ),
-                                        delegate: SliverChildBuilderDelegate(
-                                          childCount: gridCount,
-                                          (_, i) {
-                                            final cat = gridCats[i];
-                                            final isUncategorized =
-                                                cat.id == ytUncategorizedId;
-                                            final isTrash =
-                                                cat.id == ytTrashCategoryId;
-                                            final catChannels = isUncategorized
-                                                ? unassigned
-                                                : isTrash
-                                                ? const <YtChannel>[]
-                                                : channels
-                                                      .where(
-                                                        (c) =>
-                                                            c.categoryId ==
-                                                            cat.id,
-                                                      )
-                                                      .toList();
-                                            return _CategoryCard(
-                                              category: cat,
-                                              channels: catChannels,
-                                              maxAvatars: 3,
-                                              count: isTrash
-                                                  ? trashCount
-                                                  : catChannels.length,
-                                              onTap: isTrash
-                                                  ? () => context
-                                                        .push(
-                                                          '/yt-tracker/trash',
-                                                        )
-                                                        .then((_) => _reload())
-                                                  : () => context
-                                                        .push(
-                                                          '/yt-tracker/browse',
-                                                          extra: {cat.id},
-                                                        )
-                                                        .then((_) => _reload()),
-                                              onLongPress:
-                                                  isUncategorized || isTrash
-                                                  ? null
-                                                  : () =>
-                                                        _showEditCategoryDialog(
-                                                          cat,
-                                                        ),
-                                            );
-                                          },
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                          ),
-                          const SizedBox(height: Gap.md),
-                        ],
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 /// 挖掘一次大概要花多少 YouTube API 配額（每天免費 10,000 單位），顯示在
 /// 挖掘選項最下面提醒使用者（2026-09-24 使用者要求：不標示的話忘記會消耗一堆）。
@@ -1394,8 +1438,12 @@ class _EmptyState extends StatelessWidget {
 /// （`assets/images/yt_tracker/...`，2026-09-23 使用者把自己準備的底圖
 /// 直接丟進專案，不是連結）——用路徑開頭判斷該用哪個 widget 讀圖，不用
 /// 另外加一個布林欄位增加資料結構複雜度。
-class _CategoryImage extends StatelessWidget {
-  const _CategoryImage({required this.url, required this.errorBuilder});
+class YtCategoryImage extends StatelessWidget {
+  const YtCategoryImage({
+    super.key,
+    required this.url,
+    required this.errorBuilder,
+  });
 
   final String url;
   final Widget Function(BuildContext, Object, StackTrace?) errorBuilder;
@@ -1409,8 +1457,9 @@ class _CategoryImage extends StatelessWidget {
   }
 }
 
-class _CategoryCard extends StatefulWidget {
-  const _CategoryCard({
+class YtCategoryCard extends StatefulWidget {
+  const YtCategoryCard({
+    super.key,
     required this.category,
     required this.channels,
     required this.maxAvatars,
@@ -1430,10 +1479,10 @@ class _CategoryCard extends StatefulWidget {
   final VoidCallback? onLongPress;
 
   @override
-  State<_CategoryCard> createState() => _CategoryCardState();
+  State<YtCategoryCard> createState() => YtCategoryCardState();
 }
 
-class _CategoryCardState extends State<_CategoryCard> {
+class YtCategoryCardState extends State<YtCategoryCard> {
   // 亂數種子固定在這張卡的生命週期內，重繪不會頭像一直跳；重新進首頁才重抽。
   final int _seed = Random().nextInt(1 << 30);
 
@@ -1466,7 +1515,7 @@ class _CategoryCardState extends State<_CategoryCard> {
             // 有底圖才鋪，沒有就照舊用純色調子當底
             // （2026-09-22 使用者要求：卡片可以貼圖好看一點）。
             if (hasImage)
-              _CategoryImage(
+              YtCategoryImage(
                 url: category.imageUrl,
                 errorBuilder: (context, error, stack) =>
                     const SizedBox.shrink(),

@@ -139,6 +139,7 @@ class _SyncPageState extends ConsumerState<SyncPage> {
                 const SizedBox(height: Gap.sm),
                 AppTopBar(
                   title: '多裝置同步',
+                  titleIcon: Icons.cloud_sync_outlined,
                   showBack: false,
                   actions: [
                     IconButton(

@@ -169,6 +169,7 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
                 const SizedBox(height: Gap.sm),
                 AppTopBar(
                   title: '看盤記錄',
+                  titleIcon: Icons.candlestick_chart_outlined,
                   showBack: false,
                   actions: [
                     IconButton(
