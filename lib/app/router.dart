@@ -150,7 +150,8 @@ final appRouter = GoRouter(
     GoRoute(path: '/settings', builder: (_, _) => const SettingsPage()),
     GoRoute(
       path: '/settings/other',
-      builder: (_, _) => const OtherSettingsPage(),
+      builder: (_, state) =>
+          OtherSettingsPage(fromLocation: state.extra as String?),
     ),
     GoRoute(path: '/debug-log', builder: (_, _) => const DebugLogPage()),
     GoRoute(path: '/sync', builder: (_, _) => const SyncPage()),

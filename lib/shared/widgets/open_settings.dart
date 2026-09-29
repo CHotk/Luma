@@ -16,8 +16,14 @@ const _nonEnglishPrefixes = [
 ];
 
 /// 全 App 共用的「點齒輪」動作：依目前所在的功能決定開哪一頁設定。
+/// 把目前路徑用 `extra` 帶給 `/settings/other`，那頁才知道要顯示哪個
+/// 功能專屬的設定項目（例如 YT 頻道追蹤的 API 金鑰／匯出，2026-09-29
+/// 使用者要求把散落在各頁頂部列的設定移進齒輪裡）。
 void openSettings(BuildContext context) {
   final location = GoRouterState.of(context).uri.path;
   final other = _nonEnglishPrefixes.any(location.startsWith);
-  context.push(other ? '/settings/other' : '/settings');
+  context.push(
+    other ? '/settings/other' : '/settings',
+    extra: other ? location : null,
+  );
 }

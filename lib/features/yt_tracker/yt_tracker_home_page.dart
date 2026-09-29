@@ -11,7 +11,6 @@ import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
 import '../../data/export/file_download.dart';
-import '../../data/notifications/test_notification_action.dart';
 import '../../data/repositories/yt_tracker_repository.dart';
 import '../../data/services/channel_discovery_service.dart';
 import '../../data/seed/seed_merge.dart';
@@ -106,7 +105,9 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
   _showDigOptions(List<YtCategory> categories) {
     final picked = <String>{};
     final pickedTopics = <String>{};
-    final pickedCountries = <String>{};
+    // 預設先鎖台灣（2026-09-29 使用者要求），使用者自己可以取消或加別的
+    // 國家；跟搜尋影片那步原本就預設 TW 當 regionCode 一致。
+    final pickedCountries = <String>{'TW'};
     var useSeeds = true;
     var allowHidden = false;
     final keywordController = TextEditingController();
@@ -717,70 +718,15 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
                 AppTopBar(
                   title: 'YT 頻道追蹤',
                   showBack: false,
+                  // API 金鑰、匯出分類／頻道移進設定齒輪了（2026-09-29
+                  // 使用者要求），測試通知整個拿掉（不是這頁該有的功能，
+                  // debug 頁還留著）——頂部列只剩下這頁真的常用的兩個。
                   actions: [
-                    Consumer(
-                      builder: (context, ref, _) {
-                        final hasKey =
-                            (ref.watch(ytApiKeyProvider) ?? '').isNotEmpty;
-                        return IconButton(
-                          onPressed: () => showYtApiKeyDialog(context, ref),
-                          icon: Icon(
-                            hasKey ? Icons.vpn_key : Icons.vpn_key_outlined,
-                            size: 20,
-                          ),
-                          color: hasKey ? AppColors.ok : AppColors.ink2,
-                          tooltip: hasKey ? 'API 金鑰已儲存' : '設定 API 金鑰',
-                        );
-                      },
-                    ),
-                    // 測試通知／匯出收進「⋮」選單，不要跟金鑰狀態、新增
-                    // 分類這兩個常用項目擠在同一排——四顆小圖示疊在頂部列
-                    // 本來就已經很擠，使用者反應找不到測試通知按鈕，很可能
-                    // 就是這排太擠，眼睛掃過去沒認出來（2026-09-23）。收進
-                    // 選單後項目有文字標籤，比一顆顆小圖示更好辨識。
                     IconButton(
                       onPressed: _digNewChannels,
                       icon: const Icon(Icons.travel_explore_rounded, size: 20),
                       color: AppColors.ink2,
                       tooltip: '挖掘新頻道',
-                    ),
-                    PopupMenuButton<_YtHomeMenuAction>(
-                      icon: const Icon(Icons.more_vert_rounded, size: 20),
-                      color: AppColors.ink2,
-                      tooltip: '更多',
-                      onSelected: (action) {
-                        switch (action) {
-                          case _YtHomeMenuAction.testNotification:
-                            testNotification(context);
-                          case _YtHomeMenuAction.export:
-                            _showExportDialog(context, ref);
-                        }
-                      },
-                      itemBuilder: (context) => const [
-                        PopupMenuItem(
-                          value: _YtHomeMenuAction.testNotification,
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.notifications_active_outlined,
-                                size: 18,
-                              ),
-                              SizedBox(width: 10),
-                              Text('測試通知'),
-                            ],
-                          ),
-                        ),
-                        PopupMenuItem(
-                          value: _YtHomeMenuAction.export,
-                          child: Row(
-                            children: [
-                              Icon(Icons.ios_share_rounded, size: 18),
-                              SizedBox(width: 10),
-                              Text('匯出分類／頻道'),
-                            ],
-                          ),
-                        ),
-                      ],
                     ),
                     IconButton(
                       onPressed: _showAddCategoryDialog,
@@ -1034,8 +980,6 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
     );
   }
 }
-
-enum _YtHomeMenuAction { testNotification, export }
 
 /// 挖掘一次大概要花多少 YouTube API 配額（每天免費 10,000 單位），顯示在
 /// 挖掘選項最下面提醒使用者（2026-09-24 使用者要求：不標示的話忘記會消耗一堆）。
@@ -1571,7 +1515,10 @@ class _CategoryCardState extends State<_CategoryCard> {
 /// 同一個用途。
 enum _ExportScope { localOnly, withSeed }
 
-Future<void> _showExportDialog(BuildContext context, WidgetRef ref) async {
+/// 公開給設定頁用（2026-09-29 使用者要求：匯出移進設定齒輪，見
+/// `other_settings_page.dart`）——內部用的 `_ExportDialog`／`_ExportScope`
+/// 留私有，只有這個進入點是公開的。
+Future<void> showYtExportDialog(BuildContext context, WidgetRef ref) async {
   final repo = ref.read(ytTrackerRepositoryProvider);
   await showDialog<void>(
     context: context,
