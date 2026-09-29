@@ -9,8 +9,10 @@ import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
+import '../../data/repositories/yt_subscriber_history_store.dart';
 import '../../data/repositories/yt_video_cache_store.dart';
 import '../../data/services/youtube_api_service.dart';
+import '../../domain/models/yt_subscriber_snapshot.dart';
 import '../../domain/models/yt_tracker.dart';
 import '../../shared/debug/app_log.dart';
 import '../../shared/widgets/ambient_background.dart';
@@ -155,64 +157,20 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
   final Set<String> _statsTried = {};
   bool _statsInFlight = false;
 
+  /// [channels] 只是用來排程「現在有畫面正在顯示，該檢查一下了」的觸發
+  /// 時機，實際挑哪些頻道要更新是共用函式 [refreshYtSubscriberStats] 另外
+  /// 抓「全部」（含垃圾桶、看過但不喜歡）來看——2026-09-29 使用者要求：
+  /// 不管有沒有刪除、喜不喜歡都要記一份訂閱數歷史／定期更新，不能因為
+  /// 丟進垃圾桶或分到不喜歡就斷了更新。
   Future<void> _ensureStats(List<YtChannel> channels) async {
+    if (_statsInFlight) return;
     final apiKey = ref.read(ytApiKeyProvider);
-    if (apiKey == null || apiKey.isEmpty || _statsInFlight) return;
-    final now = DateTime.now();
-    // 多久重新問一次，使用者在設定頁調（2026-09-29 使用者要求：原本寫死
-    // 12 小時，改成可設定天數，預設一天一輪）。只有 loadChannels() 讀出來
-    // 的（已排除刪除）頻道才會走到這裡，垃圾桶裡的頻道不會更新訂閱人數
-    // ——沒必要為了已經不追蹤的頻道消耗配額。
-    final refreshEvery = Duration(days: ref.read(ytStatsRefreshDaysProvider));
-    final stale = [
-      for (final c in channels)
-        if (!_statsTried.contains(c.id) &&
-            (c.statsUpdatedAt == null ||
-                now.difference(c.statsUpdatedAt!) > refreshEvery))
-          c,
-    ];
-    if (stale.isEmpty) return;
+    if (apiKey == null || apiKey.isEmpty) return;
     _statsInFlight = true;
-    _statsTried.addAll(stale.map((c) => c.id));
     try {
-      final service = YoutubeApiService(apiKey);
-      final updated = <YtChannel>[];
-      final withId = <YtChannel>[];
-      for (final c in stale) {
-        if (c.youtubeChannelId.isNotEmpty) {
-          withId.add(c);
-          continue;
-        }
-        final handle = YoutubeApiService.parseHandle(c.url);
-        if (handle == null) continue;
-        final info = await service.fetchChannelInfo(handle);
-        updated.add(
-          c.copyWith(
-            avatarImageUrl: c.avatarImageUrl.isEmpty ? info.avatarUrl : null,
-            youtubeChannelId: info.channelId,
-            uploadsPlaylistId: info.uploadsPlaylistId,
-            subscriberCount: info.subscriberCount,
-            subscribersHidden: info.subscribersHidden,
-            statsUpdatedAt: now,
-          ),
-        );
-      }
-      final stats = await service.fetchSubscriberStats([
-        for (final c in withId) c.youtubeChannelId,
-      ]);
-      for (final c in withId) {
-        final s = stats[c.youtubeChannelId];
-        if (s == null) continue;
-        updated.add(
-          c.copyWith(
-            subscriberCount: s.count,
-            subscribersHidden: s.hidden,
-            statsUpdatedAt: now,
-          ),
-        );
-      }
-      await ref.read(ytTrackerRepositoryProvider).updateChannels(updated);
-      if (mounted && updated.isNotEmpty) _reload();
+      final result = await refreshYtSubscriberStats(ref, skipIds: _statsTried);
+      _statsTried.addAll(result.attempted);
+      if (mounted && result.updated.isNotEmpty) _reload();
     } catch (e, stack) {
       AppLog.add('[YT] 訂閱人數更新失敗：$e\n$stack', isError: true);
     } finally {
@@ -821,6 +779,91 @@ class _DiscoveredViaBadge extends StatelessWidget {
       ),
     );
   }
+}
+
+/// 訂閱人數更新的實際邏輯，公開成頂層函式（2026-09-29 使用者要求：不只
+/// 「依頻道顯示」那頁背景排程，YT 首頁一打開、設定頁按「儲存」也都要能
+/// 觸發同一套檢查，不要各自重寫一份）。抓「全部」頻道（含垃圾桶、看過
+/// 但不喜歡，見 [YtTrackerRepository.channelsForUpload]）挑出超過設定
+/// 天數沒問過的，批次問 API，順便把每筆結果記一份訂閱數歷史快照
+/// （[YtSubscriberHistoryStore]，不管頻道有沒有被刪除都記）。
+///
+/// [skipIds] 是呼叫端自己這個 session 已經試過（不管成功與否）的頻道
+/// id，不再重試——避免解析不出來的頻道每次呼叫都重打 API。回傳
+/// `attempted`：這次挑出來嘗試過的全部 id（不管有沒有成功，呼叫端要
+/// 用它累積進自己的 skip 清單）；`updated`：真的問到新資料、已經存檔
+/// 的頻道。
+Future<({List<YtChannel> updated, Set<String> attempted})>
+refreshYtSubscriberStats(WidgetRef ref, {Set<String> skipIds = const {}}) async {
+  final apiKey = ref.read(ytApiKeyProvider);
+  if (apiKey == null || apiKey.isEmpty) {
+    return (updated: const <YtChannel>[], attempted: const <String>{});
+  }
+  final now = DateTime.now();
+  // 多久重新問一次，使用者在設定頁調（2026-09-29 使用者要求：原本寫死
+  // 12 小時，改成可設定天數，預設一週一輪）。
+  final refreshEvery = Duration(days: ref.read(ytStatsRefreshDaysProvider));
+  final repo = ref.read(ytTrackerRepositoryProvider);
+  final all = await repo.channelsForUpload();
+  final stale = [
+    for (final c in all)
+      if (!skipIds.contains(c.id) &&
+          (c.statsUpdatedAt == null ||
+              now.difference(c.statsUpdatedAt!) > refreshEvery))
+        c,
+  ];
+  final attempted = {for (final c in stale) c.id};
+  if (stale.isEmpty) {
+    return (updated: const <YtChannel>[], attempted: attempted);
+  }
+  final service = YoutubeApiService(apiKey);
+  final history = YtSubscriberHistoryStore(ref.read(keyValueStoreProvider));
+  final updated = <YtChannel>[];
+  final withId = <YtChannel>[];
+  for (final c in stale) {
+    if (c.youtubeChannelId.isNotEmpty) {
+      withId.add(c);
+      continue;
+    }
+    final handle = YoutubeApiService.parseHandle(c.url);
+    if (handle == null) continue;
+    final info = await service.fetchChannelInfo(handle);
+    if (info.subscriberCount != null) {
+      await history.add(
+        c.id,
+        YtSubscriberSnapshot(at: now, count: info.subscriberCount!),
+      );
+    }
+    updated.add(
+      c.copyWith(
+        avatarImageUrl: c.avatarImageUrl.isEmpty ? info.avatarUrl : null,
+        youtubeChannelId: info.channelId,
+        uploadsPlaylistId: info.uploadsPlaylistId,
+        subscriberCount: info.subscriberCount,
+        subscribersHidden: info.subscribersHidden,
+        statsUpdatedAt: now,
+      ),
+    );
+  }
+  final stats = await service.fetchSubscriberStats([
+    for (final c in withId) c.youtubeChannelId,
+  ]);
+  for (final c in withId) {
+    final s = stats[c.youtubeChannelId];
+    if (s == null) continue;
+    if (s.count != null) {
+      await history.add(c.id, YtSubscriberSnapshot(at: now, count: s.count!));
+    }
+    updated.add(
+      c.copyWith(
+        subscriberCount: s.count,
+        subscribersHidden: s.hidden,
+        statsUpdatedAt: now,
+      ),
+    );
+  }
+  if (updated.isNotEmpty) await repo.updateChannels(updated);
+  return (updated: updated, attempted: attempted);
 }
 
 /// 新增頻道：貼網址就會自動用 YouTube API 抓頻道名稱跟大頭貼（2026-09-24

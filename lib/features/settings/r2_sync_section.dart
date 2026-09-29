@@ -9,7 +9,9 @@ import '../../data/cloud/r2_client.dart';
 import '../../data/cloud/r2_credentials_store.dart';
 import '../../data/cloud/r2_sync_service.dart';
 import '../../data/export/device_label.dart';
+import '../../data/repositories/diary_password_store.dart';
 import '../../data/repositories/yt_video_cache_store.dart';
+import '../../data/repositories/yt_video_watch_store.dart';
 import '../../shared/debug/app_log.dart';
 import '../../domain/models/sync_log_entry.dart';
 import '../../shared/widgets/app_notice.dart';
@@ -231,14 +233,22 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
       }
 
       await Future.wait([
-        run(
-          '日記',
-          (p) => _diaryPhase = p,
-          (onPhase) => service.syncDiary(
+        run('日記', (p) => _diaryPhase = p, (onPhase) async {
+          // 日記密碼（2026-09-29 使用者要求）跟日記內容本來就是同一個
+          // 功能範疇內的資料，包進同一個「日記」任務一起跑，不另外開
+          // 一個平行任務跟一顆狀態列。
+          final entryResult = await service.syncDiary(
             ref.read(diaryRepositoryProvider),
             onPhase: onPhase,
-          ),
-        ),
+          );
+          final pwResult = await service.syncDiaryPassword(
+            DiaryPasswordStore(ref.read(keyValueStoreProvider)),
+          );
+          return (
+            downloaded: entryResult.downloaded + pwResult.downloaded,
+            uploaded: entryResult.uploaded + pwResult.uploaded,
+          );
+        }),
         run(
           '健身',
           (p) => _fitnessPhase = p,
@@ -259,9 +269,19 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
             YtVideoCacheStore(ref.read(keyValueStoreProvider)),
             await ref.read(ytTrackerRepositoryProvider).loadChannels(),
           );
+          // 影片「看過了」記錄也算 YT 這個功能範疇內的資料（2026-09-29
+          // 使用者要求），跟分類／頻道／影片快取一起同步，不另開一個
+          // 平行任務。
+          final watchResult = await service.syncYtVideoWatch(
+            YtVideoWatchStore(ref.read(keyValueStoreProvider)),
+          );
           return (
-            downloaded: ytResult.downloaded + ytVideoResult.downloaded,
-            uploaded: ytResult.uploaded + ytVideoResult.uploaded,
+            downloaded:
+                ytResult.downloaded +
+                ytVideoResult.downloaded +
+                watchResult.downloaded,
+            uploaded:
+                ytResult.uploaded + ytVideoResult.uploaded + watchResult.uploaded,
           );
         }),
         run(

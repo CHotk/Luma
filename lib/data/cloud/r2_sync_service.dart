@@ -3,11 +3,14 @@ import 'dart:typed_data';
 
 import '../../domain/models/diary_entry.dart';
 import '../../domain/models/fitness.dart';
+import '../repositories/diary_password_store.dart';
 import '../repositories/diary_repository.dart';
 import '../../domain/models/sync_log_entry.dart';
 import '../../domain/models/yt_tracker.dart';
+import '../../domain/models/yt_video_watch.dart';
 import '../repositories/yt_tracker_repository.dart';
 import '../repositories/yt_video_cache_store.dart';
+import '../repositories/yt_video_watch_store.dart';
 import '../services/youtube_api_service.dart';
 import '../../shared/debug/app_log.dart';
 import '../repositories/error_log_repository.dart';
@@ -171,6 +174,45 @@ class R2SyncService {
     final etag = await _client.putObject(key, Uint8List.fromList(body));
     await _writeMeta(key, body, etag);
 
+    return (downloaded: downloaded, uploaded: uploaded);
+  }
+
+  /// 日記密碼（2026-09-29 使用者要求）：單一設定值，不是清單型紀錄，
+  /// 沒辦法用聯集合併——兩邊都有各自的密碼時，比 `updatedAt` 誰新，
+  /// 新的蓋過舊的（一般「最後修改的裝置為準」邏輯，跟其他紀錄類同步
+  /// 不同套路，見 [DiaryPasswordStore] 的說明）。
+  Future<({int downloaded, int uploaded})> syncDiaryPassword(
+    DiaryPasswordStore store,
+  ) async {
+    const key = 'diary_password.json';
+    final local = await store.loadRecord();
+    final beforeBytes = utf8.encode(jsonEncode(local.toJson()));
+    if (await _canSkip(key, beforeBytes)) return (downloaded: 0, uploaded: 0);
+
+    final fetched = await _client.getObjectWithEtag(key);
+    var finalRecord = local;
+    var downloaded = 0;
+    var uploaded = 0;
+    if (fetched.bytes == null) {
+      // 雲端還沒有這個檔案：第一次同步，本地這份（不管是預設值還是
+      // 使用者早就改過的）就是要上傳的那份。
+      uploaded = 1;
+    } else {
+      final cloud = DiaryPasswordRecord.fromJson(
+        jsonDecode(utf8.decode(fetched.bytes!)) as Map<String, dynamic>,
+      );
+      if (cloud.updatedAt.isAfter(local.updatedAt)) {
+        await store.saveRecord(cloud);
+        finalRecord = cloud;
+        downloaded = 1;
+      } else if (local.updatedAt.isAfter(cloud.updatedAt)) {
+        uploaded = 1;
+      }
+      // 兩邊時間戳一樣：本來就沒有異動，都不算。
+    }
+    final body = utf8.encode(jsonEncode(finalRecord.toJson()));
+    final etag = await _client.putObject(key, Uint8List.fromList(body));
+    await _writeMeta(key, body, etag);
     return (downloaded: downloaded, uploaded: uploaded);
   }
 
@@ -426,6 +468,50 @@ class R2SyncService {
     final etag = await _client.putObject(key, Uint8List.fromList(body));
     await _writeMeta(key, body, etag);
     return (downloaded: downloaded, uploaded: diff.length);
+  }
+
+  /// 影片「看過了」記錄（2026-09-29 使用者要求）：整份是一個
+  /// videoId→記錄的 map，不是清單，沒辦法套用 [_syncRecords] 那套（它是
+  /// 給「清單型」紀錄用的）。合併邏輯本身在 [YtVideoWatchStore.mergeFromCloud]
+  /// （取極值，重複同步結果一致），這裡只負責抓雲端／算異動筆數／上傳。
+  Future<({int downloaded, int uploaded})> syncYtVideoWatch(
+    YtVideoWatchStore store,
+  ) async {
+    const key = 'yt_video_watch.json';
+    final beforeAll = await store.loadAll();
+    final beforeBytes = utf8.encode(
+      jsonEncode(beforeAll.map((k, v) => MapEntry(k, v.toJson()))),
+    );
+    if (await _canSkip(key, beforeBytes)) return (downloaded: 0, uploaded: 0);
+
+    final fetched = await _client.getObjectWithEtag(key);
+    var cloud = <String, YtVideoWatchRecord>{};
+    if (fetched.bytes != null) {
+      final decoded = jsonDecode(utf8.decode(fetched.bytes!)) as Map<String, dynamic>;
+      cloud = decoded.map(
+        (k, v) => MapEntry(
+          k,
+          YtVideoWatchRecord.fromJson(v as Map<String, dynamic>),
+        ),
+      );
+    }
+    final downloaded = await store.mergeFromCloud(cloud);
+
+    final all = await store.loadAll();
+    final uploaded = all.entries
+        .where(
+          (e) =>
+              cloud[e.key] == null ||
+              cloud[e.key]!.lastOpenedAt != e.value.lastOpenedAt ||
+              cloud[e.key]!.firstWatchedAt != e.value.firstWatchedAt,
+        )
+        .length;
+    final body = utf8.encode(
+      jsonEncode(all.map((k, v) => MapEntry(k, v.toJson()))),
+    );
+    final etag = await _client.putObject(key, Uint8List.fromList(body));
+    await _writeMeta(key, body, etag);
+    return (downloaded: downloaded, uploaded: uploaded);
   }
 
   /// 「下載合併→上傳覆蓋」的通用做法，給五十音練習／考試共用（日記、

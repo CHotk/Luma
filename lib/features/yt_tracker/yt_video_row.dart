@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
 import '../../data/external_link.dart';
+import '../../data/repositories/yt_video_watch_store.dart';
 import '../../data/services/youtube_api_service.dart';
+import '../../domain/models/yt_video_watch.dart';
 import '../../shared/widgets/app_notice.dart';
 
 /// 開外部連結，失敗就退回複製到剪貼簿——跟匯出檔案失敗退回複製剪貼簿
@@ -32,7 +36,12 @@ Future<void> openExternalUrl(BuildContext context, String url) async {
 /// 詳情頁（單一頻道）共用同一顆，不要各刻一份（2026-09-22 使用者回報：
 /// 頻道詳情頁忘記接真的影片資料，順便把畫面也共用掉，以後兩邊行為才會
 /// 一直一致，不會改一邊漏改另一邊）。
-class YtVideoRow extends StatelessWidget {
+///
+/// 「點開過」的標記也集中在這裡處理（2026-09-29 使用者要求：不管從
+/// 哪裡、用什麼方式點開影片都要標記成看過、記時間戳）——所有點影片的
+/// 路徑本來就都會經過這顆共用元件的 `onTap`，標記邏輯放這裡一次涵蓋
+/// 全部呼叫端，不用每個列表頁自己接一份。
+class YtVideoRow extends ConsumerStatefulWidget {
   const YtVideoRow({super.key, required this.video, required this.subtitle});
 
   final YoutubeVideo video;
@@ -42,9 +51,40 @@ class YtVideoRow extends StatelessWidget {
   final String subtitle;
 
   @override
+  ConsumerState<YtVideoRow> createState() => _YtVideoRowState();
+}
+
+class _YtVideoRowState extends ConsumerState<YtVideoRow> {
+  YtVideoWatchRecord? _watched;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadWatched();
+  }
+
+  Future<void> _loadWatched() async {
+    final record = await YtVideoWatchStore(
+      ref.read(keyValueStoreProvider),
+    ).get(widget.video.videoId);
+    if (mounted && record != null) setState(() => _watched = record);
+  }
+
+  Future<void> _open() async {
+    final record = await YtVideoWatchStore(
+      ref.read(keyValueStoreProvider),
+    ).markOpened(widget.video.videoId);
+    if (context.mounted) {
+      await openExternalUrl(context, widget.video.watchUrl);
+    }
+    if (mounted) setState(() => _watched = record);
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final video = widget.video;
     return InkWell(
-      onTap: () => openExternalUrl(context, video.watchUrl),
+      onTap: _open,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
         child: Row(
@@ -99,6 +139,34 @@ class YtVideoRow extends StatelessWidget {
                       ),
                     ),
                   ),
+                // 左上角「已看過」小標籤，滑鼠停留／長按顯示第一次跟最近
+                // 一次點開的時間（2026-09-29 使用者要求：要有小提示或
+                // 小標籤，且要記時間戳）。
+                if (_watched != null)
+                  Positioned(
+                    left: 3,
+                    top: 3,
+                    child: Tooltip(
+                      message:
+                          '已看過・${ytRelativeTime(_watched!.firstWatchedAt)}\n'
+                          '最近一次：${ytRelativeTime(_watched!.lastOpenedAt)}',
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 1,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.ytAccent.withValues(alpha: 0.92),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Icon(
+                          Icons.visibility_rounded,
+                          size: 10,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
             const SizedBox(width: Gap.sm),
@@ -110,13 +178,13 @@ class YtVideoRow extends StatelessWidget {
                     video.title,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12.5,
-                      color: AppColors.ink,
+                      color: _watched != null ? AppColors.ink3 : AppColors.ink,
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text(subtitle, style: AppText.note),
+                  Text(widget.subtitle, style: AppText.note),
                 ],
               ),
             ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show Clipboard;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
@@ -625,7 +626,29 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                 const SizedBox(height: Gap.xs),
                 TextField(
                   controller: urlController,
-                  decoration: const InputDecoration(labelText: '頻道網址'),
+                  decoration: InputDecoration(
+                    labelText: '頻道網址',
+                    // 旁邊放一顆小貼上按鈕，不用整段刪掉重打
+                    // （2026-09-29 使用者要求）。
+                    suffixIcon: IconButton(
+                      icon: const Icon(Icons.content_paste_go_rounded, size: 18),
+                      tooltip: '貼上',
+                      onPressed: () async {
+                        String? text;
+                        try {
+                          final data = await Clipboard.getData(
+                            Clipboard.kTextPlain,
+                          );
+                          text = data?.text?.trim();
+                        } catch (_) {
+                          // 權限被擋、瀏覽器不支援：當沒讀到，不影響再按一次。
+                        }
+                        if (text == null || text.isEmpty) return;
+                        urlController.text = text;
+                        setDialogState(() {});
+                      },
+                    ),
+                  ),
                   style: const TextStyle(fontSize: 12.5, color: AppColors.ink),
                 ),
                 const SizedBox(height: Gap.xs),

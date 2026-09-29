@@ -9,6 +9,7 @@ import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
 import '../../data/export/file_download.dart';
+import '../../data/repositories/diary_password_store.dart';
 import '../../data/repositories/diary_repository.dart';
 import '../../data/seed/diary_seed_loader.dart';
 import '../../data/seed/seed_merge.dart';
@@ -60,11 +61,41 @@ class _DiaryPageState extends ConsumerState<DiaryPage> {
   static const _maskedKey = 'diary.masked.v1';
   bool _masked = false;
 
+  /// 密碼鎖（2026-09-29 使用者要求）：進日記要先輸入密碼，預設寫死
+  /// `15975311`，日記內的設定能改（`_DiarySettings`，見
+  /// `other_settings_page.dart`）。`_correctPassword` 還沒載入完成前
+  /// （null）解鎖按鈕先關掉，避免拿舊值比對。每次重新進這頁（State
+  /// 重建）都要重新輸入，不記「這個 session 已經解鎖過」。
+  bool _locked = true;
+  String? _correctPassword;
+  final _passwordController = TextEditingController();
+  String? _passwordError;
+
   @override
   void initState() {
     super.initState();
     _future = _loadWithSeedMerge();
     _loadMaskedPref();
+    _loadPassword();
+  }
+
+  Future<void> _loadPassword() async {
+    final pw = await DiaryPasswordStore(
+      ref.read(keyValueStoreProvider),
+    ).loadPassword();
+    if (mounted) setState(() => _correctPassword = pw);
+  }
+
+  void _tryUnlock() {
+    if (_correctPassword == null) return;
+    if (_passwordController.text == _correctPassword) {
+      setState(() {
+        _locked = false;
+        _passwordError = null;
+      });
+    } else {
+      setState(() => _passwordError = '密碼錯誤');
+    }
   }
 
   Future<void> _loadMaskedPref() async {
@@ -90,6 +121,7 @@ class _DiaryPageState extends ConsumerState<DiaryPage> {
   void dispose() {
     _textController.dispose();
     _listScrollController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
@@ -395,6 +427,162 @@ class _DiaryPageState extends ConsumerState<DiaryPage> {
     _reload();
   }
 
+  /// 密碼鎖畫面：沒有齒輪（設定要進了日記才點得到，跟使用者原話「當然
+  /// 進去才能點到設定」一致），也沒有日記本身的任何內容，只有輸入框。
+  Widget _buildLockScreen(BuildContext context) {
+    return Scaffold(
+      drawer: const AppSideDrawer(),
+      body: AmbientBackground(
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: Gap.screenSide),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: Gap.sm),
+                const AppTopBar(
+                  title: '日記',
+                  showBack: false,
+                  showSettings: false,
+                ),
+                Expanded(
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 320),
+                      child: GlassCard(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: Gap.md,
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 64,
+                                height: 64,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      AppColors.diaryAccent.withValues(
+                                        alpha: 0.35,
+                                      ),
+                                      AppColors.diaryAccent.withValues(
+                                        alpha: 0.12,
+                                      ),
+                                    ],
+                                  ),
+                                  shape: BoxShape.circle,
+                                ),
+                                alignment: Alignment.center,
+                                child: const Icon(
+                                  Icons.lock_outline_rounded,
+                                  size: 28,
+                                  color: AppColors.diaryAccent,
+                                ),
+                              ),
+                              const SizedBox(height: Gap.md),
+                              const Text(
+                                '這篇日記上了鎖',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.ink,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text('輸入密碼才能查看', style: AppText.note),
+                              const SizedBox(height: Gap.lg),
+                              TextField(
+                                controller: _passwordController,
+                                obscureText: true,
+                                autofocus: true,
+                                keyboardType: TextInputType.number,
+                                textAlign: TextAlign.center,
+                                onSubmitted: (_) => _tryUnlock(),
+                                onChanged: (_) {
+                                  if (_passwordError != null) {
+                                    setState(() => _passwordError = null);
+                                  }
+                                },
+                                style: const TextStyle(
+                                  color: AppColors.ink,
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 10,
+                                ),
+                                decoration: InputDecoration(
+                                  hintText: '● ● ● ●',
+                                  hintStyle: const TextStyle(
+                                    color: AppColors.ink3,
+                                    letterSpacing: 10,
+                                  ),
+                                  errorText: _passwordError,
+                                  filled: true,
+                                  fillColor: AppColors.glassFill,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(
+                                      Radii.button,
+                                    ),
+                                    borderSide: const BorderSide(
+                                      color: AppColors.glassEdge,
+                                    ),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(
+                                      Radii.button,
+                                    ),
+                                    borderSide: const BorderSide(
+                                      color: AppColors.diaryAccent,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: Gap.md),
+                              SizedBox(
+                                width: double.infinity,
+                                height: 44,
+                                child: FilledButton(
+                                  onPressed: _correctPassword == null
+                                      ? null
+                                      : _tryUnlock,
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: AppColors.diaryAccent,
+                                    foregroundColor: AppColors.diaryAccentInk,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(
+                                        Radii.button,
+                                      ),
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    '解鎖',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // 從抽屜點去雲端同步頁按下「立即同步」，這個日記頁的 instance 還
@@ -404,6 +592,7 @@ class _DiaryPageState extends ConsumerState<DiaryPage> {
     ref.listen<int>(dataRevisionProvider, (prev, next) {
       if (prev != next) _reload();
     });
+    if (_locked) return _buildLockScreen(context);
     return Scaffold(
       // 左上角三條線選單是全 App 共用、固定的位置，子頁面不能把它換成
       // 只有返回鍵——兩個都要，返回鍵放三條線旁邊（2026-09-22 使用者

@@ -15,6 +15,8 @@ class JpHomeState {
     required this.review,
     required this.practicedDaysThisMonth,
     required this.streakDays,
+    required this.firstPracticedAt,
+    required this.daysSinceStart,
   });
 
   final JpReviewConfig config;
@@ -36,6 +38,14 @@ class JpHomeState {
   /// 從昨天開始算，不會因為「今天還沒點開 App」就把昨天累積的連續
   /// 天數歸零——這是使用者查看首頁那一刻的即時狀態，不是硬性規則）。
   final int streakDays;
+
+  /// 最早一筆練習紀錄是哪一天（2026-09-29 使用者要求：統計要能看到
+  /// 「幾號開始學習」）。從沒練過就是 null。
+  final DateTime? firstPracticedAt;
+
+  /// 從第一次練習那天算到今天，含頭尾兩端各算一天（今天開始學就是
+  /// 「已經 1 天」，不是 0）。沒練過就是 0。
+  final int daysSinceStart;
 }
 
 /// autoDispose：離開日文首頁就丟掉，回來時重新算，practice 頁自動存檔
@@ -92,6 +102,21 @@ final jpHomeStateProvider = FutureProvider.autoDispose<JpHomeState>((
     cursor = cursor.subtract(const Duration(days: 1));
   }
 
+  DateTime? firstPracticedAt;
+  for (final d in practicedDates) {
+    if (firstPracticedAt == null || d.isBefore(firstPracticedAt)) {
+      firstPracticedAt = d;
+    }
+  }
+  final daysSinceStart = firstPracticedAt == null
+      ? 0
+      : DateTime(
+              now.year,
+              now.month,
+              now.day,
+            ).difference(firstPracticedAt).inDays +
+            1;
+
   return JpHomeState(
     config: config,
     todayCount: today.length,
@@ -99,5 +124,7 @@ final jpHomeStateProvider = FutureProvider.autoDispose<JpHomeState>((
     review: review,
     practicedDaysThisMonth: practicedDaysThisMonth,
     streakDays: streakDays,
+    firstPracticedAt: firstPracticedAt,
+    daysSinceStart: daysSinceStart,
   );
 });

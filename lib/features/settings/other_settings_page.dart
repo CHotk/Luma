@@ -5,12 +5,15 @@ import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
+import '../../data/repositories/diary_password_store.dart';
 import '../../data/repositories/yt_stats_refresh_setting_store.dart';
 import '../../shared/widgets/ambient_background.dart';
+import '../../shared/widgets/app_notice.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
 import '../../shared/widgets/glass_card.dart';
 import '../yt_tracker/yt_api_key_dialog.dart';
+import '../yt_tracker/yt_tracker_browse_page.dart' show refreshYtSubscriberStats;
 import '../yt_tracker/yt_tracker_home_page.dart' show showYtExportDialog;
 
 /// 英文學習以外的功能（日記、健身、YT、日文…）點齒輪來到的設定頁。
@@ -26,6 +29,7 @@ class OtherSettingsPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isYtTracker = fromLocation?.startsWith('/yt-tracker') ?? false;
+    final isDiary = fromLocation?.startsWith('/diary') ?? false;
     return Scaffold(
       drawer: const AppSideDrawer(),
       body: AmbientBackground(
@@ -41,6 +45,8 @@ class OtherSettingsPage extends ConsumerWidget {
                 Expanded(
                   child: isYtTracker
                       ? const _YtTrackerSettings()
+                      : isDiary
+                      ? const _DiarySettings()
                       : Center(
                           child: Text('這個功能還沒有設定項目', style: AppText.bodyDim),
                         ),
@@ -133,30 +139,156 @@ class _YtTrackerSettings extends ConsumerWidget {
   }
 }
 
-/// 訂閱人數多久重新問一次 API，這裡調（2026-09-29 使用者要求：原本寫死
-/// 12 小時，改成可設定天數，預設一天一輪）。只影響「依頻道顯示」畫面
-/// 自動更新訂閱人數的節奏，跟多裝置同步無關，不用跨裝置同步這個值。
-class _StatsRefreshRow extends ConsumerWidget {
-  const _StatsRefreshRow();
+/// 日記密碼設定（2026-09-29 使用者要求）：只有一顆「變更密碼」，密碼
+/// 存在 [DiaryPasswordStore]，預設 `15975311`，改掉的值也會同步到雲端
+/// （見 `r2_sync_section.dart` 把 `syncDiaryPassword` 併進「日記」那個
+/// 同步任務）。這頁本身要先過日記的密碼鎖才進得來（齒輪在日記解鎖後的
+/// 頂部列），不用在這裡再驗證一次目前密碼。
+class _DiarySettings extends ConsumerWidget {
+  const _DiarySettings();
 
-  static const _min = 1;
-  static const _max = 14;
+  Future<void> _showChangePasswordDialog(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final controller = TextEditingController();
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A24),
+        title: const Text('變更日記密碼', style: TextStyle(color: AppColors.ink)),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(labelText: '新密碼'),
+          style: const TextStyle(color: AppColors.ink),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.diaryAccent,
+              foregroundColor: AppColors.diaryAccentInk,
+            ),
+            child: const Text('儲存'),
+          ),
+        ],
+      ),
+    );
+    final newPassword = controller.text.trim();
+    if (saved != true || newPassword.isEmpty) return;
+    await DiaryPasswordStore(
+      ref.read(keyValueStoreProvider),
+    ).savePassword(newPassword);
+    if (!context.mounted) return;
+    showAppNotice(context, '已更新日記密碼');
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final days = ref.watch(ytStatsRefreshDaysProvider);
+    return ListView(
+      children: [
+        Text('日記', style: AppText.note),
+        const SizedBox(height: Gap.sm),
+        GlassCard(
+          child: Row(
+            children: [
+              const Icon(
+                Icons.lock_outline_rounded,
+                size: 18,
+                color: AppColors.ink2,
+              ),
+              const SizedBox(width: Gap.sm),
+              const Expanded(
+                child: Text(
+                  '日記密碼',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.ink,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () => _showChangePasswordDialog(context, ref),
+                child: const Text('變更'),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
 
-    Future<void> setDays(int value) async {
-      final clamped = value.clamp(_min, _max);
-      ref.read(ytStatsRefreshDaysProvider.notifier).state = clamped;
+/// 訂閱人數多久重新問一次 API，這裡調（2026-09-29 使用者要求：原本寫死
+/// 12 小時，改成可設定天數，預設一天一輪）。只影響「依頻道顯示」畫面
+/// 自動更新訂閱人數的節奏，跟多裝置同步無關，不用跨裝置同步這個值。
+///
+/// +/- 只改本地草稿值，不會馬上生效——要按「儲存」才真的存檔，而且
+/// 儲存那一下也會立刻觸發一次檢查（2026-09-29 使用者要求：「設定調完
+/// 以後應該這天數要有儲存按鈕 點下也該處發一次」），不用等下次剛好
+/// 打開某個分類列表才生效。
+class _StatsRefreshRow extends ConsumerStatefulWidget {
+  const _StatsRefreshRow();
+
+  @override
+  ConsumerState<_StatsRefreshRow> createState() => _StatsRefreshRowState();
+}
+
+class _StatsRefreshRowState extends ConsumerState<_StatsRefreshRow> {
+  static const _min = 1;
+  static const _max = 14;
+
+  late int _draft;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _draft = ref.read(ytStatsRefreshDaysProvider);
+  }
+
+  Future<void> _save() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    try {
+      ref.read(ytStatsRefreshDaysProvider.notifier).state = _draft;
       await YtStatsRefreshSettingStore(
         ref.read(keyValueStoreProvider),
-      ).save(clamped);
+      ).save(_draft);
+      final result = await refreshYtSubscriberStats(ref);
+      if (!mounted) return;
+      showAppNotice(
+        context,
+        result.updated.isEmpty
+            ? '已儲存，目前沒有需要更新的頻道'
+            : '已儲存，${result.updated.length} 個頻道更新了訂閱人數',
+      );
+    } catch (e) {
+      if (mounted) showAppNotice(context, '儲存失敗：$e', isError: true);
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final saved = ref.watch(ytStatsRefreshDaysProvider);
+    final dirty = _draft != saved;
 
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Icon(Icons.groups_outlined, size: 18, color: AppColors.ink2),
+        const Padding(
+          padding: EdgeInsets.only(top: 2),
+          child: Icon(Icons.groups_outlined, size: 18, color: AppColors.ink2),
+        ),
         const SizedBox(width: Gap.sm),
         Expanded(
           child: Column(
@@ -170,25 +302,66 @@ class _StatsRefreshRow extends ConsumerWidget {
                   color: AppColors.ink,
                 ),
               ),
-              Text('每 $days 天重新問一次 API', style: AppText.note),
+              Text(
+                dirty ? '每 $_draft 天重新問一次 API（還沒儲存）' : '每 $_draft 天重新問一次 API',
+                style: AppText.note,
+              ),
+              const SizedBox(height: Gap.xs),
+              Row(
+                children: [
+                  IconButton(
+                    onPressed: _draft > _min
+                        ? () => setState(() => _draft--)
+                        : null,
+                    icon: const Icon(Icons.remove_circle_outline, size: 20),
+                    color: AppColors.ink2,
+                    padding: EdgeInsets.zero,
+                    visualDensity: VisualDensity.compact,
+                    constraints: const BoxConstraints(
+                      minWidth: 32,
+                      minHeight: 32,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: _draft < _max
+                        ? () => setState(() => _draft++)
+                        : null,
+                    icon: const Icon(Icons.add_circle_outline, size: 20),
+                    color: AppColors.ink2,
+                    padding: EdgeInsets.zero,
+                    visualDensity: VisualDensity.compact,
+                    constraints: const BoxConstraints(
+                      minWidth: 32,
+                      minHeight: 32,
+                    ),
+                  ),
+                  const SizedBox(width: Gap.sm),
+                  SizedBox(
+                    height: 32,
+                    child: FilledButton(
+                      onPressed: dirty && !_saving ? _save : null,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.ytAccent,
+                        foregroundColor: AppColors.ytAccentInk,
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      child: _saving
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text('儲存', style: TextStyle(fontSize: 13)),
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
-        ),
-        IconButton(
-          onPressed: days > _min ? () => setDays(days - 1) : null,
-          icon: const Icon(Icons.remove_circle_outline, size: 20),
-          color: AppColors.ink2,
-          padding: EdgeInsets.zero,
-          visualDensity: VisualDensity.compact,
-          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-        ),
-        IconButton(
-          onPressed: days < _max ? () => setDays(days + 1) : null,
-          icon: const Icon(Icons.add_circle_outline, size: 20),
-          color: AppColors.ink2,
-          padding: EdgeInsets.zero,
-          visualDensity: VisualDensity.compact,
-          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
         ),
       ],
     );

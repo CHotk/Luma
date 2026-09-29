@@ -670,6 +670,17 @@ class _MonthlyCalendarCard extends StatelessWidget {
             Expanded(child: _statPill('$rate%', '本月達成率')),
           ],
         ),
+        // 「幾號開始學習、已經幾天」（2026-09-29 使用者要求：統計也要能
+        // 看到這個），放在月曆卡片最底下一行，不佔額外一整個 pill 的份量。
+        if (state.firstPracticedAt != null) ...[
+          const SizedBox(height: Gap.sm),
+          Center(
+            child: Text(
+              '${state.firstPracticedAt!.month}/${state.firstPracticedAt!.day} 開始學習・已經 ${state.daysSinceStart} 天',
+              style: AppText.note,
+            ),
+          ),
+        ],
       ],
     );
   }

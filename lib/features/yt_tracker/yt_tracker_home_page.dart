@@ -23,7 +23,8 @@ import '../../shared/widgets/app_notice.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
 import 'yt_api_key_dialog.dart';
-import 'yt_tracker_browse_page.dart' show showAddYtChannelDialog;
+import 'yt_tracker_browse_page.dart'
+    show refreshYtSubscriberStats, showAddYtChannelDialog;
 import 'yt_channel_avatar.dart';
 
 /// YT 頻道追蹤首頁：分類資料夾格子（設計稿 06/07/08 定案，見
@@ -66,6 +67,27 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
     // 不再一進頁面就自動跳金鑰輸入視窗（2026-09-24 使用者要求：手機一進來
     // 就跳出貼上選項很煩、而且貼了也沒真的貼進去，先拿掉）。需要金鑰的
     // 「依影片顯示」跟頻道詳情頁，沒金鑰時自己會顯示「設定 API 金鑰」按鈕。
+    // 一打開 YT 追蹤首頁就背景檢查一次訂閱人數（2026-09-29 使用者要求：
+    // 不用非得點進某個分類的頻道列表才觸發），沒金鑰或都還沒到期就直接
+    // 跳過，不會多打 API。
+    _ensureStatsInBackground();
+  }
+
+  bool _statsInFlight = false;
+
+  Future<void> _ensureStatsInBackground() async {
+    if (_statsInFlight) return;
+    final apiKey = ref.read(ytApiKeyProvider);
+    if (apiKey == null || apiKey.isEmpty) return;
+    _statsInFlight = true;
+    try {
+      final result = await refreshYtSubscriberStats(ref);
+      if (mounted && result.updated.isNotEmpty) _reload();
+    } catch (e, stack) {
+      AppLog.add('[YT] 訂閱人數更新失敗：$e\n$stack', isError: true);
+    } finally {
+      _statsInFlight = false;
+    }
   }
 
   /// 打開這頁那一瞬間先把分類／頻道快照（見 `yt_tracker_seed_loader.dart`）
