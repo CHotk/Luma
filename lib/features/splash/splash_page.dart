@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
 import '../../data/seed/app_defaults_loader.dart';
 import '../../shared/widgets/ambient_background.dart';
@@ -58,10 +59,13 @@ class _SplashPageState extends ConsumerState<SplashPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // App 圖示（使用者換上的 logo，2026-09-24），讀不到就退回原本畫
-              // 出來的標誌。
+              // App 圖示：使用者可以在設定頁的「App Logo」挑
+              // `assets/images/app_logo/` 裡的任一張圖（2026-09-29 加），
+              // 沒選過就用預設的 logo.png；讀不到（檔案被搬走等）就退回
+              // 原本畫出來的標誌。
               Image.asset(
-                'assets/images/app_logo/logo.png',
+                ref.watch(appLogoAssetProvider) ??
+                    'assets/images/app_logo/logo.png',
                 width: 120,
                 height: 120,
                 errorBuilder: (context, error, stack) =>

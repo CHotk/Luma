@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app/app.dart';
 import 'app/providers.dart';
 import 'data/cloud/r2_credentials_store.dart';
+import 'data/repositories/app_logo_store.dart';
 import 'data/repositories/error_log_repository.dart';
 import 'data/repositories/yt_api_key_store.dart';
 import 'data/repositories/yt_stats_refresh_setting_store.dart';
@@ -30,6 +31,7 @@ Future<void> main() async {
   final savedYtStatsRefreshDays = await YtStatsRefreshSettingStore(
     store,
   ).load();
+  final savedAppLogoAssetPath = await AppLogoStore(store).load();
   final r2BucketName = await loadR2BucketName();
   final savedR2Credentials = await R2CredentialsStore(store).load();
 
@@ -42,6 +44,7 @@ Future<void> main() async {
         ytStatsRefreshDaysProvider.overrideWith(
           (ref) => savedYtStatsRefreshDays,
         ),
+        appLogoAssetProvider.overrideWith((ref) => savedAppLogoAssetPath),
         r2BucketNameProvider.overrideWithValue(r2BucketName),
         r2CredentialsProvider.overrideWith((ref) => savedR2Credentials),
       ],

@@ -4,9 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
+import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
+import '../../data/repositories/app_logo_store.dart';
+import '../../data/seed/app_logo_loader.dart';
 import '../../domain/rules_config.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_side_drawer.dart';
@@ -65,6 +68,10 @@ class _Body extends ConsumerWidget {
 
     return ListView(
       children: [
+        const _SectionLabel('App Logo'),
+        const GlassCard(child: _AppLogoSection()),
+        const SizedBox(height: Gap.md),
+
         const _SectionLabel('題型'),
         GlassCard(
           padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 4),
@@ -328,6 +335,90 @@ class _VersionFooter extends StatelessWidget {
             : 'v${info.version}+${info.buildNumber}';
         return Center(child: Text(label, style: AppText.note));
       },
+    );
+  }
+}
+
+/// App Logo 選擇器（2026-09-29 使用者要求）：把
+/// `assets/images/app_logo/` 底下打包進去的每張圖都列出來當縮圖，點了
+/// 就換成那張，套用在開機畫面。用 [loadAppLogoAssetPaths] 動態列舉，
+/// 之後往那個資料夾丟新圖片、重新 build 就會自動出現，不用再改這裡。
+class _AppLogoSection extends ConsumerWidget {
+  const _AppLogoSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selected =
+        ref.watch(appLogoAssetProvider) ?? 'assets/images/app_logo/logo.png';
+    return FutureBuilder<List<String>>(
+      future: loadAppLogoAssetPaths(),
+      builder: (context, snap) {
+        final paths = snap.data ?? const [];
+        if (paths.isEmpty) {
+          return Text(
+            snap.connectionState == ConnectionState.waiting ? '讀取中…' : '找不到圖片',
+            style: AppText.note,
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('點一張套用，套用後開機畫面就會換成那張圖', style: AppText.note),
+            const SizedBox(height: Gap.sm),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                for (final path in paths)
+                  _LogoThumb(
+                    path: path,
+                    selected: path == selected,
+                    onTap: () async {
+                      ref.read(appLogoAssetProvider.notifier).state = path;
+                      await AppLogoStore(
+                        ref.read(keyValueStoreProvider),
+                      ).save(path);
+                    },
+                  ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _LogoThumb extends StatelessWidget {
+  const _LogoThumb({
+    required this.path,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String path;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        width: 64,
+        height: 64,
+        padding: const EdgeInsets.all(6),
+        decoration: BoxDecoration(
+          color: AppColors.glassFill,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected ? AppColors.accent : AppColors.glassEdge,
+            width: selected ? 2 : 1,
+          ),
+        ),
+        child: Image.asset(path, fit: BoxFit.contain),
+      ),
     );
   }
 }

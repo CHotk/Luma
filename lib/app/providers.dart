@@ -145,6 +145,11 @@ final ytStatsRefreshDaysProvider = StateProvider<int>(
   (ref) => YtStatsRefreshSettingStore.defaultDays,
 );
 
+/// 使用者選的 App Logo 資產路徑，null＝沒選過、用預設的
+/// `assets/images/app_logo/logo.png`（2026-09-29 使用者要求：設定頁能換
+/// Logo，見 `AppLogoStore`／`app_logo_loader.dart`）。
+final appLogoAssetProvider = StateProvider<String?>((ref) => null);
+
 /// 剛結束那一輪的成績，給結果頁讀。
 /// 不用 autoDispose，因為從測驗頁跳到結果頁的過程中測驗頁會被銷毀。
 final lastRoundProvider = StateProvider<RoundResult?>((ref) => null);
