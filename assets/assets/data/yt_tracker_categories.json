@@ -100,5 +100,11 @@
     "name": "待分類",
     "color": 4286943968,
     "imageUrl": ""
+  },
+  {
+    "id": "seed-finance",
+    "name": "財經",
+    "color": 4292913486,
+    "imageUrl": ""
   }
 ]

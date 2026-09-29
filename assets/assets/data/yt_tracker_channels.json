@@ -616,5 +616,15 @@
     "url": "https://youtube.com/@warnermusictaiwan?si=sC9BRORV9J4pkUiE",
     "description": "",
     "addedAt": "2026-09-24T00:00:00.000"
+  },
+  {
+    "id": "seed-ustv",
+    "name": "USTV 非凡電視",
+    "categoryId": "seed-finance",
+    "avatarEmoji": "📺",
+    "avatarImageUrl": "https://yt3.googleusercontent.com/8u-Sf1fw54VH96huvO6WBkFWvwWwoiZTtJA0qkUCycqsIIoFwi0zI2Z8sjlVG6qkp6YlmUm7CA=s160-c-k-c0x00ffffff-no-rj",
+    "url": "https://www.youtube.com/@USTV",
+    "description": "",
+    "addedAt": "2026-09-24T00:00:00.000"
   }
 ]
