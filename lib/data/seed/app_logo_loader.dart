@@ -14,6 +14,18 @@ Future<List<String>> loadAppLogoAssetPaths() async {
   const dir = 'assets/images/app_logo/';
   final manifestJson = await rootBundle.loadString('AssetManifest.json');
   final manifest = jsonDecode(manifestJson) as Map<String, dynamic>;
-  final paths = manifest.keys.where((k) => k.startsWith(dir)).toList()..sort();
+  final paths =
+      manifest.keys
+          .where(
+            (k) =>
+                k.startsWith(dir) &&
+                // `splash/` 子資料夾放的是啟動畫面專用的縮小版本（見
+                // tool/resize_splash_logo.dart），不是給使用者選的新
+                // Logo，選圖器要濾掉，不然會多出兩張長得一樣、解析度
+                // 卻很小的重複選項（2026-09-30 加這個子資料夾時一起處理）。
+                !k.startsWith('${dir}splash/'),
+          )
+          .toList()
+        ..sort();
   return paths;
 }

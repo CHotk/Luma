@@ -70,4 +70,8 @@ flutter:
     - assets/images/fitness/
     - assets/images/nav_icons/
     - assets/images/app_logo/
+    # Flutter 宣告資料夾只會包直接底下的檔案，不會遞迴進子資料夾——啟動
+    # 畫面專用的小尺寸版本（見 tool/resize_splash_logo.dart）放在這個子
+    # 資料夾，要另外宣告一行才會真的打包進去。
+    - assets/images/app_logo/splash/
     - assets/images/user_profile/
