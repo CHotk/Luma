@@ -582,6 +582,31 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
           if (_hiddenVideoIds.contains(v.videoId)) return _showHiddenVideos;
           return !(_hideWatched && _watchedVideoIds.contains(v.videoId));
         }).toList();
+        // 「隱藏已看過」預設開著，一個頻道看過越多，篩選完剩下的影片就
+        // 越少——少到畫面塞不滿、捲不動的話，往下滑觸發載入更多影片的
+        // `_onScroll` 永遠不會被觸發（沒東西可滑，滑動事件根本不會發生），
+        // 使用者只會看到寥寥幾部甚至沒有影片，看起來就像「連沒看過的
+        // 影片也一起被藏起來了」——其實它們只是還沒被抓進來，不是被藏
+        // 起來（2026-09-30 使用者回報「取消隱藏已看過才會出現其他影片」
+        // 抓到的就是這個：關掉篩選後，畫面東西夠多能捲動了，才第一次
+        // 真的觸發到載入）。這裡補一個不靠捲動的保險：篩選完的可見清單
+        // 太短、還沒到底、也沒在載入中，就主動幫忙多抓一批，直到畫面
+        // 有夠多可見影片、或是真的抓到底為止。
+        //
+        // 門檻用 [_loadMoreBatch]（50）不是隨便一個數字（2026-09-30
+        // 使用者糾正：門檻本來寫死抄第一頁筆數 10，邏輯上沒對齊）——
+        // 「載入更多」一次真的抓的量就是 50，篩選前後使用者感受到的
+        // 捲動節奏要一樣，可見清單就該補到跟一次原始批次同一個量級，
+        // 不然篩掉的越多，同一次滑動觸發後能看到的新影片反而越少，
+        // 跟沒開篩選時不等價。
+        if (visibleVideos.length < _loadMoreBatch &&
+            !_reachedEnd &&
+            !_loadingMore &&
+            _loadMoreError == null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _loadMoreVideos();
+          });
+        }
         // 用 Column 不用 ListView.separated——這塊現在是外層
         // SingleChildScrollView 的一部分，自己不用再是獨立的可捲動
         // 區域（見 build() 的說明：簡介／圖表／影片要一起滑動）。
@@ -1047,6 +1072,11 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
         FilterChip(
           label: const Text('隱藏已看過'),
           selected: _hideWatched,
+          // 不顯示打勾圖示（2026-09-30 使用者回報：切開/關會多/少那個勾勾
+          // 圖示，導致按鈕本身寬度跟著變、旁邊的「顯示已隱藏」也被推著
+          // 移動——選中/沒選中已經有底色跟外框顏色可以分辨，不需要再靠
+          // 圖示，維持固定寬度比較重要）。
+          showCheckmark: false,
           // 點這顆（不管切成開還是關）都重新讀一次「已看過」清單
           // （2026-09-30 使用者要求：看了好幾部之後，這個開關本來
           // 讀進來的清單是舊的，不會包含這個 session 剛看過的，導致
@@ -1069,6 +1099,7 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
         FilterChip(
           label: const Text('顯示已隱藏'),
           selected: _showHiddenVideos,
+          showCheckmark: false,
           onSelected: (v) => setState(() => _showHiddenVideos = v),
           backgroundColor: AppColors.glassFill,
           selectedColor: AppColors.accentSolid.withValues(alpha: 0.28),
