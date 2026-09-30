@@ -349,7 +349,7 @@ class _AppLogoSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final selected =
-        ref.watch(appLogoAssetProvider) ?? 'assets/images/app_logo/logo.png';
+        ref.watch(appLogoAssetProvider) ?? 'assets/images/app_logo/logo02.png';
     return FutureBuilder<List<String>>(
       future: loadAppLogoAssetPaths(),
       builder: (context, snap) {

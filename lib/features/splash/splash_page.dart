@@ -61,11 +61,12 @@ class _SplashPageState extends ConsumerState<SplashPage> {
             children: [
               // App 圖示：使用者可以在設定頁的「App Logo」挑
               // `assets/images/app_logo/` 裡的任一張圖（2026-09-29 加），
-              // 沒選過就用預設的 logo.png；讀不到（檔案被搬走等）就退回
-              // 原本畫出來的標誌。
+              // 沒選過就用預設的 logo02.png（2026-09-30 使用者要求把預設
+              // 從 logo.png 換成 logo02.png）；讀不到（檔案被搬走等）就
+              // 退回原本畫出來的標誌。
               Image.asset(
                 ref.watch(appLogoAssetProvider) ??
-                    'assets/images/app_logo/logo.png',
+                    'assets/images/app_logo/logo02.png',
                 width: 120,
                 height: 120,
                 errorBuilder: (context, error, stack) =>
