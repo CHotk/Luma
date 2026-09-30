@@ -19,7 +19,9 @@ void main() {
 
   test('app_defaults.yaml 的啟動畫面停留時間真的被讀進來', () async {
     final hold = await loadSplashHoldDuration();
-    expect(hold, const Duration(milliseconds: 1600));
+    // 2026-09-30 使用者要求拔掉人為停留，改成 0（見 app_defaults.yaml
+    // 該欄位的說明）。
+    expect(hold, Duration.zero);
   });
 
   test('app_defaults.yaml 的日文複習排程參數真的被讀進來', () async {

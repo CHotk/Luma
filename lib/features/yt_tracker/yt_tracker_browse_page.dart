@@ -1340,7 +1340,7 @@ class _ChannelGrid extends StatelessWidget {
               const Icon(
                 Icons.push_pin_rounded,
                 size: 13,
-                color: AppColors.ytAccent,
+                color: AppColors.ytPinAccent,
               ),
               const SizedBox(width: 4),
               Text('已置頂 · ${pinned.length}', style: AppText.note),
@@ -1412,29 +1412,20 @@ class _ChannelGrid extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            children: [
-                              if (isPinned) ...[
-                                const Icon(
-                                  Icons.push_pin_rounded,
-                                  size: 11,
-                                  color: AppColors.ytAccent,
-                                ),
-                                const SizedBox(width: 3),
-                              ],
-                              Flexible(
-                                child: Text(
-                                  c.name,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 12.5,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.ink,
-                                  ),
-                                ),
-                              ),
-                            ],
+                          // 置頂靠左側金色色條標示就夠（見下面
+                          // Positioned），名稱前面不再重複放圖釘圖示
+                          // ——使用者回饋圖示是紅色很醜、兩個標記重複
+                          // 也太滿（2026-09-30），改成只留色條這一種
+                          // 標記，風格最內斂。
+                          Text(
+                            c.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.ink,
+                            ),
                           ),
                           if (c.subscriberLabel != null) ...[
                             const SizedBox(height: 4),
@@ -1495,9 +1486,11 @@ class _ChannelGrid extends StatelessWidget {
                   right: 4,
                   child: _DiscoveredViaBadge(text: c.discoveredVia),
                 ),
-              // 置頂標記：左側一條主題色直條，圖釘小圖示改放名稱前面
-              // （2026-09-30 使用者從三個方向裡選了「左側色條」：改動最小、
-              // 風格最內斂）。原本圖釘浮在左上角，會壓到卡片圓角跟頭像。
+              // 置頂標記：左側一條金色直條（2026-09-30 使用者從三個方向
+              // 裡選了「左側色條」：改動最小、風格最內斂）。原本圖釘浮在
+              // 左上角會壓到卡片圓角跟頭像，且色條一度誤用 ytAccent
+              // （YouTube 品牌紅），畫出來變成紅色、被回饋很醜——改用
+              // 專門的 [AppColors.ytPinAccent] 金銅色，跟品牌紅分開。
               if (isPinned)
                 const Positioned(
                   left: 0,
@@ -1505,7 +1498,7 @@ class _ChannelGrid extends StatelessWidget {
                   bottom: 0,
                   child: SizedBox(
                     width: 3,
-                    child: ColoredBox(color: AppColors.ytAccent),
+                    child: ColoredBox(color: AppColors.ytPinAccent),
                   ),
                 ),
             ],

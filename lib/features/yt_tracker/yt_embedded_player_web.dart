@@ -18,6 +18,13 @@ Widget buildYtEmbeddedPlayer(String videoId) {
   if (_registered.add(viewType)) {
     ui_web.platformViewRegistry.registerViewFactory(viewType, (int viewId) {
       return html.IFrameElement()
+        // 2026-09-30 使用者要求「要真的播放聲音」，明知手機（iOS Safari）
+        // 大機率還是會被擋（自動播放＋有聲音這個組合，瀏覽器政策上幾乎
+        // 一定二選一，見同一天跟使用者的討論），還是照要求拿掉 mute=1
+        // 試試看——桌機瀏覽器（尤其是使用者對這個網域已經有播放過媒體
+        // 紀錄的情況）有機會允許有聲自動播放，手機那邊會退回「停在縮圖，
+        // 使用者自己點 YouTube 播放器中間的播放鍵」，不是程式壞掉，是
+        // 瀏覽器直接擋掉沒有任何錯誤訊息（同上面舊版註解說明的機制）。
         ..src = 'https://www.youtube.com/embed/$videoId?autoplay=1&rel=0'
         ..style.border = 'none'
         ..style.width = '100%'

@@ -84,4 +84,12 @@ abstract final class AppColors {
   /// 不是整片塗紅，跟 YouTube 自己深色模式的用色節制程度一致。
   static const ytAccent = Color(0xFFFF2D40);
   static const ytAccentInk = Color(0xFF2B0708);
+
+  /// 頻道「置頂」標記專用色，跟 [ytAccent] 分開——置頂原本直接借用
+  /// ytAccent（YouTube 品牌紅），畫出來就是一個紅色圖釘/紅色色條，
+  /// 使用者回饋看起來刺眼像警示、很醜，而且跟品牌紅（選中狀態、按鈕）
+  /// 語意混在一起分不出「這是置頂」還是「這是選中」（2026-09-30）。
+  /// 用金銅色專門代表置頂，不管之後在哪裡畫置頂標記都用這個，
+  /// 不要又混用別的色。
+  static const ytPinAccent = Color(0xFFE0B15C);
 }

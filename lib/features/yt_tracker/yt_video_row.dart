@@ -34,64 +34,89 @@ Future<void> openExternalUrl(BuildContext context, String url) async {
   showAppNotice(context, '打不開連結，已複製到剪貼簿，貼到瀏覽器網址列開', isError: true);
 }
 
-/// 內嵌播放器彈窗（2026-09-30 使用者要求：點影片開新分頁那一刻感覺像
-/// 離開了 App，希望能不用離開直接在裡面看）。右上角留一顆「在 YouTube
-/// 開啟」——使用者原話「反正內嵌的 點一下 也能去yt」：內嵌播放器功能
-/// 陽春（不能按讚、留言、開彈幕），不能把人鎖死在裡面，想要完整功能
-/// 隨時能一鍵跳去真正的 YouTube。
+/// 內嵌播放器（2026-09-30 使用者要求：點影片開新分頁那一刻感覺像離開了
+/// App，希望能不用離開直接在裡面看）。右上角留一顆「在 YouTube 開啟」
+/// ——使用者原話「反正內嵌的 點一下 也能去yt」：內嵌播放器功能陽春
+/// （不能按讚、留言、開彈幕），不能把人鎖死在裡面，想要完整功能隨時能
+/// 一鍵跳去真正的 YouTube。
+///
+/// 外層容器原本是置中的 [Dialog]（整頁變暗＋正中央一個方框），使用者
+/// 回饋不喜歡這種「整頁被蓋住」的感覺，2026-09-30 改成從下方滑出的
+/// [showModalBottomSheet]——背後列表看得到（半透明遮罩，不是全黑）、
+/// 只佔下半螢幕、往下滑或點旁邊空白處收合，手機上比較接近一般 App
+/// 常見的影片彈出模式。**注意**：換的只是外層容器，裡面
+/// [buildYtEmbeddedPlayer] 那個 iframe 本身（autoplay/mute 參數、
+/// picture-in-picture 授權）完全不受影響，關閉時一樣整個從畫面上移除、
+/// 底層 iframe 節點跟著銷毀，不會背景偷跑。
 Future<void> showYtEmbeddedPlayerDialog(
   BuildContext context, {
   required String videoId,
   required String title,
   required String watchUrl,
 }) {
-  return showDialog<void>(
+  return showModalBottomSheet<void>(
     context: context,
-    builder: (dialogContext) => Dialog(
-      backgroundColor: const Color(0xFF1A1A24),
-      insetPadding: const EdgeInsets.all(16),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 640),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 8, 4, 4),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.ink,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () => openExternalUrl(dialogContext, watchUrl),
-                    icon: const Icon(Icons.open_in_new_rounded, size: 18),
-                    color: AppColors.ink2,
-                    tooltip: '在 YouTube 開啟',
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.pop(dialogContext),
-                    icon: const Icon(Icons.close_rounded, size: 18),
-                    color: AppColors.ink2,
-                    tooltip: '關閉',
-                  ),
-                ],
+    backgroundColor: const Color(0xFF1A1A24),
+    barrierColor: Colors.black.withValues(alpha: 0.5),
+    isScrollControlled: true,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (sheetContext) => SafeArea(
+      top: false,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // 拖曳把手，提示「往下滑可以收合」（2026-09-30 改滑出式時加）。
+          const Padding(
+            padding: EdgeInsets.only(top: 10, bottom: 2),
+            child: SizedBox(
+              width: 36,
+              height: 4,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: AppColors.glassEdge,
+                  borderRadius: BorderRadius.all(Radius.circular(2)),
+                ),
               ),
             ),
-            AspectRatio(
-              aspectRatio: 16 / 9,
-              child: buildYtEmbeddedPlayer(videoId),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 8, 4, 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.ink,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => openExternalUrl(sheetContext, watchUrl),
+                  icon: const Icon(Icons.open_in_new_rounded, size: 18),
+                  color: AppColors.ink2,
+                  tooltip: '在 YouTube 開啟',
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(sheetContext),
+                  icon: const Icon(Icons.close_rounded, size: 18),
+                  color: AppColors.ink2,
+                  tooltip: '關閉',
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+          AspectRatio(
+            aspectRatio: 16 / 9,
+            child: buildYtEmbeddedPlayer(videoId),
+          ),
+        ],
       ),
     ),
   );
