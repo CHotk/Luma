@@ -53,13 +53,31 @@ Future<void> openExternalUrl(BuildContext context, String url) async {
 /// `initState` 會重新讀到隱藏狀態，直接渲染成空的，不用列表頁那邊
 /// 額外過濾。
 class YtVideoRow extends ConsumerStatefulWidget {
-  const YtVideoRow({super.key, required this.video, required this.subtitle});
+  const YtVideoRow({
+    super.key,
+    required this.video,
+    required this.subtitle,
+    this.forceShow = false,
+    this.onHiddenChanged,
+  });
 
   final YoutubeVideo video;
 
   /// 「依影片顯示」混合多頻道，要秀「頻道名稱・幾天前」；頻道詳情頁
   /// 已經知道是哪個頻道了，只傳「幾天前」就好。
   final String subtitle;
+
+  /// true 的話就算這支影片被隱藏過，也不會自己收成一條空白列
+  /// （2026-09-30 使用者要求：頻道詳情頁要有「顯示已隱藏的影片」的
+  /// 開關，開了就是要看那些被隱藏的，不能被這顆元件自己擋掉）。這種
+  /// 情況下滑開的動作鈕會換成「取消隱藏」而不是「隱藏」。
+  final bool forceShow;
+
+  /// 這支影片的隱藏狀態被使用者自己改動（隱藏／取消隱藏）之後呼叫一聲
+  /// ——列表頁如果自己也快取了一份隱藏清單（拿來決定要不要把這支影片
+  /// 算進清單），可以藉此知道要重新整理，不給就不通知，呼叫端自己
+  /// 決定要不要接。
+  final VoidCallback? onHiddenChanged;
 
   @override
   ConsumerState<YtVideoRow> createState() => _YtVideoRowState();
@@ -128,7 +146,21 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
     await YtVideoHiddenStore(
       ref.read(keyValueStoreProvider),
     ).hide(widget.video.videoId);
-    if (mounted) setState(() => _hidden = true);
+    if (!mounted) return;
+    setState(() => _hidden = true);
+    widget.onHiddenChanged?.call();
+  }
+
+  Future<void> _unhide() async {
+    await YtVideoHiddenStore(
+      ref.read(keyValueStoreProvider),
+    ).unhide(widget.video.videoId);
+    if (!mounted) return;
+    setState(() {
+      _hidden = false;
+      _dragOffset = 0;
+    });
+    widget.onHiddenChanged?.call();
   }
 
   /// 這支影片每一次被點開的時間戳，新到舊列出來（2026-09-30 使用者
@@ -205,12 +237,15 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
 
   @override
   Widget build(BuildContext context) {
-    if (_hidden) return const SizedBox.shrink();
+    if (_hidden && !widget.forceShow) return const SizedBox.shrink();
     final video = widget.video;
     return ClipRect(
       child: Stack(
         children: [
-          // 底層：滑開才看得到的兩顆動作鈕，貼右邊。
+          // 底層：滑開才看得到的兩顆動作鈕，貼右邊。已經被隱藏、只是靠
+          // [widget.forceShow] 硬顯示出來的話，第二顆鈕換成「取消隱藏」
+          // （2026-09-30 使用者要求：頻道詳情頁要能看隱藏過的影片，也要
+          // 能反悔）。
           Positioned.fill(
             child: Row(
               children: [
@@ -222,13 +257,21 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
                   width: _actionsWidth / 2,
                   onTap: _showHistory,
                 ),
-                _SwipeActionButton(
-                  icon: Icons.visibility_off_outlined,
-                  label: '隱藏',
-                  color: AppColors.bad,
-                  width: _actionsWidth / 2,
-                  onTap: _hide,
-                ),
+                _hidden
+                    ? _SwipeActionButton(
+                        icon: Icons.visibility_rounded,
+                        label: '取消隱藏',
+                        color: AppColors.ok,
+                        width: _actionsWidth / 2,
+                        onTap: _unhide,
+                      )
+                    : _SwipeActionButton(
+                        icon: Icons.visibility_off_outlined,
+                        label: '隱藏',
+                        color: AppColors.bad,
+                        width: _actionsWidth / 2,
+                        onTap: _hide,
+                      ),
               ],
             ),
           ),
@@ -241,119 +284,125 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
               offset: Offset(_dragOffset, 0),
               child: ColoredBox(
                 color: AppColors.bg,
-                child: InkWell(
-                  onTap: _dragOffset == 0 ? _open : _closeSwipe,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Stack(
-                          children: [
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(10),
-                              child: Image.network(
-                                video.thumbnailUrl,
-                                width: 96,
-                                height: 54,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stack) =>
-                                    Container(
-                                      width: 96,
-                                      height: 54,
-                                      color: AppColors.glassFill,
-                                      alignment: Alignment.center,
-                                      child: const Icon(
-                                        Icons.image_not_supported_outlined,
-                                        size: 16,
-                                        color: AppColors.ink3,
+                child: Opacity(
+                  // 靠 forceShow 硬顯示出來的隱藏影片，整排淡一點，一眼
+                  // 看得出跟正常影片不一樣（2026-09-30 使用者要求的
+                  // 「顯示已隱藏」情境）。
+                  opacity: _hidden && widget.forceShow ? 0.5 : 1,
+                  child: InkWell(
+                    onTap: _dragOffset == 0 ? _open : _closeSwipe,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Stack(
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: Image.network(
+                                  video.thumbnailUrl,
+                                  width: 96,
+                                  height: 54,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stack) =>
+                                      Container(
+                                        width: 96,
+                                        height: 54,
+                                        color: AppColors.glassFill,
+                                        alignment: Alignment.center,
+                                        child: const Icon(
+                                          Icons.image_not_supported_outlined,
+                                          size: 16,
+                                          color: AppColors.ink3,
+                                        ),
                                       ),
-                                    ),
-                              ),
-                            ),
-                            // 右下角時長角標，跟 YouTube 網站同一種慣例位置——API
-                            // 沒辦法在抓清單那支就給，要多打一次 videos.list 才有
-                            // （見 youtube_api_service.dart 的 fetchDurations），
-                            // 還沒抓到就先不顯示，不要顯示假的 0:00。
-                            if (video.duration != null)
-                              Positioned(
-                                right: 3,
-                                bottom: 3,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 4,
-                                    vertical: 1,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black.withValues(alpha: 0.75),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: Text(
-                                    formatVideoDuration(video.duration!),
-                                    style: const TextStyle(
-                                      fontSize: 9.5,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.white,
-                                    ),
-                                  ),
                                 ),
                               ),
-                            // 左上角「已看過」小標籤，滑鼠停留／長按顯示第一次、最近
-                            // 一次點開的時間跟總共看過幾次（2026-09-29 使用者要求：
-                            // 要有小提示或小標籤，且每一次點開都要記時間戳，不是只記
-                            // 第一次跟最近一次）。
-                            if (_watched != null)
-                              Positioned(
-                                left: 3,
-                                top: 3,
-                                child: Tooltip(
-                                  message:
-                                      '已看過・${ytRelativeTime(_watched!.firstWatchedAt)}\n'
-                                      '最近一次：${ytRelativeTime(_watched!.lastOpenedAt)}'
-                                      '${_watched!.openedAt.length > 1 ? '\n共看過 ${_watched!.openedAt.length} 次' : ''}',
+                              // 右下角時長角標，跟 YouTube 網站同一種慣例位置——API
+                              // 沒辦法在抓清單那支就給，要多打一次 videos.list 才有
+                              // （見 youtube_api_service.dart 的 fetchDurations），
+                              // 還沒抓到就先不顯示，不要顯示假的 0:00。
+                              if (video.duration != null)
+                                Positioned(
+                                  right: 3,
+                                  bottom: 3,
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: 4,
                                       vertical: 1,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: AppColors.ytAccent.withValues(
-                                        alpha: 0.92,
+                                      color: Colors.black.withValues(
+                                        alpha: 0.75,
                                       ),
                                       borderRadius: BorderRadius.circular(4),
                                     ),
-                                    child: const Icon(
-                                      Icons.visibility_rounded,
-                                      size: 10,
-                                      color: Colors.white,
+                                    child: Text(
+                                      formatVideoDuration(video.duration!),
+                                      style: const TextStyle(
+                                        fontSize: 9.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.white,
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
-                          ],
-                        ),
-                        const SizedBox(width: Gap.sm),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                video.title,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 12.5,
-                                  color: _watched != null
-                                      ? AppColors.ink3
-                                      : AppColors.ink,
+                              // 左上角「已看過」小標籤，點下去直接開「開啟
+                              // 紀錄」視窗，不是靠 Tooltip 長按才看得到
+                              // （2026-09-30 使用者要求：長按太不直覺，
+                              // 點一下就該看到；順便把標籤做大一點，原本
+                              // 太小了）。
+                              if (_watched != null)
+                                Positioned(
+                                  left: 3,
+                                  top: 3,
+                                  child: GestureDetector(
+                                    onTap: _showHistory,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 5,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.ytAccent.withValues(
+                                          alpha: 0.92,
+                                        ),
+                                        borderRadius: BorderRadius.circular(5),
+                                      ),
+                                      child: const Icon(
+                                        Icons.visibility_rounded,
+                                        size: 14,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(widget.subtitle, style: AppText.note),
                             ],
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: Gap.sm),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  video.title,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 12.5,
+                                    color: _watched != null
+                                        ? AppColors.ink3
+                                        : AppColors.ink,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(widget.subtitle, style: AppText.note),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),

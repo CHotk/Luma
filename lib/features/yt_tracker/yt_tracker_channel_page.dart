@@ -7,6 +7,8 @@ import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
 import '../../data/repositories/yt_video_cache_store.dart';
+import '../../data/repositories/yt_video_hidden_store.dart';
+import '../../data/repositories/yt_video_watch_store.dart';
 import '../../data/services/youtube_api_service.dart';
 import '../../domain/models/yt_tracker.dart';
 import '../../shared/widgets/ambient_background.dart';
@@ -73,11 +75,58 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
   /// 整理」都會重抓一次真的資料。
   static const _staleAfter = Duration(minutes: 5);
 
+  /// 「最近影片」清單的顯示篩選（2026-09-30 使用者要求）：預設把已經看
+  /// 過的影片收起來，專心看還沒看的；隱藏過的影片預設也不顯示，開關
+  /// 開了才連同已隱藏的一起看（給「隱藏所有看過的」用完之後想回頭review
+  /// 用）。這兩個集合只在這頁載入一次，個別影片列自己滑動隱藏／取消
+  /// 隱藏之後靠 [YtVideoRow.onHiddenChanged] 通知這裡重新讀一次。
+  Set<String> _watchedVideoIds = {};
+  Set<String> _hiddenVideoIds = {};
+  bool _hideWatched = true;
+  bool _showHiddenVideos = false;
+
   @override
   void initState() {
     super.initState();
     _future = _load();
     _scroll.addListener(_onScroll);
+    _loadVideoFilters();
+  }
+
+  Future<void> _loadVideoFilters() async {
+    final store = ref.read(keyValueStoreProvider);
+    final watched = await YtVideoWatchStore(store).loadAll();
+    final hidden = await YtVideoHiddenStore(store).loadAll();
+    if (!mounted) return;
+    setState(() {
+      _watchedVideoIds = watched.keys.toSet();
+      _hiddenVideoIds = hidden;
+    });
+  }
+
+  /// 把目前清單裡「已看過、還沒被隱藏」的影片一次全部隱藏
+  /// （2026-09-30 使用者要求）。只動這頁目前已經載入的影片，不會去翻
+  /// 更早、還沒滑到的部分。
+  Future<void> _hideAllWatched(List<YoutubeVideo> videos) async {
+    final store = YtVideoHiddenStore(ref.read(keyValueStoreProvider));
+    final targets = videos
+        .where(
+          (v) =>
+              _watchedVideoIds.contains(v.videoId) &&
+              !_hiddenVideoIds.contains(v.videoId),
+        )
+        .toList();
+    if (targets.isEmpty) return;
+    for (final v in targets) {
+      await store.hide(v.videoId);
+    }
+    if (!mounted) return;
+    setState(() {
+      _hiddenVideoIds = {
+        ..._hiddenVideoIds,
+        for (final v in targets) v.videoId,
+      };
+    });
   }
 
   @override
@@ -551,16 +600,30 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
           return Center(child: Text('這個頻道抓不到影片', style: AppText.bodyDim));
         }
         final videos = [...firstPage, ..._moreVideos];
+        // 篩選規則（2026-09-30 使用者要求）：已隱藏的影片只有開了「顯示
+        // 已隱藏」才出現；沒被隱藏的影片再看「隱藏已看過」那個開關決定
+        // 要不要收起已看過的。
+        final visibleVideos = videos.where((v) {
+          if (_hiddenVideoIds.contains(v.videoId)) return _showHiddenVideos;
+          return !(_hideWatched && _watchedVideoIds.contains(v.videoId));
+        }).toList();
         // 用 Column 不用 ListView.separated——這塊現在是外層
         // SingleChildScrollView 的一部分，自己不用再是獨立的可捲動
         // 區域（見 build() 的說明：簡介／圖表／影片要一起滑動）。
         return Column(
           children: [
-            for (var i = 0; i < videos.length; i++) ...[
+            if (visibleVideos.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                child: Text('沒有符合目前篩選條件的影片', style: AppText.bodyDim),
+              ),
+            for (var i = 0; i < visibleVideos.length; i++) ...[
               if (i > 0) const Divider(height: 1, color: AppColors.glassEdge),
               YtVideoRow(
-                video: videos[i],
-                subtitle: ytRelativeTime(videos[i].publishedAt),
+                video: visibleVideos[i],
+                subtitle: ytRelativeTime(visibleVideos[i].publishedAt),
+                forceShow: _hiddenVideoIds.contains(visibleVideos[i].videoId),
+                onHiddenChanged: _loadVideoFilters,
               ),
             ],
             // 往下滑到底會自動載入更早的影片；載入中轉圈、失敗給重試、
@@ -631,7 +694,10 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                     // 旁邊放一顆小貼上按鈕，不用整段刪掉重打
                     // （2026-09-29 使用者要求）。
                     suffixIcon: IconButton(
-                      icon: const Icon(Icons.content_paste_go_rounded, size: 18),
+                      icon: const Icon(
+                        Icons.content_paste_go_rounded,
+                        size: 18,
+                      ),
                       tooltip: '貼上',
                       onPressed: () async {
                         String? text;
@@ -980,7 +1046,60 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
           ],
         ),
         const SizedBox(height: Gap.sm),
+        _buildVideoFilterRow(),
+        const SizedBox(height: Gap.sm),
         _buildVideos(channel),
+      ],
+    );
+  }
+
+  /// 「隱藏已看過」／「顯示已隱藏」兩個開關，加一顆「隱藏所有看過的」
+  /// 一次性動作（2026-09-30 使用者要求）。
+  Widget _buildVideoFilterRow() {
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        FilterChip(
+          label: const Text('隱藏已看過'),
+          selected: _hideWatched,
+          onSelected: (v) => setState(() => _hideWatched = v),
+          backgroundColor: AppColors.glassFill,
+          selectedColor: AppColors.ytAccent.withValues(alpha: 0.28),
+          labelStyle: TextStyle(
+            fontSize: 12.5,
+            color: _hideWatched ? AppColors.ink : AppColors.ink2,
+          ),
+          side: BorderSide(
+            color: _hideWatched ? AppColors.ytAccent : AppColors.glassEdge,
+          ),
+        ),
+        FilterChip(
+          label: const Text('顯示已隱藏'),
+          selected: _showHiddenVideos,
+          onSelected: (v) => setState(() => _showHiddenVideos = v),
+          backgroundColor: AppColors.glassFill,
+          selectedColor: AppColors.ytAccent.withValues(alpha: 0.28),
+          labelStyle: TextStyle(
+            fontSize: 12.5,
+            color: _showHiddenVideos ? AppColors.ink : AppColors.ink2,
+          ),
+          side: BorderSide(
+            color: _showHiddenVideos ? AppColors.ytAccent : AppColors.glassEdge,
+          ),
+        ),
+        TextButton.icon(
+          onPressed: () => _hideAllWatched([..._firstPage, ..._moreVideos]),
+          icon: const Icon(Icons.visibility_off_outlined, size: 15),
+          label: const Text('隱藏所有看過的'),
+          style: TextButton.styleFrom(
+            foregroundColor: AppColors.ink2,
+            padding: EdgeInsets.zero,
+            minimumSize: const Size(0, 0),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        ),
       ],
     );
   }
