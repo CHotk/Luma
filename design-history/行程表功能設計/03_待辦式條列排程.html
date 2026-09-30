@@ -1,0 +1,37 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>行程表 3 待辦式條列排程</title><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;800&display=swap" rel="stylesheet"><style>:root{--bg:#0c0c13;--panel:#161622;--panel2:#1e1e2e;--line:#2a2a3d;--text:#eceaf5;--sub:#8b8ba3;--ok:#5FE08D;--bad:#FF938B;--acc:#5B8DEF;--accInk:#eef3ff}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-serif;min-height:100vh;padding:32px 16px}
+.intro{max-width:640px;margin:0 auto 24px;text-align:center}
+.eyebrow{color:var(--acc);font-size:12px;letter-spacing:.2em}
+h1{font-size:22px;margin:6px 0}
+.intro p{color:var(--sub);font-size:13px;line-height:1.7}
+.phone{width:380px;height:760px;margin:0 auto;border:8px solid #000;border-radius:38px;background:var(--bg);overflow:hidden;display:flex;flex-direction:column;position:relative}
+.top{padding:20px 18px 10px;flex-shrink:0}
+.top .d{color:var(--sub);font-size:12px}
+.top b{font-size:20px;font-weight:800}
+.scroll{flex:1;overflow:auto;padding:6px 18px 18px;display:flex;flex-direction:column;gap:16px}
+.scroll>*{flex-shrink:0}
+.grp .h{font-size:12px;color:var(--acc);font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.grp .h::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--acc)}
+.chk{display:flex;align-items:center;gap:11px;background:var(--panel);border-radius:13px;padding:12px 13px;margin-bottom:6px}
+.box{width:21px;height:21px;border-radius:7px;border:2px solid var(--line);flex-shrink:0}
+.box.done{background:var(--ok);border-color:var(--ok);display:grid;place-items:center;color:#0c0c13;font-size:13px;font-weight:900}
+.chk b{font-size:13.5px;display:block}
+.chk.done b{text-decoration:line-through;color:var(--sub)}
+.chk span{color:var(--sub);font-size:11px}
+.pri{width:5px;height:5px;border-radius:50%;background:var(--bad);flex-shrink:0}
+.note{max-width:380px;margin:14px auto 0;color:var(--sub);font-size:12px;line-height:1.7;text-align:center}
+</style></head><body><div class="intro"><div class="eyebrow">行程表 · 版本 3 / 5</div><h1>待辦式條列排程</h1><p>不畫時間軸格線，行程跟待辦事項混在一起用「勾選」處理，依時段分組（早上/下午/晚上）——參考 Todoist、TickTick「今天」頁，適合把行程當任務做、重視「完成感」的人。</p></div><div class="phone"><div class="top"><div class="d">2026 年 9 月 30 日・週三</div><b>今天要做的事</b></div><div class="scroll">
+<div class="grp"><div class="h">早上</div>
+<div class="chk done"><div class="box done">✓</div><div style="flex:1"><b>晨會</b><span>09:00</span></div></div>
+</div>
+<div class="grp"><div class="h">下午</div>
+<div class="chk"><div class="box"></div><div style="flex:1"><b>跟阿明吃午餐</b><span>12:00</span></div><div class="pri" style="background:var(--ok)"></div></div>
+<div class="chk"><div class="box"></div><div style="flex:1"><b>專案開發時段</b><span>14:00–16:00</span></div></div>
+<div class="chk"><div class="box"></div><div style="flex:1"><b>回覆客戶信件</b><span>不指定時間</span></div></div>
+</div>
+<div class="grp"><div class="h">晚上</div>
+<div class="chk"><div class="box"></div><div style="flex:1"><b>牙醫回診</b><span>18:00</span></div><div class="pri"></div></div>
+<div class="chk"><div class="box"></div><div style="flex:1"><b>買明天的早餐食材</b><span>不指定時間</span></div></div>
+</div>
+</div></div><p class="note">優點：完成一件打勾一件，成就感直接、跟待辦清單無縫接軌。缺點：時間軸感消失了，兩件行程會不會「撞時間」不容易一眼看出來，比較適合行程量不多、彈性排程的日子。</p></body></html>

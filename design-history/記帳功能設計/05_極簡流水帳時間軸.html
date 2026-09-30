@@ -1,0 +1,41 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>記帳 5 極簡流水帳時間軸</title><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;800&display=swap" rel="stylesheet"><style>:root{--bg:#0c0c13;--panel:#161622;--panel2:#1e1e2e;--line:#2a2a3d;--text:#eceaf5;--sub:#8b8ba3;--ok:#5FE08D;--bad:#FF938B;--acc:#E8C468;--accInk:#241d09}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-serif;min-height:100vh;padding:32px 16px}
+.intro{max-width:640px;margin:0 auto 24px;text-align:center}
+.eyebrow{color:var(--acc);font-size:12px;letter-spacing:.2em}
+h1{font-size:22px;margin:6px 0}
+.intro p{color:var(--sub);font-size:13px;line-height:1.7}
+.phone{width:380px;height:760px;margin:0 auto;border:8px solid #000;border-radius:38px;background:var(--bg);overflow:hidden;display:flex;flex-direction:column}
+.scroll{flex:1;overflow:auto;padding:0 20px 20px;flex-shrink:0}
+.top{padding:22px 20px 6px;flex-shrink:0}
+.top .d{font-size:12px;color:var(--sub)}
+.top b{font-size:20px;font-weight:800}
+.tl{position:relative;padding-left:18px;margin-top:16px}
+.tl::before{content:'';position:absolute;left:4px;top:4px;bottom:4px;width:1px;background:var(--line)}
+.tlgroup{margin-bottom:18px}
+.tlgroup>.date{font-size:11px;color:var(--sub);margin-bottom:8px;position:relative}
+.tlgroup>.date::before{content:'';position:absolute;left:-18px;top:3px;width:9px;height:9px;border-radius:50%;background:var(--acc)}
+.tlrow{display:flex;align-items:baseline;gap:8px;padding:5px 0;font-size:13.5px}
+.tlrow .t{color:var(--sub);font-size:11px;width:36px;flex-shrink:0}
+.tlrow b{flex:1;font-weight:500}
+.tlrow .a{font-weight:700}
+.tlrow .a.neg{color:var(--bad)}
+.tlrow .a.pos{color:var(--ok)}
+.daysum{text-align:right;font-size:11px;color:var(--sub);padding-top:4px;border-top:1px dashed var(--line);margin-top:4px}
+.note{max-width:380px;margin:14px auto 0;color:var(--sub);font-size:12px;line-height:1.7;text-align:center}
+</style></head><body><div class="intro"><div class="eyebrow">記帳 · 版本 5 / 5</div><h1>極簡流水帳時間軸</h1><p>完全捨棄卡片、圖表、圖示，只用一條時間軸串起每一筆，像日記一樣往下捲動閱讀——給喜歡極簡、不想看數字儀表板、單純想留下「今天花了什麼」紀錄的人。</p></div><div class="phone"><div class="top"><div class="d">2026 年 9 月</div><b>流水帳</b></div><div class="scroll"><div class="tl">
+<div class="tlgroup"><div class="date">9 月 30 日・今天</div>
+<div class="tlrow"><span class="t">12:30</span><b>午餐便當</b><span class="a neg">-120</span></div>
+<div class="tlrow"><span class="t">08:15</span><b>捷運</b><span class="a neg">-30</span></div>
+<div class="daysum">今天共 -150</div>
+</div>
+<div class="tlgroup"><div class="date">9 月 29 日</div>
+<div class="tlrow"><span class="t">19:40</span><b>全聯採買</b><span class="a neg">-856</span></div>
+<div class="tlrow"><span class="t">14:00</span><b>接案收入</b><span class="a pos">+5,000</span></div>
+<div class="daysum">今天共 +4,144</div>
+</div>
+<div class="tlgroup"><div class="date">9 月 27 日</div>
+<div class="tlrow"><span class="t">21:10</span><b>電影票</b><span class="a neg">-320</span></div>
+<div class="daysum">今天共 -320</div>
+</div>
+</div></div></div><p class="note">優點：畫面最安靜、閱讀感最強，適合把記帳當日記寫的人。缺點：完全沒有統計/預算功能，想知道這個月花多少要自己往上滑加總，數字量大時不好用。</p></body></html>

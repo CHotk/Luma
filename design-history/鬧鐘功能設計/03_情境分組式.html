@@ -1,0 +1,38 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>鬧鐘 3 情境分組式</title><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;800&display=swap" rel="stylesheet"><style>:root{--bg:#0c0c13;--panel:#161622;--panel2:#1e1e2e;--line:#2a2a3d;--text:#eceaf5;--sub:#8b8ba3;--acc:#FFA959;--accInk:#2b1600}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-serif;min-height:100vh;padding:32px 16px}
+.intro{max-width:640px;margin:0 auto 24px;text-align:center}
+.eyebrow{color:var(--acc);font-size:12px;letter-spacing:.2em}
+h1{font-size:22px;margin:6px 0}
+.intro p{color:var(--sub);font-size:13px;line-height:1.7}
+.phone{width:380px;height:760px;margin:0 auto;border:8px solid #000;border-radius:38px;background:var(--bg);overflow:hidden;display:flex;flex-direction:column;position:relative}
+.top{display:flex;align-items:center;gap:8px;padding:18px 16px 10px;flex-shrink:0}
+.top b{font-size:18px;flex:1}
+.ib{width:32px;height:32px;border-radius:10px;background:var(--panel);display:grid;place-items:center;font-size:15px}
+.scroll{flex:1;overflow:auto;padding:6px 16px 16px;display:flex;flex-direction:column;gap:16px}
+.scroll>*{flex-shrink:0}
+.grp .h{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;margin-bottom:8px}
+.grp .h .ic{width:26px;height:26px;border-radius:8px;background:var(--panel2);display:grid;place-items:center;font-size:14px}
+.grp .h span{color:var(--sub);font-weight:400;font-size:11px;margin-left:auto}
+.item{display:flex;align-items:center;gap:12px;background:var(--panel);border-radius:14px;padding:11px 14px;margin-bottom:6px}
+.item.off{opacity:.4}
+.item b{font-size:18px;font-weight:700}
+.item .mid{flex:1;font-size:11px;color:var(--sub)}
+.sw{width:38px;height:22px;border-radius:99px;background:var(--panel2);position:relative;flex-shrink:0}
+.sw.on{background:var(--acc)}
+.sw i{position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff}
+.sw.on i{left:19px}
+.fab{position:absolute;right:18px;bottom:18px;width:52px;height:52px;border-radius:50%;background:var(--acc);color:var(--accInk);display:grid;place-items:center;font-size:24px;font-weight:800;box-shadow:0 6px 16px rgba(0,0,0,.4)}
+.note{max-width:380px;margin:14px auto 0;color:var(--sub);font-size:12px;line-height:1.7;text-align:center}
+</style></head><body><div class="intro"><div class="eyebrow">鬧鐘 · 版本 3 / 5</div><h1>情境分組式</h1><p>鬧鐘不是攤平一條清單，而是照用途分組（起床／提醒／小睡），標籤即是分類本身——適合鬧鐘數量多、用途分散（吃藥/上班/運動）容易搞混的人。</p></div><div class="phone"><div class="top"><b>鬧鐘</b><div class="ib">✎</div></div><div class="scroll">
+<div class="grp"><div class="h"><div class="ic">☀️</div>起床<span>2 個</span></div>
+<div class="item"><b>07:00</b><div class="mid">上班日・一二三四五</div><div class="sw on"><i></i></div></div>
+<div class="item off"><b>09:30</b><div class="mid">補眠・六日</div><div class="sw"><i></i></div></div>
+</div>
+<div class="grp"><div class="h"><div class="ic">💊</div>用藥提醒<span>1 個</span></div>
+<div class="item"><b>22:30</b><div class="mid">睡前吃藥・每天</div><div class="sw on"><i></i></div></div>
+</div>
+<div class="grp"><div class="h"><div class="ic">🏃</div>運動<span>1 個</span></div>
+<div class="item"><b>06:30</b><div class="mid">晨跑・一三五</div><div class="sw on"><i></i></div></div>
+</div>
+</div></div><div class="fab">＋</div></div><p class="note">優點：鬧鐘一多也不會眼花，用途相近的放在一起管理、一起開關。缺點：新增鬧鐘時多一步「選分組」的決定，對只想設一顆簡單鬧鐘的人是多餘的步驟。</p></body></html>

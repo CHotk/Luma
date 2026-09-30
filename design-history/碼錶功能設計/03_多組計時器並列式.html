@@ -1,0 +1,29 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>碼錶 3 多組計時器並列式</title><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;800&display=swap" rel="stylesheet"><style>:root{--bg:#0c0c13;--panel:#161622;--panel2:#1e1e2e;--line:#2a2a3d;--text:#eceaf5;--sub:#8b8ba3;--acc:#4FD1C5;--accInk:#032824;--bad:#FF938B;--ok:#5FE08D}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-serif;min-height:100vh;padding:32px 16px}
+.intro{max-width:640px;margin:0 auto 24px;text-align:center}
+.eyebrow{color:var(--acc);font-size:12px;letter-spacing:.2em}
+h1{font-size:22px;margin:6px 0}
+.intro p{color:var(--sub);font-size:13px;line-height:1.7}
+.phone{width:380px;height:760px;margin:0 auto;border:8px solid #000;border-radius:38px;background:var(--bg);overflow:hidden;display:flex;flex-direction:column;position:relative}
+.top{display:flex;align-items:center;gap:8px;padding:18px 16px 10px;flex-shrink:0}
+.top b{font-size:16px;flex:1}
+.ib{width:32px;height:32px;border-radius:10px;background:var(--panel);display:grid;place-items:center;font-size:15px}
+.scroll{flex:1;overflow:auto;padding:6px 16px 16px;display:flex;flex-direction:column;gap:10px}
+.scroll>*{flex-shrink:0}
+.card{background:var(--panel);border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:12px}
+.card.run{border:1px solid var(--acc)}
+.cinfo{flex:1}
+.cinfo .name{font-size:12.5px;color:var(--sub)}
+.cinfo .t{font-size:24px;font-weight:800;font-variant-numeric:tabular-nums;margin-top:2px}
+.card.run .t{color:var(--acc)}
+.mini-btn{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;font-size:15px;flex-shrink:0}
+.mini-btn.play{background:var(--acc);color:var(--accInk)}
+.mini-btn.pause{background:var(--panel2);color:var(--text)}
+.fab{position:absolute;right:18px;bottom:18px;width:52px;height:52px;border-radius:50%;background:var(--acc);color:var(--accInk);display:grid;place-items:center;font-size:24px;font-weight:800;box-shadow:0 6px 16px rgba(0,0,0,.4)}
+.note{max-width:380px;margin:14px auto 0;color:var(--sub);font-size:12px;line-height:1.7;text-align:center}
+</style></head><body><div class="intro"><div class="eyebrow">碼錶 · 版本 3 / 5</div><h1>多組計時器並列式</h1><p>不是只能開一個碼錶，而是可以同時建立多組各自命名的計時器並列顯示、各自獨立啟停——適合健身組間休息、烹飪多道菜同時計時等「一次要追蹤好幾件事」的情境。</p></div><div class="phone"><div class="top"><div class="ib">☰</div><b>計時器</b><div class="ib">✎</div></div><div class="scroll">
+<div class="card run"><div class="cinfo"><div class="name">深蹲組間休息</div><div class="t">00:42.1</div></div><div class="mini-btn pause">❚❚</div></div>
+<div class="card"><div class="cinfo"><div class="name">總訓練時長</div><div class="t">18:05.6</div></div><div class="mini-btn play">▶</div></div>
+<div class="card"><div class="cinfo"><div class="name">燉湯計時</div><div class="t">00:00.0</div></div><div class="mini-btn play">▶</div></div>
+</div></div><div class="fab">＋</div></div><p class="note">優點：同時追蹤多件事不用切換頁面，各自獨立不會互相干擾。缺點：畫面資訊變多，如果只是想單純快速按一顆碼錶，反而要先找到/建立對應的卡片，多一道手續。</p></body></html>

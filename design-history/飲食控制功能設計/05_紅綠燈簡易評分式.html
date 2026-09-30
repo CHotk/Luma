@@ -1,0 +1,33 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>飲食控制 5 紅綠燈簡易評分式</title><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;800&display=swap" rel="stylesheet"><style>:root{--bg:#0c0c13;--panel:#161622;--panel2:#1e1e2e;--line:#2a2a3d;--text:#eceaf5;--sub:#8b8ba3;--ok:#5FE08D;--warn:#F5C763;--bad:#FF938B;--acc:#7ED957;--accInk:#0d2205}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-serif;min-height:100vh;padding:32px 16px}
+.intro{max-width:640px;margin:0 auto 24px;text-align:center}
+.eyebrow{color:var(--acc);font-size:12px;letter-spacing:.2em}
+h1{font-size:22px;margin:6px 0}
+.intro p{color:var(--sub);font-size:13px;line-height:1.7}
+.phone{width:380px;height:760px;margin:0 auto;border:8px solid #000;border-radius:38px;background:var(--bg);overflow:hidden;display:flex;flex-direction:column;position:relative}
+.top{padding:20px 18px 10px;flex-shrink:0;text-align:center}
+.top b{font-size:16px}
+.scroll{flex:1;overflow:auto;padding:6px 18px 18px;display:flex;flex-direction:column;gap:12px}
+.scroll>*{flex-shrink:0}
+.hero{text-align:center;padding:10px}
+.face{font-size:56px}
+.hero .verdict{font-size:16px;font-weight:800;margin-top:6px}
+.hero .sub{color:var(--sub);font-size:12px;margin-top:2px}
+.item{display:flex;align-items:center;gap:11px;background:var(--panel);border-radius:14px;padding:11px 13px}
+.dotL{width:14px;height:14px;border-radius:50%;flex-shrink:0}
+.item b{font-size:13px;display:block}
+.item span{color:var(--sub);font-size:11px}
+.legend{display:flex;justify-content:center;gap:14px;font-size:10.5px;color:var(--sub);flex-shrink:0;padding-bottom:4px}
+.legend span{display:flex;align-items:center;gap:4px}
+.legend i{width:8px;height:8px;border-radius:50%}
+.note{max-width:380px;margin:14px auto 0;color:var(--sub);font-size:12px;line-height:1.7;text-align:center}
+</style></head><body><div class="intro"><div class="eyebrow">飲食控制 · 版本 5 / 5</div><h1>紅綠燈簡易評分式</h1><p>完全不顯示熱量數字，每餐只用紅黃綠燈號評「這餐算健康嗎」，刻意迴避數字帶來的焦慮感——給對計算熱量容易產生壓力、或單純想培養「多吃原型食物」習慣的人使用。</p></div><div class="phone"><div class="top"><b>今天吃得如何</b></div><div class="scroll">
+<div class="hero"><div class="face">🙂</div><div class="verdict">今天整體不錯</div><div class="sub">3 餐中 2 餐綠燈</div></div>
+<div class="item"><div class="dotL" style="background:var(--ok)"></div><div><b>早餐</b><span>燕麥・雞蛋・原型食物為主</span></div></div>
+<div class="item"><div class="dotL" style="background:var(--ok)"></div><div><b>午餐</b><span>雞胸沙拉・蛋白質充足</span></div></div>
+<div class="item"><div class="dotL" style="background:var(--warn)"></div><div><b>點心</b><span>手搖飲・糖分偏高</span></div></div>
+<div class="item"><div class="dotL" style="background:var(--sub)"></div><div><b>晚餐</b><span>還沒記錄</span></div></div>
+</div>
+<div class="legend"><span><i style="background:var(--ok)"></i>健康</span><span><i style="background:var(--warn)"></i>普通</span><span><i style="background:var(--bad)"></i>少吃</span></div>
+</div></div><p class="note">優點：對容易因為數字產生罪惡感/焦慮的人更友善，重點放在「食物品質」而非精確熱量。缺點：評分標準比較主觀模糊，對真的需要精算熱量/巨量營養素（例如健身增肌）的人來說資訊不夠用。</p></body></html>

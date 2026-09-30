@@ -1,0 +1,39 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>料理技能 5 冰箱食材反查式</title><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;800&display=swap" rel="stylesheet"><style>:root{--bg:#0c0c13;--panel:#161622;--panel2:#1e1e2e;--line:#2a2a3d;--text:#eceaf5;--sub:#8b8ba3;--acc:#FF8A5B;--accInk:#2b1204;--ok:#5FE08D;--warn:#F5C763}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-serif;min-height:100vh;padding:32px 16px}
+.intro{max-width:640px;margin:0 auto 24px;text-align:center}
+.eyebrow{color:var(--acc);font-size:12px;letter-spacing:.2em}
+h1{font-size:22px;margin:6px 0}
+.intro p{color:var(--sub);font-size:13px;line-height:1.7}
+.phone{width:380px;height:760px;margin:0 auto;border:8px solid #000;border-radius:38px;background:var(--bg);overflow:hidden;display:flex;flex-direction:column}
+.top{padding:18px 16px 10px;flex-shrink:0}
+.top b{font-size:16px}
+.chips{display:flex;gap:8px;padding:0 16px 12px;flex-wrap:wrap;flex-shrink:0}
+.chip{background:var(--panel2);border-radius:99px;padding:7px 13px;font-size:12px;display:flex;align-items:center;gap:6px}
+.chip.on{background:var(--acc);color:var(--accInk);font-weight:700}
+.chip .x{opacity:.6}
+.addchip{border:1px dashed var(--line);color:var(--sub);border-radius:99px;padding:7px 13px;font-size:12px}
+.scroll{flex:1;overflow:auto;padding:6px 16px 16px;display:flex;flex-direction:column;gap:10px}
+.scroll>*{flex-shrink:0}
+.match{display:flex;align-items:center;gap:12px;background:var(--panel);border-radius:14px;padding:11px 13px}
+.match .ic{width:44px;height:44px;border-radius:12px;background:var(--panel2);display:grid;place-items:center;font-size:20px;flex-shrink:0}
+.match b{font-size:13.5px;display:block}
+.match .pct{margin-left:auto;text-align:right}
+.match .pct b{color:var(--ok);font-size:14px}
+.match .pct span{color:var(--sub);font-size:10px}
+.match span.missing{color:var(--sub);font-size:10.5px}
+.note{max-width:380px;margin:14px auto 0;color:var(--sub);font-size:12px;line-height:1.7;text-align:center}
+</style></head><body><div class="intro"><div class="eyebrow">料理技能 · 版本 5 / 5</div><h1>冰箱食材反查式</h1><p>不是「先選菜再看要買什麼」，而是反過來——勾選家裡現有的食材，系統從食譜庫反查「用這些東西能做什麼」，按食材符合度排序，主打解決「今晚不知道煮什麼」的日常煩惱。</p></div><div class="phone"><div class="top"><b>冰箱裡有什麼？</b></div>
+<div class="chips">
+<div class="chip on">雞蛋 <span class="x">✕</span></div>
+<div class="chip on">番茄 <span class="x">✕</span></div>
+<div class="chip on">豆腐 <span class="x">✕</span></div>
+<div class="chip">洋蔥</div>
+<div class="addchip">＋ 新增食材</div>
+</div>
+<div class="scroll">
+<div class="match"><div class="ic">🍳</div><div><b>番茄炒蛋</b><span class="missing">✓ 食材全部具備</span></div><div class="pct"><b>100%</b><span>符合</span></div></div>
+<div class="match"><div class="ic">🥘</div><div><b>麻婆豆腐</b><span class="missing">缺：絞肉、豆瓣醬</span></div><div class="pct"><b>60%</b><span>符合</span></div></div>
+<div class="match"><div class="ic">🍲</div><div><b>番茄蛋花湯</b><span class="missing">✓ 食材全部具備</span></div><div class="pct"><b>100%</b><span>符合</span></div></div>
+<div class="match"><div class="ic">🍛</div><div><b>日式咖哩</b><span class="missing">缺：馬鈴薯、紅蘿蔔、咖哩塊</span></div><div class="pct" style="color:var(--warn)"><b style="color:var(--warn)">35%</b><span>符合</span></div></div>
+</div></div><p class="note">優點：直接解決「今晚吃什麼」的日常痛點，也順帶減少食材過期浪費。缺點：需要使用者誠實/勤勞地維護「家裡現有食材」清單，一旦清單沒更新（東西早就吃完了）推薦就會失準。</p></body></html>

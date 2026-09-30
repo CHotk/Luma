@@ -1,0 +1,31 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>提醒 4 語音快速輸入式</title><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;800&display=swap" rel="stylesheet"><style>:root{--bg:#0c0c13;--panel:#161622;--panel2:#1e1e2e;--line:#2a2a3d;--text:#eceaf5;--sub:#8b8ba3;--acc:#B592FF;--accInk:#1c0f30}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-serif;min-height:100vh;padding:32px 16px}
+.intro{max-width:640px;margin:0 auto 24px;text-align:center}
+.eyebrow{color:var(--acc);font-size:12px;letter-spacing:.2em}
+h1{font-size:22px;margin:6px 0}
+.intro p{color:var(--sub);font-size:13px;line-height:1.7}
+.phone{width:380px;height:760px;margin:0 auto;border:8px solid #000;border-radius:38px;background:var(--bg);overflow:hidden;display:flex;flex-direction:column}
+.scroll{flex:1;overflow:auto;padding:0 18px 12px;display:flex;flex-direction:column;gap:10px}
+.scroll>*{flex-shrink:0}
+.top{padding:20px 18px 10px;flex-shrink:0}
+.top b{font-size:18px}
+.item{display:flex;align-items:center;gap:11px;background:var(--panel);border-radius:13px;padding:11px 13px}
+.circ{width:19px;height:19px;border-radius:50%;border:2px solid var(--line);flex-shrink:0}
+.item b{font-size:13px;display:block}
+.item span{color:var(--sub);font-size:10.5px}
+.inputbar{flex-shrink:0;padding:12px 18px 22px;display:flex;align-items:center;gap:10px}
+.inputbox{flex:1;background:var(--panel);border-radius:99px;padding:13px 18px;color:var(--sub);font-size:13px;display:flex;align-items:center;gap:8px}
+.mic{width:48px;height:48px;border-radius:50%;background:var(--acc);color:var(--accInk);display:grid;place-items:center;font-size:19px;flex-shrink:0}
+.parsed{margin:0 18px 8px;background:rgba(181,146,255,.12);border:1px dashed var(--acc);border-radius:12px;padding:10px 12px;font-size:11.5px;color:var(--acc);flex-shrink:0}
+.note{max-width:380px;margin:14px auto 0;color:var(--sub);font-size:12px;line-height:1.7;text-align:center}
+</style></head><body><div class="intro"><div class="eyebrow">提醒 · 版本 4 / 5</div><h1>語音快速輸入式</h1><p>畫面下方常駐一顆麥克風輸入條，說「明天早上九點提醒我繳費」就自動解析出時間跟內容、直接建立提醒——參考 Siri/Google 助理的自然語言提醒建立方式，主打「用講的比用打的快」。</p></div><div class="phone">
+<div class="top"><b>我的提醒</b></div>
+<div class="parsed">🎙️ 剛剛辨識：「明天早上九點提醒我繳水費」→ 已建立「繳水費」・明天 09:00</div>
+<div class="scroll">
+<div class="item"><div class="circ"></div><div><b>繳水費</b><span>明天 09:00・語音建立</span></div></div>
+<div class="item"><div class="circ"></div><div><b>繳信用卡帳單</b><span>今天 18:00</span></div></div>
+<div class="item"><div class="circ"></div><div><b>回覆房東訊息</b></div></div>
+</div>
+<div class="inputbar"><div class="inputbox">或直接打字輸入…</div><div class="mic">🎙️</div></div>
+</div></div><p class="note">優點：手忙腳夠時用講的最快，自然語言比手動選日期時間省力很多。缺點：語音辨識跟語意解析不一定準（口音、背景吵雜、日期詞意含糊），建立後最好還要有一步確認/修正的畫面。</p></body></html>

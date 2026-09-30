@@ -1,0 +1,35 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>碼錶 1 經典分圈清單</title><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;800&display=swap" rel="stylesheet"><style>:root{--bg:#0c0c13;--panel:#161622;--panel2:#1e1e2e;--line:#2a2a3d;--text:#eceaf5;--sub:#8b8ba3;--ok:#5FE08D;--bad:#FF938B;--acc:#4FD1C5;--accInk:#032824}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-serif;min-height:100vh;padding:32px 16px}
+.intro{max-width:640px;margin:0 auto 24px;text-align:center}
+.eyebrow{color:var(--acc);font-size:12px;letter-spacing:.2em}
+h1{font-size:22px;margin:6px 0}
+.intro p{color:var(--sub);font-size:13px;line-height:1.7}
+.tag{display:inline-block;background:var(--acc);color:var(--accInk);border-radius:99px;padding:2px 10px;font-size:11px;margin-top:8px}
+.phone{width:380px;height:760px;margin:0 auto;border:8px solid #000;border-radius:38px;background:var(--bg);overflow:hidden;display:flex;flex-direction:column}
+.top{display:flex;align-items:center;gap:8px;padding:18px 16px 0;flex-shrink:0}
+.top b{font-size:16px;flex:1;color:var(--sub)}
+.dispwrap{flex-shrink:0;text-align:center;padding:30px 20px 20px}
+.disp{font-size:52px;font-weight:800;font-variant-numeric:tabular-nums}
+.disp .ms{font-size:26px;color:var(--sub)}
+.btns{display:flex;justify-content:center;gap:22px;padding:0 20px 20px;flex-shrink:0}
+.btn{width:74px;height:74px;border-radius:50%;display:grid;place-items:center;font-size:14px;font-weight:700}
+.btn.stop{background:rgba(255,147,139,.16);color:var(--bad);border:1px solid rgba(255,147,139,.4)}
+.btn.lap{background:var(--panel2);color:var(--text);border:1px solid var(--line)}
+.scroll{flex:1;overflow:auto;padding:0 20px 16px;display:flex;flex-direction:column-reverse;gap:1px}
+.row{display:flex;align-items:center;padding:11px 4px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+.row .n{width:56px;color:var(--sub);font-size:13px}
+.row .t{flex:1;font-size:14px}
+.row.best .t{color:var(--ok)}
+.row.worst .t{color:var(--bad)}
+.note{max-width:380px;margin:14px auto 0;color:var(--sub);font-size:12px;line-height:1.7;text-align:center}
+</style></head><body><div class="intro"><div class="eyebrow">碼錶 · 版本 1 / 5</div><h1>經典分圈清單</h1><p>大數字計時 + 開始/分圈雙按鈕 + 下方分圈清單，最快最慢圈自動標色——iPhone 內建碼錶 App 的標準版型，運動員、跑者最熟悉的介面。</p><span class="tag">主流慣例：iOS 內建碼錶</span></div><div class="phone">
+<div class="top"><b>碼錶</b></div>
+<div class="dispwrap"><div class="disp">00:42<span class="ms">.18</span></div></div>
+<div class="btns"><div class="btn lap">分圈</div><div class="btn stop">停止</div></div>
+<div class="scroll">
+<div class="row"><span class="n">圈數 4</span><span class="t">00:09.42</span></div>
+<div class="row worst"><span class="n">圈數 3</span><span class="t">00:11.05</span></div>
+<div class="row best"><span class="n">圈數 2</span><span class="t">00:08.21</span></div>
+<div class="row"><span class="n">圈數 1</span><span class="t">00:13.50</span></div>
+</div></div><p class="note">優點：介面大家都用過，跑步/運動時盲操作也知道按鈕在哪。缺點：純數字清單看不出配速趨勢，想知道「越跑越快還是越慢」得自己心算比較。</p></body></html>

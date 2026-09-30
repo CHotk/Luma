@@ -1,0 +1,27 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>鬧鐘 4 滑動貪睡手勢式</title><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;800&display=swap" rel="stylesheet"><style>:root{--bg:#0c0c13;--panel:#161622;--panel2:#1e1e2e;--line:#2a2a3d;--text:#eceaf5;--sub:#8b8ba3;--acc:#FFA959;--accInk:#2b1600;--bad:#FF938B}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-serif;min-height:100vh;padding:32px 16px}
+.intro{max-width:640px;margin:0 auto 24px;text-align:center}
+.eyebrow{color:var(--acc);font-size:12px;letter-spacing:.2em}
+h1{font-size:22px;margin:6px 0}
+.intro p{color:var(--sub);font-size:13px;line-height:1.7}
+.phone{width:380px;height:760px;margin:0 auto;border:8px solid #000;border-radius:38px;background:linear-gradient(180deg,#1a1006,var(--bg) 40%);overflow:hidden;display:flex;flex-direction:column}
+.ringing{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:60px 30px 50px}
+.rtop{text-align:center}
+.rtop .clock{font-size:56px;font-weight:800}
+.rtop .name{color:var(--sub);font-size:14px;margin-top:6px}
+.rtop .lbl{margin-top:14px;background:var(--panel2);display:inline-block;padding:6px 16px;border-radius:99px;font-size:12px}
+.slidezone{width:100%;background:var(--panel);border-radius:99px;height:64px;position:relative;display:flex;align-items:center;padding:5px}
+.slidezone .track{position:absolute;left:70px;right:70px;text-align:center;color:var(--sub);font-size:12px;letter-spacing:.1em}
+.handle{width:54px;height:54px;border-radius:50%;background:var(--acc);color:var(--accInk);display:grid;place-items:center;font-size:20px;font-weight:800;position:relative;z-index:1;box-shadow:0 4px 12px rgba(0,0,0,.4)}
+.handle.right{margin-left:auto}
+.actions{display:flex;justify-content:space-between;width:100%;font-size:11px;color:var(--sub)}
+.note{max-width:380px;margin:14px auto 0;color:var(--sub);font-size:12px;line-height:1.7;text-align:center}
+</style></head><body><div class="intro"><div class="eyebrow">鬧鐘 · 版本 4 / 5</div><h1>滑動貪睡手勢式</h1><p>這版聚焦在「鬧鐘響起那一刻」的體驗，不是清單管理：中央大時鐘 + 左右滑動的圓鈕（左滑貪睡、右滑關閉），半夢半醒狀態下靠肌肉記憶就能操作，不用看清楚按鈕文字。</p></div><div class="phone"><div class="ringing">
+<div class="rtop"><div class="clock">07:00</div><div class="name">上班日</div><div class="lbl">🔔 響鈴中</div></div>
+<div style="width:100%">
+<div class="slidezone" style="margin-bottom:14px"><div class="track">向右滑動關閉</div><div class="handle right">✕</div></div>
+<div class="slidezone"><div class="track">向左滑動貪睡 10 分鐘</div><div class="handle">Zzz</div></div>
+</div>
+<div class="actions"><span>已響 8 秒</span><span>第 1 次貪睡</span></div>
+</div></div><p class="note">優點：睡眼惺忪時滑動手勢比找按鈕文字直覺，不容易誤觸「關閉」而爬不起來。缺點：只解決「響鈴當下」的體驗，鬧鐘清單本身還是要搭配另一版設計，不能單獨當作管理頁面。</p></body></html>

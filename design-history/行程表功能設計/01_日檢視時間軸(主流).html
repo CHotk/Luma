@@ -1,0 +1,53 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>行程表 1 日檢視時間軸</title><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;800&display=swap" rel="stylesheet"><style>:root{--bg:#0c0c13;--panel:#161622;--panel2:#1e1e2e;--line:#2a2a3d;--text:#eceaf5;--sub:#8b8ba3;--ok:#5FE08D;--bad:#FF938B;--acc:#5B8DEF;--accInk:#eef3ff}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-serif;min-height:100vh;padding:32px 16px}
+.intro{max-width:640px;margin:0 auto 24px;text-align:center}
+.eyebrow{color:var(--acc);font-size:12px;letter-spacing:.2em}
+h1{font-size:22px;margin:6px 0}
+.intro p{color:var(--sub);font-size:13px;line-height:1.7}
+.tag{display:inline-block;background:var(--acc);color:var(--accInk);border-radius:99px;padding:2px 10px;font-size:11px;margin-top:8px}
+.phone{width:380px;height:760px;margin:0 auto;border:8px solid #000;border-radius:38px;background:var(--bg);overflow:hidden;display:flex;flex-direction:column;position:relative}
+.top{padding:18px 16px 8px;flex-shrink:0}
+.top .r1{display:flex;align-items:center;gap:8px}
+.top .r1 b{font-size:18px;flex:1}
+.ib{width:32px;height:32px;border-radius:10px;background:var(--panel);display:grid;place-items:center;font-size:15px}
+.week{display:flex;justify-content:space-between;margin-top:12px}
+.wd{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;color:var(--sub);width:34px;padding:6px 0;border-radius:12px}
+.wd .n{font-size:13px;font-weight:700;color:var(--text)}
+.wd.on{background:var(--acc);color:var(--accInk)}
+.wd.on .n{color:var(--accInk)}
+.scroll{flex:1;overflow:auto;padding:6px 16px 16px}
+.tl{position:relative;padding-left:44px}
+.hr{position:relative;height:56px;border-top:1px solid var(--line)}
+.hr .lbl{position:absolute;left:-44px;top:-7px;font-size:11px;color:var(--sub);width:38px}
+.ev{position:absolute;left:6px;right:6px;border-radius:10px;padding:6px 10px;font-size:12px;overflow:hidden;border-left:3px solid var(--acc);background:rgba(91,141,239,.16)}
+.ev b{display:block;font-size:12.5px}
+.ev span{color:var(--sub);font-size:10.5px}
+.ev.g{border-color:var(--ok);background:rgba(95,224,141,.14)}
+.ev.r{border-color:var(--bad);background:rgba(255,147,139,.14)}
+.fab{position:absolute;right:18px;bottom:18px;width:52px;height:52px;border-radius:50%;background:var(--acc);color:var(--accInk);display:grid;place-items:center;font-size:24px;font-weight:800;box-shadow:0 6px 16px rgba(0,0,0,.4)}
+.note{max-width:380px;margin:14px auto 0;color:var(--sub);font-size:12px;line-height:1.7;text-align:center}
+</style></head><body><div class="intro"><div class="eyebrow">行程表 · 版本 1 / 5</div><h1>日檢視時間軸</h1><p>頂部一週日期列選日期，下面是那一天的 24 小時時間軸，行程用色塊卡在對應時段——Google 日曆、Apple 行事曆「日」檢視的標準版型，最多人一看就會用。</p><span class="tag">主流慣例：Google 日曆 / Apple 行事曆「日」檢視</span></div><div class="phone"><div class="top"><div class="r1"><div class="ib">☰</div><b>9 月 30 日 週三</b><div class="ib">🔍</div></div>
+<div class="week">
+<div class="wd"><span>一</span><span class="n">28</span></div>
+<div class="wd"><span>二</span><span class="n">29</span></div>
+<div class="wd on"><span>三</span><span class="n">30</span></div>
+<div class="wd"><span>四</span><span class="n">1</span></div>
+<div class="wd"><span>五</span><span class="n">2</span></div>
+<div class="wd"><span>六</span><span class="n">3</span></div>
+<div class="wd"><span>日</span><span class="n">4</span></div>
+</div></div>
+<div class="scroll"><div class="tl">
+<div class="hr"><span class="lbl">08:00</span></div>
+<div class="hr"><span class="lbl">09:00</span><div class="ev" style="top:6px;height:46px"><b>晨會</b><span>09:00–09:30</span></div></div>
+<div class="hr"><span class="lbl">10:00</span></div>
+<div class="hr"><span class="lbl">11:00</span></div>
+<div class="hr"><span class="lbl">12:00</span><div class="ev g" style="top:6px;height:46px"><b>跟阿明吃午餐</b><span>12:00–13:00</span></div></div>
+<div class="hr"><span class="lbl">13:00</span></div>
+<div class="hr"><span class="lbl">14:00</span><div class="ev" style="top:6px;height:102px"><b>專案開發時段</b><span>14:00–16:00</span></div></div>
+<div class="hr"><span class="lbl">15:00</span></div>
+<div class="hr"><span class="lbl">16:00</span></div>
+<div class="hr"><span class="lbl">17:00</span></div>
+<div class="hr"><span class="lbl">18:00</span><div class="ev r" style="top:6px;height:46px"><b>牙醫回診</b><span>18:00–18:30</span></div></div>
+<div class="hr"><span class="lbl">19:00</span></div>
+</div></div></div><div class="fab">＋</div></div><p class="note">優點：大家都熟，時段重疊/空檔一眼看出來。缺點：手機小螢幕要一直滑才能看完一整天，沒行程的時段也佔畫面空間。</p></body></html>

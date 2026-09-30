@@ -1,0 +1,44 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>記帳 2 圓餅圖分類佔比</title><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;800&display=swap" rel="stylesheet"><style>:root{--bg:#0c0c13;--panel:#161622;--panel2:#1e1e2e;--line:#2a2a3d;--text:#eceaf5;--sub:#8b8ba3;--ok:#5FE08D;--bad:#FF938B;--acc:#E8C468;--accInk:#241d09}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-serif;min-height:100vh;padding:32px 16px}
+.intro{max-width:640px;margin:0 auto 24px;text-align:center}
+.eyebrow{color:var(--acc);font-size:12px;letter-spacing:.2em}
+h1{font-size:22px;margin:6px 0}
+.intro p{color:var(--sub);font-size:13px;line-height:1.7}
+.phone{width:380px;height:760px;margin:0 auto;border:8px solid #000;border-radius:38px;background:var(--bg);overflow:hidden;display:flex;flex-direction:column}
+.scroll{flex:1;overflow:auto;padding:0 16px 16px;display:flex;flex-direction:column;gap:14px}
+.scroll>*{flex-shrink:0}
+.top{display:flex;align-items:center;gap:8px;padding:18px 16px 10px;flex-shrink:0}
+.top b{font-size:16px;flex:1}
+.ib{width:32px;height:32px;border-radius:10px;background:var(--panel);display:grid;place-items:center;font-size:15px}
+.seg{display:flex;background:var(--panel);border-radius:12px;padding:3px;gap:2px}
+.seg div{flex:1;text-align:center;padding:6px;border-radius:9px;font-size:12px;color:var(--sub)}
+.seg div.on{background:var(--acc);color:var(--accInk);font-weight:700}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px}
+.pie{width:170px;height:170px;border-radius:50%;margin:6px auto;background:conic-gradient(#E8C468 0 32%,#5FE08D 32% 54%,#7EA6FF 54% 71%,#FF938B 71% 86%,#B592FF 86% 100%);position:relative;display:grid;place-items:center}
+.pie::after{content:'';width:96px;height:96px;border-radius:50%;background:var(--panel);position:absolute}
+.pie b{position:relative;z-index:1;font-size:13px;text-align:center;line-height:1.4}
+.pie b span{display:block;font-size:17px;font-weight:800}
+.legend{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+.lg{display:flex;align-items:center;gap:8px;font-size:12.5px}
+.lg .sw{width:10px;height:10px;border-radius:3px}
+.lg b{flex:1;font-weight:500}
+.lg span{color:var(--sub)}
+.note{max-width:380px;margin:14px auto 0;color:var(--sub);font-size:12px;line-height:1.7;text-align:center}
+</style></head><body><div class="intro"><div class="eyebrow">記帳 · 版本 2 / 5</div><h1>圓餅圖分類佔比</h1><p>首頁直接開門見山用圓餅圖回答「這個月錢花去哪了」，清單退居第二，適合比起流水帳更在意花費結構的人（像蘋果錢包分析頁、Wallet by BudgetBakers）。</p></div><div class="phone"><div class="top"><div class="ib">☰</div><b>記帳分析</b><div class="ib">⋯</div></div><div class="scroll">
+<div class="seg"><div>週</div><div class="on">月</div><div>年</div></div>
+<div class="card">
+<div class="sub" style="text-align:center">9 月支出</div>
+<div class="pie"><b>總支出<span>23,760</span></b></div>
+<div class="legend">
+<div class="lg"><div class="sw" style="background:#E8C468"></div><b>飲食</b><span>7,600・32%</span></div>
+<div class="lg"><div class="sw" style="background:#5FE08D"></div><b>日用品</b><span>5,220・22%</span></div>
+<div class="lg"><div class="sw" style="background:#7EA6FF"></div><b>交通</b><span>4,040・17%</span></div>
+<div class="lg"><div class="sw" style="background:#FF938B"></div><b>娛樂</b><span>3,570・15%</span></div>
+<div class="lg"><div class="sw" style="background:#B592FF"></div><b>其他</b><span>3,330・14%</span></div>
+</div></div>
+<div class="card">
+<div class="sub" style="margin-bottom:8px">跟上個月比</div>
+<div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:13px">飲食類支出</b><b style="color:var(--bad);font-size:13px">▲ 12%</b></div>
+</div>
+</div></div><p class="note">優點：一眼看懂錢花去哪，很適合月底檢討。缺點：想找某一筆特定花費（例如上週買的某樣東西）要多點一層才到清單，不是主畫面就能查。</p></body></html>

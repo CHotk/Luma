@@ -1,0 +1,70 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>行程表 2 月曆格狀總覽</title><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;800&display=swap" rel="stylesheet"><style>:root{--bg:#0c0c13;--panel:#161622;--panel2:#1e1e2e;--line:#2a2a3d;--text:#eceaf5;--sub:#8b8ba3;--ok:#5FE08D;--bad:#FF938B;--acc:#5B8DEF;--accInk:#eef3ff}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-serif;min-height:100vh;padding:32px 16px}
+.intro{max-width:640px;margin:0 auto 24px;text-align:center}
+.eyebrow{color:var(--acc);font-size:12px;letter-spacing:.2em}
+h1{font-size:22px;margin:6px 0}
+.intro p{color:var(--sub);font-size:13px;line-height:1.7}
+.phone{width:380px;height:760px;margin:0 auto;border:8px solid #000;border-radius:38px;background:var(--bg);overflow:hidden;display:flex;flex-direction:column}
+.top{display:flex;align-items:center;gap:8px;padding:18px 16px 10px;flex-shrink:0}
+.top b{font-size:16px;flex:1}
+.ib{width:32px;height:32px;border-radius:10px;background:var(--panel);display:grid;place-items:center;font-size:15px}
+.wk{display:grid;grid-template-columns:repeat(7,1fr);padding:0 10px;flex-shrink:0}
+.wk span{text-align:center;font-size:11px;color:var(--sub);padding:4px 0}
+.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;padding:0 10px;flex-shrink:0}
+.cell{aspect-ratio:1;border-radius:10px;background:var(--panel);padding:4px;display:flex;flex-direction:column;gap:2px;font-size:10.5px;color:var(--sub)}
+.cell.today{background:var(--acc);color:var(--accInk)}
+.cell.today .dnum{color:var(--accInk);font-weight:800}
+.cell.dim{opacity:.35}
+.dnum{font-size:11px;font-weight:600;color:var(--text)}
+.dots{display:flex;gap:2px;flex-wrap:wrap;margin-top:auto}
+.dots i{width:5px;height:5px;border-radius:50%;background:var(--acc)}
+.cell.today .dots i{background:var(--accInk)}
+.dots i.g{background:var(--ok)}.dots i.r{background:var(--bad)}
+.detail{flex:1;overflow:auto;padding:12px 16px 16px;display:flex;flex-direction:column;gap:8px}
+.detail .h{font-size:13px;color:var(--sub);margin-bottom:2px}
+.item{display:flex;align-items:center;gap:10px;background:var(--panel);border-radius:12px;padding:10px 12px}
+.item .bar{width:3px;height:26px;border-radius:2px;background:var(--acc)}
+.item b{font-size:13px;display:block}
+.item span{color:var(--sub);font-size:11px}
+.note{max-width:380px;margin:14px auto 0;color:var(--sub);font-size:12px;line-height:1.7;text-align:center}
+</style></head><body><div class="intro"><div class="eyebrow">行程表 · 版本 2 / 5</div><h1>月曆格狀總覽</h1><p>打開先看整個月的格子總覽，每格用小點標出有幾件事，點某一天再展開當天清單——比較適合「先看這個月忙不忙」而不是逐時段規劃的用法。</p></div><div class="phone"><div class="top"><div class="ib">‹</div><b>2026 年 9 月</b><div class="ib">›</div></div>
+<div class="wk"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
+<div class="grid">
+<div class="cell dim"><span class="dnum">31</span></div>
+<div class="cell"><span class="dnum">1</span><div class="dots"><i></i></div></div>
+<div class="cell"><span class="dnum">2</span></div>
+<div class="cell"><span class="dnum">3</span><div class="dots"><i class="g"></i></div></div>
+<div class="cell"><span class="dnum">4</span></div>
+<div class="cell"><span class="dnum">5</span></div>
+<div class="cell"><span class="dnum">6</span></div>
+<div class="cell"><span class="dnum">7</span></div>
+<div class="cell"><span class="dnum">8</span><div class="dots"><i></i><i class="r"></i></div></div>
+<div class="cell"><span class="dnum">9</span></div>
+<div class="cell"><span class="dnum">10</span></div>
+<div class="cell"><span class="dnum">11</span></div>
+<div class="cell"><span class="dnum">12</span></div>
+<div class="cell"><span class="dnum">13</span></div>
+<div class="cell"><span class="dnum">14</span><div class="dots"><i></i></div></div>
+<div class="cell"><span class="dnum">15</span></div>
+<div class="cell"><span class="dnum">16</span></div>
+<div class="cell"><span class="dnum">17</span></div>
+<div class="cell"><span class="dnum">18</span></div>
+<div class="cell"><span class="dnum">19</span></div>
+<div class="cell"><span class="dnum">20</span></div>
+<div class="cell"><span class="dnum">21</span></div>
+<div class="cell"><span class="dnum">22</span></div>
+<div class="cell"><span class="dnum">23</span><div class="dots"><i></i><i class="g"></i></div></div>
+<div class="cell"><span class="dnum">24</span></div>
+<div class="cell"><span class="dnum">25</span></div>
+<div class="cell"><span class="dnum">26</span></div>
+<div class="cell"><span class="dnum">27</span><div class="dots"><i class="r"></i></div></div>
+<div class="cell today"><span class="dnum">30</span><div class="dots"><i></i><i class="g"></i><i class="r"></i></div></div>
+<div class="cell dim"><span class="dnum">1</span></div>
+</div>
+<div class="detail">
+<div class="h">9 月 30 日・3 件行程</div>
+<div class="item"><div class="bar"></div><div><b>晨會</b><span>09:00–09:30</span></div></div>
+<div class="item"><div class="bar" style="background:var(--ok)"></div><div><b>跟阿明吃午餐</b><span>12:00–13:00</span></div></div>
+<div class="item"><div class="bar" style="background:var(--bad)"></div><div><b>牙醫回診</b><span>18:00–18:30</span></div></div>
+</div></div><p class="note">優點：規劃長天期出遊、檢查整個月排程空檔很方便。缺點：格子小，手機上點錯天、看不清當天有幾件事的機率比日檢視高。</p></body></html>

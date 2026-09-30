@@ -1,0 +1,32 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>碼錶 2 圓環進度視覺式</title><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;800&display=swap" rel="stylesheet"><style>:root{--bg:#0c0c13;--panel:#161622;--panel2:#1e1e2e;--line:#2a2a3d;--text:#eceaf5;--sub:#8b8ba3;--acc:#4FD1C5;--accInk:#032824;--bad:#FF938B}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-serif;min-height:100vh;padding:32px 16px}
+.intro{max-width:640px;margin:0 auto 24px;text-align:center}
+.eyebrow{color:var(--acc);font-size:12px;letter-spacing:.2em}
+h1{font-size:22px;margin:6px 0}
+.intro p{color:var(--sub);font-size:13px;line-height:1.7}
+.phone{width:380px;height:760px;margin:0 auto;border:8px solid #000;border-radius:38px;background:var(--bg);overflow:hidden;display:flex;flex-direction:column;align-items:center}
+.top{width:100%;padding:18px 20px 0;flex-shrink:0;color:var(--sub);font-size:13px}
+.ringwrap{position:relative;width:250px;height:250px;margin:26px 0 20px;flex-shrink:0}
+.ringwrap svg{transform:rotate(-90deg)}
+.ringcenter{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ringcenter .disp{font-size:38px;font-weight:800;font-variant-numeric:tabular-nums}
+.ringcenter .lap{color:var(--acc);font-size:13px;margin-top:4px}
+.btns{display:flex;gap:22px;flex-shrink:0}
+.btn{width:70px;height:70px;border-radius:50%;display:grid;place-items:center;font-size:13px;font-weight:700}
+.btn.stop{background:rgba(255,147,139,.16);color:var(--bad);border:1px solid rgba(255,147,139,.4)}
+.btn.lap{background:var(--panel2);color:var(--text);border:1px solid var(--line)}
+.mini{width:100%;padding:20px;display:flex;gap:8px;overflow-x:auto;flex-shrink:0}
+.chip{flex-shrink:0;background:var(--panel);border-radius:12px;padding:8px 12px;text-align:center;font-size:11px}
+.chip b{display:block;font-size:13px;font-variant-numeric:tabular-nums}
+.note{max-width:380px;margin:14px auto 0;color:var(--sub);font-size:12px;line-height:1.7;text-align:center}
+</style></head><body><div class="intro"><div class="eyebrow">碼錶 · 版本 2 / 5</div><h1>圓環進度視覺式</h1><p>用一個會走的圓環代替純數字，圓環每繞一圈代表 60 秒，視覺上更有「時間正在流逝」的動態感——參考運動手錶的計時錶面，下方用小卡片橫向捲動顯示分圈。</p></div><div class="phone"><div class="top">已計時</div>
+<div class="ringwrap"><svg width="250" height="250"><circle cx="125" cy="125" r="108" fill="none" stroke="#1e1e2e" stroke-width="14"/><circle cx="125" cy="125" r="108" fill="none" stroke="#4FD1C5" stroke-width="14" stroke-linecap="round" stroke-dasharray="679" stroke-dashoffset="200"/></svg>
+<div class="ringcenter"><div class="disp">00:42.18</div><div class="lap">第 5 圈進行中</div></div></div>
+<div class="btns"><div class="btn lap">分圈</div><div class="btn stop">停止</div></div>
+<div class="mini">
+<div class="chip">第1圈<b>13.50</b></div>
+<div class="chip">第2圈<b>08.21</b></div>
+<div class="chip">第3圈<b>11.05</b></div>
+<div class="chip">第4圈<b>09.42</b></div>
+</div></div><p class="note">優點：畫面比純數字更有動感，適合投放在螢幕上遠遠看的情境（例如健身房大螢幕）。缺點：圓環每 60 秒重置一圈，看「總經過時間」不如純數字直接，長時間計時（超過幾分鐘）反而要多看一眼數字才準確。</p></body></html>

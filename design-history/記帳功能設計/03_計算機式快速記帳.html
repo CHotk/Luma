@@ -1,0 +1,47 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>記帳 3 計算機式快速記帳</title><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;800&display=swap" rel="stylesheet"><style>:root{--bg:#0c0c13;--panel:#161622;--panel2:#1e1e2e;--line:#2a2a3d;--text:#eceaf5;--sub:#8b8ba3;--ok:#5FE08D;--bad:#FF938B;--acc:#E8C468;--accInk:#241d09}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-serif;min-height:100vh;padding:32px 16px}
+.intro{max-width:640px;margin:0 auto 24px;text-align:center}
+.eyebrow{color:var(--acc);font-size:12px;letter-spacing:.2em}
+h1{font-size:22px;margin:6px 0}
+.intro p{color:var(--sub);font-size:13px;line-height:1.7}
+.phone{width:380px;height:760px;margin:0 auto;border:8px solid #000;border-radius:38px;background:var(--bg);overflow:hidden;display:flex;flex-direction:column}
+.top{display:flex;align-items:center;gap:8px;padding:18px 16px 10px;flex-shrink:0}
+.top b{font-size:16px;flex:1}
+.ib{width:32px;height:32px;border-radius:10px;background:var(--panel);display:grid;place-items:center;font-size:15px}
+.cats{display:flex;gap:8px;padding:0 16px 10px;overflow-x:auto;flex-shrink:0}
+.cats div{flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;color:var(--sub)}
+.cats .ic{width:48px;height:48px;border-radius:14px;background:var(--panel);display:grid;place-items:center;font-size:20px}
+.cats .ic.on{background:var(--acc);color:var(--accInk)}
+.cats div.on{color:var(--text)}
+.display{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:0 20px}
+.display .lbl{color:var(--sub);font-size:13px}
+.display .num{font-size:44px;font-weight:800;letter-spacing:.02em}
+.display .cat{background:var(--panel2);border-radius:99px;padding:5px 14px;font-size:12px;display:flex;align-items:center;gap:6px}
+.pad{flex-shrink:0;display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line)}
+.pad button{border:none;background:var(--panel);color:var(--text);font-size:19px;padding:18px 0;font-family:inherit}
+.pad button.op{background:var(--panel2);color:var(--acc)}
+.pad button.eq{background:var(--acc);color:var(--accInk);font-weight:800}
+.note{max-width:380px;margin:14px auto 0;color:var(--sub);font-size:12px;line-height:1.7;text-align:center}
+</style></head><body><div class="intro"><div class="eyebrow">記帳 · 版本 3 / 5</div><h1>計算機式快速記帳</h1><p>整個首頁就是一台計算機——先選分類，數字鍵盤直接輸入（可以加減算稅前稅後），按等於秒記一筆，是為了「懶得多點兩層」設計的極速輸入版型。</p></div><div class="phone">
+<div class="top"><div class="ib">✕</div><b>快速記一筆</b><div class="ib">📋</div></div>
+<div class="cats">
+<div class="on"><div class="ic on">🍱</div>飲食</div>
+<div><div class="ic">🚌</div>交通</div>
+<div><div class="ic">🛒</div>日用</div>
+<div><div class="ic">🎮</div>娛樂</div>
+<div><div class="ic">💊</div>醫療</div>
+<div><div class="ic">➕</div>其他</div>
+</div>
+<div class="display">
+<div class="cat">🍱 飲食・今天</div>
+<div class="num">1<span style="color:var(--sub)">2</span>0</div>
+<div class="lbl">點數字輸入金額</div>
+</div>
+<div class="pad">
+<button>7</button><button>8</button><button>9</button><button class="op">÷</button>
+<button>4</button><button>5</button><button>6</button><button class="op">×</button>
+<button>1</button><button>2</button><button>3</button><button class="op">−</button>
+<button>0</button><button>.</button><button class="op">⌫</button><button class="eq">✓</button>
+</div>
+</div><p class="note">優點：對「記帳常常記到一半就放棄」的人來說門檻最低，2 秒完成一筆。缺點：只能記金額跟分類，備註、照片收據這類細節得靠事後補、或另外有個「詳細模式」入口。</p></body></html>

@@ -1,0 +1,39 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>提醒 5 看板拖曳式</title><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;800&display=swap" rel="stylesheet"><style>:root{--bg:#0c0c13;--panel:#161622;--panel2:#1e1e2e;--line:#2a2a3d;--text:#eceaf5;--sub:#8b8ba3;--acc:#B592FF;--accInk:#1c0f30;--ok:#5FE08D}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-serif;min-height:100vh;padding:32px 16px}
+.intro{max-width:640px;margin:0 auto 24px;text-align:center}
+.eyebrow{color:var(--acc);font-size:12px;letter-spacing:.2em}
+h1{font-size:22px;margin:6px 0}
+.intro p{color:var(--sub);font-size:13px;line-height:1.7}
+.phone{width:380px;height:760px;margin:0 auto;border:8px solid #000;border-radius:38px;background:var(--bg);overflow:hidden;display:flex;flex-direction:column}
+.top{display:flex;align-items:center;gap:8px;padding:18px 16px 10px;flex-shrink:0}
+.top b{font-size:16px;flex:1}
+.ib{width:32px;height:32px;border-radius:10px;background:var(--panel);display:grid;place-items:center;font-size:15px}
+.cols{flex:1;display:flex;overflow-x:auto;gap:12px;padding:0 16px 16px}
+.col{flex:0 0 220px;background:var(--panel);border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.col .h{display:flex;align-items:center;font-size:12.5px;font-weight:700;margin-bottom:2px}
+.col .h span{margin-left:auto;color:var(--sub);font-weight:400;font-size:11px}
+.card{background:var(--panel2);border-radius:11px;padding:10px 11px;font-size:12px}
+.card b{display:block;font-size:12.5px}
+.card span{color:var(--sub);font-size:10.5px}
+.card.drag{border:1.5px dashed var(--acc);opacity:.8}
+.addbtn{text-align:center;color:var(--sub);font-size:11.5px;padding:8px;border:1px dashed var(--line);border-radius:10px}
+.note{max-width:380px;margin:14px auto 0;color:var(--sub);font-size:12px;line-height:1.7;text-align:center}
+</style></head><body><div class="intro"><div class="eyebrow">提醒 · 版本 5 / 5</div><h1>看板拖曳式</h1><p>參考 Trello/Notion 看板，欄位是「待處理／進行中／已完成」，卡片用手指左右拖曳換欄位代表狀態轉移——適合待辦不是「做完就消失」，而是有中間過程（處理中、等回覆）的複雜任務。</p></div><div class="phone"><div class="top"><div class="ib">☰</div><b>任務看板</b><div class="ib">✎</div></div>
+<div class="cols">
+<div class="col"><div class="h">待處理<span>3</span></div>
+<div class="card"><b>續辦駕照</b><span>10/15 前</span></div>
+<div class="card"><b>整理衣櫃</b></div>
+<div class="card"><b>倒垃圾</b></div>
+<div class="addbtn">＋ 新增卡片</div>
+</div>
+<div class="col"><div class="h">進行中<span>2</span></div>
+<div class="card drag"><b>回覆房東訊息</b><span>← 拖曳中</span></div>
+<div class="card"><b>領取包裹</b><span>等通知</span></div>
+<div class="addbtn">＋ 新增卡片</div>
+</div>
+<div class="col"><div class="h">已完成<span>1</span></div>
+<div class="card" style="opacity:.5"><b>繳水費</b><span style="color:var(--ok)">✓ 已完成</span></div>
+<div class="addbtn">＋ 新增卡片</div>
+</div>
+</div></div><p class="note">優點：能表達「進行中」這種介於待做跟完成之間的狀態，適合需要跟催、追蹤進度的任務。缺點：手機小螢幕橫向拖曳卡片手感較差，三個欄位同時要橫捲才看得全，對單純「打勾完成」的簡單待辦是過度設計。</p></body></html>

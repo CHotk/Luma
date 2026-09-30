@@ -1,0 +1,47 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>碼錶 4 配速趨勢圖表式</title><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;800&display=swap" rel="stylesheet"><style>:root{--bg:#0c0c13;--panel:#161622;--panel2:#1e1e2e;--line:#2a2a3d;--text:#eceaf5;--sub:#8b8ba3;--acc:#4FD1C5;--accInk:#032824;--bad:#FF938B;--ok:#5FE08D}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-serif;min-height:100vh;padding:32px 16px}
+.intro{max-width:640px;margin:0 auto 24px;text-align:center}
+.eyebrow{color:var(--acc);font-size:12px;letter-spacing:.2em}
+h1{font-size:22px;margin:6px 0}
+.intro p{color:var(--sub);font-size:13px;line-height:1.7}
+.phone{width:380px;height:760px;margin:0 auto;border:8px solid #000;border-radius:38px;background:var(--bg);overflow:hidden;display:flex;flex-direction:column}
+.top{padding:20px 20px 4px;flex-shrink:0;text-align:center}
+.top .disp{font-size:40px;font-weight:800;font-variant-numeric:tabular-nums}
+.top .sub{color:var(--sub);font-size:12px;margin-top:2px}
+.chart{margin:16px 20px;background:var(--panel);border-radius:16px;padding:16px;flex-shrink:0}
+.chart .h{font-size:12px;color:var(--sub);margin-bottom:10px}
+.bars{display:flex;align-items:flex-end;gap:8px;height:90px}
+.bars .b{flex:1;border-radius:5px 5px 0 0;background:var(--acc);position:relative}
+.bars .b span{position:absolute;top:-16px;left:0;right:0;text-align:center;font-size:9.5px;color:var(--sub)}
+.bars .b.slow{background:var(--bad)}
+.bars .b.fast{background:var(--ok)}
+.axis{display:flex;justify-content:space-between;margin-top:6px}
+.axis span{font-size:9.5px;color:var(--sub)}
+.stats{display:flex;gap:10px;margin:0 20px;flex-shrink:0}
+.stat{flex:1;background:var(--panel);border-radius:14px;padding:12px;text-align:center}
+.stat .n{font-size:16px;font-weight:800}
+.stat .l{font-size:10.5px;color:var(--sub);margin-top:2px}
+.btns{display:flex;justify-content:center;gap:22px;padding:20px;flex-shrink:0;margin-top:auto}
+.btn{width:64px;height:64px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700}
+.btn.stop{background:rgba(255,147,139,.16);color:var(--bad);border:1px solid rgba(255,147,139,.4)}
+.btn.lap{background:var(--panel2);color:var(--text);border:1px solid var(--line)}
+.note{max-width:380px;margin:14px auto 0;color:var(--sub);font-size:12px;line-height:1.7;text-align:center}
+</style></head><body><div class="intro"><div class="eyebrow">碼錶 · 版本 4 / 5</div><h1>配速趨勢圖表式</h1><p>把每圈耗時畫成長條圖，快慢一眼比較出來，還附最快/最慢/平均統計卡——給認真在練配速、想「看得出進步」而不只是記錄數字的跑者/訓練者使用。</p></div><div class="phone">
+<div class="top"><div class="disp">00:42.18</div><div class="sub">第 5 圈進行中</div></div>
+<div class="chart"><div class="h">每圈耗時</div>
+<div class="bars">
+<div class="b" style="height:75%"><span>13.5</span></div>
+<div class="b fast" style="height:46%"><span>8.2</span></div>
+<div class="b slow" style="height:62%"><span>11.1</span></div>
+<div class="b" style="height:52%"><span>9.4</span></div>
+</div>
+<div class="axis"><span>圈1</span><span>圈2</span><span>圈3</span><span>圈4</span></div>
+</div>
+<div class="stats">
+<div class="stat"><div class="n" style="color:var(--ok)">08.2</div><div class="l">最快圈</div></div>
+<div class="stat"><div class="n">10.5</div><div class="l">平均</div></div>
+<div class="stat"><div class="n" style="color:var(--bad)">13.5</div><div class="l">最慢圈</div></div>
+</div>
+<div class="btns"><div class="btn lap">分圈</div><div class="btn stop">停止</div></div>
+</div></div><p class="note">優點：對訓練者最有價值——馬上看出配速穩不穩、有沒有越跑越慢。缺點：圖表要有至少幾圈資料才有意義，剛開始計時的前幾秒畫面會顯得空、資訊量對隨手用一下碼錶的人偏重。</p></body></html>
