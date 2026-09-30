@@ -71,12 +71,16 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
   }
 
   Future<void> _open() async {
+    // 開連結一定要是這個函式最先做的事，中間不能先 await 別的東西
+    // ——`openExternalUrl` 內部第一步是同步呼叫 `window.open`，手機瀏覽器
+    // 只認「使用者手勢觸發後、還沒夾過 await」的呼叫堆疊，先 await 標記
+    // 已看過的存檔動作會把這個呼叫堆疊斷開，導致點了打不開
+    // （2026-09-30 使用者回報：加了已看過標記之後點影片就跳不出去了，
+    // 就是這裡的順序錯了，跟 `external_link.dart` 的說明是同一個坑）。
+    await openExternalUrl(context, widget.video.watchUrl);
     final record = await YtVideoWatchStore(
       ref.read(keyValueStoreProvider),
     ).markOpened(widget.video.videoId);
-    if (context.mounted) {
-      await openExternalUrl(context, widget.video.watchUrl);
-    }
     if (mounted) setState(() => _watched = record);
   }
 
