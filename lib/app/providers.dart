@@ -15,6 +15,7 @@ import '../data/repositories/sync_log_repository.dart';
 import '../data/repositories/word_repository.dart';
 import '../data/repositories/yt_stats_refresh_setting_store.dart';
 import '../data/repositories/yt_tracker_repository.dart';
+import '../data/repositories/yt_embed_player_style_store.dart';
 import '../data/repositories/yt_video_open_mode_store.dart';
 import '../data/seed/app_defaults_loader.dart';
 import '../data/seed/word_seed_loader.dart';
@@ -157,6 +158,12 @@ final ytStatsRefreshDirtyProvider = StateProvider<bool>((ref) => false);
 /// override 進來）。
 final ytVideoOpenModeProvider = StateProvider<YtVideoOpenMode>(
   (ref) => YtVideoOpenModeStore.defaultMode,
+);
+
+/// 內嵌播放器要用下滑收合式還是可拖曳/可收合浮動視窗，使用者在設定頁調
+/// （2026-09-30 使用者要求：兩種都留著讓使用者自己選，同一套模式）。
+final ytEmbedPlayerStyleProvider = StateProvider<YtEmbedPlayerStyle>(
+  (ref) => YtEmbedPlayerStyleStore.defaultStyle,
 );
 
 /// 使用者選的 App Logo 資產路徑，null＝沒選過、用預設的

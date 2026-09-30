@@ -8,6 +8,7 @@ import 'data/cloud/r2_credentials_store.dart';
 import 'data/repositories/app_logo_store.dart';
 import 'data/repositories/error_log_repository.dart';
 import 'data/repositories/yt_api_key_store.dart';
+import 'data/repositories/yt_embed_player_style_store.dart';
 import 'data/repositories/yt_stats_refresh_setting_store.dart';
 import 'data/repositories/yt_video_open_mode_store.dart';
 import 'data/seed/app_defaults_loader.dart';
@@ -43,6 +44,7 @@ Future<void> main() async {
     ).load();
     final savedAppLogoAssetPath = await AppLogoStore(store).load();
     final savedYtVideoOpenMode = await YtVideoOpenModeStore(store).load();
+    final savedYtEmbedPlayerStyle = await YtEmbedPlayerStyleStore(store).load();
     final r2BucketName = await loadR2BucketName();
     final savedR2Credentials = await R2CredentialsStore(store).load();
 
@@ -57,6 +59,9 @@ Future<void> main() async {
           ),
           appLogoAssetProvider.overrideWith((ref) => savedAppLogoAssetPath),
           ytVideoOpenModeProvider.overrideWith((ref) => savedYtVideoOpenMode),
+          ytEmbedPlayerStyleProvider.overrideWith(
+            (ref) => savedYtEmbedPlayerStyle,
+          ),
           r2BucketNameProvider.overrideWithValue(r2BucketName),
           r2CredentialsProvider.overrideWith((ref) => savedR2Credentials),
         ],
@@ -105,10 +110,7 @@ class _StartupErrorApp extends StatelessWidget {
                   const SizedBox(height: 8),
                   Text(
                     message,
-                    style: const TextStyle(
-                      color: Colors.white54,
-                      fontSize: 12,
-                    ),
+                    style: const TextStyle(color: Colors.white54, fontSize: 12),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 20),

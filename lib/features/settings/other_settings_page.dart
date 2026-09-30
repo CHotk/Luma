@@ -7,6 +7,7 @@ import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
 import '../../data/repositories/diary_password_store.dart';
+import '../../data/repositories/yt_embed_player_style_store.dart';
 import '../../data/repositories/yt_stats_refresh_setting_store.dart';
 import '../../data/repositories/yt_video_open_mode_store.dart';
 import '../../shared/widgets/ambient_background.dart';
@@ -15,7 +16,8 @@ import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
 import '../../shared/widgets/glass_card.dart';
 import '../yt_tracker/yt_api_key_dialog.dart';
-import '../yt_tracker/yt_tracker_browse_page.dart' show refreshYtSubscriberStats;
+import '../yt_tracker/yt_tracker_browse_page.dart'
+    show refreshYtSubscriberStats;
 import '../yt_tracker/yt_tracker_home_page.dart' show showYtExportDialog;
 
 /// 英文學習以外的功能（日記、健身、YT、日文…）點齒輪來到的設定頁。
@@ -44,10 +46,7 @@ class OtherSettingsPage extends ConsumerWidget {
           builder: (dialogContext) => AlertDialog(
             backgroundColor: const Color(0xFF1A1A24),
             title: const Text('還沒儲存', style: TextStyle(color: AppColors.ink)),
-            content: Text(
-              '訂閱人數更新頻率調整了但還沒按儲存，確定要離開嗎？',
-              style: AppText.bodyDim,
-            ),
+            content: Text('訂閱人數更新頻率調整了但還沒按儲存，確定要離開嗎？', style: AppText.bodyDim),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext, false),
@@ -186,8 +185,7 @@ class _YtTrackerSettings extends ConsumerWidget {
                     ),
                   ),
                   TextButton(
-                    onPressed: () =>
-                        context.push('/yt-tracker/category-order'),
+                    onPressed: () => context.push('/yt-tracker/category-order'),
                     child: const Text('調整'),
                   ),
                 ],
@@ -196,6 +194,7 @@ class _YtTrackerSettings extends ConsumerWidget {
               const _StatsRefreshRow(),
               const Divider(height: Gap.lg, color: AppColors.glassEdge),
               const _VideoOpenModeRow(),
+              const _EmbedPlayerStyleRow(),
             ],
           ),
         ),
@@ -484,9 +483,7 @@ class _VideoOpenModeRow extends ConsumerWidget {
 
     Future<void> setMode(YtVideoOpenMode value) async {
       ref.read(ytVideoOpenModeProvider.notifier).state = value;
-      await YtVideoOpenModeStore(
-        ref.read(keyValueStoreProvider),
-      ).save(value);
+      await YtVideoOpenModeStore(ref.read(keyValueStoreProvider)).save(value);
     }
 
     return Row(
@@ -548,6 +545,96 @@ class _VideoOpenModeRow extends ConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// 內嵌播放器要用哪種外層呈現方式（2026-09-30 使用者要求：正中央
+/// Dialog、下滑收合式、可拖曳浮動視窗三種都留著讓使用者切，預設用
+/// 浮動視窗，見 [YtEmbedPlayerStyle]）。只有點影片選「內嵌播放」時
+/// 這個設定才有意義，開新分頁模式不會用到任何一種呈現方式，所以只在
+/// [_VideoOpenModeRow] 選了內嵌播放時才顯示這一列。
+class _EmbedPlayerStyleRow extends ConsumerWidget {
+  const _EmbedPlayerStyleRow();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final openMode = ref.watch(ytVideoOpenModeProvider);
+    if (openMode != YtVideoOpenMode.embedded) return const SizedBox.shrink();
+    final style = ref.watch(ytEmbedPlayerStyleProvider);
+
+    Future<void> setStyle(YtEmbedPlayerStyle value) async {
+      ref.read(ytEmbedPlayerStyleProvider.notifier).state = value;
+      await YtEmbedPlayerStyleStore(
+        ref.read(keyValueStoreProvider),
+      ).save(value);
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: Gap.md),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(top: 2),
+            child: Icon(
+              Icons.picture_in_picture_alt_outlined,
+              size: 18,
+              color: AppColors.ink2,
+            ),
+          ),
+          const SizedBox(width: Gap.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '內嵌播放器樣式',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.ink,
+                  ),
+                ),
+                Text(switch (style) {
+                  YtEmbedPlayerStyle.floating => '可拖曳、可收合成小泡泡的浮動視窗',
+                  YtEmbedPlayerStyle.bottomSheet => '從下方滑出，只佔下半螢幕',
+                  YtEmbedPlayerStyle.centeredDialog => '正中央彈窗，整頁變暗',
+                }, style: AppText.note),
+                const SizedBox(height: Gap.xs),
+                SegmentedButton<YtEmbedPlayerStyle>(
+                  segments: const [
+                    ButtonSegment(
+                      value: YtEmbedPlayerStyle.floating,
+                      label: Text('浮動視窗'),
+                    ),
+                    ButtonSegment(
+                      value: YtEmbedPlayerStyle.bottomSheet,
+                      label: Text('下滑收合'),
+                    ),
+                    ButtonSegment(
+                      value: YtEmbedPlayerStyle.centeredDialog,
+                      label: Text('正中彈窗'),
+                    ),
+                  ],
+                  selected: {style},
+                  onSelectionChanged: (s) => setStyle(s.first),
+                  style: SegmentedButton.styleFrom(
+                    backgroundColor: AppColors.glassFill,
+                    foregroundColor: AppColors.ink2,
+                    selectedBackgroundColor: AppColors.accentSolid.withValues(
+                      alpha: 0.28,
+                    ),
+                    selectedForegroundColor: AppColors.ink,
+                    side: const BorderSide(color: AppColors.glassEdge),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

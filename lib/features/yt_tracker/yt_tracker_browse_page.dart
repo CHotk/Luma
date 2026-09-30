@@ -20,8 +20,7 @@ import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
 import 'yt_api_key_dialog.dart';
 import 'yt_channel_avatar.dart';
-import 'yt_tracker_home_page.dart'
-    show deleteYtCategory, runYtChannelDiscovery;
+import 'yt_tracker_home_page.dart' show deleteYtCategory, runYtChannelDiscovery;
 import 'yt_video_row.dart';
 
 enum _ViewMode { channel, video }
@@ -139,9 +138,14 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
   /// （沒更新到、或隱藏）的排最後，同人數的維持原本順序（[List.sort]
   /// 不保證穩定，所以自己帶原始位置比）。
   List<YtChannel> _sortedChannels(List<YtChannel> channels) {
-    final pinned = [for (final c in channels) if (c.pinnedAt != null) c]
-      ..sort((a, b) => b.pinnedAt!.compareTo(a.pinnedAt!));
-    final rest = [for (final c in channels) if (c.pinnedAt == null) c];
+    final pinned = [
+      for (final c in channels)
+        if (c.pinnedAt != null) c,
+    ]..sort((a, b) => b.pinnedAt!.compareTo(a.pinnedAt!));
+    final rest = [
+      for (final c in channels)
+        if (c.pinnedAt == null) c,
+    ];
     if (_sort == _ChannelSort.normal) return [...pinned, ...rest];
     final indexed = [for (var i = 0; i < rest.length; i++) (i, rest[i])];
     indexed.sort((a, b) {
@@ -533,8 +537,7 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                   _TypeChip(
                     label: '直播',
                     selected: _typeFilter == _TypeFilter.live,
-                    onTap: () =>
-                        setState(() => _typeFilter = _TypeFilter.live),
+                    onTap: () => setState(() => _typeFilter = _TypeFilter.live),
                   ),
                 ],
               ),
@@ -930,7 +933,10 @@ class _DiscoveredViaBadge extends StatelessWidget {
 /// 用它累積進自己的 skip 清單）；`updated`：真的問到新資料、已經存檔
 /// 的頻道。
 Future<({List<YtChannel> updated, Set<String> attempted})>
-refreshYtSubscriberStats(WidgetRef ref, {Set<String> skipIds = const {}}) async {
+refreshYtSubscriberStats(
+  WidgetRef ref, {
+  Set<String> skipIds = const {},
+}) async {
   final apiKey = ref.read(ytApiKeyProvider);
   if (apiKey == null || apiKey.isEmpty) {
     return (updated: const <YtChannel>[], attempted: const <String>{});
@@ -1329,55 +1335,74 @@ class _ChannelGrid extends StatelessWidget {
     // （2026-09-30 使用者要求：頂部要有額外一個區域專門顯示置頂的
     // 頻道）。[_sortedChannels] 已經把置頂的排在最前面，這裡只是照
     // pinnedAt 切成兩段分開畫。
-    final pinned = [for (final c in channels) if (c.pinnedAt != null) c];
-    final rest = [for (final c in channels) if (c.pinnedAt == null) c];
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
+    final pinned = [
+      for (final c in channels)
+        if (c.pinnedAt != null) c,
+    ];
+    final rest = [
+      for (final c in channels)
+        if (c.pinnedAt == null) c,
+    ];
+    const gridDelegate = SliverGridDelegateWithFixedCrossAxisCount(
+      crossAxisCount: 2,
+      mainAxisSpacing: 8,
+      crossAxisSpacing: 8,
+      childAspectRatio: 2.6,
+    );
+    // 原本置頂區塊是 shrinkWrap+不可捲動的固定區塊、下面才是可捲動的
+    // 「其他頻道」格子，兩塊各自獨立捲動——置頂數量一多，固定區塊佔掉
+    // 一大截，剩下能捲動的空間被擠得很小（2026-09-30 使用者回報「頁面
+    // 很擠」）。改成一個 CustomScrollView，置頂區塊、分隔線、其他頻道
+    // 格子全部當成同一份可捲動內容的 sliver，整頁一起捲，不再各自
+    // 分開卡住；用 sliver 而不是包一層 SingleChildScrollView+shrinkWrap，
+    // 是因為 shrinkWrap 的 GridView 會一次把全部項目都排版出來，頻道
+    // 一多會沒必要地拖慢畫面，sliver 才是照畫面捲到哪才建到哪的懶載入。
+    return CustomScrollView(
+      slivers: [
         if (pinned.isNotEmpty) ...[
-          Row(
-            children: [
-              const Icon(
-                Icons.push_pin_rounded,
-                size: 13,
-                color: AppColors.ytPinAccent,
-              ),
-              const SizedBox(width: 4),
-              Text('已置頂 · ${pinned.length}', style: AppText.note),
-            ],
-          ),
-          const SizedBox(height: Gap.xs),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: pinned.length,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisSpacing: 8,
-              crossAxisSpacing: 8,
-              childAspectRatio: 2.6,
-            ),
-            itemBuilder: (context, i) => _buildCard(context, pinned[i]),
-          ),
-          const SizedBox(height: Gap.md),
-          const Divider(height: 1, color: AppColors.glassEdge),
-          const SizedBox(height: Gap.sm),
-        ],
-        Expanded(
-          child: rest.isEmpty
-              ? Center(child: Text('沒有其他頻道', style: AppText.bodyDim))
-              : GridView.builder(
-                  itemCount: rest.length,
-                  gridDelegate:
-                      const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        mainAxisSpacing: 8,
-                        crossAxisSpacing: 8,
-                        childAspectRatio: 2.6,
-                      ),
-                  itemBuilder: (context, i) => _buildCard(context, rest[i]),
+          SliverToBoxAdapter(
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.push_pin_rounded,
+                  size: 13,
+                  color: AppColors.ytPinAccent,
                 ),
-        ),
+                const SizedBox(width: 4),
+                Text('已置頂 · ${pinned.length}', style: AppText.note),
+              ],
+            ),
+          ),
+          const SliverToBoxAdapter(child: SizedBox(height: Gap.xs)),
+          SliverGrid(
+            gridDelegate: gridDelegate,
+            delegate: SliverChildBuilderDelegate(
+              (context, i) => _buildCard(context, pinned[i]),
+              childCount: pinned.length,
+            ),
+          ),
+          const SliverToBoxAdapter(
+            child: Column(
+              children: [
+                SizedBox(height: Gap.md),
+                Divider(height: 1, color: AppColors.glassEdge),
+                SizedBox(height: Gap.sm),
+              ],
+            ),
+          ),
+        ],
+        if (rest.isEmpty)
+          SliverToBoxAdapter(
+            child: Center(child: Text('沒有其他頻道', style: AppText.bodyDim)),
+          )
+        else
+          SliverGrid(
+            gridDelegate: gridDelegate,
+            delegate: SliverChildBuilderDelegate(
+              (context, i) => _buildCard(context, rest[i]),
+              childCount: rest.length,
+            ),
+          ),
       ],
     );
   }

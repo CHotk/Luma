@@ -7,6 +7,7 @@ import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
 import '../../data/external_link.dart';
+import '../../data/repositories/yt_embed_player_style_store.dart';
 import '../../data/repositories/yt_video_hidden_store.dart';
 import '../../data/repositories/yt_video_open_mode_store.dart';
 import '../../data/repositories/yt_video_watch_store.dart';
@@ -14,6 +15,7 @@ import '../../data/services/youtube_api_service.dart';
 import '../../domain/models/yt_video_watch.dart';
 import '../../shared/widgets/app_notice.dart';
 import 'yt_embedded_player.dart';
+import 'yt_floating_player.dart';
 
 /// 開外部連結，失敗就退回複製到剪貼簿——跟匯出檔案失敗退回複製剪貼簿
 /// 同一個處理哲學。
@@ -34,21 +36,85 @@ Future<void> openExternalUrl(BuildContext context, String url) async {
   showAppNotice(context, '打不開連結，已複製到剪貼簿，貼到瀏覽器網址列開', isError: true);
 }
 
+/// 內嵌播放器共通的三種外層呈現方式之一：最早的版本，正中央的 [Dialog]，
+/// 整頁變暗蓋住底下內容（2026-09-30 使用者要求：後來雖然改做了下滑
+/// 收合式、浮動視窗，這個舊版本還是留著讓使用者能在設定頁切回來，不是
+/// 做新的就把舊的拿掉）。右上角留一顆「在 YouTube 開啟」的理由、跟
+/// [buildYtEmbeddedPlayer] 的關係，見 [showYtEmbeddedBottomSheet] 的
+/// 說明，三個呈現方式都一樣。
+Future<void> showYtEmbeddedCenteredDialog(
+  BuildContext context, {
+  required String videoId,
+  required String title,
+  required String watchUrl,
+}) {
+  return showDialog<void>(
+    context: context,
+    builder: (dialogContext) => Dialog(
+      backgroundColor: const Color(0xFF1A1A24),
+      insetPadding: const EdgeInsets.all(16),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 640),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 8, 4, 4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.ink,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => openExternalUrl(dialogContext, watchUrl),
+                    icon: const Icon(Icons.open_in_new_rounded, size: 18),
+                    color: AppColors.ink2,
+                    tooltip: '在 YouTube 開啟',
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(dialogContext),
+                    icon: const Icon(Icons.close_rounded, size: 18),
+                    color: AppColors.ink2,
+                    tooltip: '關閉',
+                  ),
+                ],
+              ),
+            ),
+            AspectRatio(
+              aspectRatio: 16 / 9,
+              child: buildYtEmbeddedPlayer(videoId),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
 /// 內嵌播放器（2026-09-30 使用者要求：點影片開新分頁那一刻感覺像離開了
 /// App，希望能不用離開直接在裡面看）。右上角留一顆「在 YouTube 開啟」
 /// ——使用者原話「反正內嵌的 點一下 也能去yt」：內嵌播放器功能陽春
 /// （不能按讚、留言、開彈幕），不能把人鎖死在裡面，想要完整功能隨時能
 /// 一鍵跳去真正的 YouTube。
 ///
-/// 外層容器原本是置中的 [Dialog]（整頁變暗＋正中央一個方框），使用者
-/// 回饋不喜歡這種「整頁被蓋住」的感覺，2026-09-30 改成從下方滑出的
-/// [showModalBottomSheet]——背後列表看得到（半透明遮罩，不是全黑）、
-/// 只佔下半螢幕、往下滑或點旁邊空白處收合，手機上比較接近一般 App
-/// 常見的影片彈出模式。**注意**：換的只是外層容器，裡面
-/// [buildYtEmbeddedPlayer] 那個 iframe 本身（autoplay/mute 參數、
-/// picture-in-picture 授權）完全不受影響，關閉時一樣整個從畫面上移除、
-/// 底層 iframe 節點跟著銷毀，不會背景偷跑。
-Future<void> showYtEmbeddedPlayerDialog(
+/// 外層容器原本是置中的 [Dialog]（整頁變暗＋正中央一個方框，還留著見
+/// [showYtEmbeddedCenteredDialog]），使用者回饋不喜歡這種「整頁被蓋住」
+/// 的感覺，2026-09-30 改成從下方滑出的 [showModalBottomSheet]——背後
+/// 列表看得到（半透明遮罩，不是全黑）、只佔下半螢幕、往下滑或點旁邊
+/// 空白處收合，手機上比較接近一般 App 常見的影片彈出模式。**注意**：
+/// 換的只是外層容器，裡面 [buildYtEmbeddedPlayer] 那個 iframe 本身
+/// （autoplay/mute 參數、picture-in-picture 授權）完全不受影響，關閉時
+/// 一樣整個從畫面上移除、底層 iframe 節點跟著銷毀，不會背景偷跑。
+Future<void> showYtEmbeddedBottomSheet(
   BuildContext context, {
   required String videoId,
   required String title,
@@ -211,12 +277,34 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
       ).markOpened(widget.video.videoId);
       if (mounted) setState(() => _watched = record);
       if (!context.mounted) return;
-      await showYtEmbeddedPlayerDialog(
-        context,
-        videoId: widget.video.videoId,
-        title: widget.video.title,
-        watchUrl: widget.video.watchUrl,
-      );
+      // 呈現方式設定頁能切（2026-09-30 使用者要求：正中央 Dialog、下滑
+      // 收合式、可拖曳浮動視窗三種都留著，不是做了新的就把舊的換掉，
+      // 預設是最新的浮動視窗）——只有浮動視窗不會擋住背後畫面，開出來
+      // 就直接回傳不用等它關掉；另外兩個都是會擋互動的 modal，維持原本
+      // await 到關閉才算這次點擊結束。
+      switch (ref.read(ytEmbedPlayerStyleProvider)) {
+        case YtEmbedPlayerStyle.floating:
+          YtFloatingPlayer.show(
+            context,
+            videoId: widget.video.videoId,
+            title: widget.video.title,
+            watchUrl: widget.video.watchUrl,
+          );
+        case YtEmbedPlayerStyle.bottomSheet:
+          await showYtEmbeddedBottomSheet(
+            context,
+            videoId: widget.video.videoId,
+            title: widget.video.title,
+            watchUrl: widget.video.watchUrl,
+          );
+        case YtEmbedPlayerStyle.centeredDialog:
+          await showYtEmbeddedCenteredDialog(
+            context,
+            videoId: widget.video.videoId,
+            title: widget.video.title,
+            watchUrl: widget.video.watchUrl,
+          );
+      }
       return;
     }
     // 開連結一定要是這個函式最先做的事，中間不能先 await 別的東西

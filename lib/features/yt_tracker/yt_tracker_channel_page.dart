@@ -11,6 +11,7 @@ import '../../data/repositories/yt_video_hidden_store.dart';
 import '../../data/repositories/yt_video_watch_store.dart';
 import '../../data/services/youtube_api_service.dart';
 import '../../domain/models/yt_tracker.dart';
+import '../../shared/debug/app_log.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
@@ -20,8 +21,13 @@ import 'yt_api_key_dialog.dart';
 import 'yt_channel_avatar.dart';
 import 'yt_video_row.dart';
 
+/// 「影片」清單的類型篩選，跟 `yt_tracker_browse_page.dart` 的
+/// `_TypeFilter` 同一個概念、各自獨立一份（2026-09-30 使用者要求：
+/// 頻道詳情頁也要能直接篩全部／一般影片／Shorts／直播）。
+enum _TypeFilter { all, regular, shorts, live }
+
 /// 頻道詳情。基本資料（名稱、分類、網址、簡介）可以編輯／刪除，網址點
-/// 下去會開新分頁；「最近影片」真的接了 YouTube Data API（2026-09-22，
+/// 下去會開新分頁；「影片」清單真的接了 YouTube Data API（2026-09-22，
 /// 之前漏接，跟 `yt_tracker_browse_page.dart` 的「依影片顯示」補齊成
 /// 同一套邏輯，見 `yt_video_row.dart` 共用元件）。
 class YtTrackerChannelPage extends ConsumerStatefulWidget {
@@ -84,6 +90,18 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
   Set<String> _hiddenVideoIds = {};
   bool _hideWatched = true;
   bool _showHiddenVideos = false;
+
+  // 全部／一般影片／Shorts／直播的類型篩選（2026-09-30 使用者要求）。
+  // _shortIds／_liveIds 是核對用的 id 集合，只抓「最近 50 部」（跟
+  // yt_tracker_browse_page.dart 的 _fetchTypedIds 同一招、同一個限制：
+  // quota 考量，不整包翻爬 UUSH/UULV），一個頻道進來後只抓一次、存在
+  // 記憶體。往下滑到很久以前的舊影片，如果剛好不在這 50 部樣本範圍內，
+  // 就分類不出來、當「一般影片」處理——跟依影片顯示那頁是同一個已知、
+  // 接受的取捨，不是這裡沒做好。
+  _TypeFilter _typeFilter = _TypeFilter.all;
+  Set<String> _shortIds = {};
+  Set<String> _liveIds = {};
+  String? _typeIdsLoadedForChannelId;
 
   @override
   void initState() {
@@ -280,6 +298,60 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
       _loadMoreError = null;
       _videosFuture = _fetchVideos(channel);
     });
+    _ensureTypeIdsLoaded(channel);
+  }
+
+  // 類型篩選（全部／一般影片／Shorts／直播）要核對用的 id 集合，一個
+  // 頻道只抓一次，抓到之後重繪一次讓篩選 chip、清單都跟著生效
+  // （2026-09-30 使用者要求）。跟載入影片清單分開一個 future，抓失敗
+  // 也不影響影片清單照樣顯示，頂多分類不出來、篩選 chip 少篩到幾部。
+  Future<void> _ensureTypeIdsLoaded(YtChannel channel) async {
+    if (_typeIdsLoadedForChannelId == channel.id) return;
+    _typeIdsLoadedForChannelId = channel.id;
+    final apiKey = ref.read(ytApiKeyProvider);
+    if (apiKey == null || apiKey.isEmpty) return;
+    var uploadsId = channel.uploadsPlaylistId;
+    if (uploadsId.isEmpty) {
+      // 還沒解析過頻道 ID，等 `_fetchVideos` 那邊解析完、下次重新整理
+      // 再抓也行，這裡不重複打一次 channels.list。
+      return;
+    }
+    if (!uploadsId.startsWith('UU')) return;
+    final service = YoutubeApiService(apiKey);
+    final rest = uploadsId.substring(2);
+    final shortIds = await _fetchTypedIds(service, 'UUSH$rest', channel);
+    final liveIds = await _fetchTypedIds(service, 'UULV$rest', channel);
+    if (!mounted) return;
+    setState(() {
+      _shortIds = shortIds;
+      _liveIds = liveIds;
+    });
+  }
+
+  // 跟 `yt_tracker_browse_page.dart` 的 `_fetchTypedIds` 同一招：抓某個
+  // 特殊清單（UUSH／UULV）裡的影片 id，純粹拿來核對「這部是不是這個
+  // 類型」用，不是拿來當顯示內容的來源。抓失敗（404／其他錯誤）就當
+  // 空集合，頂多這個頻道分類不出來，不影響影片清單照樣顯示。
+  Future<Set<String>> _fetchTypedIds(
+    YoutubeApiService service,
+    String playlistId,
+    YtChannel channel,
+  ) async {
+    try {
+      final videos = await service.fetchRecentVideos(
+        playlistId,
+        maxResults: 50,
+      );
+      return {for (final v in videos) v.videoId};
+    } on YoutubeApiException catch (e) {
+      if (e.status != 404) {
+        AppLog.add(
+          '[YT] 核對「${channel.name}」的 $playlistId 清單失敗（分類可能不準）：$e',
+          isError: true,
+        );
+      }
+      return const {};
+    }
   }
 
   Future<List<YoutubeVideo>> _fetchVideos(YtChannel channel) async {
@@ -577,8 +649,25 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
         final videos = [...firstPage, ..._moreVideos];
         // 篩選規則（2026-09-30 使用者要求）：已隱藏的影片只有開了「顯示
         // 已隱藏」才出現；沒被隱藏的影片再看「隱藏已看過」那個開關決定
-        // 要不要收起已看過的。
+        // 要不要收起已看過的；類型篩選（全部／一般影片／Shorts／直播）
+        // 三者都符合才留下——是不是 Shorts／直播優先看影片本身帶的欄位
+        // （之前上傳頻率圖分類過、存進快取的就有），沒有才退回查
+        // _shortIds／_liveIds 這批核對用的 id。
+        bool matchesType(YoutubeVideo v) {
+          if (_typeFilter == _TypeFilter.all) return true;
+          final isLive = v.isLive ?? _liveIds.contains(v.videoId);
+          final isShort =
+              !isLive && (v.isShort ?? _shortIds.contains(v.videoId));
+          return switch (_typeFilter) {
+            _TypeFilter.all => true,
+            _TypeFilter.live => isLive,
+            _TypeFilter.shorts => isShort,
+            _TypeFilter.regular => !isLive && !isShort,
+          };
+        }
+
         final visibleVideos = videos.where((v) {
+          if (!matchesType(v)) return false;
           if (_hiddenVideoIds.contains(v.videoId)) return _showHiddenVideos;
           return !(_hideWatched && _watchedVideoIds.contains(v.videoId));
         }).toList();
@@ -1026,7 +1115,9 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
         Row(
           children: [
             const Text(
-              '最近影片',
+              // 2026-09-30 使用者指出：叫「最近影片」不準確，往下滑其實
+              // 能一路翻到頻道最早的影片，不是只有「最近」這一小段。
+              '全部影片',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
@@ -1058,60 +1149,101 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     );
   }
 
+  /// 類型篩選（全部／一般影片／Shorts／直播，2026-09-30 使用者要求）＋
   /// 「隱藏已看過」／「顯示已隱藏」兩個開關，加一顆「隱藏所有看過的」
-  /// 一次性動作（2026-09-30 使用者要求）。
+  /// 一次性動作。類型篩選跟另外兩個開關概念不一樣（互斥單選 vs 各自
+  /// 獨立開關），用 [_Pick]（這個檔案裡挑分類對話框同一顆元件）而不是
+  /// `FilterChip`，單選視覺才對。
   Widget _buildVideoFilterRow() {
-    return Wrap(
-      spacing: 6,
-      runSpacing: 6,
-      crossAxisAlignment: WrapCrossAlignment.center,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 選中用一般藍色主色，不用 ytAccent 的紅——這兩個是普通篩選開關，
-        // 不是危險動作，紅色太搶眼也不合適（2026-09-30 使用者要求，跟
-        // 設定頁「儲存」按鈕那次同一個理由）。
-        FilterChip(
-          label: const Text('隱藏已看過'),
-          selected: _hideWatched,
-          // 不顯示打勾圖示（2026-09-30 使用者回報：切開/關會多/少那個勾勾
-          // 圖示，導致按鈕本身寬度跟著變、旁邊的「顯示已隱藏」也被推著
-          // 移動——選中/沒選中已經有底色跟外框顏色可以分辨，不需要再靠
-          // 圖示，維持固定寬度比較重要）。
-          showCheckmark: false,
-          // 點這顆（不管切成開還是關）都重新讀一次「已看過」清單
-          // （2026-09-30 使用者要求：看了好幾部之後，這個開關本來
-          // 讀進來的清單是舊的，不會包含這個 session 剛看過的，導致
-          // 篩選結果很怪；不用跳出頻道頁再回來才更新，點這顆本身
-          // 就順便刷新）。
-          onSelected: (v) {
-            setState(() => _hideWatched = v);
-            _loadVideoFilters();
-          },
-          backgroundColor: AppColors.glassFill,
-          selectedColor: AppColors.accentSolid.withValues(alpha: 0.28),
-          labelStyle: TextStyle(
-            fontSize: 12.5,
-            color: _hideWatched ? AppColors.ink : AppColors.ink2,
-          ),
-          side: BorderSide(
-            color: _hideWatched ? AppColors.accentSolid : AppColors.glassEdge,
-          ),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            _Pick(
+              label: '全部',
+              color: AppColors.accentSolid,
+              selected: _typeFilter == _TypeFilter.all,
+              onTap: () => setState(() => _typeFilter = _TypeFilter.all),
+            ),
+            _Pick(
+              label: '一般影片',
+              color: AppColors.accentSolid,
+              selected: _typeFilter == _TypeFilter.regular,
+              onTap: () => setState(() => _typeFilter = _TypeFilter.regular),
+            ),
+            _Pick(
+              label: 'Shorts',
+              color: AppColors.accentSolid,
+              selected: _typeFilter == _TypeFilter.shorts,
+              onTap: () => setState(() => _typeFilter = _TypeFilter.shorts),
+            ),
+            _Pick(
+              label: '直播',
+              color: AppColors.accentSolid,
+              selected: _typeFilter == _TypeFilter.live,
+              onTap: () => setState(() => _typeFilter = _TypeFilter.live),
+            ),
+          ],
         ),
-        FilterChip(
-          label: const Text('顯示已隱藏'),
-          selected: _showHiddenVideos,
-          showCheckmark: false,
-          onSelected: (v) => setState(() => _showHiddenVideos = v),
-          backgroundColor: AppColors.glassFill,
-          selectedColor: AppColors.accentSolid.withValues(alpha: 0.28),
-          labelStyle: TextStyle(
-            fontSize: 12.5,
-            color: _showHiddenVideos ? AppColors.ink : AppColors.ink2,
-          ),
-          side: BorderSide(
-            color: _showHiddenVideos
-                ? AppColors.accentSolid
-                : AppColors.glassEdge,
-          ),
+        const SizedBox(height: Gap.xs),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            // 選中用一般藍色主色，不用 ytAccent 的紅——這兩個是普通篩選開關，
+            // 不是危險動作，紅色太搶眼也不合適（2026-09-30 使用者要求，跟
+            // 設定頁「儲存」按鈕那次同一個理由）。
+            FilterChip(
+              label: const Text('隱藏已看過'),
+              selected: _hideWatched,
+              // 不顯示打勾圖示（2026-09-30 使用者回報：切開/關會多/少那個勾勾
+              // 圖示，導致按鈕本身寬度跟著變、旁邊的「顯示已隱藏」也被推著
+              // 移動——選中/沒選中已經有底色跟外框顏色可以分辨，不需要再靠
+              // 圖示，維持固定寬度比較重要）。
+              showCheckmark: false,
+              // 點這顆（不管切成開還是關）都重新讀一次「已看過」清單
+              // （2026-09-30 使用者要求：看了好幾部之後，這個開關本來
+              // 讀進來的清單是舊的，不會包含這個 session 剛看過的，導致
+              // 篩選結果很怪；不用跳出頻道頁再回來才更新，點這顆本身
+              // 就順便刷新）。
+              onSelected: (v) {
+                setState(() => _hideWatched = v);
+                _loadVideoFilters();
+              },
+              backgroundColor: AppColors.glassFill,
+              selectedColor: AppColors.accentSolid.withValues(alpha: 0.28),
+              labelStyle: TextStyle(
+                fontSize: 12.5,
+                color: _hideWatched ? AppColors.ink : AppColors.ink2,
+              ),
+              side: BorderSide(
+                color: _hideWatched
+                    ? AppColors.accentSolid
+                    : AppColors.glassEdge,
+              ),
+            ),
+            FilterChip(
+              label: const Text('顯示已隱藏'),
+              selected: _showHiddenVideos,
+              showCheckmark: false,
+              onSelected: (v) => setState(() => _showHiddenVideos = v),
+              backgroundColor: AppColors.glassFill,
+              selectedColor: AppColors.accentSolid.withValues(alpha: 0.28),
+              labelStyle: TextStyle(
+                fontSize: 12.5,
+                color: _showHiddenVideos ? AppColors.ink : AppColors.ink2,
+              ),
+              side: BorderSide(
+                color: _showHiddenVideos
+                    ? AppColors.accentSolid
+                    : AppColors.glassEdge,
+              ),
+            ),
+          ],
         ),
       ],
     );
