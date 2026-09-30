@@ -984,6 +984,7 @@ refreshYtSubscriberStats(
         subscriberCount: info.subscriberCount,
         subscribersHidden: info.subscribersHidden,
         statsUpdatedAt: now,
+        videoCount: info.videoCount,
       ),
     );
   }
@@ -1000,6 +1001,7 @@ refreshYtSubscriberStats(
       c.copyWith(
         subscriberCount: s.count,
         subscribersHidden: s.hidden,
+        videoCount: s.videoCount,
         statsUpdatedAt: now,
       ),
     );

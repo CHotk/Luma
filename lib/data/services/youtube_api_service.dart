@@ -24,12 +24,19 @@ class YoutubeChannelInfo {
     required this.avatarUrl,
     this.subscriberCount,
     this.subscribersHidden = false,
+    this.videoCount,
   });
 
   /// 訂閱人數（概略值，隱藏時是 null）。跟頻道資料同一次 `channels.list`
   /// 請求順便拿到，不用另外花額度。
   final int? subscriberCount;
   final bool subscribersHidden;
+
+  /// 頻道總共發布過幾部公開影片，全部類型合計，不分一般影片／Shorts／
+  /// 直播——YouTube Data API 沒有分類型的統計，只有這個總數
+  /// （2026-09-30 使用者問過「有沒有 API 能拿到總數」，答案是有這個，
+  /// 但沒有分類型的）。跟訂閱人數同一次 `channels.list` 請求拿到。
+  final int? videoCount;
 
   final String channelId;
 
@@ -238,6 +245,7 @@ class YoutubeApiService {
           ? null
           : int.tryParse('${stats?['subscriberCount'] ?? ''}'),
       subscribersHidden: hidden,
+      videoCount: int.tryParse('${stats?['videoCount'] ?? ''}'),
       channelId: item['id'] as String,
       uploadsPlaylistId: uploads,
       title: snippet['title'] as String,
@@ -247,10 +255,11 @@ class YoutubeApiService {
 
   /// 一次問一批頻道的訂閱人數（`channels.list` 的 `id` 參數一次最多 50
   /// 個，1 單位配額）。回傳「頻道 ID → 人數（隱藏時 count 是 null）」。
-  Future<Map<String, ({int? count, bool hidden})>> fetchSubscriberStats(
-    List<String> channelIds,
-  ) async {
-    final result = <String, ({int? count, bool hidden})>{};
+  /// 順便帶回 [videoCount]（總影片數，2026-09-30 加）——同一次請求本來
+  /// 就有這個欄位，不用多打一次 API。
+  Future<Map<String, ({int? count, bool hidden, int? videoCount})>>
+  fetchSubscriberStats(List<String> channelIds) async {
+    final result = <String, ({int? count, bool hidden, int? videoCount})>{};
     for (var i = 0; i < channelIds.length; i += 50) {
       final batch = channelIds.sublist(
         i,
@@ -282,6 +291,7 @@ class YoutubeApiService {
               ? null
               : int.tryParse('${stats['subscriberCount'] ?? ''}'),
           hidden: hidden,
+          videoCount: int.tryParse('${stats['videoCount'] ?? ''}'),
         );
       }
     }

@@ -125,6 +125,7 @@ class YtChannel {
     this.statsUpdatedAt,
     this.discoveredVia = '',
     this.pinnedAt,
+    this.videoCount,
   });
 
   final String id;
@@ -162,6 +163,12 @@ class YtChannel {
   final bool subscribersHidden;
   final DateTime? statsUpdatedAt;
 
+  /// 頻道總共發布過幾部公開影片（`channels.list` 的 `statistics.videoCount`，
+  /// 2026-09-30 使用者要求：想在「全部影片」標題旁邊看到總數）。全部
+  /// 類型合計，不分一般影片／Shorts／直播；跟訂閱人數同一支 API 回應
+  /// 一起拿，不用多打一次，一樣是 `statsUpdatedAt` 那次更新才會跟著更新。
+  final int? videoCount;
+
   /// 顯示用的訂閱人數文字，沒有資料就是 null（畫面就不顯示這一行）。
   String? get subscriberLabel {
     if (subscribersHidden) return '訂閱數未公開';
@@ -192,6 +199,7 @@ class YtChannel {
     bool? subscribersHidden,
     DateTime? statsUpdatedAt,
     Object? pinnedAt = _keep,
+    int? videoCount,
   }) => YtChannel(
     id: id,
     name: name ?? this.name,
@@ -217,7 +225,10 @@ class YtChannel {
     discoveredVia: discoveredVia,
     // 跟 categoryId 同一套 _keep 標記：null 是「取消置頂」這個有意義的
     // 值，不能拿來當「沒傳、維持原樣」的預設值。
-    pinnedAt: identical(pinnedAt, _keep) ? this.pinnedAt : pinnedAt as DateTime?,
+    pinnedAt: identical(pinnedAt, _keep)
+        ? this.pinnedAt
+        : pinnedAt as DateTime?,
+    videoCount: videoCount ?? this.videoCount,
   );
 
   YtChannel _copy({
@@ -242,6 +253,7 @@ class YtChannel {
     statsUpdatedAt: statsUpdatedAt,
     discoveredVia: discoveredVia,
     pinnedAt: pinnedAt,
+    videoCount: videoCount,
   );
 
   /// 內容有變時蓋上現在的時間，見 [YtTrackerRepository]。
@@ -307,6 +319,7 @@ class YtChannel {
     'statsUpdatedAt': statsUpdatedAt?.toIso8601String(),
     'discoveredVia': discoveredVia,
     'pinnedAt': pinnedAt?.toIso8601String(),
+    'videoCount': videoCount,
   };
 
   factory YtChannel.fromJson(Map<String, dynamic> json) => YtChannel(
@@ -327,6 +340,7 @@ class YtChannel {
     statsUpdatedAt: _parseTime(json['statsUpdatedAt']),
     discoveredVia: json['discoveredVia'] as String? ?? '',
     pinnedAt: _parseTime(json['pinnedAt']),
+    videoCount: json['videoCount'] as int?,
   );
 }
 

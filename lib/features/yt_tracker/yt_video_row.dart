@@ -215,9 +215,17 @@ class YtVideoRow extends ConsumerStatefulWidget {
     required this.subtitle,
     this.forceShow = false,
     this.onHiddenChanged,
+    this.fromCache = false,
   });
 
   final YoutubeVideo video;
+
+  /// 這支影片這次是從本機快取讀到的，不是真的打 API 抓來的（2026-09-30
+  /// 使用者要求：想知道畫面上哪些是「秒出來、不用配額」的）。純粹視覺
+  /// 標記，不影響任何行為；只有 `yt_tracker_channel_page.dart` 的「全部
+  /// 影片」清單會傳這個（那邊往下滑載入更多會先查本機快取，見
+  /// `_loadMoreVideos` 的說明），其他呼叫端不用管，預設 false 不會顯示。
+  final bool fromCache;
 
   /// 「依影片顯示」混合多頻道，要秀「頻道名稱・幾天前」；頻道詳情頁
   /// 已經知道是哪個頻道了，只傳「幾天前」就好。
@@ -568,6 +576,27 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
                                         Icons.visibility_rounded,
                                         size: 14,
                                         color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              // 「這支是從本機快取讀的」小圓點，右上角
+                              // （2026-09-30 使用者要求：想知道哪些是秒
+                              // 出來、不用配額的）。純裝飾，不能點。
+                              if (widget.fromCache)
+                                Positioned(
+                                  right: 3,
+                                  top: 3,
+                                  child: Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.ink2,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: Colors.black.withValues(
+                                          alpha: 0.5,
+                                        ),
                                       ),
                                     ),
                                   ),

@@ -277,6 +277,10 @@ class YtTrackerRepository {
                 : null,
             statsUpdatedAt: c.statsUpdatedAt ?? prior.statsUpdatedAt,
             pinnedAt: c.pinnedAt ?? prior.pinnedAt,
+            // 同上面 subscriberCount 那行——快照永遠不會帶這欄，沒有這行
+            // 的話總影片數會被每次快照合併洗回空的（2026-09-30 加這欄時
+            // 順便補上，不要重蹈 pinnedAt 那次的覆轍）。
+            videoCount: c.videoCount ?? prior.videoCount,
           );
         }(),
     ];

@@ -11,7 +11,6 @@ import '../../data/repositories/yt_video_hidden_store.dart';
 import '../../data/repositories/yt_video_watch_store.dart';
 import '../../data/services/youtube_api_service.dart';
 import '../../domain/models/yt_tracker.dart';
-import '../../shared/debug/app_log.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
@@ -91,17 +90,33 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
   bool _hideWatched = true;
   bool _showHiddenVideos = false;
 
+  // 哪些 videoId 這次是從本機快取讀到的、不是真的打 API 抓來的
+  // （2026-09-30 使用者要求：想在畫面上看出哪些是秒出來、不用配額的）。
+  // 只有「全部」清單的 `_loadMoreVideos` 會往這裡加——那邊往下滑載入
+  // 更多會先查本機快取（見那個方法的說明），類型篩選的 `_loadTypedVideos`
+  // 目前每次都是真的打 API，不會有快取來源。
+  final Set<String> _cachedVideoIds = {};
+
   // 全部／一般影片／Shorts／直播的類型篩選（2026-09-30 使用者要求）。
-  // _shortIds／_liveIds 是核對用的 id 集合，只抓「最近 50 部」（跟
-  // yt_tracker_browse_page.dart 的 _fetchTypedIds 同一招、同一個限制：
-  // quota 考量，不整包翻爬 UUSH/UULV），一個頻道進來後只抓一次、存在
-  // 記憶體。往下滑到很久以前的舊影片，如果剛好不在這 50 部樣本範圍內，
-  // 就分類不出來、當「一般影片」處理——跟依影片顯示那頁是同一個已知、
-  // 接受的取捨，不是這裡沒做好。
+  // 選「全部」以外的類型時，直接翻那個類型自己的特殊清單（見
+  // `_loadTypedVideos` 的說明），是一份跟「全部」完全分開的分頁狀態
+  // ——自己的清單游標（`_typedNextPageToken`）、自己的到底旗標，不跟
+  // `_firstPage`／`_moreVideos`／那份 resume 共用，兩邊翻頁位置是對應
+  // 不同清單，混在一起會對不上。
   _TypeFilter _typeFilter = _TypeFilter.all;
-  Set<String> _shortIds = {};
-  Set<String> _liveIds = {};
-  String? _typeIdsLoadedForChannelId;
+
+  // 「篩選完可見清單太短就主動幫忙多抓一批」的保險（見下面
+  // `_buildVideos` 裡的說明）沒有設上限——使用者曾問「看過的量一大，
+  // 每次打開頻道頁是不是都要燒好幾個配額單位」，答案是本機快取住之後
+  // 第二次開多半直接從快取秒出（見 `_loadMoreVideos` 「先查本機快取」
+  // 那段），不用真的打 API；第一次確實會真的多打幾次，但使用者決定
+  // 這個代價無所謂，不用另外設上限、多一個「再載入」按鈕的麻煩
+  // （2026-09-30 使用者要求）。
+  List<YoutubeVideo> _typedVideos = const [];
+  String? _typedNextPageToken;
+  bool _typedReachedEnd = false;
+  bool _typedLoading = false;
+  String? _typedError;
 
   @override
   void initState() {
@@ -131,7 +146,14 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
   void _onScroll() {
     if (!_scroll.hasClients) return;
     final pos = _scroll.position;
-    if (pos.pixels >= pos.maxScrollExtent - 300) _loadMoreVideos();
+    if (pos.pixels < pos.maxScrollExtent - 300) return;
+    // 選了特定類型就是翻那個類型自己的清單，跟「全部」是兩份分開的
+    // 分頁狀態，見 `_loadTypedVideos` 的說明。
+    if (_typeFilter == _TypeFilter.all) {
+      _loadMoreVideos();
+    } else {
+      _loadTypedVideos();
+    }
   }
 
   Future<List<YoutubeVideo>> _withDurations(
@@ -193,9 +215,11 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
             v,
       ]..sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
       if (older.isNotEmpty) {
+        final batch = older.take(_loadMoreBatch).toList();
         if (!mounted) return;
         setState(() {
-          _moreVideos = [..._moreVideos, ...older.take(_loadMoreBatch)];
+          _moreVideos = [..._moreVideos, ...batch];
+          _cachedVideoIds.addAll(batch.map((v) => v.videoId));
           _loadingMore = false;
         });
         return;
@@ -296,61 +320,121 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
       _moreVideos = const [];
       _loadingMore = false;
       _loadMoreError = null;
+      _cachedVideoIds.clear();
       _videosFuture = _fetchVideos(channel);
     });
-    _ensureTypeIdsLoaded(channel);
   }
 
-  // 類型篩選（全部／一般影片／Shorts／直播）要核對用的 id 集合，一個
-  // 頻道只抓一次，抓到之後重繪一次讓篩選 chip、清單都跟著生效
-  // （2026-09-30 使用者要求）。跟載入影片清單分開一個 future，抓失敗
-  // 也不影響影片清單照樣顯示，頂多分類不出來、篩選 chip 少篩到幾部。
-  Future<void> _ensureTypeIdsLoaded(YtChannel channel) async {
-    if (_typeIdsLoadedForChannelId == channel.id) return;
-    _typeIdsLoadedForChannelId = channel.id;
+  // 切類型篩選（2026-09-30 使用者要求）。原本的做法是抓全部上傳清單，
+  // 用另外抓來的 50 部樣本 id 去核對「這部是不是 Shorts／直播」——這招
+  // 對「全部」清單很夠用，但選「Shorts」這種在整個頻道歷史裡很稀疏的
+  // 類型時，會逼著 `_loadMoreVideos` 一路往回翻好幾百部普通影片，
+  // 才能湊到 50 部真的是 Shorts 的（使用者回報「搜尋太久」）；更糟的是
+  // 這些連帶翻出來的普通影片全部留在 `_moreVideos` 裡，切回「一般影片」
+  // 一次要把成百上千部塞進沒有虛擬化的 `Column`，直接卡死（使用者回報
+  // 「點shorts又點一般影片會當機」）。
+  //
+  // 正確做法（使用者提醒：「不是有專門蒐 shorts 的 API」）：選了特定
+  // 類型就直接翻那個類型自己的特殊清單（UUSH／UULV／UULF），不是抓
+  // 全部再篩——清單本身就是答案，不用大海撈針，也不會不小心撈出一堆
+  // 不相關的影片。這跟 `yt_tracker_browse_page.dart` 的「依影片顯示」
+  // 是同一個道理，只是那邊沒有往下滑載入更多，這邊要另外接一套自己的
+  // 分頁狀態（`_typedVideos` 那組），不跟「全部」共用 `_firstPage`／
+  // `_moreVideos`／resume——兩邊的翻頁游標是對應不同清單，混在一起會
+  // 對不上。
+  void _switchTypeFilter(_TypeFilter next) {
+    if (_typeFilter == next) return;
+    setState(() {
+      _typeFilter = next;
+      _typedVideos = const [];
+      _typedNextPageToken = null;
+      _typedReachedEnd = false;
+      _typedLoading = false;
+      _typedError = null;
+    });
+    if (next != _TypeFilter.all) _loadTypedVideos();
+  }
+
+  String? _typedPlaylistId() {
+    final uploadsId = _uploadsId;
+    if (uploadsId == null || !uploadsId.startsWith('UU')) return null;
+    final rest = uploadsId.substring(2);
+    return switch (_typeFilter) {
+      _TypeFilter.shorts => 'UUSH$rest',
+      _TypeFilter.live => 'UULV$rest',
+      _TypeFilter.regular => 'UULF$rest',
+      _TypeFilter.all => null,
+    };
+  }
+
+  Future<void> _loadTypedVideos() async {
     final apiKey = ref.read(ytApiKeyProvider);
-    if (apiKey == null || apiKey.isEmpty) return;
-    var uploadsId = channel.uploadsPlaylistId;
-    if (uploadsId.isEmpty) {
-      // 還沒解析過頻道 ID，等 `_fetchVideos` 那邊解析完、下次重新整理
-      // 再抓也行，這裡不重複打一次 channels.list。
+    final playlistId = _typedPlaylistId();
+    if (_typedLoading ||
+        _typedError != null ||
+        _typedReachedEnd ||
+        playlistId == null ||
+        apiKey == null ||
+        apiKey.isEmpty) {
       return;
     }
-    if (!uploadsId.startsWith('UU')) return;
-    final service = YoutubeApiService(apiKey);
-    final rest = uploadsId.substring(2);
-    final shortIds = await _fetchTypedIds(service, 'UUSH$rest', channel);
-    final liveIds = await _fetchTypedIds(service, 'UULV$rest', channel);
-    if (!mounted) return;
-    setState(() {
-      _shortIds = shortIds;
-      _liveIds = liveIds;
-    });
-  }
-
-  // 跟 `yt_tracker_browse_page.dart` 的 `_fetchTypedIds` 同一招：抓某個
-  // 特殊清單（UUSH／UULV）裡的影片 id，純粹拿來核對「這部是不是這個
-  // 類型」用，不是拿來當顯示內容的來源。抓失敗（404／其他錯誤）就當
-  // 空集合，頂多這個頻道分類不出來，不影響影片清單照樣顯示。
-  Future<Set<String>> _fetchTypedIds(
-    YoutubeApiService service,
-    String playlistId,
-    YtChannel channel,
-  ) async {
+    setState(() => _typedLoading = true);
     try {
-      final videos = await service.fetchRecentVideos(
-        playlistId,
-        maxResults: 50,
-      );
-      return {for (final v in videos) v.videoId};
-    } on YoutubeApiException catch (e) {
-      if (e.status != 404) {
-        AppLog.add(
-          '[YT] 核對「${channel.name}」的 $playlistId 清單失敗（分類可能不準）：$e',
-          isError: true,
+      final service = YoutubeApiService(apiKey);
+      List<YoutubeVideo> page;
+      String? nextToken;
+      try {
+        final result = await service.fetchVideosPage(
+          playlistId,
+          pageToken: _typedNextPageToken,
+          maxResults: _loadMoreBatch,
         );
+        page = result.videos;
+        nextToken = result.nextPageToken;
+      } on YoutubeApiException catch (e) {
+        // 404：這個頻道真的沒有這個類型（例如從沒開過直播），不是錯誤，
+        // 這次篩選就是 0 部。其他錯誤才是真的抓不到，設 _typedError 讓
+        // 畫面給重試按鈕。
+        if (e.status == 404) {
+          page = const [];
+          nextToken = null;
+        } else {
+          rethrow;
+        }
       }
-      return const {};
+      final tagged = switch (_typeFilter) {
+        _TypeFilter.shorts => [
+          for (final v in page) v.withShort(true).withLive(false),
+        ],
+        _TypeFilter.live => [
+          for (final v in page) v.withShort(false).withLive(true),
+        ],
+        _TypeFilter.regular => [
+          for (final v in page) v.withShort(false).withLive(false),
+        ],
+        _TypeFilter.all => page,
+      };
+      final withDurations = await _withDurations(service, tagged);
+      // 這些也是這個頻道的真實影片，存進跟「全部」共用的同一份快取
+      // （用 videoId 去重，不會蓋掉其他來源已經有的資料），之後「全部」
+      // 清單翻頁翻到同一部時，也能直接拿到已經分類好的 Shorts／直播
+      // 標籤，不用再猜。
+      final cache = YtVideoCacheStore(ref.read(keyValueStoreProvider));
+      final channelId = _loadMoreChannelId;
+      if (channelId != null) await cache.upsertVideos(channelId, withDurations);
+      if (!mounted) return;
+      setState(() {
+        _typedVideos = [..._typedVideos, ...withDurations];
+        _typedNextPageToken = nextToken;
+        _typedReachedEnd = nextToken == null;
+        _typedLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _typedLoading = false;
+        _typedError = '$e';
+      });
     }
   }
 
@@ -373,6 +457,7 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
         subscriberCount: info.subscriberCount,
         subscribersHidden: info.subscribersHidden,
         statsUpdatedAt: DateTime.now(),
+        videoCount: info.videoCount,
       );
       await ref.read(ytTrackerRepositoryProvider).updateChannel(updated);
     }
@@ -646,28 +731,25 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
         if (firstPage.isEmpty) {
           return Center(child: Text('這個頻道抓不到影片', style: AppText.bodyDim));
         }
-        final videos = [...firstPage, ..._moreVideos];
+        // 選了特定類型（一般影片／Shorts／直播）就是看 `_typedVideos`
+        // 那份分頁狀態，跟「全部」（`_firstPage`+`_moreVideos`）完全分開
+        // ——每種類型都直接翻自己的特殊清單，不是抓全部再篩（見
+        // `_loadTypedVideos` 的說明：原本抓全部再篩的做法，選稀疏類型
+        // 時會逼著往回翻一大串不相關的影片，量一大沒有虛擬化的
+        // `Column` 直接卡死，2026-09-30 使用者回報過）。
+        final isTyped = _typeFilter != _TypeFilter.all;
+        final videos = isTyped ? _typedVideos : [...firstPage, ..._moreVideos];
+        final loading = isTyped ? _typedLoading : _loadingMore;
+        final error = isTyped ? _typedError : _loadMoreError;
+        final reachedEnd = isTyped ? _typedReachedEnd : _reachedEnd;
+        void loadMore() => isTyped ? _loadTypedVideos() : _loadMoreVideos();
+
         // 篩選規則（2026-09-30 使用者要求）：已隱藏的影片只有開了「顯示
         // 已隱藏」才出現；沒被隱藏的影片再看「隱藏已看過」那個開關決定
-        // 要不要收起已看過的；類型篩選（全部／一般影片／Shorts／直播）
-        // 三者都符合才留下——是不是 Shorts／直播優先看影片本身帶的欄位
-        // （之前上傳頻率圖分類過、存進快取的就有），沒有才退回查
-        // _shortIds／_liveIds 這批核對用的 id。
-        bool matchesType(YoutubeVideo v) {
-          if (_typeFilter == _TypeFilter.all) return true;
-          final isLive = v.isLive ?? _liveIds.contains(v.videoId);
-          final isShort =
-              !isLive && (v.isShort ?? _shortIds.contains(v.videoId));
-          return switch (_typeFilter) {
-            _TypeFilter.all => true,
-            _TypeFilter.live => isLive,
-            _TypeFilter.shorts => isShort,
-            _TypeFilter.regular => !isLive && !isShort,
-          };
-        }
-
+        // 要不要收起已看過的。類型本身不用在這裡再篩一次——`videos` 這個
+        // 來源本身就已經是正確類型了（`isTyped` 時直接來自對應的特殊
+        // 清單，`all` 時本來就是全部）。
         final visibleVideos = videos.where((v) {
-          if (!matchesType(v)) return false;
           if (_hiddenVideoIds.contains(v.videoId)) return _showHiddenVideos;
           return !(_hideWatched && _watchedVideoIds.contains(v.videoId));
         }).toList();
@@ -688,12 +770,17 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
         // 捲動節奏要一樣，可見清單就該補到跟一次原始批次同一個量級，
         // 不然篩掉的越多，同一次滑動觸發後能看到的新影片反而越少，
         // 跟沒開篩選時不等價。
+        //
+        // 沒有設上限：看過的量一大，第一次確實會真的多打幾次 API，但
+        // 抓過的都存進本機快取，第二次開同一個頻道多半直接從快取秒出、
+        // 不用再打 API（見 `_loadMoreVideos` 「先查本機快取」那段），
+        // 使用者決定這個代價無所謂（2026-09-30）。
         if (visibleVideos.length < _loadMoreBatch &&
-            !_reachedEnd &&
-            !_loadingMore &&
-            _loadMoreError == null) {
+            !reachedEnd &&
+            !loading &&
+            error == null) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) _loadMoreVideos();
+            if (mounted) loadMore();
           });
         }
         // 用 Column 不用 ListView.separated——這塊現在是外層
@@ -701,7 +788,7 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
         // 區域（見 build() 的說明：簡介／圖表／影片要一起滑動）。
         return Column(
           children: [
-            if (visibleVideos.isEmpty)
+            if (visibleVideos.isEmpty && !loading)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 20),
                 child: Text('沒有符合目前篩選條件的影片', style: AppText.bodyDim),
@@ -718,26 +805,38 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                 subtitle: ytRelativeTime(visibleVideos[i].publishedAt),
                 forceShow: _hiddenVideoIds.contains(visibleVideos[i].videoId),
                 onHiddenChanged: _loadVideoFilters,
+                fromCache: _cachedVideoIds.contains(visibleVideos[i].videoId),
               ),
             ],
             // 往下滑到底會自動載入更早的影片；載入中轉圈、失敗給重試、
             // 沒有更多了就說一聲。
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 16),
-              child: _loadingMore
+              child: loading
                   ? const Center(child: CircularProgressIndicator.adaptive())
-                  : _loadMoreError != null
+                  : error != null
                   ? Center(
                       child: TextButton(
                         onPressed: () {
-                          setState(() => _loadMoreError = null);
-                          _loadMoreVideos();
+                          setState(() {
+                            if (isTyped) {
+                              _typedError = null;
+                            } else {
+                              _loadMoreError = null;
+                            }
+                          });
+                          loadMore();
                         },
-                        child: Text('載入失敗：$_loadMoreError（點一下重試）'),
+                        child: Text('載入失敗：$error（點一下重試）'),
                       ),
                     )
-                  : _reachedEnd
-                  ? Center(child: Text('沒有更早的影片了', style: AppText.note))
+                  : reachedEnd
+                  ? Center(
+                      child: Text(
+                        isTyped ? '共 ${videos.length} 部' : '沒有更早的影片了',
+                        style: AppText.note,
+                      ),
+                    )
                   : const SizedBox.shrink(),
             ),
           ],
@@ -1114,11 +1213,17 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
         const SizedBox(height: Gap.md),
         Row(
           children: [
-            const Text(
+            Text(
               // 2026-09-30 使用者指出：叫「最近影片」不準確，往下滑其實
-              // 能一路翻到頻道最早的影片，不是只有「最近」這一小段。
-              '全部影片',
-              style: TextStyle(
+              // 能一路翻到頻道最早的影片，不是只有「最近」這一小段；括號
+              // 裡的總數是 `channels.list` 的 `videoCount`（全部類型合計，
+              // 不分一般影片／Shorts／直播——API 沒有分類型的統計，見
+              // `YoutubeChannelInfo.videoCount` 的說明），還沒問到就先不
+              // 顯示數字，不要顯示假的 0。
+              channel.videoCount == null
+                  ? '全部影片'
+                  : '全部影片 (${channel.videoCount})',
+              style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
                 color: AppColors.ink,
@@ -1129,6 +1234,17 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
               onPressed: () {
                 _ensureVideosLoaded(channel, force: true);
                 _ensureHistoryLoaded(channel, force: true);
+                // 目前如果正看著特定類型，重新整理也要連那份分開的分頁
+                // 狀態一起重抓，不然按了重新整理、類型篩選那份還是舊的。
+                if (_typeFilter != _TypeFilter.all) {
+                  setState(() {
+                    _typedVideos = const [];
+                    _typedNextPageToken = null;
+                    _typedReachedEnd = false;
+                    _typedError = null;
+                  });
+                  _loadTypedVideos();
+                }
               },
               icon: const Icon(Icons.refresh, size: 15),
               label: const Text('重新整理'),
@@ -1166,25 +1282,25 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
               label: '全部',
               color: AppColors.accentSolid,
               selected: _typeFilter == _TypeFilter.all,
-              onTap: () => setState(() => _typeFilter = _TypeFilter.all),
+              onTap: () => _switchTypeFilter(_TypeFilter.all),
             ),
             _Pick(
               label: '一般影片',
               color: AppColors.accentSolid,
               selected: _typeFilter == _TypeFilter.regular,
-              onTap: () => setState(() => _typeFilter = _TypeFilter.regular),
+              onTap: () => _switchTypeFilter(_TypeFilter.regular),
             ),
             _Pick(
               label: 'Shorts',
               color: AppColors.accentSolid,
               selected: _typeFilter == _TypeFilter.shorts,
-              onTap: () => setState(() => _typeFilter = _TypeFilter.shorts),
+              onTap: () => _switchTypeFilter(_TypeFilter.shorts),
             ),
             _Pick(
               label: '直播',
               color: AppColors.accentSolid,
               selected: _typeFilter == _TypeFilter.live,
-              onTap: () => setState(() => _typeFilter = _TypeFilter.live),
+              onTap: () => _switchTypeFilter(_TypeFilter.live),
             ),
           ],
         ),
