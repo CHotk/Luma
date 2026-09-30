@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../debug/app_log.dart';
+import '../small_asset.dart';
 
 /// 全 App 共用的左側選單（毛玻璃抽屜），設計稿見
 /// `design-history/2026-09-21_左側選單設計稿.html`。
@@ -296,8 +297,11 @@ class _ProfileAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ClipOval(
+      // 縮小版（見 `small_asset.dart`，原圖 1254x1254 只顯示 34x34）。
+      // 沒有小圖就讀不到、走下面的 errorBuilder 退回漸層圓點——這張圖
+      // 固定在這個路徑，腳本一定會產小圖，不另外再退回原圖。
       child: Image.asset(
-        'assets/images/user_profile/user_profile.png',
+        smallAssetFor('assets/images/user_profile/user_profile.png'),
         width: 34,
         height: 34,
         fit: BoxFit.cover,
@@ -367,15 +371,22 @@ class _NavItem extends StatelessWidget {
                           size: 19,
                           color: active ? AppColors.accent : color,
                         )
+                      // 縮小版圖示（見 `small_asset.dart`），沒有就退回原圖。
                       : Image.asset(
-                          imageAsset!,
+                          smallAssetFor(imageAsset!),
                           width: 19,
                           height: 19,
                           color: active ? AppColors.accent : color,
-                          errorBuilder: (context, error, stack) => Icon(
-                            icon,
-                            size: 19,
+                          errorBuilder: (context, error, stack) => Image.asset(
+                            imageAsset!,
+                            width: 19,
+                            height: 19,
                             color: active ? AppColors.accent : color,
+                            errorBuilder: (context, error, stack) => Icon(
+                              icon,
+                              size: 19,
+                              color: active ? AppColors.accent : color,
+                            ),
                           ),
                         ),
                   if (badgeCount > 0)

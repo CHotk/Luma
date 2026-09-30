@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../small_asset.dart';
+
 /// 全 App 共用的「統計」圖示——使用者準備了一張圖放在
 /// `assets/images/fitness/stats_icon.png`，要求所有「統計」按鈕都用
 /// 同一張，不要各自零散用內建 Material 圖示（2026-09-23 使用者要求：
@@ -17,8 +19,9 @@ class StatsIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 縮小版（見 `small_asset.dart`，原圖 1254x1254 只顯示 20px 上下）。
     return Image.asset(
-      'assets/images/fitness/stats_icon.png',
+      smallAssetFor('assets/images/fitness/stats_icon.png'),
       width: size,
       height: size,
       color: color,

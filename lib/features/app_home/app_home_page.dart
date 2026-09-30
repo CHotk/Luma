@@ -6,6 +6,7 @@ import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
+import '../../shared/small_asset.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
@@ -195,12 +196,19 @@ class _HomeTile extends StatelessWidget {
             alignment: Alignment.center,
             child: item.imageAsset == null
                 ? fallback
+                // 縮小版圖示（見 `small_asset.dart`），沒有就退回原圖。
                 : Image.asset(
-                    item.imageAsset!,
+                    smallAssetFor(item.imageAsset!),
                     width: 28,
                     height: 28,
                     color: item.color,
-                    errorBuilder: (context, error, stack) => fallback,
+                    errorBuilder: (context, error, stack) => Image.asset(
+                      item.imageAsset!,
+                      width: 28,
+                      height: 28,
+                      color: item.color,
+                      errorBuilder: (context, error, stack) => fallback,
+                    ),
                   ),
           ),
           const SizedBox(height: Gap.sm),

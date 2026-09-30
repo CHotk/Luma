@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../small_asset.dart';
+
 /// 全 App 共用的「設定」齒輪圖示，跟 [StatsIcon]（見 `stats_icon.dart`）
 /// 同一套做法：讀使用者準備的 `assets/images/fitness/setting_icon.png`，
 /// 失敗就退回原本設計的 [Icons.settings_outlined]
@@ -15,8 +17,9 @@ class SettingsIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 縮小版（見 `small_asset.dart`，原圖 1254x1254 只顯示 20px 上下）。
     return Image.asset(
-      'assets/images/fitness/setting_icon.png',
+      smallAssetFor('assets/images/fitness/setting_icon.png'),
       width: size,
       height: size,
       color: color,

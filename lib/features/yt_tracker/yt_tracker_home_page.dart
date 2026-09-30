@@ -20,6 +20,7 @@ import '../../shared/debug/app_log.dart';
 import '../../shared/text/zh_normalize.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_notice.dart';
+import '../../shared/small_asset.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
 import 'yt_api_key_dialog.dart';
@@ -1506,7 +1507,15 @@ class YtCategoryImage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (url.startsWith('assets/')) {
-      return Image.asset(url, fit: BoxFit.cover, errorBuilder: errorBuilder);
+      // 顯示縮小版（見 `small_asset.dart`：原圖一張 1.2~2.3MB，分類頁
+      // 底圖「等老半天才出現」就是這個，2026-09-30 使用者回報）；沒有
+      // 小圖就退回原圖，原圖也讀不到才交給呼叫端的 errorBuilder。
+      return Image.asset(
+        smallAssetFor(url),
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stack) =>
+            Image.asset(url, fit: BoxFit.cover, errorBuilder: errorBuilder),
+      );
     }
     return Image.network(url, fit: BoxFit.cover, errorBuilder: errorBuilder);
   }

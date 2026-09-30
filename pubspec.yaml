@@ -69,6 +69,12 @@ flutter:
     - assets/images/yt_tracker/
     - assets/images/fitness/
     - assets/images/nav_icons/
+    # 上面幾個資料夾的縮小版（見 tool/resize_small_images.dart、
+    # lib/shared/small_asset.dart），原圖不動。子資料夾要另外宣告才會打包。
+    - assets/images/yt_tracker/small/
+    - assets/images/fitness/small/
+    - assets/images/nav_icons/small/
+    - assets/images/user_profile/small/
     - assets/images/app_logo/
     # Flutter 宣告資料夾只會包直接底下的檔案，不會遞迴進子資料夾——啟動
     # 畫面專用的小尺寸版本（見 tool/resize_splash_logo.dart）放在這個子
