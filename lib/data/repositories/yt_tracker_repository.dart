@@ -156,11 +156,28 @@ class YtTrackerRepository {
   /// 裝置同步卻沒看到——根因就是背景訂閱數更新把 `updatedAt` 蓋成
   /// 更新的時間，讓「只是剛好問過一次訂閱數」的那台裝置在合併時贏過
   /// 「真的做了操作」的那台，見 [YtCategoryOrderStore] 也補了同步）。
+  ///
+  /// 只把 API 問回來的那幾欄疊到「寫入當下」重新讀出來的版本上，不是整筆
+  /// 換掉：呼叫端是先讀一份頻道清單、再去打 API（可能好幾秒），整筆寫回
+  /// 的話，這段期間使用者做的置頂／搬分類會被那份舊快照蓋回去。
   Future<void> updateChannels(List<YtChannel> updated) async {
     if (updated.isEmpty) return;
     final all = await _loadChannelsRaw();
     final byId = {for (final c in updated) c.id: c};
-    await _writeChannels([for (final c in all) byId[c.id] ?? c]);
+    await _writeChannels([
+      for (final c in all)
+        if (byId[c.id] case final u?)
+          c.copyWith(
+            avatarImageUrl: u.avatarImageUrl,
+            youtubeChannelId: u.youtubeChannelId,
+            uploadsPlaylistId: u.uploadsPlaylistId,
+            subscriberCount: u.subscriberCount,
+            subscribersHidden: u.subscribersHidden,
+            statsUpdatedAt: u.statsUpdatedAt,
+          )
+        else
+          c,
+    ]);
   }
 
   Future<void> deleteChannel(String id) async {
@@ -201,6 +218,15 @@ class YtTrackerRepository {
   /// 把分類／頻道快照（見 [loadYtCategoriesSeed]／[loadYtChannelsSeed]）
   /// 併回本機，跟 [DiaryRepository.mergeSeed] 同一套邏輯（共用
   /// `seed_merge.dart` 的 [mergeSeedRecords]）。
+  ///
+  /// 分類／頻道兩個都要給 `updatedAtOf`，跟日記、健身的 mergeSeed 一樣
+  /// ——原本漏掉，快照同 id 就無條件整筆蓋掉本機，本機剛做的編輯（置頂、
+  /// 改名、搬分類）連同 `updatedAt` 一起被洗回快照版本。每次進 YT 首頁
+  /// 都會跑這個合併，所以置頂雖然靠下面那行 patch 留住了，`updatedAt`
+  /// 卻被清成快照的（通常是 null），同步時就被當成「最舊的版本」：上傳
+  /// 到別台贏不了、雲端的舊版反過來蓋掉本機，看起來就是「置頂離開再回來
+  /// 就沒了、也同步不過去」（2026-09-30 使用者回報）。現在本機比較新就
+  /// 整筆保留，快照比較新（使用者在別處改過再匯出）才蓋過來。
   Future<void> mergeSeedCategories(List<YtCategory> incoming) async {
     if (incoming.isEmpty) return;
     final merged = mergeSeedRecords(
@@ -209,6 +235,7 @@ class YtTrackerRepository {
       idOf: (e) => e.id,
       priority: SeedMergePriority.seed,
       deletedAtOf: (e) => e.deletedAt,
+      updatedAtOf: (e) => e.syncedAt,
     );
     await _writeCategories(merged);
   }
@@ -223,6 +250,7 @@ class YtTrackerRepository {
       idOf: (e) => e.id,
       priority: SeedMergePriority.seed,
       deletedAtOf: (e) => e.deletedAt,
+      updatedAtOf: (e) => e.syncedAt,
     );
     // 快照只帶基本資料；本機已經解析好的頻道 ID／上傳清單 ID／訂閱人數
     // 不能被快照蓋回空的，不然每次進首頁都要重新問 API（原本就會有這個

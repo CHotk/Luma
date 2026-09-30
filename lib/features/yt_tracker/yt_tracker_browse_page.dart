@@ -1343,7 +1343,7 @@ class _ChannelGrid extends StatelessWidget {
                 color: AppColors.ytAccent,
               ),
               const SizedBox(width: 4),
-              Text('已置頂', style: AppText.note),
+              Text('已置頂 · ${pinned.length}', style: AppText.note),
             ],
           ),
           const SizedBox(height: Gap.xs),
@@ -1383,111 +1383,133 @@ class _ChannelGrid extends StatelessWidget {
   }
 
   Widget _buildCard(BuildContext context, YtChannel c) {
+    final isPinned = c.pinnedAt != null;
     // 長按整張卡片也跳出同一份選單（2026-09-24 使用者要求）。
     return GestureDetector(
       onLongPressStart: (d) => _showMenuAt(context, d.globalPosition, c),
       child: InkWell(
         onTap: () => onOpen(c),
         borderRadius: BorderRadius.circular(Radii.card),
-        child: Stack(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(Radii.card),
-                color: AppColors.glassFill,
-                border: Border.all(color: AppColors.glassEdge),
-              ),
-              child: Row(
-                children: [
-                  YtChannelAvatar(channel: c, radius: 17),
-                  const SizedBox(width: Gap.sm),
-                  Expanded(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          c.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.ink,
+        // 裁成卡片圓角，左側色條才會順著圓角收邊，不會凸出去。
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(Radii.card),
+          child: Stack(
+            children: [
+              Container(
+                // 置頂的左邊多留一點，讓出色條的位置。
+                padding: EdgeInsets.fromLTRB(isPinned ? 13 : 10, 10, 10, 10),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(Radii.card),
+                  color: AppColors.glassFill,
+                  border: Border.all(color: AppColors.glassEdge),
+                ),
+                child: Row(
+                  children: [
+                    YtChannelAvatar(channel: c, radius: 17),
+                    const SizedBox(width: Gap.sm),
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              if (isPinned) ...[
+                                const Icon(
+                                  Icons.push_pin_rounded,
+                                  size: 11,
+                                  color: AppColors.ytAccent,
+                                ),
+                                const SizedBox(width: 3),
+                              ],
+                              Flexible(
+                                child: Text(
+                                  c.name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.ink,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                        if (c.subscriberLabel != null) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            c.subscriberLabel!,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppText.note,
-                          ),
+                          if (c.subscriberLabel != null) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              c.subscriberLabel!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppText.note,
+                            ),
+                          ],
                         ],
+                      ),
+                    ),
+                    // 每個頻道右邊的選單：編輯（進詳情頁）／移到分類／
+                    // 置頂／刪除。
+                    PopupMenuButton<_ChannelMenuAction>(
+                      icon: const Icon(Icons.more_vert_rounded, size: 18),
+                      color: AppColors.ink2,
+                      padding: EdgeInsets.zero,
+                      tooltip: '更多',
+                      onSelected: (action) {
+                        switch (action) {
+                          case _ChannelMenuAction.edit:
+                            onOpen(c);
+                          case _ChannelMenuAction.move:
+                            onMove(c);
+                          case _ChannelMenuAction.pin:
+                            onTogglePin(c);
+                          case _ChannelMenuAction.delete:
+                            onDelete(c);
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(
+                          value: _ChannelMenuAction.edit,
+                          child: Text('編輯'),
+                        ),
+                        const PopupMenuItem(
+                          value: _ChannelMenuAction.move,
+                          child: Text('移到分類'),
+                        ),
+                        PopupMenuItem(
+                          value: _ChannelMenuAction.pin,
+                          child: Text(isPinned ? '取消置頂' : '置頂'),
+                        ),
+                        const PopupMenuItem(
+                          value: _ChannelMenuAction.delete,
+                          child: Text('刪除'),
+                        ),
                       ],
                     ),
-                  ),
-                  // 每個頻道右邊的選單：編輯（進詳情頁）／移到分類／
-                  // 置頂／刪除。
-                  PopupMenuButton<_ChannelMenuAction>(
-                    icon: const Icon(Icons.more_vert_rounded, size: 18),
-                    color: AppColors.ink2,
-                    padding: EdgeInsets.zero,
-                    tooltip: '更多',
-                    onSelected: (action) {
-                      switch (action) {
-                        case _ChannelMenuAction.edit:
-                          onOpen(c);
-                        case _ChannelMenuAction.move:
-                          onMove(c);
-                        case _ChannelMenuAction.pin:
-                          onTogglePin(c);
-                        case _ChannelMenuAction.delete:
-                          onDelete(c);
-                      }
-                    },
-                    itemBuilder: (context) => [
-                      const PopupMenuItem(
-                        value: _ChannelMenuAction.edit,
-                        child: Text('編輯'),
-                      ),
-                      const PopupMenuItem(
-                        value: _ChannelMenuAction.move,
-                        child: Text('移到分類'),
-                      ),
-                      PopupMenuItem(
-                        value: _ChannelMenuAction.pin,
-                        child: Text(c.pinnedAt == null ? '置頂' : '取消置頂'),
-                      ),
-                      const PopupMenuItem(
-                        value: _ChannelMenuAction.delete,
-                        child: Text('刪除'),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            if (showDiscoveredBadge && c.discoveredVia.isNotEmpty)
-              Positioned(
-                top: 4,
-                right: 4,
-                child: _DiscoveredViaBadge(text: c.discoveredVia),
-              ),
-            // 置頂小圖示，左上角（2026-09-30 使用者要求）。
-            if (c.pinnedAt != null)
-              const Positioned(
-                top: 4,
-                left: 4,
-                child: Icon(
-                  Icons.push_pin_rounded,
-                  size: 13,
-                  color: AppColors.ytAccent,
+                  ],
                 ),
               ),
-          ],
+              if (showDiscoveredBadge && c.discoveredVia.isNotEmpty)
+                Positioned(
+                  top: 4,
+                  right: 4,
+                  child: _DiscoveredViaBadge(text: c.discoveredVia),
+                ),
+              // 置頂標記：左側一條主題色直條，圖釘小圖示改放名稱前面
+              // （2026-09-30 使用者從三個方向裡選了「左側色條」：改動最小、
+              // 風格最內斂）。原本圖釘浮在左上角，會壓到卡片圓角跟頭像。
+              if (isPinned)
+                const Positioned(
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  child: SizedBox(
+                    width: 3,
+                    child: ColoredBox(color: AppColors.ytAccent),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
