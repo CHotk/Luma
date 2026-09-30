@@ -66,6 +66,10 @@ class _YtCategoryOrderPageState extends ConsumerState<YtCategoryOrderPage> {
     await YtCategoryOrderStore(
       ref.read(keyValueStoreProvider),
     ).save([for (final c in categories) c.id]);
+    // 讓 YT 首頁（跟其他有在看分類清單的頁面）知道要重新整理，不然退回
+    // 去看到的還是舊順序，要整頁離開重進才會更新（2026-09-30 使用者
+    // 要求：調完應該馬上看得到效果）。
+    ref.read(dataRevisionProvider.notifier).state++;
   }
 
   @override

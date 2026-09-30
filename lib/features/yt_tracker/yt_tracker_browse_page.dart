@@ -29,7 +29,7 @@ enum _ViewMode { channel, video }
 /// 「依影片顯示」的類型篩選——API 本身沒有標「這是 Shorts」的欄位，
 /// 靠 [YoutubeVideo.isLikelyShort] 的時長啟發式判斷來分（2026-09-23
 /// 使用者問「api給的資料有區分嗎」，這是能做到的最接近做法）。
-enum _TypeFilter { all, regular, shorts }
+enum _TypeFilter { all, regular, shorts, live }
 
 /// 「依頻道顯示」的排序（2026-09-24 使用者要求）。訂閱人數沒有資料的
 /// （還沒更新到、或頻道隱藏訂閱數）一律排最後，不管升冪降冪。
@@ -134,13 +134,16 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
     });
   }
 
-  /// 依目前排序方式排好的頻道。訂閱人數沒資料（沒更新到、或隱藏）的排最後，
-  /// 同人數的維持原本順序（[List.sort] 不保證穩定，所以自己帶原始位置比）。
+  /// 依目前排序方式排好的頻道。置頂的一律排最前面，按置頂時間新到舊排
+  /// （2026-09-30 使用者要求）；沒置頂的才照排序方式排，訂閱人數沒資料
+  /// （沒更新到、或隱藏）的排最後，同人數的維持原本順序（[List.sort]
+  /// 不保證穩定，所以自己帶原始位置比）。
   List<YtChannel> _sortedChannels(List<YtChannel> channels) {
-    if (_sort == _ChannelSort.normal) return channels;
-    final indexed = [
-      for (var i = 0; i < channels.length; i++) (i, channels[i]),
-    ];
+    final pinned = [for (final c in channels) if (c.pinnedAt != null) c]
+      ..sort((a, b) => b.pinnedAt!.compareTo(a.pinnedAt!));
+    final rest = [for (final c in channels) if (c.pinnedAt == null) c];
+    if (_sort == _ChannelSort.normal) return [...pinned, ...rest];
+    final indexed = [for (var i = 0; i < rest.length; i++) (i, rest[i])];
     indexed.sort((a, b) {
       final x = a.$2.subscriberCount;
       final y = b.$2.subscriberCount;
@@ -152,7 +155,7 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
           : x.compareTo(y);
       return byCount != 0 ? byCount : a.$1.compareTo(b.$1);
     });
-    return [for (final e in indexed) e.$2];
+    return [...pinned, for (final e in indexed) e.$2];
   }
 
   /// 訂閱人數更新：超過 12 小時沒問過的頻道，一次批次問（50 個頻道 1 單位
@@ -270,8 +273,11 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
     } catch (_) {
       // 忽略，影片清單本身已經抓到了。
     }
-    // 退回做法的頻道，這時才有長度可以挑。
-    if (fallbackChannelIds.isNotEmpty) {
+    // 退回做法的頻道，這時才有長度可以挑——只有一般影片／Shorts 兩種
+    // 有辦法用時長啟發式判斷；直播沒有對應的猜法（時長長短都可能），
+    // `UULV` 這個頻道不存在就直接顯示原本抓到的全部，不做誤判的過濾
+    // （2026-09-30 使用者要求加「直播」分類）。
+    if (fallbackChannelIds.isNotEmpty && type != _TypeFilter.live) {
       results.removeWhere(
         (r) =>
             fallbackChannelIds.contains(r.channel.id) &&
@@ -294,14 +300,20 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
   }
 
   /// 依類型換成 YouTube 的特殊上傳播放清單：上傳清單 ID 是 `UU` 開頭，
-  /// 換成 `UUSH` 是只有 Shorts、`UULF` 是只有一般影片（非官方文件保證的
-  /// 做法，2026-09-24 用志祺七七實測：`UU` 8,360 部＝`UUSH` 5,330＋`UULF`
-  /// 3,029＋`UULV` 1，而且 `UUSH` 的每一部在 YouTube 網站上都是 Shorts
-  /// 版型）。全部就維持原本的上傳清單，回傳 null。
+  /// 換成 `UUSH` 是只有 Shorts、`UULF` 是只有一般影片、`UULV` 是只有
+  /// 直播過的（非官方文件保證的做法，2026-09-24 用志祺七七實測：`UU`
+  /// 8,360 部＝`UUSH` 5,330＋`UULF` 3,029＋`UULV` 1，而且 `UUSH` 的每一部
+  /// 在 YouTube 網站上都是 Shorts 版型；2026-09-30 使用者要求補上直播
+  /// 分類，YT 自己的頻道主頁本來就有這個分類）。全部就維持原本的上傳
+  /// 清單，回傳 null。
   String? _typedPlaylistId(String uploads, _TypeFilter type) {
     if (type == _TypeFilter.all || !uploads.startsWith('UU')) return null;
     final rest = uploads.substring(2);
-    return type == _TypeFilter.shorts ? 'UUSH$rest' : 'UULF$rest';
+    return switch (type) {
+      _TypeFilter.shorts => 'UUSH$rest',
+      _TypeFilter.live => 'UULV$rest',
+      _ => 'UULF$rest',
+    };
   }
 
   String _title(List<YtCategory> categories) {
@@ -400,6 +412,18 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
     if (mounted) _reload();
   }
 
+  /// 置頂／取消置頂（2026-09-30 使用者要求）。[YtChannel.pinnedAt] 本來
+  /// 就跟著頻道一起同步，這裡只是切換那個欄位、存檔，不用另外處理
+  /// 同步邏輯。
+  Future<void> _togglePin(YtChannel c) async {
+    await ref
+        .read(ytTrackerRepositoryProvider)
+        .updateChannel(
+          c.copyWith(pinnedAt: c.pinnedAt == null ? DateTime.now() : null),
+        );
+    if (mounted) _reload();
+  }
+
   Widget _buildVideoPanel(List<YtChannel> channels) {
     final apiKey = ref.watch(ytApiKeyProvider);
     if (apiKey == null || apiKey.isEmpty) {
@@ -465,6 +489,12 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                     onTap: () =>
                         setState(() => _typeFilter = _TypeFilter.shorts),
                   ),
+                  _TypeChip(
+                    label: '直播',
+                    selected: _typeFilter == _TypeFilter.live,
+                    onTap: () =>
+                        setState(() => _typeFilter = _TypeFilter.live),
+                  ),
                 ],
               ),
             ),
@@ -518,6 +548,12 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                       itemBuilder: (_, i) {
                         final item = videos[i];
                         return YtVideoRow(
+                          // 一定要給明確的 key，不然排序／篩選讓清單位置
+                          // 洗牌時，Flutter 會照位置重用 State，導致
+                          // 「已看過」「隱藏」這些各自獨立的內部狀態被
+                          // 錯配到別支影片上（2026-09-30 使用者回報：
+                          // 已看過的標籤重新整理後不見了，就是這個坑）。
+                          key: ValueKey(item.video.videoId),
                           video: item.video,
                           subtitle:
                               '${item.channel.name}・${ytRelativeTime(item.video.publishedAt)}',
@@ -786,6 +822,7 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                                               .then((_) => _reload()),
                                           onMove: (c) =>
                                               _moveChannel(c, categories),
+                                          onTogglePin: _togglePin,
                                           onDelete: _deleteChannel,
                                         ),
                                       ),
@@ -807,7 +844,7 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
   }
 }
 
-enum _ChannelMenuAction { edit, move, delete }
+enum _ChannelMenuAction { edit, move, pin, delete }
 
 /// 「挖掘新頻道」分類卡右上角的小標籤，顯示是靠哪個關鍵字／哪個頻道推薦
 /// 挖到的（2026-09-29 使用者要求，見 [YtChannel.discoveredVia]）。
@@ -1227,6 +1264,7 @@ class _ChannelGrid extends StatelessWidget {
     required this.channels,
     required this.onOpen,
     required this.onMove,
+    required this.onTogglePin,
     required this.onDelete,
     this.showDiscoveredBadge = false,
   });
@@ -1234,6 +1272,7 @@ class _ChannelGrid extends StatelessWidget {
   final List<YtChannel> channels;
   final void Function(YtChannel) onOpen;
   final void Function(YtChannel) onMove;
+  final void Function(YtChannel) onTogglePin;
   final void Function(YtChannel) onDelete;
 
   /// 只有正在單獨看「挖掘新頻道」分類時才是 true，其他情況一律不顯示
@@ -1301,7 +1340,8 @@ class _ChannelGrid extends StatelessWidget {
                           ],
                         ),
                       ),
-                      // 每個頻道右邊的選單：編輯（進詳情頁）／移到分類／刪除。
+                      // 每個頻道右邊的選單：編輯（進詳情頁）／移到分類／
+                      // 置頂／刪除。
                       PopupMenuButton<_ChannelMenuAction>(
                         icon: const Icon(Icons.more_vert_rounded, size: 18),
                         color: AppColors.ink2,
@@ -1313,20 +1353,26 @@ class _ChannelGrid extends StatelessWidget {
                               onOpen(c);
                             case _ChannelMenuAction.move:
                               onMove(c);
+                            case _ChannelMenuAction.pin:
+                              onTogglePin(c);
                             case _ChannelMenuAction.delete:
                               onDelete(c);
                           }
                         },
-                        itemBuilder: (context) => const [
-                          PopupMenuItem(
+                        itemBuilder: (context) => [
+                          const PopupMenuItem(
                             value: _ChannelMenuAction.edit,
                             child: Text('編輯'),
                           ),
-                          PopupMenuItem(
+                          const PopupMenuItem(
                             value: _ChannelMenuAction.move,
                             child: Text('移到分類'),
                           ),
                           PopupMenuItem(
+                            value: _ChannelMenuAction.pin,
+                            child: Text(c.pinnedAt == null ? '置頂' : '取消置頂'),
+                          ),
+                          const PopupMenuItem(
                             value: _ChannelMenuAction.delete,
                             child: Text('刪除'),
                           ),
@@ -1340,6 +1386,17 @@ class _ChannelGrid extends StatelessWidget {
                     top: 4,
                     right: 4,
                     child: _DiscoveredViaBadge(text: c.discoveredVia),
+                  ),
+                // 置頂小圖示，左上角（2026-09-30 使用者要求）。
+                if (c.pinnedAt != null)
+                  const Positioned(
+                    top: 4,
+                    left: 4,
+                    child: Icon(
+                      Icons.push_pin_rounded,
+                      size: 13,
+                      color: AppColors.ytAccent,
+                    ),
                   ),
               ],
             ),
@@ -1362,10 +1419,20 @@ class _ChannelGrid extends StatelessWidget {
         Offset.zero & overlay.size,
       ),
       color: AppColors.ink2,
-      items: const [
-        PopupMenuItem(value: _ChannelMenuAction.edit, child: Text('編輯')),
-        PopupMenuItem(value: _ChannelMenuAction.move, child: Text('移到分類')),
-        PopupMenuItem(value: _ChannelMenuAction.delete, child: Text('刪除')),
+      items: [
+        const PopupMenuItem(value: _ChannelMenuAction.edit, child: Text('編輯')),
+        const PopupMenuItem(
+          value: _ChannelMenuAction.move,
+          child: Text('移到分類'),
+        ),
+        PopupMenuItem(
+          value: _ChannelMenuAction.pin,
+          child: Text(c.pinnedAt == null ? '置頂' : '取消置頂'),
+        ),
+        const PopupMenuItem(
+          value: _ChannelMenuAction.delete,
+          child: Text('刪除'),
+        ),
       ],
     );
     switch (action) {
@@ -1373,6 +1440,8 @@ class _ChannelGrid extends StatelessWidget {
         onOpen(c);
       case _ChannelMenuAction.move:
         onMove(c);
+      case _ChannelMenuAction.pin:
+        onTogglePin(c);
       case _ChannelMenuAction.delete:
         onDelete(c);
       case null:

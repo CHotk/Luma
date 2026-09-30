@@ -124,11 +124,21 @@ class YtChannel {
     this.subscribersHidden = false,
     this.statsUpdatedAt,
     this.discoveredVia = '',
+    this.pinnedAt,
   });
 
   final String id;
   final String name;
   final String? categoryId;
+
+  /// 使用者長按選「置頂」的時間（2026-09-30 使用者要求：分類頻道列表要
+  /// 能置頂）。null 代表沒置頂。置頂的頻道排在同一個分類列表最前面，
+  /// 按置頂時間新到舊排——沒有另外拉一個獨立的排序數字，理由跟
+  /// [statsUpdatedAt] 這類時間戳一樣：多裝置同步時比時間新舊比比整數
+  /// 順序好處理，不用煩惱兩台裝置各自插出一樣的序號要怎麼排。這個欄位
+  /// 已經在 [YtChannel] 上，本來就跟著頻道一起同步，不用另外開一份
+  /// 同步邏輯。
+  final DateTime? pinnedAt;
 
   /// 用「挖掘新頻道」加進來的話，記著是靠哪個關鍵字／哪個頻道推薦挖到的
   /// （見 [DiscoveredChannel.foundVia]），空字串代表不是挖掘來的、或還沒
@@ -181,6 +191,7 @@ class YtChannel {
     int? subscriberCount,
     bool? subscribersHidden,
     DateTime? statsUpdatedAt,
+    Object? pinnedAt = _keep,
   }) => YtChannel(
     id: id,
     name: name ?? this.name,
@@ -204,6 +215,9 @@ class YtChannel {
     // 來源標籤悄悄洗掉（2026-09-29 使用者回報：挖到的頻道右上角標籤
     // 不見了，就是這個 bug）。
     discoveredVia: discoveredVia,
+    // 跟 categoryId 同一套 _keep 標記：null 是「取消置頂」這個有意義的
+    // 值，不能拿來當「沒傳、維持原樣」的預設值。
+    pinnedAt: identical(pinnedAt, _keep) ? this.pinnedAt : pinnedAt as DateTime?,
   );
 
   YtChannel _copy({
@@ -227,6 +241,7 @@ class YtChannel {
     subscribersHidden: subscribersHidden,
     statsUpdatedAt: statsUpdatedAt,
     discoveredVia: discoveredVia,
+    pinnedAt: pinnedAt,
   );
 
   /// 內容有變時蓋上現在的時間，見 [YtTrackerRepository]。
@@ -291,6 +306,7 @@ class YtChannel {
     'subscribersHidden': subscribersHidden,
     'statsUpdatedAt': statsUpdatedAt?.toIso8601String(),
     'discoveredVia': discoveredVia,
+    'pinnedAt': pinnedAt?.toIso8601String(),
   };
 
   factory YtChannel.fromJson(Map<String, dynamic> json) => YtChannel(
@@ -310,6 +326,7 @@ class YtChannel {
     subscribersHidden: json['subscribersHidden'] as bool? ?? false,
     statsUpdatedAt: _parseTime(json['statsUpdatedAt']),
     discoveredVia: json['discoveredVia'] as String? ?? '',
+    pinnedAt: _parseTime(json['pinnedAt']),
   );
 }
 

@@ -292,6 +292,13 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
 
   @override
   Widget build(BuildContext context) {
+    // 分類順序調整頁（`yt_category_order_page.dart`）存檔後會 bump 這個，
+    // 這頁還留在導覽堆疊底下沒被重建的話，靠這個知道要重新整理，不用
+    // 整頁離開重進——跟 `diary_page.dart` 同步後要重讀資料同一套做法
+    // （2026-09-30 使用者要求：調完應該馬上看得到效果）。
+    ref.listen<int>(dataRevisionProvider, (prev, next) {
+      if (prev != next) _reload();
+    });
     return Scaffold(
       drawer: const AppSideDrawer(),
       body: AmbientBackground(

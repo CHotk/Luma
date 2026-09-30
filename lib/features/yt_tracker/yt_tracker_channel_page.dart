@@ -104,31 +104,6 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     });
   }
 
-  /// 把目前清單裡「已看過、還沒被隱藏」的影片一次全部隱藏
-  /// （2026-09-30 使用者要求）。只動這頁目前已經載入的影片，不會去翻
-  /// 更早、還沒滑到的部分。
-  Future<void> _hideAllWatched(List<YoutubeVideo> videos) async {
-    final store = YtVideoHiddenStore(ref.read(keyValueStoreProvider));
-    final targets = videos
-        .where(
-          (v) =>
-              _watchedVideoIds.contains(v.videoId) &&
-              !_hiddenVideoIds.contains(v.videoId),
-        )
-        .toList();
-    if (targets.isEmpty) return;
-    for (final v in targets) {
-      await store.hide(v.videoId);
-    }
-    if (!mounted) return;
-    setState(() {
-      _hiddenVideoIds = {
-        ..._hiddenVideoIds,
-        for (final v in targets) v.videoId,
-      };
-    });
-  }
-
   @override
   void dispose() {
     _scroll.dispose();
@@ -620,6 +595,11 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
             for (var i = 0; i < visibleVideos.length; i++) ...[
               if (i > 0) const Divider(height: 1, color: AppColors.glassEdge),
               YtVideoRow(
+                // 一定要給明確的 key，理由跟 yt_tracker_browse_page.dart
+                // 那邊一樣：篩選開關一切換，清單位置就會洗牌，沒有 key
+                // 的話 Flutter 照位置重用 State，「已看過」狀態會錯配到
+                // 別支影片上（2026-09-30 使用者回報抓到）。
+                key: ValueKey(visibleVideos[i].videoId),
                 video: visibleVideos[i],
                 subtitle: ytRelativeTime(visibleVideos[i].publishedAt),
                 forceShow: _hiddenVideoIds.contains(visibleVideos[i].videoId),
@@ -1061,18 +1041,21 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
       runSpacing: 6,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
+        // 選中用一般藍色主色，不用 ytAccent 的紅——這兩個是普通篩選開關，
+        // 不是危險動作，紅色太搶眼也不合適（2026-09-30 使用者要求，跟
+        // 設定頁「儲存」按鈕那次同一個理由）。
         FilterChip(
           label: const Text('隱藏已看過'),
           selected: _hideWatched,
           onSelected: (v) => setState(() => _hideWatched = v),
           backgroundColor: AppColors.glassFill,
-          selectedColor: AppColors.ytAccent.withValues(alpha: 0.28),
+          selectedColor: AppColors.accentSolid.withValues(alpha: 0.28),
           labelStyle: TextStyle(
             fontSize: 12.5,
             color: _hideWatched ? AppColors.ink : AppColors.ink2,
           ),
           side: BorderSide(
-            color: _hideWatched ? AppColors.ytAccent : AppColors.glassEdge,
+            color: _hideWatched ? AppColors.accentSolid : AppColors.glassEdge,
           ),
         ),
         FilterChip(
@@ -1080,24 +1063,15 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
           selected: _showHiddenVideos,
           onSelected: (v) => setState(() => _showHiddenVideos = v),
           backgroundColor: AppColors.glassFill,
-          selectedColor: AppColors.ytAccent.withValues(alpha: 0.28),
+          selectedColor: AppColors.accentSolid.withValues(alpha: 0.28),
           labelStyle: TextStyle(
             fontSize: 12.5,
             color: _showHiddenVideos ? AppColors.ink : AppColors.ink2,
           ),
           side: BorderSide(
-            color: _showHiddenVideos ? AppColors.ytAccent : AppColors.glassEdge,
-          ),
-        ),
-        TextButton.icon(
-          onPressed: () => _hideAllWatched([..._firstPage, ..._moreVideos]),
-          icon: const Icon(Icons.visibility_off_outlined, size: 15),
-          label: const Text('隱藏所有看過的'),
-          style: TextButton.styleFrom(
-            foregroundColor: AppColors.ink2,
-            padding: EdgeInsets.zero,
-            minimumSize: const Size(0, 0),
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            color: _showHiddenVideos
+                ? AppColors.accentSolid
+                : AppColors.glassEdge,
           ),
         ),
       ],
