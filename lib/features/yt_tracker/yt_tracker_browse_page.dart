@@ -238,15 +238,25 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
             typed,
             maxResults: _videosPerChannel,
           );
-        } on YoutubeApiException {
-          // 這個頻道沒有對應的清單（例如根本沒發過 Shorts），或 API 不認得
-          // 這種清單：退回抓全部上傳，之後依影片長度自己挑。金鑰／額度
-          // 這類真的出問題的話，這次呼叫一樣會丟出同樣的錯，照樣顯示出來。
-          fallbackChannelIds.add(channel.id);
-          videos = await service.fetchRecentVideos(
-            channel.uploadsPlaylistId,
-            maxResults: _videosPerChannel,
-          );
+        } on YoutubeApiException catch (e) {
+          if (e.status == 404) {
+            // 404 是明確答案：這個頻道真的沒有這個類型的清單（例如從沒
+            // 開過直播、沒發過 Shorts），不是「抓不到」，是「真的沒有」
+            // ——這個頻道這次篩選就是 0 部，不用退回抓全部再猜，也不會
+            // 誤判成有東西（2026-09-30 使用者糾正：不能因為沒有直播的
+            // 猜法就放棄判斷，404 本身就是判斷結果）。
+            videos = const [];
+          } else {
+            // 其他錯誤（網路、配額、暫時性問題）才是真的「抓不到、不知道
+            // 是不是這個類型」：退回抓全部上傳。Shorts 還有時長啟發式能
+            // 挑，直播沒有對應的猜法，退回時就不篩選，寧可多顯示也不要
+            // 因為一時的錯誤誤刪。
+            fallbackChannelIds.add(channel.id);
+            videos = await service.fetchRecentVideos(
+              channel.uploadsPlaylistId,
+              maxResults: _videosPerChannel,
+            );
+          }
         }
       }
       for (final v in videos) {
