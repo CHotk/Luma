@@ -1,0 +1,55 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>音樂 2 歌手頁為核心</title><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;800&display=swap" rel="stylesheet"><style>:root{--bg:#0c0c13;--panel:#161622;--panel2:#1e1e2e;--line:#2a2a3d;--text:#eceaf5;--sub:#8b8ba3;--acc:#5EE3C1;--accInk:#062b22}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-serif;min-height:100vh;padding:32px 16px}
+.intro{max-width:640px;margin:0 auto 24px;text-align:center}
+.eyebrow{color:var(--acc);font-size:12px;letter-spacing:.2em}
+h1{font-size:22px;margin:6px 0}
+.intro p{color:var(--sub);font-size:13px;line-height:1.7}
+.phone{width:380px;height:760px;margin:0 auto;border:8px solid #000;border-radius:38px;background:var(--bg);overflow:hidden;display:flex;flex-direction:column;position:relative}
+.scroll{flex:1;overflow:auto;display:flex;flex-direction:column}
+.scroll>*{flex-shrink:0}
+.hero{height:210px;background:linear-gradient(160deg,#e0679b 0%,#7b2d5a 55%,#0c0c13 100%);position:relative;padding:16px}
+.hero .nav{display:flex;justify-content:space-between}
+.ib{width:32px;height:32px;border-radius:10px;background:rgba(0,0,0,.3);display:grid;place-items:center;font-size:15px}
+.hero .name{position:absolute;left:16px;bottom:16px}
+.hero .name b{font-size:28px;font-weight:800;display:block}
+.hero .name span{font-size:12px;color:rgba(255,255,255,.75)}
+.acts{display:flex;gap:10px;padding:12px 16px}
+.play{flex:1;background:var(--acc);color:var(--accInk);border-radius:99px;padding:10px;text-align:center;font-weight:700;font-size:13px}
+.ghost{flex:1;background:var(--panel);border-radius:99px;padding:10px;text-align:center;font-size:13px}
+.sec{padding:10px 16px 6px;font-size:14px;font-weight:700;display:flex;justify-content:space-between}
+.sec span{color:var(--sub);font-size:11.5px;font-weight:400}
+.song{display:flex;align-items:center;gap:12px;padding:8px 16px}
+.song .n{width:18px;color:var(--sub);font-size:13px;text-align:center}
+.song .th{width:52px;height:30px;border-radius:6px;background:linear-gradient(135deg,#3a2230,#1d1219);flex-shrink:0}
+.song .i{flex:1;min-width:0}
+.song .i b{font-size:13px;display:block}
+.song .i span{color:var(--sub);font-size:11px}
+.song .more{color:var(--sub);font-size:16px}
+.song.on .i b{color:var(--acc)}
+.chips{display:flex;gap:8px;padding:4px 16px 8px;overflow:hidden}
+.chips div{background:var(--panel);border-radius:12px;padding:10px 12px;min-width:118px}
+.chips div b{font-size:12.5px;display:block}
+.chips div span{color:var(--sub);font-size:11px}
+.mini{flex-shrink:0;margin:0 10px 10px;background:var(--panel2);border-radius:14px;padding:8px 10px;display:flex;align-items:center;gap:10px}
+.mini .art{width:38px;height:38px;border-radius:8px;background:linear-gradient(135deg,#7b2d5a,#3a1530);flex-shrink:0}
+.mini .t{flex:1;min-width:0}
+.mini .t b{font-size:12.5px;display:block}
+.mini .t span{color:var(--sub);font-size:11px}
+.mini .ctl{font-size:18px;width:30px;text-align:center}
+.note{max-width:380px;margin:14px auto 0;color:var(--sub);font-size:12px;line-height:1.7;text-align:center}
+</style></head><body><div class="intro"><div class="eyebrow">音樂 · 版本 2 / 5</div><h1>歌手頁為核心</h1><p>直接照你說的「歌手 → 他底下有哪些歌」設計：主要畫面就是一位歌手的專屬頁，上面大橫幅＋全部播放／隨機，下面「我最常聽」排行、自己分的小分類（例如專輯、年代、翻唱）、全部歌曲。首頁只是一排歌手頭像，點進來才是重點。</p></div><div class="phone"><div class="scroll">
+<div class="hero"><div class="nav"><div class="ib">‹</div><div class="ib">⋯</div></div><div class="name"><b>周杰倫</b><span>38 首・連結 YouTube 官方頻道</span></div></div>
+<div class="acts"><div class="play">▶ 全部播放</div><div class="ghost">🔀 隨機</div><div class="ghost">＋ 加歌</div></div>
+<div class="sec">我最常聽<span>依播放次數</span></div>
+<div class="song on"><div class="n">1</div><div class="th"></div><div class="i"><b>晴天</b><span>播過 42 次</span></div><div class="more">⋮</div></div>
+<div class="song"><div class="n">2</div><div class="th"></div><div class="i"><b>稻香</b><span>播過 31 次</span></div><div class="more">⋮</div></div>
+<div class="song"><div class="n">3</div><div class="th"></div><div class="i"><b>七里香</b><span>播過 27 次</span></div><div class="more">⋮</div></div>
+<div class="sec">我的分類<span>自己分</span></div>
+<div class="chips"><div><b>葉惠美</b><span>11 首</span></div><div><b>七里香</b><span>9 首</span></div><div><b>Live 版</b><span>6 首</span></div></div>
+<div class="sec">全部歌曲<span>38 首・加入順序 ▾</span></div>
+<div class="song"><div class="n"></div><div class="th"></div><div class="i"><b>最偉大的作品</b><span>2022</span></div><div class="more">⋮</div></div>
+<div class="song"><div class="n"></div><div class="th"></div><div class="i"><b>說好不哭</b><span>2019</span></div><div class="more">⋮</div></div>
+</div>
+<div class="mini"><div class="art"></div><div class="t"><b>晴天</b><span>周杰倫</span></div><div class="ctl">⏸</div><div class="ctl">⏭</div></div>
+</div><p class="note">優點：最符合「分類歌手、看他有哪些歌」的需求，一位歌手的東西全部集中在一頁，「最常聽」排行有收藏感。缺點：以歌手為單位，跨歌手的情境（例如「讀書時聽的」）比較難組；歌手很多時首頁那排頭像要另外設計找法。</p></body></html>
