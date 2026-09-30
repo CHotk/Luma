@@ -194,6 +194,32 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
     return true;
   }
 
+  /// 抓某個特殊清單（UUSH／UULV）裡的影片 id 集合，純粹拿來核對「這部
+  /// 影片是不是這個類型」用，不是拿來當顯示內容的來源——「全部」一律用
+  /// 原始上傳清單當底，這個只補標籤，抓失敗（404／其他錯誤）就當空
+  /// 集合，頂多這批影片分類不出來，不影響原始清單照樣顯示。
+  Future<Set<String>> _fetchTypedIds(
+    YoutubeApiService service,
+    String playlistId,
+    YtChannel channel,
+  ) async {
+    try {
+      final videos = await service.fetchRecentVideos(
+        playlistId,
+        maxResults: 50,
+      );
+      return {for (final v in videos) v.videoId};
+    } on YoutubeApiException catch (e) {
+      if (e.status != 404) {
+        AppLog.add(
+          '[YT] 核對「${channel.name}」的 $playlistId 清單失敗（分類可能不準）：$e',
+          isError: true,
+        );
+      }
+      return const {};
+    }
+  }
+
   Future<List<_ChannelVideo>> _fetchVideos(
     List<YtChannel> channels,
     String apiKey,
@@ -202,8 +228,6 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
     final repo = ref.read(ytTrackerRepositoryProvider);
     final type = _typeFilter;
     final results = <_ChannelVideo>[];
-    // 特殊播放清單抓不到、退回「抓全部再自己依長度挑」的頻道。
-    final fallbackChannelIds = <String>{};
     for (final original in channels) {
       var channel = original;
       if (channel.uploadsPlaylistId.isEmpty) {
@@ -225,42 +249,77 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
         // 解析結果快取回本機，下次同一個頻道不用再打一次 channels.list。
         await repo.updateChannel(channel);
       }
-      final typed = _typedPlaylistId(channel.uploadsPlaylistId, type);
-      List<YoutubeVideo> videos;
-      if (typed == null) {
-        videos = await service.fetchRecentVideos(
-          channel.uploadsPlaylistId,
+      final uploads = channel.uploadsPlaylistId;
+      if (type == _TypeFilter.all || !uploads.startsWith('UU')) {
+        // 「全部」一定要抓原始上傳清單當底——這個清單定義上就是「全部」，
+        // 不會漏（2026-09-30 使用者提議：抓全部再拿 UUSH／UULV 的 id 去比
+        // 對貼標籤，比「UULF+UUSH+UULV 組合起來當作全部」更保險——組合
+        // 起來要是哪個特殊清單漏了誰，全部就會跟著漏；用原始清單當底、
+        // 特殊清單只拿來「貼標籤」，就算特殊清單有漏，頂多是那部影片
+        // 分類不出來，不會整部影片憑空消失）。組不出特殊清單 id 的頻道
+        // （少數不是 `UU` 開頭的）也一樣，只是貼不了標籤。
+        final videos = await service.fetchRecentVideos(
+          uploads,
           maxResults: _videosPerChannel,
         );
-      } else {
-        try {
-          videos = await service.fetchRecentVideos(
-            typed,
-            maxResults: _videosPerChannel,
-          );
-        } on YoutubeApiException catch (e) {
-          if (e.status == 404) {
-            // 404 是明確答案：這個頻道真的沒有這個類型的清單（例如從沒
-            // 開過直播、沒發過 Shorts），不是「抓不到」，是「真的沒有」
-            // ——這個頻道這次篩選就是 0 部，不用退回抓全部再猜，也不會
-            // 誤判成有東西（2026-09-30 使用者糾正：不能因為沒有直播的
-            // 猜法就放棄判斷，404 本身就是判斷結果）。
-            videos = const [];
-          } else {
-            // 其他錯誤（網路、配額、暫時性問題）才是真的「抓不到、不知道
-            // 是不是這個類型」：退回抓全部上傳。Shorts 還有時長啟發式能
-            // 挑，直播沒有對應的猜法，退回時就不篩選，寧可多顯示也不要
-            // 因為一時的錯誤誤刪。
-            fallbackChannelIds.add(channel.id);
-            videos = await service.fetchRecentVideos(
-              channel.uploadsPlaylistId,
-              maxResults: _videosPerChannel,
-            );
+        if (videos.isEmpty || !uploads.startsWith('UU')) {
+          for (final v in videos) {
+            results.add(_ChannelVideo(video: v, channel: channel));
           }
+          continue;
+        }
+        final rest = uploads.substring(2);
+        // 特殊清單只拿來核對「這部是不是 Shorts／直播」，抓寬一點
+        // （50 部，quota 一樣是 1 單位不會比較貴）讓比對範圍盡量蓋過
+        // 原始清單抓到的這幾部，同一招在 `yt_tracker_channel_page.dart`
+        // 的上傳頻率圖已經用過。
+        final shortIds = await _fetchTypedIds(service, 'UUSH$rest', channel);
+        final liveIds = await _fetchTypedIds(service, 'UULV$rest', channel);
+        for (final v in videos) {
+          final isLive = liveIds.contains(v.videoId);
+          final isShort = !isLive && shortIds.contains(v.videoId);
+          results.add(
+            _ChannelVideo(
+              video: v.withShort(isShort).withLive(isLive),
+              channel: channel,
+            ),
+          );
+        }
+        continue;
+      }
+      // 選了特定類型：直接抓那個類型自己的特殊清單，比「抓全部再篩」
+      // 更準——你要看的就是那個清單本身的內容，不是「剛好落在最近幾部
+      // 範圍內又符合條件」的子集合。
+      final rest = uploads.substring(2);
+      final prefix = switch (type) {
+        _TypeFilter.shorts => 'UUSH',
+        _TypeFilter.live => 'UULV',
+        _ => 'UULF',
+      };
+      List<YoutubeVideo> videos;
+      try {
+        videos = await service.fetchRecentVideos(
+          '$prefix$rest',
+          maxResults: _videosPerChannel,
+        );
+      } on YoutubeApiException catch (e) {
+        // 404 是明確答案：這個頻道真的沒有這個類型（例如從沒開過直播、
+        // 沒發過 Shorts），這個頻道這次篩選就是 0 部。其他錯誤（網路、
+        // 配額、暫時性問題）當這個頻道這次抓不到，跳過就好，不要讓一次
+        // 暫時性錯誤擋掉其他頻道都顯示不出來（2026-09-30 使用者糾正：
+        // 404 本身就是判斷結果，不需要用時長瞎猜）。
+        videos = const [];
+        if (e.status != 404) {
+          AppLog.add('[YT] 抓「${channel.name}」的$prefix清單失敗：$e', isError: true);
         }
       }
       for (final v in videos) {
-        results.add(_ChannelVideo(video: v, channel: channel));
+        final tagged = switch (type) {
+          _TypeFilter.shorts => v.withShort(true).withLive(false),
+          _TypeFilter.live => v.withShort(false).withLive(true),
+          _ => v.withShort(false).withLive(false),
+        };
+        results.add(_ChannelVideo(video: tagged, channel: channel));
       }
     }
     // 時長要多打一次 videos.list，這裡混了好幾個頻道，一次把所有影片
@@ -283,17 +342,6 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
     } catch (_) {
       // 忽略，影片清單本身已經抓到了。
     }
-    // 退回做法的頻道，這時才有長度可以挑——只有一般影片／Shorts 兩種
-    // 有辦法用時長啟發式判斷；直播沒有對應的猜法（時長長短都可能），
-    // `UULV` 這個頻道不存在就直接顯示原本抓到的全部，不做誤判的過濾
-    // （2026-09-30 使用者要求加「直播」分類）。
-    if (fallbackChannelIds.isNotEmpty && type != _TypeFilter.live) {
-      results.removeWhere(
-        (r) =>
-            fallbackChannelIds.contains(r.channel.id) &&
-            (type == _TypeFilter.shorts) != r.video.isLikelyShort,
-      );
-    }
     // 抓到的影片存進本機快取（跟頻道詳情頁共用同一份，也會跟著同步），
     // 用影片 id 去重——每次進來都抓最近 10 部，大部分跟上次重複，只有
     // 真的新的才會新增，已存的不會被寫兩次（2026-09-24 使用者要求）。
@@ -307,23 +355,6 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
     }
     results.sort((a, b) => b.video.publishedAt.compareTo(a.video.publishedAt));
     return results;
-  }
-
-  /// 依類型換成 YouTube 的特殊上傳播放清單：上傳清單 ID 是 `UU` 開頭，
-  /// 換成 `UUSH` 是只有 Shorts、`UULF` 是只有一般影片、`UULV` 是只有
-  /// 直播過的（非官方文件保證的做法，2026-09-24 用志祺七七實測：`UU`
-  /// 8,360 部＝`UUSH` 5,330＋`UULF` 3,029＋`UULV` 1，而且 `UUSH` 的每一部
-  /// 在 YouTube 網站上都是 Shorts 版型；2026-09-30 使用者要求補上直播
-  /// 分類，YT 自己的頻道主頁本來就有這個分類）。全部就維持原本的上傳
-  /// 清單，回傳 null。
-  String? _typedPlaylistId(String uploads, _TypeFilter type) {
-    if (type == _TypeFilter.all || !uploads.startsWith('UU')) return null;
-    final rest = uploads.substring(2);
-    return switch (type) {
-      _TypeFilter.shorts => 'UUSH$rest',
-      _TypeFilter.live => 'UULV$rest',
-      _ => 'UULF$rest',
-    };
   }
 
   String _title(List<YtCategory> categories) {
@@ -1294,125 +1325,171 @@ class _ChannelGrid extends StatelessWidget {
     if (channels.isEmpty) {
       return Center(child: Text('這個篩選條件下沒有頻道', style: AppText.bodyDim));
     }
-    return GridView.builder(
-      itemCount: channels.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        mainAxisSpacing: 8,
-        crossAxisSpacing: 8,
-        childAspectRatio: 2.6,
-      ),
-      itemBuilder: (_, i) {
-        final c = channels[i];
-        // 長按整張卡片也跳出同一份選單（2026-09-24 使用者要求）。
-        return GestureDetector(
-          onLongPressStart: (d) => _showMenuAt(context, d.globalPosition, c),
-          child: InkWell(
-            onTap: () => onOpen(c),
-            borderRadius: BorderRadius.circular(Radii.card),
-            child: Stack(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(Radii.card),
-                    color: AppColors.glassFill,
-                    border: Border.all(color: AppColors.glassEdge),
-                  ),
-                  child: Row(
-                    children: [
-                      YtChannelAvatar(channel: c, radius: 17),
-                      const SizedBox(width: Gap.sm),
-                      Expanded(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              c.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.ink,
-                              ),
-                            ),
-                            if (c.subscriberLabel != null) ...[
-                              const SizedBox(height: 4),
-                              Text(
-                                c.subscriberLabel!,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: AppText.note,
-                              ),
-                            ],
-                          ],
-                        ),
+    // 置頂的頻道獨立一個區域放最上面，不是混在同一個格子裡排最前面
+    // （2026-09-30 使用者要求：頂部要有額外一個區域專門顯示置頂的
+    // 頻道）。[_sortedChannels] 已經把置頂的排在最前面，這裡只是照
+    // pinnedAt 切成兩段分開畫。
+    final pinned = [for (final c in channels) if (c.pinnedAt != null) c];
+    final rest = [for (final c in channels) if (c.pinnedAt == null) c];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (pinned.isNotEmpty) ...[
+          Row(
+            children: [
+              const Icon(
+                Icons.push_pin_rounded,
+                size: 13,
+                color: AppColors.ytAccent,
+              ),
+              const SizedBox(width: 4),
+              Text('已置頂', style: AppText.note),
+            ],
+          ),
+          const SizedBox(height: Gap.xs),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: pinned.length,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              mainAxisSpacing: 8,
+              crossAxisSpacing: 8,
+              childAspectRatio: 2.6,
+            ),
+            itemBuilder: (context, i) => _buildCard(context, pinned[i]),
+          ),
+          const SizedBox(height: Gap.md),
+          const Divider(height: 1, color: AppColors.glassEdge),
+          const SizedBox(height: Gap.sm),
+        ],
+        Expanded(
+          child: rest.isEmpty
+              ? Center(child: Text('沒有其他頻道', style: AppText.bodyDim))
+              : GridView.builder(
+                  itemCount: rest.length,
+                  gridDelegate:
+                      const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        mainAxisSpacing: 8,
+                        crossAxisSpacing: 8,
+                        childAspectRatio: 2.6,
                       ),
-                      // 每個頻道右邊的選單：編輯（進詳情頁）／移到分類／
-                      // 置頂／刪除。
-                      PopupMenuButton<_ChannelMenuAction>(
-                        icon: const Icon(Icons.more_vert_rounded, size: 18),
-                        color: AppColors.ink2,
-                        padding: EdgeInsets.zero,
-                        tooltip: '更多',
-                        onSelected: (action) {
-                          switch (action) {
-                            case _ChannelMenuAction.edit:
-                              onOpen(c);
-                            case _ChannelMenuAction.move:
-                              onMove(c);
-                            case _ChannelMenuAction.pin:
-                              onTogglePin(c);
-                            case _ChannelMenuAction.delete:
-                              onDelete(c);
-                          }
-                        },
-                        itemBuilder: (context) => [
-                          const PopupMenuItem(
-                            value: _ChannelMenuAction.edit,
-                            child: Text('編輯'),
+                  itemBuilder: (context, i) => _buildCard(context, rest[i]),
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCard(BuildContext context, YtChannel c) {
+    // 長按整張卡片也跳出同一份選單（2026-09-24 使用者要求）。
+    return GestureDetector(
+      onLongPressStart: (d) => _showMenuAt(context, d.globalPosition, c),
+      child: InkWell(
+        onTap: () => onOpen(c),
+        borderRadius: BorderRadius.circular(Radii.card),
+        child: Stack(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(Radii.card),
+                color: AppColors.glassFill,
+                border: Border.all(color: AppColors.glassEdge),
+              ),
+              child: Row(
+                children: [
+                  YtChannelAvatar(channel: c, radius: 17),
+                  const SizedBox(width: Gap.sm),
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          c.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.ink,
                           ),
-                          const PopupMenuItem(
-                            value: _ChannelMenuAction.move,
-                            child: Text('移到分類'),
-                          ),
-                          PopupMenuItem(
-                            value: _ChannelMenuAction.pin,
-                            child: Text(c.pinnedAt == null ? '置頂' : '取消置頂'),
-                          ),
-                          const PopupMenuItem(
-                            value: _ChannelMenuAction.delete,
-                            child: Text('刪除'),
+                        ),
+                        if (c.subscriberLabel != null) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            c.subscriberLabel!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppText.note,
                           ),
                         ],
+                      ],
+                    ),
+                  ),
+                  // 每個頻道右邊的選單：編輯（進詳情頁）／移到分類／
+                  // 置頂／刪除。
+                  PopupMenuButton<_ChannelMenuAction>(
+                    icon: const Icon(Icons.more_vert_rounded, size: 18),
+                    color: AppColors.ink2,
+                    padding: EdgeInsets.zero,
+                    tooltip: '更多',
+                    onSelected: (action) {
+                      switch (action) {
+                        case _ChannelMenuAction.edit:
+                          onOpen(c);
+                        case _ChannelMenuAction.move:
+                          onMove(c);
+                        case _ChannelMenuAction.pin:
+                          onTogglePin(c);
+                        case _ChannelMenuAction.delete:
+                          onDelete(c);
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: _ChannelMenuAction.edit,
+                        child: Text('編輯'),
+                      ),
+                      const PopupMenuItem(
+                        value: _ChannelMenuAction.move,
+                        child: Text('移到分類'),
+                      ),
+                      PopupMenuItem(
+                        value: _ChannelMenuAction.pin,
+                        child: Text(c.pinnedAt == null ? '置頂' : '取消置頂'),
+                      ),
+                      const PopupMenuItem(
+                        value: _ChannelMenuAction.delete,
+                        child: Text('刪除'),
                       ),
                     ],
                   ),
-                ),
-                if (showDiscoveredBadge && c.discoveredVia.isNotEmpty)
-                  Positioned(
-                    top: 4,
-                    right: 4,
-                    child: _DiscoveredViaBadge(text: c.discoveredVia),
-                  ),
-                // 置頂小圖示，左上角（2026-09-30 使用者要求）。
-                if (c.pinnedAt != null)
-                  const Positioned(
-                    top: 4,
-                    left: 4,
-                    child: Icon(
-                      Icons.push_pin_rounded,
-                      size: 13,
-                      color: AppColors.ytAccent,
-                    ),
-                  ),
-              ],
+                ],
+              ),
             ),
-          ),
-        );
-      },
+            if (showDiscoveredBadge && c.discoveredVia.isNotEmpty)
+              Positioned(
+                top: 4,
+                right: 4,
+                child: _DiscoveredViaBadge(text: c.discoveredVia),
+              ),
+            // 置頂小圖示，左上角（2026-09-30 使用者要求）。
+            if (c.pinnedAt != null)
+              const Positioned(
+                top: 4,
+                left: 4,
+                child: Icon(
+                  Icons.push_pin_rounded,
+                  size: 13,
+                  color: AppColors.ytAccent,
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 

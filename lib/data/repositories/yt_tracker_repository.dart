@@ -221,7 +221,11 @@ class YtTrackerRepository {
     );
     // 快照只帶基本資料；本機已經解析好的頻道 ID／上傳清單 ID／訂閱人數
     // 不能被快照蓋回空的，不然每次進首頁都要重新問 API（原本就會有這個
-    // 問題，加訂閱人數後更明顯）。
+    // 問題，加訂閱人數後更明顯）。置頂時間也一樣要保留——快照本來就永遠
+    // 不會有這欄，seed 優先合併的結果一定是 null，沒有這行patch的話，
+    // 只要頻道剛好也是內建快照裡有的（大部分頻道都是），置頂完一進首頁
+    // 觸發這個合併就會立刻被洗回沒置頂，看起來像「置頂沒有同步」，其實
+    // 是本機自己把它抹掉了（2026-09-30 使用者回報抓到）。
     final merged = [
       for (final c in seedMerged)
         () {
@@ -239,6 +243,7 @@ class YtTrackerRepository {
                 ? prior.subscribersHidden
                 : null,
             statsUpdatedAt: c.statsUpdatedAt ?? prior.statsUpdatedAt,
+            pinnedAt: c.pinnedAt ?? prior.pinnedAt,
           );
         }(),
     ];

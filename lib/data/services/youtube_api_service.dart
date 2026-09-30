@@ -49,6 +49,7 @@ class YoutubeVideo {
     required this.thumbnailUrl,
     this.duration,
     this.isShort,
+    this.isLive,
   });
 
   final String videoId;
@@ -67,6 +68,12 @@ class YoutubeVideo {
   /// 結果（2026-09-24 使用者要求：折線圖不要再用秒數估）。null＝還沒比對過，
   /// 這時 [isLikelyShort] 退回用時長估。
   final bool? isShort;
+
+  /// 是不是直播過（含現正直播）：從 YouTube 自己的直播播放清單（UULV）
+  /// 比對出來的結果，跟 [isShort] 同一套做法（2026-09-30 使用者要求：
+  /// 抓「全部」時直接用 UULF＋UUSH＋UULV 三個特殊清單組合，各自知道
+  /// 自己是哪個清單抓來的，不用另外猜）。null＝還沒比對過。
+  final bool? isLive;
 
   String get watchUrl => 'https://www.youtube.com/watch?v=$videoId';
 
@@ -91,6 +98,7 @@ class YoutubeVideo {
     thumbnailUrl: thumbnailUrl,
     duration: value,
     isShort: isShort,
+    isLive: isLive,
   );
 
   YoutubeVideo withShort(bool value) => YoutubeVideo(
@@ -100,6 +108,17 @@ class YoutubeVideo {
     thumbnailUrl: thumbnailUrl,
     duration: duration,
     isShort: value,
+    isLive: isLive,
+  );
+
+  YoutubeVideo withLive(bool value) => YoutubeVideo(
+    videoId: videoId,
+    title: title,
+    publishedAt: publishedAt,
+    thumbnailUrl: thumbnailUrl,
+    duration: duration,
+    isShort: isShort,
+    isLive: value,
   );
 
   /// 給 `yt_video_cache_store.dart` 落地快取用——只有歷史影片（上傳
@@ -111,6 +130,7 @@ class YoutubeVideo {
     'thumbnailUrl': thumbnailUrl,
     'durationSeconds': duration?.inSeconds,
     'isShort': isShort,
+    'isLive': isLive,
   };
 
   factory YoutubeVideo.fromJson(Map<String, dynamic> json) => YoutubeVideo(
@@ -122,6 +142,7 @@ class YoutubeVideo {
         ? null
         : Duration(seconds: json['durationSeconds'] as int),
     isShort: json['isShort'] as bool?,
+    isLive: json['isLive'] as bool?,
   );
 }
 
