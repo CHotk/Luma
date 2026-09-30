@@ -10,6 +10,7 @@ import '../../data/cloud/r2_credentials_store.dart';
 import '../../data/cloud/r2_sync_service.dart';
 import '../../data/export/device_label.dart';
 import '../../data/repositories/diary_password_store.dart';
+import '../../data/repositories/yt_category_order_store.dart';
 import '../../data/repositories/yt_video_cache_store.dart';
 import '../../data/repositories/yt_video_watch_store.dart';
 import '../../shared/debug/app_log.dart';
@@ -271,17 +272,25 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
           );
           // 影片「看過了」記錄也算 YT 這個功能範疇內的資料（2026-09-29
           // 使用者要求），跟分類／頻道／影片快取一起同步，不另開一個
-          // 平行任務。
+          // 平行任務。分類顯示順序也是（2026-09-30 使用者回報：原本這個
+          // 設定只存本機，從沒接進同步，A 裝置調完順序 B 裝置看不到）。
           final watchResult = await service.syncYtVideoWatch(
             YtVideoWatchStore(ref.read(keyValueStoreProvider)),
+          );
+          final orderResult = await service.syncYtCategoryOrder(
+            YtCategoryOrderStore(ref.read(keyValueStoreProvider)),
           );
           return (
             downloaded:
                 ytResult.downloaded +
                 ytVideoResult.downloaded +
-                watchResult.downloaded,
+                watchResult.downloaded +
+                orderResult.downloaded,
             uploaded:
-                ytResult.uploaded + ytVideoResult.uploaded + watchResult.uploaded,
+                ytResult.uploaded +
+                ytVideoResult.uploaded +
+                watchResult.uploaded +
+                orderResult.uploaded,
           );
         }),
         run(

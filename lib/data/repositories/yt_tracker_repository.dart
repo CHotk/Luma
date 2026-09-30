@@ -149,13 +149,18 @@ class YtTrackerRepository {
   }
 
   /// 一次更新一批頻道（例如訂閱人數更新），只寫一次儲存。
+  /// 一次更新一批頻道，目前只有背景訂閱人數更新在用這個。**故意不蓋
+  /// `updatedAt`**——這是自動背景更新，不是使用者自己的操作，不該在
+  /// 多裝置合併時贏過使用者在別台裝置做的置頂／搬分類／改名這些真正
+  /// 的編輯（2026-09-30 使用者回報：A 裝置置頂＋調分類順序、同步，換 B
+  /// 裝置同步卻沒看到——根因就是背景訂閱數更新把 `updatedAt` 蓋成
+  /// 更新的時間，讓「只是剛好問過一次訂閱數」的那台裝置在合併時贏過
+  /// 「真的做了操作」的那台，見 [YtCategoryOrderStore] 也補了同步）。
   Future<void> updateChannels(List<YtChannel> updated) async {
     if (updated.isEmpty) return;
     final all = await _loadChannelsRaw();
     final byId = {for (final c in updated) c.id: c};
-    await _writeChannels([
-      for (final c in all) byId.containsKey(c.id) ? byId[c.id]!.stamped() : c,
-    ]);
+    await _writeChannels([for (final c in all) byId[c.id] ?? c]);
   }
 
   Future<void> deleteChannel(String id) async {

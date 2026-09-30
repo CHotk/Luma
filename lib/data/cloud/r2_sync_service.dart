@@ -8,6 +8,7 @@ import '../repositories/diary_repository.dart';
 import '../../domain/models/sync_log_entry.dart';
 import '../../domain/models/yt_tracker.dart';
 import '../../domain/models/yt_video_watch.dart';
+import '../repositories/yt_category_order_store.dart';
 import '../repositories/yt_tracker_repository.dart';
 import '../repositories/yt_video_cache_store.dart';
 import '../repositories/yt_video_watch_store.dart';
@@ -357,6 +358,51 @@ class R2SyncService {
       await _writeMeta(chKey, body, etag);
     }
     return (downloaded: downloaded, uploaded: uploaded);
+  }
+
+  /// YT 分類顯示順序（2026-09-30 使用者回報：A 裝置調完順序、按同步，
+  /// 換 B 裝置同步卻看不到——原本這個設定只存本機，從沒接進同步）。
+  /// 單一設定值，不是清單型紀錄，跟 [syncDiaryPassword] 同一套「比
+  /// updatedAt 新舊，新的贏」做法。
+  Future<({int downloaded, int uploaded})> syncYtCategoryOrder(
+    YtCategoryOrderStore store,
+  ) async {
+    const key = 'yt_category_order.json';
+    final local = await store.loadRecord();
+    final beforeBytes = utf8.encode(jsonEncode(local?.toJson()));
+    if (await _canSkip(key, beforeBytes)) return (downloaded: 0, uploaded: 0);
+
+    final fetched = await _client.getObjectWithEtag(key);
+    if (fetched.bytes == null) {
+      // 雲端還沒有這個檔案：這台裝置如果有設定過順序，就是第一次要
+      // 上傳的那份；沒設定過就什麼都不用做。
+      if (local == null) return (downloaded: 0, uploaded: 0);
+      final body = utf8.encode(jsonEncode(local.toJson()));
+      final etag = await _client.putObject(key, Uint8List.fromList(body));
+      await _writeMeta(key, body, etag);
+      return (downloaded: 0, uploaded: 1);
+    }
+
+    final cloud = YtCategoryOrderRecord.fromJson(
+      jsonDecode(utf8.decode(fetched.bytes!)) as Map<String, dynamic>,
+    );
+    // 這台裝置從沒設定過、或雲端比較新：拉下來用。
+    if (local == null || cloud.updatedAt.isAfter(local.updatedAt)) {
+      await store.saveRecord(cloud);
+      final body = utf8.encode(jsonEncode(cloud.toJson()));
+      await _writeMeta(key, body, fetched.etag);
+      return (downloaded: 1, uploaded: 0);
+    }
+    if (local.updatedAt.isAfter(cloud.updatedAt)) {
+      final body = utf8.encode(jsonEncode(local.toJson()));
+      final etag = await _client.putObject(key, Uint8List.fromList(body));
+      await _writeMeta(key, body, etag);
+      return (downloaded: 0, uploaded: 1);
+    }
+    // 時間戳一樣：本來就沒有異動。
+    final body = utf8.encode(jsonEncode(local.toJson()));
+    await _writeMeta(key, body, fetched.etag);
+    return (downloaded: 0, uploaded: 0);
   }
 
   /// YT 上傳頻率圖用的歷史影片快取也同步（2026-09-24 使用者要求：資料
