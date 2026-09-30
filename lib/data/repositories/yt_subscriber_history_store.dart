@@ -24,14 +24,25 @@ class YtSubscriberHistoryStore {
         .toList();
   }
 
+  /// 一個頻道最多留幾筆快照，超過就把最舊的丟掉（2026-09-30 使用者回報：
+  /// 手機 iOS Safari 開 App 卡死，懷疑是本機資料量太大——這份紀錄是
+  /// 「只增不刪」設計，長期下來每個頻道都會一直長，訂閱人數更新頻率
+  /// 預設一週一輪，200 筆大概是 3 年多份，趨勢圖夠用，不用真的無上限
+  /// 留著）。
+  static const _maxSnapshotsPerChannel = 200;
+
   /// 加一筆新快照，依時間排序存回去。不去重——同一天檢查兩次也都留著，
-  /// 反正每筆很小，看得出「有檢查過」本身也是有意義的資訊。
+  /// 反正每筆很小，看得出「有檢查過」本身也是有意義的資訊；但超過上限
+  /// 會把最舊的丟掉。
   Future<void> add(String channelId, YtSubscriberSnapshot snapshot) async {
     final all = [...await load(channelId), snapshot]
       ..sort((a, b) => a.at.compareTo(b.at));
+    final trimmed = all.length > _maxSnapshotsPerChannel
+        ? all.sublist(all.length - _maxSnapshotsPerChannel)
+        : all;
     await _store.write(
       _keyFor(channelId),
-      jsonEncode([for (final s in all) s.toJson()]),
+      jsonEncode([for (final s in trimmed) s.toJson()]),
     );
   }
 

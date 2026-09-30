@@ -8,6 +8,7 @@ import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
 import '../../data/repositories/diary_password_store.dart';
 import '../../data/repositories/yt_stats_refresh_setting_store.dart';
+import '../../data/repositories/yt_video_open_mode_store.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_notice.dart';
 import '../../shared/widgets/app_side_drawer.dart';
@@ -193,6 +194,8 @@ class _YtTrackerSettings extends ConsumerWidget {
               ),
               const Divider(height: Gap.lg, color: AppColors.glassEdge),
               const _StatsRefreshRow(),
+              const Divider(height: Gap.lg, color: AppColors.glassEdge),
+              const _VideoOpenModeRow(),
             ],
           ),
         ),
@@ -470,6 +473,85 @@ class _StatsRefreshRowState extends ConsumerState<_StatsRefreshRow> {
 
 /// 膠囊狀加減按鈕裡的其中一顆（2026-09-29 使用者要求：不要「圓圈裡一個
 /// 加減號」那種圖示，改成膠囊裡分兩半點）。
+/// 點影片要內嵌播放還是開新分頁（2026-09-30 使用者要求：預設內嵌，
+/// 設定頁能切回開新分頁）。
+class _VideoOpenModeRow extends ConsumerWidget {
+  const _VideoOpenModeRow();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mode = ref.watch(ytVideoOpenModeProvider);
+
+    Future<void> setMode(YtVideoOpenMode value) async {
+      ref.read(ytVideoOpenModeProvider.notifier).state = value;
+      await YtVideoOpenModeStore(
+        ref.read(keyValueStoreProvider),
+      ).save(value);
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.only(top: 2),
+          child: Icon(
+            Icons.smart_display_outlined,
+            size: 18,
+            color: AppColors.ink2,
+          ),
+        ),
+        const SizedBox(width: Gap.sm),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '點影片時',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.ink,
+                ),
+              ),
+              Text(
+                mode == YtVideoOpenMode.embedded
+                    ? '在 App 裡直接播放（可另外按鈕跳去 YouTube）'
+                    : '開新分頁去 YouTube',
+                style: AppText.note,
+              ),
+              const SizedBox(height: Gap.xs),
+              SegmentedButton<YtVideoOpenMode>(
+                segments: const [
+                  ButtonSegment(
+                    value: YtVideoOpenMode.embedded,
+                    label: Text('內嵌播放'),
+                  ),
+                  ButtonSegment(
+                    value: YtVideoOpenMode.external,
+                    label: Text('開新分頁'),
+                  ),
+                ],
+                selected: {mode},
+                onSelectionChanged: (s) => setMode(s.first),
+                style: SegmentedButton.styleFrom(
+                  backgroundColor: AppColors.glassFill,
+                  foregroundColor: AppColors.ink2,
+                  selectedBackgroundColor: AppColors.accentSolid.withValues(
+                    alpha: 0.28,
+                  ),
+                  selectedForegroundColor: AppColors.ink,
+                  side: const BorderSide(color: AppColors.glassEdge),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _StepperButton extends StatelessWidget {
   const _StepperButton({required this.icon, required this.onTap});
 

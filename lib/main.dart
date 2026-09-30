@@ -9,6 +9,7 @@ import 'data/repositories/app_logo_store.dart';
 import 'data/repositories/error_log_repository.dart';
 import 'data/repositories/yt_api_key_store.dart';
 import 'data/repositories/yt_stats_refresh_setting_store.dart';
+import 'data/repositories/yt_video_open_mode_store.dart';
 import 'data/seed/app_defaults_loader.dart';
 import 'data/storage/platform_store.dart';
 import 'shared/debug/app_log.dart';
@@ -19,38 +20,111 @@ import 'shared/debug/app_log.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   _wireAppLog();
-  final store = await openPlatformStore();
-  // 錯誤日誌持久化：之後的錯誤寫進本機儲存，先把上次留下的讀回來。
-  final errorLog = ErrorLogRepository(store);
-  AppLog.persistError = errorLog.add;
-  AppLog.restore(await errorLog.loadAll());
-  final tagOrder = await loadLibraryTagOrder();
-  // 過期（存進去一週之後）就是 null，跟原本沒存過一樣——見
-  // yt_api_key_store.dart 的說明。
-  final savedYtApiKey = await YtApiKeyStore(store).load();
-  final savedYtStatsRefreshDays = await YtStatsRefreshSettingStore(
-    store,
-  ).load();
-  final savedAppLogoAssetPath = await AppLogoStore(store).load();
-  final r2BucketName = await loadR2BucketName();
-  final savedR2Credentials = await R2CredentialsStore(store).load();
+  // 開機流程整包包進 try/catch（2026-09-30 使用者回報：手機 iOS Safari
+  // 打開 App 一直轉圈轉不出來，除錯日誌完全沒有任何新錯誤）。根因多半
+  // 是 `openPlatformStore()` 內部的 IndexedDB 卡住（iOS Safari 已知
+  // bug，見那邊的說明，現在已經加上逾時）——但這裡開機流程本身完全
+  // 沒有 try/catch，`runApp` 之前任何一步丟例外，畫面就是永遠停在
+  // Flutter 引擎初始化那個轉圈，連錯誤畫面都看不到。現在失敗會顯示
+  // 一個簡單的錯誤畫面，至少讓使用者知道發生什麼事、能怎麼做，不是
+  // 一片空白猜半天。
+  try {
+    final store = await openPlatformStore();
+    // 錯誤日誌持久化：之後的錯誤寫進本機儲存，先把上次留下的讀回來。
+    final errorLog = ErrorLogRepository(store);
+    AppLog.persistError = errorLog.add;
+    AppLog.restore(await errorLog.loadAll());
+    final tagOrder = await loadLibraryTagOrder();
+    // 過期（存進去一週之後）就是 null，跟原本沒存過一樣——見
+    // yt_api_key_store.dart 的說明。
+    final savedYtApiKey = await YtApiKeyStore(store).load();
+    final savedYtStatsRefreshDays = await YtStatsRefreshSettingStore(
+      store,
+    ).load();
+    final savedAppLogoAssetPath = await AppLogoStore(store).load();
+    final savedYtVideoOpenMode = await YtVideoOpenModeStore(store).load();
+    final r2BucketName = await loadR2BucketName();
+    final savedR2Credentials = await R2CredentialsStore(store).load();
 
-  runApp(
-    ProviderScope(
-      overrides: [
-        keyValueStoreProvider.overrideWithValue(store),
-        libraryTagOrderProvider.overrideWithValue(tagOrder),
-        ytApiKeyProvider.overrideWith((ref) => savedYtApiKey),
-        ytStatsRefreshDaysProvider.overrideWith(
-          (ref) => savedYtStatsRefreshDays,
+    runApp(
+      ProviderScope(
+        overrides: [
+          keyValueStoreProvider.overrideWithValue(store),
+          libraryTagOrderProvider.overrideWithValue(tagOrder),
+          ytApiKeyProvider.overrideWith((ref) => savedYtApiKey),
+          ytStatsRefreshDaysProvider.overrideWith(
+            (ref) => savedYtStatsRefreshDays,
+          ),
+          appLogoAssetProvider.overrideWith((ref) => savedAppLogoAssetPath),
+          ytVideoOpenModeProvider.overrideWith((ref) => savedYtVideoOpenMode),
+          r2BucketNameProvider.overrideWithValue(r2BucketName),
+          r2CredentialsProvider.overrideWith((ref) => savedR2Credentials),
+        ],
+        child: const LumeApp(),
+      ),
+    );
+  } catch (e, stack) {
+    AppLog.add('開機失敗：$e\n$stack', isError: true);
+    runApp(_StartupErrorApp(message: '$e'));
+  }
+}
+
+/// 開機流程失敗時的退回畫面——純靜態文字，不依賴任何還沒準備好的
+/// provider／儲存後端，盡量不再出錯。
+class _StartupErrorApp extends StatelessWidget {
+  const _StartupErrorApp({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: Scaffold(
+        backgroundColor: const Color(0xFF0C0C13),
+        body: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.error_outline_rounded,
+                    size: 40,
+                    color: Colors.white70,
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'App 開機失敗',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    message,
+                    style: const TextStyle(
+                      color: Colors.white54,
+                      fontSize: 12,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    '可以先試試：重新整理、關掉其他分頁、或重開瀏覽器',
+                    style: TextStyle(color: Colors.white70, fontSize: 13),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
-        appLogoAssetProvider.overrideWith((ref) => savedAppLogoAssetPath),
-        r2BucketNameProvider.overrideWithValue(r2BucketName),
-        r2CredentialsProvider.overrideWith((ref) => savedR2Credentials),
-      ],
-      child: const LumeApp(),
-    ),
-  );
+      ),
+    );
+  }
 }
 
 /// 把三個錯誤來源都接進 [AppLog]，讓設定頁「查看除錯訊息」看得到

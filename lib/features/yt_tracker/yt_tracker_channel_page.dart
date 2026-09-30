@@ -1047,7 +1047,15 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
         FilterChip(
           label: const Text('隱藏已看過'),
           selected: _hideWatched,
-          onSelected: (v) => setState(() => _hideWatched = v),
+          // 點這顆（不管切成開還是關）都重新讀一次「已看過」清單
+          // （2026-09-30 使用者要求：看了好幾部之後，這個開關本來
+          // 讀進來的清單是舊的，不會包含這個 session 剛看過的，導致
+          // 篩選結果很怪；不用跳出頻道頁再回來才更新，點這顆本身
+          // 就順便刷新）。
+          onSelected: (v) {
+            setState(() => _hideWatched = v);
+            _loadVideoFilters();
+          },
           backgroundColor: AppColors.glassFill,
           selectedColor: AppColors.accentSolid.withValues(alpha: 0.28),
           labelStyle: TextStyle(

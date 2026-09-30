@@ -29,17 +29,44 @@ class _IndexedDbStore implements KeyValueStore {
   final idb.Database _db;
   final Map<String, String> _cache;
 
+  /// 兩段都加逾時（2026-09-30 使用者回報：手機 iOS Safari 開 App 一直
+  /// 轉圈轉不出來，除錯日誌完全沒有任何新錯誤——不是丟例外，是真的卡住
+  /// 沒有回應）。這是 iOS Safari 一個有名的舊 bug：`indexedDB.open()`
+  /// 或游標讀取在瀏覽器背景太久、儲存空間吃緊、或無痕模式底下，可能
+  /// 永遠不 resolve 也不 reject，桌機瀏覽器很少踩到。原本這裡完全沒有
+  /// 逾時保護，卡住就是整個 App 開不起來、連錯誤畫面都看不到。現在逾時
+  /// 會丟出明確例外，讓 `main.dart` 能接住、顯示錯誤畫面，至少不會是
+  /// 一片空白的無限轉圈。
   static Future<_IndexedDbStore> open() async {
     final factory = html.window.indexedDB;
     if (factory == null) throw StateError('IndexedDB unavailable');
-    final db = await factory.open(
-      _dbName,
-      version: 1,
-      onUpgradeNeeded: (e) {
-        final request = e.target as idb.Request;
-        (request.result as idb.Database).createObjectStore(_storeName);
-      },
+    final db = await factory
+        .open(
+          _dbName,
+          version: 1,
+          onUpgradeNeeded: (e) {
+            final request = e.target as idb.Request;
+            (request.result as idb.Database).createObjectStore(_storeName);
+          },
+        )
+        .timeout(
+          const Duration(seconds: 12),
+          onTimeout: () => throw StateError(
+            'IndexedDB 開啟逾時（iOS Safari 已知問題，常見於瀏覽器背景'
+            '太久或無痕模式；試著重新整理，或關掉其他分頁再打開）',
+          ),
+        );
+    final cache = await _readAll(db).timeout(
+      const Duration(seconds: 20),
+      onTimeout: () => throw StateError(
+        'IndexedDB 讀取資料逾時（累積的資料量可能太大，或瀏覽器卡住了；'
+        '試著重新整理）',
+      ),
     );
+    return _IndexedDbStore._(db, cache);
+  }
+
+  static Future<Map<String, String>> _readAll(idb.Database db) async {
     final cache = <String, String>{};
     final txn = db.transaction(_storeName, 'readonly');
     final cursors = txn.objectStore(_storeName).openCursor(autoAdvance: true);
@@ -48,7 +75,7 @@ class _IndexedDbStore implements KeyValueStore {
       if (value is String) cache[cursor.key as String] = value;
     }
     await txn.completed;
-    return _IndexedDbStore._(db, cache);
+    return cache;
   }
 
   Future<void> _put(String key, String value) async {

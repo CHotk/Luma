@@ -15,6 +15,7 @@ import '../data/repositories/sync_log_repository.dart';
 import '../data/repositories/word_repository.dart';
 import '../data/repositories/yt_stats_refresh_setting_store.dart';
 import '../data/repositories/yt_tracker_repository.dart';
+import '../data/repositories/yt_video_open_mode_store.dart';
 import '../data/seed/app_defaults_loader.dart';
 import '../data/seed/word_seed_loader.dart';
 import '../data/storage/key_value_store.dart';
@@ -149,6 +150,14 @@ final ytStatsRefreshDaysProvider = StateProvider<int>(
 /// 要提醒，不然調完忘記存，改動就白調了）。設定頁自己在草稿值改變、
 /// 儲存成功時更新這個旗標，`OtherSettingsPage` 用 [PopScope] 攔截返回。
 final ytStatsRefreshDirtyProvider = StateProvider<bool>((ref) => false);
+
+/// 點影片要內嵌播放還是開新分頁去 YouTube，使用者在設定頁調
+/// （2026-09-30 使用者要求：預設內嵌，不用每次都跳出去開新分頁；跟
+/// [ytApiKeyProvider] 同一套模式，開機時 `main.dart` 讀一次存進去的值
+/// override 進來）。
+final ytVideoOpenModeProvider = StateProvider<YtVideoOpenMode>(
+  (ref) => YtVideoOpenModeStore.defaultMode,
+);
 
 /// 使用者選的 App Logo 資產路徑，null＝沒選過、用預設的
 /// `assets/images/app_logo/logo.png`（2026-09-29 使用者要求：設定頁能換

@@ -8,10 +8,12 @@ import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
 import '../../data/external_link.dart';
 import '../../data/repositories/yt_video_hidden_store.dart';
+import '../../data/repositories/yt_video_open_mode_store.dart';
 import '../../data/repositories/yt_video_watch_store.dart';
 import '../../data/services/youtube_api_service.dart';
 import '../../domain/models/yt_video_watch.dart';
 import '../../shared/widgets/app_notice.dart';
+import 'yt_embedded_player.dart';
 
 /// 開外部連結，失敗就退回複製到剪貼簿——跟匯出檔案失敗退回複製剪貼簿
 /// 同一個處理哲學。
@@ -30,6 +32,69 @@ Future<void> openExternalUrl(BuildContext context, String url) async {
   await Clipboard.setData(ClipboardData(text: url));
   if (!context.mounted) return;
   showAppNotice(context, '打不開連結，已複製到剪貼簿，貼到瀏覽器網址列開', isError: true);
+}
+
+/// 內嵌播放器彈窗（2026-09-30 使用者要求：點影片開新分頁那一刻感覺像
+/// 離開了 App，希望能不用離開直接在裡面看）。右上角留一顆「在 YouTube
+/// 開啟」——使用者原話「反正內嵌的 點一下 也能去yt」：內嵌播放器功能
+/// 陽春（不能按讚、留言、開彈幕），不能把人鎖死在裡面，想要完整功能
+/// 隨時能一鍵跳去真正的 YouTube。
+Future<void> showYtEmbeddedPlayerDialog(
+  BuildContext context, {
+  required String videoId,
+  required String title,
+  required String watchUrl,
+}) {
+  return showDialog<void>(
+    context: context,
+    builder: (dialogContext) => Dialog(
+      backgroundColor: const Color(0xFF1A1A24),
+      insetPadding: const EdgeInsets.all(16),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 640),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 8, 4, 4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.ink,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => openExternalUrl(dialogContext, watchUrl),
+                    icon: const Icon(Icons.open_in_new_rounded, size: 18),
+                    color: AppColors.ink2,
+                    tooltip: '在 YouTube 開啟',
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(dialogContext),
+                    icon: const Icon(Icons.close_rounded, size: 18),
+                    color: AppColors.ink2,
+                    tooltip: '關閉',
+                  ),
+                ],
+              ),
+            ),
+            AspectRatio(
+              aspectRatio: 16 / 9,
+              child: buildYtEmbeddedPlayer(videoId),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 /// 影片列的通用元件：縮圖＋標題＋副標（頻道名稱和/或發布時間），點下去
@@ -113,6 +178,22 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
   }
 
   Future<void> _open() async {
+    if (ref.read(ytVideoOpenModeProvider) == YtVideoOpenMode.embedded) {
+      // 內嵌播放是彈出 App 自己的對話框，不是叫瀏覽器開新分頁，沒有
+      // window.open 那個「必須同步呼叫」的顧慮，可以先標記已看過再開。
+      final record = await YtVideoWatchStore(
+        ref.read(keyValueStoreProvider),
+      ).markOpened(widget.video.videoId);
+      if (mounted) setState(() => _watched = record);
+      if (!context.mounted) return;
+      await showYtEmbeddedPlayerDialog(
+        context,
+        videoId: widget.video.videoId,
+        title: widget.video.title,
+        watchUrl: widget.video.watchUrl,
+      );
+      return;
+    }
     // 開連結一定要是這個函式最先做的事，中間不能先 await 別的東西
     // ——`openExternalUrl` 內部第一步是同步呼叫 `window.open`，手機瀏覽器
     // 只認「使用者手勢觸發後、還沒夾過 await」的呼叫堆疊，先 await 標記
