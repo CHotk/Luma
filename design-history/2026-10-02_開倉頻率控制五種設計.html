@@ -1,0 +1,256 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>開倉頻率控制 五種設計</title><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;800&display=swap" rel="stylesheet"><style>:root{--bg:#0c0c13;--panel:#161622;--panel2:#1e1e2e;--line:#2a2a3d;--text:#eceaf5;--sub:#8b8ba3;--dim:#5d5d72;--acc:#FF2D40;--blue:#2E6BFF;--blueSoft:#7EA6FF;--ok:#5FE08D;--bad:#FF938B;--mid:#F5C763}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-serif;min-height:100vh;padding:32px 16px 48px}
+.intro{max-width:820px;margin:0 auto 30px;text-align:center}
+.eyebrow{color:var(--acc);font-size:12px;letter-spacing:.2em}
+h1{font-size:22px;margin:6px 0}
+.intro p{color:var(--sub);font-size:13px;line-height:1.7}
+.intro b{color:var(--text)}
+.assume{max-width:820px;margin:-12px auto 30px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 16px;font-size:12.5px;color:var(--sub);line-height:1.8}
+.assume b{color:var(--text)}
+.wrap{display:flex;flex-wrap:wrap;gap:40px 28px;justify-content:center;max-width:1800px;margin:0 auto}
+.variant{width:300px}
+.vhead{min-height:150px;margin-bottom:6px}
+.vhead .num{color:var(--acc);font-size:11px;letter-spacing:.15em}
+.vhead h2{font-size:17px;margin:4px 0 6px}
+.vhead p{color:var(--sub);font-size:12.5px;line-height:1.65}
+.tag{display:inline-block;background:var(--acc);color:#fff;border-radius:99px;padding:1px 9px;font-size:10.5px;margin-left:6px;vertical-align:2px}
+.cap{font-size:11px;color:var(--sub);letter-spacing:.1em;margin:14px 0 6px}
+.scr{width:300px;height:520px;flex-shrink:0;border:6px solid #000;border-radius:24px;background:var(--bg);overflow:hidden;position:relative;padding:12px}
+.note{color:var(--sub);font-size:12px;line-height:1.7;margin-top:12px}
+.note b{color:var(--text)}
+.top{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700;margin-bottom:12px}
+.top .burger{width:16px;height:2px;background:var(--sub);box-shadow:0 5px 0 var(--sub),0 -5px 0 var(--sub);margin-right:4px}
+.top em{margin-left:auto;font-style:normal;font-size:11px;color:var(--sub);font-weight:400}
+.card{background:var(--panel);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:12px;margin-bottom:10px}
+.lbl{font-size:10.5px;color:var(--sub);letter-spacing:.06em;margin-bottom:6px}
+.big{font-size:26px;font-weight:800}
+.ok{color:var(--ok)}.bad{color:var(--bad)}.mid{color:var(--mid)}.sub{color:var(--sub)}
+.btn{display:block;text-align:center;border-radius:12px;padding:11px 0;font-size:13.5px;font-weight:700;background:var(--blue);color:#fff}
+.btn.lock{background:rgba(255,255,255,.06);color:var(--dim);border:1px dashed var(--line)}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--sub);font-weight:500}
+.tr{display:flex;align-items:center;gap:8px;font-size:11.5px;padding:7px 0;border-top:1px solid var(--line)}
+.tr:first-of-type{border-top:none}
+.tr .d{color:var(--sub);min-width:38px;flex-shrink:0;white-space:nowrap}
+.tr .p{margin-left:auto;font-weight:700}
+.pill{font-size:9.5px;padding:1px 7px;border-radius:99px;background:rgba(255,255,255,.07);color:var(--sub)}
+.pill.hot{background:rgba(255,147,139,.15);color:var(--bad)}
+.pill.calm{background:rgba(95,224,141,.12);color:var(--ok)}
+/* 月曆熱圖 */
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.cal .h{font-size:9px;color:var(--dim);text-align:center}
+.cal .c{aspect-ratio:1;border-radius:6px;background:rgba(255,255,255,.04);font-size:8.5px;color:var(--dim);padding:2px 3px;position:relative}
+.cal .c b{position:absolute;left:0;right:0;bottom:2px;text-align:center;font-size:8.5px;font-weight:700}
+.cal .c.w1{background:rgba(95,224,141,.22)}.cal .c.w2{background:rgba(95,224,141,.45)}
+.cal .c.l1{background:rgba(255,147,139,.22)}.cal .c.l2{background:rgba(255,147,139,.45)}
+.cal .c.sel{outline:1.5px solid var(--blueSoft)}
+.cal .c.today{outline:1.5px dashed var(--sub)}
+/* 2 票券 */
+.tickets{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:4px 0 10px}
+.tk{height:58px;border-radius:10px;border:1.5px solid var(--blueSoft);background:rgba(126,166,255,.12);display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:10px;color:var(--blueSoft);position:relative}
+.tk b{font-size:15px}
+.tk.used{border-color:var(--line);background:rgba(255,255,255,.03);color:var(--dim)}
+.tk.used::after{content:'';position:absolute;left:8px;right:8px;top:50%;border-top:1.5px solid var(--dim);transform:rotate(-14deg)}
+.tk.frozen{border-color:rgba(142,197,232,.6);background:rgba(142,197,232,.1);color:#8EC5E8}
+/* 3 檢查清單 */
+.chk{display:flex;align-items:flex-start;gap:9px;font-size:12px;padding:7px 0;line-height:1.45}
+.chk i{width:18px;height:18px;border-radius:5px;border:1.5px solid var(--dim);flex-shrink:0;display:grid;place-items:center;font-style:normal;font-size:11px;margin-top:1px}
+.chk i.on{background:var(--ok);border-color:var(--ok);color:#111;font-weight:800}
+.chk i.x{background:var(--bad);border-color:var(--bad);color:#111;font-weight:800}
+.cool{text-align:center;padding:16px 0 6px}
+.ring{width:132px;height:132px;margin:0 auto 10px;position:relative}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring circle{fill:none;stroke-width:9}
+.ring .bgc{stroke:rgba(255,255,255,.07)}
+.ring .fg{stroke-linecap:round}
+.ring .mid{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ring .mid b{font-size:24px;font-weight:800}
+.ring .mid span{font-size:10px;color:var(--sub)}
+/* 4 情緒 */
+.moods{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:6px 0 10px}
+.mo{border-radius:10px;padding:8px 0 6px;text-align:center;font-size:18px;background:rgba(255,255,255,.04);border:1px solid transparent}
+.mo small{display:block;font-size:9.5px;color:var(--sub);margin-top:2px}
+.mo.on{border-color:var(--bad);background:rgba(255,147,139,.1)}
+.cmp{display:flex;gap:8px}
+.cmp>div{flex:1;border-radius:12px;padding:10px;background:rgba(255,255,255,.04)}
+.cmp .t{font-size:10.5px;color:var(--sub)}
+.cmp b{font-size:18px;display:block;margin:2px 0}
+.cmp span{font-size:10px;color:var(--sub)}
+.warn{font-size:11px;line-height:1.6;background:rgba(255,147,139,.1);border:1px solid rgba(255,147,139,.3);color:var(--bad);border-radius:10px;padding:8px 10px;margin-bottom:10px}
+/* 5 儀表 */
+.gauge{position:relative;width:200px;height:110px;margin:4px auto 2px}
+.gauge svg{width:100%;height:100%}
+.gauge .v{position:absolute;left:0;right:0;bottom:4px;text-align:center}
+.gauge .v b{font-size:30px;font-weight:800}
+.gauge .v span{font-size:11px;color:var(--sub)}
+.bars{display:flex;align-items:center;gap:4px;height:120px;position:relative;margin-top:6px}
+.bars::before{content:'';position:absolute;left:0;right:0;top:50%;border-top:1px solid var(--line)}
+.bars div{flex:1;position:relative;height:100%}
+.bars div i{position:absolute;left:15%;right:15%;border-radius:3px}
+.bars div small{position:absolute;bottom:-14px;left:0;right:0;text-align:center;font-size:8.5px;color:var(--dim)}
+.legend{display:flex;justify-content:space-between;font-size:10.5px;color:var(--sub);margin-top:20px}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:#1c1b28;border-top:1px solid rgba(255,255,255,.12);border-radius:20px 20px 0 0;padding:10px 14px 14px}
+.sheet .grab{width:36px;height:4px;border-radius:99px;background:rgba(255,255,255,.2);margin:0 auto 10px}
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.5)}
+</style></head><body>
+
+<div class="intro"><div class="eyebrow">新功能構想 · 投資紀律</div><h1>開倉頻率控制：五種設計</h1><p>目標兩件事：<b>① 管住開倉的手</b>——一個月幾單就夠，特別是賠錢後最容易心急想馬上開下一單（想翻本），App 要在這個時刻擋一下；<b>② 回顧哪一天賺、哪一天虧多少</b>。每一版兩支手機：上面是<b>平常打開／想開倉時</b>，下面是<b>回顧損益</b>。</p></div>
+<div class="assume"><b>先假設的（不對再跟我說）：</b>① 每一單由你自己手動記（開倉日期、方向、平倉後填損益），App 不連交易所；② 金額單位用 USDT；③ 每月上限先抓 <b>6 單</b>、賠錢後冷靜期先抓 <b>24 小時</b>，都可以在設定改；④ 跟現有的「看盤記錄」是<b>分開的新功能</b>（照專案習慣各自一份），名字暫叫「開倉紀律」。</div>
+
+<div class="wrap">
+
+<!-- 1 -->
+<div class="variant"><div class="vhead"><div class="num">版本 1</div><h2>交易日誌＋損益月曆<span class="tag">主流</span></h2><p>交易日誌類 App（Tradervue、Edgewonk、TradingView 損益月曆）的標準做法：上方本月額度條＋損益總數，中間一顆「記一筆開倉」，下面最近幾單；回顧頁是綠賺紅虧的月曆，點一天看那天的單。</p></div>
+<div class="cap">平常打開</div>
+<div class="scr">
+<div class="top"><span class="burger"></span>開倉紀律<em>10 月</em></div>
+<div class="card"><div class="lbl">本月開倉</div><div style="display:flex;align-items:baseline;gap:6px"><span class="big">3</span><span class="sub" style="font-size:13px">/ 6 單</span><span style="margin-left:auto;font-size:13px;font-weight:700" class="ok">+182 USDT</span></div>
+<div style="height:6px;border-radius:99px;background:rgba(255,255,255,.07);margin-top:8px;overflow:hidden"><div style="width:50%;height:100%;background:var(--blueSoft)"></div></div>
+<div style="font-size:10.5px;color:var(--sub);margin-top:6px">還剩 3 單 · 平均一週 1.5 單</div></div>
+<span class="btn">＋ 記一筆開倉</span>
+<div class="card" style="margin-top:10px"><div class="lbl">最近</div>
+<div class="tr"><span class="d">10/01</span>BTC 多<span class="pill">持倉中</span><span class="p sub">—</span></div>
+<div class="tr"><span class="d">09/27</span>ETH 空<span class="p bad">−64</span></div>
+<div class="tr"><span class="d">09/18</span>BTC 多<span class="p ok">+246</span></div>
+</div>
+</div>
+<div class="cap">回顧損益</div>
+<div class="scr">
+<div class="top"><span class="burger"></span>9 月損益<em>‹ ›</em></div>
+<div class="card"><div class="cal">
+<span class="h">日</span><span class="h">一</span><span class="h">二</span><span class="h">三</span><span class="h">四</span><span class="h">五</span><span class="h">六</span>
+<span class="c"></span><span class="c"></span><span class="c">1</span><span class="c l1">2<b class="bad">−40</b></span><span class="c">3</span><span class="c">4</span><span class="c l2">5<b class="bad">−120</b></span>
+<span class="c l1">6<b class="bad">−30</b></span><span class="c">7</span><span class="c">8</span><span class="c w1">9<b class="ok">+55</b></span><span class="c">10</span><span class="c">11</span><span class="c">12</span>
+<span class="c">13</span><span class="c">14</span><span class="c">15</span><span class="c">16</span><span class="c">17</span><span class="c w2 sel">18<b class="ok">+246</b></span><span class="c">19</span>
+<span class="c">20</span><span class="c">21</span><span class="c">22</span><span class="c">23</span><span class="c">24</span><span class="c">25</span><span class="c">26</span>
+<span class="c l1">27<b class="bad">−64</b></span><span class="c">28</span><span class="c">29</span><span class="c">30</span>
+</div></div>
+<div class="card"><div class="lbl">9/18（五）</div><div class="tr"><span class="d">21:40</span>BTC 多 · 持倉 2 天<span class="p ok">+246</span></div></div>
+<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--sub);padding:0 4px">本月 6 單 · 勝 2 敗 4<b class="ok">+47 USDT</b></div>
+</div>
+<p class="note"><b>優點：</b>大家都這樣做，記錄、回顧一套到底；月曆一眼看出「5、6 號連虧之後是不是亂開」。<b>缺點：</b>只是「記」，沒有真的擋你；心急時看到還有額度一樣會按下去。</p></div>
+
+<!-- 2 -->
+<div class="variant"><div class="vhead"><div class="num">版本 2</div><h2>每月開倉券</h2><p>每個月初發 6 張「開倉券」，開一單撕一張，撕完就沒了。賠錢那單平倉後，下一張券會先「凍結」24 小時才能用，讓額度變得很具體、捨不得亂花。</p></div>
+<div class="cap">剛賠一單時</div>
+<div class="scr">
+<div class="top"><span class="burger"></span>開倉紀律<em>10 月</em></div>
+<div class="lbl">本月開倉券 · 剩 3 張</div>
+<div class="tickets">
+<div class="tk used"><b>1</b>10/01</div><div class="tk used"><b>2</b>10/05</div><div class="tk used"><b>3</b>10/09</div>
+<div class="tk frozen"><b>❄ 4</b>凍結 18:22</div><div class="tk"><b>5</b>可用</div><div class="tk"><b>6</b>可用</div>
+</div>
+<div class="card" style="font-size:12px;line-height:1.6"><b class="bad">剛剛 ETH 空單 −64</b><br><span class="sub">第 4 張券凍結到明天 14:30。現在想開，多半是想把剛剛那 64 賺回來。</span></div>
+<span class="btn lock">❄ 凍結中，18 小時後可用</span>
+<div style="font-size:10.5px;color:var(--dim);text-align:center;margin-top:8px">凍結期間「記一筆」照樣能補登，只是不算正常開倉</div>
+</div>
+<div class="cap">回顧損益</div>
+<div class="scr">
+<div class="top"><span class="burger"></span>9 月 · 用了 6 張<em>‹ ›</em></div>
+<div class="card"><div class="lbl">每張券的結果</div>
+<div class="tr"><span class="d">#1 9/02</span>BTC 多<span class="p bad">−40</span></div>
+<div class="tr"><span class="d">#2 9/05</span>BTC 空<span class="pill hot">凍結中硬開</span><span class="p bad">−120</span></div>
+<div class="tr"><span class="d">#3 9/06</span>ETH 多<span class="pill hot">凍結中硬開</span><span class="p bad">−30</span></div>
+<div class="tr"><span class="d">#4 9/09</span>SOL 多<span class="p ok">+55</span></div>
+<div class="tr"><span class="d">#5 9/18</span>BTC 多<span class="p ok">+246</span></div>
+<div class="tr"><span class="d">#6 9/27</span>ETH 空<span class="p bad">−64</span></div>
+</div>
+<div class="card"><div class="lbl">正常開 vs 凍結中硬開</div><div style="display:flex;justify-content:space-between;font-size:12px"><span>正常 4 單 <b class="ok">+197</b></span><span>硬開 2 單 <b class="bad">−150</b></span></div></div>
+</div>
+<p class="note"><b>優點：</b>額度看得見、摸得到，「撕券」的感覺比數字更有約束力；凍結直接對準「賠錢後心急」這個痛點。<b>缺點：</b>App 擋不了你去交易所下單，只能靠自己誠實補登；券的比喻有點遊戲化，不喜歡的人會覺得幼稚。</p></div>
+
+<!-- 3 -->
+<div class="variant"><div class="vhead"><div class="num">版本 3</div><h2>開倉前檢查＋虧損冷靜倒數</h2><p>按「我要開倉」不會馬上讓你記，先跳一張檢查清單：符合計畫嗎、停損設了嗎、是不是剛賠錢？剛賠過的話直接進冷靜倒數（跟看盤記錄的冷靜按鈕同概念），倒數完才放行。</p></div>
+<div class="cap">剛賠錢就按「我要開倉」</div>
+<div class="scr">
+<div class="top"><span class="burger"></span>開倉前檢查</div>
+<div class="card">
+<div class="chk"><i class="on">✓</i>這單在我本週的計畫裡</div>
+<div class="chk"><i class="on">✓</i>停損價已經想好</div>
+<div class="chk"><i class="x">!</i><span>距離上一單虧損不到 24 小時<br><span class="bad" style="font-size:10.5px">9/27 ETH 空 −64 · 6 小時前</span></span></div>
+<div class="chk"><i></i>本月還有額度（3 / 6）</div>
+</div>
+<div class="cool"><div class="ring"><svg viewBox="0 0 100 100"><circle class="bgc" cx="50" cy="50" r="42"/><circle class="fg" cx="50" cy="50" r="42" stroke="#F5C763" stroke-dasharray="264" stroke-dashoffset="66"/></svg><div class="mid"><b>18:00</b><span>冷靜中</span></div></div>
+<div style="font-size:11.5px;color:var(--sub);line-height:1.6;padding:0 10px">倒數完才能記這單。<br>真的有好機會，明天它還會在。</div></div>
+<span class="btn ghost" style="margin-top:8px">我知道了，先不開</span>
+</div>
+<div class="cap">回顧損益</div>
+<div class="scr">
+<div class="top"><span class="burger"></span>9 月回顧<em>‹ ›</em></div>
+<div class="card"><div class="lbl">每天損益</div>
+<div class="tr"><span class="d">9/02</span>1 單<span class="p bad">−40</span></div>
+<div class="tr"><span class="d">9/05</span>1 單<span class="pill hot">略過冷靜</span><span class="p bad">−120</span></div>
+<div class="tr"><span class="d">9/06</span>1 單<span class="pill hot">略過冷靜</span><span class="p bad">−30</span></div>
+<div class="tr"><span class="d">9/09</span>1 單<span class="p ok">+55</span></div>
+<div class="tr"><span class="d">9/18</span>1 單<span class="p ok">+246</span></div>
+<div class="tr"><span class="d">9/27</span>1 單<span class="p bad">−64</span></div>
+</div>
+<div class="card"><div class="lbl">冷靜成績</div><div style="font-size:12px;line-height:1.8">冷靜期擋下 <b>4 次</b>想開倉<br>略過冷靜硬開 <b class="bad">2 次，共 −150</b><br><span class="sub">守住冷靜的單：4 單 +197</span></div></div>
+</div>
+<p class="note"><b>優點：</b>擋在「按下去之前」，最直接對付心急；冷靜倒數你在看盤記錄已經用過，習慣一致；回顧時還能看「擋下幾次」。<b>缺點：</b>每次開倉多一道手續，要是真的有計畫內的好單也得等；略過鍵怎麼設計要拿捏（太難按會想直接不記）。</p></div>
+
+<!-- 4 -->
+<div class="variant"><div class="vhead"><div class="num">版本 4</div><h2>情緒標記：看見「心急單」的代價</h2><p>不硬擋，改成每次開倉選一個當下情緒（冷靜／普通／心急／想翻本）。回顧時把「心急＋想翻本」的單跟「冷靜」的單分開算，讓數字自己告訴你哪種單在賠錢。</p></div>
+<div class="cap">記一筆開倉</div>
+<div class="scr">
+<div class="top"><span class="burger"></span>記一筆開倉</div>
+<div class="warn">⚠ 上一單 6 小時前虧 64。過去「虧損後 24 小時內」開的 5 單，賠了 4 單。</div>
+<div class="lbl">現在的心情</div>
+<div class="moods"><div class="mo">😌<small>冷靜</small></div><div class="mo">🙂<small>普通</small></div><div class="mo">😤<small>心急</small></div><div class="mo on">🔥<small>想翻本</small></div></div>
+<div class="card" style="font-size:12px;line-height:2"><span class="sub">幣種</span>　BTC<br><span class="sub">方向</span>　多<br><span class="sub">理由</span>　<span class="dim">（選填）</span></div>
+<span class="btn">記下這單</span>
+<div style="font-size:10.5px;color:var(--sub);text-align:center;margin-top:8px">本月第 4 單 / 6</div>
+</div>
+<div class="cap">回顧損益</div>
+<div class="scr">
+<div class="top"><span class="burger"></span>近 3 個月<em>18 單</em></div>
+<div class="cmp" style="margin-bottom:10px">
+<div><div class="t">😌🙂 冷靜／普通</div><b class="ok">+612</b><span>11 單 · 勝率 64%</span></div>
+<div style="background:rgba(255,147,139,.08)"><div class="t">😤🔥 心急／想翻本</div><b class="bad">−385</b><span>7 單 · 勝率 14%</span></div>
+</div>
+<div class="card"><div class="lbl">9 月每天</div>
+<div class="tr"><span class="d">9/05</span>🔥 BTC 空<span class="p bad">−120</span></div>
+<div class="tr"><span class="d">9/06</span>😤 ETH 多<span class="p bad">−30</span></div>
+<div class="tr"><span class="d">9/09</span>😌 SOL 多<span class="p ok">+55</span></div>
+<div class="tr"><span class="d">9/18</span>😌 BTC 多<span class="p ok">+246</span></div>
+<div class="tr"><span class="d">9/27</span>🙂 ETH 空<span class="p bad">−64</span></div>
+</div>
+</div>
+<p class="note"><b>優點：</b>不囉嗦、不擋人，但用你自己的數字說服你（「想翻本」勝率 14%）比任何規則都有力；資料累積越久越準。<b>缺點：</b>前一兩個月單太少，數字還看不出差別；真的心急時可能不會誠實選「想翻本」。</p></div>
+
+<!-- 5 -->
+<div class="variant"><div class="vhead"><div class="num">版本 5</div><h2>一頁儀表板：額度半圓＋每日損益條</h2><p>打開只有一頁：上面半圓儀表顯示本月用了幾單（超過就變紅），下面是這個月每天的損益長條（綠往上、紅往下）；點長條看那天的單，記錄從右下角按鈕叫出。</p></div>
+<div class="cap">平常打開</div>
+<div class="scr">
+<div class="top"><span class="burger"></span>開倉紀律<em>10 月</em></div>
+<div class="card" style="text-align:center"><div class="gauge"><svg viewBox="0 0 200 110"><path d="M15 100 A85 85 0 0 1 185 100" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="14" stroke-linecap="round"/><path d="M15 100 A85 85 0 0 1 100 15" fill="none" stroke="#7EA6FF" stroke-width="14" stroke-linecap="round"/><path d="M155 32 A85 85 0 0 1 185 100" fill="none" stroke="rgba(255,147,139,.35)" stroke-width="14" stroke-linecap="butt" stroke-dasharray="3 4"/></svg><div class="v"><b>3</b><span> / 6 單</span></div></div>
+<div style="font-size:11px;color:var(--sub)">虛線紅區＝超過計畫 · 上一單虧損後 <b class="mid">冷靜中 18h</b></div></div>
+<div class="card"><div class="lbl">10 月每天損益 <span style="float:right" class="ok">+182</span></div>
+<div class="bars">
+<div><i style="bottom:50%;height:30%;background:var(--ok)"></i><small>1</small></div>
+<div></div><div></div>
+<div><i style="top:50%;height:12%;background:var(--bad)"></i><small>4</small></div>
+<div></div>
+<div><i style="bottom:50%;height:9%;background:var(--ok)"></i><small>6</small></div>
+<div></div><div></div>
+<div><i style="top:50%;height:18%;background:var(--bad)"></i><small>9</small></div>
+<div></div><div></div><div></div>
+</div>
+<div class="legend"><span>10/01</span><span>今天 10/12</span></div></div>
+<span class="btn" style="position:absolute;right:14px;bottom:14px;border-radius:99px;width:48px;height:48px;padding:0;line-height:48px;font-size:22px">＋</span>
+</div>
+<div class="cap">點 10/09 那根長條</div>
+<div class="scr">
+<div class="top"><span class="burger"></span>開倉紀律<em>10 月</em></div>
+<div class="card" style="opacity:.5;height:150px"></div>
+<div class="card" style="opacity:.5;height:180px"></div>
+<div class="scrim"></div>
+<div class="sheet"><div class="grab"></div><div style="font-size:14px;font-weight:700;margin-bottom:2px">10/09（五）</div><div style="font-size:11px;color:var(--sub);margin-bottom:8px">1 單 · <span class="bad">−64 USDT</span></div>
+<div class="tr"><span class="d">14:30</span>ETH 空 · 持倉 5 小時<span class="p bad">−64</span></div>
+<div class="tr"><span class="d"></span><span class="sub">理由：跌破支撐，結果假跌破</span></div>
+<span class="btn ghost" style="margin-top:10px">編輯這單</span></div>
+</div>
+<p class="note"><b>優點：</b>最簡潔，一眼看完「用了幾單、這個月賺虧走勢」；儀表的紅區很直觀。<b>缺點：</b>資訊量少，要細看要多點一下；長條在單很少的月份看起來空空的。</p></div>
+
+</div>
+</body></html>
