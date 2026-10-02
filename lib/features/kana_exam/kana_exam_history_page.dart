@@ -18,6 +18,7 @@ import '../../shared/widgets/app_confirm_dialog.dart';
 import '../../shared/widgets/app_notice.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
+import '../../shared/widgets/bubble_menu.dart';
 import '../kana_practice/kana_paper.dart';
 
 /// 手寫考試的歷史紀錄。跟 [KanaPracticeHistoryPage] 是同一套結構、
@@ -88,60 +89,32 @@ class _KanaExamHistoryPageState extends ConsumerState<KanaExamHistoryPage> {
     showAppNotice(context, '已清空所有考試紀錄');
   }
 
-  Future<void> _editEntry(KanaExamEntry entry) async {
-    final action = await showModalBottomSheet<_EntryAction>(
-      context: context,
-      backgroundColor: const Color(0xFF1A1A24),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (sheetContext) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: Gap.sm),
-            Text(
-              '${entry.kana}（${entry.romaji}）',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: AppColors.ink,
-              ),
-            ),
-            const SizedBox(height: Gap.sm),
-            ListTile(
-              leading: const Icon(
-                Icons.check_circle_rounded,
-                color: AppColors.ok,
-              ),
-              title: const Text(
-                '標記為答對',
-                style: TextStyle(color: AppColors.ink),
-              ),
-              onTap: () =>
-                  Navigator.pop(sheetContext, _EntryAction.markCorrect),
-            ),
-            ListTile(
-              leading: const Icon(Icons.cancel_rounded, color: AppColors.bad),
-              title: const Text(
-                '標記為答錯',
-                style: TextStyle(color: AppColors.ink),
-              ),
-              onTap: () =>
-                  Navigator.pop(sheetContext, _EntryAction.markIncorrect),
-            ),
-            ListTile(
-              leading: const Icon(Icons.delete_outline, color: AppColors.bad),
-              title: const Text(
-                '刪除這筆紀錄',
-                style: TextStyle(color: AppColors.bad),
-              ),
-              onTap: () => Navigator.pop(sheetContext, _EntryAction.delete),
-            ),
-            const SizedBox(height: Gap.sm),
-          ],
+  /// 長按一筆答題：卡片上方跳出泡泡選單（全 App 統一的長按選單，見
+  /// [showBubbleMenu]），可以改成答對／答錯或刪除。
+  Future<void> _editEntry(KanaExamEntry entry, Rect anchor) async {
+    final action = await showBubbleMenu<_EntryAction>(
+      context,
+      anchor: anchor,
+      items: const [
+        BubbleMenuItem(
+          value: _EntryAction.markCorrect,
+          icon: Icons.check_circle_rounded,
+          label: '答對',
+          iconColor: AppColors.ok,
         ),
-      ),
+        BubbleMenuItem(
+          value: _EntryAction.markIncorrect,
+          icon: Icons.cancel_rounded,
+          label: '答錯',
+          iconColor: AppColors.mid,
+        ),
+        BubbleMenuItem(
+          value: _EntryAction.delete,
+          icon: Icons.delete_outline_rounded,
+          label: '刪除',
+          destructive: true,
+        ),
+      ],
     );
     if (action == null) return;
 
@@ -427,7 +400,7 @@ class _RoundCard extends StatefulWidget {
 
   /// 同一輪的所有題目，呼叫端已經是新到舊排序。
   final List<KanaExamEntry> entries;
-  final void Function(KanaExamEntry entry) onEditEntry;
+  final void Function(KanaExamEntry entry, Rect anchor) onEditEntry;
 
   @override
   State<_RoundCard> createState() => _RoundCardState();
@@ -522,7 +495,8 @@ class _RoundCardState extends State<_RoundCard> {
                   for (final entry in entries) ...[
                     _EntryCard(
                       entry: entry,
-                      onLongPress: () => widget.onEditEntry(entry),
+                      onLongPress: (anchor) =>
+                          widget.onEditEntry(entry, anchor),
                     ),
                     if (entry != entries.last) const SizedBox(height: Gap.xs),
                   ],
@@ -556,8 +530,9 @@ class _EntryCard extends StatelessWidget {
   final KanaExamEntry entry;
 
   /// 長按跳出操作選單：標記答對／答錯（真的改資料，不只是畫面上換
-  /// 圖示）、刪除這筆紀錄（2026-09-21 使用者要求）。
-  final VoidCallback onLongPress;
+  /// 圖示）、刪除這筆紀錄（2026-09-21 使用者要求）。傳入這張卡片在
+  /// 螢幕上的範圍，泡泡選單的尖角才對得準它。
+  final void Function(Rect anchor) onLongPress;
 
   @override
   Widget build(BuildContext context) {
@@ -581,7 +556,7 @@ class _EntryCard extends StatelessWidget {
         context: context,
         builder: (_) => _ExamReplayDialog(entry: entry),
       ),
-      onLongPress: onLongPress,
+      onLongPress: () => onLongPress(bubbleAnchorOf(context)),
       borderRadius: BorderRadius.circular(12),
       child: Container(
         padding: const EdgeInsets.all(Gap.sm),

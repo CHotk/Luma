@@ -20,6 +20,7 @@ import '../../shared/widgets/app_confirm_dialog.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
 import '../../shared/widgets/background_refresh.dart';
+import '../../shared/widgets/bubble_menu.dart';
 import '../../shared/widgets/inline_empty_card.dart';
 import 'yt_api_key_dialog.dart';
 import 'yt_channel_avatar.dart';
@@ -1574,83 +1575,73 @@ class _ChannelGridState extends State<_ChannelGrid> {
         : isCold
         ? AppColors.ytColdAccent
         : null;
-    // 長按整張卡片、或點右邊 ⋮，都在按的位置旁邊跳出同一份選單
-    // （2026-09-24 加長按；2026-10-02 使用者嫌原本灰底純文字的選單醜，
-    // 見 [_showChannelMenu]）。
-    return GestureDetector(
-      onLongPressStart: (d) => _showChannelMenu(context, d.globalPosition, c),
-      child: InkWell(
-        onTap: () => widget.onOpen(c),
-        borderRadius: BorderRadius.circular(Radii.card),
-        // 裁成卡片圓角，左側色條才會順著圓角收邊，不會凸出去。
-        child: ClipRRect(
+    // 長按整張卡片、或點右邊 ⋮，都在這張卡片上方跳出同一條泡泡選單
+    // （2026-09-24 加長按；2026-10-02 改成泡泡橫列，見 [_showChannelMenu]）。
+    // 用 Builder 拿到卡片自己的 context，泡泡的尖角才對得準這張卡片。
+    return Builder(
+      builder: (cardContext) => GestureDetector(
+        onLongPress: () => _showChannelMenu(cardContext, c),
+        child: InkWell(
+          onTap: () => widget.onOpen(c),
           borderRadius: BorderRadius.circular(Radii.card),
-          child: Stack(
-            children: [
-              Container(
-                // 有色條（置頂／冷藏）的左邊多留一點，讓出色條的位置。
-                padding: EdgeInsets.fromLTRB(
-                  stripColor != null ? 13 : 10,
-                  10,
-                  4,
-                  10,
-                ),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(Radii.card),
-                  color: AppColors.glassFill,
-                  border: Border.all(color: AppColors.glassEdge),
-                ),
-                child: Row(
-                  children: [
-                    // 冷藏的頭像跟名稱淡一點，一眼看得出是「收起來的」。
-                    Opacity(
-                      opacity: isCold ? 0.6 : 1,
-                      child: YtChannelAvatar(channel: c, radius: 17),
-                    ),
-                    const SizedBox(width: Gap.sm),
-                    Expanded(
-                      child: Opacity(
+          // 裁成卡片圓角，左側色條才會順著圓角收邊，不會凸出去。
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(Radii.card),
+            child: Stack(
+              children: [
+                Container(
+                  // 有色條（置頂／冷藏）的左邊多留一點，讓出色條的位置。
+                  padding: EdgeInsets.fromLTRB(
+                    stripColor != null ? 13 : 10,
+                    10,
+                    4,
+                    10,
+                  ),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(Radii.card),
+                    color: AppColors.glassFill,
+                    border: Border.all(color: AppColors.glassEdge),
+                  ),
+                  child: Row(
+                    children: [
+                      // 冷藏的頭像跟名稱淡一點，一眼看得出是「收起來的」。
+                      Opacity(
                         opacity: isCold ? 0.6 : 1,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              c.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.ink,
-                              ),
-                            ),
-                            if (c.subscriberLabel != null) ...[
-                              const SizedBox(height: 4),
+                        child: YtChannelAvatar(channel: c, radius: 17),
+                      ),
+                      const SizedBox(width: Gap.sm),
+                      Expanded(
+                        child: Opacity(
+                          opacity: isCold ? 0.6 : 1,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
                               Text(
-                                c.subscriberLabel!,
+                                c.name,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: AppText.note,
+                                style: const TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.ink,
+                                ),
                               ),
+                              if (c.subscriberLabel != null) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  c.subscriberLabel!,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: AppText.note,
+                                ),
+                              ],
                             ],
-                          ],
+                          ),
                         ),
                       ),
-                    ),
-                    // 選單從 ⋮ 按鈕本身的位置跳出來，用按鈕自己的 context
-                    // 算座標（外層卡片的 context 會算成卡片的位置）。
-                    Builder(
-                      builder: (buttonContext) => IconButton(
-                        onPressed: () {
-                          final box =
-                              buttonContext.findRenderObject() as RenderBox;
-                          _showChannelMenu(
-                            context,
-                            box.localToGlobal(box.size.bottomLeft(Offset.zero)),
-                            c,
-                          );
-                        },
+                      IconButton(
+                        onPressed: () => _showChannelMenu(cardContext, c),
                         icon: const Icon(Icons.more_vert_rounded, size: 18),
                         color: AppColors.ink2,
                         padding: EdgeInsets.zero,
@@ -1660,109 +1651,73 @@ class _ChannelGridState extends State<_ChannelGrid> {
                         ),
                         tooltip: '更多',
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              if (widget.showDiscoveredBadge && c.discoveredVia.isNotEmpty)
-                Positioned(
-                  top: 4,
-                  right: 4,
-                  child: _DiscoveredViaBadge(text: c.discoveredVia),
-                ),
-              // 左側色條：置頂金色（2026-09-30 使用者選的「左側色條」）、
-              // 冷藏冰藍色（2026-10-02），一暖一冷，普通頻道沒有色條。
-              if (stripColor != null)
-                Positioned(
-                  left: 0,
-                  top: 0,
-                  bottom: 0,
-                  child: SizedBox(
-                    width: 3,
-                    child: ColoredBox(color: stripColor),
+                    ],
                   ),
                 ),
-            ],
+                if (widget.showDiscoveredBadge && c.discoveredVia.isNotEmpty)
+                  Positioned(
+                    top: 4,
+                    right: 4,
+                    child: _DiscoveredViaBadge(text: c.discoveredVia),
+                  ),
+                // 左側色條：置頂金色（2026-09-30 使用者選的「左側色條」）、
+                // 冷藏冰藍色（2026-10-02），一暖一冷，普通頻道沒有色條。
+                if (stripColor != null)
+                  Positioned(
+                    left: 0,
+                    top: 0,
+                    bottom: 0,
+                    child: SizedBox(
+                      width: 3,
+                      child: ColoredBox(color: stripColor),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  /// 頻道操作選單，在手指長按的位置（或 ⋮ 按鈕旁邊）直接跳出來，跟手機
-  /// 原生的長按選單一樣（2026-10-02 使用者要求：不要從底部滑出的面板，
-  /// 要正常跳出來的選單）。原本 Material 預設選單是灰底純文字很醜，這裡
-  /// 換成深色圓角、每個動作配圖示，置頂／冷藏用各自的區域色，刪除紅字、
-  /// 前面一條分隔線隔開，降低誤觸。
-  Future<void> _showChannelMenu(
-    BuildContext context,
-    Offset position,
-    YtChannel c,
-  ) async {
+  /// 頻道操作選單：泡泡橫列（LINE／微信長按訊息那種），浮在這張卡片
+  /// 上方、尖角指向它，刪除在最右邊用分隔線隔開（2026-10-02 使用者從
+  /// 長按選單設計稿挑的，全 App 共用 [showBubbleMenu]）。置頂／冷藏用
+  /// 各自的區域色。
+  Future<void> _showChannelMenu(BuildContext cardContext, YtChannel c) async {
     final isPinned = c.pinnedAt != null;
     final isCold = c.coldAt != null;
-    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
-
-    PopupMenuItem<_ChannelMenuAction> item(
-      _ChannelMenuAction value,
-      IconData icon,
-      String label, {
-      Color color = AppColors.ink,
-      Color? iconColor,
-    }) => PopupMenuItem(
-      value: value,
-      height: 44,
-      child: Row(
-        children: [
-          Icon(icon, size: 19, color: iconColor ?? color),
-          const SizedBox(width: 12),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: color,
-            ),
-          ),
-        ],
-      ),
-    );
-
-    final action = await showMenu<_ChannelMenuAction>(
-      context: context,
-      position: RelativeRect.fromRect(
-        position & const Size(1, 1),
-        Offset.zero & overlay.size,
-      ),
-      color: const Color(0xFF23232F),
-      elevation: 10,
-      shadowColor: Colors.black,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: const BorderSide(color: AppColors.glassEdge),
-      ),
-      constraints: const BoxConstraints(minWidth: 184),
+    final action = await showBubbleMenu<_ChannelMenuAction>(
+      cardContext,
+      anchor: bubbleAnchorOf(cardContext),
       items: [
-        item(_ChannelMenuAction.edit, Icons.edit_outlined, '編輯頻道資料'),
-        item(_ChannelMenuAction.move, Icons.folder_open_rounded, '移到其他分類'),
-        item(
-          _ChannelMenuAction.pin,
-          isPinned ? Icons.push_pin_outlined : Icons.push_pin_rounded,
-          isPinned ? '取消置頂' : '置頂',
+        const BubbleMenuItem(
+          value: _ChannelMenuAction.edit,
+          icon: Icons.edit_outlined,
+          label: '編輯',
+        ),
+        const BubbleMenuItem(
+          value: _ChannelMenuAction.move,
+          icon: Icons.folder_open_rounded,
+          label: '移動',
+        ),
+        BubbleMenuItem(
+          value: _ChannelMenuAction.pin,
+          icon: isPinned ? Icons.push_pin_outlined : Icons.push_pin_rounded,
+          label: isPinned ? '取消置頂' : '置頂',
           iconColor: AppColors.ytPinAccent,
         ),
-        item(
-          _ChannelMenuAction.cold,
-          Icons.ac_unit_rounded,
-          isCold ? '移出$ytColdSectionLabel' : '放進$ytColdSectionLabel',
+        BubbleMenuItem(
+          value: _ChannelMenuAction.cold,
+          icon: Icons.ac_unit_rounded,
+          label: isCold ? '取消$ytColdSectionLabel' : ytColdSectionLabel,
           iconColor: AppColors.ytColdAccent,
         ),
-        const PopupMenuDivider(height: 9),
-        item(
-          _ChannelMenuAction.delete,
-          Icons.delete_outline_rounded,
-          '刪除',
-          color: AppColors.bad,
+        const BubbleMenuItem(
+          value: _ChannelMenuAction.delete,
+          icon: Icons.delete_outline_rounded,
+          label: '刪除',
+          destructive: true,
         ),
       ],
     );
