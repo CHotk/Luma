@@ -1,0 +1,179 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>同步上方通知 五種風格</title><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;800&display=swap" rel="stylesheet"><style>:root{--bg:#0c0c13;--panel:#161622;--panel2:#1e1e2e;--line:#2a2a3d;--text:#eceaf5;--sub:#8b8ba3;--dim:#5d5d72;--acc:#FF2D40;--blue:#2E6BFF;--blueSoft:#7EA6FF;--ok:#5FE08D;--bad:#FF938B}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-serif;min-height:100vh;padding:32px 16px 48px}
+.intro{max-width:800px;margin:0 auto 30px;text-align:center}
+.eyebrow{color:var(--acc);font-size:12px;letter-spacing:.2em}
+h1{font-size:22px;margin:6px 0}
+.intro p{color:var(--sub);font-size:13px;line-height:1.7}
+.intro b{color:var(--text)}
+.wrap{display:flex;flex-wrap:wrap;gap:40px 28px;justify-content:center;max-width:1800px;margin:0 auto}
+.variant{width:300px}
+.vhead{min-height:138px;margin-bottom:6px}
+.vhead .num{color:var(--acc);font-size:11px;letter-spacing:.15em}
+.vhead h2{font-size:17px;margin:4px 0 6px}
+.vhead p{color:var(--sub);font-size:12.5px;line-height:1.65}
+.tag{display:inline-block;background:var(--acc);color:#fff;border-radius:99px;padding:1px 9px;font-size:10.5px;margin-left:6px;vertical-align:2px}
+.tag.now{background:var(--panel2);color:var(--sub);border:1px solid var(--line)}
+.cap{font-size:11px;color:var(--sub);letter-spacing:.1em;margin:14px 0 6px}
+.scr{width:300px;height:360px;flex-shrink:0;border:6px solid #000;border-radius:24px;background:var(--bg);overflow:hidden;position:relative}
+.note{color:var(--sub);font-size:12px;line-height:1.7;margin-top:12px}
+.note b{color:var(--text)}
+/* 底下的假頁面：首頁 */
+.pg{padding:34px 12px 12px}
+.pg .ttl{font-size:15px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.pg .ttl .burger{width:16px;height:2px;background:var(--sub);box-shadow:0 5px 0 var(--sub),0 -5px 0 var(--sub);margin-right:4px}
+.card{background:var(--panel);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:10px 12px;margin-bottom:8px}
+.card b{display:block;font-size:12px}
+.card span{font-size:10.5px;color:var(--sub)}
+.status{position:absolute;top:8px;left:16px;right:16px;display:flex;justify-content:space-between;font-size:10px;color:var(--sub)}
+/* 1 系統通知橫幅 */
+.sysn{position:absolute;left:8px;right:8px;top:24px;background:rgba(48,48,58,.86);backdrop-filter:blur(18px);border-radius:18px;padding:10px 12px;display:flex;gap:10px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.appic{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#7EA6FF,#2E6BFF);display:grid;place-items:center;font-size:15px;font-weight:800;flex-shrink:0}
+.sysn .bd{flex:1;min-width:0}
+.sysn .top{display:flex;font-size:10px;color:#c8c8d4}
+.sysn .top em{margin-left:auto;font-style:normal}
+.sysn b{display:block;font-size:12.5px;margin:2px 0 1px}
+.sysn span{font-size:11.5px;color:#dedde6;line-height:1.45}
+.grabber{position:absolute;left:50%;transform:translateX(-50%);width:32px;height:4px;border-radius:99px;background:rgba(255,255,255,.3)}
+/* 詳細面板（點開之後） */
+.sheet{position:absolute;left:0;right:0;bottom:0;background:#1c1b28;border-top:1px solid rgba(255,255,255,.12);border-radius:20px 20px 0 0;padding:10px 16px 16px}
+.sheet .grab{width:36px;height:4px;border-radius:99px;background:rgba(255,255,255,.2);margin:0 auto 12px}
+.sheet h3{font-size:14px;margin-bottom:2px}
+.sheet .sub{font-size:10.5px;color:var(--sub);margin-bottom:10px}
+.li{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line);font-size:12px}
+.li:first-of-type{border-top:none}
+.li .ic{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;font-size:13px;background:rgba(126,166,255,.14)}
+.li .n{margin-left:auto;color:var(--ok);font-weight:700;font-size:12px}
+.li .go{color:var(--dim);margin-left:8px}
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.5)}
+/* 2 目前提示 */
+.topnote{position:absolute;left:12px;right:12px;background:rgba(20,18,32,.88);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.14);border-radius:14px;padding:11px 13px;font-size:12px;display:flex;align-items:flex-start;gap:9px;box-shadow:0 6px 18px rgba(0,0,0,.4);line-height:1.5}
+.topnote i{font-style:normal;width:18px;height:18px;border-radius:50%;border:1.6px solid currentColor;display:grid;place-items:center;font-size:10px;flex-shrink:0;margin-top:1px}
+.okc{color:var(--ok)}
+.badc{color:var(--bad)}
+.topnote small{display:block;color:var(--sub);font-size:10.5px}
+/* 3 動態島 */
+.island{position:absolute;left:50%;transform:translateX(-50%);top:8px;background:#000;border-radius:24px;box-shadow:0 8px 24px rgba(0,0,0,.6)}
+.island.small{padding:6px 14px 6px 8px;display:flex;align-items:center;gap:8px;font-size:11.5px;white-space:nowrap}
+.island.big{width:276px;padding:12px 14px 12px;border-radius:26px}
+.cloud{width:22px;height:22px;border-radius:50%;background:rgba(95,224,141,.16);color:var(--ok);display:grid;place-items:center;font-size:11px;flex-shrink:0}
+.island.big .hdr{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;margin-bottom:10px}
+.island.big .hdr em{margin-left:auto;font-style:normal;font-weight:400;font-size:10px;color:var(--sub)}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.tile{background:#15151d;border-radius:12px;padding:8px 6px;text-align:center}
+.tile b{display:block;font-size:16px;color:var(--ok)}
+.tile span{font-size:10px;color:var(--sub)}
+/* 4 堆疊 */
+.stk{position:absolute;left:10px;right:10px;background:rgba(28,27,40,.92);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:9px 12px;display:flex;align-items:center;gap:10px;font-size:12px;box-shadow:0 6px 18px rgba(0,0,0,.45)}
+.stk .ic{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;font-size:13px;background:rgba(126,166,255,.14);flex-shrink:0}
+.stk span{font-size:10.5px;color:var(--sub);display:block}
+.stk .go{margin-left:auto;color:var(--blueSoft);font-size:11px;white-space:nowrap}
+.stk.behind{transform:scale(.94);opacity:.6}
+.stk.behind2{transform:scale(.88);opacity:.35}
+.stk.more{justify-content:center;font-size:10.5px;color:var(--sub);background:rgba(28,27,40,.7);padding:6px}
+/* 5 常駐細條＋紅點 */
+.strip{position:absolute;left:0;right:0;top:56px;background:rgba(95,224,141,.1);border-top:1px solid rgba(95,224,141,.25);border-bottom:1px solid rgba(95,224,141,.25);padding:7px 12px;font-size:11px;display:flex;align-items:center;gap:8px}
+.strip .x{margin-left:auto;color:var(--sub);font-size:11px}
+.strip b{color:var(--ok)}
+.pg.shift .ttl{margin-bottom:46px}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--acc);margin-left:6px;vertical-align:1px}
+.drawer{position:absolute;left:0;top:0;bottom:0;width:200px;background:#13131c;border-right:1px solid var(--line);padding:38px 12px 12px}
+.drawer .it{display:flex;align-items:center;gap:10px;font-size:12.5px;padding:9px 6px;border-radius:10px}
+.drawer .it.on{background:rgba(126,166,255,.12)}
+.drawer .it .cnt{margin-left:auto;font-size:10px;background:var(--acc);color:#fff;border-radius:99px;padding:0 6px;font-weight:700}
+.drawer .hint{font-size:10px;color:var(--dim);margin-top:10px;line-height:1.5}
+</style></head><body>
+
+<template id="pg">
+<div class="status"><span>21:08</span><span>●●● 5G</span></div>
+<div class="pg"><div class="ttl"><span class="burger"></span>Lume</div>
+<div class="card"><b>今天的英文</b><span>單字 12／20 · 例句 3</span></div>
+<div class="card"><b>YT 追蹤</b><span>3 個頻道有新影片</span></div>
+<div class="card"><b>日記</b><span>最近一篇：10/01（三）</span></div>
+<div class="card"><b>健身</b><span>上次：深蹲 5×5</span></div>
+</div>
+</template>
+
+<div class="intro"><div class="eyebrow">全 App 共用 · 多裝置同步</div><h1>同步後的上方通知：五種風格</h1><p>情境：你在 iPhone 上寫了 2 篇日記、加了 3 個 YT 頻道，回到電腦打開 Lume，同步把這些資料抓回來時，畫面上方彈一則「App 內的通知」告訴你<b>這次從別台裝置帶回了什麼</b>（不是手機系統推播，是 App 開著時自己畫的）。每一版上面是<b>剛彈出來</b>，下面是<b>點下去之後</b>。同步本來就會算出每個功能下載／上傳了幾筆，而同步紀錄裡有記是哪台裝置傳的，所以「來自 iPhone」「日記 +2」這些資訊現在就拿得到。第 2 版是目前上線的樣子。</p></div>
+
+<div class="wrap">
+
+<!-- 1 -->
+<div class="variant"><div class="vhead"><div class="num">版本 1</div><h2>仿系統通知橫幅<span class="tag">主流</span></h2><p>長得跟手機系統推播一樣：左邊 App 圖示、上面「Lume · 現在」、一行標題一行摘要。往上滑收掉，幾秒後自己收；點下去從底部拉出這次同步的明細。</p></div>
+<div class="cap">剛彈出來</div>
+<div class="scr" data-pg>
+<div class="sysn"><div class="appic">L</div><div class="bd"><div class="top">LUME · 同步<em>現在</em></div><b>從 iPhone 帶回 5 筆新資料</b><span>日記 2 篇、YT 頻道 3 個</span></div></div>
+<div class="grabber" style="top:104px"></div>
+</div>
+<div class="cap">點下去之後</div>
+<div class="scr" data-pg><div class="scrim"></div>
+<div class="sheet"><div class="grab"></div><h3>這次同步帶回</h3><div class="sub">來自 iPhone · 21:08</div>
+<div class="li"><span class="ic">📔</span>日記<span class="n">+2</span><span class="go">›</span></div>
+<div class="li"><span class="ic">▶</span>YT 頻道<span class="n">+3</span><span class="go">›</span></div>
+<div class="li"><span class="ic">🏋</span>健身<span class="n" style="color:var(--dim)">沒有變動</span></div>
+</div></div>
+<p class="note"><b>優點：</b>一看就懂是「通知」，習慣的操作（上滑收掉、點開看）都不用學；資訊最完整。<b>缺點：</b>比較大一塊，會蓋住頁首和左上的選單鍵幾秒；長得太像系統推播，可能讓人以為 App 會在背景推送（其實不會）。</p></div>
+
+<!-- 2 -->
+<div class="variant"><div class="vhead"><div class="num">版本 2</div><h2>沿用目前的毛玻璃提示<span class="tag now">目前上線</span></h2><p>現在同步完就是這條：「資料雲端同步完成」。這版只把文字換成有內容的摘要，第二行小字寫來源裝置；樣式完全不動，點了也不會展開。</p></div>
+<div class="cap">剛彈出來</div>
+<div class="scr" data-pg>
+<div class="topnote" style="top:10px"><i class="okc">✓</i><div>同步完成：日記 +2、YT 頻道 +3<small>來自 iPhone · 21:08</small></div></div>
+</div>
+<div class="cap">點下去沒反應，3 秒後收掉；下面那則是有失敗時</div>
+<div class="scr" data-pg>
+<div class="topnote" style="top:10px;opacity:.35"><i class="okc">✓</i><div>同步完成：日記 +2、YT 頻道 +3<small>來自 iPhone · 21:08</small></div></div>
+<div class="topnote" style="top:84px"><i class="badc">!</i><div>同步完成，但 1 項失敗：健身<small>其他功能已經更新</small></div></div>
+</div>
+<p class="note"><b>優點：</b>幾乎不用做事，只是改文字；跟其他提示同一套，風格一致。<b>缺點：</b>只放得下一兩行，同步的東西多時會被截掉；不能點開看明細，也沒辦法直接跳去那個功能。</p></div>
+
+<!-- 3 -->
+<div class="variant"><div class="vhead"><div class="num">版本 3</div><h2>動態島：小膠囊展開成卡片</h2><p>頂端中間先冒一顆黑色小膠囊「☁ 已同步 +5」，約一秒後往下長大成卡片，用三格大數字顯示各功能帶回幾筆，再縮回膠囊消失。點膠囊可以再展開一次。</p></div>
+<div class="cap">剛彈出來（先膠囊 → 再展開）</div>
+<div class="scr" data-pg>
+<div class="island small"><span class="cloud">☁</span>已同步 <b style="color:var(--ok)">+5</b></div>
+<div class="island big" style="top:52px"><div class="hdr"><span class="cloud">☁</span>從 iPhone 同步<em>21:08</em></div><div class="tiles"><div class="tile"><b>+2</b><span>日記</span></div><div class="tile"><b>+3</b><span>YT 頻道</span></div><div class="tile"><b style="color:var(--dim)">0</b><span>健身</span></div></div></div>
+</div>
+<div class="cap">點下去之後（點某一格直接跳過去）</div>
+<div class="scr" data-pg>
+<div class="island big"><div class="hdr"><span class="cloud">☁</span>從 iPhone 同步<em>21:08</em></div><div class="tiles"><div class="tile" style="outline:1.5px solid var(--blueSoft)"><b>+2</b><span>日記 ›</span></div><div class="tile"><b>+3</b><span>YT 頻道 ›</span></div><div class="tile"><b style="color:var(--dim)">0</b><span>健身</span></div></div></div>
+</div>
+<p class="note"><b>優點：</b>最有「精緻感」，動畫有層次；數字大、一眼看完；收起來時只佔中間一小顆，幾乎不擋東西。<b>缺點：</b>動畫工程最多；功能超過三個有變動時格子要換行或滑動；在電腦寬螢幕上黑色膠囊會有點突兀。</p></div>
+
+<!-- 4 -->
+<div class="variant"><div class="vhead"><div class="num">版本 4</div><h2>每個功能一則、疊成一疊</h2><p>每個有變動的功能各一則小通知，疊在一起（後面的縮小變淡），像手機通知中心的群組。點那一疊會攤開，每一則右邊「查看」直接跳去那個功能頁。</p></div>
+<div class="cap">剛彈出來（疊起來）</div>
+<div class="scr" data-pg>
+<div class="stk behind2" style="top:30px">　</div>
+<div class="stk behind" style="top:20px">　</div>
+<div class="stk" style="top:10px"><span class="ic">📔</span><div>日記 +2 篇<span>來自 iPhone · 還有 1 則</span></div><span class="go">查看</span></div>
+</div>
+<div class="cap">點下去之後（攤開）</div>
+<div class="scr" data-pg><div class="scrim"></div>
+<div class="stk" style="top:10px"><span class="ic">📔</span><div>日記 +2 篇<span>10/02、10/01 晚上</span></div><span class="go">查看 ›</span></div>
+<div class="stk" style="top:64px"><span class="ic">▶</span><div>YT 頻道 +3 個<span>加進「遊戲」分類</span></div><span class="go">查看 ›</span></div>
+<div class="stk more" style="top:118px">來自 iPhone · 21:08 · 全部收起</div>
+</div>
+<p class="note"><b>優點：</b>每個功能分開講得最清楚，能寫到「哪幾天的日記」這種細節；直接跳到對的頁面。<b>缺點：</b>攤開後佔的空間最大；要多寫「每個功能怎麼描述它的新資料」，工程比較細碎。</p></div>
+
+<!-- 5 -->
+<div class="variant"><div class="vhead"><div class="num">版本 5</div><h2>不彈出：頁首下方細條＋選單紅點</h2><p>不蓋住任何東西：頁首正下方插一條淡綠細條「已從 iPhone 同步 5 筆」，按 × 才消失；同時左側選單裡有新資料的功能旁邊出現紅色數字，點進去看過就消掉。</p></div>
+<div class="cap">剛同步完</div>
+<div class="scr" data-pg5>
+<div class="strip">☁ 已從 iPhone 同步 <b>5</b> 筆新資料<span class="x">✕</span></div>
+</div>
+<div class="cap">打開左側選單</div>
+<div class="scr" data-pg><div class="scrim"></div>
+<div class="drawer"><div class="it">🏠 首頁</div><div class="it">🔤 語言學習</div><div class="it on">▶ YT 追蹤<span class="cnt">3</span></div><div class="it">📔 日記<span class="cnt">2</span></div><div class="it">🏋 健身</div><div class="hint">紅色數字＝別台裝置剛同步過來、你在這台還沒看過的</div></div>
+</div>
+<p class="note"><b>優點：</b>完全不打斷、不擋畫面；錯過了也還在（細條和紅點要你看過才消失），最不怕漏看。<b>缺點：</b>沒有「彈出來」的感覺，存在感最低；要多記「這台裝置看過了沒」，紅點邏輯要多做一點。</p></div>
+
+</div>
+
+<script>
+// 把共用的假首頁塞進每支手機；版本 5 的第一支要讓出細條的位置
+const tpl=document.getElementById('pg').innerHTML;
+document.querySelectorAll('[data-pg]').forEach(s=>s.insertAdjacentHTML('afterbegin',tpl));
+document.querySelectorAll('[data-pg5]').forEach(s=>{s.insertAdjacentHTML('afterbegin',tpl);s.querySelector('.pg').classList.add('shift');});
+</script>
+</body></html>
