@@ -1,0 +1,144 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>長按選單 更多款式</title><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;800&display=swap" rel="stylesheet"><style>:root{--bg:#0c0c13;--panel:#161622;--panel2:#1e1e2e;--line:#2a2a3d;--text:#eceaf5;--sub:#8b8ba3;--dim:#5d5d72;--acc:#FF2D40;--blue:#2E6BFF;--blueSoft:#7EA6FF;--ok:#5FE08D;--bad:#FF938B;--gold:#E0B15C;--ice:#8EC5E8}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-serif;min-height:100vh;padding:32px 16px 48px}
+.intro{max-width:800px;margin:0 auto 30px;text-align:center}
+.eyebrow{color:var(--acc);font-size:12px;letter-spacing:.2em}
+h1{font-size:22px;margin:6px 0}
+.intro p{color:var(--sub);font-size:13px;line-height:1.7}
+.intro b{color:var(--text)}
+.wrap{display:flex;flex-wrap:wrap;gap:40px 28px;justify-content:center;max-width:1800px;margin:0 auto}
+.variant{width:300px}
+.vhead{min-height:140px;margin-bottom:10px}
+.vhead .num{color:var(--acc);font-size:11px;letter-spacing:.15em}
+.vhead h2{font-size:17px;margin:4px 0 6px}
+.vhead p{color:var(--sub);font-size:12.5px;line-height:1.65}
+.tag{display:inline-block;background:var(--acc);color:#fff;border-radius:99px;padding:1px 9px;font-size:10.5px;margin-left:6px;vertical-align:2px}
+.scr{width:300px;height:440px;flex-shrink:0;border:6px solid #000;border-radius:24px;background:var(--bg);overflow:hidden;position:relative}
+.note{color:var(--sub);font-size:12px;line-height:1.7;margin-top:12px}
+.note b{color:var(--text)}
+/* 假頁面：頻道清單 */
+.bar{height:48px;display:flex;align-items:center;padding:0 14px;gap:10px;font-size:15px;font-weight:700}
+.bar .burger{width:16px;height:2px;background:var(--sub);box-shadow:0 5px 0 var(--sub),0 -5px 0 var(--sub)}
+.list{padding:4px 12px}
+.ch{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:9px 11px;margin-bottom:7px;position:relative;overflow:hidden}
+.av{width:34px;height:34px;border-radius:50%;flex-shrink:0;display:grid;place-items:center;font-size:13px;font-weight:800;color:#111}
+.ch .t{flex:1;min-width:0}
+.ch b{display:block;font-size:12.5px}
+.ch span{font-size:10.5px;color:var(--sub)}
+.ch .more{color:var(--dim);font-size:16px}
+.ch.sel{background:rgba(126,166,255,.14);border-color:var(--blueSoft)}
+.ch.lift{transform:scale(1.03);box-shadow:0 10px 26px rgba(0,0,0,.55);z-index:3;border-color:rgba(255,255,255,.18)}
+.dimmed{opacity:.35}
+.ico{display:inline-block;width:18px;text-align:center}
+.red{color:var(--bad)}
+/* 1 選取模式工具列 */
+.selbar{height:48px;display:flex;align-items:center;padding:0 10px;gap:4px;background:#1b1d33;border-bottom:1px solid rgba(126,166,255,.25)}
+.selbar .x{font-size:16px;color:var(--sub);padding:0 8px}
+.selbar .n{font-size:14px;font-weight:700;flex:1;white-space:nowrap}
+.selbar .bt{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-size:15px}
+.chk{width:20px;height:20px;border-radius:50%;border:1.6px solid var(--dim);flex-shrink:0;display:grid;place-items:center;font-size:11px}
+.chk.on{background:var(--blueSoft);border-color:var(--blueSoft);color:#111;font-weight:800}
+.hintbar{position:absolute;left:10px;right:10px;bottom:8px;background:rgba(12,12,19,.92);border-radius:99px;padding:5px 0;font-size:10px;color:var(--dim);text-align:center}
+/* 2 圖示列 */
+.iconbar{position:absolute;display:flex;background:#2a2938;border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:4px;box-shadow:0 8px 22px rgba(0,0,0,.55);z-index:4}
+.iconbar div{width:46px;padding:6px 0 5px;text-align:center;font-size:15px;border-radius:10px}
+.iconbar div small{display:block;font-size:9px;color:var(--sub);margin-top:2px}
+.iconbar div.red small{color:var(--bad)}
+.iconbar .sep{width:1px;padding:0;background:rgba(255,255,255,.1);margin:6px 2px}
+.iconbar::after{content:'';position:absolute;left:50%;bottom:-6px;width:10px;height:10px;background:#2a2938;border-right:1px solid rgba(255,255,255,.12);border-bottom:1px solid rgba(255,255,255,.12);transform:translateX(-50%) rotate(45deg)}
+/* 3 原地展開 */
+.expand{background:var(--panel2);border:1px solid rgba(126,166,255,.35);border-radius:12px;margin-bottom:7px;overflow:hidden}
+.expand .ch{margin:0;border:none;background:transparent}
+.acts{display:grid;grid-template-columns:repeat(5,1fr);border-top:1px solid var(--line)}
+.acts div{text-align:center;padding:8px 0 7px;font-size:14px}
+.acts div small{display:block;font-size:9.5px;color:var(--sub);margin-top:2px}
+.acts div.red small{color:var(--bad)}
+/* 4 往左滑 */
+.swipewrap{position:relative;margin-bottom:7px;border-radius:12px;overflow:hidden;display:flex;justify-content:flex-end;background:#1a1a24}
+.swipewrap .btns{display:flex}
+.swipewrap .btns div{width:54px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:14px;color:#111;font-weight:700}
+.swipewrap .btns small{font-size:9.5px;margin-top:2px}
+.swipewrap .ch{position:absolute;left:-162px;right:162px;top:0;margin:0}
+.swiperight{position:relative;margin-bottom:7px;border-radius:12px;overflow:hidden;display:flex;background:#1a1a24}
+.swiperight .btns{display:flex}
+.swiperight .btns div{width:54px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:14px;color:#111;font-weight:700}
+.swiperight .btns small{font-size:9.5px;margin-top:2px}
+.swiperight .ch{position:absolute;left:54px;right:-54px;top:0;margin:0}
+/* 5 底部動作面板 */
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.5)}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:#1c1b28;border-top:1px solid rgba(255,255,255,.12);border-radius:20px 20px 0 0;padding:10px 14px 14px;z-index:5}
+.sheet .grab{width:36px;height:4px;border-radius:99px;background:rgba(255,255,255,.2);margin:0 auto 10px}
+.sheet .hdr{display:flex;align-items:center;gap:10px;padding:0 4px 10px;border-bottom:1px solid var(--line)}
+.sheet .hdr b{font-size:13px;display:block}
+.sheet .hdr span{font-size:10.5px;color:var(--sub)}
+.quick{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0 6px}
+.quick div{background:rgba(255,255,255,.05);border-radius:12px;padding:10px 0 8px;text-align:center;font-size:16px}
+.quick small{display:block;font-size:10px;color:var(--sub);margin-top:3px}
+.row{display:flex;align-items:center;gap:10px;padding:10px 6px;font-size:12.5px}
+.row.red{color:var(--bad)}
+</style></head><body>
+
+<template id="ch">
+<div class="ch"><div class="av" style="background:#E0B15C">遊</div><div class="t"><b>遊戲實況台</b><span>48.2 萬 · 2 天前更新</span></div><span class="more">⋮</span></div>
+<div class="ch"><div class="av" style="background:#7EA6FF">科</div><div class="t"><b>科技開箱王</b><span>120 萬 · 今天更新</span></div><span class="more">⋮</span></div>
+<div class="ch"><div class="av" style="background:#5FE08D">料</div><div class="t"><b>深夜料理</b><span>8.6 萬 · 1 週前更新</span></div><span class="more">⋮</span></div>
+<div class="ch"><div class="av" style="background:#FF938B">旅</div><div class="t"><b>慢旅行日記</b><span>23 萬 · 3 天前更新</span></div><span class="more">⋮</span></div>
+<div class="ch"><div class="av" style="background:#8EC5E8">音</div><div class="t"><b>Lo-fi 讀書音樂</b><span>310 萬 · 今天更新</span></div><span class="more">⋮</span></div>
+<div class="ch"><div class="av" style="background:#c9a0ff">史</div><div class="t"><b>三分鐘歷史</b><span>15 萬 · 5 天前更新</span></div><span class="more">⋮</span></div>
+</template>
+
+<div class="intro"><div class="eyebrow">共用小元件 · 長按操作</div><h1>長按之後的操作選單：再五種款式</h1><p>之前那份 <b>2026-10-02_頻道長按選單五種風格.html</b> 已經有：iOS 原生長按選單、Material 彈出選單（目前上線）、分組＋頻道標頭、泡泡橫列（LINE 式）、環狀快捷。這份是<b>另外五種不重複的做法</b>，兩份合起來十種一起比。每一版都用同一份頻道清單，示範長按「科技開箱王」之後的樣子，操作都是：編輯、移動分類、置頂、冷藏、刪除。</p></div>
+
+<div class="wrap">
+
+<!-- 1 -->
+<div class="variant"><div class="vhead"><div class="num">版本 A</div><h2>選取模式＋頂部工具列<span class="tag">主流</span></h2><p>Gmail、Google 相簿、檔案管理的做法：長按＝勾選這一個，頂部標題列變成「已選 1 個」加一排圖示按鈕；接著點其他項目可以多選，一次置頂／刪除好幾個。</p></div>
+<div class="scr" id="vA"></div>
+<p class="note"><b>優點：</b>能多選、批次處理，一次整理一堆頻道最快；Android 使用者很熟。<b>缺點：</b>頂部圖示沒有文字，第一次用要猜意思（可加長按提示）；只想對一個做事時，要多按一下「×」離開選取模式。</p></div>
+
+<!-- 2 -->
+<div class="variant"><div class="vhead"><div class="num">版本 B</div><h2>浮在手指上方的圖示列</h2><p>像選取文字時跳出的「複製／貼上」那條：長按的那張卡片微微浮起，正上方冒出一條橫的小工具列，圖示＋小字，刪除用紅色、跟其他用一條細線隔開。</p></div>
+<div class="scr" id="vB"></div>
+<p class="note"><b>優點：</b>最小、最不擋畫面，選項就在手指旁邊，視線不用移動。<b>缺點：</b>一排放五個已經是極限，之後再加操作就放不下；字很小，在小手機上容易按錯。</p></div>
+
+<!-- 3 -->
+<div class="variant"><div class="vhead"><div class="num">版本 C</div><h2>卡片原地展開操作列</h2><p>不彈任何東西：長按的那張卡片往下長出一排按鈕，其他卡片往下讓位；再長按一次或點別的地方就收回去。</p></div>
+<div class="scr" id="vC"></div>
+<p class="note"><b>優點：</b>不會蓋住任何內容，操作跟那張卡片綁在一起，一看就知道是對誰做事；動畫自然。<b>缺點：</b>清單會跳動（下面的卡片被擠下去）；在格狀排列（頻道磚）裡比較難做，適合一列一個的清單。</p></div>
+
+<!-- 4 -->
+<div class="variant"><div class="vhead"><div class="num">版本 D</div><h2>左右滑出按鈕（長按的替代）</h2><p>iOS 郵件、LINE 聊天列表的做法：往左滑露出「冷藏、移動、刪除」，往右滑露出「置頂」。長按可以照舊開選單，滑動是更快的捷徑。</p></div>
+<div class="scr" id="vD"></div>
+<p class="note"><b>優點：</b>常用動作一滑就到，最快；跟目前影片列「往左滑兩顆按鈕」同一套手勢，全 App 一致。<b>缺點：</b>按鈕藏起來看不到，不知道的人不會發現；格狀排列不能滑；網頁上用滑鼠操作不方便。</p></div>
+
+<!-- 5 -->
+<div class="variant"><div class="vhead"><div class="num">版本 E</div><h2>底部動作面板（含頻道資訊）</h2><p>YouTube App「⋮」的做法：從下面升上來一張面板，上方是頻道頭像＋名稱，接著三顆大方塊放最常用的，下面是完整清單。（你之前選單說過不要從下面出來，這版放著給你比較。）</p></div>
+<div class="scr" id="vE"></div>
+<p class="note"><b>優點：</b>按鈕最大最好按，空間多，之後加再多操作都放得下；可以順便顯示頻道資訊。<b>缺點：</b>跟長按的位置沒關係，手指要移到下面；你之前明確說過不要從下面出來的選單。</p></div>
+
+</div>
+
+<script>
+const tpl=document.getElementById('ch').innerHTML;
+const bar='<div class="bar"><span class="burger"></span>YT 追蹤 · 遊戲</div>';
+function mk(id,head,body){const s=document.getElementById(id);s.innerHTML=head+'<div class="list">'+tpl+'</div>'+(body||'');return s;}
+// A 選取模式
+let s=mk('vA','<div class="selbar"><span class="x">✕</span><span class="n">已選 2 個</span><span class="bt">✎</span><span class="bt">⇄</span><span class="bt" style="color:var(--gold)">📌</span><span class="bt" style="color:var(--ice)">❄</span><span class="bt red">🗑</span></div>','<div class="hintbar">長按開始選取 · 再點其他頻道可以多選</div>');
+s.querySelectorAll('.ch').forEach((c,i)=>{c.querySelector('.more').outerHTML='<span class="chk'+(i==1||i==3?' on':'')+'">'+(i==1||i==3?'✓':'')+'</span>';if(i==1||i==3)c.classList.add('sel');});
+// B 圖示列
+s=mk('vB',bar);
+s.querySelectorAll('.ch').forEach((c,i)=>{if(i==1){c.classList.add('lift');}else c.classList.add('dimmed');});
+s.insertAdjacentHTML('beforeend','<div class="iconbar" style="left:24px;top:46px"><div>✎<small>編輯</small></div><div>⇄<small>移動</small></div><div style="color:var(--gold)">📌<small>置頂</small></div><div style="color:var(--ice)">❄<small>冷藏</small></div><span class="sep"></span><div class="red">🗑<small>刪除</small></div></div>');
+// C 原地展開
+s=mk('vC',bar);
+let c2=s.querySelectorAll('.ch')[1];
+c2.outerHTML='<div class="expand">'+c2.outerHTML.replace('⋮','⌃')+'<div class="acts"><div>✎<small>編輯</small></div><div>⇄<small>移動</small></div><div style="color:var(--gold)">📌<small>置頂</small></div><div style="color:var(--ice)">❄<small>冷藏</small></div><div class="red">🗑<small>刪除</small></div></div></div>';
+// D 左右滑
+s=mk('vD',bar);
+let cs=s.querySelectorAll('.ch');
+cs[1].outerHTML='<div class="swipewrap" style="height:'+54+'px"><div class="btns"><div style="background:var(--ice)">❄<small>冷藏</small></div><div style="background:var(--blueSoft)">⇄<small>移動</small></div><div style="background:var(--bad)">🗑<small>刪除</small></div></div>'+cs[1].outerHTML+'</div>';
+cs[3].outerHTML='<div class="swiperight" style="height:54px"><div class="btns"><div style="background:var(--gold)">📌<small>置頂</small></div></div>'+cs[3].outerHTML+'</div>';
+// E 底部面板
+s=mk('vE',bar,'<div class="scrim"></div><div class="sheet"><div class="grab"></div><div class="hdr"><div class="av" style="background:#7EA6FF">科</div><div><b>科技開箱王</b><span>120 萬訂閱 · 遊戲分類</span></div></div><div class="quick"><div style="color:var(--gold)">📌<small>置頂</small></div><div style="color:var(--ice)">❄<small>冷藏</small></div><div>⇄<small>移動分類</small></div></div><div class="row"><span class="ico">✎</span>編輯頻道</div><div class="row red"><span class="ico">🗑</span>刪除頻道</div></div>');
+</script>
+</body></html>
