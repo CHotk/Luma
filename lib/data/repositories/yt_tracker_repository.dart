@@ -281,6 +281,8 @@ class YtTrackerRepository {
             // 的話總影片數會被每次快照合併洗回空的（2026-09-30 加這欄時
             // 順便補上，不要重蹈 pinnedAt 那次的覆轍）。
             videoCount: c.videoCount ?? prior.videoCount,
+            // 冷藏也一樣，快照永遠不會帶這欄（2026-10-02 加冷藏區時一起補）。
+            coldAt: c.coldAt ?? prior.coldAt,
           );
         }(),
     ];

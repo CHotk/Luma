@@ -92,4 +92,8 @@ abstract final class AppColors {
   /// 用金銅色專門代表置頂，不管之後在哪裡畫置頂標記都用這個，
   /// 不要又混用別的色。
   static const ytPinAccent = Color(0xFFE0B15C);
+
+  /// 頻道「冷藏」區（不常看但還不刪的，見 `YtChannel.coldAt`）專用色，
+  /// 冰藍色，跟置頂的金色一冷一暖對比（2026-10-02 加）。
+  static const ytColdAccent = Color(0xFF8EC5E8);
 }

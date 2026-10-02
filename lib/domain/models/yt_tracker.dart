@@ -36,6 +36,12 @@ const ytDiscoverCategoryId = 'seed-discover';
 /// 頻道，可以還原）。固定排在分類列表最後一個，比「看過但不喜歡」更後面。
 const ytTrashCategoryId = '__trash__';
 
+/// 分類頁最下面那一區（不常看、但還不至於刪掉的頻道，見
+/// [YtChannel.coldAt]）的顯示名稱。使用者還沒想好要叫什麼
+/// （2026-10-02），先用他自己講的「冷藏」，之後要改名只改這一行，
+/// 選單、區塊標題都會跟著變。
+const ytColdSectionLabel = '冷藏';
+
 /// 使用者自訂的頻道分類。一個頻道只屬於一個分類（單選，資料夾邏輯），
 /// 不是可複選的標籤——跟設計稿 06 版定案的做法一致。
 class YtCategory {
@@ -126,6 +132,7 @@ class YtChannel {
     this.discoveredVia = '',
     this.pinnedAt,
     this.videoCount,
+    this.coldAt,
   });
 
   final String id;
@@ -140,6 +147,12 @@ class YtChannel {
   /// 已經在 [YtChannel] 上，本來就跟著頻道一起同步，不用另外開一份
   /// 同步邏輯。
   final DateTime? pinnedAt;
+
+  /// 使用者把頻道放進「冷藏」區的時間（2026-10-02 使用者要求：分類頁
+  /// 分三層——上面置頂、中間普通、下面不常看但也還不想刪的）。null 代表
+  /// 不在冷藏區。跟 [pinnedAt] 互斥，同一套「存時間戳不存排序數字」理由，
+  /// 也跟著頻道一起同步。區域顯示名稱見 `ytColdSectionLabel`。
+  final DateTime? coldAt;
 
   /// 用「挖掘新頻道」加進來的話，記著是靠哪個關鍵字／哪個頻道推薦挖到的
   /// （見 [DiscoveredChannel.foundVia]），空字串代表不是挖掘來的、或還沒
@@ -200,6 +213,7 @@ class YtChannel {
     DateTime? statsUpdatedAt,
     Object? pinnedAt = _keep,
     int? videoCount,
+    Object? coldAt = _keep,
   }) => YtChannel(
     id: id,
     name: name ?? this.name,
@@ -229,6 +243,8 @@ class YtChannel {
         ? this.pinnedAt
         : pinnedAt as DateTime?,
     videoCount: videoCount ?? this.videoCount,
+    // 同 pinnedAt：null 是「移出冷藏」這個有意義的值。
+    coldAt: identical(coldAt, _keep) ? this.coldAt : coldAt as DateTime?,
   );
 
   YtChannel _copy({
@@ -254,6 +270,7 @@ class YtChannel {
     discoveredVia: discoveredVia,
     pinnedAt: pinnedAt,
     videoCount: videoCount,
+    coldAt: coldAt,
   );
 
   /// 內容有變時蓋上現在的時間，見 [YtTrackerRepository]。
@@ -320,6 +337,7 @@ class YtChannel {
     'discoveredVia': discoveredVia,
     'pinnedAt': pinnedAt?.toIso8601String(),
     'videoCount': videoCount,
+    'coldAt': coldAt?.toIso8601String(),
   };
 
   factory YtChannel.fromJson(Map<String, dynamic> json) => YtChannel(
@@ -341,6 +359,7 @@ class YtChannel {
     discoveredVia: json['discoveredVia'] as String? ?? '',
     pinnedAt: _parseTime(json['pinnedAt']),
     videoCount: json['videoCount'] as int?,
+    coldAt: _parseTime(json['coldAt']),
   );
 }
 

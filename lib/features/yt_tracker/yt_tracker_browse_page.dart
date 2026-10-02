@@ -133,10 +133,12 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
     });
   }
 
-  /// 依目前排序方式排好的頻道。置頂的一律排最前面，按置頂時間新到舊排
-  /// （2026-09-30 使用者要求）；沒置頂的才照排序方式排，訂閱人數沒資料
-  /// （沒更新到、或隱藏）的排最後，同人數的維持原本順序（[List.sort]
-  /// 不保證穩定，所以自己帶原始位置比）。
+  /// 依目前排序方式排好的頻道，分三層：置頂的一律排最前面，按置頂時間
+  /// 新到舊排（2026-09-30 使用者要求）；冷藏的一律排最後面（2026-10-02
+  /// 使用者要求，見 [YtChannel.coldAt]）；中間普通的才照排序方式排。冷藏
+  /// 區裡面也套同一個排序方式，切排序時兩區一致。訂閱人數沒資料（沒更新
+  /// 到、或隱藏）的排最後，同人數的維持原本順序（[List.sort] 不保證穩定，
+  /// 所以自己帶原始位置比）。
   List<YtChannel> _sortedChannels(List<YtChannel> channels) {
     final pinned = [
       for (final c in channels)
@@ -144,10 +146,18 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
     ]..sort((a, b) => b.pinnedAt!.compareTo(a.pinnedAt!));
     final rest = [
       for (final c in channels)
-        if (c.pinnedAt == null) c,
+        if (c.pinnedAt == null && c.coldAt == null) c,
     ];
-    if (_sort == _ChannelSort.normal) return [...pinned, ...rest];
-    final indexed = [for (var i = 0; i < rest.length; i++) (i, rest[i])];
+    final cold = [
+      for (final c in channels)
+        if (c.pinnedAt == null && c.coldAt != null) c,
+    ];
+    return [...pinned, ..._bySort(rest), ..._bySort(cold)];
+  }
+
+  List<YtChannel> _bySort(List<YtChannel> list) {
+    if (_sort == _ChannelSort.normal) return list;
+    final indexed = [for (var i = 0; i < list.length; i++) (i, list[i])];
     indexed.sort((a, b) {
       final x = a.$2.subscriberCount;
       final y = b.$2.subscriberCount;
@@ -159,7 +169,7 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
           : x.compareTo(y);
       return byCount != 0 ? byCount : a.$1.compareTo(b.$1);
     });
-    return [...pinned, for (final e in indexed) e.$2];
+    return [for (final e in indexed) e.$2];
   }
 
   /// 訂閱人數更新：超過 12 小時沒問過的頻道，一次批次問（50 個頻道 1 單位
@@ -461,10 +471,31 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
   /// 就跟著頻道一起同步，這裡只是切換那個欄位、存檔，不用另外處理
   /// 同步邏輯。
   Future<void> _togglePin(YtChannel c) async {
+    final pinning = c.pinnedAt == null;
     await ref
         .read(ytTrackerRepositoryProvider)
         .updateChannel(
-          c.copyWith(pinnedAt: c.pinnedAt == null ? DateTime.now() : null),
+          c.copyWith(
+            pinnedAt: pinning ? DateTime.now() : null,
+            // 置頂跟冷藏互斥：冷藏的頻道直接按置頂，就是把它拉回最上面，
+            // 不用先移出冷藏再置頂兩步。
+            coldAt: pinning ? null : c.coldAt,
+          ),
+        );
+    if (mounted) _reload();
+  }
+
+  /// 放進／移出冷藏區（2026-10-02 使用者要求：不常看、但也還不想刪的
+  /// 頻道放到分類頁最下面，見 [YtChannel.coldAt]）。跟置頂互斥。
+  Future<void> _toggleCold(YtChannel c) async {
+    final freezing = c.coldAt == null;
+    await ref
+        .read(ytTrackerRepositoryProvider)
+        .updateChannel(
+          c.copyWith(
+            coldAt: freezing ? DateTime.now() : null,
+            pinnedAt: freezing ? null : c.pinnedAt,
+          ),
         );
     if (mounted) _reload();
   }
@@ -867,6 +898,7 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                                           onMove: (c) =>
                                               _moveChannel(c, categories),
                                           onTogglePin: _togglePin,
+                                          onToggleCold: _toggleCold,
                                           onDelete: _deleteChannel,
                                         ),
                                       ),
@@ -888,7 +920,7 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
   }
 }
 
-enum _ChannelMenuAction { edit, move, pin, delete }
+enum _ChannelMenuAction { edit, move, pin, cold, delete }
 
 /// 「挖掘新頻道」分類卡右上角的小標籤，顯示是靠哪個關鍵字／哪個頻道推薦
 /// 挖到的（2026-09-29 使用者要求，見 [YtChannel.discoveredVia]）。
@@ -1308,12 +1340,13 @@ Future<bool> showAddYtChannelDialog(
   return context.mounted;
 }
 
-class _ChannelGrid extends StatelessWidget {
+class _ChannelGrid extends StatefulWidget {
   const _ChannelGrid({
     required this.channels,
     required this.onOpen,
     required this.onMove,
     required this.onTogglePin,
+    required this.onToggleCold,
     required this.onDelete,
     this.showDiscoveredBadge = false,
   });
@@ -1322,6 +1355,7 @@ class _ChannelGrid extends StatelessWidget {
   final void Function(YtChannel) onOpen;
   final void Function(YtChannel) onMove;
   final void Function(YtChannel) onTogglePin;
+  final void Function(YtChannel) onToggleCold;
   final void Function(YtChannel) onDelete;
 
   /// 只有正在單獨看「挖掘新頻道」分類時才是 true，其他情況一律不顯示
@@ -1329,21 +1363,35 @@ class _ChannelGrid extends StatelessWidget {
   final bool showDiscoveredBadge;
 
   @override
+  State<_ChannelGrid> createState() => _ChannelGridState();
+}
+
+class _ChannelGridState extends State<_ChannelGrid> {
+  /// 冷藏區預設收起來——放進去的本來就是「不常看」的頻道，攤開來擺在
+  /// 下面只會佔空間，要看再點標題展開（2026-10-02 加冷藏區時決定）。
+  /// 只記在這個畫面的狀態裡，離開再進來又是收起來的。
+  bool _coldExpanded = false;
+
+  @override
   Widget build(BuildContext context) {
+    final channels = widget.channels;
     if (channels.isEmpty) {
       return Center(child: Text('這個篩選條件下沒有頻道', style: AppText.bodyDim));
     }
-    // 置頂的頻道獨立一個區域放最上面，不是混在同一個格子裡排最前面
-    // （2026-09-30 使用者要求：頂部要有額外一個區域專門顯示置頂的
-    // 頻道）。[_sortedChannels] 已經把置頂的排在最前面，這裡只是照
-    // pinnedAt 切成兩段分開畫。
+    // 分三層畫：上面置頂、中間普通、下面冷藏（2026-09-30 加置頂區、
+    // 2026-10-02 使用者要求加冷藏區：不常看但還不至於刪掉的頻道）。
+    // [_sortedChannels] 已經照這個順序排好，這裡只是切段分開畫。
     final pinned = [
       for (final c in channels)
         if (c.pinnedAt != null) c,
     ];
+    final cold = [
+      for (final c in channels)
+        if (c.pinnedAt == null && c.coldAt != null) c,
+    ];
     final rest = [
       for (final c in channels)
-        if (c.pinnedAt == null) c,
+        if (c.pinnedAt == null && c.coldAt == null) c,
     ];
     const gridDelegate = SliverGridDelegateWithFixedCrossAxisCount(
       crossAxisCount: 2,
@@ -1351,14 +1399,25 @@ class _ChannelGrid extends StatelessWidget {
       crossAxisSpacing: 8,
       childAspectRatio: 2.6,
     );
-    // 原本置頂區塊是 shrinkWrap+不可捲動的固定區塊、下面才是可捲動的
-    // 「其他頻道」格子，兩塊各自獨立捲動——置頂數量一多，固定區塊佔掉
-    // 一大截，剩下能捲動的空間被擠得很小（2026-09-30 使用者回報「頁面
-    // 很擠」）。改成一個 CustomScrollView，置頂區塊、分隔線、其他頻道
-    // 格子全部當成同一份可捲動內容的 sliver，整頁一起捲，不再各自
-    // 分開卡住；用 sliver 而不是包一層 SingleChildScrollView+shrinkWrap，
-    // 是因為 shrinkWrap 的 GridView 會一次把全部項目都排版出來，頻道
-    // 一多會沒必要地拖慢畫面，sliver 才是照畫面捲到哪才建到哪的懶載入。
+    SliverGrid grid(List<YtChannel> list) => SliverGrid(
+      gridDelegate: gridDelegate,
+      delegate: SliverChildBuilderDelegate(
+        (context, i) => _buildCard(context, list[i]),
+        childCount: list.length,
+      ),
+    );
+    const sectionGap = SliverToBoxAdapter(
+      child: Column(
+        children: [
+          SizedBox(height: Gap.md),
+          Divider(height: 1, color: AppColors.glassEdge),
+          SizedBox(height: Gap.sm),
+        ],
+      ),
+    );
+    // 三區全部當成同一份可捲動內容的 sliver，整頁一起捲（2026-09-30
+    // 使用者回報原本置頂區固定不動、下面各自捲動「頁面很擠」）；用 sliver
+    // 不用 SingleChildScrollView+shrinkWrap，頻道一多才不會一次全部排版。
     return CustomScrollView(
       slivers: [
         if (pinned.isNotEmpty) ...[
@@ -1376,46 +1435,77 @@ class _ChannelGrid extends StatelessWidget {
             ),
           ),
           const SliverToBoxAdapter(child: SizedBox(height: Gap.xs)),
-          SliverGrid(
-            gridDelegate: gridDelegate,
-            delegate: SliverChildBuilderDelegate(
-              (context, i) => _buildCard(context, pinned[i]),
-              childCount: pinned.length,
-            ),
-          ),
-          const SliverToBoxAdapter(
-            child: Column(
-              children: [
-                SizedBox(height: Gap.md),
-                Divider(height: 1, color: AppColors.glassEdge),
-                SizedBox(height: Gap.sm),
-              ],
-            ),
-          ),
+          grid(pinned),
+          sectionGap,
         ],
         if (rest.isEmpty)
           SliverToBoxAdapter(
-            child: Center(child: Text('沒有其他頻道', style: AppText.bodyDim)),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: Gap.md),
+              child: Center(child: Text('沒有其他頻道', style: AppText.bodyDim)),
+            ),
           )
         else
-          SliverGrid(
-            gridDelegate: gridDelegate,
-            delegate: SliverChildBuilderDelegate(
-              (context, i) => _buildCard(context, rest[i]),
-              childCount: rest.length,
+          grid(rest),
+        if (cold.isNotEmpty) ...[
+          sectionGap,
+          SliverToBoxAdapter(
+            child: InkWell(
+              onTap: () => setState(() => _coldExpanded = !_coldExpanded),
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.ac_unit_rounded,
+                      size: 13,
+                      color: AppColors.ytColdAccent,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '$ytColdSectionLabel · ${cold.length}',
+                      style: AppText.note,
+                    ),
+                    const Spacer(),
+                    Text(_coldExpanded ? '收起' : '展開', style: AppText.note),
+                    Icon(
+                      _coldExpanded
+                          ? Icons.expand_less_rounded
+                          : Icons.expand_more_rounded,
+                      size: 18,
+                      color: AppColors.ink3,
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
+          if (_coldExpanded) ...[
+            const SliverToBoxAdapter(child: SizedBox(height: Gap.xs)),
+            grid(cold),
+          ],
+          const SliverToBoxAdapter(child: SizedBox(height: Gap.lg)),
+        ],
       ],
     );
   }
 
   Widget _buildCard(BuildContext context, YtChannel c) {
     final isPinned = c.pinnedAt != null;
-    // 長按整張卡片也跳出同一份選單（2026-09-24 使用者要求）。
+    final isCold = !isPinned && c.coldAt != null;
+    final stripColor = isPinned
+        ? AppColors.ytPinAccent
+        : isCold
+        ? AppColors.ytColdAccent
+        : null;
+    // 長按整張卡片、或點右邊 ⋮，都跳出同一份底部選單（2026-09-24 加
+    // 長按；2026-10-02 使用者嫌原本的灰底小選單醜，兩個入口統一換成
+    // [_showChannelSheet]）。
     return GestureDetector(
-      onLongPressStart: (d) => _showMenuAt(context, d.globalPosition, c),
+      onLongPress: () => _showChannelSheet(context, c),
       child: InkWell(
-        onTap: () => onOpen(c),
+        onTap: () => widget.onOpen(c),
         borderRadius: BorderRadius.circular(Radii.card),
         // 裁成卡片圓角，左側色條才會順著圓角收邊，不會凸出去。
         child: ClipRRect(
@@ -1423,8 +1513,13 @@ class _ChannelGrid extends StatelessWidget {
           child: Stack(
             children: [
               Container(
-                // 置頂的左邊多留一點，讓出色條的位置。
-                padding: EdgeInsets.fromLTRB(isPinned ? 13 : 10, 10, 10, 10),
+                // 有色條（置頂／冷藏）的左邊多留一點，讓出色條的位置。
+                padding: EdgeInsets.fromLTRB(
+                  stripColor != null ? 13 : 10,
+                  10,
+                  4,
+                  10,
+                ),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(Radii.card),
                   color: AppColors.glassFill,
@@ -1432,100 +1527,72 @@ class _ChannelGrid extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    YtChannelAvatar(channel: c, radius: 17),
+                    // 冷藏的頭像跟名稱淡一點，一眼看得出是「收起來的」。
+                    Opacity(
+                      opacity: isCold ? 0.6 : 1,
+                      child: YtChannelAvatar(channel: c, radius: 17),
+                    ),
                     const SizedBox(width: Gap.sm),
                     Expanded(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // 置頂靠左側金色色條標示就夠（見下面
-                          // Positioned），名稱前面不再重複放圖釘圖示
-                          // ——使用者回饋圖示是紅色很醜、兩個標記重複
-                          // 也太滿（2026-09-30），改成只留色條這一種
-                          // 標記，風格最內斂。
-                          Text(
-                            c.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.ink,
-                            ),
-                          ),
-                          if (c.subscriberLabel != null) ...[
-                            const SizedBox(height: 4),
+                      child: Opacity(
+                        opacity: isCold ? 0.6 : 1,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
                             Text(
-                              c.subscriberLabel!,
+                              c.name,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: AppText.note,
+                              style: const TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.ink,
+                              ),
                             ),
+                            if (c.subscriberLabel != null) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                c.subscriberLabel!,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppText.note,
+                              ),
+                            ],
                           ],
-                        ],
+                        ),
                       ),
                     ),
-                    // 每個頻道右邊的選單：編輯（進詳情頁）／移到分類／
-                    // 置頂／刪除。
-                    PopupMenuButton<_ChannelMenuAction>(
+                    IconButton(
+                      onPressed: () => _showChannelSheet(context, c),
                       icon: const Icon(Icons.more_vert_rounded, size: 18),
                       color: AppColors.ink2,
                       padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: 32,
+                        minHeight: 32,
+                      ),
                       tooltip: '更多',
-                      onSelected: (action) {
-                        switch (action) {
-                          case _ChannelMenuAction.edit:
-                            onOpen(c);
-                          case _ChannelMenuAction.move:
-                            onMove(c);
-                          case _ChannelMenuAction.pin:
-                            onTogglePin(c);
-                          case _ChannelMenuAction.delete:
-                            onDelete(c);
-                        }
-                      },
-                      itemBuilder: (context) => [
-                        const PopupMenuItem(
-                          value: _ChannelMenuAction.edit,
-                          child: Text('編輯'),
-                        ),
-                        const PopupMenuItem(
-                          value: _ChannelMenuAction.move,
-                          child: Text('移到分類'),
-                        ),
-                        PopupMenuItem(
-                          value: _ChannelMenuAction.pin,
-                          child: Text(isPinned ? '取消置頂' : '置頂'),
-                        ),
-                        const PopupMenuItem(
-                          value: _ChannelMenuAction.delete,
-                          child: Text('刪除'),
-                        ),
-                      ],
                     ),
                   ],
                 ),
               ),
-              if (showDiscoveredBadge && c.discoveredVia.isNotEmpty)
+              if (widget.showDiscoveredBadge && c.discoveredVia.isNotEmpty)
                 Positioned(
                   top: 4,
                   right: 4,
                   child: _DiscoveredViaBadge(text: c.discoveredVia),
                 ),
-              // 置頂標記：左側一條金色直條（2026-09-30 使用者從三個方向
-              // 裡選了「左側色條」：改動最小、風格最內斂）。原本圖釘浮在
-              // 左上角會壓到卡片圓角跟頭像，且色條一度誤用 ytAccent
-              // （YouTube 品牌紅），畫出來變成紅色、被回饋很醜——改用
-              // 專門的 [AppColors.ytPinAccent] 金銅色，跟品牌紅分開。
-              if (isPinned)
-                const Positioned(
+              // 左側色條：置頂金色（2026-09-30 使用者選的「左側色條」）、
+              // 冷藏冰藍色（2026-10-02），一暖一冷，普通頻道沒有色條。
+              if (stripColor != null)
+                Positioned(
                   left: 0,
                   top: 0,
                   bottom: 0,
                   child: SizedBox(
                     width: 3,
-                    child: ColoredBox(color: AppColors.ytPinAccent),
+                    child: ColoredBox(color: stripColor),
                   ),
                 ),
             ],
@@ -1535,44 +1602,136 @@ class _ChannelGrid extends StatelessWidget {
     );
   }
 
-  Future<void> _showMenuAt(
-    BuildContext context,
-    Offset position,
-    YtChannel c,
-  ) async {
-    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
-    final action = await showMenu<_ChannelMenuAction>(
+  /// 頻道操作選單，從底部滑出（2026-10-02 使用者要求選單好看一點：原本
+  /// 長按跟 ⋮ 是兩份重複的 Material 預設小選單，灰底、純文字）。最上面
+  /// 帶頻道頭像＋名稱確認是在操作哪一個，每個動作配圖示，置頂／冷藏用
+  /// 各自的區域色，刪除用紅字、跟其他動作隔開，降低誤觸。
+  Future<void> _showChannelSheet(BuildContext context, YtChannel c) async {
+    final isPinned = c.pinnedAt != null;
+    final isCold = c.coldAt != null;
+    final action = await showModalBottomSheet<_ChannelMenuAction>(
       context: context,
-      position: RelativeRect.fromRect(
-        position & const Size(1, 1),
-        Offset.zero & overlay.size,
+      backgroundColor: const Color(0xFF1A1A24),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      color: AppColors.ink2,
-      items: [
-        const PopupMenuItem(value: _ChannelMenuAction.edit, child: Text('編輯')),
-        const PopupMenuItem(
-          value: _ChannelMenuAction.move,
-          child: Text('移到分類'),
-        ),
-        PopupMenuItem(
-          value: _ChannelMenuAction.pin,
-          child: Text(c.pinnedAt == null ? '置頂' : '取消置頂'),
-        ),
-        const PopupMenuItem(
-          value: _ChannelMenuAction.delete,
-          child: Text('刪除'),
-        ),
-      ],
+      builder: (sheetContext) {
+        Widget item(
+          _ChannelMenuAction value,
+          IconData icon,
+          String label, {
+          Color color = AppColors.ink,
+          Color? iconColor,
+          String? hint,
+        }) => ListTile(
+          leading: Icon(icon, size: 21, color: iconColor ?? color),
+          title: Text(
+            label,
+            style: TextStyle(
+              fontSize: 14.5,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+          subtitle: hint == null ? null : Text(hint, style: AppText.note),
+          dense: true,
+          onTap: () => Navigator.pop(sheetContext, value),
+        );
+
+        return SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Padding(
+                padding: EdgeInsets.only(top: 10, bottom: 4),
+                child: SizedBox(
+                  width: 36,
+                  height: 4,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: AppColors.glassEdge,
+                      borderRadius: BorderRadius.all(Radius.circular(2)),
+                    ),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+                child: Row(
+                  children: [
+                    YtChannelAvatar(channel: c, radius: 20),
+                    const SizedBox(width: Gap.sm),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            c.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.ink,
+                            ),
+                          ),
+                          if (c.subscriberLabel != null)
+                            Text(c.subscriberLabel!, style: AppText.note),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1, color: AppColors.glassEdge),
+              const SizedBox(height: 4),
+              item(_ChannelMenuAction.edit, Icons.edit_outlined, '編輯頻道資料'),
+              item(
+                _ChannelMenuAction.move,
+                Icons.folder_open_rounded,
+                '移到其他分類',
+              ),
+              item(
+                _ChannelMenuAction.pin,
+                isPinned ? Icons.push_pin_outlined : Icons.push_pin_rounded,
+                isPinned ? '取消置頂' : '置頂',
+                iconColor: AppColors.ytPinAccent,
+              ),
+              item(
+                _ChannelMenuAction.cold,
+                Icons.ac_unit_rounded,
+                isCold ? '移出$ytColdSectionLabel' : '放進$ytColdSectionLabel',
+                iconColor: AppColors.ytColdAccent,
+                hint: isCold ? null : '不常看的收到最下面，不會刪掉',
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                child: Divider(height: 1, color: AppColors.glassEdge),
+              ),
+              item(
+                _ChannelMenuAction.delete,
+                Icons.delete_outline_rounded,
+                '刪除',
+                color: AppColors.bad,
+              ),
+              const SizedBox(height: Gap.sm),
+            ],
+          ),
+        );
+      },
     );
     switch (action) {
       case _ChannelMenuAction.edit:
-        onOpen(c);
+        widget.onOpen(c);
       case _ChannelMenuAction.move:
-        onMove(c);
+        widget.onMove(c);
       case _ChannelMenuAction.pin:
-        onTogglePin(c);
+        widget.onTogglePin(c);
+      case _ChannelMenuAction.cold:
+        widget.onToggleCold(c);
       case _ChannelMenuAction.delete:
-        onDelete(c);
+        widget.onDelete(c);
       case null:
         break;
     }

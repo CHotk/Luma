@@ -63,6 +63,23 @@ void main() {
     expect(after.pinnedAt, isNotNull);
   });
 
+  test('冷藏後回首頁（快照合併）不會被洗掉，且存檔讀回來欄位還在', () async {
+    final repo = YtTrackerRepository(_MemoryStore());
+    await repo.mergeSeedChannels(seed);
+    final target = (await repo.loadChannels()).first;
+    await repo.updateChannel(target.copyWith(coldAt: DateTime(2026, 10, 2)));
+
+    await repo.mergeSeedChannels(seed);
+
+    final after = (await repo.loadChannels()).firstWhere(
+      (c) => c.id == target.id,
+    );
+    expect(after.coldAt, DateTime(2026, 10, 2));
+    // copyWith 不帶 coldAt 時維持原樣，明確傳 null 才是移出冷藏。
+    expect(after.copyWith(name: 'x').coldAt, DateTime(2026, 10, 2));
+    expect(after.copyWith(coldAt: null).coldAt, isNull);
+  });
+
   test('背景訂閱人數更新拿舊快照寫回，不會蓋掉期間做的置頂', () async {
     final repo = YtTrackerRepository(_MemoryStore());
     await repo.mergeSeedChannels(seed);
