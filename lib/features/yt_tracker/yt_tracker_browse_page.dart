@@ -1499,11 +1499,11 @@ class _ChannelGridState extends State<_ChannelGrid> {
         : isCold
         ? AppColors.ytColdAccent
         : null;
-    // 長按整張卡片、或點右邊 ⋮，都跳出同一份底部選單（2026-09-24 加
-    // 長按；2026-10-02 使用者嫌原本的灰底小選單醜，兩個入口統一換成
-    // [_showChannelSheet]）。
+    // 長按整張卡片、或點右邊 ⋮，都在按的位置旁邊跳出同一份選單
+    // （2026-09-24 加長按；2026-10-02 使用者嫌原本灰底純文字的選單醜，
+    // 見 [_showChannelMenu]）。
     return GestureDetector(
-      onLongPress: () => _showChannelSheet(context, c),
+      onLongPressStart: (d) => _showChannelMenu(context, d.globalPosition, c),
       child: InkWell(
         onTap: () => widget.onOpen(c),
         borderRadius: BorderRadius.circular(Radii.card),
@@ -1563,16 +1563,28 @@ class _ChannelGridState extends State<_ChannelGrid> {
                         ),
                       ),
                     ),
-                    IconButton(
-                      onPressed: () => _showChannelSheet(context, c),
-                      icon: const Icon(Icons.more_vert_rounded, size: 18),
-                      color: AppColors.ink2,
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(
-                        minWidth: 32,
-                        minHeight: 32,
+                    // 選單從 ⋮ 按鈕本身的位置跳出來，用按鈕自己的 context
+                    // 算座標（外層卡片的 context 會算成卡片的位置）。
+                    Builder(
+                      builder: (buttonContext) => IconButton(
+                        onPressed: () {
+                          final box =
+                              buttonContext.findRenderObject() as RenderBox;
+                          _showChannelMenu(
+                            context,
+                            box.localToGlobal(box.size.bottomLeft(Offset.zero)),
+                            c,
+                          );
+                        },
+                        icon: const Icon(Icons.more_vert_rounded, size: 18),
+                        color: AppColors.ink2,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(
+                          minWidth: 32,
+                          minHeight: 32,
+                        ),
+                        tooltip: '更多',
                       ),
-                      tooltip: '更多',
                     ),
                   ],
                 ),
@@ -1602,124 +1614,82 @@ class _ChannelGridState extends State<_ChannelGrid> {
     );
   }
 
-  /// 頻道操作選單，從底部滑出（2026-10-02 使用者要求選單好看一點：原本
-  /// 長按跟 ⋮ 是兩份重複的 Material 預設小選單，灰底、純文字）。最上面
-  /// 帶頻道頭像＋名稱確認是在操作哪一個，每個動作配圖示，置頂／冷藏用
-  /// 各自的區域色，刪除用紅字、跟其他動作隔開，降低誤觸。
-  Future<void> _showChannelSheet(BuildContext context, YtChannel c) async {
+  /// 頻道操作選單，在手指長按的位置（或 ⋮ 按鈕旁邊）直接跳出來，跟手機
+  /// 原生的長按選單一樣（2026-10-02 使用者要求：不要從底部滑出的面板，
+  /// 要正常跳出來的選單）。原本 Material 預設選單是灰底純文字很醜，這裡
+  /// 換成深色圓角、每個動作配圖示，置頂／冷藏用各自的區域色，刪除紅字、
+  /// 前面一條分隔線隔開，降低誤觸。
+  Future<void> _showChannelMenu(
+    BuildContext context,
+    Offset position,
+    YtChannel c,
+  ) async {
     final isPinned = c.pinnedAt != null;
     final isCold = c.coldAt != null;
-    final action = await showModalBottomSheet<_ChannelMenuAction>(
-      context: context,
-      backgroundColor: const Color(0xFF1A1A24),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (sheetContext) {
-        Widget item(
-          _ChannelMenuAction value,
-          IconData icon,
-          String label, {
-          Color color = AppColors.ink,
-          Color? iconColor,
-          String? hint,
-        }) => ListTile(
-          leading: Icon(icon, size: 21, color: iconColor ?? color),
-          title: Text(
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+
+    PopupMenuItem<_ChannelMenuAction> item(
+      _ChannelMenuAction value,
+      IconData icon,
+      String label, {
+      Color color = AppColors.ink,
+      Color? iconColor,
+    }) => PopupMenuItem(
+      value: value,
+      height: 44,
+      child: Row(
+        children: [
+          Icon(icon, size: 19, color: iconColor ?? color),
+          const SizedBox(width: 12),
+          Text(
             label,
             style: TextStyle(
-              fontSize: 14.5,
+              fontSize: 14,
               fontWeight: FontWeight.w600,
               color: color,
             ),
           ),
-          subtitle: hint == null ? null : Text(hint, style: AppText.note),
-          dense: true,
-          onTap: () => Navigator.pop(sheetContext, value),
-        );
+        ],
+      ),
+    );
 
-        return SafeArea(
-          top: false,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Padding(
-                padding: EdgeInsets.only(top: 10, bottom: 4),
-                child: SizedBox(
-                  width: 36,
-                  height: 4,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: AppColors.glassEdge,
-                      borderRadius: BorderRadius.all(Radius.circular(2)),
-                    ),
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-                child: Row(
-                  children: [
-                    YtChannelAvatar(channel: c, radius: 20),
-                    const SizedBox(width: Gap.sm),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            c.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.ink,
-                            ),
-                          ),
-                          if (c.subscriberLabel != null)
-                            Text(c.subscriberLabel!, style: AppText.note),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Divider(height: 1, color: AppColors.glassEdge),
-              const SizedBox(height: 4),
-              item(_ChannelMenuAction.edit, Icons.edit_outlined, '編輯頻道資料'),
-              item(
-                _ChannelMenuAction.move,
-                Icons.folder_open_rounded,
-                '移到其他分類',
-              ),
-              item(
-                _ChannelMenuAction.pin,
-                isPinned ? Icons.push_pin_outlined : Icons.push_pin_rounded,
-                isPinned ? '取消置頂' : '置頂',
-                iconColor: AppColors.ytPinAccent,
-              ),
-              item(
-                _ChannelMenuAction.cold,
-                Icons.ac_unit_rounded,
-                isCold ? '移出$ytColdSectionLabel' : '放進$ytColdSectionLabel',
-                iconColor: AppColors.ytColdAccent,
-                hint: isCold ? null : '不常看的收到最下面，不會刪掉',
-              ),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                child: Divider(height: 1, color: AppColors.glassEdge),
-              ),
-              item(
-                _ChannelMenuAction.delete,
-                Icons.delete_outline_rounded,
-                '刪除',
-                color: AppColors.bad,
-              ),
-              const SizedBox(height: Gap.sm),
-            ],
-          ),
-        );
-      },
+    final action = await showMenu<_ChannelMenuAction>(
+      context: context,
+      position: RelativeRect.fromRect(
+        position & const Size(1, 1),
+        Offset.zero & overlay.size,
+      ),
+      color: const Color(0xFF23232F),
+      elevation: 10,
+      shadowColor: Colors.black,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: const BorderSide(color: AppColors.glassEdge),
+      ),
+      constraints: const BoxConstraints(minWidth: 184),
+      items: [
+        item(_ChannelMenuAction.edit, Icons.edit_outlined, '編輯頻道資料'),
+        item(_ChannelMenuAction.move, Icons.folder_open_rounded, '移到其他分類'),
+        item(
+          _ChannelMenuAction.pin,
+          isPinned ? Icons.push_pin_outlined : Icons.push_pin_rounded,
+          isPinned ? '取消置頂' : '置頂',
+          iconColor: AppColors.ytPinAccent,
+        ),
+        item(
+          _ChannelMenuAction.cold,
+          Icons.ac_unit_rounded,
+          isCold ? '移出$ytColdSectionLabel' : '放進$ytColdSectionLabel',
+          iconColor: AppColors.ytColdAccent,
+        ),
+        const PopupMenuDivider(height: 9),
+        item(
+          _ChannelMenuAction.delete,
+          Icons.delete_outline_rounded,
+          '刪除',
+          color: AppColors.bad,
+        ),
+      ],
     );
     switch (action) {
       case _ChannelMenuAction.edit:
