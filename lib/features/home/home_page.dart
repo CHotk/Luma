@@ -319,11 +319,11 @@ class _EnMonthlyCalendarCard extends StatefulWidget {
   final HomeState state;
 
   @override
-  State<_EnMonthlyCalendarCard> createState() =>
-      _EnMonthlyCalendarCardState();
+  State<_EnMonthlyCalendarCard> createState() => _EnMonthlyCalendarCardState();
 }
 
-class _EnMonthlyCalendarCardState extends State<_EnMonthlyCalendarCard> {
+class _EnMonthlyCalendarCardState extends State<_EnMonthlyCalendarCard>
+    with SingleTickerProviderStateMixin {
   static const _weekdayLabels = ['日', '一', '二', '三', '四', '五', '六'];
 
   /// 點某一天的練習摘要最多列幾個單字，超過就截斷＋顯示「還有幾個」
@@ -332,12 +332,109 @@ class _EnMonthlyCalendarCardState extends State<_EnMonthlyCalendarCard> {
 
   late DateTime _viewedMonth;
 
+  // ---- 上下滑動切換月份（2026-10-02 使用者要求：月曆往上下滑可以看
+  // 其他月份，切換過程要精緻）----
+  // 往上滑＝下個月、往下滑＝上個月（跟手機內建日曆同方向：往上推，
+  // 底下比較晚的月份冒出來）。拖曳中格子跟著手指走、稍微變淡；放開
+  // 超過門檻就換月，新月份從滑動方向滑進來、舊的往反方向滑出去；
+  // 沒過門檻就彈回原位。已經是最早／最晚的月份還硬拉，阻力變大
+  // （橡皮筋），讓人感覺到「到底了」。
+
+  /// 拖曳中格子目前的垂直位移（px）。
+  double _dragDy = 0;
+
+  /// 上一次換月的方向：+1 下個月、-1 上個月，決定進出場往哪邊滑。
+  int _direction = 1;
+
+  // 一定要在 initState 建好，不能用 late final 延遲建立：沒拖曳過的話，
+  // 第一次碰到它會是離開頁面時的 dispose()，在拆畫面途中才建
+  // AnimationController 會直接丟例外（2026-10-02 加這段時，日文首頁的
+  // 單元測試抓到的）。
+  late final AnimationController _snapBack;
+  double _snapFrom = 0;
+
+  static const _switchThresholdPx = 48.0;
+  static const _switchVelocity = 350.0;
+
   @override
   void initState() {
     super.initState();
     final now = DateTime.now();
     _viewedMonth = DateTime(now.year, now.month);
+    _snapBack = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 260),
+    )..addListener(_onSnapBackTick);
   }
+
+  @override
+  void dispose() {
+    _snapBack.dispose();
+    super.dispose();
+  }
+
+  /// 能看的範圍跟「選擇月份」選單一致：第一次練習的那個月～這個月。
+  DateTime get _earliestMonth {
+    final source = widget.state.firstPracticedAt ?? DateTime.now();
+    return DateTime(source.year, source.month);
+  }
+
+  DateTime get _latestMonth {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month);
+  }
+
+  bool get _canGoPrev => _viewedMonth.isAfter(_earliestMonth);
+  bool get _canGoNext => _viewedMonth.isBefore(_latestMonth);
+
+  void _goTo(int delta) {
+    if (delta < 0 && !_canGoPrev || delta > 0 && !_canGoNext) return;
+    _snapBack.stop();
+    setState(() {
+      _direction = delta;
+      _viewedMonth = DateTime(_viewedMonth.year, _viewedMonth.month + delta);
+      _dragDy = 0;
+    });
+  }
+
+  void _onDragUpdate(DragUpdateDetails d) {
+    _snapBack.stop();
+    final next = _dragDy + d.delta.dy;
+    // 往上拉（負）是要去下個月、往下拉（正）是要去上個月；那個方向
+    // 已經沒有月份了，位移只吃四分之一，做出橡皮筋的阻力感。
+    final blocked = next < 0 && !_canGoNext || next > 0 && !_canGoPrev;
+    setState(() => _dragDy += blocked ? d.delta.dy * 0.25 : d.delta.dy);
+  }
+
+  void _onDragEnd(DragEndDetails d) {
+    final v = d.primaryVelocity ?? 0;
+    if ((_dragDy < -_switchThresholdPx || v < -_switchVelocity) && _canGoNext) {
+      _goTo(1);
+    } else if ((_dragDy > _switchThresholdPx || v > _switchVelocity) &&
+        _canGoPrev) {
+      _goTo(-1);
+    } else {
+      _snapFrom = _dragDy;
+      _snapBack.forward(from: 0);
+    }
+  }
+
+  void _onSnapBackTick() {
+    final t = Curves.easeOutCubic.transform(_snapBack.value);
+    setState(() => _dragDy = _snapFrom * (1 - t));
+  }
+
+  Widget _navArrow(IconData icon, String tooltip, VoidCallback? onTap) =>
+      IconButton(
+        onPressed: onTap,
+        icon: Icon(icon, size: 18),
+        color: AppColors.ink2,
+        disabledColor: AppColors.ink3.withValues(alpha: 0.35),
+        tooltip: tooltip,
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+        visualDensity: VisualDensity.compact,
+      );
 
   Future<void> _pickMonth() async {
     final now = DateTime.now();
@@ -362,11 +459,13 @@ class _EnMonthlyCalendarCardState extends State<_EnMonthlyCalendarCard> {
                 '${m.year} 年 ${m.month} 月',
                 style: TextStyle(
                   fontWeight:
-                      m.year == _viewedMonth.year && m.month == _viewedMonth.month
+                      m.year == _viewedMonth.year &&
+                          m.month == _viewedMonth.month
                       ? FontWeight.w700
                       : FontWeight.normal,
                   color:
-                      m.year == _viewedMonth.year && m.month == _viewedMonth.month
+                      m.year == _viewedMonth.year &&
+                          m.month == _viewedMonth.month
                       ? AppColors.accent
                       : AppColors.ink,
                 ),
@@ -375,7 +474,14 @@ class _EnMonthlyCalendarCardState extends State<_EnMonthlyCalendarCard> {
         ],
       ),
     );
-    if (picked != null) setState(() => _viewedMonth = picked);
+    if (picked != null && picked != _viewedMonth) {
+      // 從選單跳月份也走同一套進出場動畫，方向依前後判斷。
+      _goTo(
+        (picked.year - _viewedMonth.year) * 12 +
+            picked.month -
+            _viewedMonth.month,
+      );
+    }
   }
 
   @override
@@ -393,6 +499,11 @@ class _EnMonthlyCalendarCardState extends State<_EnMonthlyCalendarCard> {
     final rate = daysInMonth == 0
         ? 0
         : (practiced.length * 100 / daysInMonth).round();
+    // 跨年看舊月份時標題帶上年份，不然「12 月」分不出是哪一年。
+    final monthLabel = viewed.year == now.year
+        ? '${viewed.month} 月練習'
+        : '${viewed.year} 年 ${viewed.month} 月練習';
+    final monthKey = ValueKey(viewed.year * 12 + viewed.month);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -405,7 +516,16 @@ class _EnMonthlyCalendarCardState extends State<_EnMonthlyCalendarCard> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('${viewed.month} 月練習', style: AppText.bodyDim),
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 220),
+                    transitionBuilder: (child, anim) =>
+                        FadeTransition(opacity: anim, child: child),
+                    child: Text(
+                      monthLabel,
+                      key: monthKey,
+                      style: AppText.bodyDim,
+                    ),
+                  ),
                   const SizedBox(width: 2),
                   const Icon(
                     Icons.expand_more_rounded,
@@ -414,6 +534,18 @@ class _EnMonthlyCalendarCardState extends State<_EnMonthlyCalendarCard> {
                   ),
                 ],
               ),
+            ),
+            // 上下箭頭：滑動之外的明確入口（電腦用滑鼠、或不知道可以
+            // 滑的人）。往上＝較早的月份、往下＝較晚的，跟滑動方向一致。
+            _navArrow(
+              Icons.keyboard_arrow_up_rounded,
+              '上個月',
+              _canGoPrev ? () => _goTo(-1) : null,
+            ),
+            _navArrow(
+              Icons.keyboard_arrow_down_rounded,
+              '下個月',
+              _canGoNext ? () => _goTo(1) : null,
             ),
             const Spacer(),
             Text(
@@ -437,18 +569,66 @@ class _EnMonthlyCalendarCardState extends State<_EnMonthlyCalendarCard> {
           ],
         ),
         const SizedBox(height: 4),
-        // 不用 GridView：這張卡片包在首頁最外層的 IntrinsicHeight 裡
-        // （撐住「按鈕釘底部」那個版面），GridView 內部是 Viewport，量不出
-        // 「intrinsic 高度」，會直接丟例外——跟日文首頁那張卡片同一個坑
-        // （見 `jp_home_page.dart` 的說明），改用 Row／Column 手排格子。
-        _weekGrid(
-          [
-            for (var i = 0; i < firstWeekday; i++) null,
-            for (var d = 1; d <= daysInMonth; d++) d,
-          ],
-          now,
-          practiced,
-          isCurrentMonth,
+        // 不用 GridView／PageView：這張卡片包在首頁最外層的 IntrinsicHeight
+        // 裡（撐住「按鈕釘底部」那個版面），GridView、PageView 內部是
+        // Viewport，量不出「intrinsic 高度」，會直接丟例外——跟日文首頁
+        // 那張卡片同一個坑（見 `jp_home_page.dart` 的說明）。格子用
+        // Row／Column 手排，換月動畫用 AnimatedSwitcher（底下是 Stack）
+        // ＋AnimatedSize（5 週↔6 週的月份高度不同，平滑過渡不跳動），
+        // 都是能量 intrinsic 的純版面元件。
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onVerticalDragUpdate: _onDragUpdate,
+          onVerticalDragEnd: _onDragEnd,
+          child: ClipRect(
+            child: AnimatedSize(
+              duration: const Duration(milliseconds: 260),
+              curve: Curves.easeOutCubic,
+              alignment: Alignment.topCenter,
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 340),
+                switchInCurve: Curves.easeOutCubic,
+                switchOutCurve: Curves.easeInCubic,
+                transitionBuilder: (child, anim) {
+                  // 新月份從滑動方向進來、舊月份往反方向出去（舊的動畫
+                  // 是倒著播 1→0，所以 begin 就是它最後停的位置）。
+                  final incoming = child.key == monthKey;
+                  final from = Offset(
+                    0,
+                    0.28 * _direction * (incoming ? 1 : -1),
+                  );
+                  return FadeTransition(
+                    opacity: anim,
+                    child: SlideTransition(
+                      position: Tween(
+                        begin: from,
+                        end: Offset.zero,
+                      ).animate(anim),
+                      child: child,
+                    ),
+                  );
+                },
+                child: KeyedSubtree(
+                  key: monthKey,
+                  child: Transform.translate(
+                    offset: Offset(0, _dragDy),
+                    child: Opacity(
+                      opacity: 1 - (_dragDy.abs() / 240).clamp(0.0, 0.35),
+                      child: _weekGrid(
+                        [
+                          for (var i = 0; i < firstWeekday; i++) null,
+                          for (var d = 1; d <= daysInMonth; d++) d,
+                        ],
+                        now,
+                        practiced,
+                        isCurrentMonth,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
         ),
         const SizedBox(height: Gap.sm),
         Row(

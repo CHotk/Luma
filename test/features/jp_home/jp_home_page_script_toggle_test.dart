@@ -69,6 +69,20 @@ void main() {
     // 不是固定顯示平假名的「か行」（2026-09-18 使用者回饋）。
     expect(find.text('カ行'), findsOneWidget);
     expect(find.text('か行'), findsNothing);
+
+    // 2026-10-02 月曆加了上下滑動切換月份：測試的儲存是空的、沒有更早的
+    // 練習紀錄，往下拉（要看上個月）應該只有橡皮筋阻力、放開彈回原位，
+    // 標題還是這個月，整個過程不能丟例外；往上拉（下個月）也一樣到底了。
+    final now = DateTime.now();
+    final monthLabel = '${now.month} 月練習';
+    await tester.ensureVisible(find.text('15').first);
+    await tester.drag(find.text('15').first, const Offset(0, 140));
+    await tester.pumpAndSettle();
+    expect(find.text(monthLabel), findsOneWidget);
+    await tester.drag(find.text('15').first, const Offset(0, -140));
+    await tester.pumpAndSettle();
+    expect(find.text(monthLabel), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }
 
