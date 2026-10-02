@@ -1,0 +1,224 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>頻道長按選單 五種風格</title><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;800&display=swap" rel="stylesheet"><style>:root{--bg:#0c0c13;--panel:#161622;--panel2:#1e1e2e;--line:#2a2a3d;--text:#eceaf5;--sub:#8b8ba3;--acc:#FF2D40;--pin:#E0B15C;--cold:#8EC5E8;--bad:#FF938B}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-serif;min-height:100vh;padding:32px 16px 48px}
+.intro{max-width:720px;margin:0 auto 32px;text-align:center}
+.eyebrow{color:var(--acc);font-size:12px;letter-spacing:.2em}
+h1{font-size:22px;margin:6px 0}
+.intro p{color:var(--sub);font-size:13px;line-height:1.7}
+.wrap{display:flex;flex-wrap:wrap;gap:40px 28px;justify-content:center;max-width:1800px;margin:0 auto}
+.variant{width:320px}
+.vhead{margin-bottom:12px;min-height:118px}
+.vhead .num{color:var(--acc);font-size:11px;letter-spacing:.15em}
+.vhead h2{font-size:17px;margin:4px 0 6px}
+.vhead p{color:var(--sub);font-size:12.5px;line-height:1.65}
+.tag{display:inline-block;background:var(--acc);color:#fff;border-radius:99px;padding:1px 9px;font-size:10.5px;margin-left:6px;vertical-align:2px}
+.tag.now{background:var(--panel2);color:var(--sub);border:1px solid var(--line)}
+.note{color:var(--sub);font-size:12px;line-height:1.7;margin-top:12px}
+.note b{color:var(--text);font-weight:700}
+.phone{width:320px;height:640px;border:7px solid #000;border-radius:34px;background:var(--bg);overflow:hidden;position:relative}
+.top{display:flex;align-items:center;gap:7px;padding:16px 14px 10px}
+.top b{flex:1;font-size:16px}
+.ib{width:28px;height:28px;border-radius:9px;background:var(--panel);display:grid;place-items:center;font-size:13px;color:var(--sub)}
+.body{padding:0 12px}
+.sec{display:flex;align-items:center;gap:6px;color:var(--sub);font-size:11px;margin:4px 2px 7px}
+.sec .grow{flex:1}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.card{position:relative;display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.075);border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:9px 4px 9px 10px;overflow:hidden}
+.card.pin::before,.card.cold::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px}
+.card.pin::before{background:var(--pin)}
+.card.cold::before{background:var(--cold)}
+.card.cold .av,.card.cold .nm{opacity:.6}
+.av{width:28px;height:28px;border-radius:50%;flex-shrink:0;display:grid;place-items:center;font-size:12px;font-weight:800;color:#fff}
+.nm{flex:1;min-width:0}
+.nm b{display:block;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nm span{font-size:9.5px;color:var(--sub);white-space:nowrap}
+.dots{color:var(--sub);font-size:13px;width:16px;text-align:center}
+.hr{height:1px;background:var(--line);margin:11px 0 8px}
+.ic{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+/* 被長按的那張卡浮起來（JS 會複製一張蓋在原位置） */
+.lifted{position:absolute;z-index:6;width:var(--tw);left:var(--tx);top:var(--ty);transform:scale(1.05);background:#262636;box-shadow:0 14px 34px rgba(0,0,0,.6);transition:none}
+.lifted.soft{transform:none;background:#2a2a3c;box-shadow:0 0 0 2px rgba(255,255,255,.18)}
+.dim{position:absolute;inset:0;z-index:5;background:rgba(5,5,10,.45)}
+.dim.blur{backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);background:rgba(5,5,10,.35)}
+.dim.light{background:rgba(5,5,10,.3)}
+/* 1 iOS */
+.ios-menu{position:absolute;z-index:7;width:226px;border-radius:14px;background:rgba(44,44,58,.82);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);overflow:hidden;box-shadow:0 18px 40px rgba(0,0,0,.5)}
+.ios-row{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;font-size:14px;border-bottom:.5px solid rgba(255,255,255,.12)}
+.ios-row:last-child{border-bottom:none}
+.ios-gap{height:7px;background:rgba(0,0,0,.28)}
+.ios-row.bad{color:#ff6b6b}
+/* 2 Material */
+.touch{position:absolute;z-index:6;width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.16);transform:translate(-50%,-50%)}
+.md-menu{position:absolute;z-index:7;min-width:184px;padding:6px 0;border-radius:14px;background:#23232F;border:1px solid rgba(255,255,255,.14);box-shadow:0 10px 26px rgba(0,0,0,.6)}
+.md-row{display:flex;align-items:center;gap:12px;padding:0 16px;height:42px;font-size:13.5px;font-weight:600}
+.md-div{height:1px;background:rgba(255,255,255,.12);margin:4px 0}
+.md-row.bad{color:var(--bad)}
+/* 3 分組 */
+.gp-menu{position:absolute;z-index:7;width:236px;border-radius:16px;background:#1f1f2b;border:1px solid rgba(255,255,255,.12);box-shadow:0 16px 36px rgba(0,0,0,.6);overflow:hidden}
+.gp-head{display:flex;align-items:center;gap:10px;padding:12px 14px;background:rgba(255,255,255,.04);border-bottom:1px solid rgba(255,255,255,.08)}
+.gp-head b{display:block;font-size:13px}
+.gp-head span{font-size:10.5px;color:var(--sub)}
+.gp-lab{font-size:10px;color:var(--sub);letter-spacing:.12em;padding:9px 16px 3px}
+.gp-row{display:flex;align-items:center;gap:12px;padding:0 16px;height:38px;font-size:13px}
+.gp-row em{margin-left:auto;font-style:normal;font-size:10px;color:var(--sub)}
+.gp-row.bad{color:var(--bad)}
+.gp-pad{height:6px}
+/* 4 泡泡 */
+.bubble{position:absolute;z-index:7;display:flex;background:#0a0a0f;border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:8px 4px;box-shadow:0 12px 28px rgba(0,0,0,.6)}
+.bcell{width:56px;display:flex;flex-direction:column;align-items:center;gap:5px;font-size:10.5px;color:#d8d8e4}
+.bcell .ic{width:20px;height:20px}
+.bcell.bad{color:var(--bad)}
+.bsep{width:1px;background:rgba(255,255,255,.1);margin:4px 2px}
+.tail{position:absolute;bottom:-7px;width:14px;height:14px;background:#0a0a0f;border-right:1px solid rgba(255,255,255,.1);border-bottom:1px solid rgba(255,255,255,.1);transform:rotate(45deg)}
+/* 5 環 */
+.finger{position:absolute;z-index:7;width:44px;height:44px;border-radius:50%;border:2px solid rgba(255,255,255,.55);background:rgba(255,255,255,.1);transform:translate(-50%,-50%)}
+.rbtn{position:absolute;z-index:7;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:4px}
+.rbtn i{width:44px;height:44px;border-radius:50%;background:#262634;border:1px solid rgba(255,255,255,.14);display:grid;place-items:center;font-style:normal;box-shadow:0 8px 18px rgba(0,0,0,.5)}
+.rbtn span{font-size:10px;color:#d8d8e4;background:rgba(0,0,0,.55);padding:1px 6px;border-radius:6px}
+.rbtn.on i{transform:scale(1.18);background:var(--cold);color:#0b1a24;border-color:transparent}
+.rbtn.bad i{color:var(--bad)}
+.trail{position:absolute;z-index:6;height:2px;background:linear-gradient(90deg,rgba(255,255,255,.1),var(--cold));transform-origin:0 50%}
+.hint{position:absolute;z-index:7;left:0;right:0;bottom:26px;text-align:center;font-size:11.5px;color:#d8d8e4}
+.hint span{background:rgba(0,0,0,.6);padding:5px 12px;border-radius:99px}
+</style></head><body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+<symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M14 6l4 4"/></symbol>
+<symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+<symbol id="i-pin" viewBox="0 0 24 24"><path d="M9 4h6l-1 5 3 3H7l3-3-1-5z"/><path d="M12 12v8"/></symbol>
+<symbol id="i-snow" viewBox="0 0 24 24"><path d="M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9"/><path d="M9.5 4.5 12 7l2.5-2.5M9.5 19.5 12 17l2.5 2.5"/></symbol>
+<symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></symbol>
+</svg>
+<template id="base">
+<div class="top"><span class="ib">‹</span><b>知識</b><span class="ib">⇅</span><span class="ib">＋</span></div>
+<div class="body">
+<div class="sec"><i class="dot" style="background:var(--pin)"></i>已置頂 · 1</div>
+<div class="cards">
+<div class="card pin"><div class="av" style="background:#c0563f">老</div><div class="nm"><b>老高與小茉</b><span>657 萬訂閱</span></div><div class="dots">⋮</div></div>
+</div>
+<div class="hr"></div>
+<div class="cards">
+<div class="card target"><div class="av" style="background:#3f7fc0">志</div><div class="nm"><b>志祺七七</b><span>136 萬訂閱</span></div><div class="dots">⋮</div></div>
+<div class="card"><div class="av" style="background:#8a5ac0">敏</div><div class="nm"><b>敏迪選讀</b><span>98 萬訂閱</span></div><div class="dots">⋮</div></div>
+<div class="card"><div class="av" style="background:#3fa57a">啾</div><div class="nm"><b>啾啾鞋</b><span>145 萬訂閱</span></div><div class="dots">⋮</div></div>
+<div class="card"><div class="av" style="background:#c08a3f">台</div><div class="nm"><b>台灣吧</b><span>72 萬訂閱</span></div><div class="dots">⋮</div></div>
+<div class="card"><div class="av" style="background:#c03f6a">科</div><div class="nm"><b>科學大爆炸</b><span>41 萬訂閱</span></div><div class="dots">⋮</div></div>
+<div class="card"><div class="av" style="background:#4fa0a8">地</div><div class="nm"><b>地球旅館</b><span>18 萬訂閱</span></div><div class="dots">⋮</div></div>
+</div>
+<div class="hr"></div>
+<div class="sec"><i class="dot" style="background:var(--cold)"></i>冷藏 · 2<span class="grow"></span>展開 ⌄</div>
+</div>
+</template>
+
+<div class="intro"><div class="eyebrow">YT 頻道追蹤 · 長按頻道的選單</div><h1>頻道長按選單：五種風格</h1><p>同一個畫面（「知識」分類，長按「志祺七七」），五種選單長相並排比較。動作都一樣：編輯頻道資料、移到其他分類、置頂、放進冷藏、刪除。第 2 版是目前上線的版本。挑一個（或混搭）跟我說，就照那版改。</p></div>
+
+<div class="wrap">
+
+<div class="variant"><div class="vhead"><div class="num">版本 1</div><h2>iOS 原生長按選單<span class="tag">主流</span></h2><p>iPhone 長按的標準樣子：背景模糊變暗，被按的那張卡片放大浮起來，選單貼在卡片下方，文字在左、圖示在右，刪除跟其他動作中間隔一條粗的間隙。</p></div>
+<div class="phone" data-lift>
+<div class="dim blur"></div>
+<div class="ios-menu" style="left:var(--tx);top:calc(var(--ty) + var(--th) + 12px)">
+<div class="ios-row">編輯頻道資料<svg class="ic"><use href="#i-edit"/></svg></div>
+<div class="ios-row">移到其他分類<svg class="ic"><use href="#i-folder"/></svg></div>
+<div class="ios-row">置頂<svg class="ic" style="color:var(--pin)"><use href="#i-pin"/></svg></div>
+<div class="ios-row">放進冷藏<svg class="ic" style="color:var(--cold)"><use href="#i-snow"/></svg></div>
+<div class="ios-gap"></div>
+<div class="ios-row bad">刪除<svg class="ic"><use href="#i-trash"/></svg></div>
+</div>
+</div>
+<p class="note"><b>優點：</b>iPhone 使用者最熟悉，浮起來的卡片清楚告訴你「正在操作這一個」，質感最好。<b>缺點：</b>模糊、浮起動畫要自己做，工程比較多；在 Android 上看起來會像 iPhone。</p></div>
+
+<div class="variant"><div class="vhead"><div class="num">版本 2</div><h2>Material 彈出選單<span class="tag now">目前上線</span></h2><p>Android／Material 的做法：背景不變暗，選單直接在手指按下的位置跳出來，圖示在左、文字在右，刪除前面一條細分隔線。</p></div>
+<div class="phone">
+<div class="touch" style="left:calc(var(--tx) + 46px);top:calc(var(--ty) + 24px)"></div>
+<div class="md-menu" style="left:calc(var(--tx) + 46px);top:calc(var(--ty) + 24px)">
+<div class="md-row"><svg class="ic"><use href="#i-edit"/></svg>編輯頻道資料</div>
+<div class="md-row"><svg class="ic"><use href="#i-folder"/></svg>移到其他分類</div>
+<div class="md-row"><svg class="ic" style="color:var(--pin)"><use href="#i-pin"/></svg>置頂</div>
+<div class="md-row"><svg class="ic" style="color:var(--cold)"><use href="#i-snow"/></svg>放進冷藏</div>
+<div class="md-div"></div>
+<div class="md-row bad"><svg class="ic"><use href="#i-trash"/></svg>刪除</div>
+</div>
+</div>
+<p class="note"><b>優點：</b>最快、最穩，Flutter 內建就有，按下去馬上出現。<b>缺點：</b>背景沒變化，選單又小，比較看不出是哪一張卡片被按到，感覺比較「工具」。</p></div>
+
+<div class="variant"><div class="vhead"><div class="num">版本 3</div><h2>分組＋頻道標頭</h2><p>選單最上面先秀頻道頭像跟名稱，確認對象沒按錯；動作分成「整理」（置頂、冷藏、移動）跟「管理」（編輯、刪除）兩組，每項右邊有小說明。</p></div>
+<div class="phone" data-lift="soft">
+<div class="dim light"></div>
+<div class="gp-menu" style="left:var(--tx);top:calc(var(--ty) + var(--th) + 10px)">
+<div class="gp-head"><div class="av" style="background:#3f7fc0">志</div><div><b>志祺七七</b><span>約 136 萬位訂閱・知識</span></div></div>
+<div class="gp-lab">整理</div>
+<div class="gp-row"><svg class="ic" style="color:var(--pin)"><use href="#i-pin"/></svg>置頂<em>排最上面</em></div>
+<div class="gp-row"><svg class="ic" style="color:var(--cold)"><use href="#i-snow"/></svg>放進冷藏<em>收到最下面</em></div>
+<div class="gp-row"><svg class="ic"><use href="#i-folder"/></svg>移到其他分類</div>
+<div class="gp-lab">管理</div>
+<div class="gp-row"><svg class="ic"><use href="#i-edit"/></svg>編輯頻道資料</div>
+<div class="gp-row bad"><svg class="ic"><use href="#i-trash"/></svg>刪除<em>可從垃圾桶還原</em></div>
+<div class="gp-pad"></div>
+</div>
+</div>
+<p class="note"><b>優點：</b>最不會按錯對象，分組讓五個動作一眼就分得出輕重，說明文字對新功能（冷藏）特別有幫助。<b>缺點：</b>選單最高、字最多，常用的人會覺得囉嗦。</p></div>
+
+<div class="variant"><div class="vhead"><div class="num">版本 4</div><h2>泡泡橫列（LINE／微信式）</h2><p>長按聊天訊息那種：一條黑色泡泡浮在卡片上方，圖示在上、短字在下橫向排開，小尖角指向被按的卡片。刪除放最右邊、用分隔線隔開。</p></div>
+<div class="phone" data-lift="soft">
+<div class="bubble" style="left:10px;top:calc(var(--ty) - 72px)">
+<div class="bcell"><svg class="ic" style="color:var(--pin)"><use href="#i-pin"/></svg>置頂</div>
+<div class="bcell"><svg class="ic" style="color:var(--cold)"><use href="#i-snow"/></svg>冷藏</div>
+<div class="bcell"><svg class="ic"><use href="#i-folder"/></svg>移動</div>
+<div class="bcell"><svg class="ic"><use href="#i-edit"/></svg>編輯</div>
+<div class="bsep"></div>
+<div class="bcell bad"><svg class="ic"><use href="#i-trash"/></svg>刪除</div>
+<i class="tail" style="left:calc(var(--tx) + var(--tw) / 2 - 17px)"></i>
+</div>
+</div>
+<p class="note"><b>優點：</b>一條橫列很省空間，手指往上一點就按得到，台灣人用 LINE 很熟悉。<b>缺點：</b>字只能兩個字（「移到其他分類」只能寫「移動」），之後動作再多就排不下。</p></div>
+
+<div class="variant"><div class="vhead"><div class="num">版本 5</div><h2>環狀快捷（按住滑過去）</h2><p>長按不放開，選項在手指周圍排成半圈；手指不離開螢幕直接滑到想要的選項上再放開，就執行。圖中正滑向「冷藏」。</p></div>
+<div class="phone" data-lift="soft">
+<div class="dim blur"></div>
+<div class="trail" data-trail></div>
+<div class="finger" style="left:var(--cx);top:var(--cy)"></div>
+<div class="rbtn" style="left:calc(var(--cx) + 31px);top:calc(var(--cy) - 95px)"><i><svg class="ic" style="color:var(--pin)"><use href="#i-pin"/></svg></i><span>置頂</span></div>
+<div class="rbtn on" style="left:calc(var(--cx) + 81px);top:calc(var(--cy) - 59px)"><i><svg class="ic"><use href="#i-snow"/></svg></i><span>放進冷藏</span></div>
+<div class="rbtn" style="left:calc(var(--cx) + 100px);top:var(--cy)"><i><svg class="ic"><use href="#i-folder"/></svg></i><span>移動</span></div>
+<div class="rbtn" style="left:calc(var(--cx) + 81px);top:calc(var(--cy) + 59px)"><i><svg class="ic"><use href="#i-edit"/></svg></i><span>編輯</span></div>
+<div class="rbtn bad" style="left:calc(var(--cx) + 31px);top:calc(var(--cy) + 95px)"><i><svg class="ic"><use href="#i-trash"/></svg></i><span>刪除</span></div>
+<div class="hint"><span>手指不放開，滑到選項上再放開</span></div>
+</div>
+<p class="note"><b>優點：</b>一個動作做完（按住→滑→放開），常用之後最快，也最有特色。<b>缺點：</b>要學才會、第一次用的人不知道可以滑；容易誤觸；卡片在螢幕右邊時半圈要自動換到左邊。</p></div>
+
+</div>
+
+<script>
+// 把共用的頻道格子畫面塞進每支手機，再量出被長按那張卡（.target）的位置，
+// 存成 CSS 變數給各版本的選單定位；有 data-lift 的版本再複製一張浮起來的卡。
+const base = document.getElementById('base').innerHTML;
+document.querySelectorAll('.phone').forEach(p => {
+  p.insertAdjacentHTML('afterbegin', base);
+  const t = p.querySelector('.card.target');
+  const pr = p.getBoundingClientRect(), r = t.getBoundingClientRect();
+  const border = 7;
+  const tx = r.left - pr.left - border, ty = r.top - pr.top - border;
+  p.style.setProperty('--tx', tx + 'px');
+  p.style.setProperty('--ty', ty + 'px');
+  p.style.setProperty('--tw', r.width + 'px');
+  p.style.setProperty('--th', r.height + 'px');
+  p.style.setProperty('--cx', (tx + r.width * 0.82) + 'px');
+  p.style.setProperty('--cy', (ty + r.height / 2) + 'px');
+  if (p.dataset.lift !== undefined) {
+    const c = t.cloneNode(true);
+    c.classList.add('lifted');
+    if (p.dataset.lift === 'soft') c.classList.add('soft');
+    p.appendChild(c);
+  }
+  const trail = p.querySelector('[data-trail]');
+  if (trail) {
+    const dx = 81, dy = -59, len = Math.hypot(dx, dy) - 26;
+    trail.style.left = (tx + r.width * 0.82) + 'px';
+    trail.style.top = (ty + r.height / 2) + 'px';
+    trail.style.width = len + 'px';
+    trail.style.transform = 'rotate(' + Math.atan2(dy, dx) + 'rad)';
+  }
+});
+</script>
+</body></html>
