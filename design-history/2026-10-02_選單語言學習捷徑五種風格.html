@@ -1,0 +1,150 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>選單語言學習捷徑 五種風格</title><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;800&display=swap" rel="stylesheet"><style>:root{--bg:#0c0c13;--panel:#161622;--panel2:#1e1e2e;--line:#2a2a3d;--text:#eceaf5;--ink:#F3F2F8;--ink2:#A3A2B2;--ink3:#74738A;--sub:#8b8ba3;--acc:#FF2D40;--en:#7EA6FF;--jp:#EA92AC;--edge:rgba(255,255,255,.14)}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-serif;min-height:100vh;padding:32px 16px 48px}
+.intro{max-width:760px;margin:0 auto 30px;text-align:center}
+.eyebrow{color:var(--acc);font-size:12px;letter-spacing:.2em}
+h1{font-size:22px;margin:6px 0}
+.intro p{color:var(--sub);font-size:13px;line-height:1.7}
+.wrap{display:flex;flex-wrap:wrap;gap:40px 28px;justify-content:center;max-width:1800px;margin:0 auto}
+.variant{width:320px}
+.vhead{min-height:140px;margin-bottom:12px}
+.vhead .num{color:var(--acc);font-size:11px;letter-spacing:.15em}
+.vhead h2{font-size:17px;margin:4px 0 6px}
+.vhead p{color:var(--sub);font-size:12.5px;line-height:1.65}
+.tag{display:inline-block;background:var(--acc);color:#fff;border-radius:99px;padding:1px 9px;font-size:10.5px;margin-left:6px;vertical-align:2px}
+.tag.idea{background:var(--panel2);color:var(--sub);border:1px solid var(--line)}
+.note{color:var(--sub);font-size:12px;line-height:1.7;margin-top:12px}
+.note b{color:var(--text)}
+.phone{width:320px;height:640px;border:7px solid #000;border-radius:34px;background:#141024;overflow:hidden;position:relative}
+/* 背後的頁面：模糊的日文首頁 */
+.behind{position:absolute;inset:0;padding:60px 18px;filter:blur(3px);opacity:.55}
+.behind div{background:rgba(255,255,255,.08);border-radius:16px;margin-bottom:12px}
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.35)}
+.drawer{position:absolute;left:0;top:0;bottom:0;width:262px;background:rgba(20,18,32,.86);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-right:1px solid var(--edge);padding:18px 12px}
+.prof{display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:0 2px}
+.prof .av{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#5a6be0,#b06ad6)}
+.prof b{font-size:16px;font-weight:800;flex:1}
+.prof .x{color:var(--ink3);font-size:14px}
+.nav{display:flex;align-items:center;gap:11px;padding:10px;border-radius:12px;font-size:13.5px;font-weight:600;color:var(--ink2)}
+.nav.on{background:rgba(126,166,255,.22);color:var(--ink)}
+.nav .ic{width:19px;height:19px;border-radius:6px;background:currentColor;opacity:.75;flex-shrink:0;-webkit-mask:var(--m) center/contain no-repeat;mask:var(--m) center/contain no-repeat}
+.nav.on .ic{background:var(--en);opacity:1}
+.nav .grow{flex:1}
+.sep{font-size:10.5px;color:var(--ink3);letter-spacing:.12em;padding:14px 10px 4px}
+.mock{opacity:.5}
+/* 1 展開子項目 */
+.chev{color:var(--ink3);font-size:12px;transition:transform .2s}
+.chev.open{transform:rotate(90deg)}
+.sub{display:flex;align-items:center;gap:10px;padding:8px 10px 8px 40px;border-radius:10px;font-size:12.5px;color:var(--ink2);position:relative}
+.sub::before{content:'';position:absolute;left:19px;top:0;bottom:0;width:1px;background:var(--line)}
+.sub .d{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.sub.cur{color:var(--ink);background:rgba(234,146,172,.14)}
+.sub em{margin-left:auto;font-style:normal;font-size:10px;color:var(--ink3)}
+/* 2 右側標籤 */
+.qt{font-size:11px;font-weight:700;padding:3px 8px;border-radius:7px;border:1px solid var(--edge);color:var(--ink2);background:rgba(255,255,255,.04)}
+.qt.en.cur{background:rgba(126,166,255,.22);border-color:var(--en);color:#dfe8ff}
+.qt.jp.cur{background:rgba(234,146,172,.22);border-color:var(--jp);color:#ffe3ec}
+/* 3 拆兩項 */
+.nav.jp-on{background:rgba(234,146,172,.2);color:var(--ink)}
+.nav.jp-on .ic{background:var(--jp);opacity:1}
+.flag{font-size:10px;font-weight:800;width:19px;height:19px;border-radius:6px;display:grid;place-items:center;flex-shrink:0}
+.flag.en{background:rgba(126,166,255,.2);color:var(--en)}
+.flag.jp{background:rgba(234,146,172,.2);color:var(--jp)}
+/* 4 目前＋切換 */
+.two{display:flex;flex-direction:column;gap:1px;flex:1}
+.two small{font-size:10px;color:var(--jp);font-weight:500}
+.swap{display:flex;align-items:center;gap:4px;font-size:10.5px;color:var(--en);border:1px solid rgba(126,166,255,.4);padding:3px 8px;border-radius:99px;white-space:nowrap}
+/* 5 雙卡 */
+.duo{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:2px 2px 6px}
+.half{border-radius:12px;padding:10px;border:1px solid var(--edge);background:rgba(255,255,255,.04)}
+.half .k{font-size:15px;font-weight:800}
+.half .p{font-size:10px;color:var(--ink3);margin-top:2px}
+.half .bar{height:4px;border-radius:99px;background:rgba(255,255,255,.08);margin-top:7px;overflow:hidden}
+.half .bar i{display:block;height:100%}
+.half.en .k{color:var(--en)}
+.half.en .bar i{background:var(--en)}
+.half.jp .k{color:var(--jp)}
+.half.jp .bar i{background:var(--jp)}
+.half.cur.jp{border-color:var(--jp);background:rgba(234,146,172,.12)}
+.duo-lab{font-size:10.5px;color:var(--ink3);padding:8px 10px 6px;letter-spacing:.1em}
+</style></head><body>
+<template id="before">
+<div class="behind"><div style="height:220px"></div><div style="height:120px"></div><div style="height:140px"></div></div>
+<div class="scrim"></div>
+</template>
+<template id="head">
+<div class="prof"><div class="av"></div><b>Rex</b><span class="x">✕</span></div>
+<div class="nav" style="--m:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><path d=%22M3 11l9-7 9 7v9h-6v-6H9v6H3z%22/></svg>')"><i class="ic"></i>首頁</div>
+</template>
+<template id="tail">
+<div class="nav" style="--m:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><path d=%22M5 3h11l3 3v15H5z%22/></svg>')"><i class="ic"></i>日記</div>
+<div class="nav" style="--m:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><rect x=%222%22 y=%225%22 width=%2220%22 height=%2214%22 rx=%224%22/></svg>')"><i class="ic"></i>YT 頻道追蹤</div>
+<div class="nav" style="--m:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><path d=%22M2 10h3v4H2zM19 10h3v4h-3zM5 8h3v8H5zM16 8h3v8h-3zM8 11h8v2H8z%22/></svg>')"><i class="ic"></i>健身</div>
+<div class="nav" style="--m:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><path d=%22M3 17l6-6 4 4 8-8v4h2V3h-8v2h4l-6 6-4-4-8 8z%22/></svg>')"><i class="ic"></i>看盤記錄</div>
+<div class="sep">敬請期待</div>
+<div class="nav mock" style="--m:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><circle cx=%2212%22 cy=%2212%22 r=%229%22/></svg>')"><i class="ic"></i>記帳</div>
+<div class="nav mock" style="--m:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><rect x=%223%22 y=%224%22 width=%2218%22 height=%2217%22 rx=%223%22/></svg>')"><i class="ic"></i>行程表</div>
+</template>
+
+<div class="intro"><div class="eyebrow">左側功能選單 · 語言學習</div><h1>選單直接選英文／日文：五種風格</h1><p>現在要切英文或日文，得先點「語言學習」進去，再用頂端的下拉選單換。這五種都是在左側選單裡就能一鍵直達英文或日文（原本進去再下拉的方式照樣保留，只是多一個入口）。示範情境：目前在日文首頁、打開選單。</p></div>
+
+<div class="wrap">
+
+<div class="variant"><div class="vhead"><div class="num">版本 1</div><h2>展開子項目<span class="tag">主流</span></h2><p>Material 導覽選單的標準做法：「語言學習」右邊一個箭頭，展開後底下縮排兩個子項目「英文」「日文」，目前所在的那個有底色。Gmail、Google Drive 的選單都是這樣。</p></div>
+<div class="phone" data-drawer>
+<div class="nav on" style="--m:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><path d=%22M12 3L1 9l11 6 9-4.9V17h2V9z%22/></svg>')"><i class="ic"></i>語言學習<span class="grow"></span><span class="chev open">›</span></div>
+<div class="sub"><i class="d" style="background:var(--en)"></i>英文<em>單字測驗</em></div>
+<div class="sub cur"><i class="d" style="background:var(--jp)"></i>日文<em>五十音・目前</em></div>
+</div>
+<p class="note"><b>優點：</b>最標準、最好懂，之後要加第三種語言也只是多一行。<b>缺點：</b>要先點一下展開（可以預設展開），多佔兩行高度，選單變長。</p></div>
+
+<div class="variant"><div class="vhead"><div class="num">版本 2</div><h2>右側兩個小標籤<span class="tag idea">你的構想</span></h2><p>「語言學習」那一行照舊，右邊多兩顆小標籤「英」「日」，直接點就跳到那個語言的首頁；目前所在的語言那顆亮起來（英文藍、日文櫻花粉）。點左邊的字還是照原本的行為。</p></div>
+<div class="phone" data-drawer>
+<div class="nav on" style="--m:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><path d=%22M12 3L1 9l11 6 9-4.9V17h2V9z%22/></svg>')"><i class="ic"></i>語言學習<span class="grow"></span><span class="qt en">英</span><span class="qt jp cur">日</span></div>
+</div>
+<p class="note"><b>優點：</b>完全不多佔空間，一眼看出現在在哪個語言，點一下就到。<b>缺點：</b>標籤小、手機上要點準；第一次看可能不知道那兩個字可以點（可以加一點點邊框暗示是按鈕）。</p></div>
+
+<div class="variant"><div class="vhead"><div class="num">版本 3</div><h2>拆成兩個獨立項目</h2><p>不要「語言學習」這個總稱，直接變成兩個平行的大項目「英文學習」「日文學習」，各有自己的顏色標記，跟日記、YT 一樣是第一層。</p></div>
+<div class="phone" data-drawer>
+<div class="nav"><span class="flag en">EN</span>英文學習</div>
+<div class="nav jp-on"><span class="flag jp">日</span>日文學習</div>
+</div>
+<p class="note"><b>優點：</b>最直接，一行一個目的地，不用學。<b>缺點：</b>選單多一行；語言越加越多時第一層會被語言塞滿，兩個語言之間的關係（同一個學習系統）比較看不出來。</p></div>
+
+<div class="variant"><div class="vhead"><div class="num">版本 4</div><h2>顯示目前＋一鍵切到另一個</h2><p>「語言學習」底下小字寫出目前在哪個語言，右邊一顆「切到英文」：因為只有兩個語言，切換永遠是「另一個」，一顆按鈕就夠。</p></div>
+<div class="phone" data-drawer>
+<div class="nav on" style="--m:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><path d=%22M12 3L1 9l11 6 9-4.9V17h2V9z%22/></svg>')"><i class="ic"></i><span class="two">語言學習<small>目前：日文</small></span><span class="swap">⇄ 切到英文</span></div>
+</div>
+<p class="note"><b>優點：</b>按鈕夠大好點，文字講得很清楚會發生什麼事。<b>缺點：</b>只適合兩個語言，之後加第三種就不適用；看不到「現在不在的那個語言」的狀況。</p></div>
+
+<div class="variant"><div class="vhead"><div class="num">版本 5</div><h2>雙卡片＋今日進度</h2><p>選單最上面放一小塊「語言學習」區，英文、日文兩張小卡片並排，順便顯示今天的進度條；點哪張就到哪個首頁，目前所在的那張有框。</p></div>
+<div class="phone" data-drawer data-duo>
+<div class="duo-lab">語言學習</div>
+<div class="duo">
+<div class="half en"><div class="k">英文</div><div class="p">今天 2 / 3 輪</div><div class="bar"><i style="width:66%"></i></div></div>
+<div class="half jp cur"><div class="k">日文</div><div class="p">今天 12 / 20 字</div><div class="bar"><i style="width:60%"></i></div></div>
+</div>
+</div>
+<p class="note"><b>優點：</b>最好點（兩張大卡），還能一眼看到兩邊今天練了多少，提醒你還沒練的那個。<b>缺點：</b>佔最多空間，選單最上面變成小儀表板；進度要另外從兩個學習系統抓資料。</p></div>
+
+</div>
+<script>
+// 每支手機：背後模糊頁面＋選單外框；選單內容 = 共用頁首（頭像、首頁）
+// ＋各版本自己的語言學習那段＋共用尾段（日記、YT…）。第 5 版的雙卡
+// 片放在「首頁」上面、頭像下面。
+const before = document.getElementById('before').innerHTML;
+const head = document.getElementById('head').innerHTML;
+const tail = document.getElementById('tail').innerHTML;
+document.querySelectorAll('.phone[data-drawer]').forEach(p => {
+  const mine = p.innerHTML;
+  const tmp = document.createElement('div');
+  tmp.innerHTML = head;
+  const prof = tmp.firstElementChild.outerHTML;
+  const home = tmp.lastElementChild.outerHTML;
+  const body = p.dataset.duo !== undefined
+    ? prof + mine + home + tail
+    : prof + home + mine + tail;
+  p.innerHTML = before + '<div class="drawer">' + body + '</div>';
+});
+</script>
+</body></html>
