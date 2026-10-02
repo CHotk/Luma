@@ -1,0 +1,185 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>空狀態與載入中 五種風格</title><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;800&display=swap" rel="stylesheet"><style>:root{--bg:#0c0c13;--panel:#161622;--panel2:#1e1e2e;--line:#2a2a3d;--text:#eceaf5;--sub:#8b8ba3;--dim:#5d5d72;--acc:#FF2D40;--blue:#2E6BFF;--blueSoft:#7EA6FF;--ok:#5FE08D}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-serif;min-height:100vh;padding:32px 16px 48px}
+.intro{max-width:760px;margin:0 auto 30px;text-align:center}
+.eyebrow{color:var(--acc);font-size:12px;letter-spacing:.2em}
+h1{font-size:22px;margin:6px 0}
+.intro p{color:var(--sub);font-size:13px;line-height:1.7}
+.wrap{display:flex;flex-wrap:wrap;gap:40px 28px;justify-content:center;max-width:1800px;margin:0 auto}
+.variant{width:300px}
+.vhead{min-height:122px;margin-bottom:6px}
+.vhead .num{color:var(--acc);font-size:11px;letter-spacing:.15em}
+.vhead h2{font-size:17px;margin:4px 0 6px}
+.vhead p{color:var(--sub);font-size:12.5px;line-height:1.65}
+.tag{display:inline-block;background:var(--acc);color:#fff;border-radius:99px;padding:1px 9px;font-size:10.5px;margin-left:6px;vertical-align:2px}
+.tag.now{background:var(--panel2);color:var(--sub);border:1px solid var(--line)}
+.cap{font-size:11px;color:var(--sub);letter-spacing:.1em;margin:14px 0 6px}
+.scr{width:300px;height:330px;border:6px solid #000;border-radius:24px;background:var(--bg);overflow:hidden;position:relative}
+.note{color:var(--sub);font-size:12px;line-height:1.7;margin-top:12px}
+.note b{color:var(--text)}
+/* 共用頁首：全部影片＋篩選 */
+.hd{padding:12px 12px 4px}
+.hd b{font-size:15px}
+.chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+.chip{font-size:10px;padding:4px 9px;border-radius:99px;background:rgba(255,255,255,.075);border:1px solid rgba(255,255,255,.14);color:var(--sub)}
+.chip.on{background:rgba(46,107,255,.28);border-color:var(--blue);color:var(--text)}
+.content{position:relative;padding:6px 12px;height:228px}
+.center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 22px}
+/* 影片列 */
+.vrow{display:flex;gap:10px;margin:7px 0;align-items:flex-start}
+.thumb{width:92px;height:52px;border-radius:8px;flex-shrink:0;background:linear-gradient(135deg,#2c3550,#171b29);position:relative}
+.thumb em{position:absolute;right:3px;bottom:3px;font-style:normal;font-size:8.5px;background:rgba(0,0,0,.75);padding:0 4px;border-radius:3px}
+.vt{flex:1;min-width:0}
+.vt b{display:block;font-size:11px;line-height:1.4}
+.vt span{font-size:9.5px;color:var(--sub)}
+/* 1 骨架屏 */
+.sk{background:linear-gradient(90deg,#1a1a26 0%,#262636 40%,#1a1a26 80%);background-size:300% 100%;animation:shimmer 1.4s linear infinite;border-radius:6px}
+@keyframes shimmer{from{background-position:100% 0}to{background-position:-200% 0}}
+.skl{height:9px;margin:4px 0}
+.ico{width:58px;height:58px;border-radius:50%;background:rgba(126,166,255,.12);display:grid;place-items:center;margin-bottom:12px}
+.ico svg{width:28px;height:28px;fill:none;stroke:var(--blueSoft);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.t1{font-size:14px;font-weight:700;margin-bottom:5px}
+.t2{font-size:11.5px;color:var(--sub);line-height:1.6;margin-bottom:14px}
+.btn{background:var(--blue);color:#fff;font-size:12px;font-weight:700;padding:8px 16px;border-radius:99px}
+.lnk{font-size:11.5px;color:var(--blueSoft);margin-top:9px}
+/* 2 目前 */
+.spin{width:26px;height:26px;border-radius:50%;border:3px solid rgba(126,166,255,.2);border-top-color:var(--blueSoft);animation:spin .9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.plain{font-size:12.5px;color:var(--sub)}
+/* 3 插圖 */
+.ill{width:120px;height:90px;margin-bottom:10px}
+.ill .s{fill:none;stroke:#8b8ba3;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.ill .f{fill:#1e1e2e}
+.ill .acc{fill:var(--blueSoft)}
+.bounce{animation:bounce 1.1s ease-in-out infinite}
+.bounce.d2{animation-delay:.18s}
+.bounce.d3{animation-delay:.36s}
+@keyframes bounce{0%,100%{transform:translateY(0);opacity:.4}50%{transform:translateY(-6px);opacity:1}}
+.zz{fill:var(--blueSoft);font-size:13px;font-weight:800;font-family:inherit;animation:float 2.4s ease-in-out infinite}
+@keyframes float{0%,100%{transform:translateY(0);opacity:.5}50%{transform:translateY(-5px);opacity:1}}
+/* 4 步驟／原因 */
+.steps{width:100%;text-align:left;background:var(--panel);border-radius:14px;padding:12px 14px}
+.step{display:flex;align-items:center;gap:10px;font-size:12px;padding:6px 0}
+.step i{width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-size:10px;flex-shrink:0}
+.step.done{color:var(--sub)}
+.step.done i{background:rgba(95,224,141,.18);color:var(--ok)}
+.step.doing i{border:2px solid rgba(126,166,255,.25);border-top-color:var(--blueSoft);animation:spin .9s linear infinite}
+.step.todo{color:var(--dim)}
+.step.todo i{border:1.5px solid var(--dim)}
+.step em{margin-left:auto;font-style:normal;font-size:10px;color:var(--sub)}
+.why{width:100%;text-align:left;background:var(--panel);border-radius:14px;padding:12px 14px}
+.why .t1{font-size:13px}
+.brk{display:flex;align-items:center;gap:8px;font-size:11.5px;padding:7px 0;border-top:1px solid var(--line)}
+.brk:first-of-type{border-top:none}
+.brk b{font-size:13px;width:28px}
+.brk .act{margin-left:auto;font-size:10.5px;color:var(--blueSoft);border:1px solid rgba(126,166,255,.35);padding:3px 9px;border-radius:99px}
+/* 5 漸進 */
+.bar{position:absolute;left:0;right:0;top:0;height:2px;overflow:hidden;background:rgba(126,166,255,.12)}
+.bar::after{content:'';position:absolute;top:0;bottom:0;width:40%;background:var(--blueSoft);animation:slide 1.2s ease-in-out infinite}
+@keyframes slide{from{left:-40%}to{left:100%}}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:10.5px;color:var(--sub);background:var(--panel);border:1px solid var(--line);padding:4px 10px;border-radius:99px;margin:4px 0 2px}
+.pill .spin{width:11px;height:11px;border-width:2px}
+.fade1{opacity:.95}
+.fade2{opacity:.55}
+.fade3{opacity:.25}
+.inline{border:1.5px dashed var(--line);border-radius:14px;padding:16px 14px;text-align:center;margin-top:8px}
+.inline .t1{font-size:13px}
+.qchips{display:flex;justify-content:center;flex-wrap:wrap;gap:6px;margin-top:10px}
+.qchip{font-size:10.5px;padding:5px 11px;border-radius:99px;background:rgba(46,107,255,.16);color:var(--blueSoft)}
+</style></head><body>
+<template id="hd">
+<div class="hd"><b>全部影片 (342)</b>
+<div class="chips"><span class="chip on">全部</span><span class="chip">一般影片</span><span class="chip">Shorts</span><span class="chip">直播</span><span class="chip on">隱藏已看過</span><span class="chip">顯示已隱藏</span></div>
+</div>
+</template>
+
+<div class="intro"><div class="eyebrow">全 App 共用 · 空狀態與載入中</div><h1>空狀態與載入中：五種風格</h1><p>每一種風格都示範同兩個時刻（用頻道詳情頁的「全部影片」當例子）：上面是<b>正在載入</b>，下面是<b>篩選完沒東西</b>（開著「隱藏已看過」、最近的影片都看完了）。挑定後，整個 App 的載入中／空畫面（YT、日記、健身、單字庫…）都統一換成那一種。第 2 版是目前上線的樣子。</p></div>
+
+<div class="wrap">
+
+<div class="variant"><div class="vhead"><div class="num">版本 1</div><h2>骨架屏＋圖示說明<span class="tag">主流</span></h2><p>載入時先畫出跟真實內容同形狀的灰色方塊、有一道光掃過（YouTube、Facebook 的做法）；空的時候中間一個圖示、一句標題、一句原因、一顆主要按鈕。</p></div>
+<div class="cap">載入中</div>
+<div class="scr" data-hd><div class="content">
+<div class="vrow"><div class="thumb sk"></div><div class="vt"><div class="sk skl" style="width:92%"></div><div class="sk skl" style="width:70%"></div><div class="sk skl" style="width:38%;height:7px"></div></div></div>
+<div class="vrow"><div class="thumb sk"></div><div class="vt"><div class="sk skl" style="width:85%"></div><div class="sk skl" style="width:60%"></div><div class="sk skl" style="width:34%;height:7px"></div></div></div>
+<div class="vrow"><div class="thumb sk"></div><div class="vt"><div class="sk skl" style="width:95%"></div><div class="sk skl" style="width:52%"></div><div class="sk skl" style="width:40%;height:7px"></div></div></div>
+</div></div>
+<div class="cap">沒有內容</div>
+<div class="scr" data-hd><div class="content"><div class="center">
+<div class="ico"><svg viewBox="0 0 24 24"><path d="M3 3l18 18"/><path d="M10.6 5.1A10 10 0 0 1 12 5c5 0 9 5 9 7a9.6 9.6 0 0 1-2.4 3.4M6.6 6.6C4.3 8 3 10.4 3 12c0 2 4 7 9 7a9.3 9.3 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg></div>
+<div class="t1">沒有沒看過的影片</div>
+<div class="t2">最近的影片都看過了，被「隱藏已看過」收起來</div>
+<div class="btn">顯示已看過的</div>
+</div></div></div>
+<p class="note"><b>優點：</b>載入時版面不會跳，使用者馬上知道「內容要長這樣」，感覺比較快；空的時候講清楚原因、給一顆解法。<b>缺點：</b>每種畫面要各畫一組骨架，工程最多。</p></div>
+
+<div class="variant"><div class="vhead"><div class="num">版本 2</div><h2>極簡文字＋轉圈<span class="tag now">目前上線</span></h2><p>載入時中間一個轉圈；空的時候中間一行灰字。</p></div>
+<div class="cap">載入中</div>
+<div class="scr" data-hd><div class="content"><div class="center"><div class="spin"></div></div></div></div>
+<div class="cap">沒有內容</div>
+<div class="scr" data-hd><div class="content"><div class="center"><div class="plain">沒有符合目前篩選條件的影片</div></div></div></div>
+<p class="note"><b>優點：</b>最簡單、不搶戲。<b>缺點：</b>轉圈不知道要等多久；空的時候沒說原因、也沒告訴你怎麼辦，常讓人以為壞了（之前「隱藏已看過把其他影片也藏起來」就是這樣被誤會的）。</p></div>
+
+<div class="variant"><div class="vhead"><div class="num">版本 3</div><h2>插圖＋輕鬆文案</h2><p>用小插圖帶情緒：載入時電視裡有三個點在跳；空的時候電視睡著了，文案改成正面的「都看完了」，而不是「沒有符合條件」。</p></div>
+<div class="cap">載入中</div>
+<div class="scr" data-hd><div class="content"><div class="center">
+<svg class="ill" viewBox="0 0 120 90"><rect class="f s" x="18" y="14" width="84" height="56" rx="10"/><path class="s" d="M48 80h24M60 70v10M44 6l16 8 16-8"/><circle class="acc bounce" cx="46" cy="42" r="5"/><circle class="acc bounce d2" cx="60" cy="42" r="5"/><circle class="acc bounce d3" cx="74" cy="42" r="5"/></svg>
+<div class="t2" style="margin-bottom:0">正在跟 YouTube 拿最新影片…</div>
+</div></div></div>
+<div class="cap">沒有內容</div>
+<div class="scr" data-hd><div class="content"><div class="center">
+<svg class="ill" viewBox="0 0 120 90"><rect class="f s" x="18" y="14" width="84" height="56" rx="10"/><path class="s" d="M48 80h24M60 70v10M44 6l16 8 16-8"/><path class="s" d="M42 44q6 5 12 0M66 44q6 5 12 0"/><text class="zz" x="86" y="30">z</text><text class="zz" x="94" y="20" style="animation-delay:.5s">z</text></svg>
+<div class="t1">最近的都看完了 🎉</div>
+<div class="t2">想回頭再看，打開「顯示已看過」就找得到</div>
+</div></div></div>
+<p class="note"><b>優點：</b>最有個性、最不冰冷，「看完了」比「沒有符合條件」讓人開心。<b>缺點：</b>每種情境都要有插圖跟文案；天天看會覺得可愛過頭，跟 App 其他地方的內斂風格可能不搭。</p></div>
+
+<div class="variant"><div class="vhead"><div class="num">版本 4</div><h2>講清楚進度與原因</h2><p>重點是「透明」：載入時列出正在做哪一步（讀本機、跟 YouTube 拿、補時長）；空的時候直接算給你看是誰把影片藏起來的，每個原因旁邊一顆解除按鈕。</p></div>
+<div class="cap">載入中</div>
+<div class="scr" data-hd><div class="content"><div class="center">
+<div class="steps">
+<div class="step done"><i>✓</i>讀取本機快取<em>48 部</em></div>
+<div class="step doing"><i></i>向 YouTube 拿最新影片</div>
+<div class="step todo"><i></i>補上影片時長</div>
+</div>
+</div></div></div>
+<div class="cap">沒有內容</div>
+<div class="scr" data-hd><div class="content"><div class="center">
+<div class="why">
+<div class="t1">50 部影片都被篩掉了</div>
+<div class="brk"><b>46</b>已看過<span class="act">顯示</span></div>
+<div class="brk"><b>4</b>你隱藏的<span class="act">顯示</span></div>
+</div>
+<div class="lnk">清除所有篩選</div>
+</div></div></div>
+<p class="note"><b>優點：</b>最誠實，永遠不會讓人以為壞掉；配合這個 App「快取、配額」這些背景機制特別有用。<b>缺點：</b>資訊最多、最像工具，第一次看的人要讀一下。</p></div>
+
+<div class="variant"><div class="vhead"><div class="num">版本 5</div><h2>先顯示舊的、背景更新</h2><p>不讓畫面空著等：有快取就先把快取的影片秀出來，頂端一條細進度條＋小膠囊「正在檢查新影片」；空的時候在清單裡放一張虛線卡片，下面幾個快速切換。</p></div>
+<div class="cap">載入中</div>
+<div class="scr" data-hd><div class="bar"></div><div class="content">
+<span class="pill"><span class="spin"></span>正在檢查新影片…</span>
+<div class="vrow fade1"><div class="thumb"><em>12:04</em></div><div class="vt"><b>為什麼台灣的便利商店這麼多？</b><span>3 天前</span></div></div>
+<div class="vrow fade2"><div class="thumb"><em>8:41</em></div><div class="vt"><b>一次搞懂通膨：錢為什麼變薄了</b><span>1 週前</span></div></div>
+<div class="vrow fade3"><div class="thumb"><em>15:22</em></div><div class="vt"><b>這些國家正在消失中</b><span>2 週前</span></div></div>
+</div></div>
+<div class="cap">沒有內容</div>
+<div class="scr" data-hd><div class="content">
+<div class="inline">
+<div class="t1">這裡空空的</div>
+<div class="t2" style="margin-bottom:0">目前的篩選下沒有影片</div>
+<div class="qchips"><span class="qchip">顯示已看過</span><span class="qchip">看 Shorts</span><span class="qchip">重新整理</span></div>
+</div>
+</div></div>
+<p class="note"><b>優點：</b>幾乎不用等，打開就有東西看（剛好配合這個 App 本來就有的快取）；空卡片在清單裡，不會整片空白。<b>缺點：</b>沒快取的第一次還是要等；舊資料跟新資料混在一起，要讓人分得出來。</p></div>
+
+</div>
+<script>
+// 共用頁首塞進每個畫面最上面（第 5 版的進度條留在最頂端，頁首插在它後面）。
+const hd = document.getElementById('hd').innerHTML;
+document.querySelectorAll('.scr[data-hd]').forEach(s => {
+  const bar = s.querySelector(':scope > .bar');
+  if (bar) bar.insertAdjacentHTML('afterend', hd);
+  else s.insertAdjacentHTML('afterbegin', hd);
+});
+</script>
+</body></html>
