@@ -16,6 +16,7 @@ import '../../domain/models/yt_subscriber_snapshot.dart';
 import '../../domain/models/yt_tracker.dart';
 import '../../shared/debug/app_log.dart';
 import '../../shared/widgets/ambient_background.dart';
+import '../../shared/widgets/app_confirm_dialog.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
 import '../../shared/widgets/background_refresh.dart';
@@ -470,29 +471,13 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
   }
 
   Future<void> _deleteChannel(YtChannel c) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1A24),
-        title: Text(
-          '刪除「${c.name}」？',
-          style: const TextStyle(color: AppColors.ink, fontSize: 16),
-        ),
-        content: Text('刪除後挖掘新頻道也不會再挖到它。', style: AppText.bodyDim),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            style: FilledButton.styleFrom(backgroundColor: AppColors.bad),
-            child: const Text('刪除'),
-          ),
-        ],
-      ),
+    final ok = await showAppConfirmDialog(
+      context,
+      title: '刪除「${c.name}」？',
+      message: '刪除後挖掘新頻道也不會再挖到它。',
+      confirmLabel: '刪除',
     );
-    if (ok != true) return;
+    if (!ok) return;
     await ref.read(ytTrackerRepositoryProvider).deleteChannel(c.id);
     if (mounted) _reload();
   }

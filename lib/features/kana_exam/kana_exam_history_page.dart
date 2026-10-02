@@ -14,6 +14,7 @@ import '../../data/seed/kana_exam_seed_loader.dart';
 import '../../data/seed/seed_merge.dart';
 import '../../domain/models/kana_exam.dart';
 import '../../shared/widgets/ambient_background.dart';
+import '../../shared/widgets/app_confirm_dialog.dart';
 import '../../shared/widgets/app_notice.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
@@ -74,29 +75,13 @@ class _KanaExamHistoryPageState extends ConsumerState<KanaExamHistoryPage> {
   Future<void> _confirmClearAll() async {
     // 不可逆操作要二次確認，不能點一下就整份紀錄清空
     // （2026-09-21 使用者要求）。
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1A24),
-        title: const Text('清空所有考試紀錄？', style: TextStyle(color: AppColors.ink)),
-        content: const Text(
-          '這個動作無法復原，這台裝置上的考試紀錄會全部刪除。',
-          style: TextStyle(color: AppColors.ink2),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            style: FilledButton.styleFrom(backgroundColor: AppColors.bad),
-            child: const Text('清空'),
-          ),
-        ],
-      ),
+    final confirmed = await showAppConfirmDialog(
+      context,
+      title: '清空所有考試紀錄？',
+      message: '這個動作無法復原，這台裝置上的考試紀錄會全部刪除。',
+      confirmLabel: '清空',
     );
-    if (confirmed != true) return;
+    if (!confirmed) return;
     await ref.read(kanaExamRepositoryProvider).clearAll();
     if (!mounted) return;
     _reload();

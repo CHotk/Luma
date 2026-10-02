@@ -19,6 +19,7 @@ import '../../domain/models/yt_tracker.dart';
 import '../../shared/debug/app_log.dart';
 import '../../shared/text/zh_normalize.dart';
 import '../../shared/widgets/ambient_background.dart';
+import '../../shared/widgets/app_confirm_dialog.dart';
 import '../../shared/widgets/app_notice.dart';
 import '../../shared/small_asset.dart';
 import '../../shared/widgets/app_side_drawer.dart';
@@ -626,26 +627,13 @@ Future<bool> deleteYtCategory(
   if (!context.mounted) return false;
 
   if (count == 0) {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1A24),
-        title: const Text('刪除這個分類？', style: TextStyle(color: AppColors.ink)),
-        content: Text('這個分類目前沒有任何頻道。', style: AppText.bodyDim),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('取消'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            style: TextButton.styleFrom(foregroundColor: AppColors.bad),
-            child: const Text('刪除'),
-          ),
-        ],
-      ),
+    final confirmed = await showAppConfirmDialog(
+      context,
+      title: '刪除這個分類？',
+      message: '這個分類目前沒有任何頻道。',
+      confirmLabel: '刪除',
     );
-    if (confirmed != true) return false;
+    if (!confirmed) return false;
     await repo.deleteCategory(category.id);
     return true;
   }

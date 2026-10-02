@@ -167,7 +167,10 @@ class _NoticeCard extends StatelessWidget {
                 ),
               ],
             ),
+            // 圖示＋文字整組置中（2026-10-02 使用者挑「確認對話框與提示」
+            // 第 2 版時要求文字居中，跟 [showAppConfirmDialog] 一致）。
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
                   isError
@@ -177,9 +180,10 @@ class _NoticeCard extends StatelessWidget {
                   color: accentColor,
                 ),
                 const SizedBox(width: Gap.sm),
-                Expanded(
+                Flexible(
                   child: Text(
                     message,
+                    textAlign: TextAlign.center,
                     style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,

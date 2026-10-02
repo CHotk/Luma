@@ -15,6 +15,7 @@ import '../../data/seed/diary_seed_loader.dart';
 import '../../data/seed/seed_merge.dart';
 import '../../domain/models/diary_entry.dart';
 import '../../shared/widgets/ambient_background.dart';
+import '../../shared/widgets/app_confirm_dialog.dart';
 import '../../shared/widgets/app_notice.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
@@ -283,27 +284,11 @@ class _DiaryPageState extends ConsumerState<DiaryPage> {
   /// 刪除是不可逆動作，點「刪除」只是打開這篇的操作選單，還要再確認
   /// 一次才會真的刪（2026-09-22 使用者要求：點下去要問是否確定）。
   Future<bool?> _confirmDelete(DiaryEntry entry) {
-    return showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1A24),
-        title: const Text('確定要刪除這篇？', style: TextStyle(color: AppColors.ink)),
-        content: Text(
-          '${_dateLabel(entry.savedAt)}\n刪除後無法復原。',
-          style: AppText.bodyDim,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('取消'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            style: TextButton.styleFrom(foregroundColor: AppColors.bad),
-            child: const Text('刪除'),
-          ),
-        ],
-      ),
+    return showAppConfirmDialog(
+      context,
+      title: '確定要刪除這篇？',
+      message: '${_dateLabel(entry.savedAt)}\n刪除後無法復原。',
+      confirmLabel: '刪除',
     );
   }
 

@@ -7,6 +7,7 @@ import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
 import '../../domain/models/yt_tracker.dart';
 import '../../shared/widgets/ambient_background.dart';
+import '../../shared/widgets/app_confirm_dialog.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
 import 'yt_channel_avatar.dart';
@@ -44,33 +45,15 @@ class _YtTrashBrowsePageState extends ConsumerState<YtTrashBrowsePage> {
   }
 
   Future<void> _purge(YtChannel c) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1A24),
-        title: Text(
-          '永久刪除「${c.name}」？',
-          style: const TextStyle(color: AppColors.ink, fontSize: 16),
-        ),
-        content: Text(
+    final ok = await showAppConfirmDialog(
+      context,
+      title: '永久刪除「${c.name}」？',
+      message:
           '之後垃圾桶就看不到它了，不能再還原。\n（如果還有別台裝置沒同步過這次刪除，'
           '之後同步時它可能又會出現在垃圾桶裡。）',
-          style: AppText.bodyDim,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            style: FilledButton.styleFrom(backgroundColor: AppColors.bad),
-            child: const Text('永久刪除'),
-          ),
-        ],
-      ),
+      confirmLabel: '永久刪除',
     );
-    if (ok != true) return;
+    if (!ok) return;
     await ref.read(ytTrackerRepositoryProvider).purgeChannel(c.id);
     _reload();
   }

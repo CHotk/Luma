@@ -16,6 +16,7 @@ import '../../data/seed/fitness_seed_loader.dart';
 import '../../data/seed/seed_merge.dart';
 import '../../domain/models/fitness.dart';
 import '../../shared/widgets/ambient_background.dart';
+import '../../shared/widgets/app_confirm_dialog.dart';
 import '../../shared/widgets/app_notice.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
@@ -282,27 +283,11 @@ class _FitnessHomePageState extends ConsumerState<FitnessHomePage> {
   }
 
   Future<bool?> _confirmDeleteEntry(FitnessEntry entry) {
-    return showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1A24),
-        title: const Text('確定要刪除這筆打卡？', style: TextStyle(color: AppColors.ink)),
-        content: Text(
-          '${_entryDateLabel(entry.loggedAt)}\n刪除後無法復原。',
-          style: AppText.bodyDim,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('取消'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            style: TextButton.styleFrom(foregroundColor: AppColors.bad),
-            child: const Text('刪除'),
-          ),
-        ],
-      ),
+    return showAppConfirmDialog(
+      context,
+      title: '確定要刪除這筆打卡？',
+      message: '${_entryDateLabel(entry.loggedAt)}\n刪除後無法復原。',
+      confirmLabel: '刪除',
     );
   }
 

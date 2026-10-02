@@ -11,6 +11,7 @@ import '../../data/repositories/yt_embed_player_style_store.dart';
 import '../../data/repositories/yt_stats_refresh_setting_store.dart';
 import '../../data/repositories/yt_video_open_mode_store.dart';
 import '../../shared/widgets/ambient_background.dart';
+import '../../shared/widgets/app_confirm_dialog.dart';
 import '../../shared/widgets/app_notice.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
@@ -41,26 +42,14 @@ class OtherSettingsPage extends ConsumerWidget {
       canPop: !hasUnsaved,
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
-        final leave = await showDialog<bool>(
-          context: context,
-          builder: (dialogContext) => AlertDialog(
-            backgroundColor: const Color(0xFF1A1A24),
-            title: const Text('還沒儲存', style: TextStyle(color: AppColors.ink)),
-            content: Text('訂閱人數更新頻率調整了但還沒按儲存，確定要離開嗎？', style: AppText.bodyDim),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext, false),
-                child: const Text('留下繼續調'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext, true),
-                style: TextButton.styleFrom(foregroundColor: AppColors.bad),
-                child: const Text('不儲存，離開'),
-              ),
-            ],
-          ),
+        final leave = await showAppConfirmDialog(
+          context,
+          title: '還沒儲存',
+          message: '訂閱人數更新頻率調整了但還沒按儲存，確定要離開嗎？',
+          confirmLabel: '不儲存，離開',
+          cancelLabel: '留下繼續調',
         );
-        if (leave == true && context.mounted) {
+        if (leave && context.mounted) {
           ref.read(ytStatsRefreshDirtyProvider.notifier).state = false;
           Navigator.of(context).pop();
         }

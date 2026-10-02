@@ -12,6 +12,7 @@ import '../../data/repositories/yt_video_watch_store.dart';
 import '../../data/services/youtube_api_service.dart';
 import '../../domain/models/yt_tracker.dart';
 import '../../shared/widgets/ambient_background.dart';
+import '../../shared/widgets/app_confirm_dialog.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
 import '../../shared/widgets/background_refresh.dart';
@@ -1105,26 +1106,13 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
       _reload();
     } else if (action == 'delete') {
       if (!mounted) return;
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          backgroundColor: const Color(0xFF1A1A24),
-          title: const Text('刪除這個頻道？', style: TextStyle(color: AppColors.ink)),
-          content: Text('這個動作無法復原。', style: AppText.bodyDim),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('取消'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              style: TextButton.styleFrom(foregroundColor: AppColors.bad),
-              child: const Text('刪除'),
-            ),
-          ],
-        ),
+      final confirmed = await showAppConfirmDialog(
+        context,
+        title: '刪除這個頻道？',
+        message: '這個動作無法復原。',
+        confirmLabel: '刪除',
       );
-      if (confirmed != true) return;
+      if (!confirmed) return;
       await repo.deleteChannel(channel.id);
       if (!mounted) return;
       Navigator.of(context).maybePop();

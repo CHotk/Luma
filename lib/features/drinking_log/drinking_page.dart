@@ -11,6 +11,7 @@ import '../../app/theme/typography.dart';
 import '../../domain/drinking_stats.dart';
 import '../../domain/models/drinking_entry.dart';
 import '../../shared/widgets/ambient_background.dart';
+import '../../shared/widgets/app_confirm_dialog.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
 import '../../shared/widgets/glass_card.dart';
@@ -132,25 +133,12 @@ class _DrinkingPageState extends ConsumerState<DrinkingPage> {
   }
 
   Future<void> _confirmDelete(DrinkingEntry e) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1A24),
-        title: const Text('刪除這筆紀錄？', style: TextStyle(color: AppColors.ink)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            style: FilledButton.styleFrom(backgroundColor: AppColors.bad),
-            child: const Text('刪除'),
-          ),
-        ],
-      ),
+    final ok = await showAppConfirmDialog(
+      context,
+      title: '刪除這筆紀錄？',
+      confirmLabel: '刪除',
     );
-    if (ok != true) return;
+    if (!ok) return;
     await ref.read(drinkingRepositoryProvider).delete(e.id);
     await _load();
   }
