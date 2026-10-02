@@ -8,6 +8,7 @@ import '../../app/theme/typography.dart';
 import '../../domain/models/history.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
+import '../../shared/widgets/inline_empty_card.dart';
 
 /// 一輪的完整明細：出了哪些題、你怎麼答的。
 ///
@@ -88,7 +89,9 @@ class _Body extends StatelessWidget {
   Widget build(BuildContext context) {
     final entries = data.entries;
     if (entries.isEmpty) {
-      return const Center(child: Text('這輪沒有紀錄', style: AppText.bodyDim));
+      return const SingleChildScrollView(
+        child: InlineEmptyCard(title: '這輪沒有紀錄', message: '可能一題都還沒答就離開了'),
+      );
     }
 
     final right = entries.where((e) => e.correct).length;

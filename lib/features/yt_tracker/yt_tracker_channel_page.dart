@@ -14,7 +14,9 @@ import '../../domain/models/yt_tracker.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
+import '../../shared/widgets/background_refresh.dart';
 import '../../shared/widgets/glass_card.dart';
+import '../../shared/widgets/inline_empty_card.dart';
 import 'upload_frequency_chart.dart';
 import 'yt_api_key_dialog.dart';
 import 'yt_channel_avatar.dart';
@@ -96,6 +98,11 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
   // 更多會先查本機快取（見那個方法的說明），類型篩選的 `_loadTypedVideos`
   // 目前每次都是真的打 API，不會有快取來源。
   final Set<String> _cachedVideoIds = {};
+
+  /// 第一頁還在向 YouTube 拿的時候，先顯示的本機快取影片（2026-10-02
+  /// 使用者選了「先顯示舊的、背景更新」：不讓畫面空著轉圈等，有快取
+  /// 就先秀出來，頂端細進度條＋「正在檢查新影片」膠囊）。
+  List<YoutubeVideo> _cachePreview = const [];
 
   // 全部／一般影片／Shorts／直播的類型篩選（2026-09-30 使用者要求）。
   // 選「全部」以外的類型時，直接翻那個類型自己的特殊清單（見
@@ -321,9 +328,63 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
       _loadingMore = false;
       _loadMoreError = null;
       _cachedVideoIds.clear();
+      _cachePreview = const [];
       _videosFuture = _fetchVideos(channel);
     });
+    YtVideoCacheStore(ref.read(keyValueStoreProvider)).load(channel.id).then((
+      cached,
+    ) {
+      if (!mounted || _videosLoadedForChannelId != channel.id) return;
+      final sorted = [...cached]
+        ..sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
+      setState(() => _cachePreview = sorted.take(_loadMoreBatch).toList());
+    });
   }
+
+  /// 「重新整理」按鈕跟空狀態卡片上的「重新整理」共用。
+  void _refresh(YtChannel channel) {
+    _ensureVideosLoaded(channel, force: true);
+    _ensureHistoryLoaded(channel, force: true);
+    // 目前如果正看著特定類型，重新整理也要連那份分開的分頁狀態一起
+    // 重抓，不然按了重新整理、類型篩選那份還是舊的。
+    if (_typeFilter != _TypeFilter.all) {
+      setState(() {
+        _typedVideos = const [];
+        _typedNextPageToken = null;
+        _typedReachedEnd = false;
+        _typedError = null;
+      });
+      _loadTypedVideos();
+    }
+  }
+
+  /// 「隱藏已看過」「顯示已隱藏」兩個開關套用後，這支影片要不要出現。
+  bool _passesFilters(YoutubeVideo v) {
+    if (_hiddenVideoIds.contains(v.videoId)) return _showHiddenVideos;
+    return !(_hideWatched && _watchedVideoIds.contains(v.videoId));
+  }
+
+  Widget _videoRows(List<YoutubeVideo> list, {bool allFromCache = false}) =>
+      Column(
+        children: [
+          for (var i = 0; i < list.length; i++) ...[
+            if (i > 0) const Divider(height: 1, color: AppColors.glassEdge),
+            YtVideoRow(
+              // 一定要給明確的 key，理由跟 yt_tracker_browse_page.dart
+              // 那邊一樣：篩選開關一切換，清單位置就會洗牌，沒有 key
+              // 的話 Flutter 照位置重用 State，「已看過」狀態會錯配到
+              // 別支影片上（2026-09-30 使用者回報抓到）。
+              key: ValueKey(list[i].videoId),
+              video: list[i],
+              subtitle: ytRelativeTime(list[i].publishedAt),
+              forceShow: _hiddenVideoIds.contains(list[i].videoId),
+              onHiddenChanged: _loadVideoFilters,
+              fromCache:
+                  allFromCache || _cachedVideoIds.contains(list[i].videoId),
+            ),
+          ],
+        ],
+      );
 
   // 切類型篩選（2026-09-30 使用者要求）。原本的做法是抓全部上傳清單，
   // 用另外抓來的 50 部樣本 id 去核對「這部是不是 Shorts／直播」——這招
@@ -713,23 +774,42 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
       future: _videosFuture,
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator.adaptive());
+          // 先顯示舊的、背景更新：有快取就先秀快取（類型篩選時快取裡
+          // 分不準類型，只秀膠囊不秀內容），沒快取（第一次開這個頻道）
+          // 就只有細進度條＋膠囊。
+          final preview = _typeFilter == _TypeFilter.all
+              ? _cachePreview.where(_passesFilters).toList()
+              : const <YoutubeVideo>[];
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const ThinRefreshBar(),
+              const SizedBox(height: Gap.sm),
+              RefreshingPill(
+                label: preview.isEmpty ? '正在向 YouTube 拿影片…' : '正在檢查新影片…',
+              ),
+              const SizedBox(height: Gap.xs),
+              if (preview.isNotEmpty)
+                _videoRows(preview, allFromCache: true)
+              else
+                const SizedBox(height: 120),
+            ],
+          );
         }
         if (snap.hasError) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Text(
-                '${snap.error}',
-                style: AppText.bodyDim,
-                textAlign: TextAlign.center,
-              ),
-            ),
+          return InlineEmptyCard(
+            title: '影片抓不下來',
+            message: '${snap.error}',
+            actions: [EmptyAction('重新整理', () => _refresh(channel))],
           );
         }
         final firstPage = snap.data ?? const [];
         if (firstPage.isEmpty) {
-          return Center(child: Text('這個頻道抓不到影片', style: AppText.bodyDim));
+          return InlineEmptyCard(
+            title: '這個頻道抓不到影片',
+            message: '可能還沒發過公開影片',
+            actions: [EmptyAction('重新整理', () => _refresh(channel))],
+          );
         }
         // 選了特定類型（一般影片／Shorts／直播）就是看 `_typedVideos`
         // 那份分頁狀態，跟「全部」（`_firstPage`+`_moreVideos`）完全分開
@@ -749,10 +829,7 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
         // 要不要收起已看過的。類型本身不用在這裡再篩一次——`videos` 這個
         // 來源本身就已經是正確類型了（`isTyped` 時直接來自對應的特殊
         // 清單，`all` 時本來就是全部）。
-        final visibleVideos = videos.where((v) {
-          if (_hiddenVideoIds.contains(v.videoId)) return _showHiddenVideos;
-          return !(_hideWatched && _watchedVideoIds.contains(v.videoId));
-        }).toList();
+        final visibleVideos = videos.where(_passesFilters).toList();
         // 「隱藏已看過」預設開著，一個頻道看過越多，篩選完剩下的影片就
         // 越少——少到畫面塞不滿、捲不動的話，往下滑觸發載入更多影片的
         // `_onScroll` 永遠不會被觸發（沒東西可滑，滑動事件根本不會發生），
@@ -789,25 +866,8 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
         return Column(
           children: [
             if (visibleVideos.isEmpty && !loading)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 20),
-                child: Text('沒有符合目前篩選條件的影片', style: AppText.bodyDim),
-              ),
-            for (var i = 0; i < visibleVideos.length; i++) ...[
-              if (i > 0) const Divider(height: 1, color: AppColors.glassEdge),
-              YtVideoRow(
-                // 一定要給明確的 key，理由跟 yt_tracker_browse_page.dart
-                // 那邊一樣：篩選開關一切換，清單位置就會洗牌，沒有 key
-                // 的話 Flutter 照位置重用 State，「已看過」狀態會錯配到
-                // 別支影片上（2026-09-30 使用者回報抓到）。
-                key: ValueKey(visibleVideos[i].videoId),
-                video: visibleVideos[i],
-                subtitle: ytRelativeTime(visibleVideos[i].publishedAt),
-                forceShow: _hiddenVideoIds.contains(visibleVideos[i].videoId),
-                onHiddenChanged: _loadVideoFilters,
-                fromCache: _cachedVideoIds.contains(visibleVideos[i].videoId),
-              ),
-            ],
+              _filteredEmptyCard(channel, videos, isTyped),
+            _videoRows(visibleVideos),
             // 往下滑到底會自動載入更早的影片；載入中轉圈、失敗給重試、
             // 沒有更多了就說一聲。
             Padding(
@@ -842,6 +902,45 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
           ],
         );
       },
+    );
+  }
+
+  /// 篩選完一部都不剩時的空狀態：直接算給使用者看是誰把影片收起來的，
+  /// 每個原因配一顆解除按鈕（2026-10-02 選的第 5 版空狀態；原本只有
+  /// 「沒有符合目前篩選條件的影片」一行灰字，不說原因，之前就被誤會成
+  /// 「連沒看過的影片也一起藏起來了」）。
+  Widget _filteredEmptyCard(
+    YtChannel channel,
+    List<YoutubeVideo> loaded,
+    bool isTyped,
+  ) {
+    final hiddenByUser = loaded
+        .where((v) => _hiddenVideoIds.contains(v.videoId))
+        .length;
+    final watched = loaded
+        .where(
+          (v) =>
+              !_hiddenVideoIds.contains(v.videoId) &&
+              _watchedVideoIds.contains(v.videoId),
+        )
+        .length;
+    final reasons = <String>[
+      if (loaded.isEmpty && isTyped) '這個頻道沒有這個類型的影片',
+      if (_hideWatched && watched > 0) '$watched 部已看過的被收起來了',
+      if (!_showHiddenVideos && hiddenByUser > 0) '$hiddenByUser 部是你隱藏的',
+    ];
+    return InlineEmptyCard(
+      title: '這裡空空的',
+      message: reasons.isEmpty ? '目前的篩選下沒有影片' : reasons.join('，'),
+      actions: [
+        if (_hideWatched && watched > 0)
+          EmptyAction('顯示已看過', () => setState(() => _hideWatched = false)),
+        if (!_showHiddenVideos && hiddenByUser > 0)
+          EmptyAction('顯示已隱藏', () => setState(() => _showHiddenVideos = true)),
+        if (isTyped)
+          EmptyAction('看全部類型', () => _switchTypeFilter(_TypeFilter.all)),
+        EmptyAction('重新整理', () => _refresh(channel)),
+      ],
     );
   }
 
@@ -1231,21 +1330,7 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
             ),
             const Spacer(),
             TextButton.icon(
-              onPressed: () {
-                _ensureVideosLoaded(channel, force: true);
-                _ensureHistoryLoaded(channel, force: true);
-                // 目前如果正看著特定類型，重新整理也要連那份分開的分頁
-                // 狀態一起重抓，不然按了重新整理、類型篩選那份還是舊的。
-                if (_typeFilter != _TypeFilter.all) {
-                  setState(() {
-                    _typedVideos = const [];
-                    _typedNextPageToken = null;
-                    _typedReachedEnd = false;
-                    _typedError = null;
-                  });
-                  _loadTypedVideos();
-                }
-              },
+              onPressed: () => _refresh(channel),
               icon: const Icon(Icons.refresh, size: 15),
               label: const Text('重新整理'),
               style: TextButton.styleFrom(

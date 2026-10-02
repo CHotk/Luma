@@ -15,6 +15,7 @@ import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
 import '../../shared/widgets/glass_card.dart';
+import '../../shared/widgets/inline_empty_card.dart';
 import '../../shared/widgets/sense_tag.dart';
 import '../../shared/widgets/status_pill.dart';
 import '../../shared/widgets/tag_badge.dart';
@@ -211,7 +212,12 @@ class _List extends ConsumerWidget {
         const SizedBox(height: Gap.sm),
         Expanded(
           child: data.words.isEmpty
-              ? const Center(child: Text('沒有符合的字', style: AppText.bodyDim))
+              ? const SingleChildScrollView(
+                  child: InlineEmptyCard(
+                    title: '沒有符合的字',
+                    message: '換個關鍵字，或把標籤／詞義篩選放寬一點',
+                  ),
+                )
               : ListView.separated(
                   itemCount: data.words.length,
                   separatorBuilder: (_, _) =>

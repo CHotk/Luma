@@ -18,6 +18,8 @@ import '../../shared/debug/app_log.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
+import '../../shared/widgets/background_refresh.dart';
+import '../../shared/widgets/inline_empty_card.dart';
 import 'yt_api_key_dialog.dart';
 import 'yt_channel_avatar.dart';
 import 'yt_tracker_home_page.dart' show deleteYtCategory, runYtChannelDiscovery;
@@ -130,7 +132,35 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
     _videosLoadedAt = DateTime.now();
     setState(() {
       _videosFuture = _fetchVideos(channels, apiKey);
+      _videoPreview = const [];
     });
+    _loadVideoPreview(channels, ids);
+  }
+
+  /// 「依影片顯示」還在向 YouTube 拿的時候先秀的本機快取（2026-10-02
+  /// 使用者選了「先顯示舊的、背景更新」）：每個頻道從快取拿最新
+  /// [_videosPerChannel] 部，跟真的抓回來的一樣依上傳時間排。快取裡
+  /// 分不準類型，選了特定類型就不秀預覽、只秀進度條跟膠囊。
+  List<_ChannelVideo> _videoPreview = const [];
+
+  Future<void> _loadVideoPreview(
+    List<YtChannel> channels,
+    List<String> forIds,
+  ) async {
+    if (_typeFilter != _TypeFilter.all) return;
+    final cache = YtVideoCacheStore(ref.read(keyValueStoreProvider));
+    final preview = <_ChannelVideo>[];
+    for (final c in channels) {
+      final cached = [...await cache.load(c.id)]
+        ..sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
+      for (final v in cached.take(_videosPerChannel)) {
+        preview.add(_ChannelVideo(video: v, channel: c));
+      }
+    }
+    preview.sort((a, b) => b.video.publishedAt.compareTo(a.video.publishedAt));
+    // 這段讀快取期間篩選範圍可能已經換了，換了就不要蓋上去。
+    if (!mounted || _videosLoadedFor != forIds) return;
+    setState(() => _videoPreview = preview);
   }
 
   /// 依目前排序方式排好的頻道，分三層：置頂的一律排最前面，按置頂時間
@@ -537,7 +567,16 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
       );
     }
     if (channels.isEmpty) {
-      return Center(child: Text('這個篩選條件下沒有頻道', style: AppText.bodyDim));
+      return SingleChildScrollView(
+        child: InlineEmptyCard(
+          title: '這個分類還沒有頻道',
+          message: '換個分類看看，或到首頁新增頻道',
+          actions: [
+            if (_selected.isNotEmpty)
+              EmptyAction('看全部分類', () => setState(_selected.clear)),
+          ],
+        ),
+      );
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -588,31 +627,76 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                   future: _videosFuture,
                   builder: (context, snap) {
                     if (snap.connectionState == ConnectionState.waiting) {
-                      return const Center(
-                        child: CircularProgressIndicator.adaptive(),
+                      // 先顯示舊的、背景更新（2026-10-02 使用者選的第 5 版）。
+                      final preview = _videoPreview;
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const ThinRefreshBar(),
+                          const SizedBox(height: Gap.sm),
+                          RefreshingPill(
+                            label: preview.isEmpty
+                                ? '正在向 YouTube 拿影片…'
+                                : '正在檢查新影片…',
+                          ),
+                          const SizedBox(height: Gap.xs),
+                          if (preview.isNotEmpty)
+                            Expanded(
+                              child: ListView.separated(
+                                itemCount: preview.length,
+                                separatorBuilder: (_, _) => const Divider(
+                                  height: 1,
+                                  color: AppColors.glassEdge,
+                                ),
+                                itemBuilder: (_, i) => YtVideoRow(
+                                  key: ValueKey(preview[i].video.videoId),
+                                  video: preview[i].video,
+                                  subtitle:
+                                      '${preview[i].channel.name}・${ytRelativeTime(preview[i].video.publishedAt)}',
+                                  fromCache: true,
+                                ),
+                              ),
+                            ),
+                        ],
                       );
                     }
                     if (snap.hasError) {
-                      return Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Text(
-                            '${snap.error}',
-                            style: AppText.bodyDim,
-                            textAlign: TextAlign.center,
-                          ),
+                      return SingleChildScrollView(
+                        child: InlineEmptyCard(
+                          title: '影片抓不下來',
+                          message: '${snap.error}',
+                          actions: [
+                            EmptyAction(
+                              '重新整理',
+                              () => _ensureVideosLoaded(channels, force: true),
+                            ),
+                          ],
                         ),
                       );
                     }
                     // 類型篩選已經在抓的時候做掉了（見 _fetchVideos），這裡直接用。
                     final videos = snap.data ?? const [];
                     if (videos.isEmpty) {
-                      return Center(
-                        child: Text(
-                          _typeFilter == _TypeFilter.all
-                              ? '這些頻道抓不到影片'
-                              : '這個篩選條件下沒有影片',
-                          style: AppText.bodyDim,
+                      final typed = _typeFilter != _TypeFilter.all;
+                      return SingleChildScrollView(
+                        child: InlineEmptyCard(
+                          title: '這裡空空的',
+                          message: typed
+                              ? '這些頻道最近沒有這個類型的影片'
+                              : '這些頻道抓不到影片，可能還沒發過公開影片',
+                          actions: [
+                            if (typed)
+                              EmptyAction(
+                                '看全部類型',
+                                () => setState(
+                                  () => _typeFilter = _TypeFilter.all,
+                                ),
+                              ),
+                            EmptyAction(
+                              '重新整理',
+                              () => _ensureVideosLoaded(channels, force: true),
+                            ),
+                          ],
                         ),
                       );
                     }
@@ -1376,7 +1460,9 @@ class _ChannelGridState extends State<_ChannelGrid> {
   Widget build(BuildContext context) {
     final channels = widget.channels;
     if (channels.isEmpty) {
-      return Center(child: Text('這個篩選條件下沒有頻道', style: AppText.bodyDim));
+      return const SingleChildScrollView(
+        child: InlineEmptyCard(title: '這個分類還沒有頻道', message: '換個分類看看，或到首頁新增頻道'),
+      );
     }
     // 分三層畫：上面置頂、中間普通、下面冷藏（2026-09-30 加置頂區、
     // 2026-10-02 使用者要求加冷藏區：不常看但還不至於刪掉的頻道）。
@@ -1440,9 +1526,13 @@ class _ChannelGridState extends State<_ChannelGrid> {
         ],
         if (rest.isEmpty)
           SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: Gap.md),
-              child: Center(child: Text('沒有其他頻道', style: AppText.bodyDim)),
+            child: InlineEmptyCard(
+              title: '沒有其他頻道',
+              message: [
+                if (pinned.isNotEmpty) '都在上面置頂了',
+                if (cold.isNotEmpty)
+                  '有 ${cold.length} 個收在下面$ytColdSectionLabel',
+              ].join('，'),
             ),
           )
         else

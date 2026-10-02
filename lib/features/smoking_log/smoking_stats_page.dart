@@ -11,6 +11,7 @@ import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
 import '../../shared/widgets/glass_card.dart';
+import '../../shared/widgets/inline_empty_card.dart';
 
 /// 抽菸記錄統計（設計稿 05）：今天次數、平均間隔、近 7 天長條圖、最常看
 /// 的時段、觸發原因分布。從抽菸記錄頁右上角統計按鈕進來。
@@ -80,7 +81,17 @@ class _Body extends StatelessWidget {
     final reasonTotal = reasons.values.fold<int>(0, (a, b) => a + b);
 
     if (entries.isEmpty) {
-      return Center(child: Text('還沒有紀錄，先去記幾筆吧', style: AppText.bodyDim));
+      // 空狀態用全 App 共用的虛線卡片（2026-10-02 使用者選的第 5 版），
+      // 給一顆直接回記錄頁的按鈕，不只是一行灰字。
+      return SingleChildScrollView(
+        child: InlineEmptyCard(
+          title: '還沒有紀錄',
+          message: '先去記幾筆，這裡就會出現統計',
+          actions: [
+            EmptyAction('去記一筆', () => Navigator.of(context).maybePop()),
+          ],
+        ),
+      );
     }
 
     return ListView(
