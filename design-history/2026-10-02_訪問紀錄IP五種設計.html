@@ -1,0 +1,229 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>訪問紀錄 五種設計</title><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;800&display=swap" rel="stylesheet"><style>:root{--bg:#0c0c13;--panel:#161622;--panel2:#1e1e2e;--line:#2a2a3d;--text:#eceaf5;--sub:#8b8ba3;--dim:#5d5d72;--acc:#FF2D40;--blue:#2E6BFF;--blueSoft:#7EA6FF;--ok:#5FE08D;--bad:#FF938B;--mid:#F5C763}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-serif;min-height:100vh;padding:32px 16px 48px}
+.intro{max-width:840px;margin:0 auto 22px;text-align:center}
+.eyebrow{color:var(--acc);font-size:12px;letter-spacing:.2em}
+h1{font-size:22px;margin:6px 0}
+.intro p{color:var(--sub);font-size:13px;line-height:1.7}
+.intro b,.how b{color:var(--text)}
+.how{max-width:840px;margin:0 auto 30px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 18px;font-size:12.5px;color:var(--sub);line-height:1.85}
+.how h3{font-size:13.5px;color:var(--text);margin-bottom:4px}
+.how ol{padding-left:20px}
+.flow{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;margin:10px 0 6px;font-size:11.5px}
+.flow span{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:6px 10px;color:var(--text)}
+.flow i{font-style:normal;color:var(--dim)}
+.wrap{display:flex;flex-wrap:wrap;gap:40px 28px;justify-content:center;max-width:1800px;margin:0 auto}
+.variant{width:300px}
+.vhead{min-height:132px;margin-bottom:6px}
+.vhead .num{color:var(--acc);font-size:11px;letter-spacing:.15em}
+.vhead h2{font-size:17px;margin:4px 0 6px}
+.vhead p{color:var(--sub);font-size:12.5px;line-height:1.65}
+.tag{display:inline-block;background:var(--acc);color:#fff;border-radius:99px;padding:1px 9px;font-size:10.5px;margin-left:6px;vertical-align:2px}
+.cap{font-size:11px;color:var(--sub);letter-spacing:.1em;margin:14px 0 6px}
+.scr{width:300px;height:470px;flex-shrink:0;border:6px solid #000;border-radius:24px;background:var(--bg);overflow:hidden;position:relative;padding:12px}
+.note{color:var(--sub);font-size:12px;line-height:1.7;margin-top:12px}
+.note b{color:var(--text)}
+.top{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700;margin-bottom:12px}
+.top .burger{width:16px;height:2px;background:var(--sub);box-shadow:0 5px 0 var(--sub),0 -5px 0 var(--sub);margin-right:4px}
+.top em{margin-left:auto;font-style:normal;font-size:11px;color:var(--sub);font-weight:400}
+.card{background:var(--panel);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:12px;margin-bottom:10px}
+.card.alert{border-color:rgba(255,147,139,.45);background:rgba(255,147,139,.07)}
+.lbl{font-size:10.5px;color:var(--sub);letter-spacing:.06em;margin-bottom:6px}
+.ok{color:var(--ok)}.bad{color:var(--bad)}.mid{color:var(--mid)}.sub{color:var(--sub)}.dim{color:var(--dim)}
+.row{display:flex;align-items:center;gap:9px;padding:8px 0;border-top:1px solid var(--line);font-size:11.5px}
+.row:first-of-type{border-top:none}
+.row .ic{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;font-size:14px;background:rgba(126,166,255,.12);flex-shrink:0}
+.row .ic.st{background:rgba(255,147,139,.16)}
+.row .t{flex:1;min-width:0}
+.row .t b{display:block;font-size:12px}
+.row .t span{font-size:10px;color:var(--sub);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .r{font-size:10px;color:var(--sub);text-align:right;white-space:nowrap}
+.pill{font-size:9.5px;padding:1px 7px;border-radius:99px;background:rgba(95,224,141,.12);color:var(--ok);white-space:nowrap}
+.pill.st{background:rgba(255,147,139,.16);color:var(--bad)}
+.btn{display:block;text-align:center;border-radius:12px;padding:10px 0;font-size:12.5px;font-weight:700;background:var(--blue);color:#fff;margin-top:6px}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--sub);font-weight:500}
+.btn.red{background:rgba(255,147,139,.15);color:var(--bad);border:1px solid rgba(255,147,139,.35)}
+/* 3 安心狀態 */
+.shield{text-align:center;padding:18px 0 8px}
+.shield .b{width:96px;height:96px;border-radius:50%;margin:0 auto 12px;display:grid;place-items:center;font-size:42px}
+.shield .b.g{background:radial-gradient(circle,rgba(95,224,141,.28),rgba(95,224,141,.06));box-shadow:0 0 0 8px rgba(95,224,141,.06)}
+.shield .b.r{background:radial-gradient(circle,rgba(255,147,139,.3),rgba(255,147,139,.06));box-shadow:0 0 0 8px rgba(255,147,139,.07)}
+.shield h3{font-size:17px;margin-bottom:4px}
+.shield p{font-size:11.5px;color:var(--sub);line-height:1.6}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:12px 0}
+.stats div{background:var(--panel);border-radius:12px;padding:9px 0;text-align:center}
+.stats b{display:block;font-size:17px}
+.stats span{font-size:9.5px;color:var(--sub)}
+/* 4 時間軸 */
+.tl{position:relative;padding-left:16px}
+.tl::before{content:'';position:absolute;left:5px;top:4px;bottom:4px;width:2px;background:var(--line)}
+.tl .e{position:relative;padding:5px 0 7px;font-size:11px}
+.tl .e::before{content:'';position:absolute;left:-15px;top:9px;width:9px;height:9px;border-radius:50%;background:var(--blueSoft)}
+.tl .e.st::before{background:var(--bad);box-shadow:0 0 0 3px rgba(255,147,139,.25)}
+.tl .e b{font-size:11.5px}
+.tl .e span{display:block;color:var(--sub);font-size:10px}
+.day{font-size:10px;color:var(--dim);letter-spacing:.08em;margin:6px 0 2px}
+.heat{display:grid;grid-template-columns:repeat(24,1fr);gap:2px;margin-top:4px}
+.heat i{height:16px;border-radius:2px;background:rgba(255,255,255,.05)}
+.heat i.a{background:rgba(126,166,255,.35)}.heat i.b{background:rgba(126,166,255,.7)}.heat i.s{background:var(--bad)}
+.hx{display:flex;justify-content:space-between;font-size:8.5px;color:var(--dim);margin-top:3px}
+/* 5 通知 */
+.banner{position:absolute;left:8px;right:8px;top:8px;background:rgba(40,22,28,.95);border:1px solid rgba(255,147,139,.5);border-radius:16px;padding:11px 12px;display:flex;gap:10px;box-shadow:0 8px 24px rgba(0,0,0,.55);z-index:3}
+.banner .ic{width:32px;height:32px;border-radius:9px;background:rgba(255,147,139,.2);display:grid;place-items:center;font-size:16px;flex-shrink:0}
+.banner b{display:block;font-size:12.5px}
+.banner span{font-size:11px;color:#e7c9c6;line-height:1.5}
+.ghostpage{opacity:.35}
+.set{display:flex;align-items:center;font-size:12px;padding:9px 0;border-top:1px solid var(--line)}
+.set:first-of-type{border-top:none}
+.set em{margin-left:auto;font-style:normal;font-size:11px;color:var(--sub)}
+.sw{margin-left:auto;width:34px;height:20px;border-radius:99px;background:var(--blue);position:relative}
+.sw::after{content:'';position:absolute;right:2px;top:2px;width:16px;height:16px;border-radius:50%;background:#fff}
+.sw.off{background:rgba(255,255,255,.12)}.sw.off::after{right:auto;left:2px}
+</style></head><body>
+
+<div class="intro"><div class="eyebrow">新功能構想 · 安全</div><h1>訪問紀錄（誰打開了 Lume）：五種設計</h1><p>目的：Lume 放在 GitHub Pages、網址是公開的，想確認<b>真的只有你自己在用</b>，看到陌生人打開過能馬上知道。每一版兩支手機：上面是<b>一切正常（只有你）</b>，下面是<b>出現陌生裝置</b>時的樣子。</p></div>
+
+<div class="how"><h3>先講怎麼做得到（這部分五版都一樣）</h3>
+GitHub Pages 只是放靜態檔案，<b>不給看存取紀錄</b>；網頁本身也拿不到自己的 IP。而陌生人的瀏覽器沒有你的 R2 金鑰，沒辦法把紀錄寫進你的 R2。所以要多一個小東西：
+<div class="flow"><span>打開 Lume</span><i>→ 送一個「我來了」</i><span>Cloudflare Worker（免費）</span><i>→ 記下</i><span>R2 裡的訪問紀錄</span><i>→ 你的 App 讀</i><span>這個頁面</span></div>
+<ol>
+<li><b>Worker</b> 跟你的 R2 在同一個 Cloudflare 帳號，免費額度一天 10 萬次，綽綽有餘。它看得到真正的 <b>IP、國家／城市、電信商</b>（Cloudflare 自動附的），App 只送「裝置代號＋瀏覽器型號」。</li>
+<li><b>認裝置不認 IP</b>：手機換基地台、開 VPN，IP 每天都會變，用 IP 判斷「是不是我」會一直誤報。所以每台裝置第一次打開時產生一組隨機代號存在本機，你在自己的裝置上按「這是我的」，之後那台不管 IP 怎麼換都算你；<b>沒被認領的代號＝陌生裝置</b>。IP 留著給你對照用。</li>
+<li>紀錄只留 90 天，同一台裝置一小時內重複打開只記一次，免得紀錄爆量。</li>
+</ol></div>
+
+<div class="wrap">
+
+<!-- 1 -->
+<div class="variant"><div class="vhead"><div class="num">版本 1</div><h2>存取紀錄清單<span class="tag">主流</span></h2><p>Google 帳戶「最近的安全性活動」、GitHub Security log 的做法：一列一次訪問，時間、裝置、IP、地點；你的裝置帶綠色「我的」標籤，陌生的紅色。</p></div>
+<div class="cap">一切正常</div>
+<div class="scr">
+<div class="top"><span class="burger"></span>訪問紀錄<em>近 7 天 · 23 次</em></div>
+<div class="card">
+<div class="row"><span class="ic">📱</span><div class="t"><b>iPhone · Safari</b><span>114.36.xx.xx · 台灣 新北 · 中華電信</span></div><div class="r">今天 21:08<br><span class="pill">我的</span></div></div>
+<div class="row"><span class="ic">💻</span><div class="t"><b>Windows · Chrome</b><span>61.220.xx.xx · 台灣 台北 · 中華電信</span></div><div class="r">今天 15:42<br><span class="pill">我的</span></div></div>
+<div class="row"><span class="ic">📱</span><div class="t"><b>iPhone · Safari</b><span>27.247.xx.xx · 台灣 新北 · 台灣大哥大</span></div><div class="r">昨天 23:10<br><span class="pill">我的</span></div></div>
+<div class="row"><span class="ic">💻</span><div class="t"><b>Windows · Chrome</b><span>61.220.xx.xx · 台灣 台北 · 中華電信</span></div><div class="r">昨天 09:30<br><span class="pill">我的</span></div></div>
+<div class="row"><span class="ic">📱</span><div class="t"><b>iPhone · Safari</b><span>114.36.xx.xx · 台灣 新北 · 中華電信</span></div><div class="r">9/30 22:01<br><span class="pill">我的</span></div></div>
+</div>
+<div style="font-size:10.5px;color:var(--dim);text-align:center">同一台一小時內重複打開只記一次</div>
+</div>
+<div class="cap">出現陌生裝置</div>
+<div class="scr">
+<div class="top"><span class="burger"></span>訪問紀錄<em>近 7 天 · 25 次</em></div>
+<div class="card">
+<div class="row"><span class="ic st">❓</span><div class="t"><b class="bad">Android · Chrome</b><span>203.0.xx.xx · 美國 加州 · Google Cloud</span></div><div class="r">今天 03:17<br><span class="pill st">陌生</span></div></div>
+<div class="row"><span class="ic st">❓</span><div class="t"><b class="bad">Linux · 爬蟲</b><span>66.249.xx.xx · 美國 · Googlebot</span></div><div class="r">昨天 11:02<br><span class="pill st">陌生</span></div></div>
+<div class="row"><span class="ic">📱</span><div class="t"><b>iPhone · Safari</b><span>114.36.xx.xx · 台灣 新北 · 中華電信</span></div><div class="r">今天 21:08<br><span class="pill">我的</span></div></div>
+<div class="row"><span class="ic">💻</span><div class="t"><b>Windows · Chrome</b><span>61.220.xx.xx · 台灣 台北 · 中華電信</span></div><div class="r">今天 15:42<br><span class="pill">我的</span></div></div>
+</div>
+<span class="btn ghost">點陌生那列 → 看詳細／標成「我的」</span>
+</div>
+<p class="note"><b>優點：</b>最完整、最誠實，每一次都看得到；大家看過 Google／GitHub 的安全紀錄，一看就懂。<b>缺點：</b>資訊密，紀錄一多要自己掃；搜尋引擎爬蟲也會被列成陌生，要分辨。</p></div>
+
+<!-- 2 -->
+<div class="variant"><div class="vhead"><div class="num">版本 2</div><h2>依裝置分組：我的裝置／陌生裝置</h2><p>不列每一次，而是列「哪幾台裝置來過」：上面「我的裝置」幾張卡（最後出現時間、用過的 IP 數），下面「陌生裝置」區，有東西才出現。點一台看它每次來的 IP 跟時間。</p></div>
+<div class="cap">一切正常</div>
+<div class="scr">
+<div class="top"><span class="burger"></span>誰用過 Lume<em>近 30 天</em></div>
+<div class="lbl">我的裝置 · 2 台</div>
+<div class="card">
+<div class="row"><span class="ic">📱</span><div class="t"><b>我的 iPhone</b><span>最後：今天 21:08 · 用過 5 個 IP</span></div><div class="r">142 次</div></div>
+<div class="row"><span class="ic">💻</span><div class="t"><b>家裡電腦</b><span>最後：今天 15:42 · 用過 1 個 IP</span></div><div class="r">88 次</div></div>
+</div>
+<div class="lbl">陌生裝置</div>
+<div class="card" style="text-align:center;padding:20px 12px"><div style="font-size:22px">✓</div><div style="font-size:12.5px;font-weight:700;margin:4px 0 2px" class="ok">沒有</div><div style="font-size:10.5px;color:var(--sub)">近 30 天只有你的 2 台裝置打開過</div></div>
+<span class="btn ghost">＋ 把這台裝置加進「我的」</span>
+</div>
+<div class="cap">出現陌生裝置</div>
+<div class="scr">
+<div class="top"><span class="burger"></span>誰用過 Lume<em>近 30 天</em></div>
+<div class="lbl" style="color:var(--bad)">陌生裝置 · 1 台</div>
+<div class="card alert">
+<div class="row"><span class="ic st">❓</span><div class="t"><b>Android · Chrome</b><span>第一次：今天 03:17 · 共 3 次</span></div></div>
+<div style="font-size:10.5px;color:var(--sub);line-height:1.7;padding:2px 0 6px">203.0.xx.xx · 美國 加州 · Google Cloud<br>打開過：首頁、日記（被密碼擋下）</div>
+<div style="display:flex;gap:6px"><span class="btn ghost" style="flex:1">其實是我</span><span class="btn red" style="flex:1">不是我</span></div>
+</div>
+<div class="lbl">我的裝置 · 2 台</div>
+<div class="card">
+<div class="row"><span class="ic">📱</span><div class="t"><b>我的 iPhone</b><span>最後：今天 21:08</span></div><div class="r">142 次</div></div>
+<div class="row"><span class="ic">💻</span><div class="t"><b>家裡電腦</b><span>最後：今天 15:42</span></div><div class="r">88 次</div></div>
+</div>
+</div>
+<p class="note"><b>優點：</b>直接回答你的問題「是不是只有我」，清單很短；陌生的一台一張卡，還能看它進了哪些頁。<b>缺點：</b>看不到「每一次」的細節要點進去；換瀏覽器或清掉資料，自己的裝置會變成新代號、要再認領一次。</p></div>
+
+<!-- 3 -->
+<div class="variant"><div class="vhead"><div class="num">版本 3</div><h2>安心狀態燈</h2><p>打開只看到一個大狀態：綠色「近 30 天只有你」或紅色「有 1 台陌生裝置」，下面三個數字；要看細節再往下滑到清單。最適合「看一眼求安心」。</p></div>
+<div class="cap">一切正常</div>
+<div class="scr">
+<div class="top"><span class="burger"></span>訪問紀錄</div>
+<div class="shield"><div class="b g">🛡</div><h3 class="ok">只有你</h3><p>近 30 天的 230 次訪問<br>都來自你認領的 2 台裝置</p></div>
+<div class="stats"><div><b>230</b><span>次訪問</span></div><div><b>2</b><span>我的裝置</span></div><div><b class="ok">0</b><span>陌生裝置</span></div></div>
+<div class="card"><div class="lbl">最近一次</div><div style="font-size:12px">📱 我的 iPhone · 今天 21:08<br><span class="sub" style="font-size:10.5px">114.36.xx.xx · 台灣 新北</span></div></div>
+<div style="text-align:center;font-size:10.5px;color:var(--dim)">往下滑看完整紀錄 ⌄</div>
+</div>
+<div class="cap">出現陌生裝置</div>
+<div class="scr">
+<div class="top"><span class="burger"></span>訪問紀錄</div>
+<div class="shield"><div class="b r">⚠</div><h3 class="bad">有 1 台陌生裝置</h3><p>今天 03:17 · 美國 加州<br>Android · Chrome · 打開 3 次</p></div>
+<div class="stats"><div><b>233</b><span>次訪問</span></div><div><b>2</b><span>我的裝置</span></div><div><b class="bad">1</b><span>陌生裝置</span></div></div>
+<span class="btn red">看這台的詳細紀錄</span>
+<span class="btn ghost">其實是我（加進我的裝置）</span>
+</div>
+<p class="note"><b>優點：</b>一眼就知道安不安全，最符合「求安心」；不用讀一堆 IP。<b>缺點：</b>細節藏起來，想研究的時候要多滑一下；爬蟲偶爾來一次就會變紅燈（可以設定忽略已知爬蟲）。</p></div>
+
+<!-- 4 -->
+<div class="variant"><div class="vhead"><div class="num">版本 4</div><h2>時間軸＋使用時段熱圖</h2><p>上面一條 24 小時熱圖，看出你平常幾點用（藍）、陌生訪問落在哪（紅）；下面按天分組的時間軸。半夜三點突然一個紅點，特別顯眼。</p></div>
+<div class="cap">一切正常</div>
+<div class="scr">
+<div class="top"><span class="burger"></span>訪問時間軸<em>近 7 天</em></div>
+<div class="card"><div class="lbl">幾點在用</div>
+<div class="heat"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i class="a"></i><i class="a"></i><i class="b"></i><i class="a"></i><i></i><i class="a"></i><i></i><i></i><i class="b"></i><i class="a"></i><i></i><i></i><i class="a"></i><i class="b"></i><i class="b"></i><i class="b"></i><i class="a"></i></div>
+<div class="hx"><span>0</span><span>6</span><span>12</span><span>18</span><span>24</span></div></div>
+<div class="day">今天 10/02</div>
+<div class="tl"><div class="e"><b>21:08 · 我的 iPhone</b><span>114.36.xx.xx · 新北</span></div><div class="e"><b>15:42 · 家裡電腦</b><span>61.220.xx.xx · 台北</span></div></div>
+<div class="day">昨天 10/01</div>
+<div class="tl"><div class="e"><b>23:10 · 我的 iPhone</b><span>27.247.xx.xx · 新北</span></div><div class="e"><b>09:30 · 家裡電腦</b><span>61.220.xx.xx · 台北</span></div></div>
+</div>
+<div class="cap">出現陌生裝置</div>
+<div class="scr">
+<div class="top"><span class="burger"></span>訪問時間軸<em>近 7 天</em></div>
+<div class="card"><div class="lbl">幾點在用 · <span class="bad">紅＝陌生</span></div>
+<div class="heat"><i></i><i></i><i></i><i class="s"></i><i></i><i></i><i></i><i class="a"></i><i class="a"></i><i class="b"></i><i class="a"></i><i class="s"></i><i class="a"></i><i></i><i></i><i class="b"></i><i class="a"></i><i></i><i></i><i class="a"></i><i class="b"></i><i class="b"></i><i class="b"></i><i class="a"></i></div>
+<div class="hx"><span>0</span><span>6</span><span>12</span><span>18</span><span>24</span></div></div>
+<div class="day">今天 10/02</div>
+<div class="tl"><div class="e"><b>21:08 · 我的 iPhone</b><span>114.36.xx.xx · 新北</span></div><div class="e st"><b class="bad">03:17 · 陌生 Android</b><span>203.0.xx.xx · 美國 加州 · 首頁→日記</span></div></div>
+<div class="day">昨天 10/01</div>
+<div class="tl"><div class="e st"><b class="bad">11:02 · 陌生（Googlebot）</b><span>66.249.xx.xx · 美國</span></div><div class="e"><b>09:30 · 家裡電腦</b><span>61.220.xx.xx · 台北</span></div></div>
+</div>
+<p class="note"><b>優點：</b>用「時間」看異常最直覺——你不會半夜三點在用，那個紅點一定不是你；能順便看到自己的使用習慣。<b>缺點：</b>紀錄多的時候時間軸很長；比起「是不是只有我」，它更偏向「什麼時候誰來過」。</p></div>
+
+<!-- 5 -->
+<div class="variant"><div class="vhead"><div class="num">版本 5</div><h2>有陌生人才跳通知（平常不用看）</h2><p>平常完全不用進這頁；只要有陌生裝置來過，你下次打開 Lume 時上方就跳一則紅色通知（跟同步通知同一個位置），點進去看詳細。紀錄頁本身只是設定＋清單。</p></div>
+<div class="cap">打開 App 時（有陌生訪客）</div>
+<div class="scr">
+<div class="banner"><span class="ic">⚠</span><div><b>有陌生裝置打開過 Lume</b><span>今天 03:17 · 美國 加州 · Android Chrome。點這裡看詳細。</span></div></div>
+<div class="ghostpage" style="padding-top:84px">
+<div class="top"><span class="burger"></span>Lume</div>
+<div class="card" style="height:70px"></div><div class="card" style="height:70px"></div><div class="card" style="height:70px"></div><div class="card" style="height:70px"></div>
+</div>
+</div>
+<div class="cap">訪問紀錄設定</div>
+<div class="scr">
+<div class="top"><span class="burger"></span>訪問紀錄</div>
+<div class="card">
+<div class="set">陌生裝置出現時通知我<span class="sw"></span></div>
+<div class="set">忽略搜尋引擎爬蟲<span class="sw"></span></div>
+<div class="set">紀錄保留<em>90 天 ›</em></div>
+<div class="set">這台裝置<em class="ok">我的 iPhone ✓</em></div>
+</div>
+<div class="lbl">陌生裝置紀錄</div>
+<div class="card alert">
+<div class="row"><span class="ic st">❓</span><div class="t"><b>Android · Chrome</b><span>203.0.xx.xx · 美國 加州 · 3 次</span></div><div class="r">今天 03:17</div></div>
+</div>
+<div class="lbl">我的裝置 · 2 台 <span style="float:right;color:var(--blueSoft)">看全部紀錄 ›</span></div>
+</div>
+<p class="note"><b>優點：</b>最不打擾，平常完全不用想這件事，有事才找你；可以跟「同步後的上方通知」共用同一套通知。<b>缺點：</b>要等你下次打開 App 才會知道（App 沒辦法即時推播）；平常不看，對「自己的使用紀錄」比較沒感覺。</p></div>
+
+</div>
+</body></html>
