@@ -1,0 +1,194 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>確認對話框與提示 五種風格</title><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;800&display=swap" rel="stylesheet"><style>:root{--bg:#0c0c13;--panel:#161622;--panel2:#1e1e2e;--line:#2a2a3d;--text:#eceaf5;--sub:#8b8ba3;--dim:#5d5d72;--acc:#FF2D40;--blue:#2E6BFF;--blueSoft:#7EA6FF;--ok:#5FE08D;--bad:#FF938B}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-serif;min-height:100vh;padding:32px 16px 48px}
+.intro{max-width:780px;margin:0 auto 30px;text-align:center}
+.eyebrow{color:var(--acc);font-size:12px;letter-spacing:.2em}
+h1{font-size:22px;margin:6px 0}
+.intro p{color:var(--sub);font-size:13px;line-height:1.7}
+.intro b{color:var(--text)}
+.wrap{display:flex;flex-wrap:wrap;gap:40px 28px;justify-content:center;max-width:1800px;margin:0 auto}
+.variant{width:300px}
+.vhead{min-height:138px;margin-bottom:6px}
+.vhead .num{color:var(--acc);font-size:11px;letter-spacing:.15em}
+.vhead h2{font-size:17px;margin:4px 0 6px}
+.vhead p{color:var(--sub);font-size:12.5px;line-height:1.65}
+.tag{display:inline-block;background:var(--acc);color:#fff;border-radius:99px;padding:1px 9px;font-size:10.5px;margin-left:6px;vertical-align:2px}
+.tag.now{background:var(--panel2);color:var(--sub);border:1px solid var(--line)}
+.cap{font-size:11px;color:var(--sub);letter-spacing:.1em;margin:14px 0 6px}
+.scr{width:300px;height:360px;flex-shrink:0;border:6px solid #000;border-radius:24px;background:var(--bg);overflow:hidden;position:relative}
+.note{color:var(--sub);font-size:12px;line-height:1.7;margin-top:12px}
+.note b{color:var(--text)}
+/* 底下的假頁面：日記清單 */
+.pg{padding:12px}
+.pg .ttl{font-size:15px;font-weight:700;margin-bottom:10px}
+.row{background:var(--panel);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:10px 12px;margin-bottom:8px;position:relative;overflow:hidden}
+.row b{display:block;font-size:12px}
+.row span{font-size:10.5px;color:var(--sub)}
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.55)}
+.blurscrim{position:absolute;inset:0;background:rgba(0,0,0,.4);backdrop-filter:blur(3px)}
+.gone{opacity:.35}
+/* 1 Material 3 對話框 */
+.m3{position:absolute;left:22px;right:22px;top:72px;background:#2a2733;border-radius:26px;padding:22px 22px 14px;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+.m3 .ic{text-align:center;color:var(--bad);font-size:22px;line-height:1}
+.m3 h3{text-align:center;font-size:17px;font-weight:500;margin:12px 0 10px}
+.m3 p{font-size:12px;color:#cac4d0;line-height:1.6}
+.m3 .acts{display:flex;justify-content:flex-end;gap:6px;margin-top:18px}
+.tb{font-size:12.5px;font-weight:500;padding:8px 12px;border-radius:99px;color:#d0bcff}
+.tb.red{color:var(--bad)}
+.snack{position:absolute;left:10px;right:10px;background:#e6e0e9;color:#322f35;border-radius:6px;padding:12px 14px;font-size:12px;display:flex;align-items:center;box-shadow:0 4px 12px rgba(0,0,0,.4)}
+.snack .a{margin-left:auto;color:#6750a4;font-weight:700;padding-left:12px}
+/* 2 目前上線 */
+.cur{position:absolute;left:26px;right:26px;top:84px;background:#1A1A24;border-radius:28px;padding:22px 22px 16px;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+.cur h3{font-size:16px;font-weight:400;margin-bottom:12px}
+.cur p{font-size:12px;color:var(--sub);line-height:1.6}
+.cur .acts{display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-top:20px}
+.cur .tb{color:var(--blueSoft)}
+.fb{font-size:12.5px;padding:8px 16px;border-radius:99px;background:var(--bad);color:#1a1a24;font-weight:500}
+.topnote{position:absolute;left:12px;right:12px;background:rgba(20,18,32,.88);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.14);border-radius:14px;padding:11px 13px;font-size:12px;display:flex;align-items:center;gap:9px;box-shadow:0 6px 18px rgba(0,0,0,.4)}
+.topnote i{font-style:normal;width:18px;height:18px;border-radius:50%;border:1.6px solid currentColor;display:grid;place-items:center;font-size:10px;flex-shrink:0}
+.okc{color:var(--ok)}
+.badc{color:var(--bad)}
+.incons{font-size:10px;color:var(--dim);position:absolute;left:12px;right:12px;bottom:10px;line-height:1.5}
+/* 3 iOS */
+.ios{position:absolute;left:42px;right:42px;top:96px;background:rgba(40,40,46,.92);backdrop-filter:blur(16px);border-radius:14px;overflow:hidden;text-align:center}
+.ios .body{padding:16px 14px 14px}
+.ios h3{font-size:14px;font-weight:700;margin-bottom:4px}
+.ios p{font-size:11px;color:#c8c8d0;line-height:1.5}
+.ios .acts{display:flex;border-top:.5px solid rgba(255,255,255,.18)}
+.ios .acts div{flex:1;padding:11px 0;font-size:14px;color:#0a84ff}
+.ios .acts div+div{border-left:.5px solid rgba(255,255,255,.18)}
+.ios .acts .del{color:#ff453a;font-weight:700}
+.hud{position:absolute;left:50%;transform:translateX(-50%);background:rgba(30,30,36,.95);border-radius:99px;padding:8px 16px 8px 10px;font-size:12px;display:flex;align-items:center;gap:8px;white-space:nowrap;box-shadow:0 6px 18px rgba(0,0,0,.5)}
+.hud i{font-style:normal;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-size:11px;color:#111}
+.hud .ib-ok{background:var(--ok)}
+.hud .ib-bad{background:#ff453a;color:#fff}
+/* 4 底部確認面板 */
+.sheet{position:absolute;left:0;right:0;bottom:0;background:#1c1b28;border-top:1px solid rgba(255,255,255,.12);border-radius:22px 22px 0 0;padding:10px 18px 18px;text-align:center}
+.grab{width:36px;height:4px;border-radius:99px;background:rgba(255,255,255,.2);margin:0 auto 14px}
+.bigic{width:46px;height:46px;border-radius:50%;background:rgba(255,147,139,.14);color:var(--bad);display:grid;place-items:center;margin:0 auto 10px;font-size:20px}
+.sheet h3{font-size:15px;margin-bottom:5px}
+.sheet p{font-size:11.5px;color:var(--sub);line-height:1.6;margin-bottom:14px}
+.wbtn{display:block;width:100%;padding:11px 0;border-radius:12px;font-size:13px;font-weight:700}
+.wbtn.red{background:var(--bad);color:#1a1a24}
+.wbtn.ghost{background:rgba(255,255,255,.06);color:var(--text);margin-top:8px;font-weight:500}
+.glasspill{position:absolute;left:12px;right:12px;background:rgba(20,18,32,.9);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.14);border-radius:99px;padding:8px 8px 8px 14px;font-size:12px;display:flex;align-items:center;gap:8px;box-shadow:0 6px 18px rgba(0,0,0,.45)}
+.glasspill .undo{margin-left:auto;display:flex;align-items:center;gap:6px;background:rgba(126,166,255,.16);color:var(--blueSoft);padding:5px 10px 5px 6px;border-radius:99px;font-weight:700;font-size:11.5px}
+.ring{width:16px;height:16px}
+.ring circle{fill:none;stroke-width:2.4}
+.ring .bgc{stroke:rgba(126,166,255,.25)}
+.ring .fgc{stroke:var(--blueSoft);stroke-dasharray:44;stroke-dashoffset:15;transform:rotate(-90deg);transform-origin:50% 50%}
+.glasspill.err{border-color:rgba(255,147,139,.45)}
+.glasspill.err .undo{background:rgba(255,147,139,.14);color:var(--bad);padding:5px 10px}
+/* 5 先刪再復原 */
+.swipe{display:flex;padding:0;border-color:rgba(255,147,139,.4)}
+.swipe .inner{flex:1;padding:10px 12px;transform:translateX(0)}
+.swipe .confirm{background:var(--bad);color:#1a1a24;font-size:11.5px;font-weight:700;display:flex;align-items:center;padding:0 14px;white-space:nowrap}
+.dangerzone{margin-top:14px;border:1px solid rgba(255,147,139,.35);border-radius:12px;padding:10px 12px}
+.dangerzone .lbl{font-size:10.5px;color:var(--bad);letter-spacing:.08em;margin-bottom:6px}
+.hold{position:relative;overflow:hidden;border-radius:10px;background:rgba(255,147,139,.12);color:var(--bad);font-size:12px;font-weight:700;text-align:center;padding:10px 0}
+.hold::before{content:'';position:absolute;left:0;top:0;bottom:0;width:62%;background:rgba(255,147,139,.28)}
+.hold span{position:relative}
+.toast{position:absolute;left:12px;right:12px;background:#22212f;border:1px solid rgba(255,255,255,.1);border-radius:12px;font-size:12px;overflow:hidden;box-shadow:0 6px 18px rgba(0,0,0,.45)}
+.toast .ln{display:flex;align-items:center;gap:8px;padding:11px 13px}
+.toast .ln .a{margin-left:auto;color:var(--blueSoft);font-weight:700}
+.toast .prog{height:3px;background:rgba(126,166,255,.15)}
+.toast .prog div{height:100%;width:60%;background:var(--blueSoft)}
+.toast.err{border-color:rgba(255,147,139,.4)}
+.toast.err .ln .a{color:var(--bad)}
+.lbltiny{position:absolute;left:12px;font-size:9.5px;color:var(--dim);letter-spacing:.08em}
+</style></head><body>
+
+<template id="pg">
+<div class="pg"><div class="ttl">日記</div>
+<div class="row"><b>10/02（四）</b><span>今天把空狀態改好了，背景更新的感覺順很多…</span></div>
+<div class="row"><b>10/01（三）</b><span>健身：深蹲 5×5、硬舉 3×5</span></div>
+<div class="row"><b>09/30（二）</b><span>看完兩集，晚上去吃拉麵</span></div>
+<div class="row"><b>09/29（一）</b><span>下雨，在家整理單字庫</span></div>
+</div>
+</template>
+
+<div class="intro"><div class="eyebrow">全 App 共用 · 確認對話框與提示訊息</div><h1>確認對話框與提示訊息：五種風格</h1><p>每一版都示範兩個時刻（用「刪除一篇日記」當例子）：上面是<b>刪除前的確認</b>，下面是<b>做完之後的提示</b>（成功一則、失敗一則疊在一起給你比）。目前 App 有 34 個確認框、32 處提示：確認框底色一樣，但「刪除」鍵有的是紅色實心、有的是紅字、有的是一般藍字，說明文字有的寫「無法復原」有的沒寫；提示訊息已經統一成從上面滑下來的毛玻璃。挑定後全 App 換成同一套。第 2 版是目前上線的樣子。</p></div>
+
+<div class="wrap">
+
+<!-- 1 -->
+<div class="variant"><div class="vhead"><div class="num">版本 1</div><h2>Material 3 對話框＋底部 Snackbar<span class="tag">主流</span></h2><p>Android／Google 系 App 的標準：對話框上方一個圖示、標題置中，右下兩顆文字按鈕（破壞性那顆用紅字）；做完從底部冒一條淺色長條，右邊一顆「復原」。</p></div>
+<div class="cap">刪除確認</div>
+<div class="scr" data-pg><div class="scrim"></div>
+<div class="m3"><div class="ic">🗑</div><h3>刪除這篇日記？</h3><p>10/02（四）的日記會被刪除，刪完幾秒內可以在提示上按「復原」。</p><div class="acts"><span class="tb">取消</span><span class="tb red">刪除</span></div></div>
+</div>
+<div class="cap">做完之後的提示</div>
+<div class="scr" data-pg>
+<div class="snack" style="bottom:66px">無法同步到雲端<span class="a">重試</span></div>
+<div class="snack" style="bottom:14px">已刪除 10/02 的日記<span class="a">復原</span></div>
+</div>
+<p class="note"><b>優點：</b>大家都看過、不用學；「復原」放在提示上，誤刪一秒救回。<b>缺點：</b>淺色長條跟全站深色毛玻璃不搭（之前就是因為 SnackBar 純白被嫌醜才改掉的）；從底部出來會蓋住底部按鈕和播放器。</p></div>
+
+<!-- 2 -->
+<div class="variant"><div class="vhead"><div class="num">版本 2</div><h2>深色對話框＋上方毛玻璃提示<span class="tag now">目前上線</span></h2><p>標題靠左、說明灰字，右下「取消」藍字＋「刪除」紅色實心；提示從頂端滑下來，綠勾／紅驚嘆號。只是各頁沒統一：有 13 處刪除鍵是紅的，其他是藍字或實心色不一。</p></div>
+<div class="cap">刪除確認</div>
+<div class="scr" data-pg><div class="scrim"></div>
+<div class="cur"><h3>刪除這篇日記？</h3><p>10/02（四）<br>刪除後無法復原。</p><div class="acts"><span class="tb">取消</span><span class="fb">刪除</span></div></div>
+</div>
+<div class="cap">做完之後的提示</div>
+<div class="scr" data-pg>
+<div class="topnote" style="top:10px"><i class="okc">✓</i>已刪除 10/02 的日記</div>
+<div class="topnote" style="top:62px"><i class="badc">!</i>無法同步到雲端，請稍後再試</div>
+<div class="incons">※ 目前沒有「復原」：刪了就是刪了，所以每次刪除都要先跳確認框。</div>
+</div>
+<p class="note"><b>優點：</b>已經在用、跟毛玻璃卡片同一套質感；提示在上方不擋底部按鈕和浮動播放器。<b>缺點：</b>沒有復原，只能靠確認框擋誤刪，每刪一次都要多按一下；確認框長得像 Android 原生、跟其他卡片風格略有落差；各頁按鈕顏色不一致（這版選了就只做「統一」）。</p></div>
+
+<!-- 3 -->
+<div class="variant"><div class="vhead"><div class="num">版本 3</div><h2>iOS 風格小對話框＋頂端膠囊</h2><p>小一號、置中、背景模糊的對話框，下方兩顆按鈕左右平分、細線隔開（紅色粗體刪除）；提示是頂端中間的小膠囊（像 iPhone 靜音切換那顆），短短一句就收。</p></div>
+<div class="cap">刪除確認</div>
+<div class="scr" data-pg><div class="blurscrim"></div>
+<div class="ios"><div class="body"><h3>刪除這篇日記？</h3><p>10/02（四）的日記刪除後無法復原。</p></div><div class="acts"><div>取消</div><div class="del">刪除</div></div></div>
+</div>
+<div class="cap">做完之後的提示</div>
+<div class="scr" data-pg>
+<div class="hud" style="top:10px"><i class="ib-ok">✓</i>已刪除</div>
+<div class="hud" style="top:52px"><i class="ib-bad">!</i>同步失敗</div>
+</div>
+<p class="note"><b>優點：</b>最精簡、最像「原生」（你之前選選單時說要像原生那樣）；按鈕左右各半，大拇指好按；膠囊很小不擋東西。<b>缺點：</b>膠囊只放得下兩三個字，長一點的錯誤原因放不下；也沒位置放「復原」按鈕。</p></div>
+
+<!-- 4 -->
+<div class="variant"><div class="vhead"><div class="num">版本 4</div><h2>底部確認面板＋浮動膠囊（含倒數復原）</h2><p>確認改成從下面升上來的面板：紅色圖示、說明、整條寬的紅色「刪除」，大拇指一按就到；提示是浮在底部的毛玻璃膠囊，右邊「復原」旁邊一圈倒數，轉完才真的刪。</p></div>
+<div class="cap">刪除確認</div>
+<div class="scr" data-pg><div class="scrim"></div>
+<div class="sheet"><div class="grab"></div><div class="bigic">🗑</div><h3>刪除 10/02 的日記？</h3><p>刪除後 5 秒內可以按「復原」救回來。</p><span class="wbtn red">刪除</span><span class="wbtn ghost">取消</span></div>
+</div>
+<div class="cap">做完之後的提示</div>
+<div class="scr" data-pg>
+<div class="glasspill err" style="bottom:62px"><span class="badc">!</span>無法同步到雲端<span class="undo">重試</span></div>
+<div class="glasspill" style="bottom:14px"><span class="okc">✓</span>已刪除 10/02 的日記<span class="undo"><svg class="ring" viewBox="0 0 18 18"><circle class="bgc" cx="9" cy="9" r="7"/><circle class="fgc" cx="9" cy="9" r="7"/></svg>復原</span></div>
+</div>
+<p class="note"><b>優點：</b>手機上最好按（按鈕在拇指範圍、整條寬不會按歪）；確認＋復原雙保險；倒數圈讓人知道還有幾秒能反悔。<b>缺點：</b>你之前不喜歡長按選單從下面出來，這版確認也是從下面出來；底部膠囊會暫時蓋住浮動播放器的小泡泡。</p></div>
+
+<!-- 5 -->
+<div class="variant"><div class="vhead"><div class="num">版本 5</div><h2>不跳框：直接刪＋復原，危險操作才二次確認</h2><p>刪單筆（日記、頻道、紀錄）不跳對話框：往左滑出紅色「確定刪除」再按一下就刪，刪完底部一條帶進度條的提示可以復原（Gmail 的做法）；「清空全部紀錄」這種救不回來的，改成按住 1.5 秒填滿才執行。</p></div>
+<div class="cap">刪除確認</div>
+<div class="scr" data-pg>
+<div style="position:absolute;left:12px;right:12px;top:236px" class="dangerzone"><div class="lbl">危險操作（救不回來的）</div><div class="hold"><span>按住 1.5 秒清空全部日記</span></div></div>
+</div>
+<div class="cap">做完之後的提示</div>
+<div class="scr" data-pg>
+<div class="toast err" style="bottom:72px"><div class="ln"><span class="badc">!</span>無法同步到雲端<span class="a">重試</span></div></div>
+<div class="toast" style="bottom:14px"><div class="ln"><span class="okc">✓</span>已刪除 10/02 的日記<span class="a">復原</span></div><div class="prog"><div></div></div></div>
+</div>
+<p class="note"><b>優點：</b>最快，刪一筆只要滑＋按，不打斷；誤刪靠復原救，比每次都問更不煩；真正危險的操作用「按住」才不會手滑。<b>缺點：</b>要先做「延後真的刪除／可復原」的機制（刪除標記本來就有，主要是 UI）；「按住」第一次用的人可能不知道要按住，要有文字提示。</p></div>
+
+</div>
+
+<script>
+// 把共用的假頁面（日記清單）塞進每支手機
+const tpl=document.getElementById('pg').innerHTML;
+document.querySelectorAll('[data-pg]').forEach(s=>s.insertAdjacentHTML('afterbegin',tpl));
+// 版本 5 的第一支手機：把第一列換成往左滑出「確定刪除」的樣子
+const v5=document.querySelectorAll('.variant')[4].querySelector('.scr');
+const first=v5.querySelector('.row');
+first.classList.add('swipe');
+v5.querySelectorAll('.row')[3].remove();
+v5.querySelectorAll('.row')[2].remove();
+first.innerHTML='<div class="inner"><b>10/02（四）</b><span>今天把空狀態改好了…</span></div><div class="confirm">確定刪除</div>';
+</script>
+</body></html>
