@@ -1,0 +1,381 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>橡皮筋與過度捲動效果</title><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;800&display=swap" rel="stylesheet"><style>:root{--bg:#0c0c13;--panel:#161622;--panel2:#1e1e2e;--line:#2a2a3d;--text:#eceaf5;--sub:#8b8ba3;--acc:#FF2D40;--blue:#7EA6FF;--blueS:#2E6BFF;--ok:#5FE08D}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-serif;min-height:100vh;padding:32px 16px 56px}
+.intro{max-width:820px;margin:0 auto 28px}
+.eyebrow{color:var(--acc);font-size:12px;letter-spacing:.2em;text-align:center}
+h1{font-size:24px;margin:6px 0 10px;text-align:center}
+.intro p{color:var(--sub);font-size:13.5px;line-height:1.8;margin-bottom:8px}
+.intro b{color:var(--text)}
+code{font-family:ui-monospace,Consolas,monospace;font-size:12px;background:var(--panel2);border:1px solid var(--line);padding:1px 6px;border-radius:6px;color:#cfd8ff}
+table{width:100%;border-collapse:collapse;margin:14px 0 4px;font-size:12.5px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--sub);font-weight:500;font-size:11.5px}
+td.k{font-weight:800;color:var(--acc);width:34px}
+.grid{display:flex;flex-wrap:wrap;gap:28px;justify-content:center;max-width:1240px;margin:0 auto}
+.demo{width:592px;max-width:100%;background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:18px;display:flex;gap:18px;flex-wrap:wrap}
+.phone{width:250px;height:440px;border:7px solid #000;border-radius:32px;background:var(--bg);overflow:hidden;position:relative;flex-shrink:0;touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab}
+.phone:active{cursor:grabbing}
+.bar{position:absolute;left:0;right:0;top:0;height:44px;display:flex;align-items:center;padding:0 14px;font-size:13px;font-weight:700;background:var(--bg);z-index:3;border-bottom:1px solid var(--line)}
+.vp{position:absolute;left:0;right:0;top:44px;bottom:0;overflow:hidden}
+.ct{position:absolute;left:0;right:0;top:0;padding:4px 10px;will-change:transform}
+.row{display:flex;gap:9px;align-items:center;height:54px;border-bottom:1px solid rgba(255,255,255,.05)}
+.th{width:62px;height:36px;border-radius:7px;flex-shrink:0}
+.tx{flex:1;min-width:0}
+.tx b{display:block;font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tx span{font-size:10px;color:var(--sub)}
+.end{text-align:center;font-size:10.5px;color:var(--sub);padding:12px 0}
+.ro{position:absolute;left:8px;right:8px;bottom:8px;z-index:4;text-align:center;font-size:10.5px;color:#d9dcef;background:rgba(0,0,0,.72);border-radius:99px;padding:5px 8px;pointer-events:none;font-variant-numeric:tabular-nums}
+/* C 光暈 */
+.glow{position:absolute;left:-20%;right:-20%;height:90px;z-index:2;pointer-events:none;opacity:0;background:radial-gradient(ellipse at 50% 0%,rgba(126,166,255,.55),rgba(126,166,255,0) 70%)}
+.glow.t{top:0;transform-origin:50% 0}
+.glow.b{bottom:0;transform-origin:50% 100%;background:radial-gradient(ellipse at 50% 100%,rgba(126,166,255,.55),rgba(126,166,255,0) 70%)}
+/* F 下拉更新 */
+.ptr{position:absolute;left:50%;top:0;z-index:2;width:34px;height:34px;border-radius:50%;background:#262636;border:1px solid var(--line);display:grid;place-items:center;opacity:0;box-shadow:0 6px 14px rgba(0,0,0,.5)}
+.ptr i{width:16px;height:16px;border-radius:50%;border:2.5px solid rgba(126,166,255,.25);border-top-color:var(--blue)}
+.ptr.ready i{border-top-color:var(--ok);border-right-color:var(--ok)}
+.ptr.spin i{animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* E 月曆 */
+.cal{position:absolute;left:0;right:0;top:44px;bottom:0;padding:14px 12px}
+.calhd{display:flex;align-items:center;font-size:12px;color:var(--sub);margin-bottom:8px}
+.calhd b{color:var(--text);font-size:13px;margin-right:auto}
+.wk{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;font-size:9.5px;color:var(--sub);text-align:center;margin-bottom:4px}
+.days{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;will-change:transform,opacity}
+.days div{aspect-ratio:1.15;border-radius:6px;background:rgba(126,166,255,.08);display:grid;place-items:center;font-size:9.5px;color:#a3a2b2}
+.days div.d{background:var(--blue);color:#0a0a10;font-weight:700}
+.days div.e{background:none}
+.calnote{margin-top:14px;font-size:10.5px;color:var(--sub);line-height:1.6}
+/* 說明 */
+.info{flex:1;min-width:260px}
+.code{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:9px;background:var(--acc);color:#fff;font-weight:800;font-size:15px;margin-right:8px;vertical-align:middle}
+.info h2{display:inline;font-size:17px;vertical-align:middle}
+.en{color:var(--sub);font-size:12px;margin:6px 0 10px}
+.info p{font-size:12.5px;color:#c9c9d8;line-height:1.75;margin-bottom:8px}
+.kv{font-size:12px;line-height:1.8;color:var(--sub)}
+.kv b{color:var(--text);font-weight:600}
+.say{margin-top:10px;font-size:12px;background:rgba(255,45,64,.1);border:1px solid rgba(255,45,64,.35);color:#ffc9cf;border-radius:10px;padding:7px 10px}
+.foot{max-width:820px;margin:34px auto 0;color:var(--sub);font-size:12.5px;line-height:1.8}
+.foot h3{color:var(--text);font-size:15px;margin-bottom:8px}
+#selftest{display:none;white-space:pre}
+</style></head><body>
+
+<div class="intro">
+<div class="eyebrow">互動參考 · 捲到頭還硬拉的時候</div>
+<h1>橡皮筋與過度捲動效果</h1>
+<p>清單捲到最上面或最下面還繼續拉，這個情況正式名稱叫 <b>overscroll（過度捲動）</b>。不同平台對這件事有不同的回應方式，下面六種都可以<b>直接用滑鼠或手指拖曳試玩</b>：先往下拉（看最上面那一端），再一路往上推到底（看最下面那一端），也可以快速甩一下看慣性撞到底的樣子。</p>
+<p>之後要指定效果，直接講代號就好，例如「<b>這個清單要 A</b>」、「月曆換月那種我要改成 B」，或把這個檔案丟給我。</p>
+<table>
+<tr><th>代號</th><th>中文</th><th>英文／常見叫法</th><th>哪裡看得到</th><th>Flutter 對應</th></tr>
+<tr><td class="k">A</td><td>橡皮筋回彈</td><td>Rubber band effect、Bounce</td><td>iPhone、Mac 所有清單</td><td><code>BouncingScrollPhysics</code></td></tr>
+<tr><td class="k">B</td><td>直接停住</td><td>Clamping、Hard stop</td><td>網頁、桌面程式</td><td><code>ClampingScrollPhysics</code></td></tr>
+<tr><td class="k">C</td><td>邊緣光暈</td><td>Overscroll glow</td><td>Android 11 以前</td><td><code>GlowingOverscrollIndicator</code></td></tr>
+<tr><td class="k">D</td><td>拉伸</td><td>Stretch overscroll</td><td>Android 12 以後</td><td><code>StretchingOverscrollIndicator</code></td></tr>
+<tr><td class="k">E</td><td>固定阻力（換月月曆用的）</td><td>Linear resistance</td><td>這個 App 的英文／日文首頁月曆</td><td>自己寫的（拖曳距離 × 0.25）</td></tr>
+<tr><td class="k">F</td><td>下拉更新</td><td>Pull to refresh</td><td>幾乎所有 App 的動態牆</td><td><code>RefreshIndicator</code>／<code>CupertinoSliverRefreshControl</code></td></tr>
+</table>
+</div>
+
+<div class="grid">
+
+<div class="demo"><div class="phone" data-mode="ios"><div class="bar">A · 橡皮筋回彈</div><div class="vp"><div class="ct"></div></div><div class="ro">在範圍內</div></div>
+<div class="info"><span class="code">A</span><h2>橡皮筋回彈</h2><div class="en">Rubber band effect／Bounce（iOS 原生）</div>
+<p>拉過頭時內容<b>真的會被拉開</b>，露出底下的空白，但越拉越緊，拉到底也只會移動有限的距離；一放手就<b>彈回去</b>。快速甩到底時，會衝過頭一點再彈回來。</p>
+<div class="kv"><b>阻力公式：</b>顯示位移 ＝ (1 − 1 ÷ (拉的距離 × 0.55 ÷ 畫面高 + 1)) × 畫面高（Apple 的做法，越拉越緊、有上限）<br><b>回彈：</b>約 0.4 秒、先快後慢</div>
+<div class="say">跟我說：「這裡要 A，iOS 那種彈性捲動」</div></div></div>
+
+<div class="demo"><div class="phone" data-mode="clamp"><div class="bar">B · 直接停住</div><div class="vp"><div class="ct"></div></div><div class="ro">在範圍內</div></div>
+<div class="info"><span class="code">B</span><h2>直接停住</h2><div class="en">Clamping／Hard stop（網頁、桌面程式）</div>
+<p>到頭就是到頭，再怎麼拉內容都<b>一動也不動</b>，沒有任何回饋。最安靜，但手指拉了沒反應，容易讓人以為卡住了。</p>
+<div class="kv"><b>行為：</b>位置限制在 0 ～ 最大值之間，超出的部分直接丟掉</div>
+<div class="say">跟我說：「這裡要 B，到底就停，不要彈」</div></div></div>
+
+<div class="demo"><div class="phone" data-mode="glow"><div class="bar">C · 邊緣光暈</div><div class="glow t"></div><div class="glow b"></div><div class="vp"><div class="ct"></div></div><div class="ro">在範圍內</div></div>
+<div class="info"><span class="code">C</span><h2>邊緣光暈</h2><div class="en">Overscroll glow（Android 11 以前、舊版 Material）</div>
+<p>內容不動，拉的那一端<b>冒出一片半圓形的光</b>，拉越多光越大越亮，放手就淡掉；快速甩到底也會閃一下光。</p>
+<div class="kv"><b>行為：</b>位置停在邊界；光的大小、亮度跟超出距離成正比</div>
+<div class="say">跟我說：「這裡要 C，舊版 Android 那種光暈」</div></div></div>
+
+<div class="demo"><div class="phone" data-mode="stretch"><div class="bar">D · 拉伸</div><div class="vp"><div class="ct"></div></div><div class="ro">在範圍內</div></div>
+<div class="info"><span class="code">D</span><h2>拉伸</h2><div class="en">Stretch overscroll（Android 12 以後）</div>
+<p>內容<b>整片被往拉的方向拉長</b>（像在拉一塊有彈性的布），放手縮回原狀。比光暈更有實體感，但不會像 A 那樣露出空白。</p>
+<div class="kv"><b>行為：</b>位置停在邊界；以拉的那一端為支點，垂直方向放大最多約 1.35 倍</div>
+<div class="say">跟我說：「這裡要 D，新版 Android 的拉伸」</div></div></div>
+
+<div class="demo"><div class="phone" data-cal><div class="bar">E · 固定阻力（換月）</div>
+<div class="cal"><div class="calhd"><b data-label>10 月練習</b><span>上下滑換月</span></div>
+<div class="wk"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div>
+<div class="days"></div>
+<div class="calnote">範圍是 8～10 月：在 10 月往上推、在 8 月往下拉，就是到底了。</div></div>
+<div class="ro">在範圍內</div></div>
+<div class="info"><span class="code">E</span><h2>固定阻力</h2><div class="en">Linear resistance（這個 App 的首頁月曆）</div>
+<p>2026-10-02 做在英文／日文首頁月曆上的版本：正常拖曳超過門檻就<b>換月</b>，新月份從滑的方向滑進來；已經是最早／最晚月份時，手指拉的距離<b>只算四分之一</b>，所以拉起來很緊，放手彈回。</p>
+<div class="kv"><b>換月門檻：</b>拖超過 48px 或甩的速度夠快<br><b>到底阻力：</b>位移 ＝ 拉的距離 × 0.25（跟 A 不同，沒有上限、比例固定）<br><b>彈回：</b>0.26 秒、先快後慢</div>
+<div class="say">跟我說：「換成 A 的阻力感」或「阻力再大一點，改 × 0.15」</div></div></div>
+
+<div class="demo"><div class="phone" data-mode="ptr"><div class="bar">F · 下拉更新</div><div class="ptr"><i></i></div><div class="vp"><div class="ct"></div></div><div class="ro">在範圍內</div></div>
+<div class="info"><span class="code">F</span><h2>下拉更新</h2><div class="en">Pull to refresh（動態牆、信箱）</div>
+<p>把「最上面還往下拉」這個動作拿來<b>觸發重新整理</b>：拉的時候上方出現一顆會轉的圈，拉到夠遠圈變綠色，放手就開始更新，更新完自己收回去。只有最上面那一端有，最下面是直接停住。</p>
+<div class="kv"><b>觸發距離：</b>拉出 64px 以上放手<br><b>阻力：</b>拉的距離 × 0.5</div>
+<div class="say">跟我說：「這頁加 F，往下拉可以重新整理」</div></div></div>
+
+</div>
+
+<div class="foot"><h3>補充</h3>
+<p>• 這個 App 是 Flutter 網頁版，清單預設的效果<b>會跟著平台走</b>：在 iPhone 上自動是 A，在 Android 上是 C 或 D，在電腦瀏覽器上通常是 B。想統一成某一種，可以全 App 一起指定。</p>
+<p>• A、C、D 是「平台長怎樣」，E、F 是「把這個動作拿來做事」（換月、重新整理），兩類可以疊在一起用，例如 A 的手感＋F 的下拉更新（iPhone 的郵件就是這樣）。</p>
+</div>
+<pre id="selftest"></pre>
+
+<script>
+// ---- 共用：假清單 ----
+const colors = ['#2c4a7a','#5a3a7a','#2f6b56','#7a5a2c','#7a2c4a','#2c6b7a'];
+const titles = ['為什麼台灣的便利商店這麼多？','一次搞懂通膨：錢為什麼變薄','這些國家正在消失中','三分鐘看懂利率','日本人怎麼過新年','AI 真的會取代工作嗎','咖啡因到底怎麼作用','為什麼飛機不直飛','地震預警怎麼做到的','台灣的水從哪裡來','冰河時期是怎麼結束的','手機電池為什麼會老化','金字塔到底怎麼蓋','睡眠不足的真相','颱風為什麼會轉彎','鹽為什麼是鹹的','全球最深的洞','光速有多快','垃圾都去了哪裡','月球背面長怎樣'];
+function fillList(ct) {
+  ct.innerHTML = titles.map((t, i) =>
+    '<div class="row"><div class="th" style="background:linear-gradient(135deg,' + colors[i % 6] + ',#14141f)"></div>' +
+    '<div class="tx"><b>' + (i + 1) + '. ' + t + '</b><span>' + (i + 1) + ' 天前</span></div></div>').join('') +
+    '<div class="end">— 到底了 —</div>';
+}
+const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
+
+// ---- A～D、F：可拖曳清單 ----
+class Scroller {
+  constructor(phone) {
+    this.phone = phone;
+    this.mode = phone.dataset.mode;
+    this.vp = phone.querySelector('.vp');
+    this.ct = phone.querySelector('.ct');
+    this.ro = phone.querySelector('.ro');
+    this.glowT = phone.querySelector('.glow.t');
+    this.glowB = phone.querySelector('.glow.b');
+    this.ptr = phone.querySelector('.ptr');
+    fillList(this.ct);
+    this.H = this.vp.clientHeight;
+    this.max = Math.max(0, this.ct.scrollHeight - this.H);
+    this.raw = 0;          // 手指驅動、不受限制的位置
+    this.fx = 0;           // 甩到底時給 C／D 的一次性回饋量（帶正負號）
+    this.hold = 0;         // F 更新中往下撐開的距離
+    this.anim = 0;
+    this.drag = false;
+    phone.addEventListener('pointerdown', e => this.down(e));
+    phone.addEventListener('pointermove', e => this.move(e));
+    phone.addEventListener('pointerup', () => this.up());
+    phone.addEventListener('pointercancel', () => this.up());
+    this.render();
+  }
+  over() { return this.raw < 0 ? this.raw : this.raw > this.max ? this.raw - this.max : 0; }
+  resist(x) {
+    if (this.mode === 'ios') return (1 - 1 / (x * 0.55 / this.H + 1)) * this.H;
+    return x * 0.5;
+  }
+  render() {
+    let o = this.over();
+    if (!o && this.fx) o = this.fx;
+    const a = Math.abs(o), s = Math.sign(o), eff = this.resist(a);
+    let disp = Math.min(Math.max(this.raw, 0), this.max), scale = 1, origin = '50% 0';
+    if (this.mode === 'ios') disp += s * eff;
+    if (this.mode === 'stretch' && a) {
+      scale = 1 + Math.min(eff, 240) / this.H * 0.35;
+      origin = s < 0 ? '50% 0' : '50% 100%';
+    }
+    if (this.mode === 'glow') {
+      const g = Math.min(eff / 110, 1);
+      const on = s < 0 ? this.glowT : this.glowB, off = s < 0 ? this.glowB : this.glowT;
+      on.style.opacity = g; on.style.transform = 'scaleY(' + (0.35 + g * 0.65) + ')';
+      off.style.opacity = 0;
+    }
+    if (this.mode === 'ptr') {
+      const p = this.hold || (s < 0 ? eff : 0);
+      disp = -p + (s > 0 ? 0 : Math.max(this.raw, 0));
+      this.ptr.style.opacity = Math.min(p / 48, 1);
+      this.ptr.style.transform = 'translate(-50%,' + (44 + p - 42) + 'px) rotate(' + (this.hold ? 0 : p * 5) + 'deg)';
+      this.ptr.classList.toggle('ready', p >= 64 && !this.hold);
+      this.ptr.classList.toggle('spin', !!this.hold);
+    }
+    this.ct.style.transformOrigin = origin;
+    this.ct.style.transform = 'translateY(' + (-disp) + 'px) scaleY(' + scale + ')';
+    const shown = this.mode === 'ios' ? eff : (this.mode === 'clamp' ? 0 : eff);
+    this.ro.textContent = this.hold ? '更新中…' : a
+      ? '手指超出 ' + Math.round(a) + 'px → ' + (this.mode === 'clamp' ? '畫面不動' : this.mode === 'glow' ? '光暈強度 ' + Math.round(Math.min(shown / 110, 1) * 100) + '%' : this.mode === 'stretch' ? '拉長 ' + scale.toFixed(2) + ' 倍' : '畫面移動 ' + Math.round(shown) + 'px')
+      : '在範圍內';
+  }
+  stop() { cancelAnimationFrame(this.anim); this.anim = 0; }
+  tween(dur, step, done) {
+    this.stop();
+    const t0 = performance.now();
+    const tick = now => {
+      const t = Math.min((now - t0) / dur, 1);
+      step(easeOutCubic(t));
+      this.render();
+      if (t < 1) this.anim = requestAnimationFrame(tick); else { this.anim = 0; done && done(); }
+    };
+    this.anim = requestAnimationFrame(tick);
+  }
+  down(e) {
+    if (this.hold) return;
+    this.stop(); this.fx = 0;
+    this.drag = true; this.lastY = e.clientY; this.lastT = performance.now(); this.v = 0;
+    try { this.phone.setPointerCapture(e.pointerId); } catch (_) {}
+  }
+  move(e) {
+    if (!this.drag) return;
+    const now = performance.now(), dy = e.clientY - this.lastY, dt = Math.max(now - this.lastT, 1);
+    this.raw -= dy;
+    if (this.mode === 'ptr' && this.raw > this.max) this.raw = this.max;
+    this.v = -dy / dt;
+    this.lastY = e.clientY; this.lastT = now;
+    this.render();
+  }
+  up() {
+    if (!this.drag) return;
+    this.drag = false;
+    this.release();
+  }
+  release() {
+    const o = this.over();
+    if (this.mode === 'ptr' && o < 0 && this.resist(-o) >= 64) {
+      this.hold = 64; this.raw = 0; this.render();
+      setTimeout(() => {
+        this.tween(320, t => { this.hold = 64 * (1 - t) || 0; }, () => { this.hold = 0; this.render(); });
+      }, 1300);
+      return;
+    }
+    if (o) return this.springBack();
+    if (Math.abs(this.v) > 0.25) this.fling(this.v * 16);
+  }
+  springBack() {
+    const from = this.raw, to = Math.min(Math.max(this.raw, 0), this.max);
+    this.tween(this.mode === 'ios' ? 420 : 300, t => { this.raw = from + (to - from) * t; });
+  }
+  fling(v) {
+    this.stop();
+    const tick = () => {
+      this.raw += v; v *= 0.95;
+      const o = this.over();
+      if (o) {
+        if (this.mode === 'ios') { v *= 0.72; if (Math.abs(v) < 0.6) { this.render(); return this.springBack(); } }
+        else {
+          const hit = Math.min(Math.abs(v) * 7, 160) * Math.sign(o);
+          this.raw = Math.min(Math.max(this.raw, 0), this.max);
+          if (this.mode === 'glow' || this.mode === 'stretch') {
+            this.fx = hit;
+            this.tween(450, t => { this.fx = hit * (1 - t); }, () => { this.fx = 0; this.render(); });
+          } else this.render();
+          return;
+        }
+      } else if (Math.abs(v) < 0.4) { this.render(); this.anim = 0; return; }
+      this.render();
+      this.anim = requestAnimationFrame(tick);
+    };
+    this.anim = requestAnimationFrame(tick);
+  }
+}
+
+// ---- E：月曆換月（跟 App 首頁月曆同一套數字）----
+class Calendar {
+  constructor(phone) {
+    this.phone = phone;
+    this.days = phone.querySelector('.days');
+    this.label = phone.querySelector('[data-label]');
+    this.ro = phone.querySelector('.ro');
+    this.months = [8, 9, 10];
+    this.idx = 2;
+    this.dy = 0;
+    this.anim = 0;
+    phone.addEventListener('pointerdown', e => { this.stop(); this.drag = true; this.lastY = e.clientY; this.lastT = performance.now(); this.v = 0; try { phone.setPointerCapture(e.pointerId); } catch (_) {} });
+    phone.addEventListener('pointermove', e => this.move(e));
+    phone.addEventListener('pointerup', () => this.up());
+    phone.addEventListener('pointercancel', () => this.up());
+    this.draw();
+  }
+  canPrev() { return this.idx > 0; }
+  canNext() { return this.idx < this.months.length - 1; }
+  draw() {
+    const m = this.months[this.idx];
+    const first = new Date(2026, m - 1, 1).getDay(), n = new Date(2026, m, 0).getDate();
+    let h = '';
+    for (let i = 0; i < first; i++) h += '<div class="e"></div>';
+    for (let d = 1; d <= n; d++) h += '<div class="' + ((d * 7 + m * 3) % 5 < 2 ? 'd' : '') + '">' + d + '</div>';
+    this.days.innerHTML = h;
+    this.label.textContent = m + ' 月練習';
+    this.paint();
+  }
+  paint() {
+    this.days.style.transform = 'translateY(' + this.dy + 'px)';
+    this.days.style.opacity = 1 - Math.min(Math.abs(this.dy) / 240, 0.35);
+    const blocked = (this.dy < 0 && !this.canNext()) || (this.dy > 0 && !this.canPrev());
+    this.ro.textContent = this.dy === 0 ? '在範圍內' : blocked ? '到底了：只算 ¼，位移 ' + Math.round(Math.abs(this.dy)) + 'px' : (Math.abs(this.dy) > 48 ? '放開就換月' : '再拉 ' + Math.round(48 - Math.abs(this.dy)) + 'px 換月');
+  }
+  stop() { cancelAnimationFrame(this.anim); this.anim = 0; }
+  move(e) {
+    if (!this.drag) return;
+    const now = performance.now(), d = e.clientY - this.lastY;
+    const next = this.dy + d;
+    const blocked = (next < 0 && !this.canNext()) || (next > 0 && !this.canPrev());
+    this.dy += blocked ? d * 0.25 : d;
+    this.v = d / Math.max(now - this.lastT, 1) * 1000;
+    this.lastY = e.clientY; this.lastT = now;
+    this.paint();
+  }
+  up() {
+    if (!this.drag) return;
+    this.drag = false;
+    if ((this.dy < -48 || this.v < -350) && this.canNext()) return this.go(1);
+    if ((this.dy > 48 || this.v > 350) && this.canPrev()) return this.go(-1);
+    const from = this.dy, t0 = performance.now();
+    const tick = now => {
+      const t = Math.min((now - t0) / 260, 1);
+      this.dy = from * (1 - easeOutCubic(t));
+      this.paint();
+      if (t < 1) this.anim = requestAnimationFrame(tick);
+    };
+    this.anim = requestAnimationFrame(tick);
+  }
+  go(dir) {
+    // 舊月份往反方向滑出、新月份從滑動方向滑進（App 裡是 0.34 秒）。
+    const out = -dir * 90, from = this.dy, t0 = performance.now();
+    const tick = now => {
+      const t = Math.min((now - t0) / 140, 1);
+      this.dy = from + (out - from) * t;
+      this.days.style.transform = 'translateY(' + this.dy + 'px)';
+      this.days.style.opacity = 1 - t;
+      if (t < 1) { this.anim = requestAnimationFrame(tick); return; }
+      this.idx += dir; this.dy = dir * 90; this.draw();
+      const t1 = performance.now();
+      const tin = n2 => {
+        const u = Math.min((n2 - t1) / 240, 1);
+        this.dy = dir * 90 * (1 - easeOutCubic(u));
+        this.days.style.transform = 'translateY(' + this.dy + 'px)';
+        this.days.style.opacity = easeOutCubic(u);
+        if (u < 1) this.anim = requestAnimationFrame(tin); else { this.dy = 0; this.paint(); }
+      };
+      this.anim = requestAnimationFrame(tin);
+    };
+    this.anim = requestAnimationFrame(tick);
+  }
+}
+
+const scrollers = [...document.querySelectorAll('.phone[data-mode]')].map(p => new Scroller(p));
+const cal = new Calendar(document.querySelector('.phone[data-cal]'));
+
+// ---- 自我檢查（網址加 #selftest 才跑）：模擬拖曳，確認效果有算、放手會回原位 ----
+if (location.hash === '#selftest') {
+  const out = [];
+  for (const s of scrollers) {
+    s.raw = -200; s.render();
+    const pulled = s.ct.style.transform;
+    s.springBack();
+    out.push(s.mode + ' pulled=' + pulled);
+  }
+  cal.dy = 30; cal.paint();
+  // 等到每個動畫自己報告結束（anim 歸 0）才檢查，不靠固定秒數——
+  // 無頭瀏覽器的模擬時鐘跟 requestAnimationFrame 不一定同步。
+  const wait = () => {
+    if (scrollers.some(s => s.anim)) return setTimeout(wait, 50);
+    for (const s of scrollers) out.push(s.mode + ' after release raw=' + s.raw.toFixed(1));
+    document.getElementById('selftest').textContent = out.join('\n');
+  };
+  setTimeout(wait, 50);
+}
+</script>
+</body></html>
