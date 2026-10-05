@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -328,6 +329,27 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
     if (mounted) setState(() => _watched = record);
   }
 
+  // 滑動手感（2026-10-05 使用者回報：判斷太嚴格，要很大力或滑很遠才
+  // 會露出右邊的按鈕）。原本要拖過一半（74px）才打開、甩一下不算，
+  // 現在：
+  // - 拖超過 [_openFraction]（約 37px）就打開；從打開狀態往右拖超過
+  //   同樣距離就收起來。
+  // - 輕甩也算：往左甩超過 [_flingVelocity] 直接打開，往右甩直接收起，
+  //   不管拖了多遠。
+  // - 放手後用動畫滑到定位（[_dragging] 為 false 時才有動畫），不是
+  //   瞬間跳過去。
+  static const _openFraction = 0.25;
+  static const _flingVelocity = 250.0;
+  bool _dragging = false;
+  bool _openAtDragStart = false;
+
+  void _onDragStart(DragStartDetails details) {
+    setState(() {
+      _dragging = true;
+      _openAtDragStart = _dragOffset <= -_actionsWidth / 2;
+    });
+  }
+
   void _onDragUpdate(DragUpdateDetails details) {
     setState(() {
       _dragOffset = (_dragOffset + details.delta.dx).clamp(-_actionsWidth, 0);
@@ -335,8 +357,22 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
   }
 
   void _onDragEnd(DragEndDetails details) {
+    final v = details.primaryVelocity ?? 0;
+    final wasOpen = _openAtDragStart;
+    final bool open;
+    if (v < -_flingVelocity) {
+      open = true;
+    } else if (v > _flingVelocity) {
+      open = false;
+    } else if (wasOpen) {
+      // 原本是開的：往右拉回超過一小段就收。
+      open = _dragOffset < -_actionsWidth * (1 - _openFraction);
+    } else {
+      open = _dragOffset < -_actionsWidth * _openFraction;
+    }
     setState(() {
-      _dragOffset = _dragOffset < -_actionsWidth / 2 ? -_actionsWidth : 0;
+      _dragging = false;
+      _dragOffset = open ? -_actionsWidth : 0;
     });
   }
 
@@ -479,11 +515,36 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
           ),
           // 上層：原本整排內容，左右拖曳滑開／收合，不透明背景蓋住底下
           // 的動作鈕，蓋不住就會變成兩層文字疊在一起。
-          GestureDetector(
-            onHorizontalDragUpdate: _onDragUpdate,
-            onHorizontalDragEnd: _onDragEnd,
-            child: Transform.translate(
-              offset: Offset(_dragOffset, 0),
+          // 用 RawGestureDetector 自己設橫向拖曳的起動距離：預設要先橫移
+          // 18px 才算「橫向滑」，稍微斜一點的滑動常常被外層清單的直向
+          // 捲動搶走，就變成「要很用力才滑得開」（2026-10-05 使用者回報）。
+          // 調成 8px，橫向意圖一出現就接手。
+          RawGestureDetector(
+            gestures: {
+              HorizontalDragGestureRecognizer:
+                  GestureRecognizerFactoryWithHandlers<
+                    HorizontalDragGestureRecognizer
+                  >(
+                    () => HorizontalDragGestureRecognizer()
+                      ..gestureSettings = const DeviceGestureSettings(
+                        touchSlop: 8,
+                      )
+                      // 從手指按下的那一點開始算位移，起動前那 8px 也算進
+                      // 去，卡片才會完全跟著手指，不會少一截。
+                      ..dragStartBehavior = DragStartBehavior.down,
+                    (r) => r
+                      ..onStart = _onDragStart
+                      ..onUpdate = _onDragUpdate
+                      ..onEnd = _onDragEnd,
+                  ),
+            },
+            child: AnimatedContainer(
+              // 拖曳中跟著手指走（不加動畫），放手後滑到定位。
+              duration: _dragging
+                  ? Duration.zero
+                  : const Duration(milliseconds: 180),
+              curve: Curves.easeOutCubic,
+              transform: Matrix4.translationValues(_dragOffset, 0, 0),
               child: ColoredBox(
                 color: AppColors.bg,
                 child: Opacity(
