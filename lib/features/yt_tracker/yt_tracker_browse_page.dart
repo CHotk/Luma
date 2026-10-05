@@ -1119,12 +1119,22 @@ refreshYtSubscriberStats(
 /// 時退回手動填名稱／頭像網址。公開成頂層函式（2026-09-29 使用者要求：
 /// YT 首頁分類列表也要能直接新增頻道，不用先點進某個分類），回傳是否
 /// 真的新增了（給呼叫端決定要不要重新整理列表）。
+///
+/// 打開就自動讀剪貼簿（2026-10-05 使用者要求）：iPhone Safari 每次讀剪貼簿
+/// 都一定會跳系統的「貼上」小泡泡、網頁沒辦法跳過，原本要先按 App 的
+/// 「貼上」再按 Safari 的「貼上」兩下，改成一打開就讀、只剩 Safari 那一下。
+/// Safari 只在「使用者剛點完」那一刻准讀，所以讀取要在任何 await 之前就
+/// 發出去——呼叫端自己得先 await 別的東西的話，先呼叫
+/// [readYtChannelClipboard] 把結果用 [clipboard] 傳進來。剪貼簿內容不像
+/// YouTube 頻道網址就不填，「貼上」按鈕照舊留著。
 Future<bool> showAddYtChannelDialog(
   BuildContext context,
   WidgetRef ref, {
   required List<YtCategory> categories,
   String? initialCategoryId,
+  Future<String?>? clipboard,
 }) async {
+  final autoClipboard = clipboard ?? readYtChannelClipboard();
   final nameController = TextEditingController();
   final urlController = TextEditingController();
   final avatarController = TextEditingController();
@@ -1138,6 +1148,7 @@ Future<bool> showAddYtChannelDialog(
   var nameTouched = false; // 使用者自己改過名稱就不要再蓋掉
   String? lastHandle;
   Timer? debounce;
+  var autoPasteHooked = false;
   // 已經有的頻道（含垃圾桶裡的），貼網址、抓到頻道 ID 時都拿來比對，
   // 同一個頻道不能新增第二次（2026-10-05 使用者回報會重複新增）。
   final existing = await ref
@@ -1250,6 +1261,21 @@ Future<bool> showAddYtChannelDialog(
           });
         }
 
+        if (!autoPasteHooked) {
+          autoPasteHooked = true;
+          autoClipboard.then((text) {
+            if (text == null ||
+                !context.mounted ||
+                urlController.text.isNotEmpty ||
+                !looksLikeYtChannelUrl(text)) {
+              return;
+            }
+            urlController.text = text;
+            setDialogState(() {});
+            onUrlChanged(text);
+          });
+        }
+
         final hasAvatar = avatarController.text.trim().isNotEmpty;
         return AlertDialog(
           backgroundColor: const Color(0xFF1A1A24),
@@ -1294,17 +1320,8 @@ Future<bool> showAddYtChannelDialog(
                       const SizedBox(width: Gap.xs),
                       TextButton.icon(
                         onPressed: () async {
-                          String? text;
-                          try {
-                            final data = await Clipboard.getData(
-                              Clipboard.kTextPlain,
-                            );
-                            text = data?.text?.trim();
-                          } catch (_) {
-                            // 權限被擋、瀏覽器不支援：當沒讀到，不影響
-                            // 再按一次重試。
-                          }
-                          if (text == null || text.isEmpty) return;
+                          final text = await readYtChannelClipboard();
+                          if (text == null) return;
                           urlController.text = text;
                           setDialogState(() {});
                           onUrlChanged(text);
@@ -1468,6 +1485,24 @@ Future<bool> showAddYtChannelDialog(
       );
   return context.mounted;
 }
+
+/// 讀剪貼簿的文字，讀不到（權限被擋、瀏覽器不支援、空的）回傳 null。
+Future<String?> readYtChannelClipboard() async {
+  try {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    final text = data?.text?.trim();
+    return text == null || text.isEmpty ? null : text;
+  } catch (_) {
+    return null;
+  }
+}
+
+/// 剪貼簿內容像不像 YouTube 頻道網址——自動貼上只填像的，不然隨便複製的
+/// 一段文字也會被塞進網址欄。
+bool looksLikeYtChannelUrl(String text) =>
+    text.contains('youtube.com') ||
+    text.contains('youtu.be') ||
+    YoutubeApiService.parseHandle(text) != null;
 
 class _ChannelGrid extends StatefulWidget {
   const _ChannelGrid({

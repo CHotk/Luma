@@ -26,7 +26,10 @@ import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
 import 'yt_api_key_dialog.dart';
 import 'yt_tracker_browse_page.dart'
-    show refreshYtSubscriberStats, showAddYtChannelDialog;
+    show
+        readYtChannelClipboard,
+        refreshYtSubscriberStats,
+        showAddYtChannelDialog;
 import 'yt_channel_avatar.dart';
 
 /// YT 頻道追蹤首頁：分類資料夾格子（設計稿 06/07/08 定案，見
@@ -325,6 +328,9 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
                     // 未分類，使用者自己再移到想要的分類。
                     IconButton(
                       onPressed: () async {
+                        // 剪貼簿要在 await 之前就讀，Safari 才認得是使用者
+                        // 剛點的（見 showAddYtChannelDialog）。
+                        final clipboard = readYtChannelClipboard();
                         final repo = ref.read(ytTrackerRepositoryProvider);
                         final categories = await repo.loadCategories();
                         if (!context.mounted) return;
@@ -332,6 +338,7 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
                           context,
                           ref,
                           categories: categories,
+                          clipboard: clipboard,
                         );
                         if (added) _reload();
                       },
