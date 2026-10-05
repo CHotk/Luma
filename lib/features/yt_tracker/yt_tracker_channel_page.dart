@@ -8,9 +8,9 @@ import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
 import '../../data/repositories/yt_video_cache_store.dart';
 import '../../data/repositories/yt_video_hidden_store.dart';
-import '../../data/repositories/yt_video_type_store.dart';
 import '../../data/repositories/yt_video_watch_store.dart';
 import '../../data/services/youtube_api_service.dart';
+import '../../data/services/yt_video_type_scanner.dart';
 import '../../domain/models/yt_tracker.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_confirm_dialog.dart';
@@ -311,12 +311,8 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
   /// 快取的類型（2026-10-05 使用者要求：一開始就把類型標好，類型篩選的
   /// 數字才準，不用等自己去點類型才慢慢補）。
   ///
-  /// 翻多深不是固定抓幾部，而是**對齊「全部」清單已經有的範圍**：只翻到
-  /// 快取＋畫面上最舊那部影片的日期為止（再更早的影片「全部」還沒抓到，
-  /// 標了也用不到）；「全部」往下捲變深時再接著往更早翻（見
-  /// [_loadMoreVideos] 最後）。每頁都拉滿 50 部——YouTube 一頁 5 部或
-  /// 50 部都是 1 單位配額。之後再打開同一個頻道，只從最新的往下翻到碰到
-  /// 已經掃過的影片就停，通常 1 頁。掃到哪記在 [YtVideoTypeStore]。
+  /// 翻多深、怎麼省配額見 [YtVideoTypeScanner]；這裡的範圍是快取＋畫面上
+  /// 最舊那部，「全部」往下捲變深時再叫一次（見 [_loadMoreVideos] 最後）。
   ///
   /// 等「全部」第一頁跟上傳頻率圖都抓完才開始，不跟它們搶著寫同一份快取；
   /// 失敗（網路、配額）就算了，下次打開再掃，不影響畫面。
@@ -363,39 +359,10 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
       final target = known
           .map((v) => v.publishedAt)
           .reduce((a, b) => a.isBefore(b) ? a : b);
-      final service = YoutubeApiService(apiKey);
-      final types = YtVideoTypeStore(kv);
-      final rest = uploadsId.substring(2);
-      final shorts = await _scanTypeList(
-        service,
-        types,
-        channelId,
-        'shorts',
-        'UUSH$rest',
-        target,
-      );
-      final live = await _scanTypeList(
-        service,
-        types,
-        channelId,
-        'live',
-        'UULV$rest',
-        target,
-      );
-      final changed = await cache.retag(channelId, (v) {
-        var r = v;
-        if (shorts.videoIds.contains(v.videoId)) {
-          if (r.isShort != true) r = r.withShort(true);
-        } else if (shorts.covers(v.publishedAt) && r.isShort != false) {
-          r = r.withShort(false);
-        }
-        if (live.videoIds.contains(v.videoId)) {
-          if (r.isLive != true) r = r.withLive(true);
-        } else if (live.covers(v.publishedAt) && r.isLive != false) {
-          r = r.withLive(false);
-        }
-        return r;
-      });
+      final changed = await YtVideoTypeScanner(
+        YoutubeApiService(apiKey),
+        kv,
+      ).scan(channelId: channelId, uploadsId: uploadsId, target: target);
       if (changed > 0 && mounted && _loadMoreChannelId == channelId) {
         final fresh = await cache.load(channelId);
         if (mounted) setState(() => _cachedChannelVideos = fresh);
@@ -405,73 +372,6 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     } finally {
       _typeScanRunning = false;
     }
-  }
-
-  /// 翻一份特殊清單（Shorts 或直播），回傳更新後的掃描進度：
-  /// 1. 掃過的話，先從最新的往下翻，碰到已經掃過的影片就停（補新發的）。
-  /// 2. 還沒翻到 [target] 那天、清單也還沒到底，就從上次停的地方往更早
-  ///    翻，翻到比 [target] 更早為止。
-  /// 頻道沒有這種清單時 YouTube 回 404，當成「整份翻完、一部都沒有」。
-  Future<YtTypeScan> _scanTypeList(
-    YoutubeApiService service,
-    YtVideoTypeStore types,
-    String channelId,
-    String kind,
-    String playlistId,
-    DateTime target,
-  ) async {
-    var scan = await types.load(channelId, kind);
-    final ids = {...scan.videoIds};
-    var oldest = scan.oldest;
-    var token = scan.nextToken;
-    var complete = scan.complete;
-    try {
-      if (!scan.isFresh) {
-        String? topToken;
-        for (var i = 0; i < 10; i++) {
-          final page = await service.fetchVideosPage(
-            playlistId,
-            pageToken: topToken,
-            maxResults: 50,
-          );
-          final hitKnown = page.videos.any((v) => ids.contains(v.videoId));
-          ids.addAll(page.videos.map((v) => v.videoId));
-          topToken = page.nextPageToken;
-          if (hitKnown || topToken == null) break;
-        }
-      }
-      for (
-        var i = 0;
-        i < 20 && !complete && (oldest == null || oldest.isAfter(target));
-        i++
-      ) {
-        final page = await service.fetchVideosPage(
-          playlistId,
-          pageToken: token,
-          maxResults: 50,
-        );
-        ids.addAll(page.videos.map((v) => v.videoId));
-        for (final v in page.videos) {
-          if (oldest == null || v.publishedAt.isBefore(oldest)) {
-            oldest = v.publishedAt;
-          }
-        }
-        token = page.nextPageToken;
-        complete = token == null;
-      }
-    } on YoutubeApiException catch (e) {
-      if (e.status != 404) rethrow;
-      complete = true;
-      token = null;
-    }
-    scan = YtTypeScan(
-      videoIds: ids,
-      oldest: oldest,
-      nextToken: token,
-      complete: complete,
-    );
-    await types.save(channelId, kind, scan);
-    return scan;
   }
 
   Future<({YtChannel? channel, List<YtCategory> categories})> _load() async {

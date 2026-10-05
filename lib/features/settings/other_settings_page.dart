@@ -20,6 +20,7 @@ import '../yt_tracker/yt_api_key_dialog.dart';
 import '../yt_tracker/yt_tracker_browse_page.dart'
     show refreshYtSubscriberStats;
 import '../yt_tracker/yt_tracker_home_page.dart' show showYtExportDialog;
+import '../yt_tracker/yt_type_backfill.dart';
 
 /// 英文學習以外的功能（日記、健身、YT、日文…）點齒輪來到的設定頁。
 /// [fromLocation] 是點齒輪那一刻所在的路徑（見 `open_settings.dart`），
@@ -179,6 +180,8 @@ class _YtTrackerSettings extends ConsumerWidget {
                   ),
                 ],
               ),
+              const Divider(height: Gap.lg, color: AppColors.glassEdge),
+              const YtTypeBackfillRow(),
               const Divider(height: Gap.lg, color: AppColors.glassEdge),
               const _StatsRefreshRow(),
               const Divider(height: Gap.lg, color: AppColors.glassEdge),
