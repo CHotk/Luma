@@ -42,6 +42,9 @@ void main() {
     expect(state.daySummaries[today]!.count, 0);
     // 首頁進度環：考試題數也算今天練了幾題。
     expect(state.todayCount, 1);
+    expect(state.todayPracticeCount, 0);
+    expect(state.totalExamCount, 1);
+    expect(state.totalPracticeCount, 0);
   });
 }
 

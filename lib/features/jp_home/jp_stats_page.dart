@@ -52,7 +52,14 @@ class JpStatsPage extends ConsumerWidget {
                         homeAsync.when(
                           loading: () => const _LoadingCard(),
                           error: (e, _) => _ErrorCard(message: '$e'),
-                          data: (state) => _PracticeSection(state: state),
+                          data: (state) => Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              _TotalSection(state: state),
+                              const SizedBox(height: Gap.md),
+                              _PracticeSection(state: state),
+                            ],
+                          ),
                         ),
                         const SizedBox(height: Gap.md),
                         examEntriesAsync.when(
@@ -83,6 +90,45 @@ final _examEntriesProvider = FutureProvider.autoDispose<List<KanaExamEntry>>((
   return ref.watch(kanaExamRepositoryProvider).loadAll();
 });
 
+/// 手寫練習＋考試加起來總共練過幾題（2026-10-05 使用者要求）。
+class _TotalSection extends StatelessWidget {
+  const _TotalSection({required this.state});
+
+  final JpHomeState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final total = state.totalPracticeCount + state.totalExamCount;
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const PanelLabel('總共練過'),
+          const SizedBox(height: Gap.sm),
+          Center(
+            child: Text(
+              '$total 題',
+              style: const TextStyle(
+                fontSize: 30,
+                fontWeight: FontWeight.w800,
+                color: AppColors.jpAccent,
+              ),
+            ),
+          ),
+          const SizedBox(height: Gap.sm),
+          Row(
+            children: [
+              _StatTile(label: '手寫練習', value: '${state.totalPracticeCount}'),
+              _StatTile(label: '考試', value: '${state.totalExamCount}'),
+              _StatTile(label: '今天', value: '${state.todayCount}'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _PracticeSection extends StatelessWidget {
   const _PracticeSection({required this.state});
 
@@ -98,7 +144,7 @@ class _PracticeSection extends StatelessWidget {
           const SizedBox(height: Gap.sm),
           Row(
             children: [
-              _StatTile(label: '今天練習', value: '${state.todayCount} 字'),
+              _StatTile(label: '今天練習', value: '${state.todayPracticeCount} 字'),
               _StatTile(label: '今天花費', value: '${state.todayMinutes} 分'),
             ],
           ),

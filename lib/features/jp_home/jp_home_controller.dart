@@ -39,6 +39,9 @@ class JpHomeState {
   const JpHomeState({
     required this.config,
     required this.todayCount,
+    required this.todayPracticeCount,
+    required this.totalPracticeCount,
+    required this.totalExamCount,
     required this.todayMinutes,
     required this.review,
     required this.practicedDaysThisMonth,
@@ -54,6 +57,14 @@ class JpHomeState {
   /// 今天練了幾題：手寫練習筆數＋考試題數（2026-10-05 使用者要求考試
   /// 題數也算進去），首頁進度環的「done」看這個。
   final int todayCount;
+
+  /// 今天的手寫練習筆數（不含考試），學習統計「手寫練習」那張卡用。
+  final int todayPracticeCount;
+
+  /// 從開始到現在總共練過幾題：手寫練習幾筆、考試幾題（2026-10-05 使用者
+  /// 要求學習統計要看得到加總）。
+  final int totalPracticeCount;
+  final int totalExamCount;
 
   /// 今天練習花的分鐘數，從每筆紀錄的筆畫時間戳加總算出來，不是編的。
   final int todayMinutes;
@@ -193,6 +204,9 @@ final jpHomeStateProvider = FutureProvider.autoDispose<JpHomeState>((
                   e.savedAt.day == now.day,
             )
             .length,
+    todayPracticeCount: today.length,
+    totalPracticeCount: entries.length,
+    totalExamCount: exams.length,
     todayMinutes: todayMs ~/ 60000,
     review: review,
     practicedDaysThisMonth: practicedDaysThisMonth,
