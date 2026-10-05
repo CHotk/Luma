@@ -51,7 +51,8 @@ class JpHomeState {
 
   final JpReviewConfig config;
 
-  /// 今天存了幾筆練習紀錄，首頁進度環的「done」看這個。
+  /// 今天練了幾題：手寫練習筆數＋考試題數（2026-10-05 使用者要求考試
+  /// 題數也算進去），首頁進度環的「done」看這個。
   final int todayCount;
 
   /// 今天練習花的分鐘數，從每筆紀錄的筆畫時間戳加總算出來，不是編的。
@@ -182,7 +183,16 @@ final jpHomeStateProvider = FutureProvider.autoDispose<JpHomeState>((
 
   return JpHomeState(
     config: config,
-    todayCount: today.length,
+    todayCount:
+        today.length +
+        exams
+            .where(
+              (e) =>
+                  e.savedAt.year == now.year &&
+                  e.savedAt.month == now.month &&
+                  e.savedAt.day == now.day,
+            )
+            .length,
     todayMinutes: todayMs ~/ 60000,
     review: review,
     practicedDaysThisMonth: practicedDaysThisMonth,
