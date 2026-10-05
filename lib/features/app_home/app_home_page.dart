@@ -16,7 +16,7 @@ import '../../shared/widgets/track_switcher.dart';
 import 'app_home_dashboard.dart';
 
 /// 整個 App 的首頁（2026-09-24 使用者要求：功能變多了，不想一打開就
-/// 是語言學習）。設計稿 `design-history/首頁設計/01_圖示格啟動器(主流).html`
+/// 是語言學習）。設計稿 `design-history/已選擇完成/首頁設計/01_圖示格啟動器(主流).html`
 /// 定案：像手機桌面的圖示格，每個功能一格，圖示沿用側邊選單那組
 /// （`assets/images/nav_icons/`，沒有圖的退回內建圖示），風格跟其他頁面
 /// 一樣用毛玻璃卡片。

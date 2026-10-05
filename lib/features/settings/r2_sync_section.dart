@@ -30,7 +30,7 @@ enum _Phase { idle, testing, success, error }
 enum _FeaturePhase { idle, downloading, uploading, done, error }
 
 /// 設定頁「多裝置同步」區塊，照設計稿
-/// `design-history/雲端同步設計/01_簡潔卡片式.html` 做：沒設定過就是
+/// `design-history/已選擇完成/雲端同步設計/01_簡潔卡片式.html` 做：沒設定過就是
 /// 輸入卡片（Account ID／Access Key ID／Secret Access Key 三欄＋
 /// 「儲存並測試連線」），設定完成後換成「已連接雲端」狀態卡＋「立即
 /// 同步」——第一階段（打地基）「立即同步」只做下載，還沒有上傳

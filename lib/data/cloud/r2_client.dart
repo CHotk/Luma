@@ -5,7 +5,7 @@ import 'package:aws_signature_v4/aws_signature_v4.dart';
 import 'package:http/http.dart' as http;
 
 /// R2 連線用的憑證。三個欄位對應設定頁輸入卡片的三個欄位（見
-/// `design-history/雲端同步設計/01_簡潔卡片式.html`）：`endpoint` 是
+/// `design-history/已選擇完成/雲端同步設計/01_簡潔卡片式.html`）：`endpoint` 是
 /// 「Account ID / S3 API 網址」那格，貼的是完整網址（例如
 /// `https://<account_id>.r2.cloudflarestorage.com`），不是只貼
 /// account id 本身，少一道自己組字串的手續。
