@@ -1245,7 +1245,13 @@ Future<bool> showAddYtChannelDialog(
             });
             return;
           }
-          duplicate = null;
+          // 換成不重複的網址：馬上把收起來的欄位放回來。
+          if (duplicate != null) {
+            setDialogState(() {
+              duplicate = null;
+              status = null;
+            });
+          }
           if (handle == null) {
             lastHandle = null;
             setDialogState(() {
@@ -1364,74 +1370,79 @@ Future<bool> showAddYtChannelDialog(
                     ],
                   ),
                 ],
-                const SizedBox(height: Gap.sm),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    if (hasAvatar)
-                      Padding(
-                        padding: const EdgeInsets.only(right: 12, bottom: 6),
-                        child: ClipOval(
-                          child: Image.network(
-                            avatarController.text.trim(),
-                            width: 40,
-                            height: 40,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stack) =>
-                                const SizedBox(width: 40, height: 40),
+                // 偵測到重複就只留網址跟提示，名稱、頭像、分類都用不到，收起來
+                // （2026-10-05 使用者要求）。
+                if (duplicate == null) ...[
+                  const SizedBox(height: Gap.sm),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      if (hasAvatar)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 12, bottom: 6),
+                          child: ClipOval(
+                            child: Image.network(
+                              avatarController.text.trim(),
+                              width: 40,
+                              height: 40,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stack) =>
+                                  const SizedBox(width: 40, height: 40),
+                            ),
                           ),
                         ),
-                      ),
-                    Expanded(
-                      child: TextField(
-                        controller: nameController,
-                        onChanged: (_) => nameTouched = true,
-                        maxLength: 40,
-                        decoration: const InputDecoration(
-                          labelText: '頻道名稱（可改）',
-                          counterText: '',
+                      Expanded(
+                        child: TextField(
+                          controller: nameController,
+                          onChanged: (_) => nameTouched = true,
+                          maxLength: 40,
+                          decoration: const InputDecoration(
+                            labelText: '頻道名稱（可改）',
+                            counterText: '',
+                          ),
+                          style: const TextStyle(color: AppColors.ink),
                         ),
-                        style: const TextStyle(color: AppColors.ink),
+                      ),
+                    ],
+                  ),
+                  if (!hasAvatar || info == null) ...[
+                    const SizedBox(height: Gap.xs),
+                    TextField(
+                      controller: avatarController,
+                      onChanged: (_) => setDialogState(() {}),
+                      decoration: const InputDecoration(
+                        labelText: '頭像圖片網址（沒自動抓到才需要）',
+                      ),
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        color: AppColors.ink,
                       ),
                     ),
                   ],
-                ),
-                if (!hasAvatar || info == null) ...[
+                  const SizedBox(height: Gap.sm),
+                  Text('分類', style: AppText.note),
                   const SizedBox(height: Gap.xs),
-                  TextField(
-                    controller: avatarController,
-                    onChanged: (_) => setDialogState(() {}),
-                    decoration: const InputDecoration(
-                      labelText: '頭像圖片網址（沒自動抓到才需要）',
-                    ),
-                    style: const TextStyle(
-                      fontSize: 12.5,
-                      color: AppColors.ink,
-                    ),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      _CategoryPickChip(
+                        label: '未分類',
+                        color: AppColors.ink3,
+                        selected: categoryId == null,
+                        onTap: () => setDialogState(() => categoryId = null),
+                      ),
+                      for (final cat in categories)
+                        _CategoryPickChip(
+                          label: cat.name,
+                          color: cat.color,
+                          selected: categoryId == cat.id,
+                          onTap: () =>
+                              setDialogState(() => categoryId = cat.id),
+                        ),
+                    ],
                   ),
                 ],
-                const SizedBox(height: Gap.sm),
-                Text('分類', style: AppText.note),
-                const SizedBox(height: Gap.xs),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    _CategoryPickChip(
-                      label: '未分類',
-                      color: AppColors.ink3,
-                      selected: categoryId == null,
-                      onTap: () => setDialogState(() => categoryId = null),
-                    ),
-                    for (final cat in categories)
-                      _CategoryPickChip(
-                        label: cat.name,
-                        color: cat.color,
-                        selected: categoryId == cat.id,
-                        onTap: () => setDialogState(() => categoryId = cat.id),
-                      ),
-                  ],
-                ),
               ],
             ),
           ),
