@@ -142,6 +142,33 @@ class _JpSettings extends ConsumerWidget {
             ],
           ),
         ),
+        const SizedBox(height: Gap.sm),
+        GlassCard(
+          child: Row(
+            children: [
+              const Icon(
+                Icons.reorder_rounded,
+                size: 18,
+                color: AppColors.ink2,
+              ),
+              const SizedBox(width: Gap.sm),
+              const Expanded(
+                child: Text(
+                  '首頁卡片順序',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.ink,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () => context.push('/home-card-order/jp'),
+                child: const Text('調整'),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }

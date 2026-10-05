@@ -10,6 +10,7 @@ import '../../data/cloud/r2_credentials_store.dart';
 import '../../data/cloud/r2_sync_service.dart';
 import '../../data/export/device_label.dart';
 import '../../data/repositories/diary_password_store.dart';
+import '../../data/repositories/home_card_order_store.dart';
 import '../../data/repositories/yt_category_order_store.dart';
 import '../../data/repositories/yt_video_cache_store.dart';
 import '../../data/repositories/yt_video_watch_store.dart';
@@ -293,14 +294,21 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
                 orderResult.uploaded,
           );
         }),
-        run(
-          '五十音練習',
-          (p) => _kanaPracticePhase = p,
-          (onPhase) => service.syncKanaPractice(
+        run('五十音練習', (p) => _kanaPracticePhase = p, (onPhase) async {
+          final r = await service.syncKanaPractice(
             ref.read(kanaPracticeRepositoryProvider),
             onPhase: onPhase,
-          ),
-        ),
+          );
+          // 日文首頁卡片順序（2026-10-05）跟日文練習一起同步，不另開
+          // 一個任務跟一顆狀態列。
+          final order = await service.syncHomeCardOrder(
+            HomeCardOrderStore(ref.read(keyValueStoreProvider), 'jp'),
+          );
+          return (
+            downloaded: r.downloaded + order.downloaded,
+            uploaded: r.uploaded + order.uploaded,
+          );
+        }),
         run(
           '五十音考試',
           (p) => _kanaExamPhase = p,
@@ -317,7 +325,14 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
           // 單字庫有記憶體快取（對錯次數是從紀錄現算的），紀錄變了要
           // 丟掉重算。
           ref.read(wordRepositoryProvider).invalidate();
-          return r;
+          // 英文首頁卡片順序（2026-10-05）跟英文紀錄一起同步。
+          final order = await service.syncHomeCardOrder(
+            HomeCardOrderStore(ref.read(keyValueStoreProvider), 'en'),
+          );
+          return (
+            downloaded: r.downloaded + order.downloaded,
+            uploaded: r.uploaded + order.uploaded,
+          );
         }),
         run(
           '看盤記錄',

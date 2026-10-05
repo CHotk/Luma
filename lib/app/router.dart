@@ -30,6 +30,7 @@ import '../features/word_detail/word_detail_page.dart';
 import '../features/quiz/quiz_page.dart';
 import '../features/result/result_page.dart';
 import '../features/settings/debug_log_page.dart';
+import '../features/settings/home_card_order_page.dart';
 import '../features/settings/other_settings_page.dart';
 import '../features/settings/settings_page.dart';
 import '../features/splash/splash_page.dart';
@@ -163,6 +164,18 @@ final appRouter = GoRouter(
       path: '/settings/other',
       builder: (_, state) =>
           OtherSettingsPage(fromLocation: state.extra as String?),
+    ),
+    // 英文／日文首頁卡片順序（2026-10-05 使用者要求）。
+    GoRoute(
+      path: '/home-card-order/:track',
+      builder: (_, state) {
+        final jp = state.pathParameters['track'] == 'jp';
+        return HomeCardOrderPage(
+          track: jp ? 'jp' : 'en',
+          title: jp ? '日文首頁卡片順序' : '英文首頁卡片順序',
+          cards: jp ? jpHomeCards : enHomeCards,
+        );
+      },
     ),
     GoRoute(path: '/debug-log', builder: (_, _) => const DebugLogPage()),
     GoRoute(path: '/sync', builder: (_, _) => const SyncPage()),

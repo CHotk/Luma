@@ -6,6 +6,7 @@ import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
+import '../../data/repositories/home_card_order_store.dart';
 import '../../domain/encouragement.dart';
 import '../../domain/time_of_day_label.dart';
 import '../../shared/widgets/ambient_background.dart';
@@ -18,6 +19,7 @@ import '../../shared/widgets/settings_icon.dart';
 import '../../shared/widgets/stats_icon.dart';
 import '../../shared/widgets/track_switcher.dart';
 import '../kana_practice/gojuon_data.dart';
+import '../settings/home_card_order_page.dart';
 import '../kana_practice/kana_practice_page.dart';
 import 'jp_home_controller.dart';
 
@@ -68,6 +70,16 @@ class JpHomePage extends ConsumerWidget {
   }
 }
 
+/// 日文首頁有哪些卡片可以排順序，順序就是沒排過時的預設順序。最上面的
+/// 時間列跟最下面的「開始這輪」固定，不在這裡面。
+const jpHomeCards = <HomeCard>[
+  (id: 'calendar', label: '打卡月曆'),
+  (id: 'ring', label: '今天進度圈（設定裡打開才顯示）'),
+  (id: 'kana', label: '五十音預覽'),
+  (id: 'exam', label: '考試入口'),
+  (id: 'next', label: '下一輪'),
+];
+
 class _Body extends ConsumerWidget {
   const _Body({required this.state});
 
@@ -79,6 +91,51 @@ class _Body extends ConsumerWidget {
     final showRing = ref.watch(jpShowProgressRingProvider);
     final target = state.config.dailyKanaTarget;
     final done = state.todayCount >= target;
+    final cards = <String, Widget>{
+      // 打卡熱度月曆卡片（2026-09-29 使用者要求：日文首頁加一個當月日曆
+      // ＋簡單數據看板，一目了然這個月練了幾天）。設計稿見
+      // `design-history/日文月曆看板設計/01_打卡熱度月曆(主流)`。
+      'calendar': GlassCard(child: _MonthlyCalendarCard(state: state)),
+      if (showRing)
+        'ring': GlassCard(
+          padding: const EdgeInsets.fromLTRB(10, 16, 10, 14),
+          child: Column(
+            children: [
+              RingProgress(
+                done: state.todayCount,
+                total: target,
+                centerLabel: '${state.todayCount}/$target',
+                bottomLabel:
+                    '${state.todayMinutes} / ${state.config.dailyMinutesTarget} 分',
+              ),
+              const SizedBox(height: Gap.sm),
+              Text(
+                done ? '今天的份量做完了' : Encouragement.forDate(DateTime.now()),
+                textAlign: TextAlign.center,
+                style: AppText.bodyDim,
+              ),
+            ],
+          ),
+        ),
+      'kana': const GlassCard(child: _KanaPreview()),
+      'exam': const GlassCard(child: _ExamEntryCard()),
+      'next': GlassCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const PanelLabel('下一輪'),
+            const SizedBox(height: Gap.sm),
+            _Row('待複習', '${state.review.due}'),
+            _Row('新字', '${state.review.fresh}'),
+            _Row('已掌握', '${state.review.mastered}'),
+            _Row('手寫練習', '$target 字'),
+          ],
+        ),
+      ),
+    };
+    final order = applyHomeCardOrder([
+      for (final c in jpHomeCards) c.id,
+    ], ref.watch(homeCardOrderProvider('jp')).valueOrNull);
 
     // 跟英文首頁同一個問題：Column 直接放 Spacer() 沒有滾動能力，螢幕
     // 矮一點就整頁卡死，滾輪／手指滑動都沒反應。用 LayoutBuilder 量出
@@ -97,58 +154,14 @@ class _Body extends ConsumerWidget {
                   _TopBar(now: DateTime.now()),
                   const SizedBox(height: Gap.lg),
 
-                  // 打卡熱度月曆卡片（2026-09-29 使用者要求：日文首頁加一個
-                  // 當月日曆＋簡單數據看板，一目了然這個月練了幾天）。是
-                  // 加在原有版面「之上」，不是取代——下面進度環／五十音
-                  // 預覽／下一輪清單全部照舊，只是最上面多這一張卡。設計稿
-                  // 見 `design-history/日文月曆看板設計/01_打卡熱度月曆(主流)`。
-                  GlassCard(child: _MonthlyCalendarCard(state: state)),
-                  const SizedBox(height: Gap.md),
-
-                  if (showRing) ...[
-                    GlassCard(
-                      padding: const EdgeInsets.fromLTRB(10, 16, 10, 14),
-                      child: Column(
-                        children: [
-                          RingProgress(
-                            done: state.todayCount,
-                            total: target,
-                            centerLabel: '${state.todayCount}/$target',
-                            bottomLabel:
-                                '${state.todayMinutes} / ${state.config.dailyMinutesTarget} 分',
-                          ),
-                          const SizedBox(height: Gap.sm),
-                          Text(
-                            done
-                                ? '今天的份量做完了'
-                                : Encouragement.forDate(DateTime.now()),
-                            textAlign: TextAlign.center,
-                            style: AppText.bodyDim,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: Gap.md),
-                  ],
-                  const GlassCard(child: _KanaPreview()),
-
-                  const SizedBox(height: Gap.md),
-                  const GlassCard(child: _ExamEntryCard()),
-
-                  const SizedBox(height: Gap.md),
-                  GlassCard(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        const PanelLabel('下一輪'),
-                        const SizedBox(height: Gap.sm),
-                        _Row('待複習', '${state.review.due}'),
-                        _Row('新字', '${state.review.fresh}'),
-                        _Row('已掌握', '${state.review.mastered}'),
-                        _Row('手寫練習', '$target 字'),
-                      ],
-                    ),
-                  ),
+                  // 卡片順序使用者可以自己調（2026-10-05，見
+                  // [HomeCardOrderPage]），順序照存起來的排；「今天進度」
+                  // 那圈設定裡關掉時不在 cards 裡，就跳過。
+                  for (final id in order)
+                    if (cards[id] case final card?) ...[
+                      card,
+                      const SizedBox(height: Gap.md),
+                    ],
 
                   const Spacer(),
                   const SizedBox(height: Gap.lg),

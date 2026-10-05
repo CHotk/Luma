@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import '../../domain/models/diary_entry.dart';
 import '../../domain/models/fitness.dart';
 import '../repositories/diary_password_store.dart';
+import '../repositories/home_card_order_store.dart';
 import '../repositories/diary_repository.dart';
 import '../../domain/models/sync_log_entry.dart';
 import '../../domain/models/yt_tracker.dart';
@@ -360,6 +361,47 @@ class R2SyncService {
     return (downloaded: downloaded, uploaded: uploaded);
   }
 
+  /// 英文／日文首頁卡片順序（2026-10-05 使用者要求：可以自己排、要能
+  /// 多裝置同步）。跟 [syncYtCategoryOrder] 同一套：單一設定值，比
+  /// updatedAt，新的贏；英文、日文各一個雲端檔（[HomeCardOrderStore.cloudKey]）。
+  Future<({int downloaded, int uploaded})> syncHomeCardOrder(
+    HomeCardOrderStore store,
+  ) async {
+    final key = store.cloudKey;
+    final local = await store.loadRecord();
+    final beforeBytes = utf8.encode(jsonEncode(local?.toJson()));
+    if (await _canSkip(key, beforeBytes)) return (downloaded: 0, uploaded: 0);
+
+    final fetched = await _client.getObjectWithEtag(key);
+    if (fetched.bytes == null) {
+      // 雲端還沒有：這台排過就上傳，沒排過就什麼都不做。
+      if (local == null) return (downloaded: 0, uploaded: 0);
+      final body = utf8.encode(jsonEncode(local.toJson()));
+      final etag = await _client.putObject(key, Uint8List.fromList(body));
+      await _writeMeta(key, body, etag);
+      return (downloaded: 0, uploaded: 1);
+    }
+
+    final cloud = HomeCardOrderRecord.fromJson(
+      jsonDecode(utf8.decode(fetched.bytes!)) as Map<String, dynamic>,
+    );
+    if (local == null || cloud.updatedAt.isAfter(local.updatedAt)) {
+      await store.saveRecord(cloud);
+      final body = utf8.encode(jsonEncode(cloud.toJson()));
+      await _writeMeta(key, body, fetched.etag);
+      return (downloaded: 1, uploaded: 0);
+    }
+    if (local.updatedAt.isAfter(cloud.updatedAt)) {
+      final body = utf8.encode(jsonEncode(local.toJson()));
+      final etag = await _client.putObject(key, Uint8List.fromList(body));
+      await _writeMeta(key, body, etag);
+      return (downloaded: 0, uploaded: 1);
+    }
+    final body = utf8.encode(jsonEncode(local.toJson()));
+    await _writeMeta(key, body, fetched.etag);
+    return (downloaded: 0, uploaded: 0);
+  }
+
   /// YT 分類顯示順序（2026-09-30 使用者回報：A 裝置調完順序、按同步，
   /// 換 B 裝置同步卻看不到——原本這個設定只存本機，從沒接進同步）。
   /// 單一設定值，不是清單型紀錄，跟 [syncDiaryPassword] 同一套「比
@@ -533,12 +575,11 @@ class R2SyncService {
     final fetched = await _client.getObjectWithEtag(key);
     var cloud = <String, YtVideoWatchRecord>{};
     if (fetched.bytes != null) {
-      final decoded = jsonDecode(utf8.decode(fetched.bytes!)) as Map<String, dynamic>;
+      final decoded =
+          jsonDecode(utf8.decode(fetched.bytes!)) as Map<String, dynamic>;
       cloud = decoded.map(
-        (k, v) => MapEntry(
-          k,
-          YtVideoWatchRecord.fromJson(v as Map<String, dynamic>),
-        ),
+        (k, v) =>
+            MapEntry(k, YtVideoWatchRecord.fromJson(v as Map<String, dynamic>)),
       );
     }
     final downloaded = await store.mergeFromCloud(cloud);
@@ -548,8 +589,7 @@ class R2SyncService {
     // 代表這支影片有新的點開事件要上傳。
     final uploaded = all.entries
         .where(
-          (e) =>
-              (cloud[e.key]?.openedAt.length ?? 0) < e.value.openedAt.length,
+          (e) => (cloud[e.key]?.openedAt.length ?? 0) < e.value.openedAt.length,
         )
         .length;
     final body = utf8.encode(

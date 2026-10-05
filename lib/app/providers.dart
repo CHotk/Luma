@@ -8,6 +8,7 @@ import '../data/repositories/diary_repository.dart';
 import '../data/repositories/error_log_repository.dart';
 import '../data/repositories/fitness_repository.dart';
 import '../data/repositories/history_repository.dart';
+import '../data/repositories/home_card_order_store.dart';
 import '../data/repositories/jp_home_ring_store.dart';
 import '../data/repositories/kana_exam_repository.dart';
 import '../data/repositories/kana_practice_repository.dart';
@@ -195,3 +196,13 @@ final r2BucketNameProvider = Provider<String>((ref) {
 /// 畫面層要自己同時呼叫 `R2CredentialsStore` 寫回本機，這個 provider
 /// 不會自動幫你同步寫入。
 final r2CredentialsProvider = StateProvider<R2Credentials?>((ref) => null);
+
+/// 英文／日文首頁卡片順序（2026-10-05 使用者要求可以自己調、要能同步）。
+/// 參數是 `en` 或 `jp`。看 [dataRevisionProvider]：排序頁存檔、雲端同步
+/// 拉到別台裝置的新順序之後都會加號碼，首頁就重排。還沒讀到前是 null，
+/// 首頁先用預設順序。
+final homeCardOrderProvider = FutureProvider.autoDispose
+    .family<List<String>?, String>((ref, track) async {
+      ref.watch(dataRevisionProvider);
+      return HomeCardOrderStore(ref.watch(keyValueStoreProvider), track).load();
+    });

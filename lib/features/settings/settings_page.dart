@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../app/providers.dart';
@@ -68,6 +69,35 @@ class _Body extends ConsumerWidget {
 
     return ListView(
       children: [
+        const _SectionLabel('首頁'),
+        GlassCard(
+          child: Row(
+            children: [
+              const Icon(
+                Icons.reorder_rounded,
+                size: 18,
+                color: AppColors.ink2,
+              ),
+              const SizedBox(width: Gap.sm),
+              const Expanded(
+                child: Text(
+                  '首頁卡片順序',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.ink,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () => context.push('/home-card-order/en'),
+                child: const Text('調整'),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: Gap.md),
+
         const _SectionLabel('App Logo'),
         const GlassCard(child: _AppLogoSection()),
         const SizedBox(height: Gap.md),

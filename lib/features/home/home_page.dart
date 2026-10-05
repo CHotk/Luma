@@ -6,6 +6,7 @@ import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
+import '../../data/repositories/home_card_order_store.dart';
 import '../../domain/encouragement.dart';
 import '../../domain/time_of_day_label.dart';
 import '../../shared/widgets/ambient_background.dart';
@@ -15,6 +16,7 @@ import '../../shared/widgets/ring_progress.dart';
 import '../../shared/widgets/settings_icon.dart';
 import '../../shared/widgets/stats_icon.dart';
 import '../../shared/widgets/track_switcher.dart';
+import '../settings/home_card_order_page.dart';
 import 'home_controller.dart';
 
 /// 首頁。版型 04 節制版：圓環是主角，其餘都讓路。
@@ -47,14 +49,18 @@ class HomePage extends ConsumerWidget {
   }
 }
 
-class _Body extends StatelessWidget {
+class _Body extends ConsumerWidget {
   const _Body({required this.state});
 
   final HomeState state;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final minutesUsed = state.usage.practiceSeconds ~/ 60;
+    final cards = _enCards(state, minutesUsed);
+    final order = applyHomeCardOrder([
+      for (final c in enHomeCards) c.id,
+    ], ref.watch(homeCardOrderProvider('en')).valueOrNull);
 
     // Column 直接塞 Spacer() 沒有滾動能力：內容剛好塞滿螢幕時看不出來，
     // 一旦螢幕矮一點（或字級調大），滑鼠滾輪／手指上下滑動都不會動，
@@ -77,57 +83,14 @@ class _Body extends StatelessWidget {
                   _TopBar(now: DateTime.now()),
                   const SizedBox(height: Gap.lg),
 
-                  // 打卡熱度月曆卡片（2026-09-29 使用者要求：跟日文首頁
-                  // 一樣要有，在原本版面上加，不是取代——見
-                  // `jp_home_page.dart` 的 `_MonthlyCalendarCard`，這裡是
-                  // 英文軌道自己獨立一份，不共用）。
-                  GlassCard(child: _EnMonthlyCalendarCard(state: state)),
-                  const SizedBox(height: Gap.md),
-
-                  GlassCard(
-                    padding: const EdgeInsets.fromLTRB(10, 16, 10, 14),
-                    child: Column(
-                      children: [
-                        RingProgress(
-                          done: state.usage.roundsDone,
-                          total: state.rules.roundsPerDay,
-                          centerLabel:
-                              '${state.usage.roundsDone}/${state.rules.roundsPerDay}',
-                          bottomLabel:
-                              '$minutesUsed / ${state.rules.minutesPerDay} 分',
-                        ),
-                        const SizedBox(height: Gap.sm),
-                        Text(
-                          // 做滿了就講做滿了，其餘時候給一句每天不一樣的話。
-                          state.limitReached
-                              ? '今天的份量做完了'
-                              : Encouragement.forDate(state.usage.date),
-                          textAlign: TextAlign.center,
-                          style: AppText.bodyDim,
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: Gap.md),
-                  GlassCard(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        const PanelLabel('下一輪'),
-                        const SizedBox(height: Gap.sm),
-                        _Row('待複習', '${state.rules.pendingPerRound}'),
-                        _Row('新字', '${state.rules.freshPerRound}'),
-                        _Row('已掌握', '${state.rules.masteredPerRound}'),
-
-                        if (state.rules.effectiveTypeQuestions > 0)
-                          _Row(
-                            '要打字的題數',
-                            '${state.rules.effectiveTypeQuestions}',
-                          ),
-                      ],
-                    ),
-                  ),
+                  // 卡片順序使用者可以自己調（2026-10-05，見
+                  // [HomeCardOrderPage]），順序照存起來的排；卡片本身見
+                  // [_enCards]。
+                  for (final id in order)
+                    if (cards[id] case final card?) ...[
+                      card,
+                      const SizedBox(height: Gap.md),
+                    ],
 
                   const Spacer(),
                   const SizedBox(height: Gap.lg),
@@ -142,6 +105,59 @@ class _Body extends StatelessWidget {
     );
   }
 }
+
+/// 英文首頁有哪些卡片可以排順序，順序就是沒排過時的預設順序。最上面的
+/// 時間列跟最下面的開始按鈕固定，不在這裡面。
+const enHomeCards = <HomeCard>[
+  (id: 'calendar', label: '打卡月曆'),
+  (id: 'ring', label: '今天進度'),
+  (id: 'next', label: '下一輪'),
+];
+
+/// 英文首頁各張卡片本身。
+Map<String, Widget> _enCards(HomeState state, int minutesUsed) => {
+  // 打卡熱度月曆卡片（2026-09-29 使用者要求：跟日文首頁一樣要有，見
+  // `jp_home_page.dart` 的 `_MonthlyCalendarCard`，這裡是英文軌道自己
+  // 獨立一份，不共用）。
+  'calendar': GlassCard(child: _EnMonthlyCalendarCard(state: state)),
+  'ring': GlassCard(
+    padding: const EdgeInsets.fromLTRB(10, 16, 10, 14),
+    child: Column(
+      children: [
+        RingProgress(
+          done: state.usage.roundsDone,
+          total: state.rules.roundsPerDay,
+          centerLabel: '${state.usage.roundsDone}/${state.rules.roundsPerDay}',
+          bottomLabel: '$minutesUsed / ${state.rules.minutesPerDay} 分',
+        ),
+        const SizedBox(height: Gap.sm),
+        Text(
+          // 做滿了就講做滿了，其餘時候給一句每天不一樣的話。
+          state.limitReached
+              ? '今天的份量做完了'
+              : Encouragement.forDate(state.usage.date),
+          textAlign: TextAlign.center,
+          style: AppText.bodyDim,
+        ),
+      ],
+    ),
+  ),
+  'next': GlassCard(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const PanelLabel('下一輪'),
+        const SizedBox(height: Gap.sm),
+        _Row('待複習', '${state.rules.pendingPerRound}'),
+        _Row('新字', '${state.rules.freshPerRound}'),
+        _Row('已掌握', '${state.rules.masteredPerRound}'),
+
+        if (state.rules.effectiveTypeQuestions > 0)
+          _Row('要打字的題數', '${state.rules.effectiveTypeQuestions}'),
+      ],
+    ),
+  ),
+};
 
 /// 首頁頂端。左邊週幾＋時間＋時段 emoji，中間是語言軌道切換，
 /// 右邊功能入口。
