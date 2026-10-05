@@ -106,5 +106,11 @@
     "name": "財經",
     "color": 4292913486,
     "imageUrl": "assets/images/yt_tracker/finance.png"
+  },
+  {
+    "id": "seed-programming",
+    "name": "程式",
+    "color": 4284463305,
+    "imageUrl": "assets/images/yt_tracker/programming.png"
   }
 ]
