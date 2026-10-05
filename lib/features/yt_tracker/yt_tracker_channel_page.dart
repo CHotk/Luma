@@ -311,8 +311,9 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
   /// 快取的類型（2026-10-05 使用者要求：一開始就把類型標好，類型篩選的
   /// 數字才準，不用等自己去點類型才慢慢補）。
   ///
-  /// 翻多深、怎麼省配額見 [YtVideoTypeScanner]；這裡的範圍是快取＋畫面上
-  /// 最舊那部，「全部」往下捲變深時再叫一次（見 [_loadMoreVideos] 最後）。
+  /// 只補快取裡還沒標類型的影片，全部都標過就不打 API；怎麼省配額見
+  /// [YtVideoTypeScanner]。「全部」往下捲抓到更早的影片時再叫一次（見
+  /// [_loadMoreVideos] 最後），補那些新抓到的。
   ///
   /// 等「全部」第一頁跟上傳頻率圖都抓完才開始，不跟它們搶著寫同一份快取；
   /// 失敗（網路、配額）就算了，下次打開再掃，不影響畫面。
@@ -350,19 +351,10 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
       }
       final kv = ref.read(keyValueStoreProvider);
       final cache = YtVideoCacheStore(kv);
-      final known = [
-        ...await cache.load(channelId),
-        ..._firstPage,
-        ..._moreVideos,
-      ];
-      if (known.isEmpty) return;
-      final target = known
-          .map((v) => v.publishedAt)
-          .reduce((a, b) => a.isBefore(b) ? a : b);
       final changed = await YtVideoTypeScanner(
         YoutubeApiService(apiKey),
         kv,
-      ).scan(channelId: channelId, uploadsId: uploadsId, target: target);
+      ).tagUntagged(channelId: channelId, uploadsId: uploadsId);
       if (changed > 0 && mounted && _loadMoreChannelId == channelId) {
         final fresh = await cache.load(channelId);
         if (mounted) setState(() => _cachedChannelVideos = fresh);

@@ -9,11 +9,10 @@ import '../../data/services/youtube_api_service.dart';
 import '../../data/services/yt_video_type_scanner.dart';
 import '../../shared/widgets/app_notice.dart';
 
-/// 一次把所有頻道快取裡的影片補上類型（一般影片／Shorts／直播）。
+/// 一次把所有頻道快取裡還沒標類型的影片補上（一般影片／Shorts／直播）。
 /// 2026-10-05 使用者要求：先一次補齊目前快取有的全部影片，之後就只要
-/// 打開頻道時背景補新影片（見 [YtVideoTypeScanner]）。每個頻道只翻到
-/// 它快取裡最舊那部為止，掃到哪會記下來，所以中途配額用完或關掉，
-/// 再按一次會接著做，不會重翻已經掃過的。
+/// 打開頻道時背景補新抓到的影片（見 [YtVideoTypeScanner]）。標過的不會
+/// 再碰，所以中途配額用完再按一次，已經補好的頻道直接跳過。
 Future<void> runYtTypeBackfill(BuildContext context, WidgetRef ref) async {
   final apiKey = ref.read(ytApiKeyProvider);
   if (apiKey == null || apiKey.isEmpty) {
@@ -62,10 +61,13 @@ Future<void> runYtTypeBackfill(BuildContext context, WidgetRef ref) async {
     }
     if (uploadsId.isEmpty || (await cache.load(c.id)).isEmpty) continue;
     try {
-      tagged += await scanner.scan(channelId: c.id, uploadsId: uploadsId);
+      tagged += await scanner.tagUntagged(
+        channelId: c.id,
+        uploadsId: uploadsId,
+      );
       scanned++;
     } catch (e) {
-      // 多半是配額用完：停下來，進度已經存了，明天再按會接著做。
+      // 多半是配額用完：停下來，已經補好的會留著，明天再按接著補剩下的。
       error = '$e';
       break;
     }
@@ -76,7 +78,7 @@ Future<void> runYtTypeBackfill(BuildContext context, WidgetRef ref) async {
   if (error != null) {
     showAppNotice(
       context,
-      '補到一半停下來了（$error）。已完成 $scanned 個頻道，之後再按會接著做',
+      '補到一半停下來了（$error）。已完成 $scanned 個頻道，之後再按會接著補',
       isError: true,
     );
   } else {

@@ -1,100 +1,80 @@
 import '../repositories/yt_video_cache_store.dart';
-import '../repositories/yt_video_type_store.dart';
 import '../storage/key_value_store.dart';
 import 'youtube_api_service.dart';
 
-/// 翻頻道的 Shorts（UUSH）跟直播（UULV）清單，把類型標進影片快取
-/// （2026-10-05 使用者要求：類型一開始就標好，類型篩選的數字才準）。
-/// 頻道詳情頁打開時在背景跑一次（只掃那個頻道），YT 設定頁「補齊影片
-/// 類型」一次跑全部頻道，兩邊共用這一份。
+/// 幫影片快取裡**還沒標類型**的影片補上一般影片／Shorts／直播
+/// （2026-10-05 使用者要求）。頻道詳情頁打開時在背景跑（只跑那個頻道），
+/// YT 設定頁「補齊影片類型」一次跑全部頻道，兩邊共用這一份。
 ///
-/// 翻多深不是固定抓幾部，而是**對齊快取已經有的範圍**：只翻到 [scan] 的
-/// `target`（通常是快取裡最舊那部影片的日期）為止，更早的影片快取裡也
-/// 沒有，標了用不到；之後「全部」往下捲變深，再叫一次就會從上次停的
-/// 地方接著往更早翻。每頁拉滿 50 部——YouTube 一頁 5 部或 50 部都是
-/// 1 單位配額。已經掃過的頻道，再叫只從最新的往下翻到碰到掃過的影片
-/// 就停（通常 1 頁），只補新發的。掃到哪記在 [YtVideoTypeStore]。
+/// 標過的影片類型永遠不會變，所以不用記「掃到哪」：每次只看快取裡還
+/// 沒標的影片，沒有就完全不打 API。有的話：
+/// - YouTube API 沒有「這部是不是 Shorts」的欄位，只能看它在不在頻道
+///   的 Shorts 清單（UUSH）／直播清單（UULV）裡。一部一部問要每部
+///   1 單位配額；翻清單一頁 50 部才 1 單位，所以用翻的。
+/// - 從清單最新的那頁往下翻，翻到比「最舊那部沒標的影片」更早就停，
+///   那段時間內沒標的一次標好（在清單裡＝是，不在＝不是）。
+/// 第一次（全部都沒標）會翻到最舊；之後只剩新抓到的影片沒標，通常
+/// 只翻最新 1 頁。
 class YtVideoTypeScanner {
   YtVideoTypeScanner(this._service, KeyValueStore store)
-    : _cache = YtVideoCacheStore(store),
-      _types = YtVideoTypeStore(store);
+    : _cache = YtVideoCacheStore(store);
 
   final YoutubeApiService _service;
   final YtVideoCacheStore _cache;
-  final YtVideoTypeStore _types;
 
-  /// 掃一個頻道，回傳快取裡實際改了幾部影片的類型。[uploadsId] 是頻道
-  /// 的上傳清單 id（`UU…`），不是 `UU` 開頭的就不掃（回傳 0）。
-  /// [target] 沒給就用快取裡最舊那部；快取是空的就不掃。
-  Future<int> scan({
+  /// 一份清單最多翻幾頁（50 部一頁，5000 部），防止極端頻道翻到失控；
+  /// 翻不到的那段留著沒標，下次再補。
+  static const _maxPages = 100;
+
+  /// 補一個頻道，回傳實際標了幾部。[uploadsId] 是頻道的上傳清單 id
+  /// （`UU…`），不是 `UU` 開頭的就不補（回傳 0）。
+  Future<int> tagUntagged({
     required String channelId,
     required String uploadsId,
-    DateTime? target,
   }) async {
     if (!uploadsId.startsWith('UU')) return 0;
-    var until = target;
-    if (until == null) {
-      final cached = await _cache.load(channelId);
-      if (cached.isEmpty) return 0;
-      until = cached
-          .map((v) => v.publishedAt)
-          .reduce((a, b) => a.isBefore(b) ? a : b);
-    }
+    final cached = await _cache.load(channelId);
+    final needShort = cached.where((v) => v.isShort == null).toList();
+    final needLive = cached.where((v) => v.isLive == null).toList();
+    if (needShort.isEmpty && needLive.isEmpty) return 0;
     final rest = uploadsId.substring(2);
-    final shorts = await _scanList(channelId, 'shorts', 'UUSH$rest', until);
-    final live = await _scanList(channelId, 'live', 'UULV$rest', until);
+    final shorts = needShort.isEmpty
+        ? null
+        : await _listUntil('UUSH$rest', _oldest(needShort));
+    final live = needLive.isEmpty
+        ? null
+        : await _listUntil('UULV$rest', _oldest(needLive));
     return _cache.retag(channelId, (v) {
       var r = v;
-      if (shorts.videoIds.contains(v.videoId)) {
-        if (r.isShort != true) r = r.withShort(true);
-      } else if (shorts.covers(v.publishedAt) && r.isShort != false) {
-        r = r.withShort(false);
+      if (shorts != null && r.isShort == null) {
+        if (shorts.ids.contains(v.videoId)) {
+          r = r.withShort(true);
+        } else if (shorts.covers(v.publishedAt)) {
+          r = r.withShort(false);
+        }
       }
-      if (live.videoIds.contains(v.videoId)) {
-        if (r.isLive != true) r = r.withLive(true);
-      } else if (live.covers(v.publishedAt) && r.isLive != false) {
-        r = r.withLive(false);
+      if (live != null && r.isLive == null) {
+        if (live.ids.contains(v.videoId)) {
+          r = r.withLive(true);
+        } else if (live.covers(v.publishedAt)) {
+          r = r.withLive(false);
+        }
       }
       return r;
     });
   }
 
-  /// 翻一份特殊清單，回傳更新後的掃描進度：
-  /// 1. 掃過的話，先從最新的往下翻，碰到已經掃過的影片就停（補新發的）。
-  /// 2. 還沒翻到 [target] 那天、清單也還沒到底，就從上次停的地方往更早
-  ///    翻，翻到比 [target] 更早為止。
-  /// 頻道沒有這種清單時 YouTube 回 404，當成「整份翻完、一部都沒有」。
-  Future<YtTypeScan> _scanList(
-    String channelId,
-    String kind,
-    String playlistId,
-    DateTime target,
-  ) async {
-    final scan = await _types.load(channelId, kind);
-    final ids = {...scan.videoIds};
-    var oldest = scan.oldest;
-    var token = scan.nextToken;
-    var complete = scan.complete;
+  static DateTime _oldest(List<YoutubeVideo> videos) =>
+      videos.map((v) => v.publishedAt).reduce((a, b) => a.isBefore(b) ? a : b);
+
+  /// 從最新的往下翻 [playlistId]，翻到比 [until] 更早（或清單到底）為止。
+  /// 頻道沒有這種清單時 YouTube 回 404，當成「一部都沒有」。
+  Future<_ListResult> _listUntil(String playlistId, DateTime until) async {
+    final ids = <String>{};
+    DateTime? oldest;
+    String? token;
     try {
-      if (!scan.isFresh) {
-        String? topToken;
-        for (var i = 0; i < 10; i++) {
-          final page = await _service.fetchVideosPage(
-            playlistId,
-            pageToken: topToken,
-            maxResults: 50,
-          );
-          final hitKnown = page.videos.any((v) => ids.contains(v.videoId));
-          ids.addAll(page.videos.map((v) => v.videoId));
-          topToken = page.nextPageToken;
-          if (hitKnown || topToken == null) break;
-        }
-      }
-      for (
-        var i = 0;
-        i < 40 && !complete && (oldest == null || oldest.isAfter(target));
-        i++
-      ) {
+      for (var i = 0; i < _maxPages; i++) {
         final page = await _service.fetchVideosPage(
           playlistId,
           pageToken: token,
@@ -107,33 +87,26 @@ class YtVideoTypeScanner {
           }
         }
         token = page.nextPageToken;
-        complete = token == null;
+        if (token == null) return _ListResult(ids, oldest, complete: true);
+        if (oldest != null && !oldest.isAfter(until)) break;
       }
     } on YoutubeApiException catch (e) {
-      if (e.status != 404) {
-        // 配額用完、網路斷了：翻到一半的進度先存起來，下次接著翻。
-        await _types.save(
-          channelId,
-          kind,
-          YtTypeScan(
-            videoIds: ids,
-            oldest: oldest,
-            nextToken: token,
-            complete: complete,
-          ),
-        );
-        rethrow;
-      }
-      complete = true;
-      token = null;
+      if (e.status != 404) rethrow;
+      return _ListResult(ids, oldest, complete: true);
     }
-    final next = YtTypeScan(
-      videoIds: ids,
-      oldest: oldest,
-      nextToken: token,
-      complete: complete,
-    );
-    await _types.save(channelId, kind, next);
-    return next;
+    return _ListResult(ids, oldest, complete: false);
   }
+}
+
+class _ListResult {
+  _ListResult(this.ids, this.oldest, {required this.complete});
+
+  final Set<String> ids;
+  final DateTime? oldest;
+  final bool complete;
+
+  /// 這部影片的發布時間有被翻到的範圍蓋到：不在 [ids] 裡就確定「不是
+  /// 這一類」；範圍外的還不知道，留著沒標。
+  bool covers(DateTime publishedAt) =>
+      complete || (oldest != null && !publishedAt.isBefore(oldest!));
 }

@@ -12,12 +12,12 @@ YoutubeVideo _v(String id, int day) => YoutubeVideo(
 );
 
 /// 假的 API：每個清單一份新到舊的影片，一頁 [pageSize] 部，記下被叫了
-/// 幾次，用來確認有沒有亂翻頁。
+/// 幾次，用來確認有沒有多打。不在 [lists] 裡的清單回 404。
 class _FakeApi extends YoutubeApiService {
-  _FakeApi(this.lists, {this.pageSize = 2}) : super('key');
+  _FakeApi(this.lists) : super('key');
 
   final Map<String, List<YoutubeVideo>> lists;
-  final int pageSize;
+  final int pageSize = 2;
   int calls = 0;
 
   @override
@@ -39,28 +39,27 @@ class _FakeApi extends YoutubeApiService {
 }
 
 void main() {
-  test('補類型：Shorts 標 true、範圍內其他標 false，沒有直播清單（404）當成都不是直播', () async {
+  test('沒標的補上：在 Shorts 清單裡標 true、不在標 false，沒有直播清單（404）都不是直播', () async {
     final store = _MemoryStore();
     final cache = YtVideoCacheStore(store);
     await cache.upsertVideos('ch', [_v('a', 20), _v('s1', 18), _v('b', 15)]);
-    final api = _FakeApi({
-      'UUSHxyz': [_v('s1', 18), _v('s0', 10)],
-    });
 
-    final changed = await YtVideoTypeScanner(
-      api,
+    final tagged = await YtVideoTypeScanner(
+      _FakeApi({
+        'UUSHxyz': [_v('s1', 18), _v('s0', 10)],
+      }),
       store,
-    ).scan(channelId: 'ch', uploadsId: 'UUxyz');
+    ).tagUntagged(channelId: 'ch', uploadsId: 'UUxyz');
 
     final byId = {for (final v in await cache.load('ch')) v.videoId: v};
-    expect(changed, 3);
+    expect(tagged, 3);
     expect(byId['s1']!.isShort, isTrue);
     expect(byId['a']!.isShort, isFalse);
     expect(byId['b']!.isShort, isFalse);
     expect(byId['a']!.isLive, isFalse);
   });
 
-  test('只翻到快取最舊那部的日期就停，不把整份清單翻完', () async {
+  test('只翻到最舊那部沒標的影片的日期就停，不把整份清單翻完', () async {
     final store = _MemoryStore();
     await YtVideoCacheStore(store).upsertVideos('ch', [_v('a', 25)]);
     final api = _FakeApi({
@@ -71,33 +70,45 @@ void main() {
     await YtVideoTypeScanner(
       api,
       store,
-    ).scan(channelId: 'ch', uploadsId: 'UUxyz');
+    ).tagUntagged(channelId: 'ch', uploadsId: 'UUxyz');
 
     // Shorts 翻到 9/25 那天就停：30..29、28..27、26..25 共 3 頁，
     // 直播清單是空的 1 頁。
     expect(api.calls, 4);
   });
 
-  test('第二次掃：從最新翻到碰到掃過的就停，只多 1 頁', () async {
+  test('全部都標過了就完全不打 API；之後只剩新影片沒標，只翻最新 1 頁', () async {
     final store = _MemoryStore();
+    final cache = YtVideoCacheStore(store);
+    await cache.upsertVideos('ch', [_v('old', 1)]);
+    final lists = {
+      'UUSHxyz': [_v('s9', 9), _v('s5', 5), _v('s1', 1)],
+      'UULVxyz': <YoutubeVideo>[],
+    };
     await YtVideoTypeScanner(
-      _FakeApi({
-        'UUSHxyz': [_v('s1', 18)],
-        'UULVxyz': const [],
-      }),
+      _FakeApi(lists),
       store,
-    ).scan(channelId: 'ch', uploadsId: 'UUxyz', target: DateTime(2026, 9, 1));
+    ).tagUntagged(channelId: 'ch', uploadsId: 'UUxyz');
 
+    final idle = _FakeApi(lists);
+    await YtVideoTypeScanner(
+      idle,
+      store,
+    ).tagUntagged(channelId: 'ch', uploadsId: 'UUxyz');
+    expect(idle.calls, 0);
+
+    await cache.upsertVideos('ch', [_v('new', 28)]);
     final api = _FakeApi({
-      'UUSHxyz': [_v('s2', 22), _v('s1', 18)],
+      'UUSHxyz': [_v('s27', 27), ...lists['UUSHxyz']!],
       'UULVxyz': const [],
     });
     await YtVideoTypeScanner(
       api,
       store,
-    ).scan(channelId: 'ch', uploadsId: 'UUxyz', target: DateTime(2026, 9, 1));
-
+    ).tagUntagged(channelId: 'ch', uploadsId: 'UUxyz');
     expect(api.calls, 2); // Shorts 1 頁＋直播 1 頁
+    final byId = {for (final v in await cache.load('ch')) v.videoId: v};
+    expect(byId['new']!.isShort, isFalse);
   });
 }
 
