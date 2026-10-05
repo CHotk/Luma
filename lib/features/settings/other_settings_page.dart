@@ -7,6 +7,7 @@ import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
 import '../../data/repositories/diary_password_store.dart';
+import '../../data/repositories/jp_home_ring_store.dart';
 import '../../data/repositories/yt_embed_player_style_store.dart';
 import '../../data/repositories/yt_stats_refresh_setting_store.dart';
 import '../../data/repositories/yt_video_open_mode_store.dart';
@@ -36,6 +37,10 @@ class OtherSettingsPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isYtTracker = fromLocation?.startsWith('/yt-tracker') ?? false;
     final isDiary = fromLocation?.startsWith('/diary') ?? false;
+    final isJp = const [
+      '/jp',
+      '/kana',
+    ].any((p) => fromLocation?.startsWith(p) ?? false);
     // 訂閱人數更新頻率調了但還沒按儲存，按上一頁要提醒（2026-09-29
     // 使用者要求），不然改動白調了。只有在 YT 設定頁才需要看這個旗標。
     final hasUnsaved = isYtTracker && ref.watch(ytStatsRefreshDirtyProvider);
@@ -72,6 +77,8 @@ class OtherSettingsPage extends ConsumerWidget {
                         ? const _YtTrackerSettings()
                         : isDiary
                         ? const _DiarySettings()
+                        : isJp
+                        ? const _JpSettings()
                         : Center(
                             child: Text('這個功能還沒有設定項目', style: AppText.bodyDim),
                           ),
@@ -82,6 +89,60 @@ class OtherSettingsPage extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// 日文的設定（2026-10-05 使用者要求：首頁「今天進度」那一圈預設隱藏，
+/// 在這裡打開）。
+class _JpSettings extends ConsumerWidget {
+  const _JpSettings();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final showRing = ref.watch(jpShowProgressRingProvider);
+    return ListView(
+      children: [
+        Text('日文', style: AppText.note),
+        const SizedBox(height: Gap.sm),
+        GlassCard(
+          child: Row(
+            children: [
+              const Icon(
+                Icons.donut_large_rounded,
+                size: 18,
+                color: AppColors.ink2,
+              ),
+              const SizedBox(width: Gap.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '首頁顯示今天進度圈',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.ink,
+                      ),
+                    ),
+                    Text('今天練了幾題／幾分鐘的那一圈', style: AppText.note),
+                  ],
+                ),
+              ),
+              Switch(
+                value: showRing,
+                onChanged: (v) async {
+                  ref.read(jpShowProgressRingProvider.notifier).state = v;
+                  await JpHomeRingStore(
+                    ref.read(keyValueStoreProvider),
+                  ).save(v);
+                },
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

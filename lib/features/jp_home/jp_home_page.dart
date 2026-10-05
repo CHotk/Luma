@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
@@ -67,13 +68,15 @@ class JpHomePage extends ConsumerWidget {
   }
 }
 
-class _Body extends StatelessWidget {
+class _Body extends ConsumerWidget {
   const _Body({required this.state});
 
   final JpHomeState state;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // 「今天進度」那一圈預設隱藏，設定裡打開才顯示（2026-10-05 使用者要求）。
+    final showRing = ref.watch(jpShowProgressRingProvider);
     final target = state.config.dailyKanaTarget;
     final done = state.todayCount >= target;
 
@@ -102,30 +105,31 @@ class _Body extends StatelessWidget {
                   GlassCard(child: _MonthlyCalendarCard(state: state)),
                   const SizedBox(height: Gap.md),
 
-                  GlassCard(
-                    padding: const EdgeInsets.fromLTRB(10, 16, 10, 14),
-                    child: Column(
-                      children: [
-                        RingProgress(
-                          done: state.todayCount,
-                          total: target,
-                          centerLabel: '${state.todayCount}/$target',
-                          bottomLabel:
-                              '${state.todayMinutes} / ${state.config.dailyMinutesTarget} 分',
-                        ),
-                        const SizedBox(height: Gap.sm),
-                        Text(
-                          done
-                              ? '今天的份量做完了'
-                              : Encouragement.forDate(DateTime.now()),
-                          textAlign: TextAlign.center,
-                          style: AppText.bodyDim,
-                        ),
-                      ],
+                  if (showRing) ...[
+                    GlassCard(
+                      padding: const EdgeInsets.fromLTRB(10, 16, 10, 14),
+                      child: Column(
+                        children: [
+                          RingProgress(
+                            done: state.todayCount,
+                            total: target,
+                            centerLabel: '${state.todayCount}/$target',
+                            bottomLabel:
+                                '${state.todayMinutes} / ${state.config.dailyMinutesTarget} 分',
+                          ),
+                          const SizedBox(height: Gap.sm),
+                          Text(
+                            done
+                                ? '今天的份量做完了'
+                                : Encouragement.forDate(DateTime.now()),
+                            textAlign: TextAlign.center,
+                            style: AppText.bodyDim,
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-
-                  const SizedBox(height: Gap.md),
+                    const SizedBox(height: Gap.md),
+                  ],
                   const GlassCard(child: _KanaPreview()),
 
                   const SizedBox(height: Gap.md),

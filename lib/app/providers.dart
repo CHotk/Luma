@@ -8,6 +8,7 @@ import '../data/repositories/diary_repository.dart';
 import '../data/repositories/error_log_repository.dart';
 import '../data/repositories/fitness_repository.dart';
 import '../data/repositories/history_repository.dart';
+import '../data/repositories/jp_home_ring_store.dart';
 import '../data/repositories/kana_exam_repository.dart';
 import '../data/repositories/kana_practice_repository.dart';
 import '../data/repositories/settings_repository.dart';
@@ -158,6 +159,12 @@ final ytStatsRefreshDirtyProvider = StateProvider<bool>((ref) => false);
 /// override 進來）。
 final ytVideoOpenModeProvider = StateProvider<YtVideoOpenMode>(
   (ref) => YtVideoOpenModeStore.defaultMode,
+);
+
+/// 日文首頁要不要顯示「今天進度」那一圈（2026-10-05 使用者要求：預設
+/// 隱藏，設定裡可以打開）。
+final jpShowProgressRingProvider = StateProvider<bool>(
+  (ref) => JpHomeRingStore.defaultShow,
 );
 
 /// 內嵌播放器要用下滑收合式還是可拖曳/可收合浮動視窗，使用者在設定頁調

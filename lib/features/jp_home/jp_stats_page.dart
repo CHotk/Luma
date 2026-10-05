@@ -52,21 +52,24 @@ class JpStatsPage extends ConsumerWidget {
                         homeAsync.when(
                           loading: () => const _LoadingCard(),
                           error: (e, _) => _ErrorCard(message: '$e'),
-                          data: (state) => Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              _SummarySection(state: state),
-                              const SizedBox(height: Gap.md),
-                              _PracticeSection(state: state),
-                            ],
-                          ),
+                          data: (state) => _SummarySection(state: state),
                         ),
                         const SizedBox(height: Gap.md),
-                        examEntriesAsync.when(
-                          loading: () => const _LoadingCard(),
-                          error: (e, _) => _ErrorCard(message: '$e'),
-                          data: (entries) => _ExamSection(entries: entries),
-                        ),
+                        // 手寫練習、手寫考試合併成一張「練習狀況」，卡片裡
+                        // 再分練習／考試兩段（2026-10-05 使用者要求）。
+                        switch ((homeAsync, examEntriesAsync)) {
+                          (
+                            AsyncData(value: final state),
+                            AsyncData(value: final entries),
+                          ) =>
+                            _ProgressSection(state: state, exams: entries),
+                          (AsyncError(:final error), _) ||
+                          (
+                            _,
+                            AsyncError(:final error),
+                          ) => _ErrorCard(message: '$error'),
+                          _ => const _LoadingCard(),
+                        },
                         const SizedBox(height: Gap.lg),
                       ],
                     ),
@@ -91,7 +94,8 @@ final _examEntriesProvider = FutureProvider.autoDispose<List<KanaExamEntry>>((
 });
 
 /// 學習摘要：手寫練習＋考試加起來總共練過幾題，加上開始學習的日期、
-/// 已經幾天、連續幾天（2026-10-05 使用者要求：原本「總共練過」跟「學習
+/// 已經幾天（從第一天直接算到今天，沒練的日子也算）、有練的天數（只算
+/// 真的有練習或考試的日子，2026-10-05 使用者要求兩種都要）、連續幾天（2026-10-05 使用者要求：原本「總共練過」跟「學習
 /// 天數」兩張卡合併成一張；天數是整個日文學習的，練習、考試都算）。
 class _SummarySection extends StatelessWidget {
   const _SummarySection({required this.state});
@@ -130,13 +134,20 @@ class _SummarySection extends StatelessWidget {
             const SizedBox(height: Gap.sm),
             const Divider(height: 1, color: AppColors.glassEdge),
             const SizedBox(height: Gap.sm),
+            Center(
+              child: Text(
+                '${start.year}/${start.month}/${start.day} 開始學習',
+                style: AppText.note,
+              ),
+            ),
+            const SizedBox(height: Gap.xs),
             Row(
               children: [
-                _StatTile(
-                  label: '開始學習',
-                  value: '${start.year}/${start.month}/${start.day}',
-                ),
                 _StatTile(label: '已經', value: '${state.daysSinceStart} 天'),
+                _StatTile(
+                  label: '有練的天數',
+                  value: '${state.allPracticedDates.length} 天',
+                ),
                 _StatTile(label: '連續', value: '${state.streakDays} 天'),
               ],
             ),
@@ -147,19 +158,33 @@ class _SummarySection extends StatelessWidget {
   }
 }
 
-class _PracticeSection extends StatelessWidget {
-  const _PracticeSection({required this.state});
+/// 練習狀況：原本分開的「手寫練習」「手寫考試」兩張卡合併成一張，卡片裡
+/// 用小標題分「練習」「考試」兩段（2026-10-05 使用者要求）。
+class _ProgressSection extends StatelessWidget {
+  const _ProgressSection({required this.state, required this.exams});
 
   final JpHomeState state;
+  final List<KanaExamEntry> exams;
 
   @override
   Widget build(BuildContext context) {
+    final roundCount = exams.map((e) => e.roundId).toSet().length;
+    final kanaExams = exams.where((e) => e.examType == 'kana').toList();
+    final vocabExams = exams.where((e) => e.examType == 'vocab').toList();
+
+    String accuracyOf(List<KanaExamEntry> list) {
+      if (list.isEmpty) return '—';
+      final correct = list.where((e) => e.isCorrect).length;
+      return '${(correct / list.length * 100).round()}%';
+    }
+
     return GlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const PanelLabel('手寫練習'),
+          const PanelLabel('練習狀況'),
           const SizedBox(height: Gap.sm),
+          const _SubLabel('練習'),
           Row(
             children: [
               _StatTile(label: '總共練習', value: '${state.totalPracticeCount} 字'),
@@ -187,77 +212,55 @@ class _PracticeSection extends StatelessWidget {
               ),
             ],
           ),
+          const SizedBox(height: Gap.md),
+          const Divider(height: 1, color: AppColors.glassEdge),
+          const SizedBox(height: Gap.sm),
+          const _SubLabel('考試'),
+          if (exams.isEmpty)
+            Text('還沒考過，去五十音考試練練看', style: AppText.bodyDim)
+          else ...[
+            Row(
+              children: [
+                _StatTile(label: '考試輪次', value: '$roundCount'),
+                _StatTile(label: '總題數', value: '${exams.length}'),
+                _StatTile(
+                  label: '整體正確率',
+                  value: accuracyOf(exams),
+                  color: AppColors.jpAccent,
+                ),
+              ],
+            ),
+            const SizedBox(height: Gap.sm),
+            Row(
+              children: [
+                _StatTile(label: '50 音正確率', value: accuracyOf(kanaExams)),
+                _StatTile(label: '詞彙正確率', value: accuracyOf(vocabExams)),
+              ],
+            ),
+          ],
         ],
       ),
     );
   }
 }
 
-class _ExamSection extends StatelessWidget {
-  const _ExamSection({required this.entries});
+/// 卡片裡分段用的小標題。
+class _SubLabel extends StatelessWidget {
+  const _SubLabel(this.text);
 
-  final List<KanaExamEntry> entries;
+  final String text;
 
   @override
   Widget build(BuildContext context) {
-    if (entries.isEmpty) {
-      return GlassCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const PanelLabel('手寫考試'),
-            const SizedBox(height: Gap.sm),
-            Text('還沒考過，去五十音考試練練看', style: AppText.bodyDim),
-          ],
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Gap.xs),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 12.5,
+          fontWeight: FontWeight.w700,
+          color: AppColors.jpAccent,
         ),
-      );
-    }
-
-    final roundCount = entries.map((e) => e.roundId).toSet().length;
-    final kanaEntries = entries.where((e) => e.examType == 'kana').toList();
-    final vocabEntries = entries.where((e) => e.examType == 'vocab').toList();
-
-    int accuracyOf(List<KanaExamEntry> list) {
-      if (list.isEmpty) return 0;
-      final correct = list.where((e) => e.isCorrect).length;
-      return (correct / list.length * 100).round();
-    }
-
-    return GlassCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const PanelLabel('手寫考試'),
-          const SizedBox(height: Gap.sm),
-          Row(
-            children: [
-              _StatTile(label: '考試輪次', value: '$roundCount'),
-              _StatTile(label: '總題數', value: '${entries.length}'),
-              _StatTile(
-                label: '整體正確率',
-                value: '${accuracyOf(entries)}%',
-                color: AppColors.jpAccent,
-              ),
-            ],
-          ),
-          const SizedBox(height: Gap.sm),
-          Row(
-            children: [
-              _StatTile(
-                label: '50 音正確率',
-                value: kanaEntries.isEmpty
-                    ? '—'
-                    : '${accuracyOf(kanaEntries)}%',
-              ),
-              _StatTile(
-                label: '詞彙正確率',
-                value: vocabEntries.isEmpty
-                    ? '—'
-                    : '${accuracyOf(vocabEntries)}%',
-              ),
-            ],
-          ),
-        ],
       ),
     );
   }
