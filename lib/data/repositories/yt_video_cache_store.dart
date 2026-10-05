@@ -68,23 +68,35 @@ class YtVideoCacheStore {
     return raw == null ? null : DateTime.tryParse(raw);
   }
 
-  static String _resumeKeyFor(String channelId) =>
-      'yt_tracker.video_resume.$channelId.v1';
+  /// [kind] 是 null 時是「全部」（上傳清單）那份位置；類型篩選（一般影片
+  /// ／Shorts／直播）各自翻自己的清單，位置對不上「全部」，各存一份
+  /// （2026-10-05 類型篩選改成跟「全部」一樣先用快取、快取用完才從記下
+  /// 的位置接著打 API）。類型那幾份只存這台裝置，不跟著同步。
+  static String _resumeKeyFor(String channelId, [String? kind]) => kind == null
+      ? 'yt_tracker.video_resume.$channelId.v1'
+      : 'yt_tracker.video_resume.$channelId.$kind.v1';
 
-  Future<YtResume?> loadResume(String channelId) async {
-    final raw = await _store.read(_resumeKeyFor(channelId));
+  Future<YtResume?> loadResume(String channelId, {String? kind}) async {
+    final raw = await _store.read(_resumeKeyFor(channelId, kind));
     if (raw == null) return null;
     return YtResume.fromJson(jsonDecode(raw) as Map<String, dynamic>);
   }
 
   /// 只在新位置比已存的「更深」（或剛好翻到底）才更新。
-  Future<void> saveResumeIfDeeper(String channelId, YtResume next) async {
-    final current = await loadResume(channelId);
+  Future<void> saveResumeIfDeeper(
+    String channelId,
+    YtResume next, {
+    String? kind,
+  }) async {
+    final current = await loadResume(channelId, kind: kind);
     if (current != null) {
       if (current.end) return;
       if (!next.end && next.offset <= current.offset) return;
     }
-    await _store.write(_resumeKeyFor(channelId), jsonEncode(next.toJson()));
+    await _store.write(
+      _resumeKeyFor(channelId, kind),
+      jsonEncode(next.toJson()),
+    );
   }
 
   /// 把新抓到的影片併進快取（不動「上次對過 YouTube 的時間」）。已經有

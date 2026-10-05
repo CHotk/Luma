@@ -96,9 +96,9 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
 
   // 哪些 videoId 這次是從本機快取讀到的、不是真的打 API 抓來的
   // （2026-09-30 使用者要求：想在畫面上看出哪些是秒出來、不用配額的）。
-  // 只有「全部」清單的 `_loadMoreVideos` 會往這裡加——那邊往下滑載入
-  // 更多會先查本機快取（見那個方法的說明），類型篩選的 `_loadTypedVideos`
-  // 目前每次都是真的打 API，不會有快取來源。
+  // 「全部」的 `_loadMoreVideos` 跟類型篩選的 `_openTypedFilter`／
+  // `_loadTypedVideos` 都會往這裡加——兩邊都是先查本機快取、快取用完才
+  // 打 API（類型篩選 2026-10-05 起也是）。
   final Set<String> _cachedVideoIds = {};
 
   /// 第一頁還在向 YouTube 拿的時候，先顯示的本機快取影片（2026-10-02
@@ -112,11 +112,12 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
   List<YoutubeVideo> _cachedChannelVideos = const [];
 
   // 全部／一般影片／Shorts／直播的類型篩選（2026-09-30 使用者要求）。
-  // 選「全部」以外的類型時，直接翻那個類型自己的特殊清單（見
-  // `_loadTypedVideos` 的說明），是一份跟「全部」完全分開的分頁狀態
-  // ——自己的清單游標（`_typedNextPageToken`）、自己的到底旗標，不跟
-  // `_firstPage`／`_moreVideos`／那份 resume 共用，兩邊翻頁位置是對應
-  // 不同清單，混在一起會對不上。
+  // 選「全部」以外的類型時，先用快取裡標好這個類型的影片，快取用完才翻
+  // 那個類型自己的特殊清單（見 `_openTypedFilter`／`_loadTypedVideos`），
+  // 是一份跟「全部」完全分開的分頁狀態——自己的到底旗標、自己那份
+  // resume（`YtVideoCacheStore.loadResume` 的 `kind`），不跟 `_firstPage`／
+  // `_moreVideos`／「全部」的 resume 共用，兩邊翻頁位置是對應不同清單，
+  // 混在一起會對不上。
   _TypeFilter _typeFilter = _TypeFilter.all;
 
   // 「篩選完可見清單太短就主動幫忙多抓一批」的保險（見下面
@@ -130,7 +131,6 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
   bool _typeScanRunning = false;
   String? _typeScannedChannelId;
   DateTime? _typeScannedAt;
-  String? _typedNextPageToken;
   bool _typedReachedEnd = false;
   bool _typedLoading = false;
   String? _typedError;
@@ -426,11 +426,11 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     if (_typeFilter != _TypeFilter.all) {
       setState(() {
         _typedVideos = const [];
-        _typedNextPageToken = null;
         _typedReachedEnd = false;
+        _typedLoading = false;
         _typedError = null;
       });
-      _loadTypedVideos();
+      _openTypedFilter();
     }
   }
 
@@ -484,12 +484,11 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     setState(() {
       _typeFilter = next;
       _typedVideos = const [];
-      _typedNextPageToken = null;
       _typedReachedEnd = false;
       _typedLoading = false;
       _typedError = null;
     });
-    if (next != _TypeFilter.all) _loadTypedVideos();
+    if (next != _TypeFilter.all) _openTypedFilter();
   }
 
   String? _typedPlaylistId() {
@@ -504,70 +503,210 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     };
   }
 
-  Future<void> _loadTypedVideos() async {
-    final apiKey = ref.read(ytApiKeyProvider);
+  /// 快取裡這部影片是不是 [type] 這個類型（看類型標籤，還沒標的不算）。
+  bool _isOfType(YoutubeVideo v, _TypeFilter type) => switch (type) {
+    _TypeFilter.all => true,
+    _TypeFilter.shorts => v.isShort == true,
+    _TypeFilter.live => v.isLive == true,
+    _TypeFilter.regular => v.isShort == false && v.isLive == false,
+  };
+
+  /// 從類型清單抓到的影片，標上它所屬的類型。
+  YoutubeVideo _tagAs(YoutubeVideo v, _TypeFilter type) => switch (type) {
+    _TypeFilter.shorts => v.withShort(true).withLive(false),
+    _TypeFilter.live => v.withShort(false).withLive(true),
+    _TypeFilter.regular => v.withShort(false).withLive(false),
+    _TypeFilter.all => v,
+  };
+
+  /// 打開某個類型（2026-10-05 使用者要求：跟「全部」一樣先用快取，再檢查
+  /// 有沒有新影片補上去，不要每次都整頁重打 API）：
+  /// 1. 先把快取裡已經標成這個類型的影片拿出來顯示，不打 API。
+  /// 2. 從這個類型清單最新的那頁往下翻，碰到快取已經有的影片就停，新的
+  ///    補時長、存快取、插進畫面。快取裡這類型一部都沒有（第一次看）
+  ///    就只翻 1 頁當第一頁，不一路翻到底。
+  /// 往下捲要更早的交給 [_loadTypedVideos]。
+  Future<void> _openTypedFilter() async {
+    final type = _typeFilter;
+    final channelId = _loadMoreChannelId;
     final playlistId = _typedPlaylistId();
-    if (_typedLoading ||
-        _typedError != null ||
-        _typedReachedEnd ||
+    final apiKey = ref.read(ytApiKeyProvider);
+    if (channelId == null ||
         playlistId == null ||
         apiKey == null ||
         apiKey.isEmpty) {
       return;
     }
     setState(() => _typedLoading = true);
+    final cache = YtVideoCacheStore(ref.read(keyValueStoreProvider));
+    final cached = await cache.load(channelId);
+    final ofType = cached.where((v) => _isOfType(v, type)).toList()
+      ..sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
+    final fromCache = ofType.take(_loadMoreBatch).toList();
+    if (!mounted || _typeFilter != type) return;
+    setState(() {
+      _typedVideos = fromCache;
+      _cachedVideoIds.addAll(fromCache.map((v) => v.videoId));
+    });
+
     try {
       final service = YoutubeApiService(apiKey);
-      List<YoutubeVideo> page;
-      String? nextToken;
+      final known = {for (final v in cached) v.videoId};
+      final fresh = <YoutubeVideo>[];
+      String? token;
+      var offset = 0;
+      var end = false;
+      final maxPages = ofType.isEmpty ? 1 : 5;
       try {
-        final result = await service.fetchVideosPage(
-          playlistId,
-          pageToken: _typedNextPageToken,
-          maxResults: _loadMoreBatch,
-        );
-        page = result.videos;
-        nextToken = result.nextPageToken;
-      } on YoutubeApiException catch (e) {
-        // 404：這個頻道真的沒有這個類型（例如從沒開過直播），不是錯誤，
-        // 這次篩選就是 0 部。其他錯誤才是真的抓不到，設 _typedError 讓
-        // 畫面給重試按鈕。
-        if (e.status == 404) {
-          page = const [];
-          nextToken = null;
-        } else {
-          rethrow;
+        for (var i = 0; i < maxPages; i++) {
+          final page = await service.fetchVideosPage(
+            playlistId,
+            pageToken: token,
+            maxResults: _loadMoreBatch,
+          );
+          offset += page.videos.length;
+          final newOnes = [
+            for (final v in page.videos)
+              if (!known.contains(v.videoId)) _tagAs(v, type),
+          ];
+          fresh.addAll(await _withDurations(service, newOnes));
+          token = page.nextPageToken;
+          end = token == null;
+          if (end || newOnes.length < page.videos.length) break;
         }
+      } on YoutubeApiException catch (e) {
+        // 404：這個頻道真的沒有這個類型（例如從沒開過直播），不是錯誤。
+        if (e.status != 404) rethrow;
+        end = true;
       }
-      final tagged = switch (_typeFilter) {
-        _TypeFilter.shorts => [
-          for (final v in page) v.withShort(true).withLive(false),
-        ],
-        _TypeFilter.live => [
-          for (final v in page) v.withShort(false).withLive(true),
-        ],
-        _TypeFilter.regular => [
-          for (final v in page) v.withShort(false).withLive(false),
-        ],
-        _TypeFilter.all => page,
-      };
-      final withDurations = await _withDurations(service, tagged);
-      // 這些也是這個頻道的真實影片，存進跟「全部」共用的同一份快取
-      // （用 videoId 去重，不會蓋掉其他來源已經有的資料），之後「全部」
-      // 清單翻頁翻到同一部時，也能直接拿到已經分類好的 Shorts／直播
-      // 標籤，不用再猜。
-      final cache = YtVideoCacheStore(ref.read(keyValueStoreProvider));
-      final channelId = _loadMoreChannelId;
-      if (channelId != null) await cache.upsertVideos(channelId, withDurations);
-      if (!mounted) return;
+      if (fresh.isNotEmpty) await cache.upsertVideos(channelId, fresh);
+      // 第一次看這個類型（快取一部都沒有）時，剛翻的這頁就是起點，記下
+      // 位置給往下捲接著翻；整份清單都翻完了也記下來，之後不用再翻。
+      if (ofType.isEmpty || end) {
+        await cache.saveResumeIfDeeper(
+          channelId,
+          YtResume(token: token, offset: offset, end: end),
+          kind: type.name,
+        );
+      }
+      if (!mounted || _typeFilter != type) return;
       setState(() {
-        _typedVideos = [..._typedVideos, ...withDurations];
-        _typedNextPageToken = nextToken;
-        _typedReachedEnd = nextToken == null;
+        _typedVideos =
+            {
+                for (final v in [...fresh, ..._typedVideos]) v.videoId: v,
+              }.values.toList()
+              ..sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
+        _typedReachedEnd = end && ofType.length <= fromCache.length;
         _typedLoading = false;
       });
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || _typeFilter != type) return;
+      setState(() {
+        _typedLoading = false;
+        _typedError = '$e';
+      });
+    }
+  }
+
+  /// 類型篩選往下捲載入更早的影片，跟「全部」的 [_loadMoreVideos] 同一套：
+  /// 1. 先拿快取裡這個類型、比畫面上最舊那部更早的影片，不打 API。
+  /// 2. 快取用完才從記下的位置（這個類型自己那份 [YtResume]）接著翻這個
+  ///    類型的清單，快取已經有的跳過，最多連翻 5 頁找新的。
+  Future<void> _loadTypedVideos() async {
+    final type = _typeFilter;
+    final apiKey = ref.read(ytApiKeyProvider);
+    final playlistId = _typedPlaylistId();
+    final channelId = _loadMoreChannelId;
+    if (_typedLoading ||
+        _typedError != null ||
+        _typedReachedEnd ||
+        playlistId == null ||
+        channelId == null ||
+        apiKey == null ||
+        apiKey.isEmpty) {
+      return;
+    }
+    setState(() => _typedLoading = true);
+    try {
+      final cache = YtVideoCacheStore(ref.read(keyValueStoreProvider));
+      final shownIds = {for (final v in _typedVideos) v.videoId};
+      final oldestShown = _typedVideos.isEmpty
+          ? null
+          : _typedVideos
+                .map((v) => v.publishedAt)
+                .reduce((a, b) => a.isBefore(b) ? a : b);
+
+      // 1. 本機快取
+      final cached = await cache.load(channelId);
+      final older = [
+        for (final v in cached)
+          if (_isOfType(v, type) &&
+              !shownIds.contains(v.videoId) &&
+              (oldestShown == null || v.publishedAt.isBefore(oldestShown)))
+            v,
+      ]..sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
+      if (older.isNotEmpty) {
+        final batch = older.take(_loadMoreBatch).toList();
+        if (!mounted || _typeFilter != type) return;
+        setState(() {
+          _typedVideos = [..._typedVideos, ...batch];
+          _cachedVideoIds.addAll(batch.map((v) => v.videoId));
+          _typedLoading = false;
+        });
+        return;
+      }
+
+      // 2. 打 API，從這個類型記下的位置續抓
+      final resume = await cache.loadResume(channelId, kind: type.name);
+      if (resume != null && resume.end) {
+        if (!mounted || _typeFilter != type) return;
+        setState(() {
+          _typedReachedEnd = true;
+          _typedLoading = false;
+        });
+        return;
+      }
+      final service = YoutubeApiService(apiKey);
+      var token = resume?.token;
+      var offset = resume?.offset ?? 0;
+      var end = false;
+      final known = {...shownIds, for (final v in cached) v.videoId};
+      final fresh = <YoutubeVideo>[];
+      try {
+        for (var i = 0; i < 5 && fresh.isEmpty && !end; i++) {
+          final page = await service.fetchVideosPage(
+            playlistId,
+            pageToken: token,
+            maxResults: _loadMoreBatch,
+          );
+          offset += page.videos.length;
+          final newOnes = [
+            for (final v in page.videos)
+              if (!known.contains(v.videoId)) _tagAs(v, type),
+          ];
+          final withDurations = await _withDurations(service, newOnes);
+          await cache.upsertVideos(channelId, withDurations);
+          token = page.nextPageToken;
+          end = token == null;
+          await cache.saveResumeIfDeeper(
+            channelId,
+            YtResume(token: token, offset: offset, end: end),
+            kind: type.name,
+          );
+          fresh.addAll(withDurations);
+        }
+      } on YoutubeApiException catch (e) {
+        if (e.status != 404) rethrow;
+        end = true;
+      }
+      if (!mounted || _typeFilter != type) return;
+      setState(() {
+        _typedVideos = [..._typedVideos, ...fresh];
+        _typedReachedEnd = end && fresh.isEmpty;
+        _typedLoading = false;
+      });
+    } catch (e) {
+      if (!mounted || _typeFilter != type) return;
       setState(() {
         _typedLoading = false;
         _typedError = '$e';
@@ -1428,12 +1567,7 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     // 頻道整份本機快取＋這次新抓的（依影片 ID 去重）。選了特定類型時，
     // 快取裡翻類型清單時標過類型的影片也一起算（[YoutubeVideo.isShort]／
     // [YoutubeVideo.isLive]），還沒標過類型的分不出來，只能等之後翻到。
-    bool ofType(YoutubeVideo v) => switch (_typeFilter) {
-      _TypeFilter.all => true,
-      _TypeFilter.shorts => v.isShort == true,
-      _TypeFilter.live => v.isLive == true,
-      _TypeFilter.regular => v.isShort == false && v.isLive == false,
-    };
+    bool ofType(YoutubeVideo v) => _isOfType(v, _typeFilter);
     final loaded = {
       for (final v in [
         ..._cachedChannelVideos.where(ofType),

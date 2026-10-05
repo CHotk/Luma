@@ -32,6 +32,23 @@ void main() {
     expect(v.isLive, isFalse);
   });
 
+  test('「全部」跟每個類型各記各的翻頁位置，互不影響', () async {
+    final cache = YtVideoCacheStore(_MemoryStore());
+    await cache.saveResumeIfDeeper(
+      'ch',
+      const YtResume(token: 'all-2', offset: 100),
+    );
+    await cache.saveResumeIfDeeper(
+      'ch',
+      const YtResume(token: 'sh-1', offset: 50),
+      kind: 'shorts',
+    );
+
+    expect((await cache.loadResume('ch'))!.token, 'all-2');
+    expect((await cache.loadResume('ch', kind: 'shorts'))!.token, 'sh-1');
+    expect(await cache.loadResume('ch', kind: 'live'), isNull);
+  });
+
   test('雲端合併也會補類型標籤；已經有的標籤不會被蓋掉', () async {
     final cache = YtVideoCacheStore(_MemoryStore());
     await cache.upsertVideos('ch', [_video(isShort: true)]);
