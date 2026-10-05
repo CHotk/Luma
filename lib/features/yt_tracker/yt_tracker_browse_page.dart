@@ -16,6 +16,7 @@ import '../../domain/models/yt_subscriber_snapshot.dart';
 import '../../domain/models/yt_tracker.dart';
 import '../../shared/debug/app_log.dart';
 import '../../shared/widgets/ambient_background.dart';
+import '../../shared/widgets/app_notice.dart';
 import '../../shared/widgets/app_confirm_dialog.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
@@ -1137,7 +1138,31 @@ Future<bool> showAddYtChannelDialog(
   var nameTouched = false; // 使用者自己改過名稱就不要再蓋掉
   String? lastHandle;
   Timer? debounce;
+  // 已經有的頻道（含垃圾桶裡的），貼網址、抓到頻道 ID 時都拿來比對，
+  // 同一個頻道不能新增第二次（2026-10-05 使用者回報會重複新增）。
+  final existing = await ref
+      .read(ytTrackerRepositoryProvider)
+      .channelsForUpload();
+  String? duplicate; // 不是 null 就是重複的提示文字，「新增」鍵會停用
 
+  String? duplicateMessage({String youtubeChannelId = '', String url = ''}) {
+    final d = findDuplicateYtChannel(
+      existing,
+      youtubeChannelId: youtubeChannelId,
+      url: url,
+    );
+    if (d == null) return null;
+    if (d.deletedAt != null) {
+      return '「${d.name}」已經在垃圾桶裡，到垃圾桶還原就好';
+    }
+    final category = d.categoryId == null
+        ? '未分類'
+        : categories.where((c) => c.id == d.categoryId).firstOrNull?.name ??
+              '未分類';
+    return '這個頻道已經新增過了：「${d.name}」（$category）';
+  }
+
+  if (!context.mounted) return false;
   final saved = await showDialog<bool>(
     context: context,
     builder: (dialogContext) => StatefulBuilder(
@@ -1161,6 +1186,17 @@ Future<bool> showAddYtChannelDialog(
               apiKey,
             ).fetchChannelInfo(handle);
             if (lastHandle != handle) return; // 網址又改了，這筆過期
+            final dup = duplicateMessage(youtubeChannelId: result.channelId);
+            if (dup != null) {
+              setDialogState(() {
+                info = null;
+                fetching = false;
+                duplicate = dup;
+                status = dup;
+                statusIsError = true;
+              });
+              return;
+            }
             setDialogState(() {
               info = result;
               fetching = false;
@@ -1186,6 +1222,19 @@ Future<bool> showAddYtChannelDialog(
         void onUrlChanged(String value) {
           debounce?.cancel();
           final handle = YoutubeApiService.parseHandle(value);
+          // 網址本身就認得出是已經有的頻道，不用再花 API 額度去抓。
+          final dup = duplicateMessage(url: value);
+          if (dup != null) {
+            lastHandle = handle;
+            setDialogState(() {
+              info = null;
+              duplicate = dup;
+              status = dup;
+              statusIsError = true;
+            });
+            return;
+          }
+          duplicate = null;
           if (handle == null) {
             lastHandle = null;
             setDialogState(() {
@@ -1375,7 +1424,7 @@ Future<bool> showAddYtChannelDialog(
               child: const Text('取消'),
             ),
             FilledButton(
-              onPressed: fetching
+              onPressed: fetching || duplicate != null
                   ? null
                   : () => Navigator.pop(dialogContext, true),
               child: const Text('新增'),
@@ -1389,6 +1438,16 @@ Future<bool> showAddYtChannelDialog(
   final name = nameController.text.trim();
   if (saved != true || name.isEmpty) return false;
   final fetched = info;
+  // 送出前再比一次：沒有 API 金鑰時只能靠網址比，這裡把手動填的情況也
+  // 擋下來。
+  final lateDup = duplicateMessage(
+    youtubeChannelId: fetched?.channelId ?? '',
+    url: urlController.text,
+  );
+  if (lateDup != null) {
+    if (context.mounted) showAppNotice(context, lateDup, isError: true);
+    return false;
+  }
   await ref
       .read(ytTrackerRepositoryProvider)
       .addChannel(

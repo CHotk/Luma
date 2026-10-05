@@ -368,3 +368,45 @@ const Object _keep = Object();
 
 DateTime? _parseTime(Object? raw) =>
     raw == null ? null : DateTime.parse(raw as String);
+
+/// 從頻道網址取出「認得出是同一個頻道」的代號：`@帳號`（不分大小寫）或
+/// `UC…` 頻道 ID；網址看不出來就回傳 null。中文帳號在網址裡是 `%E5…`
+/// 這種編碼，先解碼再比，同一個頻道貼編碼版跟中文版才會被當成同一個。
+String? ytChannelUrlKey(String url) {
+  var text = url.trim();
+  if (text.isEmpty) return null;
+  try {
+    text = Uri.decodeFull(text);
+  } catch (_) {
+    // 網址裡有不成對的 % 之類，就照原字串比。
+  }
+  final id = RegExp(r'/channel/(UC[\w\-]+)').firstMatch(text)?.group(1);
+  if (id != null) return id;
+  final handle = RegExp(r'@([^/?#\s]+)').firstMatch(text)?.group(1);
+  return handle == null ? null : '@${handle.toLowerCase()}';
+}
+
+/// 新增頻道前的去重複檢查（2026-10-05 使用者回報：同一個頻道可以被新增
+/// 兩次以上）。[youtubeChannelId]（API 抓到的 `UC…`）或網址代號
+/// （[ytChannelUrlKey]）任一個對上就算同一個頻道。[channels] 要包含已刪除
+/// （在垃圾桶）的，呼叫端看 `deletedAt` 決定要提示「已經有了」還是「在
+/// 垃圾桶裡」。
+YtChannel? findDuplicateYtChannel(
+  Iterable<YtChannel> channels, {
+  String youtubeChannelId = '',
+  String url = '',
+}) {
+  final urlKey = ytChannelUrlKey(url);
+  for (final c in channels) {
+    if (youtubeChannelId.isNotEmpty &&
+        (c.youtubeChannelId == youtubeChannelId ||
+            ytChannelUrlKey(c.url) == youtubeChannelId)) {
+      return c;
+    }
+    if (urlKey != null &&
+        (ytChannelUrlKey(c.url) == urlKey || c.youtubeChannelId == urlKey)) {
+      return c;
+    }
+  }
+  return null;
+}
