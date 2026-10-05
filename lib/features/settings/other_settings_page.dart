@@ -6,6 +6,7 @@ import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
+import '../../data/repositories/app_home_style_store.dart';
 import '../../data/repositories/diary_password_store.dart';
 import '../../data/repositories/jp_home_ring_store.dart';
 import '../../data/repositories/yt_embed_player_style_store.dart';
@@ -37,6 +38,7 @@ class OtherSettingsPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isYtTracker = fromLocation?.startsWith('/yt-tracker') ?? false;
     final isDiary = fromLocation?.startsWith('/diary') ?? false;
+    final isAppHome = fromLocation == '/start';
     final isJp = const [
       '/jp',
       '/kana',
@@ -79,6 +81,8 @@ class OtherSettingsPage extends ConsumerWidget {
                         ? const _DiarySettings()
                         : isJp
                         ? const _JpSettings()
+                        : isAppHome
+                        ? const _AppHomeSettings()
                         : Center(
                             child: Text('這個功能還沒有設定項目', style: AppText.bodyDim),
                           ),
@@ -89,6 +93,62 @@ class OtherSettingsPage extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// App 首頁的設定：首頁樣式（2026-10-05 使用者要求：今日儀表板當預設，
+/// 這裡可以切回原本的圖示格）。
+class _AppHomeSettings extends ConsumerWidget {
+  const _AppHomeSettings();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final style = ref.watch(appHomeStyleProvider);
+    return ListView(
+      children: [
+        Text('首頁', style: AppText.note),
+        const SizedBox(height: Gap.sm),
+        GlassCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '首頁樣式',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.ink,
+                ),
+              ),
+              Text(
+                style == AppHomeStyle.dashboard
+                    ? '打開就看到各功能今天的狀態，點卡片進去'
+                    : '像手機桌面，每個功能一格圖示',
+                style: AppText.note,
+              ),
+              const SizedBox(height: Gap.sm),
+              SegmentedButton<AppHomeStyle>(
+                segments: const [
+                  ButtonSegment(
+                    value: AppHomeStyle.dashboard,
+                    label: Text('今日儀表板'),
+                  ),
+                  ButtonSegment(value: AppHomeStyle.grid, label: Text('圖示格')),
+                ],
+                selected: {style},
+                showSelectedIcon: false,
+                onSelectionChanged: (s) async {
+                  ref.read(appHomeStyleProvider.notifier).state = s.first;
+                  await AppHomeStyleStore(
+                    ref.read(keyValueStoreProvider),
+                  ).save(s.first);
+                },
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

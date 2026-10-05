@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app/app.dart';
 import 'app/providers.dart';
 import 'data/cloud/r2_credentials_store.dart';
+import 'data/repositories/app_home_style_store.dart';
 import 'data/repositories/app_logo_store.dart';
 import 'data/repositories/error_log_repository.dart';
 import 'data/repositories/jp_home_ring_store.dart';
@@ -47,6 +48,7 @@ Future<void> main() async {
     final savedYtVideoOpenMode = await YtVideoOpenModeStore(store).load();
     final savedYtEmbedPlayerStyle = await YtEmbedPlayerStyleStore(store).load();
     final savedJpShowRing = await JpHomeRingStore(store).load();
+    final savedAppHomeStyle = await AppHomeStyleStore(store).load();
     final r2BucketName = await loadR2BucketName();
     final savedR2Credentials = await R2CredentialsStore(store).load();
 
@@ -65,6 +67,7 @@ Future<void> main() async {
             (ref) => savedYtEmbedPlayerStyle,
           ),
           jpShowProgressRingProvider.overrideWith((ref) => savedJpShowRing),
+          appHomeStyleProvider.overrideWith((ref) => savedAppHomeStyle),
           r2BucketNameProvider.overrideWithValue(r2BucketName),
           r2CredentialsProvider.overrideWith((ref) => savedR2Credentials),
         ],

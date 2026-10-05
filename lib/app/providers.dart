@@ -7,6 +7,7 @@ import '../data/repositories/drinking_repository.dart';
 import '../data/repositories/diary_repository.dart';
 import '../data/repositories/error_log_repository.dart';
 import '../data/repositories/fitness_repository.dart';
+import '../data/repositories/app_home_style_store.dart';
 import '../data/repositories/history_repository.dart';
 import '../data/repositories/home_card_order_store.dart';
 import '../data/repositories/jp_home_ring_store.dart';
@@ -192,6 +193,11 @@ final r2BucketNameProvider = Provider<String>((ref) {
 /// 畫面層要自己同時呼叫 `R2CredentialsStore` 寫回本機，這個 provider
 /// 不會自動幫你同步寫入。
 final r2CredentialsProvider = StateProvider<R2Credentials?>((ref) => null);
+
+/// App 首頁用今日儀表板還是圖示格（2026-10-05 使用者要求，預設儀表板）。
+final appHomeStyleProvider = StateProvider<AppHomeStyle>(
+  (ref) => AppHomeStyleStore.defaultStyle,
+);
 
 /// 英文／日文首頁卡片順序（2026-10-05 使用者要求可以自己調、要能同步）。
 /// 參數是 `en` 或 `jp`。看 [dataRevisionProvider]：排序頁存檔、雲端同步

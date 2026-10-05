@@ -6,12 +6,14 @@ import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
+import '../../data/repositories/app_home_style_store.dart';
 import '../../shared/small_asset.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
 import '../../shared/widgets/glass_card.dart';
 import '../../shared/widgets/track_switcher.dart';
+import 'app_home_dashboard.dart';
 
 /// 整個 App 的首頁（2026-09-24 使用者要求：功能變多了，不想一打開就
 /// 是語言學習）。設計稿 `design-history/首頁設計/01_圖示格啟動器(主流).html`
@@ -23,6 +25,7 @@ class AppHomePage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final style = ref.watch(appHomeStyleProvider);
     final items = <_HomeItem>[
       _HomeItem(
         label: '語言學習',
@@ -117,17 +120,21 @@ class AppHomePage extends ConsumerWidget {
                       children: [
                         Text(_dateLabel(DateTime.now()), style: AppText.note),
                         const SizedBox(height: Gap.md),
-                        GridView.count(
-                          crossAxisCount: 3,
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          mainAxisSpacing: Gap.md,
-                          crossAxisSpacing: Gap.md,
-                          childAspectRatio: 0.95,
-                          children: [
-                            for (final item in items) _HomeTile(item: item),
-                          ],
-                        ),
+                        // 首頁樣式設定裡可以切（2026-10-05，預設今日儀表板）。
+                        if (style == AppHomeStyle.dashboard)
+                          const AppHomeDashboard()
+                        else
+                          GridView.count(
+                            crossAxisCount: 3,
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            mainAxisSpacing: Gap.md,
+                            crossAxisSpacing: Gap.md,
+                            childAspectRatio: 0.95,
+                            children: [
+                              for (final item in items) _HomeTile(item: item),
+                            ],
+                          ),
                         const SizedBox(height: Gap.lg),
                       ],
                     ),

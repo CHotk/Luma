@@ -13,6 +13,8 @@ const _nonEnglishPrefixes = [
   '/fitness',
   '/sync',
   '/debug-log',
+  // App 首頁（2026-10-05：有「首頁樣式」可以切）。
+  '/start',
 ];
 
 /// 全 App 共用的「點齒輪」動作：依目前所在的功能決定開哪一頁設定。
