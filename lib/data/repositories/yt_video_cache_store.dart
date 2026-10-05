@@ -148,6 +148,30 @@ class YtVideoCacheStore {
     return changed;
   }
 
+  /// 依背景掃描 Shorts／直播清單的結果，改寫快取裡每部影片的類型標籤
+  /// （[retag] 回傳新的版本，沒變就回傳同一個物件）。掃描結果是 YouTube
+  /// 自己的清單，比快取裡原本的標籤可靠，所以這裡是覆寫，不是只補空的。
+  /// 回傳實際改了幾部。
+  Future<int> retag(
+    String channelId,
+    YoutubeVideo Function(YoutubeVideo) retag,
+  ) async {
+    final next = <YoutubeVideo>[];
+    var changed = 0;
+    for (final v in await load(channelId)) {
+      final r = retag(v);
+      if (!identical(r, v)) changed++;
+      next.add(r);
+    }
+    if (changed > 0) {
+      await _store.write(
+        _keyFor(channelId),
+        jsonEncode([for (final v in next) v.toJson()]),
+      );
+    }
+    return changed;
+  }
+
   Future<void> save(String channelId, List<YoutubeVideo> videos) async {
     await _store.write(
       _keyFor(channelId),

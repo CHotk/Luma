@@ -77,9 +77,10 @@ class YoutubeVideo {
   final bool? isShort;
 
   /// 是不是直播過（含現正直播）：從 YouTube 自己的直播播放清單（UULV）
-  /// 比對出來的結果，跟 [isShort] 同一套做法（2026-09-30 使用者要求：
-  /// 抓「全部」時直接用 UULF＋UUSH＋UULV 三個特殊清單組合，各自知道
-  /// 自己是哪個清單抓來的，不用另外猜）。null＝還沒比對過。
+  /// 比對出來的結果，跟 [isShort] 同一套做法。「全部」清單本身是翻上傳
+  /// 清單（UU），不帶類型；類型是點類型篩選時翻 UULF／UUSH／UULV 標的，
+  /// 加上打開頻道時背景掃 UUSH／UULV 標的（2026-10-05，見頻道詳情頁
+  /// `_scanVideoTypes`）。null＝還沒比對過。
   final bool? isLive;
 
   String get watchUrl => 'https://www.youtube.com/watch?v=$videoId';
