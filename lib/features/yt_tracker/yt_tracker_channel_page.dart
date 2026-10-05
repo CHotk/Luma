@@ -105,6 +105,11 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
   /// 就先秀出來，頂端細進度條＋「正在檢查新影片」膠囊）。
   List<YoutubeVideo> _cachePreview = const [];
 
+  /// 這個頻道本機快取裡的全部影片（不只上面那 50 部預覽）。篩選開關上
+  /// 「看過幾部」要算整份快取，不能只算這次打開後抓進來的那幾頁
+  /// （2026-10-05 使用者抓到：快取明明有一百部看過，數字只算到幾十）。
+  List<YoutubeVideo> _cachedChannelVideos = const [];
+
   // 全部／一般影片／Shorts／直播的類型篩選（2026-09-30 使用者要求）。
   // 選「全部」以外的類型時，直接翻那個類型自己的特殊清單（見
   // `_loadTypedVideos` 的說明），是一份跟「全部」完全分開的分頁狀態
@@ -330,6 +335,7 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
       _loadMoreError = null;
       _cachedVideoIds.clear();
       _cachePreview = const [];
+      _cachedChannelVideos = const [];
       _videosFuture = _fetchVideos(channel);
     });
     YtVideoCacheStore(ref.read(keyValueStoreProvider)).load(channel.id).then((
@@ -338,7 +344,10 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
       if (!mounted || _videosLoadedForChannelId != channel.id) return;
       final sorted = [...cached]
         ..sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
-      setState(() => _cachePreview = sorted.take(_loadMoreBatch).toList());
+      setState(() {
+        _cachePreview = sorted.take(_loadMoreBatch).toList();
+        _cachedChannelVideos = cached;
+      });
     });
   }
 
@@ -1346,21 +1355,26 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
   /// 獨立開關），用 [_Pick]（這個檔案裡挑分類對話框同一顆元件）而不是
   /// `FilterChip`，單選視覺才對。
   Widget _buildVideoFilterRow() {
-    // 開關旁邊顯示有幾部可以處理（2026-10-05 使用者要求）：目前類型已經
-    // 載入的影片裡，看過幾部、被隱藏幾部；算法跟空狀態卡片
-    // （[_filteredEmptyCard]）一樣，隱藏的不重複算進看過的。0 就不顯示數字。
+    // 開關旁邊顯示有幾部可以處理（2026-10-05 使用者要求）：看過幾部、被
+    // 隱藏幾部，兩個各算各的——隱藏的影片如果也看過，兩邊都算（使用者
+    // 要求一起算）。0 就不顯示數字。「全部」算這個
+    // 頻道整份本機快取＋這次新抓的（依影片 ID 去重）；選了特定類型時
+    // 快取分不出類型，只能算這個類型已經抓進來的那些。
     final loaded = _typeFilter == _TypeFilter.all
-        ? [..._firstPage, ..._moreVideos]
+        ? {
+            for (final v in [
+              ..._cachedChannelVideos,
+              ..._firstPage,
+              ..._moreVideos,
+            ])
+              v.videoId: v,
+          }.values.toList()
         : _typedVideos;
     final hiddenCount = loaded
         .where((v) => _hiddenVideoIds.contains(v.videoId))
         .length;
     final watchedCount = loaded
-        .where(
-          (v) =>
-              !_hiddenVideoIds.contains(v.videoId) &&
-              _watchedVideoIds.contains(v.videoId),
-        )
+        .where((v) => _watchedVideoIds.contains(v.videoId))
         .length;
     String withCount(String label, int n) => n > 0 ? '$label ($n)' : label;
     return Column(
