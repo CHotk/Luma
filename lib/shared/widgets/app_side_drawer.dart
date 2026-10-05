@@ -32,6 +32,7 @@ class AppSideDrawer extends StatelessWidget {
     final isFitness = location.startsWith('/fitness');
     final isDebugLog = location.startsWith('/debug-log');
     final isSync = location.startsWith('/sync');
+    final isLocalStorage = location.startsWith('/local-storage');
     final isCryptoWatch = location.startsWith('/crypto-watch');
     final isSmoking = location.startsWith('/smoking-log');
     final isDrinking = location.startsWith('/drinking-log');
@@ -228,13 +229,20 @@ class AppSideDrawer extends StatelessWidget {
                     icon: Icons.theaters_outlined,
                     label: '已看過的影劇',
                   ),
-                  const _MockNavItem(
-                    icon: Icons.storage_outlined,
-                    label: '本機資料檢視',
-                  ),
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 10),
                     child: Divider(height: 1, color: AppColors.glassEdge),
+                  ),
+                  // 本機儲存檢視（2026-10-05 做出來，原本是「敬請期待」）：
+                  // 跟同步、除錯一樣是看資料狀態的工具，排在同一區。
+                  _NavItem(
+                    icon: Icons.storage_outlined,
+                    label: '本機儲存',
+                    active: isLocalStorage,
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      if (!isLocalStorage) context.go('/local-storage');
+                    },
                   ),
                   // 多裝置同步（2026-09-23）獨立成自己的功能頁，不是塞在
                   // 設定頁裡的一個區塊——這功能之後會一直擴充（日記以外

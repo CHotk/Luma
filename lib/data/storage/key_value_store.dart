@@ -10,7 +10,14 @@ abstract interface class KeyValueStore {
   Future<void> remove(String key);
 }
 
-class SharedPrefsStore implements KeyValueStore {
+/// 能把所有 key／value 一次列出來的儲存後端，給「本機儲存」檢視頁用
+/// （2026-10-05）。另外開一個介面而不是加進 [KeyValueStore]：測試裡一堆
+/// 假的 store 只實作讀寫刪，不用為了這一頁每個都補。
+abstract interface class ListableKeyValueStore implements KeyValueStore {
+  Future<Map<String, String>> readAll();
+}
+
+class SharedPrefsStore implements ListableKeyValueStore {
   SharedPrefsStore(this._prefs);
 
   final SharedPreferences _prefs;
@@ -27,4 +34,10 @@ class SharedPrefsStore implements KeyValueStore {
 
   @override
   Future<void> remove(String key) async => _prefs.remove(key);
+
+  @override
+  Future<Map<String, String>> readAll() async => {
+    for (final key in _prefs.getKeys())
+      if (_prefs.get(key) case final String value) key: value,
+  };
 }

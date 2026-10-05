@@ -16,6 +16,7 @@ import '../features/home/home_page.dart';
 import '../features/jp_home/jp_home_page.dart';
 import '../features/jp_home/jp_stats_page.dart';
 import '../features/kana_exam/kana_exam_history_page.dart';
+import '../features/local_storage/local_storage_page.dart';
 import '../features/kana_exam/kana_exam_mode_select_page.dart';
 import '../features/kana_exam/kana_exam_page.dart';
 import '../features/kana_exam/kana_exam_row_select_page.dart';
@@ -176,6 +177,10 @@ final appRouter = GoRouter(
       },
     ),
     GoRoute(path: '/debug-log', builder: (_, _) => const DebugLogPage()),
+    GoRoute(
+      path: '/local-storage',
+      builder: (_, _) => const LocalStoragePage(),
+    ),
     GoRoute(path: '/sync', builder: (_, _) => const SyncPage()),
     GoRoute(
       path: '/notes/:collection/:no',

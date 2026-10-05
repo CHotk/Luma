@@ -20,7 +20,24 @@ import 'key_value_store.dart';
 /// 沒搬到，也不需要備援）。IndexedDB 開不起來就直接丟例外。
 Future<KeyValueStore> openPlatformStore() => _IndexedDbStore.open();
 
-class _IndexedDbStore implements KeyValueStore {
+/// 瀏覽器給這個網站的儲存配額估計（`navigator.storage.estimate()`），
+/// 「本機儲存」檢視頁顯示「配額約多少、用了幾 %」用。瀏覽器不支援或
+/// 問不到就是 null，畫面就不顯示那一行。
+Future<({int? usage, int? quota})> estimateStorage() async {
+  try {
+    final result = await html.window.navigator.storage?.estimate();
+    final usage = result?['usage'];
+    final quota = result?['quota'];
+    return (
+      usage: usage is num ? usage.toInt() : null,
+      quota: quota is num ? quota.toInt() : null,
+    );
+  } catch (_) {
+    return (usage: null, quota: null);
+  }
+}
+
+class _IndexedDbStore implements ListableKeyValueStore {
   _IndexedDbStore._(this._db, this._cache);
 
   static const _dbName = 'lume';
@@ -86,6 +103,9 @@ class _IndexedDbStore implements KeyValueStore {
 
   @override
   Future<String?> read(String key) async => _cache[key];
+
+  @override
+  Future<Map<String, String>> readAll() async => Map.of(_cache);
 
   @override
   Future<void> write(String key, String value) async {
