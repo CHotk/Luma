@@ -95,9 +95,9 @@ class YtVideoCacheStore {
     var changed = 0;
     for (final v in videos) {
       final existing = byId[v.videoId];
-      if (existing == null ||
-          (existing.duration == null && v.duration != null)) {
-        byId[v.videoId] = v;
+      final next = existing == null ? v : _fillGaps(existing, v);
+      if (!identical(next, existing)) {
+        byId[v.videoId] = next;
         changed++;
       }
     }
@@ -126,11 +126,9 @@ class YtVideoCacheStore {
     var changed = 0;
     for (final v in cloud) {
       final existing = byId[v.videoId];
-      if (existing == null) {
-        byId[v.videoId] = v;
-        changed++;
-      } else if (existing.duration == null && v.duration != null) {
-        byId[v.videoId] = v;
+      final next = existing == null ? v : _fillGaps(existing, v);
+      if (!identical(next, existing)) {
+        byId[v.videoId] = next;
         changed++;
       }
     }
@@ -160,4 +158,24 @@ class YtVideoCacheStore {
       DateTime.now().toIso8601String(),
     );
   }
+}
+
+/// 同一部影片已經在快取裡時，只把快取還沒有、新來的那份有的資訊補上：
+/// 時長、是不是 Shorts、是不是直播。原本只看時長，已經在快取裡的影片
+/// 從「一般影片／Shorts／直播」清單抓到時帶的類型標籤會被直接丟掉，
+/// 快取裡的類型永遠補不起來（2026-10-05 使用者問「不是說翻類型清單時
+/// 會順便標記類型嗎」才抓到）。已經有的值不蓋掉。什麼都沒補就回傳
+/// [existing] 本身，呼叫端用 `identical` 判斷有沒有變。
+YoutubeVideo _fillGaps(YoutubeVideo existing, YoutubeVideo incoming) {
+  var v = existing;
+  if (v.duration == null && incoming.duration != null) {
+    v = v.withDuration(incoming.duration!);
+  }
+  if (v.isShort == null && incoming.isShort != null) {
+    v = v.withShort(incoming.isShort!);
+  }
+  if (v.isLive == null && incoming.isLive != null) {
+    v = v.withLive(incoming.isLive!);
+  }
+  return v;
 }

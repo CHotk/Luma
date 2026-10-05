@@ -1358,18 +1358,26 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     // 開關旁邊顯示有幾部可以處理（2026-10-05 使用者要求）：看過幾部、被
     // 隱藏幾部，兩個各算各的——隱藏的影片如果也看過，兩邊都算（使用者
     // 要求一起算）。0 就不顯示數字。「全部」算這個
-    // 頻道整份本機快取＋這次新抓的（依影片 ID 去重）；選了特定類型時
-    // 快取分不出類型，只能算這個類型已經抓進來的那些。
-    final loaded = _typeFilter == _TypeFilter.all
-        ? {
-            for (final v in [
-              ..._cachedChannelVideos,
-              ..._firstPage,
-              ..._moreVideos,
-            ])
-              v.videoId: v,
-          }.values.toList()
-        : _typedVideos;
+    // 頻道整份本機快取＋這次新抓的（依影片 ID 去重）。選了特定類型時，
+    // 快取裡翻類型清單時標過類型的影片也一起算（[YoutubeVideo.isShort]／
+    // [YoutubeVideo.isLive]），還沒標過類型的分不出來，只能等之後翻到。
+    bool ofType(YoutubeVideo v) => switch (_typeFilter) {
+      _TypeFilter.all => true,
+      _TypeFilter.shorts => v.isShort == true,
+      _TypeFilter.live => v.isLive == true,
+      _TypeFilter.regular => v.isShort == false && v.isLive == false,
+    };
+    final loaded = {
+      for (final v in [
+        ..._cachedChannelVideos.where(ofType),
+        if (_typeFilter == _TypeFilter.all) ...[
+          ..._firstPage,
+          ..._moreVideos,
+        ] else
+          ..._typedVideos,
+      ])
+        v.videoId: v,
+    }.values.toList();
     final hiddenCount = loaded
         .where((v) => _hiddenVideoIds.contains(v.videoId))
         .length;
