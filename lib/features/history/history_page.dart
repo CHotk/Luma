@@ -230,7 +230,6 @@ class _Body extends StatelessWidget {
               _Row('答錯', '${stats.wrong} 題'),
               _Row('正確率', '${(stats.accuracy * 100).toStringAsFixed(0)}%'),
               _Row('總作答時間', _duration(stats.seconds)),
-              _Row('偽裝模式', '${stats.stealthRounds} 輪'),
               if (stats.since != null) _Row('從', _day(stats.since!)),
             ],
           ),
@@ -387,19 +386,6 @@ class _RoundRow extends StatelessWidget {
               child: Text('R$sequence', style: AppText.bodyDim),
             ),
             Expanded(child: Text(_Body._day(log.at), style: AppText.note)),
-            // 偽裝模式做的那幾輪標一下，自己看得懂就好。
-            if (log.stealth)
-              const Padding(
-                padding: EdgeInsets.only(right: Gap.sm),
-                child: Text(
-                  'cmd',
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: AppColors.ink3,
-                    fontFamily: 'Consolas',
-                  ),
-                ),
-              ),
             Text(
               '${log.right} / ${log.total}',
               style: TextStyle(

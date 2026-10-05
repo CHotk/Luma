@@ -21,7 +21,8 @@ class QuestionPicker {
   ///
   /// [forceMasteredType] 已掌握的回考題一律用中翻英打字，不管 `quizStyle` 是什麼：
   /// 掌握不代表拼得出來，回考只給看得懂沒有用，拼錯了也要留下打了什麼。
-  /// 偽裝模式要關掉這個（傳 false），跳中文輸入法在辦公室很顯眼。
+  /// 原本給偽裝模式關掉用（傳 false）；偽裝模式 2026-10-05 拔掉後 App 裡已經
+  /// 沒人傳 false，參數留著給測試跟之後需要時用。
   List<QuizQuestion> pick(
     List<Word> all, {
     required DateTime now,

@@ -4,7 +4,6 @@ import '../../app/providers.dart';
 import '../../domain/models/history.dart';
 import '../../domain/models/quiz.dart';
 import '../../domain/question_picker.dart';
-import '../../domain/rules_config.dart';
 import '../../domain/spell_judge.dart';
 
 /// 測驗進行中的狀態。
@@ -83,15 +82,7 @@ class QuizController extends AutoDisposeAsyncNotifier<QuizState> {
     final rules = await ref.read(settingsRepositoryProvider).loadRules();
     final now = ref.read(clockProvider)();
 
-    // 偽裝模式一律點選題：跳出中文輸入法在辦公室很顯眼。
-    final stealth = ref.read(stealthModeProvider);
-    final effective = stealth
-        ? rules.copyWith(quizStyle: QuizStyle.tapOnly)
-        : rules;
-
-    final questions = QuestionPicker(
-      rules: effective,
-    ).pick(words, now: now, forceMasteredType: !stealth);
+    final questions = QuestionPicker(rules: rules).pick(words, now: now);
     _roundAt = now;
     _stopwatch
       ..reset()
@@ -163,7 +154,6 @@ class QuizController extends AutoDisposeAsyncNotifier<QuizState> {
     final answers = [...s.answers, answered];
 
     // 這一題馬上寫進紀錄。中途離開也不會掉。
-    final stealth = ref.read(stealthModeProvider);
     await ref
         .read(historyRepositoryProvider)
         .appendAnswer(
@@ -178,7 +168,6 @@ class QuizController extends AutoDisposeAsyncNotifier<QuizState> {
             input: answered.input,
             isReview: answered.question.isReview,
           ),
-          stealth: stealth,
         );
     // 對錯次數是從紀錄加總出來的，寫完就要讓單字庫重算。
     ref.read(wordRepositoryProvider).invalidate();
@@ -214,21 +203,13 @@ class QuizController extends AutoDisposeAsyncNotifier<QuizState> {
       finishedAt: now,
     );
 
-    final stealth = ref.read(stealthModeProvider);
-
     // 每一題在作答當下就寫過了，這裡只補上整輪實際花的時間。
     await ref
         .read(historyRepositoryProvider)
         .finishRound(_roundAt, _stopwatch.elapsed);
 
-    // 成績要先交出去。偽裝模式也要，它的結束畫面就是讀這個，
-    // 而且離開時要能跳到結果頁看中文。
+    // 成績要先交出去，結果頁讀這個。
     ref.read(lastRoundProvider.notifier).state = result;
-
-    // 偽裝模式不計入今日用量，也就不受每日上限管（使用者 2026-09-11 決定）。
-    // 理由是上班很無聊，那段時間本來就想一直背。
-    // 代價是首頁那個環只反映一般模式的份量，總量要看總紀錄頁。
-    if (stealth) return;
 
     final settings = ref.read(settingsRepositoryProvider);
     final usage = await settings.loadUsage(now);

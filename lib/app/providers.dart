@@ -126,10 +126,6 @@ final ttsServiceProvider = FutureProvider<TtsService>((ref) async {
   );
 });
 
-/// 偽裝模式。開著的時候這一輪不出打字題，
-/// 因為偽裝畫面要假裝成終端機，跳出中文輸入法就穿幫了。
-final stealthModeProvider = StateProvider<bool>((ref) => false);
-
 /// YouTube API 金鑰。原本堅持只放記憶體、不寫進 localStorage
 /// （2026-09-22），後來使用者覺得每次重新整理都要重貼太麻煩，改成存
 /// `KeyValueStore`／localStorage，但帶效期（現在是一週）會自動過期

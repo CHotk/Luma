@@ -145,7 +145,7 @@ class _Body extends ConsumerWidget {
             children: [
               _Stepper(
                 title: '每天最多幾輪',
-                note: '做滿就擋住，偽裝模式不受限',
+                note: '做滿就擋住',
                 value: '${rules.roundsPerDay} 輪',
                 onMinus: rules.roundsPerDay > 1
                     ? () => save(

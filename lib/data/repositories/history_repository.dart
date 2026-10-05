@@ -88,7 +88,9 @@ class HistoryRepository {
   /// 每題都沿用這個值），這裡直接拿 `entry.at` 當這一輪的識別碼分組，
   /// 不用再跟這個 repository 要一個獨立的輪次編號（使用者 2026-09-17
   /// 決定拿掉 round，全部改用 at 識別）。
-  Future<void> appendAnswer(HistoryEntry entry, {required bool stealth}) async {
+  /// [stealth] 是舊的偽裝模式標記，偽裝模式 2026-10-05 拔掉之後一律是
+  /// false；欄位留著是為了讀得懂以前存的紀錄。
+  Future<void> appendAnswer(HistoryEntry entry, {bool stealth = false}) async {
     final all = [...await entries(), entry];
     await _writeEntries(all);
 

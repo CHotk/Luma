@@ -160,9 +160,7 @@ Map<String, Widget> _enCards(HomeState state, int minutesUsed) => {
 };
 
 /// 首頁頂端。左邊週幾＋時間＋時段 emoji，中間是語言軌道切換，
-/// 右邊功能入口。
-///
-/// 偽裝模式放在最右邊，因為需要用到的時候通常很急。
+/// 右邊功能入口。（偽裝模式 2026-10-05 使用者要求拔掉了。）
 class _TopBar extends ConsumerWidget {
   const _TopBar({required this.now});
 
@@ -182,17 +180,6 @@ class _TopBar extends ConsumerWidget {
         icon: Icons.menu_book_rounded,
         tip: '單字庫',
         tap: () => context.push('/library'),
-      ),
-    ];
-    final trailingEntries = <({IconData icon, String tip, VoidCallback tap})>[
-      (
-        icon: Icons.terminal_rounded,
-        tip: '偽裝模式',
-        tap: () {
-          // 進偽裝模式前先掀旗標，出題時才知道要強制點選題。
-          ref.read(stealthModeProvider.notifier).state = true;
-          context.push('/stealth');
-        },
       ),
     ];
 
@@ -239,16 +226,6 @@ class _TopBar extends ConsumerWidget {
           visualDensity: VisualDensity.compact,
           constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
         ),
-        for (final e in trailingEntries)
-          IconButton(
-            onPressed: e.tap,
-            icon: Icon(e.icon, size: 20),
-            color: AppColors.ink2,
-            tooltip: e.tip,
-            padding: EdgeInsets.zero,
-            visualDensity: VisualDensity.compact,
-            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-          ),
         IconButton(
           onPressed: () => context.push('/settings'),
           icon: const SettingsIcon(size: 20, color: AppColors.ink2),
@@ -301,13 +278,7 @@ class _StartButton extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final blocked = state.limitReached;
     return FilledButton(
-      onPressed: blocked
-          ? null
-          : () {
-              // 從首頁走一般流程，確保上一次的偽裝旗標不會殘留。
-              ref.read(stealthModeProvider.notifier).state = false;
-              context.push('/quiz');
-            },
+      onPressed: blocked ? null : () => context.push('/quiz'),
       style: FilledButton.styleFrom(
         backgroundColor: AppColors.accentSolid,
         disabledBackgroundColor: AppColors.glassFill,

@@ -196,7 +196,7 @@ class _Body extends ConsumerWidget {
 
 /// 首頁頂端。左邊週幾＋時間＋時段 emoji，中間是語言軌道切換，右邊只留
 /// 對日文軌道真的有意義的入口——英文軌道那幾顆（單字庫／總紀錄／
-/// 偽裝模式）指向的都是英文單字資料，搬到這裡點了也是空的或誤導，
+/// ）指向的都是英文單字資料，搬到這裡點了也是空的或誤導，
 /// 所以不放；設定頁是全 App 共用的，留著。
 class _TopBar extends StatelessWidget {
   const _TopBar({required this.now});

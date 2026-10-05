@@ -308,7 +308,7 @@ void main() {
     expect(others.every((q) => q.mode == QuizMode.tap), isTrue);
   });
 
-  test('偽裝模式關掉已掌握強制打字', () {
+  test('forceMasteredType 關掉時，已掌握不強制打字', () {
     final pool = [
       for (var i = 0; i < 20; i++) word('fresh$i', id: i),
       for (var i = 0; i < 20; i++) word('wrong$i', id: 100 + i, wrong: i + 1),

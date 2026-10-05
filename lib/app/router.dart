@@ -34,7 +34,6 @@ import '../features/settings/home_card_order_page.dart';
 import '../features/settings/other_settings_page.dart';
 import '../features/settings/settings_page.dart';
 import '../features/splash/splash_page.dart';
-import '../features/stealth/stealth_page.dart';
 import '../features/sync/sync_page.dart';
 import '../features/yt_tracker/yt_category_order_page.dart';
 import '../features/yt_tracker/yt_tracker_browse_page.dart';
@@ -70,7 +69,6 @@ final appRouter = GoRouter(
     GoRoute(path: '/jp-stats', builder: (_, _) => const JpStatsPage()),
     GoRoute(path: '/quiz', builder: (_, _) => const QuizPage()),
     GoRoute(path: '/result', builder: (_, _) => const ResultPage()),
-    GoRoute(path: '/stealth', builder: (_, _) => const StealthPage()),
     GoRoute(path: '/history', builder: (_, _) => const HistoryPage()),
     GoRoute(
       path: '/round/:at',
