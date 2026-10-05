@@ -1033,10 +1033,16 @@ class _MonthlyCalendarCardState extends State<_MonthlyCalendarCard>
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    '練習了 ${summary.count} 筆・共 ${summary.minutes} 分鐘',
-                    style: AppText.bodyDim,
-                  ),
+                  if (summary.count > 0)
+                    Text(
+                      '練習了 ${summary.count} 筆・共 ${summary.minutes} 分鐘',
+                      style: AppText.bodyDim,
+                    ),
+                  if (summary.examCount > 0)
+                    Text(
+                      '考試 ${summary.examCount} 題・答對 ${summary.examCorrect} 題',
+                      style: AppText.bodyDim,
+                    ),
                   const SizedBox(height: Gap.sm),
                   Wrap(
                     spacing: 6,

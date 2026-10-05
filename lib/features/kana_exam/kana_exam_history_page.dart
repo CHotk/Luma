@@ -84,6 +84,8 @@ class _KanaExamHistoryPageState extends ConsumerState<KanaExamHistoryPage> {
     );
     if (!confirmed) return;
     await ref.read(kanaExamRepositoryProvider).clearAll();
+    // 日文首頁月曆有算考試的日子，清掉要通知它重算。
+    ref.read(dataRevisionProvider.notifier).state++;
     if (!mounted) return;
     _reload();
     showAppNotice(context, '已清空所有考試紀錄');
@@ -127,6 +129,7 @@ class _KanaExamHistoryPageState extends ConsumerState<KanaExamHistoryPage> {
       case _EntryAction.delete:
         await repo.delete(entry.id);
     }
+    ref.read(dataRevisionProvider.notifier).state++;
     if (!mounted) return;
     _reload();
   }

@@ -13,6 +13,8 @@ class JpDaySummary {
     required this.count,
     required this.minutes,
     required this.kana,
+    this.examCount = 0,
+    this.examCorrect = 0,
   });
 
   /// 那天存了幾筆練習紀錄。
@@ -24,6 +26,11 @@ class JpDaySummary {
   /// 那天練過的假名，依練習次數由多到少排序，同一個假名出現幾次
   /// 就算幾次（不去重成只顯示一次）。
   final List<({String kana, String romaji, int count})> kana;
+
+  /// 那天考試答了幾題、答對幾題（2026-10-05 使用者回報：只有考試的日子，
+  /// 月曆沒塗色、點進來也說沒紀錄）。
+  final int examCount;
+  final int examCorrect;
 }
 
 /// 日文首頁要顯示的東西，一次算好，畫面只負責排版
@@ -87,6 +94,10 @@ final jpHomeStateProvider = FutureProvider.autoDispose<JpHomeState>((
   ref.watch(dataRevisionProvider);
   final config = await loadJpReviewConfig();
   final entries = await ref.watch(kanaPracticeRepositoryProvider).loadAll();
+  // 考試紀錄跟練習紀錄分開存（考試要能單獨看正確率），但「那天有沒有
+  // 練日文」兩種都算：只考了試的日子，月曆也要塗色、連續天數也要接上
+  // （2026-10-05 使用者回報考完回首頁今天沒亮）。
+  final exams = await ref.watch(kanaExamRepositoryProvider).loadAll();
   final now = DateTime.now();
 
   final today = entries.where(
@@ -121,6 +132,8 @@ final jpHomeStateProvider = FutureProvider.autoDispose<JpHomeState>((
   final practicedDates = {
     for (final e in entries)
       DateTime(e.savedAt.year, e.savedAt.month, e.savedAt.day),
+    for (final e in exams)
+      DateTime(e.savedAt.year, e.savedAt.month, e.savedAt.day),
   };
   final practicedDaysThisMonth = {
     for (final d in practicedDates)
@@ -153,9 +166,18 @@ final jpHomeStateProvider = FutureProvider.autoDispose<JpHomeState>((
     final d = DateTime(e.savedAt.year, e.savedAt.month, e.savedAt.day);
     entriesByDay.putIfAbsent(d, () => []).add(e);
   }
+  final examsByDay = <DateTime, ({int count, int correct})>{};
+  for (final e in exams) {
+    final d = DateTime(e.savedAt.year, e.savedAt.month, e.savedAt.day);
+    final prev = examsByDay[d] ?? (count: 0, correct: 0);
+    examsByDay[d] = (
+      count: prev.count + 1,
+      correct: prev.correct + (e.isCorrect ? 1 : 0),
+    );
+  }
   final daySummaries = {
-    for (final entry in entriesByDay.entries)
-      entry.key: _buildDaySummary(entry.value),
+    for (final d in {...entriesByDay.keys, ...examsByDay.keys})
+      d: _buildDaySummary(entriesByDay[d] ?? const [], exam: examsByDay[d]),
   };
 
   return JpHomeState(
@@ -174,7 +196,10 @@ final jpHomeStateProvider = FutureProvider.autoDispose<JpHomeState>((
 
 /// 算某一天的練習摘要，邏輯跟算「今天」那段（[todayMs]）同一套，只是
 /// 換成任一天的紀錄清單。
-JpDaySummary _buildDaySummary(List<KanaPracticeEntry> dayEntries) {
+JpDaySummary _buildDaySummary(
+  List<KanaPracticeEntry> dayEntries, {
+  ({int count, int correct})? exam,
+}) {
   var ms = 0.0;
   final kanaCounts = <String, int>{};
   final romajiByKana = <String, String>{};
@@ -194,6 +219,8 @@ JpDaySummary _buildDaySummary(List<KanaPracticeEntry> dayEntries) {
   return JpDaySummary(
     count: dayEntries.length,
     minutes: ms ~/ 60000,
+    examCount: exam?.count ?? 0,
+    examCorrect: exam?.correct ?? 0,
     kana: [
       for (final e in sortedKana)
         (kana: e.key, romaji: romajiByKana[e.key]!, count: e.value),

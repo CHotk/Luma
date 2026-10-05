@@ -172,6 +172,9 @@ class _KanaExamPageState extends ConsumerState<KanaExamPage> {
 
     final repo = ref.read(kanaExamRepositoryProvider);
     await repo.add(entry);
+    // 日文首頁是 push 疊在下面的，不會自己重算，要靠這個號碼通知它
+    // （跟英文測驗、手寫練習同一套），不然考完回首頁月曆今天不會亮。
+    ref.read(dataRevisionProvider.notifier).state++;
 
     if (!mounted) return;
     _nextQuestion();
