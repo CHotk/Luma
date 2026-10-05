@@ -148,7 +148,7 @@ class _SummarySection extends StatelessWidget {
                   label: '有練的天數',
                   value: '${state.allPracticedDates.length} 天',
                 ),
-                _StatTile(label: '連續', value: '${state.streakDays} 天'),
+                _StatTile(label: '連續中', value: '${state.streakDays} 天'),
               ],
             ),
           ],
