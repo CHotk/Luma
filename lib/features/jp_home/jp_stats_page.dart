@@ -56,6 +56,10 @@ class JpStatsPage extends ConsumerWidget {
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               _TotalSection(state: state),
+                              if (state.firstPracticedAt != null) ...[
+                                const SizedBox(height: Gap.md),
+                                _DaysSection(state: state),
+                              ],
                               const SizedBox(height: Gap.md),
                               _PracticeSection(state: state),
                             ],
@@ -129,6 +133,39 @@ class _TotalSection extends StatelessWidget {
   }
 }
 
+/// 第一次練習是幾號、到今天已經幾天、連續幾天（2026-09-29 使用者要求
+/// 統計頁也要看得到；2026-10-05 使用者要求獨立成一張卡，不要塞在手寫
+/// 練習那張裡——這是整個日文學習的天數，練習、考試都算）。
+class _DaysSection extends StatelessWidget {
+  const _DaysSection({required this.state});
+
+  final JpHomeState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final start = state.firstPracticedAt!;
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const PanelLabel('學習天數'),
+          const SizedBox(height: Gap.sm),
+          Row(
+            children: [
+              _StatTile(
+                label: '開始學習',
+                value: '${start.year}/${start.month}/${start.day}',
+              ),
+              _StatTile(label: '已經', value: '${state.daysSinceStart} 天'),
+              _StatTile(label: '連續', value: '${state.streakDays} 天'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _PracticeSection extends StatelessWidget {
   const _PracticeSection({required this.state});
 
@@ -144,6 +181,7 @@ class _PracticeSection extends StatelessWidget {
           const SizedBox(height: Gap.sm),
           Row(
             children: [
+              _StatTile(label: '總共練習', value: '${state.totalPracticeCount} 字'),
               _StatTile(label: '今天練習', value: '${state.todayPracticeCount} 字'),
               _StatTile(label: '今天花費', value: '${state.todayMinutes} 分'),
             ],
@@ -168,19 +206,6 @@ class _PracticeSection extends StatelessWidget {
               ),
             ],
           ),
-          // 第一次練習是幾號、算到今天已經幾天（2026-09-29 使用者要求：
-          // 學習統計這頁也要能看到，不是只有 jp_home 首頁的月曆卡片有）。
-          if (state.firstPracticedAt != null) ...[
-            const SizedBox(height: Gap.sm),
-            const Divider(height: 1, color: AppColors.glassEdge),
-            const SizedBox(height: Gap.sm),
-            Center(
-              child: Text(
-                '${state.firstPracticedAt!.year}/${state.firstPracticedAt!.month}/${state.firstPracticedAt!.day} 開始學習・已經 ${state.daysSinceStart} 天',
-                style: AppText.note,
-              ),
-            ),
-          ],
         ],
       ),
     );
