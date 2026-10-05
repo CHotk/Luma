@@ -1,0 +1,220 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>英文測驗頁與結果頁 五種設計</title><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;800&family=Inter:wght@500;700;800&display=swap" rel="stylesheet"><style>:root{--bg:#0c0c13;--panel:#161622;--panel2:#1e1e2e;--line:#2a2a3d;--text:#eceaf5;--sub:#8b8ba3;--dim:#5d5d72;--acc:#FF2D40;--blue:#2E6BFF;--blueSoft:#7EA6FF;--ok:#5FE08D;--bad:#FF938B;--mid:#F5C763;--pend:#C9865A}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-serif;min-height:100vh;padding:32px 16px 48px}
+.en{font-family:'Inter','Noto Sans TC',sans-serif}
+.intro{max-width:840px;margin:0 auto 22px;text-align:center}
+.eyebrow{color:var(--acc);font-size:12px;letter-spacing:.2em}
+h1{font-size:22px;margin:6px 0}
+.intro p{color:var(--sub);font-size:13px;line-height:1.7}
+.intro b,.keep b{color:var(--text)}
+.keep{max-width:840px;margin:0 auto 30px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 18px;font-size:12.5px;color:var(--sub);line-height:1.85}
+.wrap{display:flex;flex-wrap:wrap;gap:40px 28px;justify-content:center;max-width:1800px;margin:0 auto}
+.variant{width:300px}
+.vhead{min-height:140px;margin-bottom:6px}
+.vhead .num{color:var(--acc);font-size:11px;letter-spacing:.15em}
+.vhead h2{font-size:17px;margin:4px 0 6px}
+.vhead p{color:var(--sub);font-size:12.5px;line-height:1.65}
+.tag{display:inline-block;background:var(--acc);color:#fff;border-radius:99px;padding:1px 9px;font-size:10.5px;margin-left:6px;vertical-align:2px}
+.tag.now{background:var(--panel2);color:var(--sub);border:1px solid var(--line)}
+.cap{font-size:11px;color:var(--sub);letter-spacing:.1em;margin:14px 0 6px}
+.scr{width:300px;height:500px;flex-shrink:0;border:6px solid #000;border-radius:24px;background:radial-gradient(120% 60% at 20% 0%,rgba(46,107,255,.16),transparent 60%),var(--bg);overflow:hidden;position:relative;padding:12px;display:flex;flex-direction:column}
+.note{color:var(--sub);font-size:12px;line-height:1.7;margin-top:12px}
+.note b{color:var(--text)}
+/* 共用 */
+.bar{display:flex;align-items:center;gap:8px;color:var(--dim);font-size:13px}
+.bar .pb{flex:1;height:4px;border-radius:99px;background:rgba(255,255,255,.1);overflow:hidden}
+.bar .pb i{display:block;height:100%;background:var(--blueSoft)}
+.bar .cnt{font-size:11px;color:var(--sub)}
+.glass{background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.12);border-radius:22px}
+.center{flex:1;display:flex;flex-direction:column;justify-content:center;gap:16px}
+.word{font-size:34px;font-weight:800;letter-spacing:-.5px}
+.pos{font-size:11.5px;color:var(--sub)}
+.spk{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:rgba(126,166,255,.15);color:var(--blueSoft);font-size:11px;vertical-align:6px;margin-left:6px}
+.hint{font-size:10.5px;color:var(--dim)}
+.btns{display:flex;gap:8px}
+.center>.b{flex:none}
+.b{flex:1;text-align:center;border-radius:14px;padding:12px 0;font-size:14px;font-weight:700}
+.b.no{border:1px solid rgba(255,255,255,.14);color:var(--bad)}
+.b.yes{background:linear-gradient(180deg,rgba(46,107,255,.62),rgba(46,107,255,.4));border:1px solid rgba(126,166,255,.45)}
+.b.ghost{border:1px solid rgba(255,255,255,.14);color:var(--sub);font-weight:500}
+.slots{display:flex;gap:4px;justify-content:center;margin:12px 0 4px}
+.slots span{width:22px;height:30px;border-bottom:2px solid rgba(255,255,255,.25);display:grid;place-items:center;font-size:18px;font-weight:700}
+.slots span.x{color:var(--bad);border-color:var(--bad)}
+.slots span.o{color:var(--ok);border-color:rgba(95,224,141,.5)}
+.ans{font-size:12px;color:var(--sub);text-align:center}
+.ans b{color:var(--ok);font-size:15px}
+.row{display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px solid var(--line);font-size:12px}
+.row:first-of-type{border-top:none}
+.row .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.row .w{font-weight:700}
+.row .z{margin-left:auto;color:var(--sub);font-size:11.5px;text-align:right}
+.row small{display:block;font-size:10px;color:var(--bad)}
+.lbl{font-size:10.5px;color:var(--sub);letter-spacing:.06em;margin:4px 0 4px}
+.scroll{flex:1;overflow:hidden;position:relative}
+.scroll::after{content:'';position:absolute;left:0;right:0;bottom:0;height:28px;background:linear-gradient(transparent,var(--bg))}
+.stat{display:flex;justify-content:space-between;font-size:12px;padding:3px 0;color:var(--sub)}
+.stat b{color:var(--text)}
+/* 2 主流回饋面板 */
+.fb{position:absolute;left:0;right:0;bottom:0;padding:14px 16px 16px;border-radius:20px 20px 0 0}
+.fb.ok{background:#173326;border-top:2px solid var(--ok)}
+.fb.bad{background:#3a1d22;border-top:2px solid var(--bad)}
+.fb h4{font-size:16px;display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.fb .ic{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:14px;color:#111}
+.fb p{font-size:12px;color:#e2dfe9;margin-bottom:12px;line-height:1.5}
+.fb .go{text-align:center;border-radius:14px;padding:12px 0;font-weight:800;font-size:14px;color:#111}
+.ring{width:120px;height:120px;margin:6px auto 8px;position:relative}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring circle{fill:none;stroke-width:10}
+.ring .mid{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ring .mid b{font-size:28px;font-weight:800}
+.ring .mid span{font-size:10px;color:var(--sub)}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px}
+.tiles div{background:rgba(255,255,255,.05);border-radius:12px;padding:8px 0;text-align:center}
+.tiles b{display:block;font-size:15px}
+.tiles span{font-size:9.5px;color:var(--sub)}
+/* 3 Anki */
+.anki{padding:0;overflow:hidden}
+.anki .front,.anki .back{padding:22px 16px;text-align:center}
+.anki .back{border-top:1px dashed rgba(255,255,255,.18);background:rgba(255,255,255,.03)}
+.zh{font-size:24px;font-weight:700}
+.side{position:absolute;top:50%;transform:translateY(-50%);font-size:10px;color:var(--dim);writing-mode:vertical-rl;letter-spacing:.2em}
+.diff{font-size:20px;font-weight:700;letter-spacing:1px;text-align:center}
+.diff .x{color:var(--bad);text-decoration:line-through}
+.diff .m{color:var(--ok);background:rgba(95,224,141,.15);border-radius:3px}
+.tabs{display:flex;gap:6px;margin:6px 0 6px}
+.tabs span{flex:1;text-align:center;font-size:11.5px;padding:6px 0;border-radius:10px;background:rgba(255,255,255,.04);color:var(--sub)}
+.tabs span.on{background:rgba(255,147,139,.14);color:var(--bad);font-weight:700}
+/* 4 牌堆 */
+.deck{position:relative;height:250px;margin-top:6px}
+.deck .c{position:absolute;left:10px;right:10px;top:0;height:230px;border-radius:22px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1)}
+.deck .c2{transform:translateY(16px) scale(.92);opacity:.5}
+.deck .c3{transform:translateY(30px) scale(.84);opacity:.25}
+.deck .top{transform:rotate(8deg) translateX(34px);background:linear-gradient(135deg,rgba(95,224,141,.22),rgba(255,255,255,.05));border-color:rgba(95,224,141,.6);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
+.stamp{position:absolute;top:16px;left:16px;border:2px solid var(--ok);color:var(--ok);font-weight:800;font-size:13px;padding:2px 8px;border-radius:8px;transform:rotate(-12deg)}
+.edge{display:flex;justify-content:space-between;font-size:11px;font-weight:700;margin-top:10px}
+.piles{display:flex;gap:8px;margin:6px 0 8px}
+.pile{flex:1;border-radius:16px;padding:10px 10px 6px;position:relative}
+.pile.k{background:rgba(255,147,139,.08);border:1px solid rgba(255,147,139,.3)}
+.pile.y{background:rgba(95,224,141,.07);border:1px solid rgba(95,224,141,.28)}
+.pile h5{font-size:12px;margin-bottom:4px;display:flex;justify-content:space-between}
+.pile .it{font-size:11px;padding:3px 0;border-top:1px solid rgba(255,255,255,.06)}
+.pile .it span{display:block;font-size:9.5px;color:var(--sub)}
+/* 5 專注 */
+.dots{display:flex;gap:4px;justify-content:center;flex-wrap:wrap}
+.dots i{width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,.12)}
+.dots i.o{background:var(--ok)}.dots i.x{background:var(--bad)}.dots i.n{outline:2px solid var(--blueSoft);outline-offset:1px;background:transparent}
+.corner{display:flex;justify-content:space-between;align-items:center;font-size:14px;font-weight:700;padding:0 6px}
+.corner .l{color:var(--bad)}.corner .r{color:var(--blueSoft)}
+.fold{display:flex;justify-content:space-between;font-size:12px;color:var(--sub);padding:9px 0;border-top:1px solid var(--line)}
+</style></head><body>
+
+<div class="intro"><div class="eyebrow">英文學習 · 每天都會用到的兩頁</div><h1>英文測驗頁與結果頁：五種設計</h1><p>每一版三支手機：<b>① 英翻中點選題</b>（看英文、點卡片翻中文，會／不會）、<b>② 中翻英打字題答錯時</b>（看中文拼英文，打錯後怎麼告訴你）、<b>③ 一輪結束的結果頁</b>。例子是一輪 20 題、答對 14 題。第 1 版是目前上線的樣子。</p></div>
+<div class="keep"><b>五版都照舊守住的規則（之前你定的，換版型也不動）：</b>測驗中不顯示計時（時間照樣在背後記）；打字題不給任何提示字母，答對／答錯之前不給發音；「會」「不會」兩顆隨時能按，也能右滑會、左滑不會；結果頁答錯和沒答出來的字<b>全部列出來附中文、不截斷、不加記憶點</b>；做滿今天的份量就只剩「回首頁」。</div>
+
+<div class="wrap">
+
+<!-- 1 目前 -->
+<div class="variant"><div class="vhead"><div class="num">版本 1</div><h2>毛玻璃題卡（目前）<span class="tag now">目前上線</span></h2><p>頂端細進度條，中間一張毛玻璃題卡，底下「不會／會」兩顆；打錯卡片閃紅抖一下。結果頁大數字＋一張統計卡＋答對、答錯的清單。</p></div>
+<div class="cap">① 點選題</div>
+<div class="scr"><div class="bar">☰ ✕<span class="pb"><i style="width:35%"></i></span><span class="cnt">7/20</span></div>
+<div class="center"><div class="glass" style="padding:40px 16px;text-align:center"><div class="word en">abandon<span class="spk">🔊</span></div><div class="pos" style="margin-top:6px">v.</div><div class="hint" style="margin-top:16px">點卡片看答案・右滑會・左滑不會</div></div>
+<div class="btns"><span class="b no">不會</span><span class="b yes">會</span></div></div></div>
+<div class="cap">② 打字題答錯</div>
+<div class="scr"><div class="bar">☰ ✕<span class="pb"><i style="width:40%"></i></span><span class="cnt">8/20</span></div>
+<div class="center"><div class="glass" style="padding:30px 14px;text-align:center;border-color:rgba(255,147,139,.5)"><div class="zh">收到</div><div class="pos">v.</div>
+<div class="slots en"><span class="x">r</span><span class="x">e</span><span class="x">c</span><span class="x">i</span><span class="x">e</span><span class="x">v</span><span class="x">e</span></div>
+<div class="ans">正確答案 <b class="en">receive</b><span class="spk">🔊</span></div></div>
+<span class="b yes">下一題</span></div></div>
+<div class="cap">③ 結果頁</div>
+<div class="scr"><div class="bar">☰</div>
+<div style="text-align:center;margin:8px 0 10px"><span class="en" style="font-size:44px;font-weight:800;color:var(--blueSoft)">14</span> <span class="sub" style="color:var(--sub);font-size:13px">題答對 · 共 20 題</span></div>
+<div class="glass" style="padding:10px 14px;border-radius:16px;margin-bottom:10px"><div class="lbl">這輪</div><div class="stat">新字<b>5 / 8</b></div><div class="stat">待複習<b>7 / 10</b></div><div class="stat">已掌握<b>2 / 2</b></div><div class="stat">花了<b>6:42</b></div></div>
+<div class="scroll"><div class="lbl">答對</div><div class="row"><span class="dot" style="background:var(--ok)"></span><span class="w en">abandon</span><span class="z">放棄</span></div><div class="row"><span class="dot" style="background:var(--ok)"></span><span class="w en">brief</span><span class="z">簡短的</span></div><div class="row"><span class="dot" style="background:var(--ok)"></span><span class="w en">cease</span><span class="z">停止</span></div></div>
+<div class="btns" style="margin-top:8px"><span class="b ghost">回首頁</span><span class="b yes">再來一輪</span></div></div>
+<p class="note"><b>優點：</b>已經用習慣、最安靜不干擾；跟全站毛玻璃一致。<b>缺點：</b>答對答錯的回饋很弱（只有閃一下），沒什麼成就感；結果頁<b>答錯的排在答對後面</b>，最該看的反而要往下捲；打錯時整串紅色，看不出錯在哪幾個字母。</p></div>
+
+<!-- 2 主流 -->
+<div class="variant"><div class="vhead"><div class="num">版本 2</div><h2>底部回饋面板<span class="tag">主流</span></h2><p>Duolingo／Quizlet 的做法：答完從底部升起一塊綠色「答對了」或紅色「正確答案是…」，按「繼續」才換題。結果頁一個大圓環百分比、三格小統計，<b>答錯的排最上面</b>。</p></div>
+<div class="cap">① 點選題（按了「會」翻開確認）</div>
+<div class="scr"><div class="bar">✕<span class="pb"><i style="width:35%"></i></span><span class="cnt">7 / 20</span></div>
+<div style="flex:1;display:flex;flex-direction:column;justify-content:flex-start;padding-top:40px;text-align:center"><div class="hint" style="margin-bottom:10px">這個字是什麼意思？</div><div class="word en">abandon<span class="spk">🔊</span></div><div class="pos" style="margin-top:6px">v. · 放棄</div></div>
+<div class="fb ok"><h4><span class="ic" style="background:var(--ok)">✓</span>記得！</h4><p>abandon　放棄；拋棄</p><div class="go" style="background:var(--ok)">繼續</div></div></div>
+<div class="cap">② 打字題答錯</div>
+<div class="scr"><div class="bar">✕<span class="pb"><i style="width:40%"></i></span><span class="cnt">8 / 20</span></div>
+<div style="flex:1;padding-top:36px;text-align:center"><div class="hint" style="margin-bottom:8px">拼出這個字</div><div class="zh">收到</div><div class="pos">v.</div>
+<div class="slots en"><span>r</span><span>e</span><span>c</span><span class="x">i</span><span class="x">e</span><span>v</span><span>e</span></div></div>
+<div class="fb bad"><h4><span class="ic" style="background:var(--bad)">✕</span>正確答案</h4><p><b class="en" style="font-size:18px;color:#fff">receive</b> <span class="spk">🔊</span><br>你打了 <span class="en">rec<b style="color:var(--bad)">ie</b>ve</span></p><div class="go" style="background:var(--bad)">繼續</div></div></div>
+<div class="cap">③ 結果頁</div>
+<div class="scr"><div class="ring"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="42" stroke="rgba(255,255,255,.08)"/><circle cx="50" cy="50" r="42" stroke="#5FE08D" stroke-linecap="round" stroke-dasharray="264" stroke-dashoffset="79"/></svg><div class="mid"><b class="en">70%</b><span>14 / 20 答對</span></div></div>
+<div class="tiles"><div><b>5/8</b><span>新字</span></div><div><b>7/10</b><span>待複習</span></div><div><b>6:42</b><span>花了</span></div></div>
+<div class="scroll"><div class="lbl" style="color:var(--bad)">要再看的 6 個</div><div class="row"><span class="dot" style="background:var(--bad)"></span><span class="w en">receive<small>你打了 recieve</small></span><span class="z">收到</span></div><div class="row"><span class="dot" style="background:var(--bad)"></span><span class="w en">diligent</span><span class="z">勤奮的</span></div><div class="row"><span class="dot" style="background:var(--bad)"></span><span class="w en">vague</span><span class="z">模糊的</span></div></div>
+<div class="btns" style="margin-top:8px"><span class="b ghost">回首頁</span><span class="b yes">再來一輪</span></div></div>
+<p class="note"><b>優點：</b>回饋最清楚，大家都看得懂；答錯時直接標出錯的字母；結果先看錯的。<b>缺點：</b>每題多按一次「繼續」，一輪 20 題多 20 下（現在答對會自己跳）；鮮綠鮮紅面板跟深色毛玻璃風格反差大。</p></div>
+
+<!-- 3 Anki -->
+<div class="variant"><div class="vhead"><div class="num">版本 3</div><h2>Anki 式正反面＋逐字比對</h2><p>單字卡 App（Anki）的做法：翻開時正面不消失，答案接在下面一起看；打錯時把你打的跟正確的<b>逐字母對齊比對</b>。結果頁用分頁切「答錯／答對」，<b>預設停在答錯</b>。</p></div>
+<div class="cap">① 點選題（翻開後）</div>
+<div class="scr"><div class="bar">☰ ✕<span class="pb"><i style="width:35%"></i></span><span class="cnt">7/20</span></div>
+<div class="center"><div class="glass anki"><div class="front"><div class="word en">abandon<span class="spk">🔊</span></div><div class="pos">v.</div></div><div class="back"><div class="zh">放棄；拋棄</div></div></div>
+<div class="btns"><span class="b no">← 不會</span><span class="b yes">會 →</span></div></div>
+</div>
+<div class="cap">② 打字題答錯</div>
+<div class="scr"><div class="bar">☰ ✕<span class="pb"><i style="width:40%"></i></span><span class="cnt">8/20</span></div>
+<div class="center"><div class="glass anki"><div class="front"><div class="zh">收到</div><div class="pos">v.</div></div><div class="back">
+<div class="hint" style="margin-bottom:4px">你打的</div><div class="diff en">rec<span class="x">ie</span>ve</div>
+<div class="hint" style="margin:10px 0 4px">正確</div><div class="diff en">rec<span class="m">ei</span>ve<span class="spk">🔊</span></div></div></div>
+<span class="b yes">下一題</span></div></div>
+<div class="cap">③ 結果頁</div>
+<div class="scr"><div class="bar">☰</div>
+<div style="display:flex;align-items:baseline;gap:8px;margin:10px 0 4px"><span class="en" style="font-size:36px;font-weight:800">14<span style="font-size:16px;color:var(--sub)">/20</span></span><span style="margin-left:auto;font-size:11px;color:var(--sub);text-align:right">新字 5/8 · 待複習 7/10<br>已掌握 2/2 · 6:42</span></div>
+<div class="tabs"><span class="on">答錯 6</span><span>答對 14</span></div>
+<div class="scroll"><div class="row"><span class="w en">rec<span style="color:var(--ok)">ei</span>ve<small>你打了 rec<b>ie</b>ve</small></span><span class="z">收到</span></div><div class="row"><span class="w en">diligent</span><span class="z">勤奮的</span></div><div class="row"><span class="w en">vague</span><span class="z">模糊的</span></div><div class="row"><span class="w en">reluctant</span><span class="z">不情願的</span></div><div class="row"><span class="w en">fragile</span><span class="z">易碎的</span></div><div class="row"><span class="w en">sincere</span><span class="z">真誠的</span></div></div>
+<div class="btns" style="margin-top:8px"><span class="b ghost">回首頁</span><span class="b yes">再來一輪</span></div></div>
+<p class="note"><b>優點：</b>正反面一起看最好記；拼錯時一眼看出是 ie／ei 這種位置錯；結果頁打開就是答錯清單、統計縮成一行。<b>缺點：</b>翻開後卡片變高，按鈕位置會往下移（要固定卡片高度）；分頁要多點一下才看得到答對的。</p></div>
+
+<!-- 4 牌堆 -->
+<div class="variant"><div class="vhead"><div class="num">版本 4</div><h2>牌堆滑卡</h2><p>把「右滑會、左滑不會」當主角：後面疊著剩下的牌，看得到還剩多少；滑的時候卡片傾斜、蓋上「會／不會」印章。結果頁把這輪分成兩疊：<b>不會的那疊在左、先看</b>。</p></div>
+<div class="cap">① 點選題（往右滑到一半）</div>
+<div class="scr"><div class="bar">☰ ✕<span style="flex:1"></span><span class="cnt">剩 13 張</span></div>
+<div class="deck"><div class="c c3"></div><div class="c c2"></div><div class="c top"><span class="stamp">會</span><div class="word en">abandon<span class="spk">🔊</span></div><div class="pos">v.</div></div></div>
+<div class="edge"><span style="color:var(--bad)">← 不會</span><span class="hint">點卡片看中文</span><span style="color:var(--ok)">會 →</span></div>
+<div class="btns" style="margin-top:auto"><span class="b no">不會</span><span class="b yes">會</span></div></div>
+<div class="cap">② 打字題答錯</div>
+<div class="scr"><div class="bar">☰ ✕<span style="flex:1"></span><span class="cnt">剩 12 張</span></div>
+<div class="deck"><div class="c c3"></div><div class="c c2"></div><div class="c" style="display:flex;flex-direction:column;align-items:center;justify-content:center;border-color:rgba(255,147,139,.55);background:rgba(255,147,139,.06)"><div class="zh">收到</div><div class="pos">v.</div><div class="slots en"><span>r</span><span>e</span><span>c</span><span class="x">i</span><span class="x">e</span><span>v</span><span>e</span></div><div class="ans">正確答案 <b class="en">receive</b><span class="spk">🔊</span></div></div></div>
+<div class="hint" style="text-align:center;margin-top:8px">往任一邊滑或按下面，放進「不會」那疊</div>
+<div class="btns" style="margin-top:auto"><span class="b yes">下一張</span></div></div>
+<div class="cap">③ 結果頁</div>
+<div class="scr"><div class="bar">☰</div>
+<div style="text-align:center;margin:8px 0 4px;font-size:13px;color:var(--sub)">這輪 20 張 · 花了 6:42</div>
+<div class="piles"><div class="pile k"><h5><span class="bad" style="color:var(--bad)">不會</span><span>6</span></h5><div class="it en">receive<span>收到 · 打了 recieve</span></div><div class="it en">diligent<span>勤奮的</span></div><div class="it en">vague<span>模糊的</span></div><div class="it en">reluctant<span>不情願的</span></div><div class="it en">fragile<span>易碎的</span></div><div class="it en">sincere<span>真誠的</span></div></div>
+<div class="pile y"><h5><span style="color:var(--ok)">會</span><span>14</span></h5><div class="it en">abandon<span>放棄</span></div><div class="it en">brief<span>簡短的</span></div><div class="it en">cease<span>停止</span></div><div class="it en">… 還有 11</div></div></div>
+<div class="hint" style="text-align:center">新字 5/8 · 待複習 7/10 · 已掌握 2/2</div>
+<div class="btns" style="margin-top:auto"><span class="b ghost">回首頁</span><span class="b yes">再來一輪</span></div></div>
+<p class="note"><b>優點：</b>滑卡最順手、最有「刷卡」的節奏；看得到剩幾張比進度條有感；結果頁兩疊一左一右很直觀。<b>缺點：</b>打字題不太適合「牌」的比喻；兩欄在窄手機上每格字比較擠，長單字要換行。</p></div>
+
+<!-- 5 專注 -->
+<div class="variant"><div class="vhead"><div class="num">版本 5</div><h2>極簡專注＋進度點</h2><p>拿掉題卡外框，只剩一個大字在畫面中央；頂端 20 個小點，答對變綠、答錯變紅，一路看得到這輪的表現。結果頁沿用那排點，<b>答錯的完整列出</b>，答對的收成一行「答對 14 ▸」點開才看。</p></div>
+<div class="cap">① 點選題</div>
+<div class="scr"><div class="bar">☰ ✕</div>
+<div class="dots" style="margin-top:8px"><i class="o"></i><i class="o"></i><i class="x"></i><i class="o"></i><i class="o"></i><i class="o"></i><i class="n"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px"><div class="word en" style="font-size:42px">abandon</div><div class="pos">v. <span class="spk" style="vertical-align:0">🔊</span></div><div class="hint" style="margin-top:20px">點一下看中文</div></div>
+<div class="corner"><span class="l">← 不會</span><span class="r">會 →</span></div></div>
+<div class="cap">② 打字題答錯</div>
+<div class="scr"><div class="bar">☰ ✕</div>
+<div class="dots" style="margin-top:8px"><i class="o"></i><i class="o"></i><i class="x"></i><i class="o"></i><i class="o"></i><i class="o"></i><i class="o"></i><i class="x"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px"><div class="zh" style="font-size:30px">收到</div><div class="pos">v.</div>
+<div class="slots en"><span>r</span><span>e</span><span>c</span><span class="x">i</span><span class="x">e</span><span>v</span><span>e</span></div>
+<div class="ans" style="margin-top:6px"><b class="en" style="font-size:20px">receive</b><span class="spk">🔊</span></div></div>
+<div class="corner"><span></span><span class="r">下一題 →</span></div></div>
+<div class="cap">③ 結果頁</div>
+<div class="scr"><div class="bar">☰</div>
+<div style="text-align:center;margin:10px 0 6px"><span class="en" style="font-size:40px;font-weight:800">14</span><span style="color:var(--sub);font-size:13px"> / 20</span></div>
+<div class="dots" style="margin-bottom:8px"><i class="o"></i><i class="o"></i><i class="x"></i><i class="o"></i><i class="o"></i><i class="o"></i><i class="o"></i><i class="x"></i><i class="o"></i><i class="o"></i><i class="x"></i><i class="o"></i><i class="o"></i><i class="x"></i><i class="o"></i><i class="o"></i><i class="x"></i><i class="o"></i><i class="x"></i><i class="o"></i></div>
+<div class="hint" style="text-align:center;margin-bottom:8px">新字 5/8 · 待複習 7/10 · 已掌握 2/2 · 6:42</div>
+<div class="scroll"><div class="lbl" style="color:var(--bad)">答錯 6</div><div class="row"><span class="w en">receive<small>你打了 recieve</small></span><span class="z">收到</span></div><div class="row"><span class="w en">diligent</span><span class="z">勤奮的</span></div><div class="row"><span class="w en">vague</span><span class="z">模糊的</span></div><div class="row"><span class="w en">reluctant</span><span class="z">不情願的</span></div><div class="row"><span class="w en">fragile</span><span class="z">易碎的</span></div><div class="row"><span class="w en">sincere</span><span class="z">真誠的</span></div><div class="fold"><span>答對 14</span><span>▸</span></div></div>
+<div class="btns" style="margin-top:8px"><span class="b ghost">回首頁</span><span class="b yes">再來一輪</span></div></div>
+<p class="note"><b>優點：</b>畫面最乾淨，注意力全在單字上；進度點讓你一路知道錯了幾題，結果頁那排點就是這輪的「心電圖」。<b>缺點：</b>按鈕變成角落的文字，比大按鈕難按一點；沒有卡片外框，「點一下翻面」的感覺比較弱。</p></div>
+
+</div>
+</body></html>
