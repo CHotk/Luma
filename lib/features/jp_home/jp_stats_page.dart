@@ -55,11 +55,7 @@ class JpStatsPage extends ConsumerWidget {
                           data: (state) => Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              _TotalSection(state: state),
-                              if (state.firstPracticedAt != null) ...[
-                                const SizedBox(height: Gap.md),
-                                _DaysSection(state: state),
-                              ],
+                              _SummarySection(state: state),
                               const SizedBox(height: Gap.md),
                               _PracticeSection(state: state),
                             ],
@@ -94,26 +90,29 @@ final _examEntriesProvider = FutureProvider.autoDispose<List<KanaExamEntry>>((
   return ref.watch(kanaExamRepositoryProvider).loadAll();
 });
 
-/// 手寫練習＋考試加起來總共練過幾題（2026-10-05 使用者要求）。
-class _TotalSection extends StatelessWidget {
-  const _TotalSection({required this.state});
+/// 學習摘要：手寫練習＋考試加起來總共練過幾題，加上開始學習的日期、
+/// 已經幾天、連續幾天（2026-10-05 使用者要求：原本「總共練過」跟「學習
+/// 天數」兩張卡合併成一張；天數是整個日文學習的，練習、考試都算）。
+class _SummarySection extends StatelessWidget {
+  const _SummarySection({required this.state});
 
   final JpHomeState state;
 
   @override
   Widget build(BuildContext context) {
     final total = state.totalPracticeCount + state.totalExamCount;
+    final start = state.firstPracticedAt;
     return GlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const PanelLabel('總共練過'),
+          const PanelLabel('學習摘要'),
           const SizedBox(height: Gap.sm),
           Center(
             child: Text(
-              '$total 題',
+              '總共練過 $total 題',
               style: const TextStyle(
-                fontSize: 30,
+                fontSize: 26,
                 fontWeight: FontWeight.w800,
                 color: AppColors.jpAccent,
               ),
@@ -127,39 +126,21 @@ class _TotalSection extends StatelessWidget {
               _StatTile(label: '今天', value: '${state.todayCount}'),
             ],
           ),
-        ],
-      ),
-    );
-  }
-}
-
-/// 第一次練習是幾號、到今天已經幾天、連續幾天（2026-09-29 使用者要求
-/// 統計頁也要看得到；2026-10-05 使用者要求獨立成一張卡，不要塞在手寫
-/// 練習那張裡——這是整個日文學習的天數，練習、考試都算）。
-class _DaysSection extends StatelessWidget {
-  const _DaysSection({required this.state});
-
-  final JpHomeState state;
-
-  @override
-  Widget build(BuildContext context) {
-    final start = state.firstPracticedAt!;
-    return GlassCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const PanelLabel('學習天數'),
-          const SizedBox(height: Gap.sm),
-          Row(
-            children: [
-              _StatTile(
-                label: '開始學習',
-                value: '${start.year}/${start.month}/${start.day}',
-              ),
-              _StatTile(label: '已經', value: '${state.daysSinceStart} 天'),
-              _StatTile(label: '連續', value: '${state.streakDays} 天'),
-            ],
-          ),
+          if (start != null) ...[
+            const SizedBox(height: Gap.sm),
+            const Divider(height: 1, color: AppColors.glassEdge),
+            const SizedBox(height: Gap.sm),
+            Row(
+              children: [
+                _StatTile(
+                  label: '開始學習',
+                  value: '${start.year}/${start.month}/${start.day}',
+                ),
+                _StatTile(label: '已經', value: '${state.daysSinceStart} 天'),
+                _StatTile(label: '連續', value: '${state.streakDays} 天'),
+              ],
+            ),
+          ],
         ],
       ),
     );
