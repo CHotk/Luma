@@ -544,7 +544,9 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
         end: page.nextPageToken == null,
       ),
     );
-    if (mounted) _firstPage = result;
+    // 用 setState：篩選開關上的數字（看過幾部、隱藏幾部）是從這份清單
+    // 算的，第一頁進來時要跟著更新。
+    if (mounted) setState(() => _firstPage = result);
     return result;
   }
 
@@ -1344,6 +1346,23 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
   /// 獨立開關），用 [_Pick]（這個檔案裡挑分類對話框同一顆元件）而不是
   /// `FilterChip`，單選視覺才對。
   Widget _buildVideoFilterRow() {
+    // 開關旁邊顯示有幾部可以處理（2026-10-05 使用者要求）：目前類型已經
+    // 載入的影片裡，看過幾部、被隱藏幾部；算法跟空狀態卡片
+    // （[_filteredEmptyCard]）一樣，隱藏的不重複算進看過的。0 就不顯示數字。
+    final loaded = _typeFilter == _TypeFilter.all
+        ? [..._firstPage, ..._moreVideos]
+        : _typedVideos;
+    final hiddenCount = loaded
+        .where((v) => _hiddenVideoIds.contains(v.videoId))
+        .length;
+    final watchedCount = loaded
+        .where(
+          (v) =>
+              !_hiddenVideoIds.contains(v.videoId) &&
+              _watchedVideoIds.contains(v.videoId),
+        )
+        .length;
+    String withCount(String label, int n) => n > 0 ? '$label ($n)' : label;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1387,7 +1406,7 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
             // 不是危險動作，紅色太搶眼也不合適（2026-09-30 使用者要求，跟
             // 設定頁「儲存」按鈕那次同一個理由）。
             FilterChip(
-              label: const Text('隱藏已看過'),
+              label: Text(withCount('隱藏已看過', watchedCount)),
               selected: _hideWatched,
               // 不顯示打勾圖示（2026-09-30 使用者回報：切開/關會多/少那個勾勾
               // 圖示，導致按鈕本身寬度跟著變、旁邊的「顯示已隱藏」也被推著
@@ -1416,7 +1435,7 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
               ),
             ),
             FilterChip(
-              label: const Text('顯示已隱藏'),
+              label: Text(withCount('顯示已隱藏', hiddenCount)),
               selected: _showHiddenVideos,
               showCheckmark: false,
               onSelected: (v) => setState(() => _showHiddenVideos = v),
