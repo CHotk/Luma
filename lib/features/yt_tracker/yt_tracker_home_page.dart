@@ -24,6 +24,7 @@ import '../../shared/widgets/app_notice.dart';
 import '../../shared/small_asset.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
+import '../../shared/widgets/dispose_on_unmount.dart';
 import 'yt_api_key_dialog.dart';
 import 'yt_tracker_browse_page.dart'
     show
@@ -120,60 +121,63 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
     var colorValue = ytCategoryColors.first;
     final saved = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          backgroundColor: const Color(0xFF1A1A24),
-          title: const Text('新增分類', style: TextStyle(color: AppColors.ink)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TextField(
-                controller: controller,
-                autofocus: true,
-                maxLength: 20,
-                decoration: const InputDecoration(
-                  labelText: '分類名稱',
-                  hintText: '例如：遊戲實況',
-                  counterText: '',
+      builder: (dialogContext) => DisposeOnUnmount(
+        notifiers: [controller, imageController],
+        child: StatefulBuilder(
+          builder: (context, setDialogState) => AlertDialog(
+            backgroundColor: const Color(0xFF1A1A24),
+            title: const Text('新增分類', style: TextStyle(color: AppColors.ink)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: controller,
+                  autofocus: true,
+                  maxLength: 20,
+                  decoration: const InputDecoration(
+                    labelText: '分類名稱',
+                    hintText: '例如：遊戲實況',
+                    counterText: '',
+                  ),
+                  style: const TextStyle(color: AppColors.ink),
                 ),
-                style: const TextStyle(color: AppColors.ink),
+                const SizedBox(height: Gap.xs),
+                TextField(
+                  controller: imageController,
+                  decoration: const InputDecoration(labelText: '底圖網址（選填）'),
+                  style: const TextStyle(fontSize: 12.5, color: AppColors.ink),
+                ),
+                const SizedBox(height: Gap.sm),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final c in ytCategoryColors)
+                      _ColorDot(
+                        color: Color(c),
+                        selected: c == colorValue,
+                        onTap: () => setDialogState(() => colorValue = c),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('取消'),
               ),
-              const SizedBox(height: Gap.xs),
-              TextField(
-                controller: imageController,
-                decoration: const InputDecoration(labelText: '底圖網址（選填）'),
-                style: const TextStyle(fontSize: 12.5, color: AppColors.ink),
-              ),
-              const SizedBox(height: Gap.sm),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (final c in ytCategoryColors)
-                    _ColorDot(
-                      color: Color(c),
-                      selected: c == colorValue,
-                      onTap: () => setDialogState(() => colorValue = c),
-                    ),
-                ],
+              FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.ytAccent,
+                  foregroundColor: AppColors.ytAccentInk,
+                ),
+                child: const Text('新增'),
               ),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('取消'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.ytAccent,
-                foregroundColor: AppColors.ytAccentInk,
-              ),
-              child: const Text('新增'),
-            ),
-          ],
         ),
       ),
     );
@@ -199,78 +203,81 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
     var colorValue = category.colorValue;
     final action = await showDialog<String>(
       context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          backgroundColor: const Color(0xFF1A1A24),
-          title: const Text('編輯分類', style: TextStyle(color: AppColors.ink)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TextField(
-                controller: controller,
-                autofocus: true,
-                maxLength: 20,
-                decoration: const InputDecoration(
-                  labelText: '分類名稱',
-                  counterText: '',
+      builder: (dialogContext) => DisposeOnUnmount(
+        notifiers: [controller, imageController],
+        child: StatefulBuilder(
+          builder: (context, setDialogState) => AlertDialog(
+            backgroundColor: const Color(0xFF1A1A24),
+            title: const Text('編輯分類', style: TextStyle(color: AppColors.ink)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: controller,
+                  autofocus: true,
+                  maxLength: 20,
+                  decoration: const InputDecoration(
+                    labelText: '分類名稱',
+                    counterText: '',
+                  ),
+                  style: const TextStyle(color: AppColors.ink),
                 ),
-                style: const TextStyle(color: AppColors.ink),
-              ),
-              const SizedBox(height: Gap.xs),
-              TextField(
-                controller: imageController,
-                decoration: const InputDecoration(labelText: '底圖網址（選填）'),
-                style: const TextStyle(fontSize: 12.5, color: AppColors.ink),
-              ),
-              const SizedBox(height: Gap.sm),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (final c in ytCategoryColors)
-                    _ColorDot(
-                      color: Color(c),
-                      selected: c == colorValue,
-                      onTap: () => setDialogState(() => colorValue = c),
-                    ),
-                ],
-              ),
-              // 刪除是破壞性動作：跟一般的「取消／儲存」分開，獨立放在
-              // 內容最底下、紅色外框全寬按鈕（一般手機 App 的慣例），不跟
-              // 底部按鈕列擠在一起，也不用紅色實心搶過主要動作
-              // （2026-09-24 使用者要求重新配置）。
-              const SizedBox(height: Gap.lg),
-              const Divider(height: 1, color: AppColors.glassEdge),
-              const SizedBox(height: Gap.md),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () => Navigator.pop(dialogContext, 'delete'),
-                  icon: const Icon(Icons.delete_outline_rounded, size: 18),
-                  label: const Text('刪除分類'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.bad,
-                    side: BorderSide(
-                      color: AppColors.bad.withValues(alpha: 0.5),
+                const SizedBox(height: Gap.xs),
+                TextField(
+                  controller: imageController,
+                  decoration: const InputDecoration(labelText: '底圖網址（選填）'),
+                  style: const TextStyle(fontSize: 12.5, color: AppColors.ink),
+                ),
+                const SizedBox(height: Gap.sm),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final c in ytCategoryColors)
+                      _ColorDot(
+                        color: Color(c),
+                        selected: c == colorValue,
+                        onTap: () => setDialogState(() => colorValue = c),
+                      ),
+                  ],
+                ),
+                // 刪除是破壞性動作：跟一般的「取消／儲存」分開，獨立放在
+                // 內容最底下、紅色外框全寬按鈕（一般手機 App 的慣例），不跟
+                // 底部按鈕列擠在一起，也不用紅色實心搶過主要動作
+                // （2026-09-24 使用者要求重新配置）。
+                const SizedBox(height: Gap.lg),
+                const Divider(height: 1, color: AppColors.glassEdge),
+                const SizedBox(height: Gap.md),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => Navigator.pop(dialogContext, 'delete'),
+                    icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                    label: const Text('刪除分類'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.bad,
+                      side: BorderSide(
+                        color: AppColors.bad.withValues(alpha: 0.5),
+                      ),
                     ),
                   ),
                 ),
+              ],
+            ),
+            // 底部按鈕列照慣例：次要的「取消」在左（純文字），主要的「儲存」
+            // 在最右（實心強調色，用藍色不是紅色——紅色留給刪除）。
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, 'cancel'),
+                child: const Text('取消'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, 'save'),
+                child: const Text('儲存'),
               ),
             ],
           ),
-          // 底部按鈕列照慣例：次要的「取消」在左（純文字），主要的「儲存」
-          // 在最右（實心強調色，用藍色不是紅色——紅色留給刪除）。
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, 'cancel'),
-              child: const Text('取消'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, 'save'),
-              child: const Text('儲存'),
-            ),
-          ],
         ),
       ),
     );
@@ -752,283 +759,288 @@ _showDigOptions(BuildContext context, List<YtCategory> categories) {
     })
   >(
     context: context,
-    builder: (dialogContext) => StatefulBuilder(
-      builder: (context, setDialogState) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1A24),
-        titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-        title: Row(
-          children: [
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: AppColors.accent.withValues(alpha: 0.16),
-                borderRadius: BorderRadius.circular(10),
+    builder: (dialogContext) => DisposeOnUnmount(
+      notifiers: [keywordController, minSubsController, maxSubsController],
+      child: StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: const Color(0xFF1A1A24),
+          titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+          title: Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: AppColors.accent.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.travel_explore_rounded,
+                  size: 18,
+                  color: AppColors.accent,
+                ),
               ),
-              alignment: Alignment.center,
-              child: const Icon(
-                Icons.travel_explore_rounded,
-                size: 18,
-                color: AppColors.accent,
-              ),
-            ),
-            const SizedBox(width: 10),
-            const Text('挖掘新頻道', style: TextStyle(color: AppColors.ink)),
-          ],
-        ),
-        content: SizedBox(
-          width: 340,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const _DigSectionHeader(
-                  icon: Icons.folder_outlined,
-                  label: 'App 內的分類',
-                  hint: '不選＝全部',
-                ),
-                const SizedBox(height: Gap.sm),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    for (final c in selectable)
-                      FilterChip(
-                        label: Text(c.name),
-                        selected: picked.contains(c.id),
-                        // 不顯示打勾圖示，避免勾/不勾造成按鈕寬度變化、
-                        // 推著旁邊的選項移動（2026-09-30 使用者回報，見
-                        // `yt_tracker_channel_page.dart` 同一個修法）。
-                        showCheckmark: false,
-                        onSelected: (v) => setDialogState(() {
-                          if (v) {
-                            picked.add(c.id);
-                          } else {
-                            picked.remove(c.id);
-                          }
-                        }),
-                      ),
-                  ],
-                ),
-                const _DigSectionDivider(),
-                const _DigSectionHeader(
-                  icon: Icons.groups_outlined,
-                  label: '訂閱人數範圍',
-                ),
-                const SizedBox(height: Gap.sm),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: minSubsController,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          labelText: '最少',
-                          hintText: '不限',
-                          isDense: true,
-                        ),
-                        style: const TextStyle(color: AppColors.ink),
-                      ),
-                    ),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: Gap.sm),
-                      child: Icon(
-                        Icons.remove_rounded,
-                        size: 16,
-                        color: AppColors.ink3,
-                      ),
-                    ),
-                    Expanded(
-                      child: TextField(
-                        controller: maxSubsController,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          labelText: '最多',
-                          hintText: '不限',
-                          isDense: true,
-                        ),
-                        style: const TextStyle(color: AppColors.ink),
-                      ),
-                    ),
-                  ],
-                ),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  dense: true,
-                  value: allowHidden,
-                  onChanged: (v) => setDialogState(() => allowHidden = v),
-                  title: const Text(
-                    '也要隱藏訂閱數的頻道',
-                    style: TextStyle(fontSize: 13, color: AppColors.ink),
+              const SizedBox(width: 10),
+              const Text('挖掘新頻道', style: TextStyle(color: AppColors.ink)),
+            ],
+          ),
+          content: SizedBox(
+            width: 340,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const _DigSectionHeader(
+                    icon: Icons.folder_outlined,
+                    label: 'App 內的分類',
+                    hint: '不選＝全部',
                   ),
-                  subtitle: Text(
-                    allowHidden
-                        ? '隱藏訂閱數的頻道不看訂閱人數範圍，其他條件照樣篩'
-                        : '預設排除，訂閱數看不到就沒辦法判斷符不符合範圍',
-                    style: AppText.note,
-                  ),
-                ),
-                const _DigSectionDivider(),
-                const _DigSectionHeader(
-                  icon: Icons.public_rounded,
-                  label: '頻道所在地',
-                  hint: '不選＝不限',
-                ),
-                const SizedBox(height: Gap.xs),
-                Text('沒填地區的頻道會被當成不確定，一起排除', style: AppText.note),
-                const SizedBox(height: Gap.sm),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    for (final entry in _discoverCountries)
-                      FilterChip(
-                        label: Text(entry.$2),
-                        selected: pickedCountries.contains(entry.$1),
-                        showCheckmark: false,
-                        onSelected: (v) => setDialogState(() {
-                          if (v) {
-                            pickedCountries.add(entry.$1);
-                          } else {
-                            pickedCountries.remove(entry.$1);
-                          }
-                        }),
-                      ),
-                  ],
-                ),
-                const _DigSectionDivider(),
-                const _DigSectionHeader(
-                  icon: Icons.local_fire_department_outlined,
-                  label: '更多主題',
-                  hint: '約 100 單位／個',
-                ),
-                const SizedBox(height: Gap.xs),
-                Text('不限 App 內有的分類，可複選', style: AppText.note),
-                const SizedBox(height: Gap.sm),
-                for (final group in _discoverTopicGroups.entries) ...[
-                  Padding(
-                    padding: const EdgeInsets.only(top: 6, bottom: 4),
-                    child: Text(
-                      group.key,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.ink2,
-                      ),
-                    ),
-                  ),
+                  const SizedBox(height: Gap.sm),
                   Wrap(
                     spacing: 6,
                     runSpacing: 6,
                     children: [
-                      for (final t in group.value)
+                      for (final c in selectable)
                         FilterChip(
-                          label: Text(t),
-                          selected: pickedTopics.contains(t),
+                          label: Text(c.name),
+                          selected: picked.contains(c.id),
+                          // 不顯示打勾圖示，避免勾/不勾造成按鈕寬度變化、
+                          // 推著旁邊的選項移動（2026-09-30 使用者回報，見
+                          // `yt_tracker_channel_page.dart` 同一個修法）。
                           showCheckmark: false,
                           onSelected: (v) => setDialogState(() {
                             if (v) {
-                              pickedTopics.add(t);
+                              picked.add(c.id);
                             } else {
-                              pickedTopics.remove(t);
+                              picked.remove(c.id);
                             }
                           }),
                         ),
                     ],
                   ),
-                ],
-                const SizedBox(height: Gap.md),
-                TextField(
-                  controller: keywordController,
-                  decoration: const InputDecoration(
-                    labelText: '自訂關鍵字（選填）',
-                    hintText: '例如：露營裝備',
+                  const _DigSectionDivider(),
+                  const _DigSectionHeader(
+                    icon: Icons.groups_outlined,
+                    label: '訂閱人數範圍',
                   ),
-                  style: const TextStyle(color: AppColors.ink),
-                ),
-                const _DigSectionDivider(),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  dense: true,
-                  value: useSeeds,
-                  onChanged: (v) => setDialogState(() => useSeeds = v),
-                  title: const Text(
-                    '參考 App 內頻道的推薦',
-                    style: TextStyle(fontSize: 13, color: AppColors.ink),
-                  ),
-                  subtitle: Text(
-                    useSeeds
-                        ? '從已追蹤頻道的推薦區找，每個約 1 單位，省配額、口味相近'
-                        : '不看 App 內頻道，只用關鍵字搜尋（每次搜尋 100 單位），範圍廣但較雜',
-                    style: AppText.note,
-                  ),
-                ),
-                const SizedBox(height: Gap.sm),
-                Text('一次挖 10 個 App 裡沒有的頻道，已刪除過的不會再出現。', style: AppText.note),
-                const SizedBox(height: Gap.sm),
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: AppColors.mid.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: AppColors.mid.withValues(alpha: 0.4),
-                    ),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  const SizedBox(height: Gap.sm),
+                  Row(
                     children: [
-                      const Icon(
-                        Icons.bolt_rounded,
-                        size: 15,
-                        color: AppColors.mid,
-                      ),
-                      const SizedBox(width: 6),
                       Expanded(
-                        child: Text(
-                          _digQuotaHint(
-                            useSeeds: useSeeds,
-                            keywordCount:
-                                pickedTopics.length +
-                                (keywordController.text.trim().isEmpty ? 0 : 1),
+                        child: TextField(
+                          controller: minSubsController,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: '最少',
+                            hintText: '不限',
+                            isDense: true,
                           ),
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: AppColors.mid,
+                          style: const TextStyle(color: AppColors.ink),
+                        ),
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: Gap.sm),
+                        child: Icon(
+                          Icons.remove_rounded,
+                          size: 16,
+                          color: AppColors.ink3,
+                        ),
+                      ),
+                      Expanded(
+                        child: TextField(
+                          controller: maxSubsController,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: '最多',
+                            hintText: '不限',
+                            isDense: true,
                           ),
+                          style: const TextStyle(color: AppColors.ink),
                         ),
                       ),
                     ],
                   ),
-                ),
-              ],
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                    value: allowHidden,
+                    onChanged: (v) => setDialogState(() => allowHidden = v),
+                    title: const Text(
+                      '也要隱藏訂閱數的頻道',
+                      style: TextStyle(fontSize: 13, color: AppColors.ink),
+                    ),
+                    subtitle: Text(
+                      allowHidden
+                          ? '隱藏訂閱數的頻道不看訂閱人數範圍，其他條件照樣篩'
+                          : '預設排除，訂閱數看不到就沒辦法判斷符不符合範圍',
+                      style: AppText.note,
+                    ),
+                  ),
+                  const _DigSectionDivider(),
+                  const _DigSectionHeader(
+                    icon: Icons.public_rounded,
+                    label: '頻道所在地',
+                    hint: '不選＝不限',
+                  ),
+                  const SizedBox(height: Gap.xs),
+                  Text('沒填地區的頻道會被當成不確定，一起排除', style: AppText.note),
+                  const SizedBox(height: Gap.sm),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      for (final entry in _discoverCountries)
+                        FilterChip(
+                          label: Text(entry.$2),
+                          selected: pickedCountries.contains(entry.$1),
+                          showCheckmark: false,
+                          onSelected: (v) => setDialogState(() {
+                            if (v) {
+                              pickedCountries.add(entry.$1);
+                            } else {
+                              pickedCountries.remove(entry.$1);
+                            }
+                          }),
+                        ),
+                    ],
+                  ),
+                  const _DigSectionDivider(),
+                  const _DigSectionHeader(
+                    icon: Icons.local_fire_department_outlined,
+                    label: '更多主題',
+                    hint: '約 100 單位／個',
+                  ),
+                  const SizedBox(height: Gap.xs),
+                  Text('不限 App 內有的分類，可複選', style: AppText.note),
+                  const SizedBox(height: Gap.sm),
+                  for (final group in _discoverTopicGroups.entries) ...[
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6, bottom: 4),
+                      child: Text(
+                        group.key,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.ink2,
+                        ),
+                      ),
+                    ),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        for (final t in group.value)
+                          FilterChip(
+                            label: Text(t),
+                            selected: pickedTopics.contains(t),
+                            showCheckmark: false,
+                            onSelected: (v) => setDialogState(() {
+                              if (v) {
+                                pickedTopics.add(t);
+                              } else {
+                                pickedTopics.remove(t);
+                              }
+                            }),
+                          ),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: Gap.md),
+                  TextField(
+                    controller: keywordController,
+                    decoration: const InputDecoration(
+                      labelText: '自訂關鍵字（選填）',
+                      hintText: '例如：露營裝備',
+                    ),
+                    style: const TextStyle(color: AppColors.ink),
+                  ),
+                  const _DigSectionDivider(),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                    value: useSeeds,
+                    onChanged: (v) => setDialogState(() => useSeeds = v),
+                    title: const Text(
+                      '參考 App 內頻道的推薦',
+                      style: TextStyle(fontSize: 13, color: AppColors.ink),
+                    ),
+                    subtitle: Text(
+                      useSeeds
+                          ? '從已追蹤頻道的推薦區找，每個約 1 單位，省配額、口味相近'
+                          : '不看 App 內頻道，只用關鍵字搜尋（每次搜尋 100 單位），範圍廣但較雜',
+                      style: AppText.note,
+                    ),
+                  ),
+                  const SizedBox(height: Gap.sm),
+                  Text('一次挖 10 個 App 裡沒有的頻道，已刪除過的不會再出現。', style: AppText.note),
+                  const SizedBox(height: Gap.sm),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppColors.mid.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: AppColors.mid.withValues(alpha: 0.4),
+                      ),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(
+                          Icons.bolt_rounded,
+                          size: 15,
+                          color: AppColors.mid,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            _digQuotaHint(
+                              useSeeds: useSeeds,
+                              keywordCount:
+                                  pickedTopics.length +
+                                  (keywordController.text.trim().isEmpty
+                                      ? 0
+                                      : 1),
+                            ),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.mid,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('取消'),
+            ),
+            FilledButton.icon(
+              onPressed: () => Navigator.pop(dialogContext, (
+                categoryIds: {...picked},
+                keywords: [
+                  ...pickedTopics,
+                  if (keywordController.text.trim().isNotEmpty)
+                    keywordController.text.trim(),
+                ],
+                useSeeds: useSeeds,
+                minSubscribers: int.tryParse(minSubsController.text.trim()),
+                maxSubscribers: int.tryParse(maxSubsController.text.trim()),
+                allowHiddenSubscribers: allowHidden,
+                countries: {...pickedCountries},
+              )),
+              icon: const Icon(Icons.travel_explore_rounded, size: 17),
+              label: const Text('開始挖掘'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('取消'),
-          ),
-          FilledButton.icon(
-            onPressed: () => Navigator.pop(dialogContext, (
-              categoryIds: {...picked},
-              keywords: [
-                ...pickedTopics,
-                if (keywordController.text.trim().isNotEmpty)
-                  keywordController.text.trim(),
-              ],
-              useSeeds: useSeeds,
-              minSubscribers: int.tryParse(minSubsController.text.trim()),
-              maxSubscribers: int.tryParse(maxSubsController.text.trim()),
-              allowHiddenSubscribers: allowHidden,
-              countries: {...pickedCountries},
-            )),
-            icon: const Icon(Icons.travel_explore_rounded, size: 17),
-            label: const Text('開始挖掘'),
-          ),
-        ],
       ),
     ),
   );

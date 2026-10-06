@@ -2025,13 +2025,14 @@ class _ChannelGridState extends State<_ChannelGrid> {
           label: isPinned ? '取消置頂' : '置頂',
           iconColor: AppColors.ytPinAccent,
         ),
-        // 不在一般區（置頂、冷藏、待評鑑）才給「一般」。
-        if (c.pinnedAt != null || c.coldAt != null || c.pendingReview)
-          const BubbleMenuItem(
-            value: _ChannelMenuAction.normal,
-            icon: Icons.subscriptions_outlined,
-            label: '一般',
-          ),
+        // 已經在一般區就反灰、不藏起來，按鈕位置不會跳（2026-10-06
+        // 使用者要求）。
+        BubbleMenuItem(
+          value: _ChannelMenuAction.normal,
+          icon: Icons.subscriptions_outlined,
+          label: '一般',
+          enabled: c.pinnedAt != null || c.coldAt != null || c.pendingReview,
+        ),
         BubbleMenuItem(
           value: _ChannelMenuAction.cold,
           icon: Icons.ac_unit_rounded,

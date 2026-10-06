@@ -14,6 +14,7 @@ class BubbleMenuItem<T> {
     required this.label,
     this.iconColor,
     this.destructive = false,
+    this.enabled = true,
   });
 
   final T value;
@@ -21,6 +22,11 @@ class BubbleMenuItem<T> {
   final String label;
   final Color? iconColor;
   final bool destructive;
+
+  /// false＝照樣顯示、但反灰，點了或滑過去都沒反應（2026-10-06 使用者
+  /// 要求：頻道已經在一般區時，「一般」不要藏起來，反灰就好，按鈕位置
+  /// 才不會跳來跳去）。
+  final bool enabled;
 }
 
 /// 全 App 統一的長按操作選單：LINE／微信長按聊天訊息那種「泡泡橫列」——
@@ -278,6 +284,7 @@ class _BubbleMenuLayoutState<T> extends State<_BubbleMenuLayout<T>> {
   BubbleMenuItem<T>? _itemAt(Offset? p) {
     if (p == null) return null;
     for (final (rect, item) in _cells) {
+      if (!item.enabled) continue;
       // 上下放寬一點，手指滑過去不用剛好壓在圖示上。
       if (rect.inflate(6).contains(p) ||
           (p.dx >= rect.left &&
@@ -289,8 +296,20 @@ class _BubbleMenuLayoutState<T> extends State<_BubbleMenuLayout<T>> {
     return null;
   }
 
+  /// 這次長按途中有沒有「拖過」：離長按那一點超過一小段、或曾經指到過
+  /// 任何一顆按鈕，就算拖過——之後就算滑回卡片附近才放手，也當作滑選沒選
+  /// 到、選單收掉（2026-10-06 使用者回報：指過按鈕又移開放手，選單沒取消）。
+  bool _everDragged = false;
+
   void _onMove() {
-    final hit = _itemAt(widget.drag!.position.value);
+    final drag = widget.drag!;
+    final p = drag.position.value;
+    final hit = _itemAt(p);
+    final origin = drag.origin;
+    if (hit != null ||
+        (origin != null && p != null && (p - origin).distance > 16)) {
+      _everDragged = true;
+    }
     if (hit == _hovered || !mounted) return;
     setState(() => _hovered = hit);
   }
@@ -301,9 +320,10 @@ class _BubbleMenuLayoutState<T> extends State<_BubbleMenuLayout<T>> {
     final drag = widget.drag!;
     final origin = drag.origin;
     final end = drag.position.value;
-    // 有拖過（離長按那一點超過一小段）才算「滑選」。
+    // 途中拖過（見 [_everDragged]）或放手的位置離長按點夠遠，都算「滑選」。
     final dragged =
-        origin != null && end != null && (end - origin).distance > 16;
+        _everDragged ||
+        (origin != null && end != null && (end - origin).distance > 16);
     if (hit != null) {
       _done = true;
       widget.onSelect(hit.value);
@@ -377,52 +397,61 @@ class _BubbleMenuLayoutState<T> extends State<_BubbleMenuLayout<T>> {
       final color = item.destructive
           ? AppColors.bad
           : (item.iconColor ?? AppColors.ink);
-      return SizedBox(
-        width: itemWidth,
-        height: _itemHeight,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(10),
-          onTap: () {
-            if (_done) return;
-            _done = true;
-            widget.onSelect(item.value);
-          },
-          // 滑選中的那顆：放大後彈一下（elasticOut，Q 彈）、底色換成強調色
-          // （刪除這類用紅色）、字變亮（2026-10-06 使用者要求，參考 iOS
-          // 長按選單／LINE 泡泡選單滑過去時的回饋）。
-          child: AnimatedScale(
-            scale: hovered ? 1.16 : 1,
-            duration: Duration(milliseconds: hovered ? 420 : 140),
-            curve: hovered ? Curves.elasticOut : Curves.easeOut,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 120),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(10),
-                color: hovered
-                    ? (item.destructive ? AppColors.bad : AppColors.accent)
-                          .withValues(alpha: 0.28)
-                    : Colors.transparent,
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(item.icon, size: 20, color: color),
-                  const SizedBox(height: 5),
-                  Text(
-                    item.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 10.5,
-                      fontWeight: hovered ? FontWeight.w800 : FontWeight.w600,
-                      color: item.destructive
-                          ? AppColors.bad
-                          : hovered
-                          ? AppColors.ink
-                          : AppColors.ink2,
+      return Opacity(
+        opacity: item.enabled ? 1 : 0.32,
+        child: SizedBox(
+          width: itemWidth,
+          height: _itemHeight,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(10),
+            // 反灰的按鈕點了什麼都不做，但要接住這一下，不然會穿到背後
+            // 的遮罩、被當成「點外面」把選單關掉。
+            splashFactory: item.enabled ? null : NoSplash.splashFactory,
+            highlightColor: item.enabled ? null : Colors.transparent,
+            onTap: !item.enabled
+                ? () {}
+                : () {
+                    if (_done) return;
+                    _done = true;
+                    widget.onSelect(item.value);
+                  },
+            // 滑選中的那顆：放大後彈一下（elasticOut，Q 彈）、底色換成強調色
+            // （刪除這類用紅色）、字變亮（2026-10-06 使用者要求，參考 iOS
+            // 長按選單／LINE 泡泡選單滑過去時的回饋）。
+            child: AnimatedScale(
+              scale: hovered ? 1.16 : 1,
+              duration: Duration(milliseconds: hovered ? 420 : 140),
+              curve: hovered ? Curves.elasticOut : Curves.easeOut,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 120),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  color: hovered
+                      ? (item.destructive ? AppColors.bad : AppColors.accent)
+                            .withValues(alpha: 0.28)
+                      : Colors.transparent,
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(item.icon, size: 20, color: color),
+                    const SizedBox(height: 5),
+                    Text(
+                      item.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: hovered ? FontWeight.w800 : FontWeight.w600,
+                        color: item.destructive
+                            ? AppColors.bad
+                            : hovered
+                            ? AppColors.ink
+                            : AppColors.ink2,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

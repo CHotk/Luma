@@ -166,6 +166,22 @@ void main() {
     expect(find.text('置頂'), findsNothing);
   });
 
+  testWidgets('指過按鈕又滑回卡片附近才放手，選單一樣收掉', (tester) async {
+    final picked = await pumpLongPressCard(tester);
+    final start = tester.getCenter(find.byKey(const Key('card')));
+    final gesture = await tester.startGesture(start);
+    await tester.pump(const Duration(milliseconds: 700));
+    await tester.pumpAndSettle();
+    await gesture.moveTo(tester.getCenter(find.text('冷藏')));
+    await tester.pump();
+    await gesture.moveTo(start + const Offset(4, 4));
+    await tester.pump();
+    await gesture.up();
+    await tester.pumpAndSettle();
+    expect(picked, [null]);
+    expect(find.text('置頂'), findsNothing);
+  });
+
   testWidgets('長按後在原地放開，選單留著，之後點一下就選', (tester) async {
     final picked = await pumpLongPressCard(tester);
     final gesture = await tester.startGesture(
@@ -186,5 +202,44 @@ void main() {
   testWidgets('泡泡選單：卡片在最上面、上方放不下時改放卡片下方', (tester) async {
     await open(tester, cardTop: 10);
     expect(tester.getCenter(find.text('置頂')).dy, greaterThan(70));
+  });
+
+  testWidgets('反灰的按鈕點了沒反應，選單也不會被關掉', (tester) async {
+    String? picked = 'unset';
+    final cardKey = GlobalKey();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Stack(
+            children: [
+              Positioned(
+                top: 300,
+                left: 40,
+                child: SizedBox(key: cardKey, width: 200, height: 60),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    final ctx = cardKey.currentContext!;
+    showBubbleMenu<String>(
+      ctx,
+      anchor: bubbleAnchorOf(ctx),
+      items: const [
+        BubbleMenuItem(value: 'pin', icon: Icons.push_pin, label: '置頂'),
+        BubbleMenuItem(
+          value: 'normal',
+          icon: Icons.subscriptions,
+          label: '一般',
+          enabled: false,
+        ),
+      ],
+    ).then((v) => picked = v);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('一般'));
+    await tester.pumpAndSettle();
+    expect(picked, 'unset');
+    expect(find.text('一般'), findsOneWidget);
   });
 }

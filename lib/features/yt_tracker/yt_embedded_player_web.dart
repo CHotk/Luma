@@ -8,15 +8,23 @@ import 'package:flutter/material.dart';
 /// 是設計給第三方網站直接用 iframe 嵌的，不是繞過什麼限制
 /// （2026-09-30 使用者要求：點影片改預設內嵌播放，不用每次都跳出去
 /// 開新分頁）。Flutter web 嵌 `dart:html` 元素要透過平台視圖
-/// （`HtmlElementView`）——每個 videoId 各自註冊一個 view type，同一支
-/// 影片重複開啟會重複註冊同一個 id，用 `_registered` 集合擋掉重複註冊
-/// （Flutter 對同一個 view type 註冊兩次會丟例外）。
-final _registered = <String>{};
+/// （`HtmlElementView`）。同一個 view type 註冊兩次 Flutter 會丟例外，
+/// 所以用 `_registered` 只註冊第一次。
+///
+/// 2026-10-06 效能檢查改成只註冊**一個** view type，影片 id 用
+/// `creationParams` 帶進去：原本每部影片各註冊一個，註冊了就清不掉，App
+/// 開著期間每看一部新影片就多留一筆。
+const _viewType = 'yt-embed';
+var _registered = false;
 
 Widget buildYtEmbeddedPlayer(String videoId) {
-  final viewType = 'yt-embed-$videoId';
-  if (_registered.add(viewType)) {
-    ui_web.platformViewRegistry.registerViewFactory(viewType, (int viewId) {
+  if (!_registered) {
+    _registered = true;
+    ui_web.platformViewRegistry.registerViewFactory(_viewType, (
+      int viewId, {
+      Object? params,
+    }) {
+      final videoId = params! as String;
       return html.IFrameElement()
         // 2026-09-30 使用者最後決定：乾脆不要 autoplay 參數，一律停在
         // YouTube 預設的縮圖＋大播放鍵，使用者自己點才開始播——手機上
@@ -36,5 +44,10 @@ Widget buildYtEmbeddedPlayer(String videoId) {
         ..allowFullscreen = true;
     });
   }
-  return HtmlElementView(viewType: viewType);
+  return HtmlElementView(
+    // key 帶影片 id：換影片時一定重建 iframe，不會沿用上一部的。
+    key: ValueKey(videoId),
+    viewType: _viewType,
+    creationParams: videoId,
+  );
 }

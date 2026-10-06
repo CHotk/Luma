@@ -34,6 +34,9 @@ class YtChannelAvatar extends StatelessWidget {
           width: radius * 2,
           height: radius * 2,
           fit: BoxFit.cover,
+          // 照顯示大小解碼，不用原圖尺寸（2026-10-06 效能檢查）。
+          cacheWidth: (radius * 2 * MediaQuery.devicePixelRatioOf(context))
+              .round(),
           errorBuilder: (context, error, stack) => Text(
             channel.avatarEmoji,
             style: TextStyle(fontSize: radius * 0.9),

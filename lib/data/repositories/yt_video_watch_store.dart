@@ -15,16 +15,10 @@ class YtVideoWatchStore {
 
   static const _key = 'yt_tracker.video_watch.v1';
 
-  /// 一支影片最多留幾筆開啟時間戳，超過就把最舊的丟掉（2026-09-30
-  /// 使用者回報：手機 iOS Safari 開 App 卡死，懷疑是本機資料量太大——
-  /// 反覆重看同一支影片幾十次意義不大，只是徒增這個單一大 key 的體積，
-  /// 50 筆對「看過幾次、什麼時候看的」這個用途已經很夠用）。
-  static const _maxOpensPerVideo = 50;
-
-  List<DateTime> _trim(List<DateTime> openedAt) =>
-      openedAt.length > _maxOpensPerVideo
-      ? openedAt.sublist(openedAt.length - _maxOpensPerVideo)
-      : openedAt;
+  // 開啟時間戳一筆都不刪（2026-10-06 使用者糾正：這是 log，不可被清除）。
+  // 原本 2026-09-30 為了減少資料量，每部影片只留最近 50 筆、更舊的直接丟掉；
+  // 現在改成全部保留，「最多列 50 筆」只是開啟紀錄視窗顯示上的限制
+  // （見 yt_video_row.dart 的 _showHistory）。
 
   Future<Map<String, YtVideoWatchRecord>> loadAll() async {
     final raw = await _store.read(_key);
@@ -50,7 +44,7 @@ class YtVideoWatchStore {
     final all = await loadAll();
     final existing = all[videoId];
     final updated = YtVideoWatchRecord(
-      openedAt: _trim([...?existing?.openedAt, DateTime.now()]),
+      openedAt: [...?existing?.openedAt, DateTime.now()],
     );
     all[videoId] = updated;
     await _writeAll(all);
@@ -79,7 +73,7 @@ class YtVideoWatchStore {
       ];
       if (fresh.isNotEmpty) {
         final merged = [...l.openedAt, ...fresh]..sort();
-        local[entry.key] = YtVideoWatchRecord(openedAt: _trim(merged));
+        local[entry.key] = YtVideoWatchRecord(openedAt: merged);
         changed++;
       }
     }
