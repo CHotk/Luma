@@ -58,6 +58,7 @@ Future<T?> showBubbleMenu<T>(
   var closed = false;
 
   Future<void> finish(T? value) async {
+    _menuLog('finish($value) closed=$closed');
     if (closed) return;
     closed = true;
     final h = history;
@@ -71,6 +72,7 @@ Future<T?> showBubbleMenu<T>(
   if (route != null) {
     history = LocalHistoryEntry(
       onRemove: () {
+        _menuLog('返回鍵／history 移除 → 關選單');
         history = null;
         finish(null);
       },
@@ -88,6 +90,10 @@ Future<T?> showBubbleMenu<T>(
     ),
   );
   overlay.insert(entry);
+  _menuLog(
+    '選單打開 items=${[for (final i in items) i.label]} '
+    'drag=${drag != null} route=${route != null}',
+  );
   return completer.future;
 }
 
@@ -128,12 +134,14 @@ class _BubbleLongPressState extends State<BubbleLongPress> {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onLongPressStart: (_) {
+      onLongPressStart: (d) {
+        _menuLog('卡片長按成立 at=${_pt(d.globalPosition)}');
         final drag = _drag = BubbleMenuDrag();
         widget.onLongPress(bubbleAnchorOf(context), drag);
       },
       onLongPressMoveUpdate: (d) => _drag?.move(d.globalPosition),
       onLongPressEnd: (d) {
+        _menuLog('卡片長按放開 at=${_pt(d.globalPosition)}');
         _drag?.release(d.globalPosition);
         _drag = null;
       },
@@ -180,32 +188,46 @@ class _BubbleMenuHostState<T> extends State<_BubbleMenuHost<T>>
 
   @override
   Widget build(BuildContext context) {
-    return FadeTransition(
-      opacity: _controller,
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: Semantics(
-              label: '關閉選單',
-              button: true,
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => widget.onSelect(null),
-                child: const ColoredBox(color: Colors.black26),
+    // 除錯（2026-10-06 使用者回報要按兩次）：選單打開期間每一下手指
+    // 按下／放開都記一筆，看第一下有沒有送到選單。
+    return Listener(
+      behavior: HitTestBehavior.translucent,
+      onPointerDown: (e) => _menuLog(
+        '選單上 手指按下 #${e.pointer} ${e.kind.name} at=${_pt(e.position)}',
+      ),
+      onPointerUp: (e) =>
+          _menuLog('選單上 手指放開 #${e.pointer} at=${_pt(e.position)}'),
+      onPointerCancel: (e) => _menuLog('選單上 手指取消 #${e.pointer}'),
+      child: FadeTransition(
+        opacity: _controller,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: Semantics(
+                label: '關閉選單',
+                button: true,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    _menuLog('點到遮罩 → 關選單');
+                    widget.onSelect(null);
+                  },
+                  child: const ColoredBox(color: Colors.black26),
+                ),
               ),
             ),
-          ),
-          Positioned.fill(
-            child: _BubbleMenuLayout<T>(
-              animation: _controller,
-              anchor: widget.anchor,
-              normal: widget.normal,
-              danger: widget.danger,
-              drag: widget.drag,
-              onSelect: widget.onSelect,
+            Positioned.fill(
+              child: _BubbleMenuLayout<T>(
+                animation: _controller,
+                anchor: widget.anchor,
+                normal: widget.normal,
+                danger: widget.danger,
+                drag: widget.drag,
+                onSelect: widget.onSelect,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -287,11 +309,16 @@ class _BubbleMenuLayoutState<T> extends State<_BubbleMenuLayout<T>> {
 
   void _onMove() {
     final hit = _itemAt(widget.drag!.position.value);
+    if (hit != _hovered) _menuLog('滑到 ${hit?.label ?? '(按鈕外)'}');
     if (hit != _hovered && mounted) setState(() => _hovered = hit);
   }
 
   void _onRelease() {
     final hit = _itemAt(widget.drag!.position.value);
+    _menuLog(
+      '長按放開 at=${_pt(widget.drag!.position.value)} '
+      '→ ${hit?.label ?? '按鈕外，選單留著'} done=$_done mounted=$mounted',
+    );
     if (hit != null && !_done && mounted) {
       _done = true;
       widget.onSelect(hit.value);
@@ -365,6 +392,7 @@ class _BubbleMenuLayoutState<T> extends State<_BubbleMenuLayout<T>> {
         child: InkWell(
           borderRadius: BorderRadius.circular(10),
           onTap: () {
+            _menuLog('點到按鈕 ${item.label} done=$_done');
             if (_done) return;
             _done = true;
             widget.onSelect(item.value);
@@ -489,3 +517,10 @@ class _BubblePainter extends CustomPainter {
   bool shouldRepaint(_BubblePainter old) =>
       old.arrowX != arrowX || old.arrowDown != arrowDown;
 }
+
+/// 除錯紀錄（2026-10-06 使用者回報要按兩次才生效，加來追）：寫進
+/// [debugPrint]，設定頁「查看除錯訊息」看得到、能整份複製。查完可拿掉。
+void _menuLog(String message) => debugPrint('[長按選單] $message');
+
+String _pt(Offset? p) =>
+    p == null ? '-' : '(${p.dx.toStringAsFixed(0)},${p.dy.toStringAsFixed(0)})';
