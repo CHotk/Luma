@@ -17,6 +17,13 @@
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
+  <!--
+    手機一開始就用裝置寬度排版。沒寫的話手機瀏覽器先用約 980px 寬的
+    桌機版面縮小顯示，載入畫面的 logo、字會先變很小，等 Flutter 起來
+    自己補上這個設定才又放大（2026-10-06 使用者回報「先變小才又放大」）。
+    內容跟 Flutter 自己加的一樣。
+  -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="Lume 微光 — 一天一點未來光">
 

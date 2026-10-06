@@ -7,7 +7,10 @@ import 'package:lume/data/storage/key_value_store.dart';
 import 'package:lume/domain/models/yt_tracker.dart';
 import 'package:lume/features/yt_tracker/yt_tracker_browse_page.dart';
 
-Future<_MemoryStore> _pump(WidgetTester tester) async {
+Future<_MemoryStore> _pump(
+  WidgetTester tester, {
+  List<YtChannel> channels = const [],
+}) async {
   final store = _MemoryStore();
   await tester.runAsync(() async {
     final repo = YtTrackerRepository(store);
@@ -22,6 +25,9 @@ Future<_MemoryStore> _pump(WidgetTester tester) async {
         addedAt: DateTime(2026, 9, 1),
       ),
     );
+    for (final c in channels) {
+      await repo.addChannel(c);
+    }
   });
   await tester.pumpWidget(
     ProviderScope(
@@ -79,6 +85,36 @@ void main() {
 
     expect(find.textContaining('一般 ·'), findsOneWidget);
     expect(find.textContaining('待評鑑 ·'), findsNothing);
+  });
+
+  // 2026-10-06 使用者要求：置頂區也照當下的排序方式排，不是最後置頂的
+  // 排最前面。預設排序是加入順序，所以先加、先置頂的 B 要在 C 前面。
+  testWidgets('置頂區照目前的排序方式排，不是照置頂時間新到舊', (tester) async {
+    _bigView(tester);
+    await _pump(
+      tester,
+      channels: [
+        YtChannel(
+          id: 'b',
+          name: '頻道B',
+          categoryId: 'games',
+          addedAt: DateTime(2026, 9, 2),
+          pinnedAt: DateTime(2026, 10, 1),
+          reviewedAt: DateTime(2026, 10, 1),
+        ),
+        YtChannel(
+          id: 'c',
+          name: '頻道C',
+          categoryId: 'games',
+          addedAt: DateTime(2026, 9, 3),
+          pinnedAt: DateTime(2026, 10, 5),
+          reviewedAt: DateTime(2026, 10, 5),
+        ),
+      ],
+    );
+    final b = tester.getTopLeft(find.text('頻道B'));
+    final c = tester.getTopLeft(find.text('頻道C'));
+    expect(b.dy < c.dy || (b.dy == c.dy && b.dx < c.dx), isTrue);
   });
 }
 

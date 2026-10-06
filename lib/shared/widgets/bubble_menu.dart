@@ -4,7 +4,6 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../app/theme/colors.dart';
-import '../debug/app_log.dart';
 
 /// 泡泡橫列選單的一個動作。[destructive] 為 true 的（刪除這類）一律排在
 /// 最右邊、前面自動加一條分隔線、圖示跟字用紅色。
@@ -59,7 +58,6 @@ Future<T?> showBubbleMenu<T>(
   var closed = false;
 
   Future<void> finish(T? value) async {
-    _menuLog('finish($value) closed=$closed');
     if (closed) return;
     closed = true;
     final h = history;
@@ -73,7 +71,6 @@ Future<T?> showBubbleMenu<T>(
   if (route != null) {
     history = LocalHistoryEntry(
       onRemove: () {
-        _menuLog('返回鍵／history 移除 → 關選單');
         history = null;
         finish(null);
       },
@@ -91,16 +88,16 @@ Future<T?> showBubbleMenu<T>(
     ),
   );
   overlay.insert(entry);
-  _menuLog(
-    '選單打開 items=${[for (final i in items) i.label]} '
-    'drag=${drag != null} route=${route != null}',
-  );
   return completer.future;
 }
 
 /// 長按的手指在螢幕上的位置，從卡片的長按手勢一路轉給已經跳出來的
 /// 泡泡選單。
 class BubbleMenuDrag {
+  BubbleMenuDrag({this.origin});
+
+  /// 長按成立那一點，輔助虛線從這裡拉到手指目前的位置。
+  final Offset? origin;
   final position = ValueNotifier<Offset?>(null);
   final released = ValueNotifier<bool>(false);
 
@@ -136,13 +133,11 @@ class _BubbleLongPressState extends State<BubbleLongPress> {
   Widget build(BuildContext context) {
     return GestureDetector(
       onLongPressStart: (d) {
-        _menuLog('卡片長按成立 at=${_pt(d.globalPosition)}');
-        final drag = _drag = BubbleMenuDrag();
+        final drag = _drag = BubbleMenuDrag(origin: d.globalPosition);
         widget.onLongPress(bubbleAnchorOf(context), drag);
       },
       onLongPressMoveUpdate: (d) => _drag?.move(d.globalPosition),
       onLongPressEnd: (d) {
-        _menuLog('卡片長按放開 at=${_pt(d.globalPosition)}');
         _drag?.release(d.globalPosition);
         _drag = null;
       },
@@ -189,46 +184,32 @@ class _BubbleMenuHostState<T> extends State<_BubbleMenuHost<T>>
 
   @override
   Widget build(BuildContext context) {
-    // 除錯（2026-10-06 使用者回報要按兩次）：選單打開期間每一下手指
-    // 按下／放開都記一筆，看第一下有沒有送到選單。
-    return Listener(
-      behavior: HitTestBehavior.translucent,
-      onPointerDown: (e) => _menuLog(
-        '選單上 手指按下 #${e.pointer} ${e.kind.name} at=${_pt(e.position)}',
-      ),
-      onPointerUp: (e) =>
-          _menuLog('選單上 手指放開 #${e.pointer} at=${_pt(e.position)}'),
-      onPointerCancel: (e) => _menuLog('選單上 手指取消 #${e.pointer}'),
-      child: FadeTransition(
-        opacity: _controller,
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: Semantics(
-                label: '關閉選單',
-                button: true,
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () {
-                    _menuLog('點到遮罩 → 關選單');
-                    widget.onSelect(null);
-                  },
-                  child: const ColoredBox(color: Colors.black26),
-                ),
+    return FadeTransition(
+      opacity: _controller,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: Semantics(
+              label: '關閉選單',
+              button: true,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => widget.onSelect(null),
+                child: const ColoredBox(color: Colors.black26),
               ),
             ),
-            Positioned.fill(
-              child: _BubbleMenuLayout<T>(
-                animation: _controller,
-                anchor: widget.anchor,
-                normal: widget.normal,
-                danger: widget.danger,
-                drag: widget.drag,
-                onSelect: widget.onSelect,
-              ),
+          ),
+          Positioned.fill(
+            child: _BubbleMenuLayout<T>(
+              animation: _controller,
+              anchor: widget.anchor,
+              normal: widget.normal,
+              danger: widget.danger,
+              drag: widget.drag,
+              onSelect: widget.onSelect,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -310,16 +291,12 @@ class _BubbleMenuLayoutState<T> extends State<_BubbleMenuLayout<T>> {
 
   void _onMove() {
     final hit = _itemAt(widget.drag!.position.value);
-    if (hit != _hovered) _menuLog('滑到 ${hit?.label ?? '(按鈕外)'}');
-    if (hit != _hovered && mounted) setState(() => _hovered = hit);
+    if (hit == _hovered || !mounted) return;
+    setState(() => _hovered = hit);
   }
 
   void _onRelease() {
     final hit = _itemAt(widget.drag!.position.value);
-    _menuLog(
-      '長按放開 at=${_pt(widget.drag!.position.value)} '
-      '→ ${hit?.label ?? '按鈕外，選單留著'} done=$_done mounted=$mounted',
-    );
     if (hit != null && !_done && mounted) {
       _done = true;
       widget.onSelect(hit.value);
@@ -384,6 +361,7 @@ class _BubbleMenuLayoutState<T> extends State<_BubbleMenuLayout<T>> {
     }
 
     Widget cell(BubbleMenuItem<T> item) {
+      final hovered = identical(item, _hovered);
       final color = item.destructive
           ? AppColors.bad
           : (item.iconColor ?? AppColors.ink);
@@ -393,43 +371,70 @@ class _BubbleMenuLayoutState<T> extends State<_BubbleMenuLayout<T>> {
         child: InkWell(
           borderRadius: BorderRadius.circular(10),
           onTap: () {
-            _menuLog('點到按鈕 ${item.label} done=$_done');
             if (_done) return;
             _done = true;
             widget.onSelect(item.value);
           },
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 90),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(10),
-              color: identical(item, _hovered)
-                  ? AppColors.glassEdge
-                  : Colors.transparent,
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(item.icon, size: 20, color: color),
-                const SizedBox(height: 5),
-                Text(
-                  item.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w600,
-                    color: item.destructive ? AppColors.bad : AppColors.ink2,
+          // 滑選中的那顆：放大後彈一下（elasticOut，Q 彈）、底色換成強調色
+          // （刪除這類用紅色）、字變亮（2026-10-06 使用者要求，參考 iOS
+          // 長按選單／LINE 泡泡選單滑過去時的回饋）。
+          child: AnimatedScale(
+            scale: hovered ? 1.16 : 1,
+            duration: Duration(milliseconds: hovered ? 420 : 140),
+            curve: hovered ? Curves.elasticOut : Curves.easeOut,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 120),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                color: hovered
+                    ? (item.destructive ? AppColors.bad : AppColors.accent)
+                          .withValues(alpha: 0.28)
+                    : Colors.transparent,
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(item.icon, size: 20, color: color),
+                  const SizedBox(height: 5),
+                  Text(
+                    item.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: hovered ? FontWeight.w800 : FontWeight.w600,
+                      color: item.destructive
+                          ? AppColors.bad
+                          : hovered
+                          ? AppColors.ink
+                          : AppColors.ink2,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
       );
     }
 
+    final drag = widget.drag;
     return Stack(
       children: [
+        // 長按不放滑動時，從長按那一點拉一條虛線到手指（2026-10-06 使用者
+        // 要求的輔助線），滑到按鈕上就變強調色；放開就收掉。
+        if (drag != null && drag.origin != null)
+          Positioned.fill(
+            child: IgnorePointer(
+              child: CustomPaint(
+                painter: _GuideLinePainter(
+                  drag: drag,
+                  active: _hovered != null,
+                  danger: _hovered?.destructive ?? false,
+                ),
+              ),
+            ),
+          ),
         Positioned(
           left: left,
           top: top,
@@ -471,6 +476,57 @@ class _BubbleMenuLayoutState<T> extends State<_BubbleMenuLayout<T>> {
       ],
     );
   }
+}
+
+/// 滑選時的輔助虛線：起點一個小圓點（長按的位置），終點一個圈（手指
+/// 目前的位置）。跟著手指移動重畫，不用整個選單重建。
+class _GuideLinePainter extends CustomPainter {
+  _GuideLinePainter({
+    required this.drag,
+    required this.active,
+    required this.danger,
+  }) : super(repaint: Listenable.merge([drag.position, drag.released]));
+
+  final BubbleMenuDrag drag;
+  final bool active;
+  final bool danger;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final from = drag.origin;
+    final to = drag.position.value;
+    if (from == null || to == null || drag.released.value) return;
+    final distance = (to - from).distance;
+    if (distance < 12) return;
+
+    final color = active
+        ? (danger ? AppColors.bad : AppColors.accent)
+        : AppColors.ink3;
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round;
+    const dash = 6.0;
+    const gap = 5.0;
+    final dir = (to - from) / distance;
+    for (var d = 0.0; d < distance; d += dash + gap) {
+      final end = math.min(d + dash, distance);
+      canvas.drawLine(from + dir * d, from + dir * end, paint);
+    }
+    canvas.drawCircle(from, 3.5, Paint()..color = color);
+    canvas.drawCircle(
+      to,
+      active ? 9 : 7,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2
+        ..color = color,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_GuideLinePainter old) =>
+      old.active != active || old.danger != danger || old.drag != drag;
 }
 
 /// 畫泡泡本體（圓角黑底＋細亮邊＋陰影）和指向卡片的小尖角。
@@ -518,10 +574,3 @@ class _BubblePainter extends CustomPainter {
   bool shouldRepaint(_BubblePainter old) =>
       old.arrowX != arrowX || old.arrowDown != arrowDown;
 }
-
-/// 除錯紀錄（2026-10-06 使用者回報要按兩次才生效，加來追）：寫進
-/// [debugPrint]，設定頁「查看除錯訊息」看得到、能整份複製。查完可拿掉。
-void _menuLog(String message) => debugTrace('長按選單', message);
-
-String _pt(Offset? p) =>
-    p == null ? '-' : '(${p.dx.toStringAsFixed(0)},${p.dy.toStringAsFixed(0)})';

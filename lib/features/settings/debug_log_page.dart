@@ -2,7 +2,9 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
@@ -27,12 +29,18 @@ enum _Filter { all, error, info }
 /// 不是 07 原稿畫的三級（多一個「警告」）——[AppLogEntry] 目前只有
 /// `isError` 一個布林欄位，沒有真的警告等級資料，不無中生有做一個假的
 /// 篩選項出來。
-class DebugLogPage extends StatefulWidget {
+///
+/// 「清空畫面」只是把畫面上看的起點往後挪（記一個時間點，存本機，重新
+/// 整理也記得），紀錄本身一筆都不刪；右上角「歷史」切過去看全部
+/// （2026-10-06 使用者要求：要能清空畫面上的，但歷史還要看得到）。
+class DebugLogPage extends ConsumerStatefulWidget {
   const DebugLogPage({super.key});
 
   @override
-  State<DebugLogPage> createState() => _DebugLogPageState();
+  ConsumerState<DebugLogPage> createState() => _DebugLogPageState();
 }
+
+const _clearedAtKey = 'debug_log.cleared_at.v1';
 
 const _testMessages = [
   '[YtApi] fetchChannelInfo(@shasha77) 開始',
@@ -44,14 +52,46 @@ const _testMessages = [
   '[Notif] requestPermission() → granted',
 ];
 
-class _DebugLogPageState extends State<DebugLogPage> {
+class _DebugLogPageState extends ConsumerState<DebugLogPage> {
   _Filter _filter = _Filter.all;
   final _random = Random();
+
+  /// 「清空畫面」的時間點，這之前的訊息平常不顯示（[_history] 時全顯示）。
+  DateTime? _clearedAt;
+  bool _history = false;
 
   @override
   void initState() {
     super.initState();
     AppLog.markViewed();
+    _loadClearedAt();
+  }
+
+  Future<void> _loadClearedAt() async {
+    final raw = await ref.read(keyValueStoreProvider).read(_clearedAtKey);
+    final at = raw == null ? null : DateTime.tryParse(raw);
+    if (mounted && at != null) setState(() => _clearedAt = at);
+  }
+
+  Future<void> _clearScreen() async {
+    final now = DateTime.now();
+    setState(() {
+      _clearedAt = now;
+      _history = false;
+    });
+    await ref
+        .read(keyValueStoreProvider)
+        .write(_clearedAtKey, now.toIso8601String());
+    if (mounted) showAppNotice(context, '畫面已清空，按「歷史」還看得到全部');
+  }
+
+  List<AppLogEntry> _visible(List<AppLogEntry> all) {
+    final from = _clearedAt;
+    if (_history || from == null) return all;
+    return [
+      for (final e in all)
+        if (e.at.isAfter(from)) e,
+    ];
   }
 
   /// 隨便產生一筆訊息，嚴重等級（一般／錯誤）也隨機決定——這樣才有
@@ -76,7 +116,7 @@ class _DebugLogPageState extends State<DebugLogPage> {
               children: [
                 const SizedBox(height: Gap.sm),
                 AppTopBar(
-                  title: '除錯訊息',
+                  title: _history ? '除錯訊息・歷史' : '除錯訊息',
                   titleIcon: Icons.bug_report_outlined,
                   showBack: false,
                   actions: [
@@ -95,21 +135,39 @@ class _DebugLogPageState extends State<DebugLogPage> {
                       color: AppColors.ink2,
                       tooltip: '測試通知',
                     ),
+                    IconButton(
+                      onPressed: _clearScreen,
+                      icon: const Icon(
+                        Icons.cleaning_services_outlined,
+                        size: 20,
+                      ),
+                      color: AppColors.ink2,
+                      tooltip: '清空畫面（紀錄不會刪）',
+                    ),
+                    IconButton(
+                      onPressed: () => setState(() => _history = !_history),
+                      icon: const Icon(Icons.history_rounded, size: 20),
+                      color: _history ? AppColors.accent : AppColors.ink2,
+                      tooltip: _history ? '回到目前畫面' : '歷史（全部紀錄）',
+                    ),
                     ValueListenableBuilder<List<AppLogEntry>>(
                       valueListenable: AppLog.entries,
-                      builder: (context, entries, _) => IconButton(
-                        onPressed: entries.isEmpty
-                            ? null
-                            : () {
-                                Clipboard.setData(
-                                  ClipboardData(text: _joined(entries)),
-                                );
-                                showAppNotice(context, '已複製到剪貼簿');
-                              },
-                        icon: const Icon(Icons.copy_all_outlined, size: 20),
-                        color: AppColors.ink2,
-                        tooltip: '複製全部',
-                      ),
+                      builder: (context, all, _) {
+                        final entries = _visible(all);
+                        return IconButton(
+                          onPressed: entries.isEmpty
+                              ? null
+                              : () {
+                                  Clipboard.setData(
+                                    ClipboardData(text: _joined(entries)),
+                                  );
+                                  showAppNotice(context, '已複製到剪貼簿');
+                                },
+                          icon: const Icon(Icons.copy_all_outlined, size: 20),
+                          color: AppColors.ink2,
+                          tooltip: '複製全部',
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -117,10 +175,17 @@ class _DebugLogPageState extends State<DebugLogPage> {
                 Expanded(
                   child: ValueListenableBuilder<List<AppLogEntry>>(
                     valueListenable: AppLog.entries,
-                    builder: (context, entries, _) {
+                    builder: (context, all, _) {
+                      final entries = _visible(all);
                       if (entries.isEmpty) {
                         return Center(
-                          child: Text('還沒有任何訊息', style: AppText.bodyDim),
+                          child: Text(
+                            all.isEmpty
+                                ? '還沒有任何訊息'
+                                : '畫面已清空，按右上角「歷史」看全部 ${all.length} 筆',
+                            style: AppText.bodyDim,
+                            textAlign: TextAlign.center,
+                          ),
                         );
                       }
                       final errorCount = entries.where((e) => e.isError).length;

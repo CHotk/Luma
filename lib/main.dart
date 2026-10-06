@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -20,7 +22,21 @@ import 'shared/debug/app_log.dart';
 /// 開機流程做兩件事：把要非同步準備的儲存後端先開好，
 /// 也把單字庫標籤排序這種讀資產檔的設定先讀好，再用 override 注進
 /// provider。這樣畫面層就不必處理「還沒準備好」。
-Future<void> main() async {
+///
+/// 整個開機包在 [runZonedGuarded] 裡：網頁版上沒人 await 的非同步例外
+/// **不會**走 `PlatformDispatcher.onError`，只會印在瀏覽器 console，設定
+/// 頁「查看除錯訊息」完全看不到（2026-10-06 使用者回報：置頂／一般要
+/// 按兩次，console 有 Uncaught Error、除錯頁卻什麼都沒有）。zone 接住
+/// 之後一樣寫進 [AppLog]、照常印到 console。
+void main() {
+  runZonedGuarded(_start, (error, stack) {
+    AppLog.add('$error\n$stack', isError: true);
+    // ignore: avoid_print
+    print('Uncaught: $error\n$stack');
+  });
+}
+
+Future<void> _start() async {
   WidgetsFlutterBinding.ensureInitialized();
   _wireAppLog();
   // 開機流程整包包進 try/catch（2026-09-30 使用者回報：手機 iOS Safari

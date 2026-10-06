@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -115,8 +114,6 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
   @override
   void initState() {
     super.initState();
-    GestureBinding.instance.pointerRouter.addGlobalRoute(_tracePointer);
-    _ytSectionLog('進入分類頁');
     _future = _load();
   }
 
@@ -127,21 +124,10 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
     final channels = widget.trash
         ? await repo.loadDeletedChannels()
         : await repo.loadChannels();
-    final watched = _debugChannelId;
-    if (watched != null) {
-      final hit = channels.where((c) => c.id == watched).firstOrNull;
-      _ytSectionLog(
-        '重新讀取完成：${hit == null ? '找不到' : '${hit.name} 在「${_sectionOf(hit)}」'}',
-      );
-    }
     return (categories: categories, channels: channels);
   }
 
-  /// 除錯：最近一次在選單操作的頻道，重新讀取／畫面重繪時記它在哪一區。
-  String? _debugChannelId;
-
   void _reload() => setState(() {
-    _ytSectionLog('reload：重新讀取頻道');
     _future = _load();
   });
 
@@ -198,17 +184,17 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
     setState(() => _videoPreview = preview);
   }
 
-  /// 依目前排序方式排好的頻道，分三層：置頂的一律排最前面，按置頂時間
-  /// 新到舊排（2026-09-30 使用者要求）；冷藏的一律排最後面（2026-10-02
-  /// 使用者要求，見 [YtChannel.coldAt]）；中間普通的才照排序方式排。冷藏
-  /// 區裡面也套同一個排序方式，切排序時兩區一致。訂閱人數沒資料（沒更新
-  /// 到、或隱藏）的排最後，同人數的維持原本順序（[List.sort] 不保證穩定，
-  /// 所以自己帶原始位置比）。
+  /// 依目前排序方式排好的頻道，分四層：置頂排最前面（2026-09-30）、
+  /// 一般、冷藏（2026-10-02，見 [YtChannel.coldAt]）、待評鑑排最後。
+  /// 每一區裡面都套同一個排序方式，切排序時各區一致——置頂區原本固定
+  /// 照置頂時間新到舊，2026-10-06 使用者要求改成也照當下的排序方式。
+  /// 訂閱人數沒資料（沒更新到、或隱藏）的排最後，同人數的維持原本順序
+  /// （[List.sort] 不保證穩定，所以自己帶原始位置比）。
   List<YtChannel> _sortedChannels(List<YtChannel> channels) {
-    final pinned = [
+    final pinned = _bySort([
       for (final c in channels)
         if (c.pinnedAt != null) c,
-    ]..sort((a, b) => b.pinnedAt!.compareTo(a.pinnedAt!));
+    ]);
     final rest = [
       for (final c in channels)
         if (c.pinnedAt == null && c.coldAt == null && !c.pendingReview) c,
@@ -571,8 +557,6 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
   /// 就跟著頻道一起同步，這裡只是切換那個欄位、存檔，不用另外處理
   /// 同步邏輯。
   Future<void> _togglePin(YtChannel c) async {
-    _debugChannelId = c.id;
-    _ytSectionLog('置頂切換開始：${c.name} 目前在「${_sectionOf(c)}」');
     final pinning = c.pinnedAt == null;
     await ref
         .read(ytTrackerRepositoryProvider)
@@ -586,15 +570,12 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
             reviewedAt: c.reviewedAt ?? DateTime.now(),
           ),
         );
-    _ytSectionLog('寫入完成，mounted=$mounted');
     if (mounted) _reload();
   }
 
   /// 放進／移出冷藏區（2026-10-02 使用者要求：不常看、但也還不想刪的
   /// 頻道放到分類頁最下面，見 [YtChannel.coldAt]）。跟置頂互斥。
   Future<void> _toggleCold(YtChannel c) async {
-    _debugChannelId = c.id;
-    _ytSectionLog('冷藏切換開始：${c.name} 目前在「${_sectionOf(c)}」');
     final freezing = c.coldAt == null;
     await ref
         .read(ytTrackerRepositoryProvider)
@@ -605,21 +586,17 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
             reviewedAt: c.reviewedAt ?? DateTime.now(),
           ),
         );
-    _ytSectionLog('寫入完成，mounted=$mounted');
     if (mounted) _reload();
   }
 
   /// 放到「一般」區（2026-10-06：待評鑑的頻道要自己分過去；置頂、冷藏
   /// 的也能直接一步放回一般）。
   Future<void> _setNormal(YtChannel c) async {
-    _debugChannelId = c.id;
-    _ytSectionLog('放到一般開始：${c.name} 目前在「${_sectionOf(c)}」');
     await ref
         .read(ytTrackerRepositoryProvider)
         .updateChannel(
           c.copyWith(pinnedAt: null, coldAt: null, reviewedAt: DateTime.now()),
         );
-    _ytSectionLog('寫入完成，mounted=$mounted');
     if (mounted) _reload();
   }
 
@@ -817,28 +794,6 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
         ),
       ],
     );
-  }
-
-  /// 除錯：這頁開著的期間，整個 App 每一下手指／滑鼠按下、放開都記
-  /// 一筆（不管點到哪裡），看「沒反應」的那一下到底有沒有送進 App。
-  void _tracePointer(PointerEvent e) {
-    if (e is PointerDownEvent) {
-      _ytSectionLog(
-        '【按下】#${e.pointer} ${e.kind.name} at=(${e.position.dx.round()},${e.position.dy.round()})',
-      );
-    } else if (e is PointerUpEvent) {
-      _ytSectionLog(
-        '【放開】#${e.pointer} at=(${e.position.dx.round()},${e.position.dy.round()})',
-      );
-    } else if (e is PointerCancelEvent) {
-      _ytSectionLog('【取消】#${e.pointer}');
-    }
-  }
-
-  @override
-  void dispose() {
-    GestureBinding.instance.pointerRouter.removeGlobalRoute(_tracePointer);
-    super.dispose();
   }
 
   @override
@@ -1763,12 +1718,6 @@ class _ChannelGridState extends State<_ChannelGrid> {
   @override
   Widget build(BuildContext context) {
     final channels = widget.channels;
-    _ytSectionLog(
-      '畫面重繪：置頂 ${channels.where((c) => c.pinnedAt != null).length}'
-      '／冷藏 ${channels.where((c) => c.pinnedAt == null && c.coldAt != null).length}'
-      '／待評鑑 ${channels.where((c) => c.pendingReview).length}'
-      '／共 ${channels.length}',
-    );
     if (channels.isEmpty) {
       return SingleChildScrollView(
         child: widget.trash
@@ -1962,10 +1911,7 @@ class _ChannelGridState extends State<_ChannelGrid> {
       builder: (cardContext) => BubbleLongPress(
         onLongPress: (_, drag) => _showChannelMenu(cardContext, c, drag: drag),
         child: InkWell(
-          onTap: () {
-            _ytSectionLog('點了卡片（開頻道頁）：${c.name}');
-            widget.onOpen(c);
-          },
+          onTap: () => widget.onOpen(c),
           borderRadius: BorderRadius.circular(Radii.card),
           // 裁成卡片圓角，左側色條才會順著圓角收邊，不會凸出去。
           child: ClipRRect(
@@ -2024,10 +1970,7 @@ class _ChannelGridState extends State<_ChannelGrid> {
                         ),
                       ),
                       IconButton(
-                        onPressed: () {
-                          _ytSectionLog('按了 ⋮：${c.name}');
-                          _showChannelMenu(cardContext, c);
-                        },
+                        onPressed: () => _showChannelMenu(cardContext, c),
                         icon: const Icon(Icons.more_vert_rounded, size: 18),
                         color: AppColors.ink2,
                         padding: EdgeInsets.zero,
@@ -2133,7 +2076,6 @@ class _ChannelGridState extends State<_ChannelGrid> {
           ),
       ],
     );
-    _ytSectionLog('選單回傳：${action?.name ?? '(沒選，關掉)'}，頻道 ${c.name}');
     switch (action) {
       case _ChannelMenuAction.edit:
         widget.onOpen(c);
@@ -2237,15 +2179,3 @@ class _TypeChip extends StatelessWidget {
     );
   }
 }
-
-/// 除錯紀錄（2026-10-06 使用者回報置頂／一般／冷藏要按兩次才生效）：
-/// 寫進 [debugPrint]，設定頁「查看除錯訊息」看得到。查完可拿掉。
-void _ytSectionLog(String message) => debugTrace('YT分區', message);
-
-String _sectionOf(YtChannel c) => c.pinnedAt != null
-    ? '置頂'
-    : c.coldAt != null
-    ? '冷藏'
-    : c.pendingReview
-    ? '待評鑑'
-    : '一般';

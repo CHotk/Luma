@@ -139,6 +139,12 @@ void main() {
     await tester.pump();
     await gesture.moveTo(target);
     await tester.pump();
+    // 滑到的那顆放大（Q 彈），其他維持原大小。
+    final scales = tester
+        .widgetList<AnimatedScale>(find.byType(AnimatedScale))
+        .map((w) => w.scale)
+        .toList();
+    expect(scales.where((s) => s > 1).length, 1);
     await gesture.up();
     await tester.pumpAndSettle();
     expect(picked, ['cold']);

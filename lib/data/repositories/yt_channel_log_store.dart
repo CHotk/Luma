@@ -87,9 +87,15 @@ class YtChannelLogStore {
   static final _random = Random();
 
   /// 產生一個不會撞的 id（時間＋亂數）。
+  ///
+  /// 亂數上限不能寫 `1 << 32`：網頁版的位元運算只有 32 位，`1 << 32`
+  /// 會變成 0，`nextInt(0)` 直接丟錯——頻道已經存進去了、記紀錄這步卻
+  /// 炸掉，畫面沒重新整理，看起來就是「第一次按沒反應、第二次才有」
+  /// （2026-10-06 使用者回報、console 抓到）。電腦上跑測試是 64 位，
+  /// 測不出來。
   static String newId() =>
       '${DateTime.now().microsecondsSinceEpoch.toRadixString(36)}'
-      '${_random.nextInt(1 << 32).toRadixString(36)}';
+      '${_random.nextInt(0x7fffffff).toRadixString(36)}';
 
   Future<List<YtChannelEvent>> loadAll() async {
     final raw = await _store.read(_key);
