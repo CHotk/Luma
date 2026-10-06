@@ -127,7 +127,9 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
     return (categories: categories, channels: channels);
   }
 
-  void _reload() => setState(() => _future = _load());
+  void _reload() => setState(() {
+    _future = _load();
+  });
 
   /// 「依影片顯示」要抓資料才有得看，但不能每次 build 都重打 API——只在
   /// 「切到影片模式」或「篩選範圍變了」才重抓，[force] 是手動按重新整理
@@ -1904,9 +1906,10 @@ class _ChannelGridState extends State<_ChannelGrid> {
     // 長按整張卡片、或點右邊 ⋮，都在這張卡片上方跳出同一條泡泡選單
     // （2026-09-24 加長按；2026-10-02 改成泡泡橫列，見 [_showChannelMenu]）。
     // 用 Builder 拿到卡片自己的 context，泡泡的尖角才對得準這張卡片。
+    // 長按不放可以直接滑到選單按鈕上放開來選（2026-10-06 使用者要求）。
     return Builder(
-      builder: (cardContext) => GestureDetector(
-        onLongPress: () => _showChannelMenu(cardContext, c),
+      builder: (cardContext) => BubbleLongPress(
+        onLongPress: (_, drag) => _showChannelMenu(cardContext, c, drag: drag),
         child: InkWell(
           onTap: () => widget.onOpen(c),
           borderRadius: BorderRadius.circular(Radii.card),
@@ -2010,12 +2013,17 @@ class _ChannelGridState extends State<_ChannelGrid> {
   /// 上方、尖角指向它，刪除在最右邊用分隔線隔開（2026-10-02 使用者從
   /// 長按選單設計稿挑的，全 App 共用 [showBubbleMenu]）。置頂／冷藏用
   /// 各自的區域色。
-  Future<void> _showChannelMenu(BuildContext cardContext, YtChannel c) async {
+  Future<void> _showChannelMenu(
+    BuildContext cardContext,
+    YtChannel c, {
+    BubbleMenuDrag? drag,
+  }) async {
     final isPinned = c.pinnedAt != null;
     final isCold = c.coldAt != null;
     final action = await showBubbleMenu<_ChannelMenuAction>(
       cardContext,
       anchor: bubbleAnchorOf(cardContext),
+      drag: drag,
       items: [
         const BubbleMenuItem(
           value: _ChannelMenuAction.edit,

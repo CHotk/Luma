@@ -93,10 +93,15 @@ class _KanaExamHistoryPageState extends ConsumerState<KanaExamHistoryPage> {
 
   /// 長按一筆答題：卡片上方跳出泡泡選單（全 App 統一的長按選單，見
   /// [showBubbleMenu]），可以改成答對／答錯或刪除。
-  Future<void> _editEntry(KanaExamEntry entry, Rect anchor) async {
+  Future<void> _editEntry(
+    KanaExamEntry entry,
+    Rect anchor,
+    BubbleMenuDrag drag,
+  ) async {
     final action = await showBubbleMenu<_EntryAction>(
       context,
       anchor: anchor,
+      drag: drag,
       items: const [
         BubbleMenuItem(
           value: _EntryAction.markCorrect,
@@ -403,7 +408,8 @@ class _RoundCard extends StatefulWidget {
 
   /// 同一輪的所有題目，呼叫端已經是新到舊排序。
   final List<KanaExamEntry> entries;
-  final void Function(KanaExamEntry entry, Rect anchor) onEditEntry;
+  final void Function(KanaExamEntry entry, Rect anchor, BubbleMenuDrag drag)
+  onEditEntry;
 
   @override
   State<_RoundCard> createState() => _RoundCardState();
@@ -498,8 +504,8 @@ class _RoundCardState extends State<_RoundCard> {
                   for (final entry in entries) ...[
                     _EntryCard(
                       entry: entry,
-                      onLongPress: (anchor) =>
-                          widget.onEditEntry(entry, anchor),
+                      onLongPress: (anchor, drag) =>
+                          widget.onEditEntry(entry, anchor, drag),
                     ),
                     if (entry != entries.last) const SizedBox(height: Gap.xs),
                   ],
@@ -535,7 +541,8 @@ class _EntryCard extends StatelessWidget {
   /// 長按跳出操作選單：標記答對／答錯（真的改資料，不只是畫面上換
   /// 圖示）、刪除這筆紀錄（2026-09-21 使用者要求）。傳入這張卡片在
   /// 螢幕上的範圍，泡泡選單的尖角才對得準它。
-  final void Function(Rect anchor) onLongPress;
+  /// 長按不放可以直接滑到選單按鈕上放開來選（2026-10-06）。
+  final void Function(Rect anchor, BubbleMenuDrag drag) onLongPress;
 
   @override
   Widget build(BuildContext context) {
@@ -548,100 +555,77 @@ class _EntryCard extends StatelessWidget {
         '${time.month}/${time.day} '
         '${two(time.hour)}:${two(time.minute)}:${two(time.second)}';
 
-    return InkWell(
-      // 單擊重播這一題當下的手寫過程，長按才是修改/刪除——重播不動
-      // 資料，長按才是有破壞性的操作，兩個手勢分開才不會誤觸
-      // （2026-09-21 使用者要求：點個別答題要能跳出視窗自動重播）。
-      // 「不會」按下去時如果根本沒落筆，strokes 會是空的——這種還是
-      // 要能點開，只是對話框裡老實講「沒有落筆」，不能整個沒反應讓人
-      // 以為壞掉（2026-09-21 使用者回報：答錯的不能看）。
-      onTap: () => showDialog<void>(
-        context: context,
-        builder: (_) => _ExamReplayDialog(entry: entry),
-      ),
-      onLongPress: () => onLongPress(bubbleAnchorOf(context)),
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.all(Gap.sm),
-        decoration: BoxDecoration(
-          color: AppColors.glassFill,
-          border: Border.all(color: AppColors.glassEdge),
-          borderRadius: BorderRadius.circular(12),
+    return BubbleLongPress(
+      onLongPress: onLongPress,
+      child: InkWell(
+        // 單擊重播這一題當下的手寫過程，長按才是修改/刪除——重播不動
+        // 資料，長按才是有破壞性的操作，兩個手勢分開才不會誤觸
+        // （2026-09-21 使用者要求：點個別答題要能跳出視窗自動重播）。
+        // 「不會」按下去時如果根本沒落筆，strokes 會是空的——這種還是
+        // 要能點開，只是對話框裡老實講「沒有落筆」，不能整個沒反應讓人
+        // 以為壞掉（2026-09-21 使用者回報：答錯的不能看）。
+        onTap: () => showDialog<void>(
+          context: context,
+          builder: (_) => _ExamReplayDialog(entry: entry),
         ),
-        child: Row(
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: paperColor,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: entry.strokes.isEmpty
-                  ? Text(
-                      entry.kana,
-                      style: const TextStyle(fontSize: 20, color: inkColor),
-                    )
-                  // CustomPaint 沒指定 size、外層 Container 又有
-                  // alignment，會收縮成 0×0 置中顯示，所有筆畫座標都被
-                  // 壓成同一個點——縮圖就只看到正中間一個黑點，字完全
-                  // 看不出來（2026-09-21 使用者回報，bug 根源）。
-                  : CustomPaint(
-                      size: const Size(48, 48),
-                      painter: InkPainter(
-                        strokes: [
-                          for (final stroke in entry.strokes)
-                            [for (final p in stroke) Offset(p.$1, p.$2)],
-                        ],
-                        strokeWidth: inkStrokeWidth(48),
-                      ),
-                    ),
-            ),
-            const SizedBox(width: Gap.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.all(Gap.sm),
+          decoration: BoxDecoration(
+            color: AppColors.glassFill,
+            border: Border.all(color: AppColors.glassEdge),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: paperColor,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: entry.strokes.isEmpty
+                    ? Text(
                         entry.kana,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.ink,
+                        style: const TextStyle(fontSize: 20, color: inkColor),
+                      )
+                    // CustomPaint 沒指定 size、外層 Container 又有
+                    // alignment，會收縮成 0×0 置中顯示，所有筆畫座標都被
+                    // 壓成同一個點——縮圖就只看到正中間一個黑點，字完全
+                    // 看不出來（2026-09-21 使用者回報，bug 根源）。
+                    : CustomPaint(
+                        size: const Size(48, 48),
+                        painter: InkPainter(
+                          strokes: [
+                            for (final stroke in entry.strokes)
+                              [for (final p in stroke) Offset(p.$1, p.$2)],
+                          ],
+                          strokeWidth: inkStrokeWidth(48),
                         ),
                       ),
-                      const SizedBox(width: 6),
-                      Text(
-                        entry.romaji,
-                        style: TextStyle(fontSize: 12, color: AppColors.ink3),
-                      ),
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 1,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.jpAccent.withValues(alpha: 0.14),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Text(
-                          entry.examType == 'kana' ? '50 音' : '詞彙',
+              ),
+              const SizedBox(width: Gap.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          entry.kana,
                           style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.jpAccent,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.ink,
                           ),
                         ),
-                      ),
-                      // 一筆都沒寫直接按「不會」——跟「有寫但自評寫錯」
-                      // 是兩種不同狀態，光看紅色叉叉分不出來，直接標
-                      // 「放棄」比開對話框才知道更明確（2026-09-21
-                      // 使用者要求）。
-                      if (entry.strokes.isEmpty) ...[
+                        const SizedBox(width: 6),
+                        Text(
+                          entry.romaji,
+                          style: TextStyle(fontSize: 12, color: AppColors.ink3),
+                        ),
                         const SizedBox(width: 6),
                         Container(
                           padding: const EdgeInsets.symmetric(
@@ -649,34 +633,59 @@ class _EntryCard extends StatelessWidget {
                             vertical: 1,
                           ),
                           decoration: BoxDecoration(
-                            color: AppColors.ink3.withValues(alpha: 0.18),
+                            color: AppColors.jpAccent.withValues(alpha: 0.14),
                             borderRadius: BorderRadius.circular(999),
                           ),
                           child: Text(
-                            '放棄',
-                            style: TextStyle(
+                            entry.examType == 'kana' ? '50 音' : '詞彙',
+                            style: const TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w600,
-                              color: AppColors.ink3,
+                              color: AppColors.jpAccent,
                             ),
                           ),
                         ),
+                        // 一筆都沒寫直接按「不會」——跟「有寫但自評寫錯」
+                        // 是兩種不同狀態，光看紅色叉叉分不出來，直接標
+                        // 「放棄」比開對話框才知道更明確（2026-09-21
+                        // 使用者要求）。
+                        if (entry.strokes.isEmpty) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 1,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.ink3.withValues(alpha: 0.18),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Text(
+                              '放棄',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.ink3,
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  Text(timeLabel, style: AppText.note),
-                ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(timeLabel, style: AppText.note),
+                  ],
+                ),
               ),
-            ),
-            Icon(
-              entry.isCorrect
-                  ? Icons.check_circle_rounded
-                  : Icons.cancel_rounded,
-              color: entry.isCorrect ? AppColors.ok : AppColors.bad,
-              size: 22,
-            ),
-          ],
+              Icon(
+                entry.isCorrect
+                    ? Icons.check_circle_rounded
+                    : Icons.cancel_rounded,
+                color: entry.isCorrect ? AppColors.ok : AppColors.bad,
+                size: 22,
+              ),
+            ],
+          ),
         ),
       ),
     );

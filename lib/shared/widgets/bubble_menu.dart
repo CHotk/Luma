@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -32,28 +33,182 @@ class BubbleMenuItem<T> {
 /// [anchor] 是被按那張卡片在螢幕上的範圍（用 [bubbleAnchorOf] 從卡片的
 /// context 算）。上方空間不夠時改放在卡片下方、尖角朝上。點泡泡外面或
 /// 按返回鍵關閉，回傳 null。
+///
+/// [drag] 有給的話，長按的手指不用放開，直接滑到某個按鈕上放開就選它
+/// （2026-10-06 使用者要求）；在按鈕以外的地方放開，選單照樣留著可以
+/// 再點。卡片用 [BubbleLongPress] 包起來就會自動接好。
 Future<T?> showBubbleMenu<T>(
   BuildContext context, {
   required Rect anchor,
   required List<BubbleMenuItem<T>> items,
+  BubbleMenuDrag? drag,
 }) {
   final normal = items.where((e) => !e.destructive).toList();
   final danger = items.where((e) => e.destructive).toList();
-  return showGeneralDialog<T>(
-    context: context,
-    barrierDismissible: true,
-    barrierLabel: '關閉選單',
-    barrierColor: Colors.black26,
-    transitionDuration: const Duration(milliseconds: 160),
-    pageBuilder: (dialogContext, animation, _) => _BubbleMenuLayout<T>(
-      animation: animation,
+  // 不用 showGeneralDialog 推一個新 route：推 route 時 Navigator 會把當下
+  // 還按著的手指整個取消，長按的手指就收不到後面的移動、放開，沒辦法
+  // 「滑過去選」（2026-10-06）。改成直接插在最上層 Overlay，返回鍵用
+  // LocalHistoryEntry 接住，按返回一樣是關選單、不是離開這頁。
+  final completer = Completer<T?>();
+  final overlay = Overlay.of(context, rootOverlay: true);
+  final route = ModalRoute.of(context);
+  final hostKey = GlobalKey<_BubbleMenuHostState<T>>();
+  late final OverlayEntry entry;
+  LocalHistoryEntry? history;
+  var closed = false;
+
+  Future<void> finish(T? value) async {
+    if (closed) return;
+    closed = true;
+    final h = history;
+    history = null;
+    if (h != null) route?.removeLocalHistoryEntry(h);
+    completer.complete(value);
+    await hostKey.currentState?.close();
+    entry.remove();
+  }
+
+  if (route != null) {
+    history = LocalHistoryEntry(
+      onRemove: () {
+        history = null;
+        finish(null);
+      },
+    );
+    route.addLocalHistoryEntry(history!);
+  }
+  entry = OverlayEntry(
+    builder: (_) => _BubbleMenuHost<T>(
+      key: hostKey,
       anchor: anchor,
       normal: normal,
       danger: danger,
+      drag: drag,
+      onSelect: finish,
     ),
-    transitionBuilder: (_, animation, _, child) =>
-        FadeTransition(opacity: animation, child: child),
   );
+  overlay.insert(entry);
+  return completer.future;
+}
+
+/// 長按的手指在螢幕上的位置，從卡片的長按手勢一路轉給已經跳出來的
+/// 泡泡選單。
+class BubbleMenuDrag {
+  final position = ValueNotifier<Offset?>(null);
+  final released = ValueNotifier<bool>(false);
+
+  void move(Offset global) => position.value = global;
+
+  void release(Offset global) {
+    position.value = global;
+    released.value = true;
+  }
+}
+
+/// 包住卡片：長按跳出泡泡選單，手指不放開可以直接滑到按鈕上放開來選
+/// （見 [showBubbleMenu] 的 `drag`）。[onLongPress] 拿到卡片的範圍跟
+/// 這次長按的 [BubbleMenuDrag]，自己呼叫 [showBubbleMenu] 時傳進去。
+class BubbleLongPress extends StatefulWidget {
+  const BubbleLongPress({
+    super.key,
+    required this.onLongPress,
+    required this.child,
+  });
+
+  final void Function(Rect anchor, BubbleMenuDrag drag) onLongPress;
+  final Widget child;
+
+  @override
+  State<BubbleLongPress> createState() => _BubbleLongPressState();
+}
+
+class _BubbleLongPressState extends State<BubbleLongPress> {
+  BubbleMenuDrag? _drag;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onLongPressStart: (_) {
+        final drag = _drag = BubbleMenuDrag();
+        widget.onLongPress(bubbleAnchorOf(context), drag);
+      },
+      onLongPressMoveUpdate: (d) => _drag?.move(d.globalPosition),
+      onLongPressEnd: (d) {
+        _drag?.release(d.globalPosition);
+        _drag = null;
+      },
+      child: widget.child,
+    );
+  }
+}
+
+/// 選單本體外面那層：半透明遮罩（點了關閉）＋淡入淡出動畫。
+class _BubbleMenuHost<T> extends StatefulWidget {
+  const _BubbleMenuHost({
+    super.key,
+    required this.anchor,
+    required this.normal,
+    required this.danger,
+    required this.drag,
+    required this.onSelect,
+  });
+
+  final Rect anchor;
+  final List<BubbleMenuItem<T>> normal;
+  final List<BubbleMenuItem<T>> danger;
+  final BubbleMenuDrag? drag;
+  final void Function(T? value) onSelect;
+
+  @override
+  State<_BubbleMenuHost<T>> createState() => _BubbleMenuHostState<T>();
+}
+
+class _BubbleMenuHostState<T> extends State<_BubbleMenuHost<T>>
+    with SingleTickerProviderStateMixin {
+  late final _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 160),
+  )..forward();
+
+  Future<void> close() => _controller.reverse();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _controller,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: Semantics(
+              label: '關閉選單',
+              button: true,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => widget.onSelect(null),
+                child: const ColoredBox(color: Colors.black26),
+              ),
+            ),
+          ),
+          Positioned.fill(
+            child: _BubbleMenuLayout<T>(
+              animation: _controller,
+              anchor: widget.anchor,
+              normal: widget.normal,
+              danger: widget.danger,
+              drag: widget.drag,
+              onSelect: widget.onSelect,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// 從卡片自己的 context 算出它在螢幕上的範圍，給 [showBubbleMenu] 的
@@ -73,21 +228,85 @@ const double _gap = 6;
 const double _screenMargin = 8;
 const Color _bubbleColor = Color(0xF20E0E14);
 
-class _BubbleMenuLayout<T> extends StatelessWidget {
+class _BubbleMenuLayout<T> extends StatefulWidget {
   const _BubbleMenuLayout({
     required this.animation,
     required this.anchor,
     required this.normal,
     required this.danger,
+    required this.onSelect,
+    this.drag,
   });
 
   final Animation<double> animation;
   final Rect anchor;
   final List<BubbleMenuItem<T>> normal;
   final List<BubbleMenuItem<T>> danger;
+  final BubbleMenuDrag? drag;
+  final void Function(T? value) onSelect;
+
+  @override
+  State<_BubbleMenuLayout<T>> createState() => _BubbleMenuLayoutState<T>();
+}
+
+class _BubbleMenuLayoutState<T> extends State<_BubbleMenuLayout<T>> {
+  /// 每個按鈕在螢幕上的範圍，build 時算好，滑選時拿來比對手指在哪顆上。
+  final _cells = <(Rect, BubbleMenuItem<T>)>[];
+
+  /// 手指目前滑到的那顆（亮起來）。
+  BubbleMenuItem<T>? _hovered;
+  bool _done = false;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.drag?.position.addListener(_onMove);
+    widget.drag?.released.addListener(_onRelease);
+  }
+
+  @override
+  void dispose() {
+    widget.drag?.position.removeListener(_onMove);
+    widget.drag?.released.removeListener(_onRelease);
+    super.dispose();
+  }
+
+  BubbleMenuItem<T>? _itemAt(Offset? p) {
+    if (p == null) return null;
+    for (final (rect, item) in _cells) {
+      // 上下放寬一點，手指滑過去不用剛好壓在圖示上。
+      if (rect.inflate(6).contains(p) ||
+          (p.dx >= rect.left &&
+              p.dx < rect.right &&
+              (p.dy - rect.center.dy).abs() < rect.height / 2 + 14)) {
+        return item;
+      }
+    }
+    return null;
+  }
+
+  void _onMove() {
+    final hit = _itemAt(widget.drag!.position.value);
+    if (hit != _hovered && mounted) setState(() => _hovered = hit);
+  }
+
+  void _onRelease() {
+    final hit = _itemAt(widget.drag!.position.value);
+    if (hit != null && !_done && mounted) {
+      _done = true;
+      widget.onSelect(hit.value);
+    } else if (_hovered != null && mounted) {
+      // 在按鈕外放開：選單留著，改用點的。
+      setState(() => _hovered = null);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final animation = widget.animation;
+    final anchor = widget.anchor;
+    final normal = widget.normal;
+    final danger = widget.danger;
     final media = MediaQuery.of(context);
     final screen = media.size;
     final hasDivider = normal.isNotEmpty && danger.isNotEmpty;
@@ -118,6 +337,24 @@ class _BubbleMenuLayout<T> extends StatelessWidget {
     // 尖角對準卡片中心，但不能跑出泡泡的圓角範圍。
     final arrowX = (anchor.center.dx - left).clamp(18.0, width - 18.0);
 
+    _cells.clear();
+    var x = left + _padding;
+    for (final item in normal) {
+      _cells.add((
+        Rect.fromLTWH(x, top + _padding, itemWidth, _itemHeight),
+        item,
+      ));
+      x += itemWidth;
+    }
+    if (hasDivider) x += _dividerWidth;
+    for (final item in danger) {
+      _cells.add((
+        Rect.fromLTWH(x, top + _padding, itemWidth, _itemHeight),
+        item,
+      ));
+      x += itemWidth;
+    }
+
     Widget cell(BubbleMenuItem<T> item) {
       final color = item.destructive
           ? AppColors.bad
@@ -127,23 +364,36 @@ class _BubbleMenuLayout<T> extends StatelessWidget {
         height: _itemHeight,
         child: InkWell(
           borderRadius: BorderRadius.circular(10),
-          onTap: () => Navigator.of(context).pop(item.value),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(item.icon, size: 20, color: color),
-              const SizedBox(height: 5),
-              Text(
-                item.label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w600,
-                  color: item.destructive ? AppColors.bad : AppColors.ink2,
+          onTap: () {
+            if (_done) return;
+            _done = true;
+            widget.onSelect(item.value);
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 90),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              color: identical(item, _hovered)
+                  ? AppColors.glassEdge
+                  : Colors.transparent,
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(item.icon, size: 20, color: color),
+                const SizedBox(height: 5),
+                Text(
+                  item.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w600,
+                    color: item.destructive ? AppColors.bad : AppColors.ink2,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       );
