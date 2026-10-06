@@ -12,6 +12,7 @@ import '../../data/export/device_label.dart';
 import '../../data/repositories/diary_password_store.dart';
 import '../../data/repositories/home_card_order_store.dart';
 import '../../data/repositories/yt_category_order_store.dart';
+import '../../data/repositories/yt_channel_log_store.dart';
 import '../../data/repositories/yt_video_cache_store.dart';
 import '../../data/repositories/yt_video_watch_store.dart';
 import '../../shared/debug/app_log.dart';
@@ -281,17 +282,23 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
           final orderResult = await service.syncYtCategoryOrder(
             YtCategoryOrderStore(ref.read(keyValueStoreProvider)),
           );
+          // 頻道紀錄（2026-10-06）也是 YT 範疇內的資料，一起同步。
+          final logResult = await service.syncYtChannelLog(
+            YtChannelLogStore(ref.read(keyValueStoreProvider)),
+          );
           return (
             downloaded:
                 ytResult.downloaded +
                 ytVideoResult.downloaded +
                 watchResult.downloaded +
-                orderResult.downloaded,
+                orderResult.downloaded +
+                logResult.downloaded,
             uploaded:
                 ytResult.uploaded +
                 ytVideoResult.uploaded +
                 watchResult.uploaded +
-                orderResult.uploaded,
+                orderResult.uploaded +
+                logResult.uploaded,
           );
         }),
         run('五十音練習', (p) => _kanaPracticePhase = p, (onPhase) async {

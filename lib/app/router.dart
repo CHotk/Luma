@@ -40,6 +40,7 @@ import '../features/yt_tracker/yt_category_order_page.dart';
 import '../features/yt_tracker/yt_tracker_browse_page.dart';
 import '../features/yt_tracker/yt_tracker_channel_page.dart';
 import '../features/yt_tracker/yt_tracker_home_page.dart';
+import '../features/yt_tracker/yt_channel_log_page.dart';
 import '../features/yt_tracker/yt_purged_channels_page.dart';
 import '../features/yt_tracker/yt_trash_page.dart';
 
@@ -142,6 +143,11 @@ final appRouter = GoRouter(
           YtTrackerChannelPage(channelId: state.pathParameters['id'] ?? ''),
     ),
     GoRoute(path: '/yt-tracker/trash', builder: (_, _) => const YtTrashPage()),
+    GoRoute(
+      path: '/yt-tracker/channel/:id/log',
+      builder: (_, state) =>
+          YtChannelLogPage(channelId: state.pathParameters['id']!),
+    ),
     GoRoute(
       path: '/yt-tracker/purged',
       builder: (_, _) => const YtPurgedChannelsPage(),

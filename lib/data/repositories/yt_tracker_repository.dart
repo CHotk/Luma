@@ -4,6 +4,7 @@ import '../../domain/models/yt_tracker.dart';
 import '../seed/seed_merge.dart';
 import '../storage/key_value_store.dart';
 import 'yt_category_order_store.dart';
+import 'yt_channel_log_store.dart';
 
 /// YT 頻道追蹤的分類／頻道管理。分類、頻道各存一份 JSON blob，跟
 /// 其他功能同一套「整包讀出來、整包寫回去」的存法。
@@ -18,6 +19,73 @@ class YtTrackerRepository {
   static const _channelKey = 'yt_tracker.channels.v1';
 
   final KeyValueStore _store;
+
+  // ---- 頻道紀錄（2026-10-06 使用者要求：每個頻道要有 log）----
+  // 寫在 repository 這一層，不管從哪個畫面操作（長按選單、編輯、垃圾桶、
+  // 手動新增救回）都會記到，不用每個畫面自己記。雲端同步合併、內建快照
+  // 合併、背景訂閱數更新都不算使用者操作，不記。
+
+  YtChannelLogStore get _log => YtChannelLogStore(_store);
+
+  /// 分類 id → 名稱（含已刪除的分類，紀錄要寫當時的名字）。
+  Future<String> _categoryName(String? id) async {
+    if (id == null) return '未分類';
+    final match = (await _loadCategoriesRaw()).where((c) => c.id == id);
+    return match.isEmpty ? '未分類' : match.first.name;
+  }
+
+  YtChannelEvent _event(
+    String channelId,
+    YtChannelEventType type, [
+    Map<String, String> detail = const {},
+  ]) => YtChannelEvent(
+    id: YtChannelLogStore.newId(),
+    channelId: channelId,
+    at: DateTime.now(),
+    type: type,
+    detail: detail,
+  );
+
+  /// 比對同一個頻道改前／改後，算出這次發生了哪些事。
+  Future<List<YtChannelEvent>> _diffEvents(
+    YtChannel before,
+    YtChannel after,
+  ) async {
+    // 永久刪除過、手動新增時救回來：記一筆「加入（救回）」就好，同時順手
+    // 改的分類、清掉的置頂冷藏不另外記，不然一次救回會冒出一串雜訊。
+    if (before.purgedAt != null && after.purgedAt == null) {
+      return [
+        _event(after.id, YtChannelEventType.added, {
+          'category': await _categoryName(after.categoryId),
+          'revived': 'true',
+        }),
+      ];
+    }
+    return [
+      if (before.deletedAt != null && after.deletedAt == null)
+        _event(after.id, YtChannelEventType.restored),
+      if (before.deletedAt == null && after.deletedAt != null)
+        _event(after.id, YtChannelEventType.deleted),
+      if (before.categoryId != after.categoryId)
+        _event(after.id, YtChannelEventType.moved, {
+          'from': await _categoryName(before.categoryId),
+          'to': await _categoryName(after.categoryId),
+        }),
+      if (before.name != after.name)
+        _event(after.id, YtChannelEventType.renamed, {
+          'from': before.name,
+          'to': after.name,
+        }),
+      if (before.pinnedAt == null && after.pinnedAt != null)
+        _event(after.id, YtChannelEventType.pinned),
+      if (before.pinnedAt != null && after.pinnedAt == null)
+        _event(after.id, YtChannelEventType.unpinned),
+      if (before.coldAt == null && after.coldAt != null)
+        _event(after.id, YtChannelEventType.cold),
+      if (before.coldAt != null && after.coldAt == null)
+        _event(after.id, YtChannelEventType.uncold),
+    ];
+  }
 
   /// 刪除是墓碑標記（soft delete），不是物理刪除——多裝置同步要靠它
   /// 才不會讓刪掉的東西被別台裝置復活（2026-09-24 加上同步，跟日記
@@ -114,6 +182,18 @@ class YtTrackerRepository {
 
     final channels = await _loadChannelsRaw();
     if (!channels.any((c) => c.categoryId == id)) return;
+    // 分類被刪掉、裡面的頻道被搬走，也記進那些頻道的紀錄。
+    final from = await _categoryName(id);
+    final to = await _categoryName(moveChannelsTo);
+    await _log.addAll([
+      for (final c in channels)
+        if (c.categoryId == id && c.deletedAt == null)
+          _event(c.id, YtChannelEventType.moved, {
+            'from': from,
+            'to': to,
+            'reason': '分類被刪除',
+          }),
+    ]);
     await _writeChannels([
       for (final c in channels)
         c.categoryId == id ? c.copyWith(categoryId: moveChannelsTo) : c,
@@ -138,14 +218,22 @@ class YtTrackerRepository {
   Future<void> addChannel(YtChannel channel) async {
     final all = [...await _loadChannelsRaw(), channel.stamped()];
     await _writeChannels(all);
+    await _log.addAll([
+      _event(channel.id, YtChannelEventType.added, {
+        'category': await _categoryName(channel.categoryId),
+        if (channel.discoveredVia.isNotEmpty) 'via': channel.discoveredVia,
+      }),
+    ]);
   }
 
   Future<void> updateChannel(YtChannel channel) async {
     final all = await _loadChannelsRaw();
     final index = all.indexWhere((c) => c.id == channel.id);
     if (index == -1) return;
+    final before = all[index];
     all[index] = channel.stamped();
     await _writeChannels(all);
+    await _log.addAll(await _diffEvents(before, all[index]));
   }
 
   /// 一次更新一批頻道（例如訂閱人數更新），只寫一次儲存。
@@ -186,6 +274,7 @@ class YtTrackerRepository {
     if (index == -1) return;
     all[index] = all[index].stamped(deleted: true);
     await _writeChannels(all);
+    await _log.addAll([_event(id, YtChannelEventType.deleted)]);
   }
 
   /// 垃圾桶列表用：只看已刪除（墓碑標記）的頻道（2026-09-29 使用者要求）。
@@ -208,8 +297,14 @@ class YtTrackerRepository {
     final all = await _loadChannelsRaw();
     final index = all.indexWhere((c) => c.id == id);
     if (index == -1) return;
+    final wasPurged = all[index].purgedAt != null;
     all[index] = all[index].restored();
     await _writeChannels(all);
+    await _log.addAll([
+      _event(id, YtChannelEventType.restored, {
+        if (wasPurged) 'fromPurged': 'true',
+      }),
+    ]);
   }
 
   /// 從垃圾桶「永久刪除」：整筆留著、蓋上 [YtChannel.purgedAt]，垃圾桶不再
@@ -222,6 +317,7 @@ class YtTrackerRepository {
     if (index == -1) return;
     all[index] = all[index].purged();
     await _writeChannels(all);
+    await _log.addAll([_event(id, YtChannelEventType.purged)]);
   }
 
   /// 把分類／頻道快照（見 [loadYtCategoriesSeed]／[loadYtChannelsSeed]）

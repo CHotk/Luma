@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
@@ -1405,6 +1406,18 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                           AppTopBar(
                             title: channel.name,
                             actions: [
+                              // 頻道紀錄（2026-10-06）：看影片、換分類、刪除還原…
+                              IconButton(
+                                onPressed: () => context.push(
+                                  '/yt-tracker/channel/${channel.id}/log',
+                                ),
+                                icon: const Icon(
+                                  Icons.history_rounded,
+                                  size: 20,
+                                ),
+                                color: AppColors.ink2,
+                                tooltip: '紀錄',
+                              ),
                               IconButton(
                                 onPressed: () =>
                                     _showEditDialog(channel, categories),

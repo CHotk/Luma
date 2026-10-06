@@ -10,6 +10,7 @@ import '../../domain/models/sync_log_entry.dart';
 import '../../domain/models/yt_tracker.dart';
 import '../../domain/models/yt_video_watch.dart';
 import '../repositories/yt_category_order_store.dart';
+import '../repositories/yt_channel_log_store.dart';
 import '../repositories/yt_tracker_repository.dart';
 import '../repositories/yt_video_cache_store.dart';
 import '../repositories/yt_video_watch_store.dart';
@@ -595,6 +596,36 @@ class R2SyncService {
     final body = utf8.encode(
       jsonEncode(all.map((k, v) => MapEntry(k, v.toJson()))),
     );
+    final etag = await _client.putObject(key, Uint8List.fromList(body));
+    await _writeMeta(key, body, etag);
+    return (downloaded: downloaded, uploaded: uploaded);
+  }
+
+  /// 頻道紀錄（2026-10-06）：只增不改的事件清單，兩邊依 id 取聯集。
+  Future<({int downloaded, int uploaded})> syncYtChannelLog(
+    YtChannelLogStore store,
+  ) async {
+    const key = 'yt_channel_log.json';
+    final before = await store.loadAll();
+    final beforeBytes = utf8.encode(
+      jsonEncode([for (final e in before) e.toJson()]),
+    );
+    if (await _canSkip(key, beforeBytes)) return (downloaded: 0, uploaded: 0);
+
+    final fetched = await _client.getObjectWithEtag(key);
+    final cloud = fetched.bytes == null
+        ? <YtChannelEvent>[]
+        : (jsonDecode(utf8.decode(fetched.bytes!)) as List)
+              .cast<Map<String, dynamic>>()
+              .map(YtChannelEvent.tryFromJson)
+              .whereType<YtChannelEvent>()
+              .toList();
+    final downloaded = await store.mergeFromCloud(cloud);
+
+    final all = await store.loadAll();
+    final cloudIds = {for (final e in cloud) e.id};
+    final uploaded = all.where((e) => !cloudIds.contains(e.id)).length;
+    final body = utf8.encode(jsonEncode([for (final e in all) e.toJson()]));
     final etag = await _client.putObject(key, Uint8List.fromList(body));
     await _writeMeta(key, body, etag);
     return (downloaded: downloaded, uploaded: uploaded);
