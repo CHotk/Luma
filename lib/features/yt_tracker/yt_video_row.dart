@@ -249,8 +249,11 @@ class YtVideoRow extends ConsumerStatefulWidget {
 }
 
 class _YtVideoRowState extends ConsumerState<YtVideoRow> {
-  /// 往左滑露出的動作區寬度（兩顆鈕各半）。
-  static const _actionsWidth = 148.0;
+  /// 往左滑露出的動作區寬度（兩顆鈕＋間距）。
+  static const _actionsWidth = 156.0;
+
+  /// 拉過頭時還能再多拉多少（橡皮筋，iOS 原生的手感），放手就彈回。
+  static const _overscroll = 36.0;
 
   YtVideoWatchRecord? _watched;
   bool _hidden = false;
@@ -352,7 +355,14 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
 
   void _onDragUpdate(DragUpdateDetails details) {
     setState(() {
-      _dragOffset = (_dragOffset + details.delta.dx).clamp(-_actionsWidth, 0);
+      // 超過動作區之後越拉越緊（只跟到手指位移的三成），跟 iOS 一樣。
+      final delta = _dragOffset < -_actionsWidth && details.delta.dx < 0
+          ? details.delta.dx * 0.3
+          : details.delta.dx;
+      _dragOffset = (_dragOffset + delta).clamp(
+        -_actionsWidth - _overscroll,
+        0,
+      );
     });
   }
 
@@ -484,33 +494,44 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
           // [widget.forceShow] 硬顯示出來的話，第二顆鈕換成「取消隱藏」
           // （2026-09-30 使用者要求：頻道詳情頁要能看隱藏過的影片，也要
           // 能反悔）。
-          Positioned.fill(
-            child: Row(
-              children: [
-                const Spacer(),
-                _SwipeActionButton(
-                  icon: Icons.history_rounded,
-                  label: '開啟紀錄',
-                  color: AppColors.accent,
-                  width: _actionsWidth / 2,
-                  onTap: _showHistory,
-                ),
-                _hidden
-                    ? _SwipeActionButton(
-                        icon: Icons.visibility_rounded,
-                        label: '取消隱藏',
-                        color: AppColors.ok,
-                        width: _actionsWidth / 2,
-                        onTap: _unhide,
-                      )
-                    : _SwipeActionButton(
-                        icon: Icons.visibility_off_outlined,
-                        label: '隱藏',
-                        color: AppColors.bad,
-                        width: _actionsWidth / 2,
-                        onTap: _hide,
-                      ),
-              ],
+          //
+          // 樣子照 iOS 原生／LINE 最新 iOS 版往左滑（2026-10-06 使用者
+          // 要求，原本整塊方形色塊太醜）：圓角色塊、彼此留間距、用 iOS
+          // 系統色，跟著滑動距離一起長出來，圖示跟字隨寬度淡入。
+          Positioned(
+            top: 0,
+            bottom: 0,
+            right: 0,
+            child: AnimatedContainer(
+              duration: _dragging
+                  ? Duration.zero
+                  : const Duration(milliseconds: 260),
+              curve: Curves.easeOutCubic,
+              width: -_dragOffset,
+              padding: const EdgeInsets.fromLTRB(0, 6, 6, 6),
+              child: Row(
+                children: [
+                  _SwipeActionButton(
+                    icon: Icons.history_rounded,
+                    label: '紀錄',
+                    color: _iosBlue,
+                    onTap: _showHistory,
+                  ),
+                  _hidden
+                      ? _SwipeActionButton(
+                          icon: Icons.visibility_rounded,
+                          label: '取消隱藏',
+                          color: _iosGreen,
+                          onTap: _unhide,
+                        )
+                      : _SwipeActionButton(
+                          icon: Icons.visibility_off_rounded,
+                          label: '隱藏',
+                          color: _iosGray,
+                          onTap: _hide,
+                        ),
+                ],
+              ),
             ),
           ),
           // 上層：原本整排內容，左右拖曳滑開／收合，不透明背景蓋住底下
@@ -542,7 +563,7 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
               // 拖曳中跟著手指走（不加動畫），放手後滑到定位。
               duration: _dragging
                   ? Duration.zero
-                  : const Duration(milliseconds: 180),
+                  : const Duration(milliseconds: 260),
               curve: Curves.easeOutCubic,
               transform: Matrix4.translationValues(_dragOffset, 0, 0),
               child: ColoredBox(
@@ -725,45 +746,73 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
   }
 }
 
-/// 滑開影片列露出的其中一顆動作鈕。
+// iOS 深色模式的系統色（systemBlue／systemGray／systemGreen）。
+const _iosBlue = Color(0xFF0A84FF);
+const _iosGray = Color(0xFF636366);
+const _iosGreen = Color(0xFF30D158);
+
+/// 滑開影片列露出的其中一顆動作鈕：iOS 風格的圓角色塊，左邊留 6px
+/// 間距。寬度由外層跟著滑動距離分配，太窄時圖示跟字先淡出、不擠成一團。
 class _SwipeActionButton extends StatelessWidget {
   const _SwipeActionButton({
     required this.icon,
     required this.label,
     required this.color,
-    required this.width,
     required this.onTap,
   });
 
   final IconData icon;
   final String label;
   final Color color;
-  final double width;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: width,
-      child: Material(
-        color: color.withValues(alpha: 0.85),
-        child: InkWell(
-          onTap: onTap,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 18, color: Colors.white),
-              const SizedBox(height: 2),
-              Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 10.5,
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.only(left: 6),
+        child: LayoutBuilder(
+          builder: (context, box) {
+            // 寬度 24 以下完全看不到內容，到 56 才完全顯示。
+            final reveal = ((box.maxWidth - 24) / 32).clamp(0.0, 1.0);
+            return Material(
+              color: color,
+              borderRadius: BorderRadius.circular(14),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: onTap,
+                highlightColor: Colors.black12,
+                splashColor: Colors.transparent,
+                child: Opacity(
+                  opacity: reveal,
+                  child: Transform.scale(
+                    scale: 0.8 + 0.2 * reveal,
+                    child: OverflowBox(
+                      maxWidth: double.infinity,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(icon, size: 21, color: Colors.white),
+                          const SizedBox(height: 4),
+                          Text(
+                            label,
+                            maxLines: 1,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              height: 1.1,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: -0.1,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
               ),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );

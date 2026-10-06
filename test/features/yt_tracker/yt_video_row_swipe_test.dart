@@ -49,7 +49,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(before - _titleX(tester), closeTo(148, 1));
+    expect(before - _titleX(tester), closeTo(156, 1));
   });
 
   testWidgets('輕甩一下也算，就算只滑了一點點', (tester) async {
@@ -59,7 +59,7 @@ void main() {
     await tester.fling(find.text(_title), const Offset(-30, 0), 800);
     await tester.pumpAndSettle();
 
-    expect(before - _titleX(tester), closeTo(148, 1));
+    expect(before - _titleX(tester), closeTo(156, 1));
   });
 
   testWidgets('只碰一下、拖很短不會誤開', (tester) async {
@@ -74,6 +74,24 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(_titleX(tester), closeTo(before, 1));
+  });
+
+  // 2026-10-06 使用者要求改成 iOS 原生／LINE 那種：滑開後露出圓角按鈕，
+  // 點得到；拉過頭放手會彈回原本的寬度。
+  testWidgets('滑開露出「紀錄」「隱藏」，拉過頭放手彈回原寬度', (tester) async {
+    await _pumpRow(tester);
+    final before = _titleX(tester);
+
+    await tester.timedDrag(
+      find.text(_title),
+      const Offset(-260, 0),
+      const Duration(milliseconds: 800),
+    );
+    await tester.pumpAndSettle();
+
+    expect(before - _titleX(tester), closeTo(156, 1));
+    expect(find.text('紀錄'), findsOneWidget);
+    expect(find.text('隱藏'), findsOneWidget);
   });
 }
 
