@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
@@ -8,12 +9,14 @@ import '../../app/theme/typography.dart';
 import '../../data/repositories/yt_channel_log_store.dart';
 import '../../data/repositories/yt_video_cache_store.dart';
 import '../../data/repositories/yt_video_watch_store.dart';
+import '../../data/services/youtube_api_service.dart';
 import '../../domain/models/yt_tracker.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
 import '../../shared/widgets/glass_card.dart';
 import '../../shared/widgets/inline_empty_card.dart';
+import 'yt_video_row.dart';
 
 /// 時間軸上的一列。
 class YtChannelLogItem {
@@ -24,6 +27,8 @@ class YtChannelLogItem {
     required this.text,
     this.note,
     required this.isWatch,
+    this.channel,
+    this.video,
   });
 
   final DateTime at;
@@ -34,6 +39,25 @@ class YtChannelLogItem {
 
   /// 看影片的紀錄（篩選「只看影片」用）。
   final bool isWatch;
+
+  /// 全部頻道的紀錄才會帶：這一列是哪個頻道的（畫面顯示頻道名稱、點一下
+  /// 進頻道詳情頁、依分類篩選用）。
+  final YtChannel? channel;
+
+  /// 觀看紀錄才有：看的是哪支影片，畫面上整列畫成跟影片清單一樣的影片列
+  /// （2026-10-06 使用者要求），左邊照樣是觀看時間。
+  final YoutubeVideo? video;
+
+  YtChannelLogItem withChannel(YtChannel c) => YtChannelLogItem(
+    at: at,
+    icon: icon,
+    color: color,
+    text: text,
+    note: note,
+    isWatch: isWatch,
+    channel: c,
+    video: video,
+  );
 }
 
 /// 把一個頻道的所有紀錄排成時間軸（新到舊）：
@@ -47,7 +71,7 @@ class YtChannelLogItem {
 List<YtChannelLogItem> buildYtChannelLog({
   required YtChannel channel,
   required List<YtChannelEvent> events,
-  required List<({String title, List<DateTime> openedAt})> watched,
+  required List<({YoutubeVideo video, List<DateTime> openedAt})> watched,
 }) {
   bool has(YtChannelEventType t) => events.any((e) => e.type == t);
   final items = <YtChannelLogItem>[
@@ -84,8 +108,9 @@ List<YtChannelLogItem> buildYtChannelLog({
           at: at,
           icon: Icons.play_circle_outline_rounded,
           color: AppColors.accent,
-          text: '看了「${v.title}」',
+          text: '看了「${v.video.title}」',
           isWatch: true,
+          video: v.video,
         ),
   ]..sort((a, b) => b.at.compareTo(a.at));
   return items;
@@ -177,10 +202,20 @@ YtChannelLogItem _fromEvent(YtChannelEvent e) {
 /// 頻道紀錄頁（2026-10-06 使用者要求：每個頻道要有 log——什麼時候看了
 /// 它哪支影片、什麼時候換分類、第一天加進來、刪除、永久刪除、還原……）。
 /// 從頻道詳情頁右上角「紀錄」進來。
+///
+/// [channelId] 是 null 時是「全部頻道的紀錄」（2026-10-06 使用者要求：
+/// 要有一份不限單一頻道的，放在 YT 首頁跟分類頁）：每一列多標出是哪個
+/// 頻道、點一下進那個頻道。從分類頁進來會帶 [categoryIds]，預設只看
+/// 那幾個分類的頻道，可以切回全部分類。
 class YtChannelLogPage extends ConsumerStatefulWidget {
-  const YtChannelLogPage({super.key, required this.channelId});
+  const YtChannelLogPage({
+    super.key,
+    this.channelId,
+    this.categoryIds = const {},
+  });
 
-  final String channelId;
+  final String? channelId;
+  final Set<String> categoryIds;
 
   @override
   ConsumerState<YtChannelLogPage> createState() => _YtChannelLogPageState();
@@ -188,18 +223,59 @@ class YtChannelLogPage extends ConsumerStatefulWidget {
 
 enum _Filter { all, watch, channel }
 
+typedef _LogData = ({
+  YtChannel? channel,
+  List<YtChannelLogItem> items,
+  List<YtCategory> categories,
+});
+
 class _YtChannelLogPageState extends ConsumerState<YtChannelLogPage> {
-  late final Future<({YtChannel? channel, List<YtChannelLogItem> items})>
-  _future = _load();
+  late final Future<_LogData> _future = _load();
   _Filter _filter = _Filter.all;
 
-  Future<({YtChannel? channel, List<YtChannelLogItem> items})> _load() async {
+  /// 從分類頁進來時，要不要只看那幾個分類（預設要）。
+  bool _onlySelected = true;
+
+  bool get _global => widget.channelId == null;
+
+  Future<_LogData> _load() async {
     final kv = ref.read(keyValueStoreProvider);
-    final channels = await ref
-        .read(ytTrackerRepositoryProvider)
-        .channelsForUpload();
+    final repo = ref.read(ytTrackerRepositoryProvider);
+    final channels = await repo.channelsForUpload();
+    final categories = await repo.loadCategories();
+    if (_global) {
+      final events = await YtChannelLogStore(kv).loadAll();
+      final watchRecords = await YtVideoWatchStore(kv).loadAll();
+      final cache = YtVideoCacheStore(kv);
+      final items = <YtChannelLogItem>[];
+      for (final c in channels) {
+        final cached = await cache.load(c.id);
+        items.addAll(
+          buildYtChannelLog(
+            channel: c,
+            events: [
+              for (final e in events)
+                if (e.channelId == c.id) e,
+            ],
+            watched: [
+              for (final v in cached)
+                if (watchRecords[v.videoId] case final r?)
+                  (video: v, openedAt: r.openedAt),
+            ],
+          ).map((i) => i.withChannel(c)),
+        );
+      }
+      items.sort((a, b) => b.at.compareTo(a.at));
+      return (channel: null, items: items, categories: categories);
+    }
     final match = channels.where((c) => c.id == widget.channelId);
-    if (match.isEmpty) return (channel: null, items: <YtChannelLogItem>[]);
+    if (match.isEmpty) {
+      return (
+        channel: null,
+        items: <YtChannelLogItem>[],
+        categories: categories,
+      );
+    }
     final channel = match.first;
     final events = await YtChannelLogStore(kv).forChannel(channel.id);
     final cached = await YtVideoCacheStore(kv).load(channel.id);
@@ -207,7 +283,7 @@ class _YtChannelLogPageState extends ConsumerState<YtChannelLogPage> {
     final watched = [
       for (final v in cached)
         if (watchRecords[v.videoId] case final r?)
-          (title: v.title, openedAt: r.openedAt),
+          (video: v, openedAt: r.openedAt),
     ];
     return (
       channel: channel,
@@ -216,7 +292,26 @@ class _YtChannelLogPageState extends ConsumerState<YtChannelLogPage> {
         events: events,
         watched: watched,
       ),
+      categories: categories,
     );
+  }
+
+  String _title(_LogData? data) {
+    if (!_global) {
+      return data?.channel == null ? '頻道紀錄' : '${data!.channel!.name} 的紀錄';
+    }
+    return '全部頻道的紀錄';
+  }
+
+  /// 「只看這個分類」那顆的字。
+  String _categoryLabel(List<YtCategory> categories) {
+    final ids = widget.categoryIds;
+    if (ids.length == 1) {
+      if (ids.single == ytUncategorizedId) return '只看未分類';
+      final match = categories.where((c) => c.id == ids.single);
+      if (match.isNotEmpty) return '只看「${match.first.name}」';
+    }
+    return '只看選的 ${ids.length} 個分類';
   }
 
   @override
@@ -236,10 +331,9 @@ class _YtChannelLogPageState extends ConsumerState<YtChannelLogPage> {
                   children: [
                     const SizedBox(height: Gap.sm),
                     AppTopBar(
-                      title: data?.channel == null
-                          ? '頻道紀錄'
-                          : '${data!.channel!.name} 的紀錄',
+                      title: _title(data),
                       titleIcon: Icons.history_rounded,
+                      titleIconColor: AppColors.ytAccent,
                       showSettings: false,
                     ),
                     const SizedBox(height: Gap.sm),
@@ -255,7 +349,7 @@ class _YtChannelLogPageState extends ConsumerState<YtChannelLogPage> {
                         children: [
                           for (final (f, label) in const [
                             (_Filter.all, '全部'),
-                            (_Filter.watch, '看影片'),
+                            (_Filter.watch, '觀看紀錄'),
                             (_Filter.channel, '頻道異動'),
                           ])
                             ChoiceChip(
@@ -263,6 +357,14 @@ class _YtChannelLogPageState extends ConsumerState<YtChannelLogPage> {
                               selected: _filter == f,
                               showCheckmark: false,
                               onSelected: (_) => setState(() => _filter = f),
+                            ),
+                          if (_global && widget.categoryIds.isNotEmpty)
+                            FilterChip(
+                              label: Text(_categoryLabel(data.categories)),
+                              selected: _onlySelected,
+                              showCheckmark: false,
+                              onSelected: (v) =>
+                                  setState(() => _onlySelected = v),
                             ),
                         ],
                       ),
@@ -280,9 +382,16 @@ class _YtChannelLogPageState extends ConsumerState<YtChannelLogPage> {
   }
 
   Widget _timeline(List<YtChannelLogItem> all) {
+    final byCategory =
+        _global && widget.categoryIds.isNotEmpty && _onlySelected;
     final items = [
       for (final i in all)
-        if (_filter == _Filter.all || (_filter == _Filter.watch) == i.isWatch)
+        if ((_filter == _Filter.all ||
+                (_filter == _Filter.watch) == i.isWatch) &&
+            (!byCategory ||
+                widget.categoryIds.contains(
+                  i.channel?.categoryId ?? ytUncategorizedId,
+                )))
           i,
     ];
     if (items.isEmpty) {
@@ -305,17 +414,14 @@ class _YtChannelLogPageState extends ConsumerState<YtChannelLogPage> {
       }
       rows.add(_Row(item: i));
     }
-    return ListView(
-      children: [
-        GlassCard(
-          padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: rows,
-          ),
-        ),
-        const SizedBox(height: Gap.lg),
-      ],
+    // 全部頻道的紀錄可能很長（每支看過的影片每次點開都一列），用
+    // builder 只畫看得到的那幾列，不一次全部建出來。
+    return GlassCard(
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+      child: ListView.builder(
+        itemCount: rows.length,
+        itemBuilder: (_, i) => rows[i],
+      ),
     );
   }
 }
@@ -327,7 +433,52 @@ class _Row extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final channel = item.channel;
+    final row = _content();
+    // 觀看紀錄的影片列自己會處理點擊（開影片），不用再包一層。
+    if (channel == null || item.video != null) return row;
+    // 全部頻道的紀錄：點一下進那個頻道的詳情頁。
+    return InkWell(
+      onTap: () => context.push('/yt-tracker/channel/${channel.id}'),
+      child: row,
+    );
+  }
+
+  Widget _content() {
     String two(int n) => n.toString().padLeft(2, '0');
+    final channel = item.channel;
+    final video = item.video;
+    if (video != null) {
+      // 觀看紀錄：左邊觀看時間，右邊跟影片清單一樣的影片列（點了照樣能
+      // 開來看、往左滑一樣有按鈕）。
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: SizedBox(
+              width: 42,
+              child: Text(
+                '${two(item.at.hour)}:${two(item.at.minute)}',
+                style: AppText.note,
+              ),
+            ),
+          ),
+          Expanded(
+            child: YtVideoRow(
+              key: ValueKey(
+                '${video.videoId}-${item.at.microsecondsSinceEpoch}',
+              ),
+              video: video,
+              subtitle: channel == null
+                  ? ytRelativeTime(video.publishedAt)
+                  : '${channel.name}・${ytRelativeTime(video.publishedAt)}',
+              forceShow: true,
+            ),
+          ),
+        ],
+      );
+    }
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
@@ -346,6 +497,17 @@ class _Row extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (channel != null)
+                  Text(
+                    channel.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.ink2,
+                    ),
+                  ),
                 Text(
                   item.text,
                   style: const TextStyle(fontSize: 13, color: AppColors.ink),

@@ -611,6 +611,32 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
                                     ),
                                   ),
                                 ),
+                              // 左下角類型小標籤：影片／Shorts／直播
+                              // （2026-10-06 使用者要求）。類型還不知道
+                              // （快取裡還沒標過）就不顯示，不亂猜。
+                              if (_typeLabel(video) case final label?)
+                                Positioned(
+                                  left: 3,
+                                  bottom: 3,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 4,
+                                      vertical: 1,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: label.color.withValues(alpha: 0.9),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      label.text,
+                                      style: const TextStyle(
+                                        fontSize: 9.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
                               // 左上角「已看過」小標籤，點下去直接開「開啟
                               // 紀錄」視窗，不是靠 Tooltip 長按才看得到
                               // （2026-09-30 使用者要求：長按太不直覺，
@@ -751,4 +777,16 @@ String ytRelativeTime(DateTime t) {
   if (diff.inDays < 30) return '${diff.inDays} 天前';
   if (diff.inDays < 365) return '${(diff.inDays / 30).floor()} 個月前';
   return '${(diff.inDays / 365).floor()} 年前';
+}
+
+/// 影片列縮圖左下角的類型標籤：直播優先（直播也可能是直的），再來
+/// Shorts，兩個都確定不是才標「影片」；還沒標過類型就是 null，不顯示。
+({String text, Color color})? _typeLabel(YoutubeVideo v) {
+  if (v.isLive == true) return (text: '直播', color: const Color(0xFFE53935));
+  if (v.isShort == true)
+    return (text: 'Shorts', color: const Color(0xFFFF2D6F));
+  if (v.isShort == false && v.isLive == false) {
+    return (text: '影片', color: const Color(0xFF3D5AFE));
+  }
+  return null;
 }

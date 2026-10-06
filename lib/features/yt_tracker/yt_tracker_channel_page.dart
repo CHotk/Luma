@@ -359,7 +359,21 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
       ).tagUntagged(channelId: channelId, uploadsId: uploadsId);
       if (changed > 0 && mounted && _loadMoreChannelId == channelId) {
         final fresh = await cache.load(channelId);
-        if (mounted) setState(() => _cachedChannelVideos = fresh);
+        // 畫面上已經列出來的影片也換成標好類型的那份，縮圖左下角的
+        // 「影片／Shorts／直播」標籤馬上出現，不用離開再進來
+        // （2026-10-06 使用者問「新抓到的影片怎麼還是沒有小標籤」）。
+        final byId = {for (final v in fresh) v.videoId: v};
+        List<YoutubeVideo> retag(List<YoutubeVideo> list) => [
+          for (final v in list) byId[v.videoId] ?? v,
+        ];
+        if (mounted) {
+          setState(() {
+            _cachedChannelVideos = fresh;
+            _firstPage = retag(_firstPage);
+            _moreVideos = retag(_moreVideos);
+            _typedVideos = retag(_typedVideos);
+          });
+        }
       }
     } catch (_) {
       // 背景工作，失敗就下次再掃。

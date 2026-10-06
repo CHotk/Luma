@@ -38,6 +38,7 @@ class YtPurgedChannelsPage extends ConsumerWidget {
                 const AppTopBar(
                   title: '永久刪除的頻道',
                   titleIcon: Icons.delete_forever_outlined,
+                  titleIconColor: AppColors.ytAccent,
                   showSettings: false,
                 ),
                 const SizedBox(height: Gap.md),

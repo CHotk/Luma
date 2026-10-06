@@ -88,6 +88,7 @@ class _YtCategoryOrderPageState extends ConsumerState<YtCategoryOrderPage> {
                 const AppTopBar(
                   title: '分類顯示順序',
                   titleIcon: Icons.reorder_rounded,
+                  titleIconColor: AppColors.ytAccent,
                 ),
                 const SizedBox(height: Gap.sm),
                 Text(

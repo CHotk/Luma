@@ -24,6 +24,8 @@ class AppTopBar extends StatelessWidget {
     super.key,
     required this.title,
     this.titleIcon,
+    this.titleIconColor = AppColors.accent,
+    this.titleLeading,
     this.showBack = true,
     this.showSettings = true,
     this.actions = const [],
@@ -36,6 +38,14 @@ class AppTopBar extends StatelessWidget {
   /// 裡的圖示也要一起帶上標題）。只有各功能首頁（[showBack] 為 false
   /// 那些）才會傳，一般子頁面不用。
   final IconData? titleIcon;
+
+  /// 標題圖示的顏色（2026-10-06 使用者要求：標題圖示要上色，跟功能列表
+  /// 一樣）。預設藍色；YT 頻道追蹤那幾頁傳紅色。
+  final Color titleIconColor;
+
+  /// 標題前面放自訂的小東西（例如 YT 分類頁放那個分類的底圖縮成圖示
+  /// 大小，2026-10-06 使用者要求），有給就取代 [titleIcon]。
+  final Widget? titleLeading;
 
   /// 大部分子頁面是 true（從別的頁面點進來的）；只有那種本來就是靠
   /// 選單／首頁進來、退回去也沒地方好退的頁面才會是 false。
@@ -76,8 +86,11 @@ class AppTopBar extends StatelessWidget {
         Expanded(
           child: Row(
             children: [
-              if (titleIcon != null) ...[
-                Icon(titleIcon, size: 19, color: AppColors.ink2),
+              if (titleLeading != null) ...[
+                titleLeading!,
+                const SizedBox(width: 6),
+              ] else if (titleIcon != null) ...[
+                Icon(titleIcon, size: 19, color: titleIconColor),
                 const SizedBox(width: 6),
               ],
               Flexible(

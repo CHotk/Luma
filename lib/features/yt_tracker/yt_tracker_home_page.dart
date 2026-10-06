@@ -317,6 +317,7 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
                 AppTopBar(
                   title: 'YT 頻道追蹤',
                   titleIcon: Icons.subscriptions_rounded,
+                  titleIconColor: AppColors.ytAccent,
                   showBack: false,
                   // API 金鑰、匯出分類／頻道移進設定齒輪了（2026-09-29
                   // 使用者要求），測試通知整個拿掉（不是這頁該有的功能，
@@ -352,6 +353,13 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
                       icon: const Icon(Icons.travel_explore_rounded, size: 20),
                       color: AppColors.ink2,
                       tooltip: '挖掘新頻道',
+                    ),
+                    // 全部頻道的紀錄（2026-10-06 使用者要求）。
+                    IconButton(
+                      onPressed: () => context.push('/yt-tracker/log'),
+                      icon: const Icon(Icons.history_rounded, size: 20),
+                      color: AppColors.ink2,
+                      tooltip: '頻道紀錄',
                     ),
                     IconButton(
                       onPressed: _showAddCategoryDialog,

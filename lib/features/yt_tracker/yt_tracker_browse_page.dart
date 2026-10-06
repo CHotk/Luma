@@ -25,7 +25,8 @@ import '../../shared/widgets/bubble_menu.dart';
 import '../../shared/widgets/inline_empty_card.dart';
 import 'yt_api_key_dialog.dart';
 import 'yt_channel_avatar.dart';
-import 'yt_tracker_home_page.dart' show deleteYtCategory, runYtChannelDiscovery;
+import 'yt_tracker_home_page.dart'
+    show YtCategoryImage, deleteYtCategory, runYtChannelDiscovery;
 import 'yt_video_row.dart';
 
 enum _ViewMode { channel, video }
@@ -85,8 +86,8 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
   _future;
   late final Set<String> _selected = {...widget.initialCategoryIds};
   // 每個分類（含「全部」）點進去都預設「依頻道顯示」（2026-09-24 使用者
-  // 要求；之前分類預設依影片，但一進去就要抓影片，太慢）。切換鈕維持
-  // 影片在左、頻道在右，要看影片自己再切。
+  // 要求；之前分類預設依影片，但一進去就要抓影片，太慢）。切換鈕是
+  // 頻道在左、影片在右（2026-10-06 使用者要求對調成這個順序）。
   _ViewMode _mode = _ViewMode.channel;
   _TypeFilter _typeFilter = _TypeFilter.all;
   // 預設依訂閱人數排序，不是加入順序（2026-09-29 使用者要求：每個分類
@@ -417,6 +418,24 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
     }
     results.sort((a, b) => b.video.publishedAt.compareTo(a.video.publishedAt));
     return results;
+  }
+
+  /// 只選一個分類、而且那個分類有底圖時，標題前面的小圖；其餘回 null。
+  Widget? _titleImage(List<YtCategory> categories) {
+    if (_selected.length != 1) return null;
+    final match = categories.where((c) => c.id == _selected.single);
+    if (match.isEmpty || match.first.imageUrl.isEmpty) return null;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(5),
+      child: SizedBox(
+        width: 22,
+        height: 22,
+        child: YtCategoryImage(
+          url: match.first.imageUrl,
+          errorBuilder: (_, _, _) => const SizedBox.shrink(),
+        ),
+      ),
+    );
   }
 
   String _title(List<YtCategory> categories) {
@@ -830,7 +849,29 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                         children: [
                           AppTopBar(
                             title: _title(categories),
+                            // 單看一個分類：標題前面放那個分類的底圖，縮成
+                            // 跟功能標題圖示一樣小（2026-10-06 使用者要求）；
+                            // 其他情況放 YT 的紅色圖示。
+                            titleIcon: widget.trash
+                                ? Icons.delete_outline_rounded
+                                : Icons.subscriptions_rounded,
+                            titleIconColor: AppColors.ytAccent,
+                            titleLeading: _titleImage(categories),
                             actions: [
+                              // 這個分類（或選的幾個分類）的頻道紀錄（2026-10-06
+                              // 使用者要求：分類頁也要有）。
+                              IconButton(
+                                onPressed: () => context.push(
+                                  '/yt-tracker/log',
+                                  extra: {..._selected},
+                                ),
+                                icon: const Icon(
+                                  Icons.history_rounded,
+                                  size: 20,
+                                ),
+                                color: AppColors.ink2,
+                                tooltip: '頻道紀錄',
+                              ),
                               // 垃圾桶模式不給新增頻道、挖掘、刪除分類。
                               if (!widget.trash) ...[
                                 // 「挖掘新頻道」是特別的分類，只是用來放挖到的頻道，
@@ -937,12 +978,12 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                           SegmentedButton<_ViewMode>(
                             segments: const [
                               ButtonSegment(
-                                value: _ViewMode.video,
-                                label: Text('依影片顯示'),
-                              ),
-                              ButtonSegment(
                                 value: _ViewMode.channel,
                                 label: Text('依頻道顯示'),
+                              ),
+                              ButtonSegment(
+                                value: _ViewMode.video,
+                                label: Text('依影片顯示'),
                               ),
                             ],
                             selected: {_mode},
@@ -1720,8 +1761,25 @@ class _ChannelGridState extends State<_ChannelGrid> {
               ].join('，'),
             ),
           )
-        else
+        else ...[
+          // 一般區（沒置頂也沒冷藏）也標數量，跟置頂、冷藏區一致
+          // （2026-10-06 使用者要求）。
+          SliverToBoxAdapter(
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.subscriptions_outlined,
+                  size: 13,
+                  color: AppColors.ink3,
+                ),
+                const SizedBox(width: 4),
+                Text('一般 · ${rest.length}', style: AppText.note),
+              ],
+            ),
+          ),
+          const SliverToBoxAdapter(child: SizedBox(height: Gap.xs)),
           grid(rest),
+        ],
         if (cold.isNotEmpty) ...[
           sectionGap,
           SliverToBoxAdapter(

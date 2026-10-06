@@ -20,7 +20,10 @@ class YtVideoOpenModeStore {
   final KeyValueStore _store;
 
   static const _key = 'yt_tracker.video_open_mode.v1';
-  static const defaultMode = YtVideoOpenMode.embedded;
+  // 預設開新分頁（2026-10-06 使用者要求：點影片預設開新分頁，不是內嵌
+  // 播放；設定頁「點影片時」照樣能切回內嵌）。只影響沒在設定頁選過的
+  // 裝置，選過的照舊。
+  static const defaultMode = YtVideoOpenMode.external;
 
   Future<YtVideoOpenMode> load() async {
     final raw = await _store.read(_key);

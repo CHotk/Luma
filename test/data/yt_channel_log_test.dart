@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lume/data/repositories/yt_channel_log_store.dart';
 import 'package:lume/data/repositories/yt_tracker_repository.dart';
+import 'package:lume/data/services/youtube_api_service.dart';
 import 'package:lume/data/storage/key_value_store.dart';
 import 'package:lume/domain/models/yt_tracker.dart';
 import 'package:lume/features/yt_tracker/yt_channel_log_page.dart';
@@ -122,7 +123,12 @@ void main() {
       ],
       watched: [
         (
-          title: '第一支',
+          video: YoutubeVideo(
+            videoId: 'v1',
+            title: '第一支',
+            publishedAt: DateTime(2026, 9, 10),
+            thumbnailUrl: '',
+          ),
           openedAt: [DateTime(2026, 9, 20), DateTime(2026, 10, 1)],
         ),
       ],

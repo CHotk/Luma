@@ -148,6 +148,13 @@ final appRouter = GoRouter(
       builder: (_, state) =>
           YtChannelLogPage(channelId: state.pathParameters['id']!),
     ),
+    // 全部頻道的紀錄（2026-10-06）。從分類頁進來帶那幾個分類的 id。
+    GoRoute(
+      path: '/yt-tracker/log',
+      builder: (_, state) => YtChannelLogPage(
+        categoryIds: (state.extra as Set<String>?) ?? const {},
+      ),
+    ),
     GoRoute(
       path: '/yt-tracker/purged',
       builder: (_, _) => const YtPurgedChannelsPage(),

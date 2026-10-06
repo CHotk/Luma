@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/providers.dart';
+import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
 import '../../domain/models/yt_tracker.dart';
@@ -53,6 +54,7 @@ class _YtTrashPageState extends ConsumerState<YtTrashPage> {
                 const AppTopBar(
                   title: '垃圾桶',
                   titleIcon: Icons.delete_outline_rounded,
+                  titleIconColor: AppColors.ytAccent,
                   showSettings: false,
                 ),
                 const SizedBox(height: Gap.md),
