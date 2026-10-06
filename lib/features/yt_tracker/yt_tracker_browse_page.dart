@@ -58,9 +58,22 @@ class _ChannelVideo {
 /// [YtChannel.uploadsPlaylistId] 解析出來、存回本機，之後同一個頻道
 /// 就不用再解析（省配額，見 `youtube_api_service.dart`）。
 class YtTrackerBrowsePage extends ConsumerStatefulWidget {
-  const YtTrackerBrowsePage({super.key, required this.initialCategoryIds});
+  const YtTrackerBrowsePage({
+    super.key,
+    required this.initialCategoryIds,
+    this.trash = false,
+  });
 
   final Set<String> initialCategoryIds;
+
+  /// 垃圾桶模式（2026-10-06 使用者要求：垃圾桶點進分類後要跟一般分類頁
+  /// 完全一樣，能照樣逛、點進頻道看影片、照樣打 API，只是多了「還原」
+  /// 跟「永久刪除」）。原本垃圾桶自己刻了一份陽春清單
+  /// （`yt_trash_browse_page.dart`，已拿掉），現在直接共用這一頁：
+  /// - 資料換成被刪除的頻道（[YtTrackerRepository.loadDeletedChannels]）。
+  /// - 長按／⋮ 選單的「刪除」換成「還原」＋「永久刪除」。
+  /// - 標題前面加「垃圾桶・」；不給新增頻道、挖掘、刪除分類這些按鈕。
+  final bool trash;
 
   @override
   ConsumerState<YtTrackerBrowsePage> createState() =>
@@ -107,7 +120,9 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
   _load() async {
     final repo = ref.read(ytTrackerRepositoryProvider);
     final categories = await repo.loadCategories();
-    final channels = await repo.loadChannels();
+    final channels = widget.trash
+        ? await repo.loadDeletedChannels()
+        : await repo.loadChannels();
     return (categories: categories, channels: channels);
   }
 
@@ -405,6 +420,11 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
   }
 
   String _title(List<YtCategory> categories) {
+    final title = _plainTitle(categories);
+    return widget.trash ? '垃圾桶・$title' : title;
+  }
+
+  String _plainTitle(List<YtCategory> categories) {
     if (_selected.isEmpty) return '全部頻道';
     if (_selected.length == 1) {
       if (_selected.first == ytUncategorizedId) return '未分類';
@@ -481,6 +501,29 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
     );
     if (!ok) return;
     await ref.read(ytTrackerRepositoryProvider).deleteChannel(c.id);
+    if (mounted) _reload();
+  }
+
+  /// 垃圾桶模式：從垃圾桶還原。
+  Future<void> _restoreChannel(YtChannel c) async {
+    await ref.read(ytTrackerRepositoryProvider).restoreChannel(c.id);
+    if (!mounted) return;
+    _reload();
+    showAppNotice(context, '已還原「${c.name}」');
+  }
+
+  /// 垃圾桶模式：永久刪除（不能再還原，一定要確認）。
+  Future<void> _purgeChannel(YtChannel c) async {
+    final ok = await showAppConfirmDialog(
+      context,
+      title: '永久刪除「${c.name}」？',
+      message:
+          '之後垃圾桶就看不到它了，不能再還原。\n（如果還有別台裝置沒同步過這次刪除，'
+          '之後同步時它可能又會出現在垃圾桶裡。）',
+      confirmLabel: '永久刪除',
+    );
+    if (!ok) return;
+    await ref.read(ytTrackerRepositoryProvider).purgeChannel(c.id);
     if (mounted) _reload();
   }
 
@@ -788,58 +831,61 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                           AppTopBar(
                             title: _title(categories),
                             actions: [
-                              // 「挖掘新頻道」是特別的分類，只是用來放挖到的頻道，
-                              // 不是使用者自己手動整理的地方，所以不給「新增頻道」
-                              // （2026-09-29 使用者要求），改給「挖掘新頻道」按鈕
-                              // ——本來只有 YT 首頁有，進了這個分類頁還要回首頁
-                              // 才能再挖一次太繞（2026-09-29 使用者要求）。
-                              if (_selected.length == 1 &&
-                                  _selected.single == ytDiscoverCategoryId)
-                                IconButton(
-                                  onPressed: () => runYtChannelDiscovery(
-                                    context,
-                                    ref,
-                                    onDone: _reload,
-                                  ),
-                                  icon: const Icon(
-                                    Icons.travel_explore_rounded,
-                                    size: 20,
-                                  ),
-                                  color: AppColors.ink2,
-                                  tooltip: '挖掘新頻道',
-                                )
-                              else
-                                IconButton(
-                                  onPressed: () =>
-                                      _showAddChannelDialog(categories),
-                                  icon: const Icon(
-                                    Icons.add_circle_outline,
-                                    size: 20,
-                                  ),
-                                  color: AppColors.ink2,
-                                  tooltip: '新增頻道',
-                                ),
-                              if (selectedCategory != null)
-                                IconButton(
-                                  onPressed: () async {
-                                    final deleted = await deleteYtCategory(
+                              // 垃圾桶模式不給新增頻道、挖掘、刪除分類。
+                              if (!widget.trash) ...[
+                                // 「挖掘新頻道」是特別的分類，只是用來放挖到的頻道，
+                                // 不是使用者自己手動整理的地方，所以不給「新增頻道」
+                                // （2026-09-29 使用者要求），改給「挖掘新頻道」按鈕
+                                // ——本來只有 YT 首頁有，進了這個分類頁還要回首頁
+                                // 才能再挖一次太繞（2026-09-29 使用者要求）。
+                                if (_selected.length == 1 &&
+                                    _selected.single == ytDiscoverCategoryId)
+                                  IconButton(
+                                    onPressed: () => runYtChannelDiscovery(
                                       context,
                                       ref,
-                                      selectedCategory!,
-                                    );
-                                    // 分類本身沒了，留在這頁沒意義，刪完
-                                    // 直接退回分類格子那頁。
-                                    if (deleted && context.mounted) {
-                                      Navigator.of(context).pop();
-                                    }
-                                  },
-                                  icon: const Icon(
-                                    Icons.delete_outline_rounded,
-                                    size: 20,
+                                      onDone: _reload,
+                                    ),
+                                    icon: const Icon(
+                                      Icons.travel_explore_rounded,
+                                      size: 20,
+                                    ),
+                                    color: AppColors.ink2,
+                                    tooltip: '挖掘新頻道',
+                                  )
+                                else
+                                  IconButton(
+                                    onPressed: () =>
+                                        _showAddChannelDialog(categories),
+                                    icon: const Icon(
+                                      Icons.add_circle_outline,
+                                      size: 20,
+                                    ),
+                                    color: AppColors.ink2,
+                                    tooltip: '新增頻道',
                                   ),
-                                  color: AppColors.ink2,
-                                  tooltip: '刪除分類',
-                                ),
+                                if (selectedCategory != null)
+                                  IconButton(
+                                    onPressed: () async {
+                                      final deleted = await deleteYtCategory(
+                                        context,
+                                        ref,
+                                        selectedCategory!,
+                                      );
+                                      // 分類本身沒了，留在這頁沒意義，刪完
+                                      // 直接退回分類格子那頁。
+                                      if (deleted && context.mounted) {
+                                        Navigator.of(context).pop();
+                                      }
+                                    },
+                                    icon: const Icon(
+                                      Icons.delete_outline_rounded,
+                                      size: 20,
+                                    ),
+                                    color: AppColors.ink2,
+                                    tooltip: '刪除分類',
+                                  ),
+                              ],
                             ],
                           ),
                           const SizedBox(height: Gap.sm),
@@ -971,6 +1017,9 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                                           onTogglePin: _togglePin,
                                           onToggleCold: _toggleCold,
                                           onDelete: _deleteChannel,
+                                          trash: widget.trash,
+                                          onRestore: _restoreChannel,
+                                          onPurge: _purgeChannel,
                                         ),
                                       ),
                                     ],
@@ -991,7 +1040,7 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
   }
 }
 
-enum _ChannelMenuAction { edit, move, pin, cold, delete }
+enum _ChannelMenuAction { edit, move, pin, cold, delete, restore, purge }
 
 /// 「挖掘新頻道」分類卡右上角的小標籤，顯示是靠哪個關鍵字／哪個頻道推薦
 /// 挖到的（2026-09-29 使用者要求，見 [YtChannel.discoveredVia]）。
@@ -1156,9 +1205,20 @@ Future<bool> showAddYtChannelDialog(
       .channelsForUpload();
   String? duplicate; // 不是 null 就是重複的提示文字，「新增」鍵會停用
 
+  // 永久刪除過的頻道（[YtChannel.purgedAt]）不算重複：使用者自己手動新增
+  // 同一個頻道就是想要它回來，送出時直接把那筆救回來（2026-10-06）。
+  final purged = [
+    for (final c in existing)
+      if (c.purgedAt != null) c,
+  ];
+  final active = [
+    for (final c in existing)
+      if (c.purgedAt == null) c,
+  ];
+
   String? duplicateMessage({String youtubeChannelId = '', String url = ''}) {
     final d = findDuplicateYtChannel(
-      existing,
+      active,
       youtubeChannelId: youtubeChannelId,
       url: url,
     );
@@ -1476,6 +1536,26 @@ Future<bool> showAddYtChannelDialog(
     if (context.mounted) showAppNotice(context, lateDup, isError: true);
     return false;
   }
+  // 是永久刪除過的頻道：救回原本那筆（保留當初的紀錄），套上這次選的分類
+  // 跟名稱，不另外新增一筆。
+  final revive = findDuplicateYtChannel(
+    purged,
+    youtubeChannelId: fetched?.channelId ?? '',
+    url: urlController.text,
+  );
+  if (revive != null) {
+    await ref
+        .read(ytTrackerRepositoryProvider)
+        .updateChannel(
+          revive.restored().copyWith(
+            name: name,
+            categoryId: categoryId,
+            pinnedAt: null,
+            coldAt: null,
+          ),
+        );
+    return context.mounted;
+  }
   await ref
       .read(ytTrackerRepositoryProvider)
       .addChannel(
@@ -1524,6 +1604,9 @@ class _ChannelGrid extends StatefulWidget {
     required this.onToggleCold,
     required this.onDelete,
     this.showDiscoveredBadge = false,
+    this.trash = false,
+    this.onRestore,
+    this.onPurge,
   });
 
   final List<YtChannel> channels;
@@ -1532,6 +1615,12 @@ class _ChannelGrid extends StatefulWidget {
   final void Function(YtChannel) onTogglePin;
   final void Function(YtChannel) onToggleCold;
   final void Function(YtChannel) onDelete;
+
+  /// 垃圾桶模式（見 [YtTrackerBrowsePage.trash]）：選單的「刪除」換成
+  /// [onRestore]「還原」＋[onPurge]「永久刪除」，其餘選項照舊。
+  final bool trash;
+  final void Function(YtChannel)? onRestore;
+  final void Function(YtChannel)? onPurge;
 
   /// 只有正在單獨看「挖掘新頻道」分類時才是 true，其他情況一律不顯示
   /// 挖掘來源標籤（2026-09-29 使用者要求：僅在挖掘分類才顯示）。
@@ -1551,8 +1640,13 @@ class _ChannelGridState extends State<_ChannelGrid> {
   Widget build(BuildContext context) {
     final channels = widget.channels;
     if (channels.isEmpty) {
-      return const SingleChildScrollView(
-        child: InlineEmptyCard(title: '這個分類還沒有頻道', message: '換個分類看看，或到首頁新增頻道'),
+      return SingleChildScrollView(
+        child: widget.trash
+            ? const InlineEmptyCard(title: '這個分類沒有被刪除的頻道', message: '換個分類看看')
+            : const InlineEmptyCard(
+                title: '這個分類還沒有頻道',
+                message: '換個分類看看，或到首頁新增頻道',
+              ),
       );
     }
     // 分三層畫：上面置頂、中間普通、下面冷藏（2026-09-30 加置頂區、
@@ -1818,12 +1912,26 @@ class _ChannelGridState extends State<_ChannelGrid> {
           label: isCold ? '取消$ytColdSectionLabel' : ytColdSectionLabel,
           iconColor: AppColors.ytColdAccent,
         ),
-        const BubbleMenuItem(
-          value: _ChannelMenuAction.delete,
-          icon: Icons.delete_outline_rounded,
-          label: '刪除',
-          destructive: true,
-        ),
+        if (widget.trash) ...[
+          const BubbleMenuItem(
+            value: _ChannelMenuAction.restore,
+            icon: Icons.restore_from_trash_outlined,
+            label: '還原',
+            iconColor: AppColors.ok,
+          ),
+          const BubbleMenuItem(
+            value: _ChannelMenuAction.purge,
+            icon: Icons.delete_forever_outlined,
+            label: '永久刪除',
+            destructive: true,
+          ),
+        ] else
+          const BubbleMenuItem(
+            value: _ChannelMenuAction.delete,
+            icon: Icons.delete_outline_rounded,
+            label: '刪除',
+            destructive: true,
+          ),
       ],
     );
     switch (action) {
@@ -1837,6 +1945,10 @@ class _ChannelGridState extends State<_ChannelGrid> {
         widget.onToggleCold(c);
       case _ChannelMenuAction.delete:
         widget.onDelete(c);
+      case _ChannelMenuAction.restore:
+        widget.onRestore?.call(c);
+      case _ChannelMenuAction.purge:
+        widget.onPurge?.call(c);
       case null:
         break;
     }

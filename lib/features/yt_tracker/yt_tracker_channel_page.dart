@@ -14,6 +14,7 @@ import '../../data/services/yt_video_type_scanner.dart';
 import '../../domain/models/yt_tracker.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_confirm_dialog.dart';
+import '../../shared/widgets/app_notice.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
 import '../../shared/widgets/background_refresh.dart';
@@ -368,7 +369,9 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
 
   Future<({YtChannel? channel, List<YtCategory> categories})> _load() async {
     final repo = ref.read(ytTrackerRepositoryProvider);
-    final channels = await repo.loadChannels();
+    // 包含垃圾桶裡的頻道：垃圾桶點頻道也要能進來逛（2026-10-06 使用者
+    // 要求垃圾桶跟一般分類頁完全一樣）。
+    final channels = await repo.channelsForUpload();
     final categories = await repo.loadCategories();
     final channel = channels.where((c) => c.id == widget.channelId);
     return (
@@ -1412,6 +1415,21 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                             ],
                           ),
                           const SizedBox(height: Gap.md),
+                          // 從垃圾桶點進來的頻道：最上面提示一下，旁邊就能還原。
+                          if (channel.deletedAt != null &&
+                              channel.purgedAt == null) ...[
+                            _TrashBanner(
+                              onRestore: () async {
+                                await ref
+                                    .read(ytTrackerRepositoryProvider)
+                                    .restoreChannel(channel.id);
+                                if (!context.mounted) return;
+                                _reload();
+                                showAppNotice(context, '已還原「${channel.name}」');
+                              },
+                            ),
+                            const SizedBox(height: Gap.sm),
+                          ],
                           // 簡介／上傳頻率圖／最近影片全部包進同一個可捲動
                           // 區域，不要只有最近影片自己捲、上面的內容固定
                           // 不動——不然滑最近影片清單時，簡介跟圖表卻停在
@@ -1677,6 +1695,42 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
           ],
         ),
       ],
+    );
+  }
+}
+
+/// 垃圾桶裡的頻道詳情頁最上面那條提示＋還原鈕（2026-10-06）。
+class _TrashBanner extends StatelessWidget {
+  const _TrashBanner({required this.onRestore});
+
+  final VoidCallback onRestore;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 4, 4, 4),
+      decoration: BoxDecoration(
+        color: AppColors.bad.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.bad.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.delete_outline_rounded,
+            size: 16,
+            color: AppColors.bad,
+          ),
+          const SizedBox(width: 8),
+          const Expanded(
+            child: Text(
+              '這個頻道在垃圾桶裡',
+              style: TextStyle(fontSize: 13, color: AppColors.ink),
+            ),
+          ),
+          TextButton(onPressed: onRestore, child: const Text('還原')),
+        ],
+      ),
     );
   }
 }

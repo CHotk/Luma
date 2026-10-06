@@ -40,7 +40,7 @@ import '../features/yt_tracker/yt_category_order_page.dart';
 import '../features/yt_tracker/yt_tracker_browse_page.dart';
 import '../features/yt_tracker/yt_tracker_channel_page.dart';
 import '../features/yt_tracker/yt_tracker_home_page.dart';
-import '../features/yt_tracker/yt_trash_browse_page.dart';
+import '../features/yt_tracker/yt_purged_channels_page.dart';
 import '../features/yt_tracker/yt_trash_page.dart';
 
 /// 全 App 的路徑只在這裡定義，畫面裡不准自己組路徑字串。
@@ -143,9 +143,16 @@ final appRouter = GoRouter(
     ),
     GoRoute(path: '/yt-tracker/trash', builder: (_, _) => const YtTrashPage()),
     GoRoute(
+      path: '/yt-tracker/purged',
+      builder: (_, _) => const YtPurgedChannelsPage(),
+    ),
+    GoRoute(
       path: '/yt-tracker/trash/browse',
-      builder: (_, state) =>
-          YtTrashBrowsePage(categoryIds: state.extra as Set<String>),
+      // 垃圾桶點進分類：跟一般分類頁同一頁，開垃圾桶模式（2026-10-06）。
+      builder: (_, state) => YtTrackerBrowsePage(
+        initialCategoryIds: state.extra as Set<String>,
+        trash: true,
+      ),
     ),
     GoRoute(
       path: '/yt-tracker/category-order',

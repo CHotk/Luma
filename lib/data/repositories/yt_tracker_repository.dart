@@ -189,8 +189,17 @@ class YtTrackerRepository {
   }
 
   /// 垃圾桶列表用：只看已刪除（墓碑標記）的頻道（2026-09-29 使用者要求）。
+  /// 永久刪除過的（[YtChannel.purgedAt]）不算，垃圾桶不再顯示。
   Future<List<YtChannel>> loadDeletedChannels() async =>
-      (await _loadChannelsRaw()).where((c) => c.deletedAt != null).toList();
+      (await _loadChannelsRaw())
+          .where((c) => c.deletedAt != null && c.purgedAt == null)
+          .toList();
+
+  /// 永久刪除過的頻道（設定頁「永久刪除的頻道」清單用，2026-10-06），
+  /// 依永久刪除時間新到舊。
+  Future<List<YtChannel>> loadPurgedChannels() async =>
+      (await _loadChannelsRaw()).where((c) => c.purgedAt != null).toList()
+        ..sort((a, b) => b.purgedAt!.compareTo(a.purgedAt!));
 
   /// 從垃圾桶還原：清掉墓碑標記，頻道恢復成原本的分類（分類如果也被刪掉
   /// 了，會退回未分類，跟 [withoutCategory] 那套邏輯是分開兩回事，這裡
@@ -203,15 +212,15 @@ class YtTrackerRepository {
     await _writeChannels(all);
   }
 
-  /// 從垃圾桶「永久刪除」：真的從本機清單移除，不是墓碑標記
-  /// （2026-09-29 使用者要求）。**注意**：這只保證這台裝置看不到了——
-  /// 如果雲端還留著這筆的墓碑、且還有別台裝置沒同步過這次清除，下次
-  /// 同步合併時雲端那份還是會補回來（一樣是已刪除狀態，不會變回啟用，
-  /// 只是又會出現在垃圾桶列表）。先同步過一輪讓所有裝置都知道刪除了，
-  /// 再永久清除，比較不會遇到這個情況。
+  /// 從垃圾桶「永久刪除」：整筆留著、蓋上 [YtChannel.purgedAt]，垃圾桶不再
+  /// 顯示（2026-10-06 改：原本是真的從清單移除，結果挖掘又會挖回來、
+  /// 同步又會從雲端補回垃圾桶，見 [YtChannel.purgedAt]）。這個標記跟著
+  /// 頻道一起同步，別台裝置同步後也看不到。
   Future<void> purgeChannel(String id) async {
     final all = await _loadChannelsRaw();
-    all.removeWhere((c) => c.id == id);
+    final index = all.indexWhere((c) => c.id == id);
+    if (index == -1) return;
+    all[index] = all[index].purged();
     await _writeChannels(all);
   }
 
@@ -283,6 +292,9 @@ class YtTrackerRepository {
             videoCount: c.videoCount ?? prior.videoCount,
             // 冷藏也一樣，快照永遠不會帶這欄（2026-10-02 加冷藏區時一起補）。
             coldAt: c.coldAt ?? prior.coldAt,
+            // 永久刪除的標記也是（2026-10-06），不然內建快照一合併，永久
+            // 刪除過的頻道又會跑回垃圾桶。
+            purgedAt: c.purgedAt ?? prior.purgedAt,
           );
         }(),
     ];

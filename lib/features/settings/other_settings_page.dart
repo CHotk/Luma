@@ -329,6 +329,33 @@ class _YtTrackerSettings extends ConsumerWidget {
                 ],
               ),
               const Divider(height: Gap.lg, color: AppColors.glassEdge),
+              // 永久刪除的頻道清單（2026-10-06 使用者要求：放設定裡，想看
+              // 刪了哪些可以點開）。
+              Row(
+                children: [
+                  const Icon(
+                    Icons.delete_forever_outlined,
+                    size: 18,
+                    color: AppColors.ink2,
+                  ),
+                  const SizedBox(width: Gap.sm),
+                  const Expanded(
+                    child: Text(
+                      '永久刪除的頻道',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.ink,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => context.push('/yt-tracker/purged'),
+                    child: const Text('查看'),
+                  ),
+                ],
+              ),
+              const Divider(height: Gap.lg, color: AppColors.glassEdge),
               const YtTypeBackfillRow(),
               const Divider(height: Gap.lg, color: AppColors.glassEdge),
               const _StatsRefreshRow(),

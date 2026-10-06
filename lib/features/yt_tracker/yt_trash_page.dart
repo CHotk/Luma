@@ -14,7 +14,7 @@ import 'yt_tracker_home_page.dart' show YtCategoryCard;
 /// 垃圾桶首頁：跟 YT 首頁一樣的分類格子，只是每張卡片數的是「這個分類裡
 /// 被刪除的頻道」，不是還在用的（2026-09-29 使用者要求：垃圾桶其實也是
 /// 一個 YT 管理入口，只是專門裝被刪除的頻道，長相要跟原本的分類格子
-/// 一樣，不是一份自己刻的名單）。點卡片進 [YtTrashBrowsePage] 看該分類
+/// 一樣，不是一份自己刻的名單）。點卡片進 [YtTrackerBrowsePage]（垃圾桶模式）看該分類
 /// 被刪除的頻道，可以還原／永久刪除——跟「YT 首頁點分類卡進 browse 頁」
 /// 是同一種兩層結構，只是資料來源換成 `loadDeletedChannels()`。
 class YtTrashPage extends ConsumerStatefulWidget {

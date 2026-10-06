@@ -133,11 +133,20 @@ class YtChannel {
     this.pinnedAt,
     this.videoCount,
     this.coldAt,
+    this.purgedAt,
   });
 
   final String id;
   final String name;
   final String? categoryId;
+
+  /// 從垃圾桶「永久刪除」的時間（2026-10-06 使用者要求：永久刪除也要留
+  /// 紀錄，只是不再顯示）。原本永久刪除是把整筆從資料裡拿掉，結果：
+  /// 挖掘新頻道比對不到它、又會被挖回來；雲端還留著它的刪除紀錄，同步
+  /// 一次又跑回垃圾桶。現在改成整筆留著、[deletedAt] 照舊＋多蓋這個時間：
+  /// 垃圾桶不顯示、挖掘照樣跳過、跟著同步；使用者自己手動新增同一個
+  /// 頻道時，直接把這筆救回來（不會變成兩筆）。null＝沒被永久刪除。
+  final DateTime? purgedAt;
 
   /// 使用者長按選「置頂」的時間（2026-09-30 使用者要求：分類頻道列表要
   /// 能置頂）。null 代表沒置頂。置頂的頻道排在同一個分類列表最前面，
@@ -214,6 +223,7 @@ class YtChannel {
     Object? pinnedAt = _keep,
     int? videoCount,
     Object? coldAt = _keep,
+    Object? purgedAt = _keep,
   }) => YtChannel(
     id: id,
     name: name ?? this.name,
@@ -245,12 +255,16 @@ class YtChannel {
     videoCount: videoCount ?? this.videoCount,
     // 同 pinnedAt：null 是「移出冷藏」這個有意義的值。
     coldAt: identical(coldAt, _keep) ? this.coldAt : coldAt as DateTime?,
+    purgedAt: identical(purgedAt, _keep)
+        ? this.purgedAt
+        : purgedAt as DateTime?,
   );
 
   YtChannel _copy({
     required String? categoryId,
     required DateTime updatedAt,
     required DateTime? deletedAt,
+    Object? purgedAt = _keep,
   }) => YtChannel(
     id: id,
     name: name,
@@ -271,6 +285,9 @@ class YtChannel {
     pinnedAt: pinnedAt,
     videoCount: videoCount,
     coldAt: coldAt,
+    purgedAt: identical(purgedAt, _keep)
+        ? this.purgedAt
+        : purgedAt as DateTime?,
   );
 
   /// 內容有變時蓋上現在的時間，見 [YtTrackerRepository]。
@@ -290,8 +307,25 @@ class YtChannel {
   /// 從垃圾桶還原：[stamped] 沒辦法把 [deletedAt] 蓋回 null（`deleted`
   /// 參數只能設成刪除，不能反過來），這裡另外開一個方法直接清掉墓碑標記
   /// （2026-09-29 使用者要求：垃圾桶要能還原）。
-  YtChannel restored() =>
-      _copy(categoryId: categoryId, updatedAt: DateTime.now(), deletedAt: null);
+  /// 永久刪除過的也一起救回來（清掉 [purgedAt]）。
+  YtChannel restored() => _copy(
+    categoryId: categoryId,
+    updatedAt: DateTime.now(),
+    deletedAt: null,
+    purgedAt: null,
+  );
+
+  /// 從垃圾桶永久刪除：留著整筆紀錄，只是蓋上 [purgedAt]（見那個欄位的
+  /// 說明）。
+  YtChannel purged() {
+    final now = DateTime.now();
+    return _copy(
+      categoryId: categoryId,
+      updatedAt: now,
+      deletedAt: deletedAt ?? now,
+      purgedAt: now,
+    );
+  }
 
   /// [avatarImageUrl] 沒填、或圖片載入失敗時的退回佔位。
   final String avatarEmoji;
@@ -338,6 +372,7 @@ class YtChannel {
     'pinnedAt': pinnedAt?.toIso8601String(),
     'videoCount': videoCount,
     'coldAt': coldAt?.toIso8601String(),
+    'purgedAt': purgedAt?.toIso8601String(),
   };
 
   factory YtChannel.fromJson(Map<String, dynamic> json) => YtChannel(
@@ -360,6 +395,7 @@ class YtChannel {
     pinnedAt: _parseTime(json['pinnedAt']),
     videoCount: json['videoCount'] as int?,
     coldAt: _parseTime(json['coldAt']),
+    purgedAt: _parseTime(json['purgedAt']),
   );
 }
 
