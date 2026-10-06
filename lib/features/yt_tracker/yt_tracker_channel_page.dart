@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show SynchronousFuture;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -429,6 +430,14 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     if (!force && sameChannel && stillFresh) return;
     _videosLoadedForChannelId = channel.id;
     _videosLoadedAt = DateTime.now();
+    // 同一個頻道、只是放太久要自動更新：背景補抓最新一頁，有新影片就接
+    // 在最上面，不清空清單、不跳回載入中——原本會整份清空重抓，捲動位置
+    // 歸零跳回最上面（2026-10-06 使用者回報隱藏影片時「整個畫面重新
+    // 加載、跳到最上面」：隱藏觸發重繪，剛好碰到超過 5 分鐘）。
+    if (!force && sameChannel && _firstPage.isNotEmpty) {
+      _softRefreshFirstPage(channel);
+      return;
+    }
     setState(() {
       _uploadsId = null;
       _nextPageToken = null;
@@ -805,6 +814,41 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     // 算的，第一頁進來時要跟著更新。
     if (mounted) setState(() => _firstPage = tagged);
     return tagged;
+  }
+
+  /// 背景補抓最新一頁（見 [_ensureVideosLoaded]）。只把清單裡還沒有的
+  /// 影片接到最前面，往下滑載入的分頁進度（[_nextPageToken]）不動。
+  /// 抓失敗就算了，留著原本的清單。
+  Future<void> _softRefreshFirstPage(YtChannel channel) async {
+    final apiKey = ref.read(ytApiKeyProvider);
+    final uploadsId = _uploadsId;
+    if (apiKey == null || apiKey.isEmpty || uploadsId == null) return;
+    try {
+      final service = YoutubeApiService(apiKey);
+      final page = await service.fetchVideosPage(uploadsId, maxResults: 10);
+      final known = {
+        for (final v in [..._firstPage, ..._moreVideos]) v.videoId,
+      };
+      final newOnes = [
+        for (final v in page.videos)
+          if (!known.contains(v.videoId)) v,
+      ];
+      if (newOnes.isEmpty) return;
+      final withDurations = await _withDurations(service, newOnes);
+      final cache = YtVideoCacheStore(ref.read(keyValueStoreProvider));
+      await cache.upsertVideos(channel.id, withDurations);
+      final tagged = _applyTags(withDurations, {
+        for (final v in await cache.load(channel.id)) v.videoId: v,
+      });
+      if (!mounted || _videosLoadedForChannelId != channel.id) return;
+      final merged = [...tagged, ..._firstPage];
+      setState(() {
+        _firstPage = merged;
+        _videosFuture = SynchronousFuture(merged);
+      });
+    } catch (_) {
+      // 背景更新失敗不打擾，原本的清單照用。
+    }
   }
 
   void _ensureHistoryLoaded(YtChannel channel, {bool force = false}) {

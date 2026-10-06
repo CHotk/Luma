@@ -151,6 +151,21 @@ void main() {
     expect(find.text('冷藏'), findsNothing);
   });
 
+  testWidgets('拖過去但沒指到按鈕就放開，選單收掉、不選任何一個', (tester) async {
+    final picked = await pumpLongPressCard(tester);
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byKey(const Key('card'))),
+    );
+    await tester.pump(const Duration(milliseconds: 700));
+    await tester.pumpAndSettle();
+    await gesture.moveBy(const Offset(0, 120));
+    await tester.pump();
+    await gesture.up();
+    await tester.pumpAndSettle();
+    expect(picked, [null]);
+    expect(find.text('置頂'), findsNothing);
+  });
+
   testWidgets('長按後在原地放開，選單留著，之後點一下就選', (tester) async {
     final picked = await pumpLongPressCard(tester);
     final gesture = await tester.startGesture(

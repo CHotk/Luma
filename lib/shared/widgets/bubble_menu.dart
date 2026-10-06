@@ -297,13 +297,25 @@ class _BubbleMenuLayoutState<T> extends State<_BubbleMenuLayout<T>> {
 
   void _onRelease() {
     final hit = _itemAt(widget.drag!.position.value);
-    if (hit != null && !_done && mounted) {
+    if (!mounted || _done) return;
+    final drag = widget.drag!;
+    final origin = drag.origin;
+    final end = drag.position.value;
+    // 有拖過（離長按那一點超過一小段）才算「滑選」。
+    final dragged =
+        origin != null && end != null && (end - origin).distance > 16;
+    if (hit != null) {
       _done = true;
       widget.onSelect(hit.value);
-    } else if (_hovered != null && mounted) {
-      // 在按鈕外放開：選單留著，改用點的。
+    } else if (dragged) {
+      // 拖過去卻沒指到任何按鈕就放手：當作不選，選單收掉
+      // （2026-10-06 使用者要求）。
+      _done = true;
+      widget.onSelect(null);
+    } else if (_hovered != null) {
       setState(() => _hovered = null);
     }
+    // 沒拖、長按完原地放開：選單留著，改用點的。
   }
 
   @override

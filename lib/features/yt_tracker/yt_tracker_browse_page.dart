@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show SynchronousFuture;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -151,6 +152,20 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
     _videosLoadedFor = ids;
     _videosLoadedType = _typeFilter;
     _videosLoadedAt = DateTime.now();
+    // 篩選沒變、只是放太久要自動更新：背景抓，抓完整份直接換上去，
+    // 不清空、不跳回載入中畫面——原本會整個清單換成「載入中」再換回來，
+    // 捲動位置歸零跳回最上面（2026-10-06 使用者回報隱藏影片時「整個畫面
+    // 重新加載、跳到最上面」：隱藏觸發重繪，剛好碰到超過 5 分鐘）。
+    // 抓失敗就留著舊的，不打擾。
+    if (!force && sameSelection) {
+      _fetchVideos(channels, apiKey).then((fresh) {
+        if (!mounted || !_listEquals(_videosLoadedFor ?? const [], ids)) {
+          return;
+        }
+        setState(() => _videosFuture = SynchronousFuture(fresh));
+      }, onError: (_) {});
+      return;
+    }
     setState(() {
       _videosFuture = _fetchVideos(channels, apiKey);
       _videoPreview = const [];
