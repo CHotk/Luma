@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -114,6 +115,8 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
   @override
   void initState() {
     super.initState();
+    GestureBinding.instance.pointerRouter.addGlobalRoute(_tracePointer);
+    _ytSectionLog('進入分類頁');
     _future = _load();
   }
 
@@ -814,6 +817,28 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
         ),
       ],
     );
+  }
+
+  /// 除錯：這頁開著的期間，整個 App 每一下手指／滑鼠按下、放開都記
+  /// 一筆（不管點到哪裡），看「沒反應」的那一下到底有沒有送進 App。
+  void _tracePointer(PointerEvent e) {
+    if (e is PointerDownEvent) {
+      _ytSectionLog(
+        '【按下】#${e.pointer} ${e.kind.name} at=(${e.position.dx.round()},${e.position.dy.round()})',
+      );
+    } else if (e is PointerUpEvent) {
+      _ytSectionLog(
+        '【放開】#${e.pointer} at=(${e.position.dx.round()},${e.position.dy.round()})',
+      );
+    } else if (e is PointerCancelEvent) {
+      _ytSectionLog('【取消】#${e.pointer}');
+    }
+  }
+
+  @override
+  void dispose() {
+    GestureBinding.instance.pointerRouter.removeGlobalRoute(_tracePointer);
+    super.dispose();
   }
 
   @override
@@ -1937,7 +1962,10 @@ class _ChannelGridState extends State<_ChannelGrid> {
       builder: (cardContext) => BubbleLongPress(
         onLongPress: (_, drag) => _showChannelMenu(cardContext, c, drag: drag),
         child: InkWell(
-          onTap: () => widget.onOpen(c),
+          onTap: () {
+            _ytSectionLog('點了卡片（開頻道頁）：${c.name}');
+            widget.onOpen(c);
+          },
           borderRadius: BorderRadius.circular(Radii.card),
           // 裁成卡片圓角，左側色條才會順著圓角收邊，不會凸出去。
           child: ClipRRect(
@@ -1996,7 +2024,10 @@ class _ChannelGridState extends State<_ChannelGrid> {
                         ),
                       ),
                       IconButton(
-                        onPressed: () => _showChannelMenu(cardContext, c),
+                        onPressed: () {
+                          _ytSectionLog('按了 ⋮：${c.name}');
+                          _showChannelMenu(cardContext, c);
+                        },
                         icon: const Icon(Icons.more_vert_rounded, size: 18),
                         color: AppColors.ink2,
                         padding: EdgeInsets.zero,
@@ -2209,7 +2240,7 @@ class _TypeChip extends StatelessWidget {
 
 /// 除錯紀錄（2026-10-06 使用者回報置頂／一般／冷藏要按兩次才生效）：
 /// 寫進 [debugPrint]，設定頁「查看除錯訊息」看得到。查完可拿掉。
-void _ytSectionLog(String message) => debugPrint('[YT分區] $message');
+void _ytSectionLog(String message) => debugTrace('YT分區', message);
 
 String _sectionOf(YtChannel c) => c.pinnedAt != null
     ? '置頂'

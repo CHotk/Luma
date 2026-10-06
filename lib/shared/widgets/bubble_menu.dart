@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../app/theme/colors.dart';
+import '../debug/app_log.dart';
 
 /// 泡泡橫列選單的一個動作。[destructive] 為 true 的（刪除這類）一律排在
 /// 最右邊、前面自動加一條分隔線、圖示跟字用紅色。
@@ -520,7 +521,7 @@ class _BubblePainter extends CustomPainter {
 
 /// 除錯紀錄（2026-10-06 使用者回報要按兩次才生效，加來追）：寫進
 /// [debugPrint]，設定頁「查看除錯訊息」看得到、能整份複製。查完可拿掉。
-void _menuLog(String message) => debugPrint('[長按選單] $message');
+void _menuLog(String message) => debugTrace('長按選單', message);
 
 String _pt(Offset? p) =>
     p == null ? '-' : '(${p.dx.toStringAsFixed(0)},${p.dy.toStringAsFixed(0)})';

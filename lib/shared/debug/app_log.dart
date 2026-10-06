@@ -105,3 +105,15 @@ class AppLogEntry {
     device: json['device'] as String?,
   );
 }
+
+/// 暫時的除錯追蹤（2026-10-06 追「置頂／一般／冷藏要按兩次」）：每行
+/// 帶到毫秒的時間，印到瀏覽器 console（F12 → Console），也進設定頁
+/// 「查看除錯訊息」（但那邊重新整理就清空）。查完可拿掉呼叫的地方。
+void debugTrace(String tag, String message) {
+  final t = DateTime.now();
+  String two(int n) => n.toString().padLeft(2, '0');
+  final stamp =
+      '${two(t.hour)}:${two(t.minute)}:${two(t.second)}.'
+      '${t.millisecond.toString().padLeft(3, '0')}';
+  debugPrint('$stamp [$tag] $message');
+}
