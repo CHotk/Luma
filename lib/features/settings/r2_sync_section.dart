@@ -64,6 +64,7 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
   _FeaturePhase _kanaPracticePhase = _FeaturePhase.idle;
   _FeaturePhase _kanaExamPhase = _FeaturePhase.idle;
   _FeaturePhase _englishPhase = _FeaturePhase.idle;
+  _FeaturePhase _appHomePhase = _FeaturePhase.idle;
   final Map<String, _FeaturePhase> _habitPhases = {};
 
   /// 看盤／抽菸／喝酒記錄的同步狀況列（id 對應 [_habitPhases]）。
@@ -184,6 +185,7 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
       _kanaPracticePhase = _FeaturePhase.downloading;
       _kanaExamPhase = _FeaturePhase.downloading;
       _englishPhase = _FeaturePhase.downloading;
+      _appHomePhase = _FeaturePhase.downloading;
       _habitPhases
         ..clear()
         ..addEntries(
@@ -341,6 +343,14 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
             uploaded: r.uploaded + order.uploaded,
           );
         }),
+        // App 首頁功能順序（2026-10-06），跟英文／日文卡片順序同一套。
+        run(
+          '首頁',
+          (p) => _appHomePhase = p,
+          (_) => service.syncHomeCardOrder(
+            HomeCardOrderStore(ref.read(keyValueStoreProvider), 'app'),
+          ),
+        ),
         run(
           '看盤記錄',
           (p) => _habitPhases['crypto'] = p,
@@ -518,6 +528,11 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
           label: '英文單字紀錄',
           phase: _englishPhase,
           result: _results['英文單字紀錄'],
+        ),
+        _FeatureStatusRow(
+          label: '首頁',
+          phase: _appHomePhase,
+          result: _results['首頁'],
         ),
         for (final (id, title) in _habitRows)
           _FeatureStatusRow(

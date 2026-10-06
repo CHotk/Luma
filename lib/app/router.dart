@@ -188,12 +188,24 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/home-card-order/:track',
       builder: (_, state) {
-        final jp = state.pathParameters['track'] == 'jp';
-        return HomeCardOrderPage(
-          track: jp ? 'jp' : 'en',
-          title: jp ? '日文首頁卡片順序' : '英文首頁卡片順序',
-          cards: jp ? jpHomeCards : enHomeCards,
-        );
+        // App 首頁圖示格的功能順序也走同一頁（2026-10-06）。
+        return switch (state.pathParameters['track']) {
+          'app' => const HomeCardOrderPage(
+            track: 'app',
+            title: '首頁功能順序',
+            cards: appHomeCards,
+          ),
+          'jp' => const HomeCardOrderPage(
+            track: 'jp',
+            title: '日文首頁卡片順序',
+            cards: jpHomeCards,
+          ),
+          _ => const HomeCardOrderPage(
+            track: 'en',
+            title: '英文首頁卡片順序',
+            cards: enHomeCards,
+          ),
+        };
       },
     ),
     GoRoute(path: '/debug-log', builder: (_, _) => const DebugLogPage()),

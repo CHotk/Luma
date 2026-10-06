@@ -7,13 +7,30 @@ import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
 import '../../data/repositories/app_home_style_store.dart';
+import '../../data/repositories/home_card_order_store.dart';
 import '../../shared/small_asset.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
 import '../../shared/widgets/glass_card.dart';
 import '../../shared/widgets/track_switcher.dart';
+import '../settings/home_card_order_page.dart' show HomeCard;
 import 'app_home_dashboard.dart';
+
+/// 首頁圖示格有哪些功能（id、名稱），順序就是沒排過時的預設順序。設定
+/// 頁「功能順序」排序用（2026-10-06 使用者要求：像 YT 分類順序那樣可以
+/// 自己調）；id 要跟 [AppHomePage] 裡每一格的 `id` 一致。
+const appHomeCards = <HomeCard>[
+  (id: 'language', label: '語言學習'),
+  (id: 'diary', label: '日記'),
+  (id: 'yt', label: 'YT 頻道'),
+  (id: 'fitness', label: '健身'),
+  (id: 'crypto', label: '看盤記錄'),
+  (id: 'smoking', label: '抽菸記錄'),
+  (id: 'drinking', label: '喝酒記錄'),
+  (id: 'sync', label: '多裝置同步'),
+  (id: 'debug', label: '除錯'),
+];
 
 /// 整個 App 的首頁（2026-09-24 使用者要求：功能變多了，不想一打開就
 /// 是語言學習）。設計稿 `design-history/已選擇完成/首頁設計/01_圖示格啟動器(主流).html`
@@ -28,6 +45,7 @@ class AppHomePage extends ConsumerWidget {
     final style = ref.watch(appHomeStyleProvider);
     final items = <_HomeItem>[
       _HomeItem(
+        id: 'language',
         label: '語言學習',
         icon: Icons.school_rounded,
         imageAsset: 'assets/images/nav_icons/language.png',
@@ -44,6 +62,7 @@ class AppHomePage extends ConsumerWidget {
         },
       ),
       const _HomeItem(
+        id: 'diary',
         label: '日記',
         icon: Icons.auto_stories_rounded,
         imageAsset: 'assets/images/nav_icons/diary.png',
@@ -51,6 +70,7 @@ class AppHomePage extends ConsumerWidget {
         route: '/diary',
       ),
       const _HomeItem(
+        id: 'yt',
         label: 'YT 頻道',
         icon: Icons.subscriptions_rounded,
         imageAsset: 'assets/images/nav_icons/yt_tracker.png',
@@ -58,6 +78,7 @@ class AppHomePage extends ConsumerWidget {
         route: '/yt-tracker',
       ),
       const _HomeItem(
+        id: 'fitness',
         label: '健身',
         icon: Icons.fitness_center_rounded,
         imageAsset: 'assets/images/nav_icons/fitness.png',
@@ -65,36 +86,50 @@ class AppHomePage extends ConsumerWidget {
         route: '/fitness',
       ),
       const _HomeItem(
+        id: 'crypto',
         label: '看盤記錄',
         icon: Icons.candlestick_chart_outlined,
         color: Color(0xFFF7931A),
         route: '/crypto-watch',
       ),
       const _HomeItem(
+        id: 'smoking',
         label: '抽菸記錄',
         icon: Icons.smoking_rooms_outlined,
         color: Color(0xFFB0B7C3),
         route: '/smoking-log',
       ),
       const _HomeItem(
+        id: 'drinking',
         label: '喝酒記錄',
         icon: Icons.local_bar_outlined,
         color: Color(0xFFE0607E),
         route: '/drinking-log',
       ),
       const _HomeItem(
+        id: 'sync',
         label: '多裝置同步',
         icon: Icons.cloud_sync_outlined,
         color: Color(0xFF7ED6D0),
         route: '/sync',
       ),
       const _HomeItem(
+        id: 'debug',
         label: '除錯',
         icon: Icons.bug_report_outlined,
         imageAsset: 'assets/images/nav_icons/debug.png',
         color: Color(0xFFB39DDB),
         route: '/debug-log',
       ),
+    ];
+    // 照設定頁排好的順序（存的是 id；新加的功能接在最後，見
+    // [applyHomeCardOrder]）。
+    final byId = {for (final item in items) item.id: item};
+    final ordered = [
+      for (final id in applyHomeCardOrder([
+        for (final c in appHomeCards) c.id,
+      ], ref.watch(homeCardOrderProvider('app')).valueOrNull))
+        if (byId[id] case final item?) item,
     ];
 
     return Scaffold(
@@ -132,7 +167,7 @@ class AppHomePage extends ConsumerWidget {
                             crossAxisSpacing: Gap.md,
                             childAspectRatio: 0.95,
                             children: [
-                              for (final item in items) _HomeTile(item: item),
+                              for (final item in ordered) _HomeTile(item: item),
                             ],
                           ),
                         const SizedBox(height: Gap.lg),
@@ -156,6 +191,7 @@ String _dateLabel(DateTime d) {
 
 class _HomeItem {
   const _HomeItem({
+    required this.id,
     required this.label,
     required this.icon,
     required this.color,
@@ -164,6 +200,7 @@ class _HomeItem {
     this.onTap,
   });
 
+  final String id;
   final String label;
   final IconData icon;
   final String? imageAsset;

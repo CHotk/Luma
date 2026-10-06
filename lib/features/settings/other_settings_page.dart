@@ -149,6 +149,41 @@ class _AppHomeSettings extends ConsumerWidget {
             ],
           ),
         ),
+        const SizedBox(height: Gap.sm),
+        // 圖示格的功能順序（2026-10-06 使用者要求：像 YT 分類順序那樣，
+        // 在設定裡拖曳調整）。
+        GlassCard(
+          child: Row(
+            children: [
+              const Icon(
+                Icons.reorder_rounded,
+                size: 18,
+                color: AppColors.ink2,
+              ),
+              const SizedBox(width: Gap.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '功能順序',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.ink,
+                      ),
+                    ),
+                    Text('圖示格裡每個功能的先後', style: AppText.note),
+                  ],
+                ),
+              ),
+              TextButton(
+                onPressed: () => context.push('/home-card-order/app'),
+                child: const Text('調整'),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }

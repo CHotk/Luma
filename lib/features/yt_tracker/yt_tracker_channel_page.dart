@@ -1061,7 +1061,13 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
             actions: [EmptyAction('重新整理', () => _refresh(channel))],
           );
         }
-        final firstPage = snap.data ?? const [];
+        // 用 [_firstPage] 不用 snap.data：背景掃完類型後換上的是
+        // [_firstPage]（見 [_scanVideoTypes]），snap.data 還是當初抓回來、
+        // 沒標類型的那份——之前就是讀錯這份，第一頁的「影片／Shorts／
+        // 直播」標籤要離開再進來才出現（2026-10-06 使用者回報）。
+        final firstPage = _firstPage.isNotEmpty
+            ? _firstPage
+            : (snap.data ?? const <YoutubeVideo>[]);
         if (firstPage.isEmpty) {
           return InlineEmptyCard(
             title: '這個頻道抓不到影片',
