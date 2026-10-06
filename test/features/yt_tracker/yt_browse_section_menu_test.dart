@@ -116,6 +116,29 @@ void main() {
     final c = tester.getTopLeft(find.text('頻道C'));
     expect(b.dy < c.dy || (b.dy == c.dy && b.dx < c.dx), isTrue);
   });
+
+  // 2026-10-06 使用者要求：區塊標題捲動時黏在頂端，不跟著捲走。
+  testWidgets('往下捲很遠，「待評鑑」標題還黏在上面看得到', (tester) async {
+    _bigView(tester);
+    await _pump(
+      tester,
+      channels: [
+        for (var i = 0; i < 40; i++)
+          YtChannel(
+            id: 'p$i',
+            name: '待評鑑頻道$i',
+            categoryId: 'games',
+            addedAt: DateTime(2026, 9, 2),
+          ),
+      ],
+    );
+    final header = find.textContaining('待評鑑 ·');
+    final before = tester.getTopLeft(header).dy;
+    await tester.drag(find.text('待評鑑頻道10'), const Offset(0, -600));
+    await _settle(tester);
+    expect(header, findsOneWidget);
+    expect(tester.getTopLeft(header).dy, closeTo(before, 40));
+  });
 }
 
 void _bigView(WidgetTester tester) {

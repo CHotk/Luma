@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard;
@@ -1764,114 +1765,113 @@ class _ChannelGridState extends State<_ChannelGrid> {
     );
     // 每區之間的分隔線只畫在「兩區都有」的時候，某一區空著就直接跳過
     // （2026-10-06 加待評鑑後，一般區可能整個是空的）。
-    final sections = <List<Widget>>[
+    // 每一區包成一組：區塊標題（已置頂／一般／冷藏／待評鑑）捲動時黏在
+    // 頂端不跟著捲走，跟上方的篩選列一樣一直看得到；只黏在自己那一區
+    // 裡，捲到下一區就被下一個標題推上去換掉（iOS 通訊錄那種黏性標題，
+    // 2026-10-06 使用者要求）。
+    Widget section(Widget header, List<Widget> body) => SliverMainAxisGroup(
+      slivers: [
+        SliverPersistentHeader(
+          pinned: true,
+          delegate: _SectionHeaderDelegate(child: header),
+        ),
+        ...body,
+      ],
+    );
+    final sections = <Widget>[
       if (pinned.isNotEmpty)
-        [
-          SliverToBoxAdapter(
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.push_pin_rounded,
-                  size: 13,
-                  color: AppColors.ytPinAccent,
-                ),
-                const SizedBox(width: 4),
-                Text('已置頂 · ${pinned.length}', style: AppText.note),
-              ],
-            ),
+        section(
+          Row(
+            children: [
+              const Icon(
+                Icons.push_pin_rounded,
+                size: 13,
+                color: AppColors.ytPinAccent,
+              ),
+              const SizedBox(width: 4),
+              Text('已置頂 · ${pinned.length}', style: AppText.note),
+            ],
           ),
-          const SliverToBoxAdapter(child: SizedBox(height: Gap.xs)),
-          grid(pinned),
-        ],
+          [grid(pinned)],
+        ),
       // 一般區（沒置頂也沒冷藏）也標數量，跟置頂、冷藏區一致
       // （2026-10-06 使用者要求）。
       if (rest.isNotEmpty)
-        [
-          SliverToBoxAdapter(
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.subscriptions_outlined,
-                  size: 13,
-                  color: AppColors.ink3,
-                ),
-                const SizedBox(width: 4),
-                Text('一般 · ${rest.length}', style: AppText.note),
-              ],
-            ),
+        section(
+          Row(
+            children: [
+              const Icon(
+                Icons.subscriptions_outlined,
+                size: 13,
+                color: AppColors.ink3,
+              ),
+              const SizedBox(width: 4),
+              Text('一般 · ${rest.length}', style: AppText.note),
+            ],
           ),
-          const SliverToBoxAdapter(child: SizedBox(height: Gap.xs)),
-          grid(rest),
-        ],
+          [grid(rest)],
+        ),
       if (cold.isNotEmpty)
-        [
-          SliverToBoxAdapter(
-            child: InkWell(
-              onTap: () => setState(() => _coldExpanded = !_coldExpanded),
-              borderRadius: BorderRadius.circular(8),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.ac_unit_rounded,
-                      size: 13,
-                      color: AppColors.ytColdAccent,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      '$ytColdSectionLabel · ${cold.length}',
-                      style: AppText.note,
-                    ),
-                    const Spacer(),
-                    Text(_coldExpanded ? '收起' : '展開', style: AppText.note),
-                    Icon(
-                      _coldExpanded
-                          ? Icons.expand_less_rounded
-                          : Icons.expand_more_rounded,
-                      size: 18,
-                      color: AppColors.ink3,
-                    ),
-                  ],
-                ),
+        section(
+          InkWell(
+            onTap: () => setState(() => _coldExpanded = !_coldExpanded),
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.ac_unit_rounded,
+                    size: 13,
+                    color: AppColors.ytColdAccent,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '$ytColdSectionLabel · ${cold.length}',
+                    style: AppText.note,
+                  ),
+                  const Spacer(),
+                  Text(_coldExpanded ? '收起' : '展開', style: AppText.note),
+                  Icon(
+                    _coldExpanded
+                        ? Icons.expand_less_rounded
+                        : Icons.expand_more_rounded,
+                    size: 18,
+                    color: AppColors.ink3,
+                  ),
+                ],
               ),
             ),
           ),
-          if (_coldExpanded) ...[
-            const SliverToBoxAdapter(child: SizedBox(height: Gap.xs)),
-            grid(cold),
-          ],
-        ],
+          [if (_coldExpanded) grid(cold)],
+        ),
       // 待評鑑：剛加進來、還沒分到置頂／一般／冷藏的頻道，排在最下面，
       // 等使用者自己長按分區（2026-10-06 使用者要求）。
       if (pending.isNotEmpty)
-        [
-          SliverToBoxAdapter(
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.rate_review_outlined,
-                  size: 13,
-                  color: AppColors.ink3,
+        section(
+          Row(
+            children: [
+              const Icon(
+                Icons.rate_review_outlined,
+                size: 13,
+                color: AppColors.ink3,
+              ),
+              const SizedBox(width: 4),
+              Text('待評鑑 · ${pending.length}', style: AppText.note),
+              const SizedBox(width: Gap.sm),
+              Expanded(
+                child: Text(
+                  '長按頻道分到置頂／一般／冷藏',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.right,
+                  style: AppText.note,
                 ),
-                const SizedBox(width: 4),
-                Text('待評鑑 · ${pending.length}', style: AppText.note),
-                const SizedBox(width: Gap.sm),
-                Expanded(
-                  child: Text(
-                    '長按頻道分到置頂／一般／冷藏',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.right,
-                    style: AppText.note,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-          const SliverToBoxAdapter(child: SizedBox(height: Gap.xs)),
-          grid(pending),
-        ],
+          [grid(pending)],
+        ),
     ];
     // 所有區全部當成同一份可捲動內容的 sliver，整頁一起捲（2026-09-30
     // 使用者回報原本置頂區固定不動、下面各自捲動「頁面很擠」）；用 sliver
@@ -1880,7 +1880,7 @@ class _ChannelGridState extends State<_ChannelGrid> {
       slivers: [
         for (var i = 0; i < sections.length; i++) ...[
           if (i > 0) sectionGap,
-          ...sections[i],
+          sections[i],
         ],
         const SliverToBoxAdapter(child: SizedBox(height: Gap.lg)),
       ],
@@ -2091,6 +2091,56 @@ class _ChannelGridState extends State<_ChannelGrid> {
         break;
     }
   }
+}
+
+/// 分類頁區塊標題（已置頂／一般／冷藏／待評鑑）的黏性標題列。黏住時
+/// 底下是半透明霧面＋細底線，捲過去的頻道卡片不會跟字疊在一起。
+class _SectionHeaderDelegate extends SliverPersistentHeaderDelegate {
+  _SectionHeaderDelegate({required this.child});
+
+  final Widget child;
+
+  static const _height = 34.0;
+
+  @override
+  double get minExtent => _height;
+
+  @override
+  double get maxExtent => _height;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    final stuck = overlapsContent || shrinkOffset > 0;
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(
+          sigmaX: stuck ? 14 : 0,
+          sigmaY: stuck ? 14 : 0,
+        ),
+        child: Container(
+          alignment: Alignment.centerLeft,
+          decoration: BoxDecoration(
+            color: stuck
+                ? AppColors.bg.withValues(alpha: 0.82)
+                : Colors.transparent,
+            border: Border(
+              bottom: BorderSide(
+                color: stuck ? AppColors.glassEdge : Colors.transparent,
+              ),
+            ),
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(_SectionHeaderDelegate old) => old.child != child;
 }
 
 class _CategoryPickChip extends StatelessWidget {
