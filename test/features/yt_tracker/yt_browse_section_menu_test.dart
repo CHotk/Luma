@@ -117,12 +117,21 @@ void main() {
     expect(b.dy < c.dy || (b.dy == c.dy && b.dx < c.dx), isTrue);
   });
 
-  // 2026-10-06 使用者要求：區塊標題捲動時黏在頂端，不跟著捲走。
-  testWidgets('往下捲很遠，「待評鑑」標題還黏在上面看得到', (tester) async {
+  // 2026-10-06 使用者要求：區塊標題固定佔清單上方一整行（不在捲動區
+  // 裡、不用底色），顯示目前捲到哪一區。
+  testWidgets('上方那一行顯示目前捲到的區，捲過分界就換', (tester) async {
     _bigView(tester);
     await _pump(
       tester,
       channels: [
+        for (var i = 0; i < 4; i++)
+          YtChannel(
+            id: 'n$i',
+            name: '一般頻道$i',
+            categoryId: 'games',
+            addedAt: DateTime(2026, 9, 2),
+            reviewedAt: DateTime(2026, 9, 3),
+          ),
         for (var i = 0; i < 40; i++)
           YtChannel(
             id: 'p$i',
@@ -132,12 +141,17 @@ void main() {
           ),
       ],
     );
-    final header = find.textContaining('待評鑑 ·');
-    final before = tester.getTopLeft(header).dy;
-    await tester.drag(find.text('待評鑑頻道10'), const Offset(0, -600));
+    final normalRow = find.textContaining('一般 ·').hitTestable();
+    expect(normalRow, findsOneWidget);
+    final rowY = tester.getTopLeft(normalRow).dy;
+
+    await tester.drag(find.text('一般頻道0'), const Offset(0, -500));
     await _settle(tester);
-    expect(header, findsOneWidget);
-    expect(tester.getTopLeft(header).dy, closeTo(before, 40));
+
+    final pendingRow = find.textContaining('待評鑑 ·').hitTestable();
+    expect(pendingRow, findsOneWidget);
+    expect(tester.getTopLeft(pendingRow).dy, closeTo(rowY, 2));
+    expect(find.textContaining('一般 ·').hitTestable(), findsNothing);
   });
 }
 

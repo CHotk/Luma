@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard;
@@ -1806,20 +1805,11 @@ class _ChannelGridState extends State<_ChannelGrid> {
     );
     // 每區之間的分隔線只畫在「兩區都有」的時候，某一區空著就直接跳過
     // （2026-10-06 加待評鑑後，一般區可能整個是空的）。
-    // 每一區包成一組：區塊標題（已置頂／一般／冷藏／待評鑑）捲動時黏在
-    // 頂端不跟著捲走，跟上方的篩選列一樣一直看得到；只黏在自己那一區
-    // 裡，捲到下一區就被下一個標題推上去換掉（iOS 通訊錄那種黏性標題，
-    // 2026-10-06 使用者要求）。
-    Widget section(Widget header, List<Widget> body) => SliverMainAxisGroup(
-      slivers: [
-        SliverPersistentHeader(
-          pinned: true,
-          delegate: _SectionHeaderDelegate(child: header),
-        ),
-        ...body,
-      ],
-    );
-    final sections = <Widget>[
+    ({Widget header, List<Widget> body}) section(
+      Widget header,
+      List<Widget> body,
+    ) => (header: header, body: body);
+    final sections = <({Widget header, List<Widget> body})>[
       if (pinned.isNotEmpty)
         section(
           Row(
@@ -1914,18 +1904,89 @@ class _ChannelGridState extends State<_ChannelGrid> {
           [grid(pending)],
         ),
     ];
-    // 所有區全部當成同一份可捲動內容的 sliver，整頁一起捲（2026-09-30
-    // 使用者回報原本置頂區固定不動、下面各自捲動「頁面很擠」）；用 sliver
-    // 不用 SingleChildScrollView+shrinkWrap，頻道一多才不會一次全部排版。
-    return CustomScrollView(
-      slivers: [
-        for (var i = 0; i < sections.length; i++) ...[
-          if (i > 0) sectionGap,
-          sections[i],
-        ],
-        const SliverToBoxAdapter(child: SizedBox(height: Gap.lg)),
+    while (_headerKeys.length < sections.length) {
+      _headerKeys.add(GlobalKey());
+    }
+    final current = _currentSection.clamp(0, sections.length - 1);
+    // 版面變了（切分類、冷藏展開收起）重新對一次目前在哪一區。
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _updateCurrentSection(sections.length),
+    );
+    // 區塊標題（已置頂／一般／冷藏／待評鑑）固定佔清單上方一整行，顯示
+    // 目前捲到哪一區（2026-10-06 使用者要求：原本黏在清單頂端、底下墊
+    // 黑底，頻道卡片從標題底下捲過去，黑底很醜、字也擠；改成這一行在捲動
+    // 區外面，卡片只在它下面捲，不用底色也不會跟卡片混在一起）。清單裡
+    // 第一區不再重複放標題，後面各區在分界處照樣有標題，捲上去之後由這
+    // 一行接手。
+    //
+    // 所有區還是同一份可捲動內容的 sliver，整頁一起捲（2026-09-30 使用者
+    // 回報原本置頂區固定不動、下面各自捲動「頁面很擠」）。
+    Widget headerRow(Widget header) => SizedBox(
+      height: _sectionHeaderHeight,
+      child: Align(alignment: Alignment.centerLeft, child: header),
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        headerRow(sections[current].header),
+        Expanded(
+          child: NotificationListener<ScrollNotification>(
+            // 捲動通知發出時新位置還沒排版，等這一格畫完再對。
+            onNotification: (_) {
+              WidgetsBinding.instance.addPostFrameCallback(
+                (_) => _updateCurrentSection(sections.length),
+              );
+              return false;
+            },
+            child: CustomScrollView(
+              key: _viewportKey,
+              slivers: [
+                for (var i = 0; i < sections.length; i++) ...[
+                  if (i > 0) ...[
+                    sectionGap,
+                    SliverToBoxAdapter(
+                      child: KeyedSubtree(
+                        key: _headerKeys[i],
+                        child: headerRow(sections[i].header),
+                      ),
+                    ),
+                  ],
+                  ...sections[i].body,
+                ],
+                const SliverToBoxAdapter(child: SizedBox(height: Gap.lg)),
+              ],
+            ),
+          ),
+        ),
       ],
     );
+  }
+
+  static const _sectionHeaderHeight = 34.0;
+  final _viewportKey = GlobalKey();
+  final _headerKeys = <GlobalKey>[];
+
+  /// 上方那一行目前顯示第幾區的標題。
+  int _currentSection = 0;
+
+  /// 清單裡哪一區的標題已經捲出上緣，上方那一行就換成那一區。
+  void _updateCurrentSection(int count) {
+    if (!mounted) return;
+    final viewport =
+        _viewportKey.currentContext?.findRenderObject() as RenderBox?;
+    if (viewport == null || !viewport.hasSize) return;
+    final top = viewport.localToGlobal(Offset.zero).dy;
+    var current = 0;
+    for (var i = 1; i < count && i < _headerKeys.length; i++) {
+      final box =
+          _headerKeys[i].currentContext?.findRenderObject() as RenderBox?;
+      if (box == null || !box.attached || !box.hasSize) continue;
+      final headerTop = box.localToGlobal(Offset.zero).dy;
+      if (headerTop + box.size.height <= top + 1) current = i;
+    }
+    if (current != _currentSection) {
+      setState(() => _currentSection = current);
+    }
   }
 
   Widget _buildCard(BuildContext context, YtChannel c) {
@@ -2133,56 +2194,6 @@ class _ChannelGridState extends State<_ChannelGrid> {
         break;
     }
   }
-}
-
-/// 分類頁區塊標題（已置頂／一般／冷藏／待評鑑）的黏性標題列。黏住時
-/// 底下是半透明霧面＋細底線，捲過去的頻道卡片不會跟字疊在一起。
-class _SectionHeaderDelegate extends SliverPersistentHeaderDelegate {
-  _SectionHeaderDelegate({required this.child});
-
-  final Widget child;
-
-  static const _height = 34.0;
-
-  @override
-  double get minExtent => _height;
-
-  @override
-  double get maxExtent => _height;
-
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
-    final stuck = overlapsContent || shrinkOffset > 0;
-    return ClipRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(
-          sigmaX: stuck ? 14 : 0,
-          sigmaY: stuck ? 14 : 0,
-        ),
-        child: Container(
-          alignment: Alignment.centerLeft,
-          decoration: BoxDecoration(
-            color: stuck
-                ? AppColors.bg.withValues(alpha: 0.82)
-                : Colors.transparent,
-            border: Border(
-              bottom: BorderSide(
-                color: stuck ? AppColors.glassEdge : Colors.transparent,
-              ),
-            ),
-          ),
-          child: child,
-        ),
-      ),
-    );
-  }
-
-  @override
-  bool shouldRebuild(_SectionHeaderDelegate old) => old.child != child;
 }
 
 class _CategoryPickChip extends StatelessWidget {
