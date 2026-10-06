@@ -1326,17 +1326,33 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
       _reload();
     } else if (action == 'delete') {
       if (!mounted) return;
-      final confirmed = await showAppConfirmDialog(
-        context,
-        title: '刪除這個頻道？',
-        message: '這個動作無法復原。',
-        confirmLabel: '刪除',
-      );
-      if (!confirmed) return;
-      await repo.deleteChannel(channel.id);
-      if (!mounted) return;
-      Navigator.of(context).maybePop();
+      await _deleteFromHeader(channel);
     }
+  }
+
+  /// 詳情頁的刪除（頂部列那顆、編輯視窗裡那顆共用）。一般頻道是移到
+  /// 垃圾桶，可以還原；已經在垃圾桶裡的就是永久刪除。兩種都只是蓋標記，
+  /// 頻道資料、看影片的紀錄、頻道紀錄全部留著（2026-10-06 使用者確認）。
+  Future<void> _deleteFromHeader(YtChannel channel) async {
+    final repo = ref.read(ytTrackerRepositoryProvider);
+    final inTrash = channel.deletedAt != null;
+    final confirmed = await showAppConfirmDialog(
+      context,
+      title: inTrash ? '永久刪除「${channel.name}」？' : '刪除「${channel.name}」？',
+      message: inTrash
+          ? '垃圾桶裡就看不到它了，之後只能在設定的「永久刪除的頻道」看到。\n'
+                '觀看紀錄跟頻道紀錄都會保留。'
+          : '會移到垃圾桶，之後可以還原。\n觀看紀錄跟頻道紀錄都會保留。',
+      confirmLabel: inTrash ? '永久刪除' : '刪除',
+    );
+    if (!confirmed) return;
+    if (inTrash) {
+      await repo.purgeChannel(channel.id);
+    } else {
+      await repo.deleteChannel(channel.id);
+    }
+    if (!mounted) return;
+    Navigator.of(context).maybePop();
   }
 
   @override
@@ -1405,7 +1421,16 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                         children: [
                           AppTopBar(
                             title: channel.name,
+                            // 順序：編輯、紀錄、刪除（2026-10-06 使用者要求紀錄
+                            // 放編輯右邊，詳情頁也要有刪除鈕）。
                             actions: [
+                              IconButton(
+                                onPressed: () =>
+                                    _showEditDialog(channel, categories),
+                                icon: const Icon(Icons.edit_outlined, size: 20),
+                                color: AppColors.ink2,
+                                tooltip: '編輯頻道',
+                              ),
                               // 頻道紀錄（2026-10-06）：看影片、換分類、刪除還原…
                               IconButton(
                                 onPressed: () => context.push(
@@ -1418,13 +1443,22 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                                 color: AppColors.ink2,
                                 tooltip: '紀錄',
                               ),
-                              IconButton(
-                                onPressed: () =>
-                                    _showEditDialog(channel, categories),
-                                icon: const Icon(Icons.edit_outlined, size: 20),
-                                color: AppColors.ink2,
-                                tooltip: '編輯頻道',
-                              ),
+                              // 一般頻道：刪除（移到垃圾桶）；已經在垃圾桶裡：
+                              // 永久刪除。
+                              if (channel.purgedAt == null)
+                                IconButton(
+                                  onPressed: () => _deleteFromHeader(channel),
+                                  icon: Icon(
+                                    channel.deletedAt == null
+                                        ? Icons.delete_outline_rounded
+                                        : Icons.delete_forever_outlined,
+                                    size: 20,
+                                  ),
+                                  color: AppColors.bad,
+                                  tooltip: channel.deletedAt == null
+                                      ? '刪除頻道'
+                                      : '永久刪除',
+                                ),
                             ],
                           ),
                           const SizedBox(height: Gap.md),
