@@ -1,0 +1,324 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>影片時長篩選 五種設計</title><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;800&family=Inter:wght@500;700;800&display=swap" rel="stylesheet"><style>
+:root{--bg:#0c0c13;--panel:#161622;--panel2:#1e1e2e;--line:#2a2a3d;--text:#eceaf5;--sub:#8b8ba3;--dim:#5d5d72;--acc:#FF2D40;--yt:#FF3B4E;--blue:#2E6BFF;--blueSoft:#7EA6FF;--ok:#5FE08D}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-serif;min-height:100vh;padding:32px 16px 48px}
+.en{font-family:'Inter','Noto Sans TC',sans-serif}
+.intro{max-width:860px;margin:0 auto 22px;text-align:center}
+.eyebrow{color:var(--acc);font-size:12px;letter-spacing:.2em}
+h1{font-size:22px;margin:6px 0}
+.intro p{color:var(--sub);font-size:13px;line-height:1.7}
+.keep{max-width:860px;margin:0 auto 30px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 18px;font-size:12.5px;color:var(--sub);line-height:1.85}
+.keep b{color:var(--text)}
+.wrap{display:flex;flex-direction:column;gap:56px;max-width:1100px;margin:0 auto}
+.variant{display:flex;gap:28px;flex-wrap:wrap;justify-content:center}
+.vhead{width:300px}
+.vhead .num{color:var(--acc);font-size:11px;letter-spacing:.15em}
+.vhead h2{font-size:17px;margin:4px 0 6px}
+.vhead p{color:var(--sub);font-size:12.5px;line-height:1.7}
+.vhead ul{color:var(--sub);font-size:12px;line-height:1.75;padding-left:18px;margin-top:8px}
+.vhead b{color:var(--text)}
+.tag{display:inline-block;background:var(--acc);color:#fff;border-radius:99px;padding:1px 9px;font-size:10.5px;margin-left:6px;vertical-align:2px}
+.shot{display:flex;flex-direction:column;align-items:center}
+.cap{font-size:11px;color:var(--sub);letter-spacing:.1em;margin:0 0 6px}
+.scr{width:300px;height:540px;flex-shrink:0;border:6px solid #000;border-radius:24px;background:radial-gradient(120% 60% at 20% 0%,rgba(255,59,78,.10),transparent 60%),var(--bg);overflow:hidden;position:relative;padding:12px;display:flex;flex-direction:column;gap:8px}
+/* 頁面共用 */
+.top{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700}
+.top .av{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#ff8a65,#c2185b)}
+.top .ic{margin-left:auto;color:var(--sub);font-size:13px;letter-spacing:6px}
+.sec{font-size:12px;color:var(--sub);display:flex;align-items:center;gap:6px}
+.sec b{color:var(--text);font-size:13px}
+.chips{display:flex;gap:6px;flex-wrap:nowrap;overflow:hidden}
+.chip{flex:none;border:1px solid rgba(255,255,255,.14);border-radius:99px;padding:4px 10px;font-size:11.5px;color:var(--sub);white-space:nowrap}
+.chip.on{background:rgba(255,59,78,.18);border-color:rgba(255,59,78,.55);color:#fff}
+.chip.blue.on{background:rgba(46,107,255,.25);border-color:rgba(126,166,255,.6)}
+.chip .n{font-size:10px;opacity:.7;margin-left:3px}
+.tog{display:flex;gap:6px}
+.tog span{font-size:10.5px;color:var(--sub);border:1px solid var(--line);border-radius:8px;padding:3px 7px}
+.tog span.on{color:var(--text);border-color:rgba(255,255,255,.25)}
+.vid{display:flex;gap:8px;padding:6px 0;border-top:1px solid var(--line)}
+.th{width:84px;height:47px;border-radius:9px;flex:none;position:relative;background:linear-gradient(135deg,#3a3550,#24243a)}
+.th .d{position:absolute;right:4px;bottom:4px;background:rgba(0,0,0,.8);border-radius:4px;font-size:9px;padding:0 3px;font-family:Inter}
+.vt{font-size:11.5px;line-height:1.35}
+.vt small{display:block;color:var(--dim);font-size:10px;margin-top:2px}
+.list{flex:1;overflow:hidden;position:relative}
+.list::after{content:'';position:absolute;left:0;right:0;bottom:0;height:30px;background:linear-gradient(transparent,var(--bg))}
+.dimbg{position:absolute;inset:0;background:rgba(0,0,0,.5)}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:#181826;border-radius:20px 20px 0 0;border-top:1px solid var(--line);padding:10px 14px 16px}
+.grab{width:36px;height:4px;border-radius:9px;background:rgba(255,255,255,.2);margin:0 auto 10px}
+.lbl{font-size:10.5px;color:var(--sub);letter-spacing:.06em;margin:8px 0 6px}
+.btn{text-align:center;border-radius:12px;padding:10px 0;font-size:13px;font-weight:700;background:var(--yt);color:#fff}
+.btn.ghost{background:none;border:1px solid rgba(255,255,255,.14);color:var(--sub);font-weight:500}
+.row2{display:flex;gap:8px}
+.row2>*{flex:1}
+/* 雙拉桿 */
+.rng{position:relative;height:26px;margin:4px 6px}
+.rng .tr{position:absolute;left:0;right:0;top:12px;height:3px;border-radius:9px;background:rgba(255,255,255,.12)}
+.rng .fill{position:absolute;top:12px;height:3px;border-radius:9px;background:var(--yt)}
+.rng .k{position:absolute;top:4px;width:19px;height:19px;border-radius:50%;background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.5);transform:translateX(-50%)}
+.ticks{display:flex;justify-content:space-between;font-size:9.5px;color:var(--dim);font-family:Inter;margin:0 2px}
+.rv{text-align:center;font-size:13px;font-weight:700;margin:4px 0}
+.rv small{display:block;font-size:10px;color:var(--sub);font-weight:400}
+.inp{display:flex;align-items:center;gap:8px}
+.inp .box{flex:1;border:1px solid rgba(255,255,255,.18);border-radius:10px;padding:8px 10px;font-size:14px;font-family:Inter;display:flex;justify-content:space-between}
+.inp .box span{color:var(--dim);font-family:'Noto Sans TC';font-size:11px}
+.inp i{color:var(--dim);font-style:normal}
+.pop{position:absolute;background:#1c1c2b;border:1px solid rgba(255,255,255,.12);border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.55);padding:6px;width:200px}
+.pop .it{display:flex;justify-content:space-between;font-size:12.5px;padding:8px 10px;border-radius:9px}
+.pop .it.on{background:rgba(255,59,78,.16)}
+.pop .it .n{color:var(--sub);font-size:11px}
+.pop .it .ck{color:var(--yt)}
+.seg{display:flex;background:rgba(255,255,255,.07);border-radius:10px;padding:2px}
+.seg span{flex:1;text-align:center;font-size:10.5px;padding:5px 0;border-radius:8px;color:var(--sub)}
+.seg span.on{background:rgba(255,255,255,.16);color:#fff;font-weight:700}
+.hist{display:flex;align-items:flex-end;gap:2px;height:54px;margin:4px 6px 0}
+.hist i{flex:1;background:rgba(255,255,255,.14);border-radius:2px 2px 0 0}
+.hist i.in{background:rgba(255,59,78,.75)}
+.badge{display:inline-grid;place-items:center;min-width:15px;height:15px;border-radius:99px;background:var(--yt);font-size:9.5px;color:#fff;padding:0 4px;margin-left:4px}
+.ann{position:absolute;font-size:10px;color:#ffd166;background:rgba(0,0,0,.65);border:1px dashed rgba(255,209,102,.6);border-radius:7px;padding:2px 6px;line-height:1.4}
+</style></head><body>
+
+<div class="intro">
+  <div class="eyebrow">LUME · YT 頻道詳情頁</div>
+  <h1>影片時長篩選 五種設計</h1>
+  <p>頻道頁的影片清單多一個「時長」篩選：<b>不限／2 分內／2–6 分／6–20 分／自訂</b>。<br>
+  每一版左邊是挑預設區間的樣子，右邊是打開「自訂」的樣子。</p>
+</div>
+
+<div class="keep">
+  <b>五版共通（2026-10-06 跟使用者確認過的規則）</b><br>
+  ・交界「上限算進去」，算到秒：2:00 算「2 分內」、<b>6:00 算「2–6 分」</b>、6:01 起算「6–20 分」、20:00 算「6–20 分」。<br>
+  ・沒有「20 分以上」這格；要看長片用「自訂」。<br>
+  ・可以跟現有的類型篩選（全部／一般影片／Shorts／直播）一起用，也跟「隱藏已看過／顯示已隱藏」疊加。<br>
+  ・時長本來就有抓、存在快取裡，篩選不多花 YouTube 配額；時長沒抓到的影片只在「不限」出現。<br>
+  ・每個選項旁的小數字＝目前已載入的影片裡符合的部數（使用者喜歡看數量）。
+</div>
+
+<div class="wrap">
+
+<!-- 1 -->
+<div class="variant">
+  <div class="vhead">
+    <div class="num">VERSION 01</div>
+    <h2>第二排膠囊<span class="tag">主流</span></h2>
+    <p>YouTube App 搜尋篩選、Google 搜尋工具列那種：類型下面多一排時長膠囊，一眼看到全部選項、點一下就換。</p>
+    <ul>
+      <li>點「自訂」在膠囊下方展開<b>雙頭拉桿</b>，拉完膠囊上直接寫出範圍（例如「自訂 8–35 分」）</li>
+      <li>優點：最直覺、零學習成本</li>
+      <li>缺點：頁面又多一排，篩選區變高</li>
+    </ul>
+  </div>
+  <div class="shot"><div class="cap">挑預設區間</div>
+    <div class="scr">
+      <div class="top"><div class="av"></div>錫蘭Ceylan<span class="ic">✎ ⟲ 🗑</span></div>
+      <div class="sec"><b>全部影片</b>（38）</div>
+      <div class="chips"><span class="chip on">全部</span><span class="chip">一般影片</span><span class="chip">Shorts</span><span class="chip">直播</span></div>
+      <div class="chips"><span class="chip blue">不限</span><span class="chip">2 分內<span class="n">6</span></span><span class="chip blue on">2–6 分<span class="n">11</span></span><span class="chip">6–20 分<span class="n">17</span></span><span class="chip">自訂</span></div>
+      <div class="tog"><span class="on">隱藏已看過 4</span><span>顯示已隱藏 2</span></div>
+      <div class="list">
+        <div class="vid"><div class="th"><span class="d">5:12</span></div><div class="vt">一週開箱：桌上那台新鍵盤<small>2 天前</small></div></div>
+        <div class="vid"><div class="th"><span class="d">3:48</span></div><div class="vt">早餐店菜單全部點一輪<small>5 天前</small></div></div>
+        <div class="vid"><div class="th"><span class="d">6:00</span></div><div class="vt">剛好六分鐘的那支（算 2–6）<small>1 週前</small></div></div>
+        <div class="vid"><div class="th"><span class="d">2:31</span></div><div class="vt">路邊撿到的貓後續<small>2 週前</small></div></div>
+      </div>
+    </div></div>
+  <div class="shot"><div class="cap">點「自訂」</div>
+    <div class="scr">
+      <div class="top"><div class="av"></div>錫蘭Ceylan<span class="ic">✎ ⟲ 🗑</span></div>
+      <div class="sec"><b>全部影片</b>（38）</div>
+      <div class="chips"><span class="chip on">全部</span><span class="chip">一般影片</span><span class="chip">Shorts</span><span class="chip">直播</span></div>
+      <div class="chips"><span class="chip blue">不限</span><span class="chip">2 分內</span><span class="chip">2–6 分</span><span class="chip blue on">自訂 8–35 分<span class="n">9</span></span></div>
+      <div style="background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:14px;padding:8px 8px 10px">
+        <div class="rv en">8:00 – 35:00<small>符合 9 部</small></div>
+        <div class="rng"><div class="tr"></div><div class="fill" style="left:13%;width:45%"></div><div class="k" style="left:13%"></div><div class="k" style="left:58%"></div></div>
+        <div class="ticks"><span>0</span><span>15</span><span>30</span><span>45</span><span>60+ 分</span></div>
+      </div>
+      <div class="list">
+        <div class="vid"><div class="th"><span class="d">12:40</span></div><div class="vt">一個人去花蓮三天兩夜<small>3 天前</small></div></div>
+        <div class="vid"><div class="th"><span class="d">31:02</span></div><div class="vt">直播回放精華：問答特輯<small>1 週前</small></div></div>
+        <div class="vid"><div class="th"><span class="d">8:15</span></div><div class="vt">搬家前最後一次整理<small>2 週前</small></div></div>
+      </div>
+    </div></div>
+</div>
+
+<!-- 2 -->
+<div class="variant">
+  <div class="vhead">
+    <div class="num">VERSION 02</div>
+    <h2>一顆「篩選」鈕＋底部面板<span class="tag">主流</span></h2>
+    <p>購物 App／YouTube 搜尋結果右上「篩選」那種：平常只有一顆按鈕（有套用就顯示數字角標），點開從底部滑出面板，類型、時長、已看過全部收在裡面。</p>
+    <ul>
+      <li>「自訂」用<b>兩個輸入框</b>打分鐘數，最精準</li>
+      <li>優點：頁面最乾淨，之後再加篩選也不會變擠</li>
+      <li>缺點：要多點一下才看得到選項；現有的類型膠囊也要收進去</li>
+    </ul>
+  </div>
+  <div class="shot"><div class="cap">平常＋已套用</div>
+    <div class="scr">
+      <div class="top"><div class="av"></div>錫蘭Ceylan<span class="ic">✎ ⟲ 🗑</span></div>
+      <div class="sec"><b>全部影片</b>（38）<span style="margin-left:auto" class="chip on">⚙ 篩選<span class="badge">2</span></span></div>
+      <div class="chips"><span class="chip blue on">2–6 分 ✕</span><span class="chip blue on">隱藏已看過 ✕</span></div>
+      <div class="list">
+        <div class="vid"><div class="th"><span class="d">5:12</span></div><div class="vt">一週開箱：桌上那台新鍵盤<small>2 天前</small></div></div>
+        <div class="vid"><div class="th"><span class="d">3:48</span></div><div class="vt">早餐店菜單全部點一輪<small>5 天前</small></div></div>
+        <div class="vid"><div class="th"><span class="d">6:00</span></div><div class="vt">剛好六分鐘的那支<small>1 週前</small></div></div>
+        <div class="vid"><div class="th"><span class="d">2:31</span></div><div class="vt">路邊撿到的貓後續<small>2 週前</small></div></div>
+        <div class="vid"><div class="th"><span class="d">4:05</span></div><div class="vt">試吃便利商店新品<small>3 週前</small></div></div>
+      </div>
+      <div class="ann" style="right:14px;top:40px">套用中的條件排成可點掉的小膠囊</div>
+    </div></div>
+  <div class="shot"><div class="cap">打開面板、選自訂</div>
+    <div class="scr">
+      <div class="top"><div class="av"></div>錫蘭Ceylan</div>
+      <div class="list"><div class="vid"><div class="th"></div><div class="vt">…</div></div></div>
+      <div class="dimbg"></div>
+      <div class="sheet">
+        <div class="grab"></div>
+        <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:700">篩選<span style="color:var(--sub);font-size:12px;font-weight:400">全部清除</span></div>
+        <div class="lbl">類型</div>
+        <div class="chips"><span class="chip on">全部</span><span class="chip">一般影片</span><span class="chip">Shorts</span><span class="chip">直播</span></div>
+        <div class="lbl">時長</div>
+        <div class="chips" style="flex-wrap:wrap"><span class="chip">不限</span><span class="chip">2 分內</span><span class="chip">2–6 分</span><span class="chip">6–20 分</span><span class="chip blue on">自訂</span></div>
+        <div class="inp" style="margin-top:8px"><div class="box">10<span>分</span></div><i>到</i><div class="box">45<span>分</span></div></div>
+        <div class="lbl">其他</div>
+        <div class="tog"><span class="on">隱藏已看過</span><span>顯示已隱藏</span></div>
+        <div class="btn" style="margin-top:12px">顯示 7 部影片</div>
+      </div>
+    </div></div>
+</div>
+
+<!-- 3 -->
+<div class="variant">
+  <div class="vhead">
+    <div class="num">VERSION 03</div>
+    <h2>類型列尾端加一顆「時長 ▾」</h2>
+    <p>不多加一整排：時長收成一顆下拉膠囊，接在現有類型膠囊後面。點了跳出小選單（跟長按泡泡同一個深色風格），選完膠囊上寫目前選的區間。</p>
+    <ul>
+      <li>「自訂」在小選單裡展開<b>雙頭拉桿</b></li>
+      <li>優點：版面幾乎不變</li>
+      <li>缺點：類型那排會更長，窄螢幕要橫向滑才看得到</li>
+    </ul>
+  </div>
+  <div class="shot"><div class="cap">平常</div>
+    <div class="scr">
+      <div class="top"><div class="av"></div>錫蘭Ceylan<span class="ic">✎ ⟲ 🗑</span></div>
+      <div class="sec"><b>全部影片</b>（38）</div>
+      <div class="chips"><span class="chip on">全部</span><span class="chip">一般</span><span class="chip">Shorts</span><span class="chip">直播</span><span class="chip blue on">⏱ 2–6 分 ▾</span></div>
+      <div class="tog"><span class="on">隱藏已看過 4</span><span>顯示已隱藏 2</span></div>
+      <div class="list">
+        <div class="vid"><div class="th"><span class="d">5:12</span></div><div class="vt">一週開箱：桌上那台新鍵盤<small>2 天前</small></div></div>
+        <div class="vid"><div class="th"><span class="d">3:48</span></div><div class="vt">早餐店菜單全部點一輪<small>5 天前</small></div></div>
+        <div class="vid"><div class="th"><span class="d">6:00</span></div><div class="vt">剛好六分鐘的那支<small>1 週前</small></div></div>
+        <div class="vid"><div class="th"><span class="d">2:31</span></div><div class="vt">路邊撿到的貓後續<small>2 週前</small></div></div>
+      </div>
+    </div></div>
+  <div class="shot"><div class="cap">點開、選自訂</div>
+    <div class="scr">
+      <div class="top"><div class="av"></div>錫蘭Ceylan<span class="ic">✎ ⟲ 🗑</span></div>
+      <div class="sec"><b>全部影片</b>（38）</div>
+      <div class="chips"><span class="chip on">全部</span><span class="chip">一般</span><span class="chip">Shorts</span><span class="chip">直播</span><span class="chip blue on">⏱ 自訂 ▴</span></div>
+      <div class="list" style="opacity:.35"><div class="vid"><div class="th"></div><div class="vt">…</div></div><div class="vid"><div class="th"></div><div class="vt">…</div></div></div>
+      <div class="pop" style="right:12px;top:96px;width:236px">
+        <div class="it">不限<span class="n">38</span></div>
+        <div class="it">2 分內<span class="n">6</span></div>
+        <div class="it">2–6 分<span class="n">11</span></div>
+        <div class="it">6–20 分<span class="n">17</span></div>
+        <div class="it on">自訂<span class="ck">✓</span></div>
+        <div style="padding:4px 6px 6px">
+          <div class="rv en" style="font-size:12px">15:00 – 60:00+<small>符合 6 部</small></div>
+          <div class="rng"><div class="tr"></div><div class="fill" style="left:25%;width:75%"></div><div class="k" style="left:25%"></div><div class="k" style="left:100%"></div></div>
+          <div class="ticks"><span>0</span><span>30</span><span>60+</span></div>
+        </div>
+      </div>
+    </div></div>
+</div>
+
+<!-- 4 -->
+<div class="variant">
+  <div class="vhead">
+    <div class="num">VERSION 04</div>
+    <h2>iOS 分段控制</h2>
+    <p>時長做成一條 iOS 原生風的分段控制（跟設定頁「首頁樣式」那種同類），五格等寬，選中的格子底色亮起。</p>
+    <ul>
+      <li>「自訂」選了之後下面出現<b>快速時長按鈕＋輸入</b>：「最短 / 最長」兩格各自點 ±，或直接打數字</li>
+      <li>優點：整齊、跟 iOS 原生一致</li>
+      <li>缺點：每格很窄，看不到數量</li>
+    </ul>
+  </div>
+  <div class="shot"><div class="cap">挑預設區間</div>
+    <div class="scr">
+      <div class="top"><div class="av"></div>錫蘭Ceylan<span class="ic">✎ ⟲ 🗑</span></div>
+      <div class="sec"><b>全部影片</b>（38）</div>
+      <div class="chips"><span class="chip on">全部</span><span class="chip">一般影片</span><span class="chip">Shorts</span><span class="chip">直播</span></div>
+      <div class="seg"><span>不限</span><span>2分內</span><span class="on">2–6</span><span>6–20</span><span>自訂</span></div>
+      <div class="tog"><span class="on">隱藏已看過 4</span><span>顯示已隱藏 2</span></div>
+      <div class="list">
+        <div class="vid"><div class="th"><span class="d">5:12</span></div><div class="vt">一週開箱：桌上那台新鍵盤<small>2 天前</small></div></div>
+        <div class="vid"><div class="th"><span class="d">3:48</span></div><div class="vt">早餐店菜單全部點一輪<small>5 天前</small></div></div>
+        <div class="vid"><div class="th"><span class="d">6:00</span></div><div class="vt">剛好六分鐘的那支<small>1 週前</small></div></div>
+      </div>
+    </div></div>
+  <div class="shot"><div class="cap">選「自訂」</div>
+    <div class="scr">
+      <div class="top"><div class="av"></div>錫蘭Ceylan<span class="ic">✎ ⟲ 🗑</span></div>
+      <div class="sec"><b>全部影片</b>（38）</div>
+      <div class="chips"><span class="chip on">全部</span><span class="chip">一般影片</span><span class="chip">Shorts</span><span class="chip">直播</span></div>
+      <div class="seg"><span>不限</span><span>2分內</span><span>2–6</span><span>6–20</span><span class="on">自訂</span></div>
+      <div style="display:flex;gap:8px">
+        <div style="flex:1;background:rgba(255,255,255,.05);border-radius:12px;padding:8px;text-align:center"><div style="font-size:10px;color:var(--sub)">最短</div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px"><span style="color:var(--sub)">－</span><b class="en" style="font-size:16px">20 分</b><span style="color:var(--sub)">＋</span></div></div>
+        <div style="flex:1;background:rgba(255,255,255,.05);border-radius:12px;padding:8px;text-align:center"><div style="font-size:10px;color:var(--sub)">最長</div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px"><span style="color:var(--sub)">－</span><b class="en" style="font-size:16px">不限</b><span style="color:var(--sub)">＋</span></div></div>
+      </div>
+      <div style="font-size:10.5px;color:var(--sub);text-align:center">20 分以上 · 符合 5 部（點中間數字可以直接輸入）</div>
+      <div class="list">
+        <div class="vid"><div class="th"><span class="d">31:02</span></div><div class="vt">直播回放精華：問答特輯<small>1 週前</small></div></div>
+        <div class="vid"><div class="th"><span class="d">1:12:40</span></div><div class="vt">年度回顧 Podcast<small>1 個月前</small></div></div>
+      </div>
+    </div></div>
+</div>
+
+<!-- 5 -->
+<div class="variant">
+  <div class="vhead">
+    <div class="num">VERSION 05</div>
+    <h2>長度分布圖＋拉桿</h2>
+    <p>Airbnb 價格篩選那種：點「時長」展開一張這個頻道的<b>影片長度分布長條圖</b>，下面雙頭拉桿框範圍，框到的長條變紅。預設區間變成拉桿下面的快捷鍵。</p>
+    <ul>
+      <li>「自訂」＝直接拉；選預設區間時拉桿自動跳到對應位置</li>
+      <li>優點：順便看出這個頻道都拍多長，最有資訊量</li>
+      <li>缺點：佔空間最大，要收合；做起來最複雜</li>
+    </ul>
+  </div>
+  <div class="shot"><div class="cap">展開、選預設</div>
+    <div class="scr">
+      <div class="top"><div class="av"></div>錫蘭Ceylan<span class="ic">✎ ⟲ 🗑</span></div>
+      <div class="sec"><b>全部影片</b>（38）</div>
+      <div class="chips"><span class="chip on">全部</span><span class="chip">一般影片</span><span class="chip">Shorts</span><span class="chip">直播</span><span class="chip blue on">⏱ 2–6 分 ▴</span></div>
+      <div style="background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:14px;padding:8px">
+        <div class="hist"><i style="height:30%"></i><i style="height:55%"></i><i class="in" style="height:80%"></i><i class="in" style="height:100%"></i><i class="in" style="height:60%"></i><i style="height:70%"></i><i style="height:45%"></i><i style="height:35%"></i><i style="height:20%"></i><i style="height:12%"></i><i style="height:8%"></i><i style="height:15%"></i></div>
+        <div class="rng" style="margin-top:-2px"><div class="tr"></div><div class="fill" style="left:17%;width:25%"></div><div class="k" style="left:17%"></div><div class="k" style="left:42%"></div></div>
+        <div class="chips" style="justify-content:center;margin-top:4px"><span class="chip">不限</span><span class="chip">2 分內</span><span class="chip blue on">2–6</span><span class="chip">6–20</span></div>
+      </div>
+      <div class="list">
+        <div class="vid"><div class="th"><span class="d">5:12</span></div><div class="vt">一週開箱：桌上那台新鍵盤<small>2 天前</small></div></div>
+        <div class="vid"><div class="th"><span class="d">3:48</span></div><div class="vt">早餐店菜單全部點一輪<small>5 天前</small></div></div>
+      </div>
+    </div></div>
+  <div class="shot"><div class="cap">自己拉（自訂）</div>
+    <div class="scr">
+      <div class="top"><div class="av"></div>錫蘭Ceylan<span class="ic">✎ ⟲ 🗑</span></div>
+      <div class="sec"><b>全部影片</b>（38）</div>
+      <div class="chips"><span class="chip on">全部</span><span class="chip">一般影片</span><span class="chip">Shorts</span><span class="chip">直播</span><span class="chip blue on">⏱ 9–28 分 ▴</span></div>
+      <div style="background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:14px;padding:8px">
+        <div class="rv en" style="font-size:12px">9:00 – 28:00<small>符合 12 部</small></div>
+        <div class="hist"><i style="height:30%"></i><i style="height:55%"></i><i style="height:80%"></i><i style="height:100%"></i><i style="height:60%"></i><i class="in" style="height:70%"></i><i class="in" style="height:45%"></i><i class="in" style="height:35%"></i><i class="in" style="height:20%"></i><i style="height:12%"></i><i style="height:8%"></i><i style="height:15%"></i></div>
+        <div class="rng" style="margin-top:-2px"><div class="tr"></div><div class="fill" style="left:42%;width:33%"></div><div class="k" style="left:42%"></div><div class="k" style="left:75%"></div></div>
+        <div class="ticks"><span>0</span><span>10</span><span>20</span><span>30</span><span>40+ 分</span></div>
+      </div>
+      <div class="list">
+        <div class="vid"><div class="th"><span class="d">12:40</span></div><div class="vt">一個人去花蓮三天兩夜<small>3 天前</small></div></div>
+        <div class="vid"><div class="th"><span class="d">9:30</span></div><div class="vt">搬家前最後一次整理<small>2 週前</small></div></div>
+      </div>
+    </div></div>
+</div>
+
+</div>
+</body></html>
