@@ -120,7 +120,7 @@ class AppHomePage extends ConsumerWidget {
                       children: [
                         Text(_dateLabel(DateTime.now()), style: AppText.note),
                         const SizedBox(height: Gap.md),
-                        // 首頁樣式設定裡可以切（2026-10-05，預設今日儀表板）。
+                        // 首頁樣式設定裡可以切（2026-10-05；2026-10-06 起預設圖示格）。
                         if (style == AppHomeStyle.dashboard)
                           const AppHomeDashboard()
                         else

@@ -783,8 +783,9 @@ String ytRelativeTime(DateTime t) {
 /// Shorts，兩個都確定不是才標「影片」；還沒標過類型就是 null，不顯示。
 ({String text, Color color})? _typeLabel(YoutubeVideo v) {
   if (v.isLive == true) return (text: '直播', color: const Color(0xFFE53935));
-  if (v.isShort == true)
+  if (v.isShort == true) {
     return (text: 'Shorts', color: const Color(0xFFFF2D6F));
+  }
   if (v.isShort == false && v.isLive == false) {
     return (text: '影片', color: const Color(0xFF3D5AFE));
   }

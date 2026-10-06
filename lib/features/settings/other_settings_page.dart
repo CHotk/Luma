@@ -129,12 +129,13 @@ class _AppHomeSettings extends ConsumerWidget {
               ),
               const SizedBox(height: Gap.sm),
               SegmentedButton<AppHomeStyle>(
+                // 順序：圖示格在前（預設）、儀表板在後（2026-10-06 使用者要求）。
                 segments: const [
+                  ButtonSegment(value: AppHomeStyle.grid, label: Text('圖示格')),
                   ButtonSegment(
                     value: AppHomeStyle.dashboard,
                     label: Text('今日儀表板'),
                   ),
-                  ButtonSegment(value: AppHomeStyle.grid, label: Text('圖示格')),
                 ],
                 selected: {style},
                 showSelectedIcon: false,
