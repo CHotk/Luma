@@ -12,9 +12,12 @@ import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
 import '../../data/repositories/yt_subscriber_history_store.dart';
 import '../../data/repositories/yt_video_cache_store.dart';
+import '../../data/repositories/yt_video_watch_store.dart';
+import '../../data/repositories/yt_video_hidden_store.dart';
 import '../../data/services/youtube_api_service.dart';
 import '../../domain/models/yt_subscriber_snapshot.dart';
 import '../../domain/models/yt_tracker.dart';
+import '../../domain/models/yt_video_watch.dart';
 import '../../shared/debug/app_log.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_notice.dart';
@@ -104,10 +107,40 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
   /// 載入更多（頻道多，資料量會太大，2026-09-24 使用者決定）。
   static const _videosPerChannel = 10;
 
+  /// 「依影片顯示」用的看過紀錄、隱藏清單：頁面讀一次交給每一列，
+  /// 不讓每一列各自讀整份（2026-10-06 效能檢查，見 [YtVideoRow.known]）。
+  /// 還沒讀到前是 null，列表那邊就讓每一列照舊自己讀。
+  Map<String, YtVideoWatchRecord>? _watchedRecords;
+  Set<String> _hiddenIds = {};
+
+  Future<void> _loadVideoMarks() async {
+    final kv = ref.read(keyValueStoreProvider);
+    final watched = await YtVideoWatchStore(kv).loadAll();
+    final hidden = await YtVideoHiddenStore(kv).loadAll();
+    if (!mounted) return;
+    setState(() {
+      _watchedRecords = watched;
+      _hiddenIds = hidden;
+    });
+  }
+
+  ({YtVideoWatchRecord? watched, bool hidden})? _knownFor(String videoId) {
+    final watched = _watchedRecords;
+    if (watched == null) return null;
+    return (watched: watched[videoId], hidden: _hiddenIds.contains(videoId));
+  }
+
+  void _onWatched(String videoId, YtVideoWatchRecord record) {
+    final watched = _watchedRecords;
+    if (watched == null) return;
+    setState(() => _watchedRecords = {...watched, videoId: record});
+  }
+
   @override
   void initState() {
     super.initState();
     _future = _load();
+    _loadVideoMarks();
   }
 
   Future<({List<YtCategory> categories, List<YtChannel> channels})>
@@ -717,6 +750,10 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                                   subtitle:
                                       '${preview[i].channel.name}・${ytRelativeTime(preview[i].video.publishedAt)}',
                                   fromCache: true,
+                                  known: _knownFor(preview[i].video.videoId),
+                                  onWatchedChanged: (r) =>
+                                      _onWatched(preview[i].video.videoId, r),
+                                  onHiddenChanged: _loadVideoMarks,
                                 ),
                               ),
                             ),
@@ -779,6 +816,10 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                           video: item.video,
                           subtitle:
                               '${item.channel.name}・${ytRelativeTime(item.video.publishedAt)}',
+                          known: _knownFor(item.video.videoId),
+                          onWatchedChanged: (r) =>
+                              _onWatched(item.video.videoId, r),
+                          onHiddenChanged: _loadVideoMarks,
                         );
                       },
                     );

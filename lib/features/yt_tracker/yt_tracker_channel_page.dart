@@ -13,6 +13,7 @@ import '../../data/repositories/yt_video_watch_store.dart';
 import '../../data/services/youtube_api_service.dart';
 import '../../data/services/yt_video_type_scanner.dart';
 import '../../domain/models/yt_tracker.dart';
+import '../../domain/models/yt_video_watch.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_confirm_dialog.dart';
 import '../../shared/widgets/app_notice.dart';
@@ -22,9 +23,9 @@ import '../../shared/widgets/background_refresh.dart';
 import '../../shared/widgets/glass_card.dart';
 import '../../shared/widgets/inline_empty_card.dart';
 import 'upload_frequency_chart.dart';
-import 'yt_duration_filter.dart';
 import 'yt_api_key_dialog.dart';
 import 'yt_channel_avatar.dart';
+import 'yt_duration_filter.dart';
 import 'yt_video_row.dart';
 
 /// 「影片」清單的類型篩選，跟 `yt_tracker_browse_page.dart` 的
@@ -87,6 +88,10 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
   /// 隱藏之後靠 [YtVideoRow.onHiddenChanged] 通知這裡重新讀一次。
   Set<String> _watchedVideoIds = {};
   Set<String> _hiddenVideoIds = {};
+
+  /// 看過紀錄整份（影片 id → 每次點開的時間），頁面讀一次交給每一列，
+  /// 不讓每一列自己讀（見 [YtVideoRow.known]）。
+  Map<String, YtVideoWatchRecord> _watchedRecords = {};
   bool _hideWatched = true;
   bool _showHiddenVideos = false;
 
@@ -149,6 +154,7 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     final hidden = await YtVideoHiddenStore(store).loadAll();
     if (!mounted) return;
     setState(() {
+      _watchedRecords = watched;
       _watchedVideoIds = watched.keys.toSet();
       _hiddenVideoIds = hidden;
     });
@@ -478,26 +484,37 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
   bool _passesFilters(YoutubeVideo v) =>
       _passesBaseFilters(v) && _durationFilter.matches(v);
 
+  /// 影片清單：捲到才建（2026-10-06 使用者要求）。原本是 Column 一次把
+  /// 所有載入過的影片列全部建出來，往下滑幾批之後頁面上同時掛著兩三百列，
+  /// 每次切篩選、隱藏一部、背景補完標籤，全部都要重算一次；改成清單只建
+  /// 畫面上看得到的（上下多準備一小段），捲過去的收掉，縮圖有圖片快取，
+  /// 捲回來不用重新下載。
   Widget _videoRows(List<YoutubeVideo> list, {bool allFromCache = false}) =>
-      Column(
-        children: [
-          for (var i = 0; i < list.length; i++) ...[
-            if (i > 0) const Divider(height: 1, color: AppColors.glassEdge),
-            YtVideoRow(
-              // 一定要給明確的 key，理由跟 yt_tracker_browse_page.dart
-              // 那邊一樣：篩選開關一切換，清單位置就會洗牌，沒有 key
-              // 的話 Flutter 照位置重用 State，「已看過」狀態會錯配到
-              // 別支影片上（2026-09-30 使用者回報抓到）。
-              key: ValueKey(list[i].videoId),
-              video: list[i],
-              subtitle: ytRelativeTime(list[i].publishedAt),
-              forceShow: _hiddenVideoIds.contains(list[i].videoId),
-              onHiddenChanged: _loadVideoFilters,
-              fromCache:
-                  allFromCache || _cachedVideoIds.contains(list[i].videoId),
-            ),
-          ],
-        ],
+      SliverList.separated(
+        itemCount: list.length,
+        separatorBuilder: (_, _) =>
+            const Divider(height: 1, color: AppColors.glassEdge),
+        itemBuilder: (_, i) => YtVideoRow(
+          // 一定要給明確的 key，理由跟 yt_tracker_browse_page.dart
+          // 那邊一樣：篩選開關一切換，清單位置就會洗牌，沒有 key
+          // 的話 Flutter 照位置重用 State，「已看過」狀態會錯配到
+          // 別支影片上（2026-09-30 使用者回報抓到）。
+          key: ValueKey(list[i].videoId),
+          video: list[i],
+          subtitle: ytRelativeTime(list[i].publishedAt),
+          forceShow: _hiddenVideoIds.contains(list[i].videoId),
+          known: (
+            watched: _watchedRecords[list[i].videoId],
+            hidden: _hiddenVideoIds.contains(list[i].videoId),
+          ),
+          // 點開影片：只更新這一筆，不用整份重讀。
+          onWatchedChanged: (record) => setState(() {
+            _watchedRecords = {..._watchedRecords, list[i].videoId: record};
+            _watchedVideoIds = {..._watchedVideoIds, list[i].videoId};
+          }),
+          onHiddenChanged: _loadVideoFilters,
+          fromCache: allFromCache || _cachedVideoIds.contains(list[i].videoId),
+        ),
       );
 
   // 切類型篩選（2026-09-30 使用者要求）。原本的做法是抓全部上傳清單，
@@ -995,38 +1012,44 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     );
   }
 
+  /// 回傳的是 sliver（放在頁面的 CustomScrollView 裡），影片清單本身
+  /// 才能捲到才建，見 [_videoRows]。
   Widget _buildVideos(YtChannel channel) {
     final apiKey = ref.watch(ytApiKeyProvider);
     if (apiKey == null || apiKey.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.vpn_key_outlined,
-                size: 32,
-                color: AppColors.ink3,
-              ),
-              const SizedBox(height: Gap.sm),
-              Text('還沒有設定 API 金鑰', style: AppText.bodyDim),
-              const SizedBox(height: Gap.md),
-              FilledButton(
-                onPressed: () => showYtApiKeyDialog(context, ref),
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.ytAccent,
-                  foregroundColor: AppColors.ytAccentInk,
+      return SliverToBoxAdapter(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.vpn_key_outlined,
+                  size: 32,
+                  color: AppColors.ink3,
                 ),
-                child: const Text('設定金鑰'),
-              ),
-            ],
+                const SizedBox(height: Gap.sm),
+                Text('還沒有設定 API 金鑰', style: AppText.bodyDim),
+                const SizedBox(height: Gap.md),
+                FilledButton(
+                  onPressed: () => showYtApiKeyDialog(context, ref),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.ytAccent,
+                    foregroundColor: AppColors.ytAccentInk,
+                  ),
+                  child: const Text('設定金鑰'),
+                ),
+              ],
+            ),
           ),
         ),
       );
     }
     if (_videosFuture == null) {
-      return const Center(child: CircularProgressIndicator.adaptive());
+      return const SliverToBoxAdapter(
+        child: Center(child: CircularProgressIndicator.adaptive()),
+      );
     }
     return FutureBuilder<List<YoutubeVideo>>(
       future: _videosFuture,
@@ -1038,27 +1061,33 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
           final preview = _typeFilter == _TypeFilter.all
               ? _cachePreview.where(_passesFilters).toList()
               : const <YoutubeVideo>[];
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const ThinRefreshBar(),
-              const SizedBox(height: Gap.sm),
-              RefreshingPill(
-                label: preview.isEmpty ? '正在向 YouTube 拿影片…' : '正在檢查新影片…',
+          return SliverMainAxisGroup(
+            slivers: [
+              SliverToBoxAdapter(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const ThinRefreshBar(),
+                    const SizedBox(height: Gap.sm),
+                    RefreshingPill(
+                      label: preview.isEmpty ? '正在向 YouTube 拿影片…' : '正在檢查新影片…',
+                    ),
+                    const SizedBox(height: Gap.xs),
+                    if (preview.isEmpty) const SizedBox(height: 120),
+                  ],
+                ),
               ),
-              const SizedBox(height: Gap.xs),
-              if (preview.isNotEmpty)
-                _videoRows(preview, allFromCache: true)
-              else
-                const SizedBox(height: 120),
+              if (preview.isNotEmpty) _videoRows(preview, allFromCache: true),
             ],
           );
         }
         if (snap.hasError) {
-          return InlineEmptyCard(
-            title: '影片抓不下來',
-            message: '${snap.error}',
-            actions: [EmptyAction('重新整理', () => _refresh(channel))],
+          return SliverToBoxAdapter(
+            child: InlineEmptyCard(
+              title: '影片抓不下來',
+              message: '${snap.error}',
+              actions: [EmptyAction('重新整理', () => _refresh(channel))],
+            ),
           );
         }
         // 用 [_firstPage] 不用 snap.data：背景掃完類型後換上的是
@@ -1069,10 +1098,12 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
             ? _firstPage
             : (snap.data ?? const <YoutubeVideo>[]);
         if (firstPage.isEmpty) {
-          return InlineEmptyCard(
-            title: '這個頻道抓不到影片',
-            message: '可能還沒發過公開影片',
-            actions: [EmptyAction('重新整理', () => _refresh(channel))],
+          return SliverToBoxAdapter(
+            child: InlineEmptyCard(
+              title: '這個頻道抓不到影片',
+              message: '可能還沒發過公開影片',
+              actions: [EmptyAction('重新整理', () => _refresh(channel))],
+            ),
           );
         }
         // 選了特定類型（一般影片／Shorts／直播）就是看 `_typedVideos`
@@ -1124,44 +1155,47 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
             if (mounted) loadMore();
           });
         }
-        // 用 Column 不用 ListView.separated——這塊現在是外層
-        // SingleChildScrollView 的一部分，自己不用再是獨立的可捲動
-        // 區域（見 build() 的說明：簡介／圖表／影片要一起滑動）。
-        return Column(
-          children: [
+        // 整頁是一個 CustomScrollView（簡介／圖表／影片一起滑動，見 build()
+        // 的說明），影片清單是其中一段 sliver，捲到才建。
+        return SliverMainAxisGroup(
+          slivers: [
             if (visibleVideos.isEmpty && !loading)
-              _filteredEmptyCard(channel, videos, isTyped),
+              SliverToBoxAdapter(
+                child: _filteredEmptyCard(channel, videos, isTyped),
+              ),
             _videoRows(visibleVideos),
             // 往下滑到底會自動載入更早的影片；載入中轉圈、失敗給重試、
             // 沒有更多了就說一聲。
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              child: loading
-                  ? const Center(child: CircularProgressIndicator.adaptive())
-                  : error != null
-                  ? Center(
-                      child: TextButton(
-                        onPressed: () {
-                          setState(() {
-                            if (isTyped) {
-                              _typedError = null;
-                            } else {
-                              _loadMoreError = null;
-                            }
-                          });
-                          loadMore();
-                        },
-                        child: Text('載入失敗：$error（點一下重試）'),
-                      ),
-                    )
-                  : reachedEnd
-                  ? Center(
-                      child: Text(
-                        isTyped ? '共 ${videos.length} 部' : '沒有更早的影片了',
-                        style: AppText.note,
-                      ),
-                    )
-                  : const SizedBox.shrink(),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: loading
+                    ? const Center(child: CircularProgressIndicator.adaptive())
+                    : error != null
+                    ? Center(
+                        child: TextButton(
+                          onPressed: () {
+                            setState(() {
+                              if (isTyped) {
+                                _typedError = null;
+                              } else {
+                                _loadMoreError = null;
+                              }
+                            });
+                            loadMore();
+                          },
+                          child: Text('載入失敗：$error（點一下重試）'),
+                        ),
+                      )
+                    : reachedEnd
+                    ? Center(
+                        child: Text(
+                          isTyped ? '共 ${videos.length} 部' : '沒有更早的影片了',
+                          style: AppText.note,
+                        ),
+                      )
+                    : const SizedBox.shrink(),
+              ),
             ),
           ],
         );
@@ -1534,18 +1568,18 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                           // 原地不會一起往上滑，體驗很奇怪（2026-09-23
                           // 使用者回報）。只有頂部列固定在外面。
                           Expanded(
-                            child: SingleChildScrollView(
+                            child: CustomScrollView(
                               controller: _scroll,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  _buildChannelBody(
+                              slivers: [
+                                SliverToBoxAdapter(
+                                  child: _buildChannelBody(
                                     channel,
                                     categories,
                                     categoryLabel,
                                   ),
-                                ],
-                              ),
+                                ),
+                                _buildVideos(channel),
+                              ],
                             ),
                           ),
                         ],
@@ -1666,7 +1700,6 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
         const SizedBox(height: Gap.sm),
         _buildVideoFilterRow(),
         const SizedBox(height: Gap.sm),
-        _buildVideos(channel),
       ],
     );
   }

@@ -217,7 +217,20 @@ class YtVideoRow extends ConsumerStatefulWidget {
     this.forceShow = false,
     this.onHiddenChanged,
     this.fromCache = false,
+    this.known,
+    this.onWatchedChanged,
   });
+
+  /// 頁面已經讀好的「看過紀錄／有沒有隱藏」（2026-10-06 效能檢查：原本
+  /// 每一列建出來都各自把整份看過紀錄、隱藏清單讀出來拆一次，100 列就
+  /// 拆 100 次）。有給就直接用、不自己讀；不給（列數很少的頁面）照舊
+  /// 自己讀。頁面那份名單變了（例如同步回來），重建時帶新的進來就會跟著
+  /// 更新。
+  final ({YtVideoWatchRecord? watched, bool hidden})? known;
+
+  /// 這支影片被點開、看過紀錄多一筆之後通知頁面，頁面更新自己那份名單
+  /// （搭配 [known] 用）。
+  final ValueChanged<YtVideoWatchRecord>? onWatchedChanged;
 
   final YoutubeVideo video;
 
@@ -262,8 +275,24 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
   @override
   void initState() {
     super.initState();
+    final known = widget.known;
+    if (known != null) {
+      _watched = known.watched;
+      _hidden = known.hidden;
+      return;
+    }
     _loadWatched();
     _loadHidden();
+  }
+
+  @override
+  void didUpdateWidget(YtVideoRow old) {
+    super.didUpdateWidget(old);
+    final known = widget.known;
+    if (known != null && known != old.known) {
+      _watched = known.watched;
+      _hidden = known.hidden;
+    }
   }
 
   Future<void> _loadWatched() async {
@@ -288,6 +317,7 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
         ref.read(keyValueStoreProvider),
       ).markOpened(widget.video.videoId);
       if (mounted) setState(() => _watched = record);
+      widget.onWatchedChanged?.call(record);
       if (!context.mounted) return;
       // 呈現方式設定頁能切（2026-09-30 使用者要求：正中央 Dialog、下滑
       // 收合式、可拖曳浮動視窗三種都留著，不是做了新的就把舊的換掉，
@@ -330,6 +360,7 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
       ref.read(keyValueStoreProvider),
     ).markOpened(widget.video.videoId);
     if (mounted) setState(() => _watched = record);
+    widget.onWatchedChanged?.call(record);
   }
 
   // 滑動手感（2026-10-05 使用者回報：判斷太嚴格，要很大力或滑很遠才
