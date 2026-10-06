@@ -26,6 +26,9 @@ enum YtChannelEventType {
   deleted,
   purged,
   restored,
+
+  /// 從待評鑑分到一般（2026-10-06）。
+  normal,
 }
 
 class YtChannelEvent {

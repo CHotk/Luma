@@ -21,7 +21,8 @@ class YtVideoWatchStore {
   /// 50 筆對「看過幾次、什麼時候看的」這個用途已經很夠用）。
   static const _maxOpensPerVideo = 50;
 
-  List<DateTime> _trim(List<DateTime> openedAt) => openedAt.length > _maxOpensPerVideo
+  List<DateTime> _trim(List<DateTime> openedAt) =>
+      openedAt.length > _maxOpensPerVideo
       ? openedAt.sublist(openedAt.length - _maxOpensPerVideo)
       : openedAt;
 

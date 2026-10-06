@@ -63,7 +63,8 @@ Rect bubbleAnchorOf(BuildContext cardContext) {
   return box.localToGlobal(Offset.zero) & box.size;
 }
 
-const double _itemWidth = 58;
+/// 每一格的寬度上限；項目多、螢幕窄放不下時整排等比縮窄（見 build）。
+const double _maxItemWidth = 58;
 const double _itemHeight = 56;
 const double _padding = 5;
 const double _dividerWidth = 9;
@@ -90,10 +91,15 @@ class _BubbleMenuLayout<T> extends StatelessWidget {
     final media = MediaQuery.of(context);
     final screen = media.size;
     final hasDivider = normal.isNotEmpty && danger.isNotEmpty;
-    final width =
-        (normal.length + danger.length) * _itemWidth +
-        (hasDivider ? _dividerWidth : 0) +
-        _padding * 2;
+    final count = normal.length + danger.length;
+    final chrome = (hasDivider ? _dividerWidth : 0) + _padding * 2;
+    // 項目一多（例如頻道選單有六個動作）窄螢幕會塞不下，就把每格縮窄，
+    // 整條泡泡一定留在螢幕裡。
+    final itemWidth = math.min(
+      _maxItemWidth,
+      (screen.width - _screenMargin * 2 - chrome) / math.max(count, 1),
+    );
+    final width = count * itemWidth + chrome;
     const height = _itemHeight + _padding * 2;
 
     // 優先放卡片上方；上方放不下（扣掉狀態列）才放下方。
@@ -117,7 +123,7 @@ class _BubbleMenuLayout<T> extends StatelessWidget {
           ? AppColors.bad
           : (item.iconColor ?? AppColors.ink);
       return SizedBox(
-        width: _itemWidth,
+        width: itemWidth,
         height: _itemHeight,
         child: InkWell(
           borderRadius: BorderRadius.circular(10),

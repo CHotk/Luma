@@ -59,6 +59,42 @@ void main() {
     expect(events[5].detail, {'from': 'a', 'to': 'A2'});
   });
 
+  test('新加的頻道是待評鑑，分到一般會記一筆；分過區之後取消置頂不會掉回待評鑑', () async {
+    final store = _MemoryStore();
+    final repo = YtTrackerRepository(store);
+    await repo.addChannel(_ch('a'));
+    await repo.addChannel(_ch('b'));
+    var a = (await repo.loadChannels()).firstWhere((c) => c.id == 'a');
+    expect(a.pendingReview, isTrue);
+
+    await repo.updateChannel(a.copyWith(reviewedAt: DateTime.now()));
+    a = (await repo.loadChannels()).firstWhere((c) => c.id == 'a');
+    expect(a.pendingReview, isFalse);
+
+    // 置頂時一併蓋上評鑑時間（跟分類頁的置頂按鈕一樣），取消置頂就是一般。
+    var b = (await repo.loadChannels()).firstWhere((c) => c.id == 'b');
+    await repo.updateChannel(
+      b.copyWith(pinnedAt: DateTime.now(), reviewedAt: DateTime.now()),
+    );
+    b = (await repo.loadChannels()).firstWhere((c) => c.id == 'b');
+    await repo.updateChannel(b.copyWith(pinnedAt: null));
+    b = (await repo.loadChannels()).firstWhere((c) => c.id == 'b');
+    expect(b.pendingReview, isFalse);
+
+    final log = YtChannelLogStore(store);
+    expect((await log.forChannel('a')).map((e) => e.type), [
+      YtChannelEventType.added,
+      YtChannelEventType.normal,
+    ]);
+    expect((await log.forChannel('b')).map((e) => e.type), [
+      YtChannelEventType.added,
+      YtChannelEventType.pinned,
+      YtChannelEventType.unpinned,
+    ]);
+    // 評鑑時間要能存回去再讀出來。
+    expect(YtChannel.fromJson(b.toJson()).reviewedAt, isNotNull);
+  });
+
   test('背景訂閱數更新不算使用者操作，不記', () async {
     final store = _MemoryStore();
     final repo = YtTrackerRepository(store);

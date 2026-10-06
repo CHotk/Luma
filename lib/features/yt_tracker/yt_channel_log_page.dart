@@ -182,6 +182,12 @@ YtChannelLogItem _fromEvent(YtChannelEvent e) {
       '永久刪除',
       null,
     ),
+    YtChannelEventType.normal => (
+      Icons.subscriptions_outlined,
+      AppColors.ink2,
+      '從待評鑑放到一般',
+      null,
+    ),
     YtChannelEventType.restored => (
       Icons.restore_from_trash_outlined,
       AppColors.ok,

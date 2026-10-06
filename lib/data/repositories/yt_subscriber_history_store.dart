@@ -54,7 +54,9 @@ class YtSubscriberHistoryStore {
   ) async {
     if (cloud.isEmpty) return 0;
     final local = await load(channelId);
-    final known = {for (final s in local) '${s.at.toIso8601String()}|${s.count}'};
+    final known = {
+      for (final s in local) '${s.at.toIso8601String()}|${s.count}',
+    };
     final fresh = [
       for (final s in cloud)
         if (known.add('${s.at.toIso8601String()}|${s.count}')) s,

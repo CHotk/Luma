@@ -195,13 +195,18 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
     ]..sort((a, b) => b.pinnedAt!.compareTo(a.pinnedAt!));
     final rest = [
       for (final c in channels)
-        if (c.pinnedAt == null && c.coldAt == null) c,
+        if (c.pinnedAt == null && c.coldAt == null && !c.pendingReview) c,
     ];
     final cold = [
       for (final c in channels)
         if (c.pinnedAt == null && c.coldAt != null) c,
     ];
-    return [...pinned, ..._bySort(rest), ..._bySort(cold)];
+    // 待評鑑排最後（2026-10-06 使用者要求：放在比冷藏還下面）。
+    final pending = [
+      for (final c in channels)
+        if (c.pendingReview) c,
+    ];
+    return [...pinned, ..._bySort(rest), ..._bySort(cold), ..._bySort(pending)];
   }
 
   List<YtChannel> _bySort(List<YtChannel> list) {
@@ -559,6 +564,8 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
             // 置頂跟冷藏互斥：冷藏的頻道直接按置頂，就是把它拉回最上面，
             // 不用先移出冷藏再置頂兩步。
             coldAt: pinning ? null : c.coldAt,
+            // 分過區就算評鑑過，之後取消置頂回到一般，不會掉回待評鑑。
+            reviewedAt: c.reviewedAt ?? DateTime.now(),
           ),
         );
     if (mounted) _reload();
@@ -574,7 +581,19 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
           c.copyWith(
             coldAt: freezing ? DateTime.now() : null,
             pinnedAt: freezing ? null : c.pinnedAt,
+            reviewedAt: c.reviewedAt ?? DateTime.now(),
           ),
+        );
+    if (mounted) _reload();
+  }
+
+  /// 放到「一般」區（2026-10-06：待評鑑的頻道要自己分過去；置頂、冷藏
+  /// 的也能直接一步放回一般）。
+  Future<void> _setNormal(YtChannel c) async {
+    await ref
+        .read(ytTrackerRepositoryProvider)
+        .updateChannel(
+          c.copyWith(pinnedAt: null, coldAt: null, reviewedAt: DateTime.now()),
         );
     if (mounted) _reload();
   }
@@ -858,20 +877,6 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                             titleIconColor: AppColors.ytAccent,
                             titleLeading: _titleImage(categories),
                             actions: [
-                              // 這個分類（或選的幾個分類）的頻道紀錄（2026-10-06
-                              // 使用者要求：分類頁也要有）。
-                              IconButton(
-                                onPressed: () => context.push(
-                                  '/yt-tracker/log',
-                                  extra: {..._selected},
-                                ),
-                                icon: const Icon(
-                                  Icons.history_rounded,
-                                  size: 20,
-                                ),
-                                color: AppColors.ink2,
-                                tooltip: '頻道紀錄',
-                              ),
                               // 垃圾桶模式不給新增頻道、挖掘、刪除分類。
                               if (!widget.trash) ...[
                                 // 「挖掘新頻道」是特別的分類，只是用來放挖到的頻道，
@@ -905,6 +910,23 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                                     color: AppColors.ink2,
                                     tooltip: '新增頻道',
                                   ),
+                              ],
+                              // 這個分類（或選的幾個分類）的頻道紀錄（2026-10-06
+                              // 使用者要求：分類頁也要有；放在新增頻道右邊、
+                              // 刪除分類左邊）。
+                              IconButton(
+                                onPressed: () => context.push(
+                                  '/yt-tracker/log',
+                                  extra: {..._selected},
+                                ),
+                                icon: const Icon(
+                                  Icons.history_rounded,
+                                  size: 20,
+                                ),
+                                color: AppColors.ink2,
+                                tooltip: '頻道紀錄',
+                              ),
+                              if (!widget.trash) ...[
                                 if (selectedCategory != null)
                                   IconButton(
                                     onPressed: () async {
@@ -1057,6 +1079,7 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                                               _moveChannel(c, categories),
                                           onTogglePin: _togglePin,
                                           onToggleCold: _toggleCold,
+                                          onSetNormal: _setNormal,
                                           onDelete: _deleteChannel,
                                           trash: widget.trash,
                                           onRestore: _restoreChannel,
@@ -1081,7 +1104,16 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
   }
 }
 
-enum _ChannelMenuAction { edit, move, pin, cold, delete, restore, purge }
+enum _ChannelMenuAction {
+  edit,
+  move,
+  pin,
+  normal,
+  cold,
+  delete,
+  restore,
+  purge,
+}
 
 /// 「挖掘新頻道」分類卡右上角的小標籤，顯示是靠哪個關鍵字／哪個頻道推薦
 /// 挖到的（2026-09-29 使用者要求，見 [YtChannel.discoveredVia]）。
@@ -1589,6 +1621,8 @@ Future<bool> showAddYtChannelDialog(
         .read(ytTrackerRepositoryProvider)
         .updateChannel(
           revive.restored().copyWith(
+            // 救回來的跟新加的一樣，先放待評鑑。
+            reviewedAt: null,
             name: name,
             categoryId: categoryId,
             pinnedAt: null,
@@ -1643,6 +1677,7 @@ class _ChannelGrid extends StatefulWidget {
     required this.onMove,
     required this.onTogglePin,
     required this.onToggleCold,
+    required this.onSetNormal,
     required this.onDelete,
     this.showDiscoveredBadge = false,
     this.trash = false,
@@ -1655,6 +1690,7 @@ class _ChannelGrid extends StatefulWidget {
   final void Function(YtChannel) onMove;
   final void Function(YtChannel) onTogglePin;
   final void Function(YtChannel) onToggleCold;
+  final void Function(YtChannel) onSetNormal;
   final void Function(YtChannel) onDelete;
 
   /// 垃圾桶模式（見 [YtTrackerBrowsePage.trash]）：選單的「刪除」換成
@@ -1690,8 +1726,9 @@ class _ChannelGridState extends State<_ChannelGrid> {
               ),
       );
     }
-    // 分三層畫：上面置頂、中間普通、下面冷藏（2026-09-30 加置頂區、
-    // 2026-10-02 使用者要求加冷藏區：不常看但還不至於刪掉的頻道）。
+    // 分四層畫：上面置頂、中間一般、下面冷藏、最下面待評鑑（2026-09-30
+    // 加置頂區、2026-10-02 使用者要求加冷藏區：不常看但還不至於刪掉的
+    // 頻道；2026-10-06 加待評鑑：新加進來、還沒分區的頻道）。
     // [_sortedChannels] 已經照這個順序排好，這裡只是切段分開畫。
     final pinned = [
       for (final c in channels)
@@ -1703,7 +1740,11 @@ class _ChannelGridState extends State<_ChannelGrid> {
     ];
     final rest = [
       for (final c in channels)
-        if (c.pinnedAt == null && c.coldAt == null) c,
+        if (c.pinnedAt == null && c.coldAt == null && !c.pendingReview) c,
+    ];
+    final pending = [
+      for (final c in channels)
+        if (c.pendingReview) c,
     ];
     const gridDelegate = SliverGridDelegateWithFixedCrossAxisCount(
       crossAxisCount: 2,
@@ -1727,12 +1768,11 @@ class _ChannelGridState extends State<_ChannelGrid> {
         ],
       ),
     );
-    // 三區全部當成同一份可捲動內容的 sliver，整頁一起捲（2026-09-30
-    // 使用者回報原本置頂區固定不動、下面各自捲動「頁面很擠」）；用 sliver
-    // 不用 SingleChildScrollView+shrinkWrap，頻道一多才不會一次全部排版。
-    return CustomScrollView(
-      slivers: [
-        if (pinned.isNotEmpty) ...[
+    // 每區之間的分隔線只畫在「兩區都有」的時候，某一區空著就直接跳過
+    // （2026-10-06 加待評鑑後，一般區可能整個是空的）。
+    final sections = <List<Widget>>[
+      if (pinned.isNotEmpty)
+        [
           SliverToBoxAdapter(
             child: Row(
               children: [
@@ -1748,22 +1788,11 @@ class _ChannelGridState extends State<_ChannelGrid> {
           ),
           const SliverToBoxAdapter(child: SizedBox(height: Gap.xs)),
           grid(pinned),
-          sectionGap,
         ],
-        if (rest.isEmpty)
-          SliverToBoxAdapter(
-            child: InlineEmptyCard(
-              title: '沒有其他頻道',
-              message: [
-                if (pinned.isNotEmpty) '都在上面置頂了',
-                if (cold.isNotEmpty)
-                  '有 ${cold.length} 個收在下面$ytColdSectionLabel',
-              ].join('，'),
-            ),
-          )
-        else ...[
-          // 一般區（沒置頂也沒冷藏）也標數量，跟置頂、冷藏區一致
-          // （2026-10-06 使用者要求）。
+      // 一般區（沒置頂也沒冷藏）也標數量，跟置頂、冷藏區一致
+      // （2026-10-06 使用者要求）。
+      if (rest.isNotEmpty)
+        [
           SliverToBoxAdapter(
             child: Row(
               children: [
@@ -1780,8 +1809,8 @@ class _ChannelGridState extends State<_ChannelGrid> {
           const SliverToBoxAdapter(child: SizedBox(height: Gap.xs)),
           grid(rest),
         ],
-        if (cold.isNotEmpty) ...[
-          sectionGap,
+      if (cold.isNotEmpty)
+        [
           SliverToBoxAdapter(
             child: InkWell(
               onTap: () => setState(() => _coldExpanded = !_coldExpanded),
@@ -1818,8 +1847,48 @@ class _ChannelGridState extends State<_ChannelGrid> {
             const SliverToBoxAdapter(child: SizedBox(height: Gap.xs)),
             grid(cold),
           ],
-          const SliverToBoxAdapter(child: SizedBox(height: Gap.lg)),
         ],
+      // 待評鑑：剛加進來、還沒分到置頂／一般／冷藏的頻道，排在最下面，
+      // 等使用者自己長按分區（2026-10-06 使用者要求）。
+      if (pending.isNotEmpty)
+        [
+          SliverToBoxAdapter(
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.rate_review_outlined,
+                  size: 13,
+                  color: AppColors.ink3,
+                ),
+                const SizedBox(width: 4),
+                Text('待評鑑 · ${pending.length}', style: AppText.note),
+                const SizedBox(width: Gap.sm),
+                Expanded(
+                  child: Text(
+                    '長按頻道分到置頂／一般／冷藏',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.right,
+                    style: AppText.note,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SliverToBoxAdapter(child: SizedBox(height: Gap.xs)),
+          grid(pending),
+        ],
+    ];
+    // 所有區全部當成同一份可捲動內容的 sliver，整頁一起捲（2026-09-30
+    // 使用者回報原本置頂區固定不動、下面各自捲動「頁面很擠」）；用 sliver
+    // 不用 SingleChildScrollView+shrinkWrap，頻道一多才不會一次全部排版。
+    return CustomScrollView(
+      slivers: [
+        for (var i = 0; i < sections.length; i++) ...[
+          if (i > 0) sectionGap,
+          ...sections[i],
+        ],
+        const SliverToBoxAdapter(child: SizedBox(height: Gap.lg)),
       ],
     );
   }
@@ -1964,6 +2033,13 @@ class _ChannelGridState extends State<_ChannelGrid> {
           label: isPinned ? '取消置頂' : '置頂',
           iconColor: AppColors.ytPinAccent,
         ),
+        // 不在一般區（置頂、冷藏、待評鑑）才給「一般」。
+        if (c.pinnedAt != null || c.coldAt != null || c.pendingReview)
+          const BubbleMenuItem(
+            value: _ChannelMenuAction.normal,
+            icon: Icons.subscriptions_outlined,
+            label: '一般',
+          ),
         BubbleMenuItem(
           value: _ChannelMenuAction.cold,
           icon: Icons.ac_unit_rounded,
@@ -1999,6 +2075,8 @@ class _ChannelGridState extends State<_ChannelGrid> {
         widget.onMove(c);
       case _ChannelMenuAction.pin:
         widget.onTogglePin(c);
+      case _ChannelMenuAction.normal:
+        widget.onSetNormal(c);
       case _ChannelMenuAction.cold:
         widget.onToggleCold(c);
       case _ChannelMenuAction.delete:

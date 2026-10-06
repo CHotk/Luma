@@ -134,6 +134,7 @@ class YtChannel {
     this.videoCount,
     this.coldAt,
     this.purgedAt,
+    this.reviewedAt,
   });
 
   final String id;
@@ -147,6 +148,17 @@ class YtChannel {
   /// 垃圾桶不顯示、挖掘照樣跳過、跟著同步；使用者自己手動新增同一個
   /// 頻道時，直接把這筆救回來（不會變成兩筆）。null＝沒被永久刪除。
   final DateTime? purgedAt;
+
+  /// 使用者把這個頻道分到「一般／置頂／冷藏」其中一區的時間（2026-10-06
+  /// 使用者要求：剛加進來的頻道不要直接算一般，先放分類頁最下面的
+  /// 「待評鑑」，等使用者自己分）。null＝還沒評鑑過；沒置頂、沒冷藏、
+  /// 也沒評鑑過的就是待評鑑（[pendingReview]）。按置頂、冷藏時也會蓋上，
+  /// 之後取消置頂／移出冷藏就回到一般，不會掉回待評鑑。
+  final DateTime? reviewedAt;
+
+  /// 在「待評鑑」區。
+  bool get pendingReview =>
+      pinnedAt == null && coldAt == null && reviewedAt == null;
 
   /// 使用者長按選「置頂」的時間（2026-09-30 使用者要求：分類頻道列表要
   /// 能置頂）。null 代表沒置頂。置頂的頻道排在同一個分類列表最前面，
@@ -224,6 +236,7 @@ class YtChannel {
     int? videoCount,
     Object? coldAt = _keep,
     Object? purgedAt = _keep,
+    Object? reviewedAt = _keep,
   }) => YtChannel(
     id: id,
     name: name ?? this.name,
@@ -258,6 +271,9 @@ class YtChannel {
     purgedAt: identical(purgedAt, _keep)
         ? this.purgedAt
         : purgedAt as DateTime?,
+    reviewedAt: identical(reviewedAt, _keep)
+        ? this.reviewedAt
+        : reviewedAt as DateTime?,
   );
 
   YtChannel _copy({
@@ -288,6 +304,7 @@ class YtChannel {
     purgedAt: identical(purgedAt, _keep)
         ? this.purgedAt
         : purgedAt as DateTime?,
+    reviewedAt: reviewedAt,
   );
 
   /// 內容有變時蓋上現在的時間，見 [YtTrackerRepository]。
@@ -373,6 +390,7 @@ class YtChannel {
     'videoCount': videoCount,
     'coldAt': coldAt?.toIso8601String(),
     'purgedAt': purgedAt?.toIso8601String(),
+    'reviewedAt': reviewedAt?.toIso8601String(),
   };
 
   factory YtChannel.fromJson(Map<String, dynamic> json) => YtChannel(
@@ -396,6 +414,7 @@ class YtChannel {
     videoCount: json['videoCount'] as int?,
     coldAt: _parseTime(json['coldAt']),
     purgedAt: _parseTime(json['purgedAt']),
+    reviewedAt: _parseTime(json['reviewedAt']),
   );
 }
 

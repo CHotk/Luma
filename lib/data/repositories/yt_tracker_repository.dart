@@ -84,6 +84,12 @@ class YtTrackerRepository {
         _event(after.id, YtChannelEventType.cold),
       if (before.coldAt != null && after.coldAt == null)
         _event(after.id, YtChannelEventType.uncold),
+      // 從待評鑑直接分到一般（分到置頂／冷藏的已經記成 pinned／cold）。
+      if (before.pendingReview &&
+          !after.pendingReview &&
+          after.pinnedAt == null &&
+          after.coldAt == null)
+        _event(after.id, YtChannelEventType.normal),
     ];
   }
 
@@ -391,6 +397,8 @@ class YtTrackerRepository {
             // 永久刪除的標記也是（2026-10-06），不然內建快照一合併，永久
             // 刪除過的頻道又會跑回垃圾桶。
             purgedAt: c.purgedAt ?? prior.purgedAt,
+            // 評鑑過（分到一般／置頂／冷藏）的標記也是（2026-10-06）。
+            reviewedAt: c.reviewedAt ?? prior.reviewedAt,
           );
         }(),
     ];
