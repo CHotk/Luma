@@ -64,61 +64,70 @@ class _SplashPageState extends ConsumerState<SplashPage> {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
     return Scaffold(
       body: AmbientBackground(
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // App 圖示：使用者可以在設定頁的「App Logo」挑
-              // `assets/images/app_logo/` 裡的任一張圖（2026-09-29 加），
-              // 沒選過就用預設的 logo02.png（2026-09-30 使用者要求把預設
-              // 從 logo.png 換成 logo02.png）；讀不到（檔案被搬走等）就
-              // 退回原本畫出來的標誌。
-              Image.asset(
-                // 讀 `splash/` 底下縮小過的版本（見
-                // tool/resize_splash_logo.dart），不是原始解析度那張
-                // ——原圖是 1254x1254、1.2~1.6MB，但這裡只顯示 120x120，
-                // 就算瀏覽器快取住原圖，每次 App 冷啟動引擎重新初始化
-                // 還是要整張解碼一次，這個 CPU 成本每次開機都要重付
-                // （2026-09-30 使用者回報「logo 每次重開都慢」的根因）。
-                // 縮小版本目前只有 logo.png／logo02.png 兩張（設定頁能選
-                // 的 App Logo 就這兩個選項），還沒有更多選項時直接對應
-                // 檔名替換資料夾即可；讀不到就退回 [LumeMark]，不會噴例外。
-                _splashAssetFor(
-                  ref.watch(appLogoAssetProvider) ??
-                      'assets/images/app_logo/logo02.png',
+        // 手機（窄螢幕）整組往上移一點，跟 web/index.html 的載入畫面同一個
+        // 比例（螢幕高度的 14%），從載入畫面換過來時位置才不會跳
+        // （2026-10-06 使用者要求）。
+        child: Padding(
+          padding: EdgeInsets.only(
+            bottom: size.width <= 600 ? size.height * 0.14 : 0,
+          ),
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // App 圖示：使用者可以在設定頁的「App Logo」挑
+                // `assets/images/app_logo/` 裡的任一張圖（2026-09-29 加），
+                // 沒選過就用預設的 logo02.png（2026-09-30 使用者要求把預設
+                // 從 logo.png 換成 logo02.png）；讀不到（檔案被搬走等）就
+                // 退回原本畫出來的標誌。
+                Image.asset(
+                  // 讀 `splash/` 底下縮小過的版本（見
+                  // tool/resize_splash_logo.dart），不是原始解析度那張
+                  // ——原圖是 1254x1254、1.2~1.6MB，但這裡只顯示 120x120，
+                  // 就算瀏覽器快取住原圖，每次 App 冷啟動引擎重新初始化
+                  // 還是要整張解碼一次，這個 CPU 成本每次開機都要重付
+                  // （2026-09-30 使用者回報「logo 每次重開都慢」的根因）。
+                  // 縮小版本目前只有 logo.png／logo02.png 兩張（設定頁能選
+                  // 的 App Logo 就這兩個選項），還沒有更多選項時直接對應
+                  // 檔名替換資料夾即可；讀不到就退回 [LumeMark]，不會噴例外。
+                  _splashAssetFor(
+                    ref.watch(appLogoAssetProvider) ??
+                        'assets/images/app_logo/logo02.png',
+                  ),
+                  width: 120,
+                  height: 120,
+                  errorBuilder: (context, error, stack) =>
+                      const LumeMark(size: 96),
                 ),
-                width: 120,
-                height: 120,
-                errorBuilder: (context, error, stack) =>
-                    const LumeMark(size: 96),
-              ),
-              const SizedBox(height: 14),
-              const Text(
-                'Lume',
-                style: TextStyle(
-                  fontSize: 29,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.8,
-                  color: AppColors.ink,
+                const SizedBox(height: 14),
+                const Text(
+                  'Lume',
+                  style: TextStyle(
+                    fontSize: 29,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.8,
+                    color: AppColors.ink,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 3),
-              const Text(
-                '微 光',
-                style: TextStyle(
-                  fontSize: 11,
-                  letterSpacing: 4.4,
-                  color: AppColors.ink2,
+                const SizedBox(height: 3),
+                const Text(
+                  '微 光',
+                  style: TextStyle(
+                    fontSize: 11,
+                    letterSpacing: 4.4,
+                    color: AppColors.ink2,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 14),
-              const Text(
-                '一天一點未來光',
-                style: TextStyle(fontSize: 12.5, color: AppColors.ink3),
-              ),
-            ],
+                const SizedBox(height: 14),
+                const Text(
+                  '一天一點未來光',
+                  style: TextStyle(fontSize: 12.5, color: AppColors.ink3),
+                ),
+              ],
+            ),
           ),
         ),
       ),
