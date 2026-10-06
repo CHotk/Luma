@@ -55,10 +55,75 @@
     /* Flutter 的 canvas 蓋滿畫面前，或瀏海/動態島那圈安全區域
        canvas 蓋不到的地方，底色要跟 App 本身一樣深，不然會透出瀏覽器
        預設的白色。 */
-    html, body { background: #0C0C13; }
+    html, body { background: #0C0C13; margin: 0; }
+
+    /* 關掉 iOS Safari 長按的系統選單（拷貝／查詢那種）。長按卡片叫出
+       App 自己的泡泡選單時，Safari 也會準備跳它的系統選單，接下來那一下
+       點擊會被拿去關掉系統選單、App 收不到，看起來就是「第一次點選單
+       沒反應、第二次才有」（2026-10-06 使用者回報）。只關系統選單，
+       不碰 user-select，輸入框照常能選字。 */
+    html, body { -webkit-touch-callout: none; }
+
+    /* 載入畫面（2026-10-06 使用者回報：開 App 時載入中一片黑，原本還會
+       看到 logo 跟 App 名稱）。開機真正花時間的是下載 main.dart.js、
+       Flutter 引擎初始化、main() 裡開本機儲存這段，這段期間 Flutter 還
+       畫不出任何東西；啟動頁（splash_page.dart）的停留時間 9/30 依使用
+       者要求改成 0，所以 Flutter 那邊的 logo 只閃一下。這裡改用純 HTML
+       在 Flutter 還沒起來前就先顯示，Flutter 畫出第一個畫面就淡出移除，
+       不會多等任何時間。樣子跟 splash_page.dart 一致。 */
+    #lume-splash {
+      position: fixed; inset: 0; z-index: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      background: #0C0C13;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+        "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+      transition: opacity .25s ease;
+    }
+    #lume-splash.hide { opacity: 0; pointer-events: none; }
+    #lume-splash img { width: 120px; height: 120px; border-radius: 26px; }
+    #lume-splash .name {
+      margin-top: 14px; font-size: 29px; font-weight: 700;
+      letter-spacing: -0.8px; color: #F3F2F8;
+    }
+    #lume-splash .sub {
+      margin-top: 3px; font-size: 11px; letter-spacing: 4.4px;
+      color: #A3A2B2;
+    }
+    #lume-splash .tag {
+      margin-top: 14px; font-size: 12.5px;
+      color: #74738A;
+    }
+    #lume-splash .loading {
+      margin-top: 28px; display: flex; align-items: center; gap: 8px;
+      font-size: 12px; color: #74738A;
+    }
+    #lume-splash .spin {
+      width: 14px; height: 14px; border-radius: 50%;
+      border: 2px solid rgba(242, 241, 247, .15);
+      border-top-color: rgba(242, 241, 247, .6);
+      animation: lume-spin .8s linear infinite;
+    }
+    @keyframes lume-spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
+  <div id="lume-splash" aria-label="Lume 載入中">
+    <img src="icons/Icon-192.png" alt="">
+    <div class="name">Lume</div>
+    <div class="sub">微 光</div>
+    <div class="tag">一天一點未來光</div>
+    <div class="loading"><div class="spin"></div>載入中…</div>
+  </div>
+  <script>
+    // Flutter 畫出第一個畫面時會發這個事件，收到就淡出、移除載入畫面。
+    window.addEventListener('flutter-first-frame', function () {
+      var el = document.getElementById('lume-splash');
+      if (!el) return;
+      el.classList.add('hide');
+      setTimeout(function () { el.remove(); }, 300);
+    });
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
