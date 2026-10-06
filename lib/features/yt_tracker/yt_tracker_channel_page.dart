@@ -175,6 +175,27 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     }
   }
 
+  /// 把快取裡已經標好的類型套到這份影片上。剛從 YouTube 抓下來的影片
+  /// 物件本身不帶類型，快取裡那份才有（掃描、翻類型清單時標的）——不套
+  /// 的話縮圖左下角的「影片／Shorts／直播」標籤永遠不會出現（2026-10-06
+  /// 使用者回報「影片標籤還是沒補上」）。
+  static List<YoutubeVideo> _applyTags(
+    List<YoutubeVideo> list,
+    Map<String, YoutubeVideo> cachedById,
+  ) => [
+    for (final v in list)
+      if (cachedById[v.videoId] case final c?) _copyTags(v, c) else v,
+  ];
+
+  static YoutubeVideo _copyTags(YoutubeVideo v, YoutubeVideo from) {
+    var r = v;
+    if (r.isShort == null && from.isShort != null) {
+      r = r.withShort(from.isShort!);
+    }
+    if (r.isLive == null && from.isLive != null) r = r.withLive(from.isLive!);
+    return r;
+  }
+
   Future<List<YoutubeVideo>> _withDurations(
     YoutubeApiService service,
     List<YoutubeVideo> videos,
@@ -353,19 +374,20 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
       }
       final kv = ref.read(keyValueStoreProvider);
       final cache = YtVideoCacheStore(kv);
-      final changed = await YtVideoTypeScanner(
+      await YtVideoTypeScanner(
         YoutubeApiService(apiKey),
         kv,
       ).tagUntagged(channelId: channelId, uploadsId: uploadsId);
-      if (changed > 0 && mounted && _loadMoreChannelId == channelId) {
+      // 不管這次有沒有新標到，都把快取裡的類型套到畫面上的清單（快取
+      // 可能早就標好了，例如之前按過「補齊影片類型」）。
+      if (mounted && _loadMoreChannelId == channelId) {
         final fresh = await cache.load(channelId);
         // 畫面上已經列出來的影片也換成標好類型的那份，縮圖左下角的
         // 「影片／Shorts／直播」標籤馬上出現，不用離開再進來
         // （2026-10-06 使用者問「新抓到的影片怎麼還是沒有小標籤」）。
         final byId = {for (final v in fresh) v.videoId: v};
-        List<YoutubeVideo> retag(List<YoutubeVideo> list) => [
-          for (final v in list) byId[v.videoId] ?? v,
-        ];
+        List<YoutubeVideo> retag(List<YoutubeVideo> list) =>
+            _applyTags(list, byId);
         if (mounted) {
           setState(() {
             _cachedChannelVideos = fresh;
@@ -776,10 +798,13 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
         end: page.nextPageToken == null,
       ),
     );
+    final tagged = _applyTags(result, {
+      for (final v in await cache.load(channel.id)) v.videoId: v,
+    });
     // 用 setState：篩選開關上的數字（看過幾部、隱藏幾部）是從這份清單
     // 算的，第一頁進來時要跟著更新。
-    if (mounted) setState(() => _firstPage = result);
-    return result;
+    if (mounted) setState(() => _firstPage = tagged);
+    return tagged;
   }
 
   void _ensureHistoryLoaded(YtChannel channel, {bool force = false}) {

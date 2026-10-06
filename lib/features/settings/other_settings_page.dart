@@ -330,8 +330,15 @@ class _YtTrackerSettings extends ConsumerWidget {
                 ],
               ),
               const Divider(height: Gap.lg, color: AppColors.glassEdge),
+              const YtTypeBackfillRow(),
+              const Divider(height: Gap.lg, color: AppColors.glassEdge),
+              const _StatsRefreshRow(),
+              const Divider(height: Gap.lg, color: AppColors.glassEdge),
+              const _VideoOpenModeRow(),
+              const _EmbedPlayerStyleRow(),
+              const Divider(height: Gap.lg, color: AppColors.glassEdge),
               // 永久刪除的頻道清單（2026-10-06 使用者要求：放設定裡，想看
-              // 刪了哪些可以點開）。
+              // 刪了哪些可以點開；放最下面）。
               Row(
                 children: [
                   const Icon(
@@ -356,13 +363,6 @@ class _YtTrackerSettings extends ConsumerWidget {
                   ),
                 ],
               ),
-              const Divider(height: Gap.lg, color: AppColors.glassEdge),
-              const YtTypeBackfillRow(),
-              const Divider(height: Gap.lg, color: AppColors.glassEdge),
-              const _StatsRefreshRow(),
-              const Divider(height: Gap.lg, color: AppColors.glassEdge),
-              const _VideoOpenModeRow(),
-              const _EmbedPlayerStyleRow(),
             ],
           ),
         ),
