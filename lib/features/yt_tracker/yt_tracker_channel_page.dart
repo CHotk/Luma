@@ -22,6 +22,7 @@ import '../../shared/widgets/background_refresh.dart';
 import '../../shared/widgets/glass_card.dart';
 import '../../shared/widgets/inline_empty_card.dart';
 import 'upload_frequency_chart.dart';
+import 'yt_duration_filter.dart';
 import 'yt_api_key_dialog.dart';
 import 'yt_channel_avatar.dart';
 import 'yt_video_row.dart';
@@ -114,6 +115,10 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
   // `_moreVideos`／「全部」的 resume 共用，兩邊翻頁位置是對應不同清單，
   // 混在一起會對不上。
   _TypeFilter _typeFilter = _TypeFilter.all;
+
+  /// 時長篩選（2026-10-06，見 [YtDurationFilter]）。只是把已載入的影片
+  /// 篩一遍，不另外打 API；離開頁面就回到「不限」。
+  YtDurationFilter _durationFilter = const YtDurationFilter.any();
 
   // 「篩選完可見清單太短就主動幫忙多抓一批」的保險（見下面
   // `_buildVideos` 裡的說明）沒有設上限——使用者曾問「看過的量一大，
@@ -464,10 +469,14 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
   }
 
   /// 「隱藏已看過」「顯示已隱藏」兩個開關套用後，這支影片要不要出現。
-  bool _passesFilters(YoutubeVideo v) {
+  bool _passesBaseFilters(YoutubeVideo v) {
     if (_hiddenVideoIds.contains(v.videoId)) return _showHiddenVideos;
     return !(_hideWatched && _watchedVideoIds.contains(v.videoId));
   }
+
+  /// 再加上時長篩選。
+  bool _passesFilters(YoutubeVideo v) =>
+      _passesBaseFilters(v) && _durationFilter.matches(v);
 
   Widget _videoRows(List<YoutubeVideo> list, {bool allFromCache = false}) =>
       Column(
@@ -1175,6 +1184,8 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
         .length;
     final reasons = <String>[
       if (loaded.isEmpty && isTyped) '這個頻道沒有這個類型的影片',
+      if (!_durationFilter.isAny && loaded.isNotEmpty)
+        '時長「${_durationFilter.rangeLabel}」裡沒有影片',
       if (_hideWatched && watched > 0) '$watched 部已看過的被收起來了',
       if (!_showHiddenVideos && hiddenByUser > 0) '$hiddenByUser 部是你隱藏的',
     ];
@@ -1188,6 +1199,12 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
           EmptyAction('顯示已隱藏', () => setState(() => _showHiddenVideos = true)),
         if (isTyped)
           EmptyAction('看全部類型', () => _switchTypeFilter(_TypeFilter.all)),
+        if (!_durationFilter.isAny)
+          EmptyAction(
+            '不限時長',
+            () =>
+                setState(() => _durationFilter = const YtDurationFilter.any()),
+          ),
         EmptyAction('重新整理', () => _refresh(channel)),
       ],
     );
@@ -1709,6 +1726,16 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
               color: AppColors.accentSolid,
               selected: _typeFilter == _TypeFilter.live,
               onTap: () => _switchTypeFilter(_TypeFilter.live),
+            ),
+            // 時長篩選接在類型後面（2026-10-06 使用者挑設計稿第 03 版）。
+            // 小選單裡每個選項旁的數字＝目前已載入、過了已看過／已隱藏
+            // 兩個開關的影片裡，符合那個時長的有幾部。
+            YtDurationChip(
+              filter: _durationFilter,
+              countOf: (f) => loaded
+                  .where((v) => _passesBaseFilters(v) && f.matches(v))
+                  .length,
+              onChanged: (f) => setState(() => _durationFilter = f),
             ),
           ],
         ),

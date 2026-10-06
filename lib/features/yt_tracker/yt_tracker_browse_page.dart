@@ -2017,16 +2017,8 @@ class _ChannelGridState extends State<_ChannelGrid> {
       anchor: bubbleAnchorOf(cardContext),
       drag: drag,
       items: [
-        const BubbleMenuItem(
-          value: _ChannelMenuAction.edit,
-          icon: Icons.edit_outlined,
-          label: '編輯',
-        ),
-        const BubbleMenuItem(
-          value: _ChannelMenuAction.move,
-          icon: Icons.folder_open_rounded,
-          label: '移動',
-        ),
+        // 順序：置頂、一般、冷藏、移動、編輯｜刪除（2026-10-06 使用者要求，
+        // 分區最常用排最前面）。
         BubbleMenuItem(
           value: _ChannelMenuAction.pin,
           icon: isPinned ? Icons.push_pin_outlined : Icons.push_pin_rounded,
@@ -2045,6 +2037,16 @@ class _ChannelGridState extends State<_ChannelGrid> {
           icon: Icons.ac_unit_rounded,
           label: isCold ? '取消$ytColdSectionLabel' : ytColdSectionLabel,
           iconColor: AppColors.ytColdAccent,
+        ),
+        const BubbleMenuItem(
+          value: _ChannelMenuAction.move,
+          icon: Icons.folder_open_rounded,
+          label: '移動',
+        ),
+        const BubbleMenuItem(
+          value: _ChannelMenuAction.edit,
+          icon: Icons.edit_outlined,
+          label: '編輯',
         ),
         if (widget.trash) ...[
           const BubbleMenuItem(
