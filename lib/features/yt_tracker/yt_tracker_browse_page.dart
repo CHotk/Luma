@@ -537,28 +537,10 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
       ),
     );
     if (result == null) return;
-    // 置頂的頻道移到已經置頂滿 [ytMaxPinnedPerCategory] 個的分類：照樣移，
-    // 但放到「一般」，不讓那個分類超過上限。
-    var moved = c.copyWith(categoryId: result.id);
-    var unpinned = false;
-    if (c.pinnedAt != null) {
-      final all = await ref.read(ytTrackerRepositoryProvider).loadChannels();
-      if (ytPinnedCountIn(all, result.id, exceptId: c.id) >=
-          ytMaxPinnedPerCategory) {
-        moved = moved.copyWith(pinnedAt: null);
-        unpinned = true;
-      }
-    }
-    await ref.read(ytTrackerRepositoryProvider).updateChannel(moved);
-    if (!mounted) return;
-    _reload();
-    if (unpinned) {
-      showAppNotice(
-        context,
-        '已移過去，放在「一般」',
-        detail: '那個分類已經置頂 $ytMaxPinnedPerCategory 個了',
-      );
-    }
+    await ref
+        .read(ytTrackerRepositoryProvider)
+        .updateChannel(c.copyWith(categoryId: result.id));
+    if (mounted) _reload();
   }
 
   Future<void> _deleteChannel(YtChannel c) async {
@@ -601,22 +583,6 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
   /// 同步邏輯。
   Future<void> _togglePin(YtChannel c) async {
     final pinning = c.pinnedAt == null;
-    // 每個分類最多置頂 [ytMaxPinnedPerCategory] 個（2026-10-08 使用者要求）。
-    if (pinning) {
-      final all = await ref.read(ytTrackerRepositoryProvider).loadChannels();
-      if (ytPinnedCountIn(all, c.categoryId, exceptId: c.id) >=
-          ytMaxPinnedPerCategory) {
-        if (mounted) {
-          showAppNotice(
-            context,
-            '這個分類已經置頂 $ytMaxPinnedPerCategory 個了',
-            detail: '先把其他置頂頻道放到「一般」，再置頂這個',
-            isError: true,
-          );
-        }
-        return;
-      }
-    }
     await ref
         .read(ytTrackerRepositoryProvider)
         .updateChannel(

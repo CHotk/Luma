@@ -465,23 +465,3 @@ YtChannel? findDuplicateYtChannel(
   }
   return null;
 }
-
-/// 每個分類最多置頂幾個頻道（2026-10-08 使用者要求：太多就失去置頂的
-/// 意義）。
-const ytMaxPinnedPerCategory = 10;
-
-/// [channels] 裡，跟 [categoryId] 同一個分類（null＝未分類）、已置頂、
-/// 沒進垃圾桶的頻道有幾個；[exceptId] 那一個不算（自己）。
-int ytPinnedCountIn(
-  Iterable<YtChannel> channels,
-  String? categoryId, {
-  String? exceptId,
-}) => channels
-    .where(
-      (c) =>
-          c.id != exceptId &&
-          c.deletedAt == null &&
-          c.pinnedAt != null &&
-          c.categoryId == categoryId,
-    )
-    .length;
