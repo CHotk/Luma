@@ -12,6 +12,7 @@ import '../features/drinking_log/drinking_stats_page.dart';
 import '../features/app_home/app_home_page.dart';
 
 import '../features/debt/debt_calendar_page.dart';
+import '../features/debt/debt_lock.dart';
 import '../features/debt/debt_page.dart';
 import '../features/diary/diary_page.dart';
 import '../features/fitness/fitness_home_page.dart';
@@ -85,10 +86,15 @@ final appRouter = GoRouter(
       ),
     ),
     // 負債每月還款表（2026-10-08）：主畫面是設計稿版本 1，月曆是版本 2。
-    GoRoute(path: '/debt', builder: (_, _) => const DebtPage()),
+    // 兩頁都要先過密碼鎖（跟日記同一組密碼，見 DebtLockGate）。
+    GoRoute(
+      path: '/debt',
+      builder: (_, _) => const DebtLockGate(title: '負債管理', child: DebtPage()),
+    ),
     GoRoute(
       path: '/debt/calendar',
-      builder: (_, _) => const DebtCalendarPage(),
+      builder: (_, _) =>
+          const DebtLockGate(title: '還款月曆', child: DebtCalendarPage()),
     ),
     GoRoute(path: '/smoking-log', builder: (_, _) => const SmokingPage()),
     GoRoute(

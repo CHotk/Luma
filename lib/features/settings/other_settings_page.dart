@@ -423,7 +423,7 @@ class _DiarySettings extends ConsumerWidget {
       context: context,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: const Color(0xFF1A1A24),
-        title: const Text('變更日記密碼', style: TextStyle(color: AppColors.ink)),
+        title: const Text('變更日記／負債密碼', style: TextStyle(color: AppColors.ink)),
         content: TextField(
           controller: controller,
           autofocus: true,
@@ -453,7 +453,7 @@ class _DiarySettings extends ConsumerWidget {
       ref.read(keyValueStoreProvider),
     ).savePassword(newPassword);
     if (!context.mounted) return;
-    showAppNotice(context, '已更新日記密碼');
+    showAppNotice(context, '已更新日記／負債密碼');
   }
 
   @override
@@ -473,7 +473,7 @@ class _DiarySettings extends ConsumerWidget {
               const SizedBox(width: Gap.sm),
               const Expanded(
                 child: Text(
-                  '日記密碼',
+                  '日記／負債密碼',
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
