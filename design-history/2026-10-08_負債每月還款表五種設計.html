@@ -1,0 +1,628 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>負債還款表 五種設計</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0c0c13;--panel:#161622;--panel2:#1e1e2e;--panel3:#26263a;--line:#2a2a3d;--ink:#f3f2f8;--ink2:#a3a2b2;--ink3:#74738a;--blue:#2E6BFF;--ok:#5FE08D;--bad:#FF7A70;--mid:#F5C763;--edge:rgba(255,255,255,.13)}
+*{box-sizing:border-box;margin:0;-webkit-tap-highlight-color:transparent}
+html,body{min-height:100%}
+body{background:radial-gradient(1200px 600px at 50% -10%,#1a1f3d 0%,var(--bg) 60%);color:var(--ink);font-family:'Noto Sans TC',sans-serif;padding:28px 16px 60px}
+.intro{max-width:900px;margin:0 auto 18px;text-align:center}
+.eyebrow{color:#7EA6FF;font-size:12px;letter-spacing:.2em}
+h1{font-size:22px;margin:6px 0}
+.intro p{color:var(--ink2);font-size:13px;line-height:1.75}
+.intro b,.needs b{color:var(--ink)}
+.needs{max-width:900px;margin:0 auto 22px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px 18px;font-size:12.5px;color:var(--ink2);line-height:1.8}
+.needs h3{font-size:14px;color:var(--ink);margin-bottom:6px}
+.needs ol{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:2px 24px;padding-left:18px}
+.vtabs{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:0 auto 22px;max-width:900px}
+.vtabs button{border:1px solid var(--line);background:var(--panel);color:var(--ink2);border-radius:14px;padding:9px 14px;font-family:inherit;font-size:13px;cursor:pointer;text-align:left;line-height:1.35}
+.vtabs button b{display:block;color:var(--ink);font-size:13.5px}
+.vtabs button.on{border-color:#7EA6FF;background:rgba(46,107,255,.18)}
+.vtabs .tag{font-size:10px;background:#7EA6FF;color:#0c0c13;border-radius:99px;padding:0 6px;margin-left:4px;font-weight:700}
+.stage{display:flex;gap:30px;justify-content:center;align-items:flex-start;flex-wrap:wrap}
+.side{width:330px;font-size:12.5px;color:var(--ink2);line-height:1.75}
+.side h2{font-size:18px;color:var(--ink);margin-bottom:6px}
+.side h3{font-size:13.5px;color:var(--ink);margin:14px 0 6px}
+.side ul{padding-left:0;list-style:none}
+.side li{padding:5px 0;border-top:1px solid var(--line);display:flex;gap:8px}
+.side li:first-child{border-top:0}
+.side li i{font-style:normal;color:var(--ok);flex-shrink:0}
+.side li b{color:var(--ink);font-weight:700;min-width:84px;flex-shrink:0}
+.side .pc b{color:var(--ink)}
+.side .reset{display:inline-block;margin-top:12px;border:1px solid var(--line);border-radius:10px;padding:6px 12px;cursor:pointer;color:var(--ink)}
+/* ===== 手機 ===== */
+.phone{width:380px;height:800px;flex-shrink:0;border:9px solid #000;border-radius:44px;background:var(--pbg,var(--bg));position:relative;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.6),0 0 0 1px #2b2b38;user-select:none;--acc:#7EA6FF;--accs:#2E6BFF}
+.phone[data-v="2"]{--acc:#5FD3C6;--accs:#139c8d}
+.phone[data-v="3"]{--acc:#B79CFF;--accs:#7b55f0}
+.phone[data-v="4"]{--acc:#F5C763;--accs:#c99a1e}
+.phone[data-v="5"]{--acc:#FF9F7A;--accs:#e86a3a;--pbg:#0f0d12}
+.status{height:34px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;font-size:12px;font-weight:700}
+.appbar{display:flex;align-items:center;gap:10px;padding:2px 14px 10px;height:46px}
+.appbar .bg{width:34px;height:34px;border-radius:11px;display:grid;place-items:center}
+.appbar .bg i{width:16px;height:2px;background:var(--ink2);box-shadow:0 5px 0 var(--ink2),0 -5px 0 var(--ink2)}
+.appbar h2{font-size:17px;font-weight:800;flex:1}
+.ibtn{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;cursor:pointer;color:var(--ink2);font-size:17px;border:0;background:none}
+.ibtn:hover{background:var(--panel)}
+.content{position:absolute;top:80px;left:0;right:0;bottom:var(--tabh,64px);overflow-y:auto;padding:2px 14px 90px;scrollbar-width:none}
+.content::-webkit-scrollbar{display:none}
+.content>.pg{animation:fade .22s ease}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.card{background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.07);border-radius:18px;padding:14px;margin-bottom:12px}
+.lbl{font-size:11px;color:var(--ink2);letter-spacing:.04em;margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.lbl .r{margin-left:auto;color:var(--ink3);font-size:10.5px}
+.big{font-size:30px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.01em;line-height:1.15}
+.mid{font-size:18px;font-weight:800;font-variant-numeric:tabular-nums}
+.sub{font-size:11.5px;color:var(--ink2)}
+.dim{color:var(--ink3)}
+.ok{color:var(--ok)}.bad{color:var(--bad)}.warn{color:var(--mid)}.acc{color:var(--acc)}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.kpi{background:rgba(255,255,255,.04);border-radius:12px;padding:8px 6px;text-align:center}
+.kpi b{display:block;font-size:14.5px;font-variant-numeric:tabular-nums}
+.kpi span{font-size:10px;color:var(--ink2)}
+.bar{height:7px;background:var(--panel2);border-radius:9px;overflow:hidden}
+.bar i{display:block;height:100%;border-radius:9px;background:var(--acc);transition:width .5s}
+.sech{display:flex;align-items:center;font-size:12.5px;font-weight:700;margin:16px 4px 8px;color:var(--ink2)}
+.sech .r{margin-left:auto;font-weight:400;font-size:11px;color:var(--ink3)}
+.row{display:flex;align-items:center;gap:10px}
+.dic{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;font-size:17px;flex-shrink:0}
+.item{display:flex;align-items:center;gap:10px;padding:11px 12px;background:var(--panel);border:1px solid rgba(255,255,255,.05);border-radius:14px;margin-bottom:7px;cursor:pointer;transition:transform .12s,background .15s}
+.item:hover{background:#1b1b29}
+.item:active{transform:scale(.98)}
+.item .m{flex:1;min-width:0}
+.item .t1{font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item .t2{font-size:10.5px;color:var(--ink3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item .amt{text-align:right;font-weight:800;font-size:14px;font-variant-numeric:tabular-nums}
+.item .amt small{display:block;font-size:10px;font-weight:600;margin-top:1px}
+.item.paid{opacity:.55}
+.item.over{border-color:rgba(255,122,112,.45);background:rgba(255,122,112,.06)}
+.chk{width:26px;height:26px;border-radius:50%;border:2px solid var(--ink3);flex-shrink:0;display:grid;place-items:center;font-size:13px;font-weight:900;color:#0c0c13;transition:all .2s;cursor:pointer}
+.chk.on{background:var(--ok);border-color:var(--ok)}
+.pill{font-size:10px;padding:2px 8px;border-radius:99px;background:rgba(255,255,255,.07);color:var(--ink2);white-space:nowrap}
+.pill.bad{background:rgba(255,122,112,.15);color:var(--bad)}
+.pill.ok{background:rgba(95,224,141,.13);color:var(--ok)}
+.pill.warn{background:rgba(245,199,99,.13);color:var(--mid)}
+.pill.acc{background:color-mix(in srgb,var(--acc) 18%,transparent);color:var(--acc)}
+.btn{display:block;width:100%;border:0;border-radius:14px;padding:12px 0;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;transition:transform .1s;background:linear-gradient(180deg,var(--acc),var(--accs));color:#fff}
+.btn:active{transform:scale(.97)}
+.btn:disabled{background:var(--panel2);color:var(--ink3);cursor:not-allowed}
+.btn.ghost{background:var(--panel2);color:var(--ink);border:1px solid var(--line);font-weight:500}
+.btn.red{background:#e5484d}
+.btn.warnb{background:rgba(255,122,112,.1);color:var(--bad);border:1px solid rgba(255,122,112,.3)}
+.btns{display:flex;gap:8px}
+.fab{position:absolute;right:18px;bottom:calc(var(--tabh,64px) + 16px);width:54px;height:54px;border-radius:18px;background:linear-gradient(180deg,var(--acc),var(--accs));display:grid;place-items:center;font-size:27px;color:#fff;cursor:pointer;box-shadow:0 10px 26px rgba(0,0,0,.45);z-index:5;border:0}
+.tabs{position:absolute;left:0;right:0;bottom:0;height:64px;background:rgba(18,18,28,.94);backdrop-filter:blur(18px);border-top:1px solid var(--line);display:flex;padding-bottom:6px;z-index:6}
+.tabs button{flex:1;background:none;border:0;color:var(--ink3);font-family:inherit;font-size:10.5px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;position:relative}
+.tabs button i{font-style:normal;font-size:18px}
+.tabs button.on{color:var(--acc)}
+.tabs button.on::before{content:'';position:absolute;top:0;width:26px;height:3px;border-radius:0 0 3px 3px;background:var(--acc)}
+.tabs .badge{position:absolute;top:6px;right:calc(50% - 20px);background:var(--bad);color:#fff;font-size:9px;font-weight:800;border-radius:99px;padding:0 5px}
+.seg{display:flex;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:3px;gap:3px;margin-bottom:12px}
+.seg button{flex:1;background:none;border:0;color:var(--ink2);font-family:inherit;font-size:12.5px;padding:7px 0;border-radius:9px;cursor:pointer;font-weight:700}
+.seg button.on{background:color-mix(in srgb,var(--acc) 25%,transparent);color:var(--ink)}
+/* 抽屜 */
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.55);opacity:0;pointer-events:none;transition:opacity .25s;z-index:20}
+.scrim.on{opacity:1;pointer-events:auto}
+.sheet{position:absolute;left:0;right:0;bottom:0;max-height:90%;background:#171724;border-radius:24px 24px 0 0;border-top:1px solid var(--edge);transform:translateY(105%);transition:transform .32s cubic-bezier(.2,.9,.25,1);z-index:21;display:flex;flex-direction:column}
+.sheet.on{transform:none}
+.sheet .grab{width:40px;height:5px;border-radius:9px;background:var(--line);margin:10px auto 4px;flex-shrink:0}
+.sheet .sh{display:flex;align-items:center;padding:6px 18px 10px;flex-shrink:0;gap:10px}
+.sheet .sh h3{font-size:16px;flex:1}
+.sheet .x{width:30px;height:30px;border-radius:10px;background:var(--panel2);display:grid;place-items:center;cursor:pointer;color:var(--ink2);font-size:14px}
+.sheet .sb{overflow-y:auto;padding:0 18px 18px;scrollbar-width:none}
+.sheet .sb::-webkit-scrollbar{display:none}
+.sheet .sf{padding:12px 18px 18px;border-top:1px solid var(--line);flex-shrink:0;display:flex;gap:8px}
+.fl{font-size:11px;color:var(--ink2);margin:12px 0 6px;display:flex}
+.fl .r{margin-left:auto;color:var(--ink3)}
+.inp{display:flex;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:0 12px}
+.inp:focus-within{border-color:var(--acc)}
+.inp input{flex:1;background:none;border:0;outline:0;color:var(--ink);font-family:inherit;font-size:16px;font-weight:700;padding:10px 0;min-width:0}
+.inp input::placeholder{color:var(--ink3);font-weight:400;font-size:13.5px}
+.inp em{font-style:normal;color:var(--ink3);font-size:12px;white-space:nowrap}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--panel);color:var(--ink2);border-radius:99px;padding:5px 11px;font-size:12px;cursor:pointer;font-family:inherit}
+.chip.on{border-color:var(--acc);color:#fff;background:color-mix(in srgb,var(--acc) 30%,transparent)}
+.calc{margin-top:10px;background:rgba(255,255,255,.03);border:1px dashed var(--line);border-radius:12px;padding:10px 12px;font-size:12px;color:var(--ink2);line-height:1.75}
+.calc b{color:var(--ink)}
+.kv{display:flex;font-size:12.5px;padding:8px 0;border-top:1px solid var(--line)}
+.kv:first-child{border-top:0}
+.kv span{color:var(--ink2)}
+.kv b{margin-left:auto;font-variant-numeric:tabular-nums}
+table.sch{width:100%;border-collapse:collapse;font-size:11px;font-variant-numeric:tabular-nums}
+table.sch th{color:var(--ink3);font-weight:500;text-align:right;padding:5px 3px;position:sticky;top:0;background:#171724}
+table.sch th:first-child,table.sch td:first-child{text-align:left}
+table.sch td{text-align:right;padding:6px 3px;border-top:1px solid var(--line)}
+table.sch tr.paid td{color:var(--ink3)}
+table.sch tr.next td{background:color-mix(in srgb,var(--acc) 12%,transparent);color:var(--ink)}
+/* 確認框（App 共用樣式：置中、取消左、紅色確認右） */
+.dscrim{position:absolute;inset:0;background:rgba(0,0,0,.5);z-index:30;opacity:0;pointer-events:none;transition:opacity .2s}
+.dscrim.on{opacity:1;pointer-events:auto}
+.dlg{position:absolute;left:30px;right:30px;top:50%;transform:translateY(-50%) scale(.92);opacity:0;pointer-events:none;background:#1b1b29;border:1px solid var(--edge);border-radius:20px;padding:20px 18px 16px;text-align:center;z-index:31;transition:all .2s}
+.dlg.on{opacity:1;pointer-events:auto;transform:translateY(-50%) scale(1)}
+.dlg h4{font-size:16px;margin-bottom:6px}
+.dlg p{font-size:12.5px;color:var(--ink2);line-height:1.6;margin-bottom:16px}
+/* 頂端提示（App 共用 showAppNotice） */
+.toast{position:absolute;left:14px;right:14px;top:40px;z-index:40;background:rgba(20,18,32,.9);backdrop-filter:blur(22px);border:1px solid var(--edge);border-radius:16px;padding:11px 14px;text-align:center;font-size:13px;font-weight:600;transform:translateY(-140%);opacity:0;transition:all .28s cubic-bezier(.2,.9,.25,1);pointer-events:none}
+.toast.on{transform:none;opacity:1}
+.toast small{display:block;font-size:11px;color:var(--ink2);font-weight:400;margin-top:2px}
+/* 還清慶祝 */
+.party{position:absolute;inset:0;z-index:45;display:grid;place-items:center;background:rgba(10,8,20,.75);opacity:0;pointer-events:none;transition:opacity .3s}
+.party.on{opacity:1;pointer-events:auto}
+.party .box{text-align:center;padding:24px;transform:scale(.8);transition:transform .4s cubic-bezier(.2,1.4,.4,1)}
+.party.on .box{transform:none}
+.party .e{font-size:64px}
+.party h3{font-size:22px;margin:8px 0 4px}
+.party p{color:var(--ink2);font-size:13px;line-height:1.6;margin-bottom:16px}
+.conf{position:absolute;width:8px;height:12px;top:-20px;border-radius:2px;animation:fall 1.8s linear forwards}
+@keyframes fall{to{transform:translateY(860px) rotate(720deg)}}
+/* 版本 2 月曆 */
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal .h{font-size:10px;color:var(--ink3);text-align:center}
+.cal .c{height:50px;border-radius:10px;background:rgba(255,255,255,.035);font-size:10.5px;color:var(--ink2);padding:4px 5px;position:relative;cursor:pointer;outline:1.5px solid transparent}
+.cal .c.e{background:none;cursor:default}
+.cal .c.today{outline-color:var(--ink3);outline-style:dashed}
+.cal .c.sel{outline:1.5px solid var(--acc)}
+.cal .c .dots{position:absolute;left:4px;right:4px;bottom:5px;display:flex;gap:2px;flex-wrap:wrap}
+.cal .c .dots i{width:7px;height:7px;border-radius:50%}
+.cal .c .dots i.p{opacity:.35}
+.cal .c .amt{position:absolute;right:4px;top:4px;font-size:8.5px;font-weight:800;color:var(--ink)}
+/* 版本 3 環 */
+.ring{width:230px;height:230px;margin:4px auto 0;position:relative}
+.ring svg{position:absolute;inset:0;transform:rotate(-90deg)}
+.ring .in{position:absolute;inset:0;display:grid;place-items:center;text-align:center}
+.tl{position:relative;padding-left:22px}
+.tl::before{content:'';position:absolute;left:7px;top:6px;bottom:6px;width:2px;background:var(--line)}
+.tl .n{position:relative;padding:6px 0 10px;cursor:pointer}
+.tl .n::before{content:'';position:absolute;left:-20px;top:10px;width:12px;height:12px;border-radius:50%;background:var(--panel3);border:2px solid var(--c,var(--acc))}
+.tl .n.done::before{background:var(--ok);border-color:var(--ok)}
+.tl .n.end::before{background:var(--acc);box-shadow:0 0 0 4px color-mix(in srgb,var(--acc) 25%,transparent)}
+.tl .n b{font-size:13px}
+.tl .n span{display:block;font-size:11px;color:var(--ink3)}
+/* 版本 4 表格 */
+.tw{overflow:auto;border:1px solid var(--line);border-radius:14px;max-height:470px;scrollbar-width:thin}
+table.mt{border-collapse:separate;border-spacing:0;font-size:11px;font-variant-numeric:tabular-nums;min-width:100%}
+table.mt th,table.mt td{padding:7px 7px;white-space:nowrap;border-bottom:1px solid var(--line);text-align:right}
+table.mt thead th{position:sticky;top:0;background:#1b1a22;z-index:2;color:var(--ink2);font-weight:700;font-size:10.5px}
+table.mt th:first-child,table.mt td:first-child{position:sticky;left:0;background:#15141b;text-align:left;z-index:1;color:var(--ink2)}
+table.mt thead th:first-child{z-index:3}
+table.mt td.cell{cursor:pointer}
+table.mt td.cell:hover{background:rgba(255,255,255,.05)}
+table.mt td.paid{color:var(--ok)}
+table.mt td.over{color:var(--bad);font-weight:800}
+table.mt td.due{color:var(--ink);font-weight:700}
+table.mt td.fut{color:var(--ink2)}
+table.mt td.none{color:var(--ink3)}
+table.mt tr.cur td{background:color-mix(in srgb,var(--acc) 10%,#15141b)}
+table.mt td.tot{font-weight:800;color:var(--ink)}
+table.mt td small{display:block;font-size:9px;color:var(--ink3);font-weight:400}
+/* 版本 5 清單 */
+.v5sum{background:linear-gradient(135deg,color-mix(in srgb,var(--acc) 30%,#1a1420),#16131d);border-radius:22px;padding:16px;margin-bottom:12px}
+.task{display:flex;align-items:center;gap:12px;padding:13px 12px;border-radius:16px;background:var(--panel);margin-bottom:8px;cursor:pointer;transition:all .25s}
+.task .chk{width:30px;height:30px}
+.task.paid{opacity:.5}
+.task.paid .t1{text-decoration:line-through}
+.task.over{background:rgba(255,122,112,.08);border:1px solid rgba(255,122,112,.35)}
+</style></head><body>
+
+<div class="intro"><div class="eyebrow">新功能構想 · 負債管理</div><h1>負債每月還款表：五種設計</h1>
+<p>五版<b>功能完全一樣</b>，差別只在排版和操作方式。每一版都是可以實際操作的手機，示範日期固定在 <b>2026/10/08</b>，有 5 筆示範債務：信貸、車貸、學貸、信用卡分期、跟家人借的錢。上方切換版本，右邊列出這版每個功能在哪裡、怎麼點。資料只存在這個頁面，重新整理就會回到示範資料。</p></div>
+
+<div class="needs"><h3>我想到用這個功能會需要的（每一版都有）</h3><ol>
+<li><b>本月要繳哪些</b>：金額、扣款日、哪家銀行，一眼看完</li>
+<li><b>標記已繳</b>：可以改實繳金額和日期，按錯了可以取消</li>
+<li><b>逾期提醒</b>：過了扣款日還沒標記就變紅、寫逾期幾天</li>
+<li><b>新增債務</b>：填本金、年利率、期數，即時算出月付、總利息、還清日</li>
+<li><b>攤還表</b>：每一期的本金、利息、剩餘本金</li>
+<li><b>進度</b>：每筆和全部的已還 %、剩餘本金、預計還清日</li>
+<li><b>利息</b>：總共要付多少、已經付了多少、還要付多少</li>
+<li><b>提前還款試算</b>：每月多還或一次還一筆，各省多少利息、早幾個月還清</li>
+<li><b>先還哪一筆</b>：雪崩法（利率高先還）和雪球法（金額小先還）比較</li>
+<li><b>還款佔收入</b>：月收入填一次，超過 40% 會警告</li>
+<li><b>還款紀錄</b>：每一筆都留著，不刪</li>
+<li><b>還清慶祝</b>：最後一期繳完或提前清償時跳出來</li>
+<li><b>沒有固定期數的借款</b>（例如跟家人借）：自由還款，有還就記</li>
+<li><b>編輯、刪除債務</b>：刪除前先跳確認框</li>
+</ol></div>
+
+<div class="vtabs" id="vtabs"></div>
+<div class="stage"><div id="phoneHost"></div><div class="side" id="side"></div></div>
+
+<script>
+// ================= 引擎（五版共用） =================
+const TODAY=new Date(2026,9,8);
+const WD='日一二三四五六';
+const fmt=n=>Math.round(n).toLocaleString('en-US');
+const money=n=>'$'+fmt(n);
+const md=d=>`${d.getMonth()+1}/${d.getDate()}`;
+const mdw=d=>`${md(d)}（${WD[d.getDay()]}）`;
+const ymd=d=>`${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
+const ym=d=>`${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}`;
+const sameDay=(a,b)=>a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate();
+const dayDiff=(a,b)=>Math.round((a-b)/86400000);
+const TYPES={loan:['信貸','💳','#7EA6FF'],car:['車貸','🚗','#5FD3C6'],student:['學貸','🎓','#B79CFF'],card:['信用卡分期','🧾','#FF9F7A'],family:['親友借款','🤝','#F5C763'],house:['房貸','🏠','#8BD17C'],other:['其他','📌','#a3a2b2']};
+
+function dueDate(d,k){const t=d.sy*12+d.sm+k-1;const y=Math.floor(t/12),m=t%12;const dim=new Date(y,m+1,0).getDate();return new Date(y,m,Math.min(d.dueDay,dim));}
+function payment(d){if(d.method==='flex')return d.flexPay;const r=d.rate/1200;if(r===0)return Math.ceil(d.principal/d.term);return Math.round(d.principal*r/(1-Math.pow(1+r,-d.term)));}
+function schedule(d){
+  const rows=[];let b=d.principal;const r=d.rate/1200;const M=payment(d);
+  if(d.method==='flex'){
+    let k=0;for(const rec of d.records){k++;b-=rec.amount;rows.push({k,date:rec.date,pay:rec.amount,principal:rec.amount,interest:0,balance:Math.max(0,b),paid:true,rec});}
+    if(!d.closed){let kk=k;while(b>0.5&&kk<k+600){kk++;const p=Math.min(M,b);b-=p;rows.push({k:kk,date:dueDate(d,kk),pay:p,principal:p,interest:0,balance:b,paid:false});}}
+    return rows;
+  }
+  for(let k=1;k<=d.term;k++){const i=Math.round(b*r);let p=M-i;if(k===d.term||p>b)p=b;b-=p;const rec=d.records[k-1];rows.push({k,date:dueDate(d,k),pay:p+i,principal:p,interest:i,balance:Math.max(0,b),paid:!!rec,rec});}
+  if(d.closed){return rows.filter(r=>r.paid);}
+  return rows;
+}
+function stats(d){
+  const rows=schedule(d);const paid=rows.filter(r=>r.paid);const next=d.closed?null:rows.find(r=>!r.paid)||null;
+  const payoffRec=d.closed?d.payoff:null;
+  const remaining=d.closed?0:(paid.length?paid[paid.length-1].balance:d.principal);
+  const interestPaid=paid.reduce((s,r)=>s+r.interest,0);
+  const interestLeft=d.closed?0:rows.filter(r=>!r.paid).reduce((s,r)=>s+r.interest,0);
+  const last=d.closed?(payoffRec?payoffRec.date:paid[paid.length-1]?.date):rows[rows.length-1]?.date;
+  return {rows,paidN:paid.length,totalN:d.closed?paid.length:rows.length,next,remaining,interestPaid,interestLeft,interestTotal:interestPaid+interestLeft,payoffDate:last,M:payment(d),pct:d.principal?(d.principal-remaining)/d.principal*100:100,overdue:next&&next.date<TODAY&&!sameDay(next.date,TODAY)?dayDiff(TODAY,next.date):0};
+}
+// 某個月的應繳：每筆債務落在那個月的那一期（已繳或未繳）
+function duesOf(app,y,m){
+  const out=[];
+  for(const d of app.debts){const s=stats(d);for(const r of s.rows){if(r.date.getFullYear()===y&&r.date.getMonth()===m){out.push({d,r,s,over:!r.paid&&r.date<TODAY&&!sameDay(r.date,TODAY)});}}
+    if(d.closed&&d.payoff&&d.payoff.date.getFullYear()===y&&d.payoff.date.getMonth()===m)out.push({d,r:{k:'清償',date:d.payoff.date,pay:d.payoff.amount,paid:true,rec:d.payoff},s,over:false,payoff:true});}
+  return out.sort((a,b)=>a.r.date-b.r.date);
+}
+function simulate(d,extra,lump){
+  const s=stats(d);if(d.closed)return null;
+  const r=d.rate/1200;const M=s.M;let b=s.remaining-lump;let n=0,int=0;
+  if(b<=0)return{months:0,interest:0,saved:s.interestLeft,savedM:s.totalN-s.paidN,payoff:TODAY};
+  while(b>0.5&&n<1200){const i=Math.round(b*r);int+=i;const p=M+extra-i;if(p<=0)return null;b-=Math.min(p,b);n++;}
+  const base=s.totalN-s.paidN;const first=s.next?s.next.date:TODAY;const pd=new Date(first.getFullYear(),first.getMonth()+n-1,first.getDate());
+  return{months:n,interest:int,saved:Math.max(0,s.interestLeft-int),savedM:Math.max(0,base-n),payoff:pd};
+}
+function totals(app){
+  const act=app.debts.filter(d=>!d.closed);const ss=act.map(stats);
+  const remaining=ss.reduce((s,x)=>s+x.remaining,0);const principal=app.debts.reduce((s,d)=>s+d.principal,0);
+  const monthly=ss.reduce((s,x)=>s+x.M,0);
+  const free=ss.reduce((a,x)=>!a||x.payoffDate>a?x.payoffDate:a,null);
+  const now=duesOf(app,TODAY.getFullYear(),TODAY.getMonth());
+  const dueM=now.reduce((s,x)=>s+(x.payoff?0:x.r.pay),0),paidM=now.filter(x=>x.r.paid&&!x.payoff).reduce((s,x)=>s+(x.r.rec?.amount??x.r.pay),0);
+  const over=act.reduce((s,d)=>s+(stats(d).overdue?1:0),0);
+  return{remaining,principal,paidPct:principal?(principal-remaining)/principal*100:100,monthly,free,interestLeft:ss.reduce((s,x)=>s+x.interestLeft,0),interestPaid:app.debts.map(stats).reduce((s,x)=>s+x.interestPaid,0),dueM,paidM,now,over,ratio:app.income?monthly/app.income*100:null,monthsLeft:free?(free.getFullYear()-TODAY.getFullYear())*12+free.getMonth()-TODAY.getMonth():0};
+}
+function seedDebts(){
+  const mk=(o)=>{const d={records:[],closed:false,...o};const n=o.paidN||0;delete d.paidN;
+    if(d.method==='flex'){d.records=o.flexRecs.map(([y,m,day,a])=>({date:new Date(y,m,day),amount:a}));delete d.flexRecs;}
+    else{const rows=schedule(d);for(let k=1;k<=n;k++){const r=rows[k-1];d.records.push({k,date:r.date,amount:r.pay});}}
+    return d;};
+  return[
+    mk({id:1,name:'國泰信貸',lender:'國泰世華',type:'loan',principal:300000,rate:6.5,term:60,sy:2025,sm:8,dueDay:5,method:'equal',paidN:14}),
+    mk({id:2,name:'車貸 Altis',lender:'和潤企業',type:'car',principal:450000,rate:3.2,term:48,sy:2025,sm:1,dueDay:6,method:'equal',paidN:20}),
+    mk({id:3,name:'就學貸款',lender:'台灣銀行',type:'student',principal:200000,rate:1.775,term:96,sy:2023,sm:6,dueDay:1,method:'equal',paidN:40}),
+    mk({id:4,name:'iPhone 分期',lender:'中信信用卡',type:'card',principal:36000,rate:0,term:12,sy:2026,sm:2,dueDay:15,method:'equal',paidN:7}),
+    mk({id:5,name:'跟媽媽借',lender:'媽媽',type:'family',principal:50000,rate:0,term:0,sy:2026,sm:6,dueDay:28,method:'flex',flexPay:5000,flexRecs:[[2026,6,28,5000],[2026,7,28,5000],[2026,8,27,5000]]}),
+  ];
+}
+
+// ================= 每支手機一個 App（五版共用骨架，畫面各自畫） =================
+class DebtApp{
+  constructor(host,V){this.V=V;this.host=host;this.reset();}
+  reset(){this.debts=seedDebts();this.income=60000;this.seq=10;this.tab=this.V.tabs[0][0];this.sub={};this.month=new Date(TODAY.getFullYear(),TODAY.getMonth(),1);this.sel=new Date(TODAY);this.mount();}
+  mount(){
+    const V=this.V;
+    this.host.innerHTML=`<div class="phone" data-v="${V.id}" style="--tabh:${V.noTabs?0:64}px">
+      <div class="status"><span>21:08</span><span>●●● 5G ▮</span></div>
+      <div class="appbar"><div class="bg"><i></i></div><h2 data-r="title"></h2>${V.bar||''}<button class="ibtn" data-act="addDebt" title="新增債務">＋</button></div>
+      <div class="content" data-r="content"></div>
+      ${V.fab?'<button class="fab" data-act="addDebt">＋</button>':''}
+      ${V.noTabs?'':'<nav class="tabs" data-r="tabs"></nav>'}
+      <div class="scrim" data-act="closeSheet"></div>
+      <div class="sheet"><div class="grab"></div><div class="sh"><h3 data-r="shT"></h3><div class="x" data-act="closeSheet">✕</div></div><div class="sb" data-r="shB"></div><div class="sf" data-r="shF"></div></div>
+      <div class="dscrim"></div><div class="dlg"><h4 data-r="dT"></h4><p data-r="dP"></p><div class="btns"><button class="btn ghost" data-act="closeDlg">取消</button><button class="btn red" data-act="dlgOk" data-r="dOk">確定</button></div></div>
+      <div class="toast" data-r="toast"></div><div class="party" data-act="closeParty"><div class="box"><div class="e">🎉</div><h3 data-r="pT"></h3><p data-r="pP"></p><button class="btn" style="width:160px;margin:0 auto">太好了</button></div></div>
+    </div>`;
+    this.P=this.host.querySelector('.phone');
+    this.P.addEventListener('click',e=>{const el=e.target.closest('[data-act]');if(!el||!this.P.contains(el))return;e.stopPropagation();this.act(el.dataset.act,el.dataset,el);});
+    this.P.addEventListener('input',e=>{if(this.onInput)this.onInput(e.target);});
+    this.render();
+  }
+  $(r){return this.P.querySelector(`[data-r="${r}"]`);}
+  render(){
+    const V=this.V;
+    if(!V.noTabs){const t=totals(this);this.$('tabs').innerHTML=V.tabs.map(([id,lab,ic])=>`<button data-act="tab" data-t="${id}" class="${this.tab===id?'on':''}"><i>${ic}</i>${lab}${id===V.badgeTab&&t.over?`<span class="badge">${t.over}</span>`:''}</button>`).join('');}
+    this.$('title').textContent=V.title(this);
+    const c=this.$('content');const keep=c.scrollTop;
+    c.innerHTML=`<div class="pg">${V.render(this)}</div>`;
+    if(this._keepScroll)c.scrollTop=keep;this._keepScroll=false;
+    if(V.after)V.after(this);
+  }
+  refresh(){this._keepScroll=true;this.render();}
+  act(a,ds,el){
+    const id=+ds.id;const d=this.debts.find(x=>x.id===id);
+    switch(a){
+      case'tab':this.tab=ds.t;this.$('content').scrollTop=0;this.render();break;
+      case'sub':this.sub[ds.k]=ds.v;this.refresh();if(this._sheetFn)this._sheetFn();break;
+      case'addDebt':this.debtForm();break;
+      case'debt':this.debtSheet(d,ds.view||'sch');break;
+      case'pay':this.paySheet(d);break;
+      case'quickPay':this.quickPay(d);break;
+      case'unpay':this.askUnpay(d,ds.k);break;
+      case'closeSheet':this.closeSheet();break;
+      case'closeDlg':this.closeDlg();break;
+      case'dlgOk':this._dlgOk&&this._dlgOk();break;
+      case'closeParty':this.P.querySelector('.party').classList.remove('on');break;
+      case'income':this.editIncome();break;
+      case'month':this.month=new Date(this.month.getFullYear(),this.month.getMonth()+(+ds.d),1);this.refresh();break;
+      case'day':this.sel=new Date(+ds.y,+ds.m,+ds.dd);this.refresh();break;
+      case'strategy':this.strategySheet();break;
+      case'records':this.recordsSheet();break;
+      default:if(this.V.act)this.V.act(this,a,ds,el);
+    }
+  }
+  // ---------- 抽屜 ----------
+  openSheet(t,b,f,fn){this._sheetFn=fn||null;this.$('shT').textContent=t;this.$('shB').innerHTML=b;const F=this.$('shF');F.innerHTML=f||'';F.style.display=f?'flex':'none';this.P.querySelector('.scrim').classList.add('on');this.P.querySelector('.sheet').classList.add('on');}
+  closeSheet(){this._sheetFn=null;this.onInput=null;this.P.querySelector('.scrim').classList.remove('on');this.P.querySelector('.sheet').classList.remove('on');}
+  confirm(t,p,ok,label='刪除'){this.$('dT').textContent=t;this.$('dP').textContent=p;this.$('dOk').textContent=label;this._dlgOk=()=>{this.closeDlg();ok();};this.P.querySelector('.dscrim').classList.add('on');this.P.querySelector('.dlg').classList.add('on');}
+  closeDlg(){this.P.querySelector('.dscrim').classList.remove('on');this.P.querySelector('.dlg').classList.remove('on');}
+  toast(m,s){const el=this.$('toast');el.innerHTML=`✓ ${m}${s?`<small>${s}</small>`:''}`;el.classList.add('on');clearTimeout(this._tt);this._tt=setTimeout(()=>el.classList.remove('on'),2600);}
+  party(d){const P=this.P.querySelector('.party');this.$('pT').textContent=`${d.name} 還清了！`;const t=totals(this);this.$('pP').innerHTML=`總共還了 ${money(d.principal)}${stats(d).interestPaid?`，付了利息 ${money(stats(d).interestPaid)}`:''}<br>還剩 ${this.debts.filter(x=>!x.closed).length} 筆，每月少繳 ${money(stats(d).M)}`;P.classList.add('on');
+    const cols=['#5FE08D','#7EA6FF','#F5C763','#FF9F7A','#B79CFF'];for(let i=0;i<40;i++){const c=document.createElement('i');c.className='conf';c.style.left=Math.random()*100+'%';c.style.background=cols[i%5];c.style.animationDelay=Math.random()*.6+'s';P.appendChild(c);setTimeout(()=>c.remove(),2600);}}
+  // ---------- 標記已繳 ----------
+  quickPay(d){const s=stats(d);if(!s.next)return;this.doPay(d,s.next.pay,new Date(TODAY));}
+  doPay(d,amount,date){
+    const s=stats(d);if(!s.next)return;
+    if(d.method==='flex'){d.records.push({date,amount});const rem=stats(d).remaining;if(rem<=0.5){d.closed=true;}}
+    else{d.records.push({k:s.next.k,date,amount});if(d.records.length>=d.term)d.closed=true;}
+    this.closeSheet();this.refresh();
+    if(d.closed)setTimeout(()=>this.party(d),300);else this.toast(`${d.name} 已繳 ${money(amount)}`,`第 ${s.next.k} 期・剩 ${money(stats(d).remaining)}`);
+  }
+  askUnpay(d,k){
+    if(d.payoff){this.confirm('取消提前清償？',`${d.name} 會回到還款中。`,()=>{d.payoff=null;d.closed=false;this.refresh();this.toast('已取消清償');},'取消清償');return;}
+    const last=d.records[d.records.length-1];if(!last)return;
+    if(k&&last.k&&+k!==last.k){this.toast('只能取消最新的那一期',`${d.name} 最新是第 ${last.k} 期`);return;}
+    this.confirm('取消這筆已繳？',`${d.name} ${md(last.date)} ${money(last.amount)}，會變回未繳。`,()=>{d.records.pop();d.closed=false;d.payoff=null;this.refresh();this.toast('已取消，變回未繳');},'取消已繳');}
+  paySheet(d){
+    const s=stats(d);if(!s.next){this.debtSheet(d,'rec');return;}
+    const r=s.next;let amt=r.pay,date=ymd(TODAY).replaceAll('/','-').replace(/-(\d)(?!\d)/g,'-0$1');
+    const b=()=>`<div class="item" style="cursor:default">${this.icon(d)}<div class="m"><div class="t1">${d.name}</div><div class="t2">${d.lender}・第 ${r.k}${d.method==='flex'?'':' / '+s.totalN} 期・${mdw(r.date)} 扣款</div></div><div class="amt">${money(r.pay)}</div></div>
+      ${s.overdue?`<div class="calc" style="border-color:rgba(255,122,112,.5);color:var(--bad)">已經逾期 ${s.overdue} 天。銀行可能已經收違約金，記得確認一下帳單。</div>`:''}
+      <div class="fl">實繳金額<span class="r">跟應繳不一樣可以改</span></div><div class="inp"><input data-f="amt" inputmode="numeric" value="${amt}"><em>元</em></div>
+      <div class="fl">繳款日</div><div class="inp"><input data-f="date" type="date" value="${date}" style="font-size:14px;color-scheme:dark"></div>
+      <div class="calc" data-r="payCalc"></div>`;
+    this.openSheet('標記已繳',b(),`<button class="btn" data-act="confirmPay" data-id="${d.id}">確認已繳</button>`);
+    const upd=()=>{const a=+this.P.querySelector('[data-f=amt]').value||0;const after=Math.max(0,s.remaining-(d.method==='flex'?a:r.principal));this.P.querySelector('[data-r=payCalc]').innerHTML=`繳完剩餘本金 <b>${money(after)}</b>${after<=0.5?' 🎉 這筆就還清了':''}<br>${d.method==='flex'?'':`本期本金 ${money(r.principal)}・利息 ${money(r.interest)}`}${a<r.pay&&d.method!=='flex'?`<br><span class="warn">比應繳少 ${money(r.pay-a)}，差額記得補</span>`:''}`;};
+    this.onInput=upd;upd();
+    this._payTarget=d;
+  }
+  // ---------- 債務明細 ----------
+  icon(d){const t=TYPES[d.type];return`<div class="dic" style="background:${t[2]}22">${t[1]}</div>`;}
+  debtSheet(d,view){
+    this.sub.dv=view;
+    const draw=()=>{const s=stats(d);const v=this.sub.dv;
+      const head=`<div class="row" style="margin-bottom:10px">${this.icon(d)}<div style="flex:1"><div style="font-weight:800">${d.name}</div><div class="sub">${d.lender}・${TYPES[d.type][0]}・${d.method==='flex'?'自由還款':`年利率 ${d.rate}%`}</div></div>${d.closed?'<span class="pill ok">已還清</span>':s.overdue?`<span class="pill bad">逾期 ${s.overdue} 天</span>`:''}</div>
+        <div class="bar" style="margin-bottom:6px"><i style="width:${s.pct}%;background:${TYPES[d.type][2]}"></i></div>
+        <div class="row sub" style="justify-content:space-between;margin-bottom:10px"><span>已還 ${s.pct.toFixed(0)}%・${s.paidN}${d.method==='flex'?'':' / '+s.totalN} 期</span><span>剩 <b style="color:var(--ink)">${money(s.remaining)}</b></span></div>
+        <div class="kpis" style="margin-bottom:12px"><div class="kpi"><b>${money(s.M)}</b><span>${d.method==='flex'?'預計每月':'每月'}</span></div><div class="kpi"><b>${s.payoffDate?ym(s.payoffDate):'—'}</b><span>${d.closed?'還清於':'預計還清'}</span></div><div class="kpi"><b>${money(s.interestLeft)}</b><span>還要付利息</span></div></div>
+        <div class="seg">${[['sch','攤還表'],['rec','還款紀錄'],['sim','提前還款'],['info','資料']].map(([k,l])=>`<button data-act="dview" data-v="${k}" class="${v===k?'on':''}">${l}</button>`).join('')}</div>`;
+      let body='';
+      if(v==='sch'){body=`<div class="sub" style="margin-bottom:6px">${d.method==='flex'?'自由還款：照每月 '+money(d.flexPay)+' 推算，有還就記':'本息平均攤還：每期金額固定，前期利息多、後期本金多'}</div><table class="sch"><tr><th>期</th><th>日期</th><th>本金</th><th>利息</th><th>剩餘</th></tr>${s.rows.map(r=>`<tr class="${r.paid?'paid':''} ${s.next&&r.k===s.next.k?'next':''}"><td>${r.paid?'✓ ':''}${r.k}</td><td>${ym(r.date)}</td><td>${fmt(r.principal)}</td><td>${fmt(r.interest)}</td><td>${fmt(r.balance)}</td></tr>`).join('')}</table>`;}
+      if(v==='rec'){const recs=[...d.records].reverse();body=recs.length?recs.map((r,i)=>`<div class="kv"><span>${ymd(r.date)}${r.k?`・第 ${r.k} 期`:''}</span><b class="ok">${money(r.amount)}</b>${i===0&&!d.payoff?`<span data-act="unpay" data-id="${d.id}" class="pill" style="margin-left:8px;cursor:pointer">取消</span>`:''}</div>`).join('')+(d.payoff?`<div class="kv"><span>${ymd(d.payoff.date)}・提前清償</span><b class="ok">${money(d.payoff.amount)}</b></div>`:''):'<div class="sub">還沒有還款紀錄</div>';body+=`<div class="sub dim" style="margin-top:10px">紀錄一筆都不刪，最新的那筆可以取消（按錯時用）</div>`;}
+      if(v==='sim'){body=d.closed?'<div class="sub">已經還清了</div>':`<div class="fl">每月多還</div><div class="inp"><input data-f="ex" inputmode="numeric" value="${this.sub.ex||2000}"><em>元 / 月</em></div><div class="fl">或現在一次多還</div><div class="inp"><input data-f="lump" inputmode="numeric" value="${this.sub.lump||0}"><em>元</em></div><div class="calc" data-r="simOut"></div>
+        <button class="btn warnb" style="margin-top:12px" data-act="payoff" data-id="${d.id}">一次還清剩下的 ${money(s.remaining)}</button>`;}
+      if(v==='info'){body=`<div class="kv"><span>原始本金</span><b>${money(d.principal)}</b></div><div class="kv"><span>年利率</span><b>${d.rate}%</b></div><div class="kv"><span>期數</span><b>${d.method==='flex'?'不固定':d.term+' 期'}</b></div><div class="kv"><span>每月扣款日</span><b>${d.dueDay} 號</b></div><div class="kv"><span>第一期</span><b>${ym(dueDate(d,1))}</b></div><div class="kv"><span>利息總額</span><b>${money(s.interestTotal)}</b></div><div class="kv"><span>已付利息</span><b>${money(s.interestPaid)}</b></div>
+        <div class="btns" style="margin-top:12px"><button class="btn ghost" data-act="editDebt" data-id="${d.id}">編輯</button><button class="btn warnb" data-act="delDebt" data-id="${d.id}">刪除</button></div>`;}
+      this.openSheet('債務明細',head+body,d.closed||!s.next?'':`<button class="btn" data-act="pay" data-id="${d.id}">標記第 ${s.next.k} 期已繳・${money(s.next.pay)}</button>`,draw);
+      if(v==='sim'){const upd=()=>{const ex=+this.P.querySelector('[data-f=ex]').value||0,lu=+this.P.querySelector('[data-f=lump]').value||0;this.sub.ex=ex;this.sub.lump=lu;const r=simulate(d,ex,lu);const o=this.P.querySelector('[data-r=simOut]');o.innerHTML=!r?'金額不夠付利息':`照原本：<b>${ym(s.payoffDate)}</b> 還清、還要付利息 <b>${money(s.interestLeft)}</b><br>這樣還：<b class="ok">${ym(r.payoff)}</b> 還清（早 <b class="ok">${r.savedM}</b> 個月）・利息 <b>${money(r.interest)}</b><br>省下利息 <b class="ok" style="font-size:15px">${money(r.saved)}</b>${d.rate===0?'<br><span class="dim">這筆 0 利率，提前還省不到利息，先還有利息的比較划算</span>':''}`;};this.onInput=upd;upd();}
+      else this.onInput=null;
+    };
+    draw();
+  }
+  // ---------- 新增／編輯債務 ----------
+  debtForm(edit){
+    const f=edit?{name:edit.name,lender:edit.lender,type:edit.type,principal:edit.principal,rate:edit.rate,term:edit.term||'',dueDay:edit.dueDay,method:edit.method,flexPay:edit.flexPay||'',first:`${edit.sy}-${String(edit.sm+1).padStart(2,'0')}`}:{name:'',lender:'',type:'loan',principal:'',rate:'',term:'',dueDay:10,method:'equal',flexPay:'',first:'2026-11'};
+    this._form=f;
+    const draw=()=>{const flex=f.method==='flex';
+      const b=`<div class="fl">類型</div><div class="chips">${Object.entries(TYPES).map(([k,t])=>`<button class="chip ${f.type===k?'on':''}" data-act="ftype" data-v="${k}">${t[1]} ${t[0]}</button>`).join('')}</div>
+      <div class="grid2"><div><div class="fl">名稱</div><div class="inp"><input data-f="name" value="${f.name}" placeholder="例如 國泰信貸"></div></div><div><div class="fl">銀行／對象</div><div class="inp"><input data-f="lender" value="${f.lender}" placeholder="例如 國泰世華"></div></div></div>
+      <div class="fl">還款方式</div><div class="seg" style="margin:0"><button data-act="fmethod" data-v="equal" class="${!flex?'on':''}">固定期數（銀行貸款）</button><button data-act="fmethod" data-v="flex" class="${flex?'on':''}">自由還款（親友）</button></div>
+      <div class="fl">借款本金</div><div class="inp"><input data-f="principal" inputmode="numeric" value="${f.principal}" placeholder="例如 300000"><em>元</em></div>
+      ${flex?`<div class="fl">預計每月還</div><div class="inp"><input data-f="flexPay" inputmode="numeric" value="${f.flexPay}" placeholder="例如 5000"><em>元</em></div>`:`<div class="grid2"><div><div class="fl">年利率</div><div class="inp"><input data-f="rate" inputmode="decimal" value="${f.rate}" placeholder="例如 6.5"><em>%</em></div></div><div><div class="fl">期數</div><div class="inp"><input data-f="term" inputmode="numeric" value="${f.term}" placeholder="例如 60"><em>期</em></div></div></div>`}
+      <div class="grid2"><div><div class="fl">每月扣款日</div><div class="inp"><input data-f="dueDay" inputmode="numeric" value="${f.dueDay}"><em>號</em></div></div><div><div class="fl">第一期月份</div><div class="inp"><input data-f="first" type="month" value="${f.first}" style="font-size:13px;color-scheme:dark"></div></div></div>
+      <div class="calc" data-r="fcalc"></div>`;
+      this.openSheet(edit?'編輯債務':'新增債務',b,`<button class="btn" data-act="saveDebt" data-r="fsave">${edit?'儲存':'新增'}</button>`);
+      const upd=(t)=>{if(t&&t.dataset.f)f[t.dataset.f]=t.value;const P=+f.principal,R=+f.rate||0,N=+f.term,FP=+f.flexPay;const ok=f.name.trim()&&P>0&&(flex?FP>0:N>0)&&+f.dueDay>=1&&+f.dueDay<=31;this.$('fsave').disabled=!ok;
+        const o=this.$('fcalc');if(!(P>0)||(flex?!(FP>0):!(N>0))){o.innerHTML='填完本金和'+(flex?'每月預計還多少':'利率、期數')+'，這裡會算出<b>每月要繳</b>、<b>總利息</b>和<b>還清日</b>';return;}
+        const [y,m]=f.first.split('-').map(Number);const tmp={principal:P,rate:R,term:N,method:f.method,flexPay:FP,sy:y,sm:m-1,dueDay:+f.dueDay||1,records:[]};const s=stats(tmp);const t2=totals(this);const newRatio=this.income?(t2.monthly+s.M)/this.income*100:null;
+        o.innerHTML=`每月要繳 <b style="font-size:15px">${money(s.M)}</b>${flex?'（預計）':''}<br>${flex?'':`總利息 <b>${money(s.interestTotal)}</b>・總共要還 <b>${money(P+s.interestTotal)}</b><br>`}預計 <b>${ym(s.payoffDate)}</b> 還清${newRatio&&!edit?`<br>加上這筆，每月還款佔收入 <b class="${newRatio>40?'bad':''}">${newRatio.toFixed(0)}%</b>${newRatio>40?'（超過 40%）':''}`:''}`;};
+      this.onInput=upd;upd();
+    };
+    this._formDraw=draw;this._formEdit=edit;draw();
+  }
+  saveDebt(){const f=this._form,e=this._formEdit;const [y,m]=f.first.split('-').map(Number);
+    const base={name:f.name.trim(),lender:f.lender.trim()||'—',type:f.type,principal:+f.principal,rate:f.method==='flex'?0:(+f.rate||0),term:f.method==='flex'?0:+f.term,sy:y,sm:m-1,dueDay:Math.min(31,Math.max(1,+f.dueDay||1)),method:f.method,flexPay:+f.flexPay||0};
+    if(e){Object.assign(e,base);this.closeSheet();this.refresh();this.toast('已儲存',e.name);}
+    else{const d={id:++this.seq,records:[],closed:false,...base};this.debts.push(d);this.closeSheet();this.refresh();this.toast('已新增債務',`${d.name}・每月 ${money(payment(d))}`);}}
+  editIncome(){const v=prompt('每月收入（算還款佔收入幾 %）',this.income||'');if(v===null)return;const n=+v.replace(/,/g,'');if(n>0){this.income=n;this.refresh();this.toast('已更新月收入',money(n));}}
+  // ---------- 先還哪一筆 ----------
+  strategySheet(){
+    const draw=()=>{const ex=+(this.sub.sx??3000);const act=this.debts.filter(d=>!d.closed).map(d=>({d,s:stats(d)}));
+      const ava=[...act].sort((a,b)=>b.d.rate-a.d.rate||a.s.remaining-b.s.remaining);const snow=[...act].sort((a,b)=>a.s.remaining-b.s.remaining);
+      const res=(list)=>{const t=list[0];const r=simulate(t.d,ex,0);return{t,r};};const A=res(ava),S=res(snow);
+      const lst=(list)=>list.map((x,i)=>`<div class="kv"><span>${i+1}. ${x.d.name}</span><b>${x.d.rate}%・剩 ${money(x.s.remaining)}</b></div>`).join('');
+      const pick=this.sub.sm||'ava';
+      const b=`<div class="fl">每月可以多還</div><div class="inp"><input data-f="sx" inputmode="numeric" value="${ex}"><em>元</em></div>
+        <div class="seg" style="margin-top:12px"><button data-act="sub" data-k="sm" data-v="ava" class="${pick==='ava'?'on':''}">雪崩法（利率高先還）</button><button data-act="sub" data-k="sm" data-v="snow" class="${pick==='snow'?'on':''}">雪球法（金額小先還）</button></div>
+        <div class="calc" style="margin-top:0">${pick==='ava'?'<b>最省利息。</b>多出來的錢全部先丟利率最高的那筆，其他照常繳。':'<b>最快有成就感。</b>先把剩最少的那筆還掉，少一筆要繳的帳，比較撐得下去。'}<br>先還 <b>${(pick==='ava'?A:S).t.d.name}</b>：${(pick==='ava'?A:S).r?`早 <b class="ok">${(pick==='ava'?A:S).r.savedM}</b> 個月還清、省利息 <b class="ok">${money((pick==='ava'?A:S).r.saved)}</b>`:'—'}</div>
+        <div class="sech" style="margin-top:14px">順序</div>${lst(pick==='ava'?ava:snow)}
+        <div class="sub dim" style="margin-top:10px">0 利率的（分期、親友）放最後，提前還省不到利息</div>`;
+      this.openSheet('多的錢先還哪一筆',b,'',draw);
+      this.onInput=(t)=>{if(t.dataset.f==='sx'){this.sub.sx=t.value;clearTimeout(this._st);this._st=setTimeout(()=>{const pos=t.selectionStart;draw();const n=this.P.querySelector('[data-f=sx]');n.focus();n.setSelectionRange(pos,pos);},350);}};
+    };draw();
+  }
+  // ---------- 全部還款紀錄 ----------
+  recordsSheet(){const all=[];for(const d of this.debts){for(const r of d.records)all.push({d,r});if(d.payoff)all.push({d,r:{...d.payoff,po:true}});}all.sort((a,b)=>b.r.date-a.r.date);
+    let cur='',h='';for(const x of all){const k=ym(x.r.date);if(k!==cur){cur=k;const sum=all.filter(y=>ym(y.r.date)===k).reduce((s,y)=>s+y.r.amount,0);h+=`<div class="sech">${k}<span class="r">${money(sum)}</span></div>`;}h+=`<div class="item" data-act="debt" data-id="${x.d.id}" data-view="rec">${this.icon(x.d)}<div class="m"><div class="t1">${x.d.name}</div><div class="t2">${mdw(x.r.date)}${x.r.k?`・第 ${x.r.k} 期`:''}${x.r.po?'・提前清償':''}</div></div><div class="amt ok">${money(x.r.amount)}</div></div>`;}
+    this.openSheet(`還款紀錄（${all.length} 筆）`,h+'<div class="sub dim" style="margin-top:8px">紀錄一筆都不刪</div>');}
+}
+// 共用的額外動作（每支手機都會走到）
+const commonAct=(a,act,ds)=>{const d=a.debts.find(x=>x.id===+ds.id);
+  if(act==='confirmPay'){const amt=+a.P.querySelector('[data-f=amt]').value||0;const dt=a.P.querySelector('[data-f=date]').value;const [y,m,dd]=dt.split('-').map(Number);a.doPay(a._payTarget,amt,new Date(y,m-1,dd));return true;}
+  if(act==='dview'){a.sub.dv=ds.v;a._sheetFn&&a._sheetFn();return true;}
+  if(act==='ftype'){a._form.type=ds.v;a._formDraw();return true;}
+  if(act==='fmethod'){a._form.method=ds.v;a._formDraw();return true;}
+  if(act==='saveDebt'){a.saveDebt();return true;}
+  if(act==='editDebt'){a.debtForm(d);return true;}
+  if(act==='delDebt'){a.confirm('刪除這筆債務？',`${d.name}，連同 ${d.records.length} 筆還款紀錄都會刪掉。`,()=>{a.debts=a.debts.filter(x=>x!==d);a.closeSheet();a.refresh();a.toast('已刪除',d.name);});return true;}
+  if(act==='payoff'){const s=stats(d);a.confirm('一次還清？',`${d.name} 剩下 ${money(s.remaining)} 一次付清，之後不用再繳。`,()=>{d.payoff={date:new Date(TODAY),amount:s.remaining};d.closed=true;a.closeSheet();a.refresh();setTimeout(()=>a.party(d),300);},'還清');return true;}
+  return false;};
+
+// ================= 共用小元件 =================
+const H={
+  dueItem(a,x,opt={}){const{d,r,s}=x;const paid=r.paid;const over=x.over;
+    const st=paid?`<span class="pill ok">已繳 ${md(r.rec?.date||r.date)}</span>`:over?`<span class="pill bad">逾期 ${dayDiff(TODAY,r.date)} 天</span>`:sameDay(r.date,TODAY)?'<span class="pill warn">今天</span>':`<span class="pill">${dayDiff(r.date,TODAY)} 天後</span>`;
+    return`<div class="item ${paid?'paid':''} ${over?'over':''}" data-act="debt" data-id="${d.id}">${opt.check!==false?`<div class="chk ${paid?'on':''}" data-act="${paid?'unpay':'pay'}" data-id="${d.id}" data-k="${r.k||''}">${paid?'✓':''}</div>`:''}${a.icon(d)}<div class="m"><div class="t1">${d.name}${x.payoff?'（清償）':''}</div><div class="t2">${mdw(r.date)}・${d.lender}${r.k&&!x.payoff?`・第 ${r.k} 期`:''}</div></div><div class="amt">${money(r.rec?.amount??r.pay)}<small>${st}</small></div></div>`;},
+  debtCard(a,d){const s=stats(d);const t=TYPES[d.type];return`<div class="item" data-act="debt" data-id="${d.id}" style="display:block">
+    <div class="row">${a.icon(d)}<div class="m"><div class="t1">${d.name}</div><div class="t2">${d.lender}・${d.method==='flex'?'自由還款':d.rate+'%'}・${d.closed?'已還清':'每月 '+money(s.M)}</div></div><div class="amt">${money(s.remaining)}<small class="dim">${d.closed?'🎉':'剩餘'}</small></div></div>
+    <div class="bar" style="margin-top:9px"><i style="width:${s.pct}%;background:${t[2]}"></i></div>
+    <div class="row sub" style="justify-content:space-between;margin-top:5px;font-size:10.5px"><span>已還 ${s.pct.toFixed(0)}%・${s.paidN}${d.method==='flex'?'':'/'+s.totalN} 期</span><span>${d.closed?'還清於 '+ym(s.payoffDate):'預計 '+ym(s.payoffDate)+' 還清'}</span></div></div>`;},
+  ratio(a,t){return t.ratio==null?`<span data-act="income" class="acc" style="cursor:pointer">設定月收入 ✎</span>`:`<span data-act="income" style="cursor:pointer">佔收入 <b class="${t.ratio>40?'bad':t.ratio>33?'warn':'ok'}">${t.ratio.toFixed(0)}%</b> ✎</span>`;},
+  links(a){return`<div class="btns" style="margin-top:4px"><button class="btn ghost" data-act="strategy">🧭 先還哪一筆</button><button class="btn ghost" data-act="records">🧾 還款紀錄</button></div>`;},
+};
+
+// ================= 五個版本 =================
+const VARIANTS=[
+{ id:1, name:'記帳 App 式', tag:'主流', fab:true, badgeTab:'month',
+  tabs:[['home','總覽','◉'],['month','本月','📅'],['debts','債務','📋'],['plan','試算','🧭']],
+  title:a=>({home:'負債總覽',month:`${TODAY.getMonth()+1} 月要繳`,debts:'我的債務',plan:'還款試算'})[a.tab],
+  render(a){const t=totals(a);
+    if(a.tab==='home'){const up=t.now.filter(x=>!x.r.paid);return`
+      <div class="card" style="background:linear-gradient(135deg,rgba(46,107,255,.28),rgba(22,22,34,.6))"><div class="lbl">剩餘負債總額<span class="r">${a.debts.filter(d=>!d.closed).length} 筆</span></div><div class="big">${money(t.remaining)}</div>
+        <div class="bar" style="margin:10px 0 6px"><i style="width:${t.paidPct}%"></i></div><div class="row sub" style="justify-content:space-between"><span>已還 ${t.paidPct.toFixed(0)}%</span><span>全部還清 <b style="color:var(--ink)">${t.free?ym(t.free):'—'}</b></span></div></div>
+      <div class="card"><div class="lbl">${TODAY.getMonth()+1} 月還款<span class="r">${H.ratio(a,t)}</span></div><div class="row"><div style="flex:1"><span class="mid ok">${money(t.paidM)}</span><span class="sub"> / ${money(t.dueM)}</span></div><span class="pill ${t.over?'bad':'acc'}">${t.over?`逾期 ${t.over} 筆`:`還有 ${up.length} 筆`}</span></div><div class="bar" style="margin-top:8px"><i style="width:${t.dueM?t.paidM/t.dueM*100:0}%;background:var(--ok)"></i></div></div>
+      <div class="sech">接下來要繳<span class="r" data-act="tab" data-t="month" style="cursor:pointer">本月全部 ›</span></div>${up.slice(0,3).map(x=>H.dueItem(a,x)).join('')||'<div class="sub">這個月都繳完了 👍</div>'}
+      <div class="kpis" style="margin-top:12px"><div class="kpi"><b>${money(t.monthly)}</b><span>每月固定</span></div><div class="kpi"><b>${money(t.interestLeft)}</b><span>還要付利息</span></div><div class="kpi"><b>${money(t.interestPaid)}</b><span>已付利息</span></div></div>
+      <div style="margin-top:12px">${H.links(a)}</div>`;}
+    if(a.tab==='month'){const m=a.month;const list=duesOf(a,m.getFullYear(),m.getMonth());const due=list.reduce((s,x)=>s+(x.r.rec?.amount??x.r.pay),0),pd=list.filter(x=>x.r.paid).reduce((s,x)=>s+(x.r.rec?.amount??x.r.pay),0);return`
+      <div class="row" style="margin-bottom:10px"><button class="ibtn" data-act="month" data-d="-1">‹</button><b style="flex:1;text-align:center">${m.getFullYear()} 年 ${m.getMonth()+1} 月</b><button class="ibtn" data-act="month" data-d="1">›</button></div>
+      <div class="kpis" style="margin-bottom:12px"><div class="kpi"><b>${money(due)}</b><span>應繳</span></div><div class="kpi"><b class="ok">${money(pd)}</b><span>已繳</span></div><div class="kpi"><b class="${due-pd>0?'warn':''}">${money(due-pd)}</b><span>未繳</span></div></div>
+      ${list.map(x=>H.dueItem(a,x)).join('')||'<div class="sub">這個月沒有要繳的</div>'}<div class="sub dim" style="margin-top:6px">點左邊圓圈標記已繳・點整列看明細</div>`;}
+    if(a.tab==='debts'){return`<div class="seg">${[['all','全部'],['active','還款中'],['done','已還清']].map(([k,l])=>`<button data-act="sub" data-k="df" data-v="${k}" class="${(a.sub.df||'all')===k?'on':''}">${l}</button>`).join('')}</div>
+      ${a.debts.filter(d=>({all:1,active:!d.closed,done:d.closed})[a.sub.df||'all']).map(d=>H.debtCard(a,d)).join('')||'<div class="sub">沒有</div>'}`;}
+    if(a.tab==='plan'){const t2=t;return`<div class="card"><div class="lbl">如果每月多還一點</div><div class="sub" style="line-height:1.7">每一筆的「提前還款」可以分開試算；這裡看整體該先還哪一筆。</div><button class="btn" style="margin-top:10px" data-act="strategy">🧭 多的錢先還哪一筆</button></div>
+      <div class="card"><div class="lbl">還款佔收入<span class="r">${H.ratio(a,t2)}</span></div><div class="sub" style="line-height:1.7">每月固定還款 <b style="color:var(--ink)">${money(t2.monthly)}</b>${t2.ratio?`，月收入 ${money(a.income)}`:''}。一般建議不要超過 33–40%。</div><div class="bar" style="margin-top:8px"><i style="width:${Math.min(100,t2.ratio||0)}%;background:${(t2.ratio||0)>40?'var(--bad)':'var(--ok)'}"></i></div></div>
+      <div class="sech">每筆提前還款試算</div>${a.debts.filter(d=>!d.closed).map(d=>`<div class="item" data-act="debt" data-id="${d.id}" data-view="sim">${a.icon(d)}<div class="m"><div class="t1">${d.name}</div><div class="t2">${d.rate}%・還要付利息 ${money(stats(d).interestLeft)}</div></div><span class="dim">›</span></div>`).join('')}
+      <div style="margin-top:8px">${H.links(a)}</div>`;}
+  },
+  act(a,act,ds){commonAct(a,act,ds);},
+  where:[['本月要繳','「本月」分頁，或總覽的「接下來要繳」'],['標記已繳','點左邊圓圈；已繳的再點一次可以取消'],['逾期','紅框＋天數；分頁上的紅點是逾期筆數'],['新增債務','右下角 ＋ 或右上角 ＋'],['攤還表／紀錄／提前還款','「債務」分頁點任一筆'],['進度與還清日','總覽大卡片、每張債務卡'],['先還哪一筆','「試算」分頁或總覽下方'],['佔收入','總覽「本月還款」右上，點了可改'],['還款紀錄','總覽下方「還款紀錄」']],
+  pros:'<b>優點：</b>跟一般記帳和銀行 App 一樣，四個分頁各管一件事，不用學。<b>缺點：</b>功能分散在四頁，要知道東西放哪；月曆感比較弱。',
+  steps:['點「本月」→ 中信 iPhone 分期左邊的圓圈 → 確認已繳','點「債務」→ 國泰信貸 → 提前還款，改每月多還金額','iPhone 分期 → 提前還款 → 一次還清，看還清慶祝'] },
+
+{ id:2, name:'月曆帳單式', badgeTab:'cal',
+  tabs:[['cal','月曆','📅'],['debts','債務','📋'],['stats','分析','📊']],
+  title:a=>({cal:'還款月曆',debts:'我的債務',stats:'分析'})[a.tab],
+  render(a){const t=totals(a);
+    if(a.tab==='cal'){const m=a.month,y=m.getFullYear(),mo=m.getMonth();const list=duesOf(a,y,mo);const first=new Date(y,mo,1).getDay(),n=new Date(y,mo+1,0).getDate();
+      let g=[...WD].map(w=>`<div class="h">${w}</div>`).join('')+'<div class="c e"></div>'.repeat(first);
+      for(let dd=1;dd<=n;dd++){const day=new Date(y,mo,dd);const its=list.filter(x=>sameDay(x.r.date,day));const sum=its.reduce((s,x)=>s+(x.r.rec?.amount??x.r.pay),0);const anyOver=its.some(x=>x.over);
+        g+=`<div class="c ${sameDay(day,TODAY)?'today':''} ${sameDay(day,a.sel)?'sel':''}" data-act="day" data-y="${y}" data-m="${mo}" data-dd="${dd}" style="${anyOver?'background:rgba(255,122,112,.14)':''}">${dd}${sum?`<span class="amt">${sum>=10000?(sum/10000).toFixed(1)+'萬':fmt(sum)}</span>`:''}<div class="dots">${its.map(x=>`<i class="${x.r.paid?'p':''}" style="background:${TYPES[x.d.type][2]}"></i>`).join('')}</div></div>`;}
+      const selList=list.filter(x=>sameDay(x.r.date,a.sel));const due=list.reduce((s,x)=>s+(x.r.rec?.amount??x.r.pay),0),pd=list.filter(x=>x.r.paid).reduce((s,x)=>s+(x.r.rec?.amount??x.r.pay),0);
+      const upcoming=list.filter(x=>!x.r.paid);
+      return`<div class="row" style="margin-bottom:8px"><button class="ibtn" data-act="month" data-d="-1">‹</button><div style="flex:1;text-align:center"><b>${y} 年 ${mo+1} 月</b><div class="sub">已繳 <span class="ok">${money(pd)}</span> / ${money(due)}</div></div><button class="ibtn" data-act="month" data-d="1">›</button></div>
+        <div class="cal">${g}</div>
+        <div class="row sub" style="gap:10px;margin:8px 2px 0;flex-wrap:wrap">${a.debts.filter(d=>!d.closed).map(d=>`<span><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${TYPES[d.type][2]};margin-right:3px"></i>${d.name}</span>`).join('')}</div>
+        <div class="sech">${mdw(a.sel)}<span class="r">${selList.length?selList.length+' 筆':'這天沒有要繳'}</span></div>${selList.map(x=>H.dueItem(a,x)).join('')}
+        ${upcoming.length?`<div class="sech">這個月還沒繳<span class="r">${money(upcoming.reduce((s,x)=>s+x.r.pay,0))}</span></div>${upcoming.map(x=>H.dueItem(a,x)).join('')}`:'<div class="card ok" style="margin-top:12px;text-align:center">這個月都繳完了 👍</div>'}`;}
+    if(a.tab==='debts')return a.debts.map(d=>H.debtCard(a,d)).join('')+`<button class="btn ghost" style="margin-top:6px" data-act="addDebt">＋ 新增債務</button>`;
+    if(a.tab==='stats'){const act=a.debts.filter(d=>!d.closed);const mx=Math.max(...act.map(d=>stats(d).remaining),1);
+      return`<div class="card"><div class="lbl">剩餘負債</div><div class="big">${money(t.remaining)}</div><div class="sub">已還 ${t.paidPct.toFixed(0)}%・全部還清 ${t.free?ym(t.free):'—'}（還有 ${t.monthsLeft} 個月）</div></div>
+        <div class="card"><div class="lbl">每筆剩多少</div>${act.map(d=>{const s=stats(d);return`<div data-act="debt" data-id="${d.id}" style="cursor:pointer;margin:8px 0"><div class="row sub" style="justify-content:space-between"><span>${TYPES[d.type][1]} ${d.name}</span><b style="color:var(--ink)">${money(s.remaining)}</b></div><div class="bar" style="margin-top:4px"><i style="width:${s.remaining/mx*100}%;background:${TYPES[d.type][2]}"></i></div></div>`}).join('')}</div>
+        <div class="kpis"><div class="kpi"><b>${money(t.monthly)}</b><span>每月固定</span></div><div class="kpi"><b>${money(t.interestLeft)}</b><span>還要付利息</span></div><div class="kpi" data-act="income" style="cursor:pointer"><b class="${(t.ratio||0)>40?'bad':''}">${t.ratio?t.ratio.toFixed(0)+'%':'設定'}</b><span>佔收入 ✎</span></div></div>
+        <div style="margin-top:12px">${H.links(a)}</div>`;}
+  },
+  act(a,act,ds){commonAct(a,act,ds);},
+  where:[['本月要繳','月曆上有色點的日子，下面列「這個月還沒繳」'],['標記已繳','點圓圈；月曆上的點會變淡'],['逾期','月曆那格變紅、清單紅框'],['新增債務','右上角 ＋、「債務」分頁最下面'],['攤還表／紀錄／提前還款','點任一筆繳款或債務'],['進度與還清日','「分析」分頁、債務卡'],['先還哪一筆','「分析」分頁下方'],['佔收入','「分析」第三格，點了可改'],['還款紀錄','「分析」分頁下方']],
+  pros:'<b>優點：</b>扣款日一眼就看得到，哪幾天錢會被扣走最清楚，適合怕忘記繳的人。<b>缺點：</b>月曆格子小，金額只能縮寫；整體進度要切到「分析」才看得到。',
+  steps:['點月曆 15 號 → 圓圈標記已繳，點會變淡','‹ 回 9 月，看已繳的樣子','「分析」→ 先還哪一筆，切雪崩／雪球'] },
+
+{ id:3, name:'還清倒數式', badgeTab:'month',
+  tabs:[['home','倒數','⏳'],['month','本月','✅'],['debts','債務','📋'],['plan','試算','🧭']],
+  title:a=>({home:'距離無債',month:`${TODAY.getMonth()+1} 月要繳`,debts:'我的債務',plan:'試算'})[a.tab],
+  render(a){const t=totals(a);
+    if(a.tab==='home'){const C=2*Math.PI*100;const act=a.debts.map(d=>({d,s:stats(d)})).sort((x,y)=>x.s.payoffDate-y.s.payoffDate);const up=t.now.filter(x=>!x.r.paid);
+      return`<div class="ring"><svg viewBox="0 0 230 230"><circle cx="115" cy="115" r="100" stroke="#1e1e2e" stroke-width="14" fill="none"/><circle cx="115" cy="115" r="100" stroke="url(#g3)" stroke-width="14" fill="none" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C*(1-t.paidPct/100)}"/><defs><linearGradient id="g3"><stop offset="0" stop-color="#7b55f0"/><stop offset="1" stop-color="#5FE08D"/></linearGradient></defs></svg>
+        <div class="in"><div><div class="sub">全部還清還有</div><div style="font-size:52px;font-weight:800;line-height:1.05">${t.monthsLeft}</div><div class="sub">個月・${t.free?ym(t.free):'—'}</div><div class="pill acc" style="margin-top:6px;display:inline-block">已還 ${t.paidPct.toFixed(1)}%</div></div></div></div>
+        <div class="kpis" style="margin:8px 0 12px"><div class="kpi"><b>${money(t.remaining)}</b><span>還剩</span></div><div class="kpi"><b>${money(t.principal-t.remaining)}</b><span>已經還掉</span></div><div class="kpi" data-act="income" style="cursor:pointer"><b class="${(t.ratio||0)>40?'bad':''}">${t.ratio?t.ratio.toFixed(0)+'%':'設定'}</b><span>佔收入 ✎</span></div></div>
+        <div class="card"><div class="lbl">這個月<span class="r" data-act="tab" data-t="month" style="cursor:pointer">全部 ›</span></div>${up.length?up.slice(0,2).map(x=>H.dueItem(a,x)).join(''):'<div class="sub ok">都繳完了 👍</div>'}</div>
+        <div class="card"><div class="lbl">還清里程碑</div><div class="tl">${act.map(({d,s})=>`<div class="n ${d.closed?'done':''}" style="--c:${TYPES[d.type][2]}" data-act="debt" data-id="${d.id}"><b>${TYPES[d.type][1]} ${d.name}</b><span>${d.closed?'✓ 已還清 '+ym(s.payoffDate):ym(s.payoffDate)+' 還清・每月少繳 '+money(s.M)}</span></div>`).join('')}<div class="n end"><b>🎉 完全沒有負債</b><span>${t.free?ym(t.free):''}・之後每月多出 ${money(t.monthly)}</span></div></div></div>
+        ${H.links(a)}`;}
+    if(a.tab==='month'){const list=t.now;return`<div class="card"><div class="lbl">${TODAY.getMonth()+1} 月進度</div><div class="row"><span class="mid ok">${money(t.paidM)}</span><span class="sub">/ ${money(t.dueM)}</span><span class="pill ${t.over?'bad':'acc'}" style="margin-left:auto">${list.filter(x=>x.r.paid).length} / ${list.length} 筆</span></div><div class="bar" style="margin-top:8px"><i style="width:${t.dueM?t.paidM/t.dueM*100:0}%;background:var(--ok)"></i></div></div>${list.map(x=>H.dueItem(a,x)).join('')}`;}
+    if(a.tab==='debts')return a.debts.map(d=>H.debtCard(a,d)).join('');
+    if(a.tab==='plan'){return`<div class="card"><div class="lbl">讓倒數變快</div><div class="sub" style="line-height:1.7">每月多還一點，倒數會少幾個月？每一筆分開算，或看整體先還哪一筆。</div><button class="btn" style="margin-top:10px" data-act="strategy">🧭 多的錢先還哪一筆</button></div>${a.debts.filter(d=>!d.closed).map(d=>`<div class="item" data-act="debt" data-id="${d.id}" data-view="sim">${a.icon(d)}<div class="m"><div class="t1">${d.name}</div><div class="t2">還有 ${stats(d).totalN-stats(d).paidN} 期・利息 ${money(stats(d).interestLeft)}</div></div><span class="dim">試算 ›</span></div>`).join('')}`;}
+  },
+  act(a,act,ds){commonAct(a,act,ds);},
+  where:[['本月要繳','倒數頁「這個月」、「本月」分頁'],['標記已繳','點圓圈；環跟倒數會跟著動'],['逾期','紅框＋天數，分頁紅點'],['新增債務','右上角 ＋'],['攤還表／紀錄／提前還款','點里程碑或任一筆'],['進度與還清日','大環＋還清里程碑時間軸'],['先還哪一筆','「試算」分頁、倒數頁下方'],['佔收入','倒數頁第三格'],['還款紀錄','倒數頁下方']],
+  pros:'<b>優點：</b>把「還有幾個月就自由」放最大，每還一筆都看得到進度，最有動力；里程碑看得出哪筆先結束、結束後每月少繳多少。<b>缺點：</b>金額細節要往下一層找；倒數很長時（例如 50 個月）可能反而讓人洩氣。',
+  steps:['點里程碑「iPhone 分期」→ 提前還款 → 一次還清，看慶祝和倒數變化','「本月」標記已繳，回倒數看環','「試算」→ 國泰信貸每月多還 3000'] },
+
+{ id:4, name:'每月還款表格式', badgeTab:'table',
+  tabs:[['table','還款表','▦'],['debts','債務','📋'],['stats','分析','📊']],
+  title:a=>({table:'每月還款表',debts:'我的債務',stats:'分析'})[a.tab],
+  render(a){const t=totals(a);
+    if(a.tab==='table'){const mode=a.sub.tm||'amt';const span=+(a.sub.span||12);const act=a.debts.filter(d=>!d.closed||d.payoff);const start=new Date(TODAY.getFullYear(),TODAY.getMonth()-(+(a.sub.back||2)),1);
+      let rows='';for(let i=0;i<span+(+(a.sub.back||2));i++){const m=new Date(start.getFullYear(),start.getMonth()+i,1);const list=duesOf(a,m.getFullYear(),m.getMonth());let tot=0;
+        const cells=act.map(d=>{const x=list.find(z=>z.d===d);if(!x)return`<td class="none">—</td>`;const v=x.r.rec?.amount??x.r.pay;tot+=v;const cls=x.r.paid?'paid':x.over?'over':(m.getFullYear()===TODAY.getFullYear()&&m.getMonth()===TODAY.getMonth())?'due':'fut';
+          return`<td class="cell ${cls}" data-act="${x.r.paid||x.payoff?'debt':cls==='fut'?'debt':'pay'}" data-id="${d.id}">${x.r.paid?'✓':''}${fmt(v)}${mode==='split'&&!x.payoff&&x.r.interest!=null?`<small>本${fmt(x.r.principal)}・息${fmt(x.r.interest)}</small>`:''}</td>`;}).join('');
+        const cur=m.getFullYear()===TODAY.getFullYear()&&m.getMonth()===TODAY.getMonth();rows+=`<tr class="${cur?'cur':''}"><td>${cur?'▶ ':''}${m.getFullYear()%100}/${String(m.getMonth()+1).padStart(2,'0')}</td>${cells}<td class="tot">${fmt(tot)}</td></tr>`;}
+      return`<div class="seg"><button data-act="sub" data-k="tm" data-v="amt" class="${mode==='amt'?'on':''}">金額</button><button data-act="sub" data-k="tm" data-v="split" class="${mode==='split'?'on':''}">本金／利息</button><button data-act="sub" data-k="span" data-v="${span===12?36:12}">${span===12?'看 3 年':'看 1 年'}</button></div>
+        <div class="tw"><table class="mt"><thead><tr><th>月份</th>${act.map(d=>`<th data-act="debt" data-id="${d.id}" style="cursor:pointer">${TYPES[d.type][1]}<br>${d.name.length>5?d.name.slice(0,5)+'…':d.name}</th>`).join('')}<th>合計</th></tr></thead><tbody>${rows}</tbody></table></div>
+        <div class="row sub" style="gap:10px;margin-top:8px;flex-wrap:wrap"><span class="ok">✓ 已繳</span><span style="color:var(--ink);font-weight:700">本月待繳</span><span class="bad">逾期</span><span>之後</span><span class="dim">— 沒有</span></div>
+        <div class="sub dim" style="margin-top:4px">點本月的格子＝標記已繳・點其他格子或欄位標題＝看那筆債務・表格可以左右滑</div>
+        <div class="kpis" style="margin-top:12px"><div class="kpi"><b>${money(t.dueM)}</b><span>本月應繳</span></div><div class="kpi"><b class="ok">${money(t.paidM)}</b><span>已繳</span></div><div class="kpi" data-act="income" style="cursor:pointer"><b class="${(t.ratio||0)>40?'bad':''}">${t.ratio?t.ratio.toFixed(0)+'%':'設定'}</b><span>佔收入 ✎</span></div></div>`;}
+    if(a.tab==='debts')return`<table class="sch" style="margin-bottom:12px"><tr><th>債務</th><th>利率</th><th>月付</th><th>剩餘</th><th>還清</th></tr>${a.debts.map(d=>{const s=stats(d);return`<tr data-act="debt" data-id="${d.id}" style="cursor:pointer"><td>${TYPES[d.type][1]} ${d.name}</td><td>${d.method==='flex'?'—':d.rate+'%'}</td><td>${d.closed?'—':fmt(s.M)}</td><td>${fmt(s.remaining)}</td><td>${d.closed?'✓':ym(s.payoffDate).slice(2)}</td></tr>`}).join('')}<tr><td><b>合計</b></td><td></td><td><b>${fmt(t.monthly)}</b></td><td><b>${fmt(t.remaining)}</b></td><td><b>${t.free?ym(t.free).slice(2):''}</b></td></tr></table>`+a.debts.map(d=>H.debtCard(a,d)).join('');
+    if(a.tab==='stats'){const yrs={};for(const d of a.debts.filter(x=>!x.closed))for(const r of stats(d).rows.filter(r=>!r.paid)){const y=r.date.getFullYear();yrs[y]=yrs[y]||{p:0,i:0};yrs[y].p+=r.principal;yrs[y].i+=r.interest;}
+      const mx=Math.max(...Object.values(yrs).map(v=>v.p+v.i),1);
+      return`<div class="card"><div class="lbl">每年還多少（還沒繳的）</div><table class="sch"><tr><th>年</th><th>本金</th><th>利息</th><th>合計</th></tr>${Object.entries(yrs).map(([y,v])=>`<tr><td>${y}</td><td>${fmt(v.p)}</td><td>${fmt(v.i)}</td><td><b>${fmt(v.p+v.i)}</b></td></tr><tr><td colspan="4" style="border:0;padding:0 0 4px"><div class="bar" style="height:5px"><i style="width:${(v.p+v.i)/mx*100}%"></i></div></td></tr>`).join('')}</table></div>
+        <div class="kpis"><div class="kpi"><b>${money(t.remaining)}</b><span>剩餘本金</span></div><div class="kpi"><b>${money(t.interestLeft)}</b><span>還要付利息</span></div><div class="kpi"><b>${t.free?ym(t.free):'—'}</b><span>全部還清</span></div></div>
+        <div style="margin-top:12px">${H.links(a)}</div>`;}
+  },
+  act(a,act,ds){commonAct(a,act,ds);},
+  where:[['本月要繳','表格 ▶ 那一列（黃色粗體）'],['標記已繳','點本月那格；已繳變綠色 ✓'],['逾期','紅字的格子'],['新增債務','右上角 ＋'],['攤還表／紀錄／提前還款','點欄位標題或任一格'],['進度與還清日','「債務」分頁總表'],['先還哪一筆','「分析」分頁下方'],['佔收入','還款表下方第三格'],['還款紀錄','「分析」分頁下方'],['本金利息拆開','上方切「本金／利息」']],
+  pros:'<b>優點：</b>就是字面上的「每月還款表」，跟自己用 Excel 做的一樣，前後幾個月、每筆多少、合計一次看完，可以切成 3 年看。<b>缺點：</b>手機上欄位多就要左右滑，字比較小；對不喜歡表格的人不友善。',
+  steps:['點表格 ▶ 本月那列的 iPhone 那格 → 確認已繳','切「本金／利息」看每格怎麼拆','切「看 3 年」往下捲，看哪個月開始變少'] },
+
+{ id:5, name:'待辦清單式', badgeTab:'list',
+  tabs:[['list','本月','☑'],['debts','債務','📋'],['stats','統計','📊']],
+  title:a=>({list:'這個月要繳',debts:'我的債務',stats:'統計'})[a.tab],
+  render(a){const t=totals(a);
+    if(a.tab==='list'){const L=t.now;const groups=[['已逾期',L.filter(x=>x.over)],['今天',L.filter(x=>!x.r.paid&&!x.over&&sameDay(x.r.date,TODAY))],['這 7 天',L.filter(x=>!x.r.paid&&!x.over&&!sameDay(x.r.date,TODAY)&&dayDiff(x.r.date,TODAY)<=7)],['之後',L.filter(x=>!x.r.paid&&dayDiff(x.r.date,TODAY)>7)],['已繳',L.filter(x=>x.r.paid)]];
+      const left=L.filter(x=>!x.r.paid);
+      const task=x=>{const{d,r}=x;return`<div class="task ${r.paid?'paid':''} ${x.over?'over':''}"><div class="chk ${r.paid?'on':''}" data-act="${r.paid?'unpay':'quickPay'}" data-id="${d.id}" data-k="${r.k||''}">${r.paid?'✓':''}</div><div class="m" style="flex:1;min-width:0" data-act="debt" data-id="${d.id}"><div class="t1" style="font-weight:700;font-size:14px">${d.name}${x.payoff?'（清償）':''}</div><div class="t2 sub" style="font-size:11px">${mdw(r.date)}・${d.lender}${x.over?` <span class="bad">逾期 ${dayDiff(TODAY,r.date)} 天</span>`:''}</div></div><div style="font-weight:800;font-variant-numeric:tabular-nums" data-act="pay" data-id="${d.id}">${money(r.rec?.amount??r.pay)}</div></div>`;};
+      return`<div class="v5sum"><div class="sub" style="color:#ffd9c9">${TODAY.getMonth()+1} 月還剩</div><div class="row"><span class="big">${left.length} 筆</span><span class="mid" style="margin-left:auto">${money(left.reduce((s,x)=>s+x.r.pay,0))}</span></div><div class="bar" style="margin-top:10px;background:rgba(255,255,255,.12)"><i style="width:${L.length?(L.length-left.length)/L.length*100:0}%;background:#fff"></i></div><div class="row sub" style="justify-content:space-between;margin-top:6px;color:#ffd9c9"><span>已繳 ${L.length-left.length} / ${L.length}</span>${H.ratio(a,t)}</div></div>
+        ${groups.filter(g=>g[1].length).map(([n,l])=>`<div class="sech">${n}<span class="r">${l.length} 筆</span></div>${l.map(task).join('')}`).join('')}
+        <div class="sub dim" style="margin-top:8px">點圓圈＝照應繳金額直接打勾・點金額＝改實繳金額或日期・點名稱＝看明細</div>
+        <div class="card" style="margin-top:14px"><div class="row"><div style="flex:1"><div class="sub">剩餘負債</div><b class="mid">${money(t.remaining)}</b></div><div style="text-align:right"><div class="sub">全部還清</div><b>${t.free?ym(t.free):'—'}</b></div></div><div class="bar" style="margin-top:8px"><i style="width:${t.paidPct}%"></i></div></div>`;}
+    if(a.tab==='debts')return a.debts.map(d=>H.debtCard(a,d)).join('')+`<button class="btn ghost" style="margin-top:6px" data-act="addDebt">＋ 新增債務</button>`;
+    if(a.tab==='stats'){return`<div class="kpis" style="margin-bottom:12px"><div class="kpi"><b>${money(t.remaining)}</b><span>剩餘負債</span></div><div class="kpi"><b>${t.paidPct.toFixed(0)}%</b><span>已還</span></div><div class="kpi"><b>${t.free?ym(t.free):'—'}</b><span>全部還清</span></div></div>
+      <div class="kpis" style="margin-bottom:12px"><div class="kpi"><b>${money(t.monthly)}</b><span>每月固定</span></div><div class="kpi"><b>${money(t.interestLeft)}</b><span>還要付利息</span></div><div class="kpi" data-act="income" style="cursor:pointer"><b class="${(t.ratio||0)>40?'bad':''}">${t.ratio?t.ratio.toFixed(0)+'%':'設定'}</b><span>佔收入 ✎</span></div></div>
+      <div class="card"><div class="lbl">每筆進度</div>${a.debts.map(d=>{const s=stats(d);return`<div data-act="debt" data-id="${d.id}" style="cursor:pointer;margin:8px 0"><div class="row sub" style="justify-content:space-between"><span>${TYPES[d.type][1]} ${d.name}</span><span>${s.pct.toFixed(0)}%</span></div><div class="bar" style="margin-top:4px"><i style="width:${s.pct}%;background:${TYPES[d.type][2]}"></i></div></div>`}).join('')}</div>${H.links(a)}`;}
+  },
+  act(a,act,ds){commonAct(a,act,ds);},
+  where:[['本月要繳','首頁就是，依逾期／今天／這 7 天／之後／已繳分組'],['標記已繳','點圓圈直接打勾；點金額可以改實繳'],['逾期','最上面「已逾期」組、紅框'],['新增債務','右上角 ＋、「債務」最下面'],['攤還表／紀錄／提前還款','點名稱'],['進度與還清日','首頁最下面、「統計」分頁'],['先還哪一筆','「統計」下方'],['佔收入','首頁橘色卡片右下'],['還款紀錄','「統計」下方']],
+  pros:'<b>優點：</b>最簡單，打開就是「還有哪些沒繳」，像待辦清單一樣一個一個勾掉，最快。<b>缺點：</b>重點在「這個月」，長期規劃（攤還、試算）要點進去才看得到。',
+  steps:['點 iPhone 分期左邊的圓圈，直接打勾','點車貸的金額 → 改實繳金額','打勾後再點一次，取消已繳'] },
+];
+
+// ================= 頁面：切版本 =================
+let cur=0;const apps={};
+function show(i){cur=i;
+  document.getElementById('vtabs').innerHTML=VARIANTS.map((v,k)=>`<button class="${k===i?'on':''}" onclick="show(${k})"><b>版本 ${v.id}${v.tag?`<span class="tag">${v.tag}</span>`:''}</b>${v.name}</button>`).join('');
+  const host=document.getElementById('phoneHost');host.innerHTML='';const div=document.createElement('div');host.appendChild(div);
+  apps[i]=new DebtApp(div,VARIANTS[i]);
+  const v=VARIANTS[i];
+  document.getElementById('side').innerHTML=`<h2>版本 ${v.id}・${v.name}</h2><div class="pc">${v.pros}</div>
+    <h3>每個功能在哪裡</h3><ul>${v.where.map(([k,w])=>`<li><b>${k}</b><span>${w}</span></li>`).join('')}</ul>
+    <h3>可以試試看</h3><ol style="padding-left:18px">${v.steps.map(s=>`<li style="border:0;display:list-item;padding:2px 0">${s}</li>`).join('')}</ol>
+    <p style="margin-top:10px">每一版共通：<b style="color:var(--ink)">新增債務</b>會即時算月付、總利息、還清日；債務明細有<b style="color:var(--ink)">攤還表、還款紀錄、提前還款、資料（編輯、刪除）</b>四個分頁；「先還哪一筆」可以切雪崩法或雪球法。</p>
+    <span class="reset" onclick="show(${i})">↺ 回到示範資料</span>`;
+}
+show(Math.min(4,Math.max(0,(+new URLSearchParams(location.search).get("v")||1)-1)));
+</script>
+</body></html>
