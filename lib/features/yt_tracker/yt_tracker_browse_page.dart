@@ -2121,14 +2121,18 @@ class _ChannelGridState extends State<_ChannelGrid> {
       items: [
         // 順序：置頂、一般、冷藏、移動、編輯｜刪除（2026-10-06 使用者要求，
         // 分區最常用排最前面）。
+        //
+        // 置頂／一般／冷藏三顆是「放到哪一區」，已經在那一區的那顆反灰、
+        // 不藏起來，按鈕位置不會跳。沒有「取消置頂」「取消冷藏」：每個
+        // 頻道都一定在某一區，取消了也不知道要去哪，想換區直接按要去的
+        // 那一區（2026-10-08 使用者要求，跟「一般」2026-10-06 的做法一樣）。
         BubbleMenuItem(
           value: _ChannelMenuAction.pin,
-          icon: isPinned ? Icons.push_pin_outlined : Icons.push_pin_rounded,
-          label: isPinned ? '取消置頂' : '置頂',
+          icon: Icons.push_pin_rounded,
+          label: '置頂',
           iconColor: AppColors.ytPinAccent,
+          enabled: !isPinned,
         ),
-        // 已經在一般區就反灰、不藏起來，按鈕位置不會跳（2026-10-06
-        // 使用者要求）。
         BubbleMenuItem(
           value: _ChannelMenuAction.normal,
           icon: Icons.subscriptions_outlined,
@@ -2138,8 +2142,9 @@ class _ChannelGridState extends State<_ChannelGrid> {
         BubbleMenuItem(
           value: _ChannelMenuAction.cold,
           icon: Icons.ac_unit_rounded,
-          label: isCold ? '取消$ytColdSectionLabel' : ytColdSectionLabel,
+          label: ytColdSectionLabel,
           iconColor: AppColors.ytColdAccent,
+          enabled: !isCold,
         ),
         const BubbleMenuItem(
           value: _ChannelMenuAction.move,
