@@ -1,4 +1,6 @@
 import 'dart:convert';
+
+import 'package:archive/archive.dart';
 import 'dart:typed_data';
 
 import '../../domain/models/diary_entry.dart';
@@ -124,20 +126,6 @@ class R2SyncService {
     await _client.deleteObject(testKey);
   }
 
-  /// 把 R2 上的 `diary.json` 抓下來解析成 entry 清單，還沒併回本機
-  /// ——[syncDiary] 要在上傳前也拿這份「雲端原本長怎樣」來跟上傳內容
-  /// 比對，算出上傳異動了幾筆，所以抓資料跟合併分成兩步。雲端還沒有
-  /// 這個檔案（第一次用）就回傳空清單，不算錯誤。
-  Future<List<DiaryEntry>> _fetchCloudDiary() async {
-    final bytes = await _client.getObject('diary.json');
-    if (bytes == null) return const [];
-    final decoded = jsonDecode(utf8.decode(bytes)) as List;
-    return decoded
-        .cast<Map<String, dynamic>>()
-        .map(DiaryEntry.fromJson)
-        .toList();
-  }
-
   /// 「立即同步」按下去做的事：先下載合併，再上傳——順序很重要，
   /// 上傳前一定要先把雲端可能有的新資料併進本機，不然直接上傳會把
   /// 雲端才有、本機還沒同步到的東西覆蓋掉。
@@ -223,17 +211,6 @@ class R2SyncService {
     return (downloaded: downloaded, uploaded: uploaded);
   }
 
-  /// 跟 [_fetchCloudDiary] 同一個用途，換成健身的 `fitness.json`。
-  Future<List<FitnessEntry>> _fetchCloudFitness() async {
-    final bytes = await _client.getObject('fitness.json');
-    if (bytes == null) return const [];
-    final decoded = jsonDecode(utf8.decode(bytes)) as List;
-    return decoded
-        .cast<Map<String, dynamic>>()
-        .map(FitnessEntry.fromJson)
-        .toList();
-  }
-
   /// 健身版的 [syncDiary]，邏輯完全對應（下載合併→上傳覆蓋、上傳／
   /// 下載異動筆數分開算、同一組 [SyncPhase] 回報進度），只是換成健身
   /// 的 model／repository／R2 物件 key（`fitness.json`，跟日記的
@@ -268,24 +245,6 @@ class R2SyncService {
     await _writeMeta(key, body, etag);
 
     return (downloaded: downloaded, uploaded: uploaded);
-  }
-
-  Future<List<YtCategory>> _fetchCloudYtCategories() async {
-    final bytes = await _client.getObject('yt_categories.json');
-    if (bytes == null) return const [];
-    return (jsonDecode(utf8.decode(bytes)) as List)
-        .cast<Map<String, dynamic>>()
-        .map(YtCategory.fromJson)
-        .toList();
-  }
-
-  Future<List<YtChannel>> _fetchCloudYtChannels() async {
-    final bytes = await _client.getObject('yt_channels.json');
-    if (bytes == null) return const [];
-    return (jsonDecode(utf8.decode(bytes)) as List)
-        .cast<Map<String, dynamic>>()
-        .map(YtChannel.fromJson)
-        .toList();
   }
 
   /// YT 頻道追蹤版的 [syncDiary]：分類跟頻道各一個 R2 檔
@@ -868,12 +827,6 @@ class R2SyncService {
     onPhase: onPhase,
   );
 
-  Future<List<Object?>> _fetchCloudRaw(String key) async {
-    final bytes = await _client.getObject(key);
-    if (bytes == null) return const [];
-    return (jsonDecode(utf8.decode(bytes)) as List).cast<Object?>();
-  }
-
   Future<List<SyncLogEntry>> _fetchCloudLog() async {
     final bytes = await _client.getObject('sync_log.json');
     if (bytes == null) return const [];
@@ -930,52 +883,42 @@ class R2SyncService {
     return (downloaded: downloaded, uploaded: uploaded);
   }
 
-  /// 「備份雲端資料」按鈕用：把 R2 上目前每個功能的資料整包抓下來，
-  /// 包成一份 JSON 給使用者下載存到本機——跟 [syncDiary]／[syncFitness]
-  /// 不一樣，這裡純讀，不合併也不寫回任何 repository／localStorage
-  /// （2026-09-24 使用者要求：想要一顆按鈕直接把雲端資料整包抓下來
-  /// 方便自己另外備份）。之後同步的功能增加，這裡也要跟著多一個欄位。
-  /// 順便回傳各功能筆數，給呼叫端寫進同步紀錄 log 用
-  /// （見 `sync_page.dart` 的 `_downloadBackup`）。
-  Future<({String json, int diaryCount, int fitnessCount, int ytCount})>
-  fetchBackupJson() async {
-    final diary = await _fetchCloudDiary();
-    final fitness = await _fetchCloudFitness();
-    final ytCategories = await _fetchCloudYtCategories();
-    final ytChannels = await _fetchCloudYtChannels();
-    final kanaPractice = await _fetchCloudRaw('kana_practice.json');
-    final kanaExam = await _fetchCloudRaw('kana_exam.json');
-    final englishHistoryBytes = await _client.getObject('english_history.json');
-    final englishHistory = englishHistoryBytes == null
-        ? null
-        : jsonDecode(utf8.decode(englishHistoryBytes));
-    final log = await _fetchCloudLog();
-    final errorLog = await _fetchCloudErrorLog();
-    // 影片快取一個頻道一個檔，跟頻道清單對著逐一抓。
-    final ytVideoCache = <String, Object?>{};
-    for (final c in ytChannels.where((c) => c.deletedAt == null)) {
-      final bytes = await _client.getObject('yt_video_cache/${c.id}.json');
-      if (bytes != null) ytVideoCache[c.id] = jsonDecode(utf8.decode(bytes));
+  /// 「備份雲端資料」按鈕用：把 R2 bucket 裡**所有檔案**原封不動打包成
+  /// 一個 zip，路徑跟雲端一樣（例如 `yt_video_cache/頻道id.json`）。純讀，
+  /// 不合併也不寫回本機。2026-10-08 改成這樣（使用者問：雲端存什麼，備份
+  /// 就該拿到一整包壓縮檔吧？）——原本是挑幾個功能組成一份 JSON，後來加
+  /// 的交易、負債、抽菸、喝酒等功能都沒包進去；現在照雲端實際的檔案清單
+  /// 打包，之後加什麼功能都不用回來改這裡。
+  Future<({Uint8List zip, int fileCount, int totalBytes})>
+  fetchBackupZip() async {
+    final keys = await _client.listKeys();
+    final archive = Archive();
+    var total = 0;
+    // 一次抓 6 個，檔案多（影片快取一個頻道一個檔）時不用一個一個等。
+    for (var i = 0; i < keys.length; i += 6) {
+      final batch = keys.skip(i).take(6).toList();
+      final files = await Future.wait(batch.map(_client.getObject));
+      for (var j = 0; j < batch.length; j++) {
+        final bytes = files[j];
+        if (bytes == null) continue;
+        total += bytes.length;
+        archive.addFile(ArchiveFile(batch[j], bytes.length, bytes));
+      }
     }
-    const encoder = JsonEncoder.withIndent('  ');
-    final json = encoder.convert({
-      'exportedAt': DateTime.now().toIso8601String(),
-      'diary': [for (final e in diary) e.toJson()],
-      'fitness': [for (final e in fitness) e.toJson()],
-      'ytCategories': [for (final e in ytCategories) e.toJson()],
-      'ytChannels': [for (final e in ytChannels) e.toJson()],
-      'ytVideoCache': ytVideoCache,
-      'kanaPractice': kanaPractice,
-      'kanaExam': kanaExam,
-      'englishHistory': englishHistory,
-      'syncLog': [for (final e in log) e.toJson()],
-      'errorLog': [for (final e in errorLog) e.toJson()],
-    });
+    archive.addFile(
+      ArchiveFile.string(
+        '_備份說明.txt',
+        'Lume 雲端資料備份\n'
+            '打包時間：${DateTime.now().toIso8601String()}\n'
+            '檔案數：${archive.length}\n'
+            '每個 .json 都是雲端上原本的檔案，路徑跟雲端一樣。\n',
+      ),
+    );
+    final zip = ZipEncoder().encode(archive);
     return (
-      json: json,
-      diaryCount: diary.length,
-      fitnessCount: fitness.length,
-      ytCount: ytChannels.where((c) => c.deletedAt == null).length,
+      zip: Uint8List.fromList(zip),
+      fileCount: archive.length - 1,
+      totalBytes: total,
     );
   }
 }

@@ -70,9 +70,9 @@ class _SyncPageState extends ConsumerState<SyncPage> {
         credentials: credentials,
         bucket: ref.read(r2BucketNameProvider),
       );
-      final data = await R2SyncService(client).fetchBackupJson();
-      final filename = 'lume-backup-${_backupTodayStamp()}.json';
-      final ok = saveTextFile(filename, data.json);
+      final data = await R2SyncService(client).fetchBackupZip();
+      final filename = 'lume-backup-${_backupTodayStamp()}.zip';
+      final ok = saveBytesFile(filename, data.zip, 'application/zip');
       await ref
           .read(syncLogRepositoryProvider)
           .add(
@@ -82,7 +82,8 @@ class _SyncPageState extends ConsumerState<SyncPage> {
               success: ok,
               device: currentDeviceLabel(),
               detail: ok
-                  ? '日記 ${data.diaryCount} 筆、健身 ${data.fitnessCount} 筆、YT 頻道 ${data.ytCount} 個'
+                  ? '雲端 ${data.fileCount} 個檔案全部打包、'
+                        '${(data.totalBytes / 1024).toStringAsFixed(0)} KB'
                   : '這個平台還不支援下載',
             ),
           );
@@ -223,5 +224,5 @@ class _SyncPageState extends ConsumerState<SyncPage> {
 String _backupTodayStamp() {
   final now = DateTime.now();
   String two(int n) => n.toString().padLeft(2, '0');
-  return '${now.year}${two(now.month)}${two(now.day)}';
+  return '${now.year}${two(now.month)}${two(now.day)}-${two(now.hour)}${two(now.minute)}';
 }

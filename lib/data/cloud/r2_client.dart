@@ -152,6 +152,43 @@ class R2Client {
     return _etagOf(res);
   }
 
+  /// 列出 bucket 裡所有檔案的 key（S3 ListObjectsV2，一次最多 1000 筆，
+  /// 有下一頁就照 continuation token 接著翻）。給「備份雲端資料」整包打包
+  /// 用（2026-10-08 使用者要求：雲端存什麼就拿到什麼）。
+  Future<List<String>> listKeys() async {
+    final keys = <String>[];
+    String? token;
+    final keyRe = RegExp(r'<Key>(.*?)</Key>', dotAll: true);
+    final tokenRe = RegExp(
+      r'<NextContinuationToken>(.*?)</NextContinuationToken>',
+      dotAll: true,
+    );
+    for (var page = 0; page < 1000; page++) {
+      final uri = Uri.parse(credentials.endpoint).replace(
+        pathSegments: [bucket],
+        queryParameters: {'list-type': '2', 'continuation-token': ?token},
+      );
+      final res = await _send(AWSHttpRequest.get(uri));
+      if (res.statusCode >= 300) {
+        throw R2Exception(_errorMessage(res));
+      }
+      final body = res.body;
+      keys.addAll(keyRe.allMatches(body).map((m) => _unescapeXml(m[1]!)));
+      token = body.contains('<IsTruncated>true</IsTruncated>')
+          ? tokenRe.firstMatch(body)?.group(1)
+          : null;
+      if (token == null) break;
+    }
+    return keys;
+  }
+
+  static String _unescapeXml(String s) => s
+      .replaceAll('&lt;', '<')
+      .replaceAll('&gt;', '>')
+      .replaceAll('&quot;', '"')
+      .replaceAll('&apos;', "'")
+      .replaceAll('&amp;', '&');
+
   Future<void> deleteObject(String key) async {
     final res = await _send(AWSHttpRequest.delete(_uriFor(key)));
     // R2 對已經不存在的 key 也回 204，不用特別處理 404。
