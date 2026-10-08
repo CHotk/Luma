@@ -452,18 +452,16 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
           _syncing = false;
         });
       }
-      final source = downloads.isEmpty
-          ? null
-          : await _latestOtherDevice(container);
+      // 不寫是哪台裝置傳的（2026-10-08 使用者：不用分 iPhone／Android，
+      // 只要「本裝置從雲端更新了什麼」）。
       final noticeContext = mounted ? context : rootNavigatorKey.currentContext;
       if (noticeContext == null || !noticeContext.mounted) return;
       if (failedLabels.isEmpty) {
         showAppNotice(
           noticeContext,
           downloads.isEmpty
-              ? '同步完成：沒有新資料'
-              : '同步完成：${_downloadSummary(downloads)}',
-          detail: source,
+              ? '同步完成，沒有新資料'
+              : '本裝置從雲端更新：${_downloadSummary(downloads)}',
         );
       } else {
         showAppNotice(
@@ -502,32 +500,6 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
   /// 「日記 +2、YT 頻道追蹤 +3」：只列這次真的有下載到東西的功能。
   static String _downloadSummary(Map<String, int> downloads) =>
       downloads.entries.map((e) => '${e.key} +${e.value}').join('、');
-
-  /// 通知第二行的「來自 iOS・Safari · 21:08」：同步紀錄已經跟雲端合併過，
-  /// 裡面最新一筆「不是這台裝置」做的同步，就是這次帶回來的資料最可能
-  /// 的來源。舊紀錄沒有裝置名稱、或只有這台在同步時回傳 null，不顯示
-  /// 第二行。
-  static Future<String?> _latestOtherDevice(ProviderContainer container) async {
-    final here = currentDeviceLabel();
-    final List<SyncLogEntry> log;
-    try {
-      log = await container.read(syncLogRepositoryProvider).loadAll();
-    } catch (_) {
-      return null;
-    }
-    for (final e in log) {
-      if (e.action != SyncLogAction.sync) continue;
-      if (e.device == null || e.device == here) continue;
-      final t = e.at.toLocal();
-      final now = DateTime.now();
-      final hm =
-          '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
-      final sameDay =
-          t.year == now.year && t.month == now.month && t.day == now.day;
-      return '來自 ${e.device} · ${sameDay ? hm : '${t.month}/${t.day} $hm'}';
-    }
-    return null;
-  }
 
   @override
   Widget build(BuildContext context) {

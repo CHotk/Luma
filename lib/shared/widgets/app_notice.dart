@@ -17,7 +17,7 @@ import '../../app/theme/spacing.dart';
 /// `ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(...)))`
 /// 是同一個使用時機，只是換一顆函式呼叫。
 ///
-/// [detail] 是第二行灰色小字（例如同步通知的「來自 iOS・Safari · 21:08」），
+/// [detail] 是第二行灰色小字（例如同步有失敗時的「其他功能已經更新」），
 /// 不給就只有一行。
 Future<void> showAppNotice(
   BuildContext context,
