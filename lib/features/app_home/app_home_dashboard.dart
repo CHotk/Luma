@@ -250,7 +250,7 @@ class AppHomeDashboard extends ConsumerWidget {
           runSpacing: 8,
           children: [
             for (final (label, route) in const [
-              ('交易與自律', '/crypto-watch'),
+              ('交易&自律', '/crypto-watch'),
               ('負債還款', '/debt'),
               ('抽菸記錄', '/smoking-log'),
               ('喝酒記錄', '/drinking-log'),

@@ -7,7 +7,7 @@ import '../../app/theme/typography.dart';
 import '../../domain/models/trade_entry.dart';
 import '../../shared/widgets/app_confirm_dialog.dart';
 
-/// 交易與自律各頁共用的小東西（只給這個功能用，不放 shared）：數字格式、
+/// 交易&自律各頁共用的小東西（只給這個功能用，不放 shared）：數字格式、
 /// 漲跌顏色、交易卡片、記一筆／平倉／明細三個底部表單。
 ///
 /// 顏色是**綠漲紅跌**（2026-10-08 使用者指定：賺錢綠、賠錢紅）。
@@ -513,6 +513,129 @@ Widget _timeField(String label, DateTime value, VoidCallback onTap) => Padding(
   ),
 );
 
+const _maxLeverage = 20.0;
+
+/// 槓桿拉桿，照幣安合約的樣子（2026-10-08 使用者要求：改跟幣安一樣的
+/// 拉桿，最高 20x）：上面一格大大的倍數、左右 −／＋ 一次調 1 倍，下面
+/// 拉桿 1x–20x，刻度 1／5／10／15／20x 點了直接跳過去。超過 10x 拉桿
+/// 跟數字變紅，提醒高槓桿。
+class LeverageSlider extends StatelessWidget {
+  const LeverageSlider({
+    super.key,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final double value;
+  final ValueChanged<double> onChanged;
+
+  static const _binanceYellow = Color(0xFFF0B90B);
+  static const _ticks = [1, 5, 10, 15, 20];
+
+  @override
+  Widget build(BuildContext context) {
+    final v = value.clamp(1.0, _maxLeverage);
+    final hi = v > 10;
+    final color = hi ? tradeDown : _binanceYellow;
+    Widget step(IconData icon, double next) => IconButton(
+      onPressed: next < 1 || next > _maxLeverage ? null : () => onChanged(next),
+      icon: Icon(icon, size: 20),
+      color: AppColors.ink,
+      disabledColor: AppColors.ink3,
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF161622),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFF2A2A3D)),
+          ),
+          child: Row(
+            children: [
+              step(Icons.remove_rounded, v - 1),
+              Expanded(
+                child: Text(
+                  fmtLev(v),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: hi ? tradeDown : AppColors.ink,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ),
+              step(Icons.add_rounded, v + 1),
+            ],
+          ),
+        ),
+        const SizedBox(height: 4),
+        SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            trackHeight: 4,
+            activeTrackColor: color,
+            inactiveTrackColor: const Color(0xFF2A2A3D),
+            thumbColor: color,
+            overlayColor: color.withValues(alpha: 0.15),
+            overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
+            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 9),
+            activeTickMarkColor: Colors.transparent,
+            inactiveTickMarkColor: Colors.transparent,
+            showValueIndicator: ShowValueIndicator.never,
+          ),
+          child: Slider(
+            value: v,
+            min: 1,
+            max: _maxLeverage,
+            divisions: (_maxLeverage - 1).round(),
+            onChanged: (x) => onChanged(x.roundToDouble()),
+          ),
+        ),
+        // 刻度：跟拉桿兩端對齊（拉桿左右各內縮 overlay 半徑 16）。
+        SizedBox(
+          height: 22,
+          child: LayoutBuilder(
+            builder: (_, c) {
+              const inset = 16.0;
+              final w = c.maxWidth - inset * 2;
+              return Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  for (final t in _ticks)
+                    Positioned(
+                      left: inset + (t - 1) / (_maxLeverage - 1) * w - 18,
+                      width: 36,
+                      top: 0,
+                      child: InkWell(
+                        onTap: () => onChanged(t.toDouble()),
+                        borderRadius: BorderRadius.circular(6),
+                        child: Text(
+                          '${t}x',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: v.round() == t
+                                ? FontWeight.w800
+                                : FontWeight.w400,
+                            color: v.round() == t
+                                ? (t > 10 ? tradeDown : _binanceYellow)
+                                : AppColors.ink3,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 // ── 記一筆（開倉，或補記一整單）────────────────────────────
 
 /// 記一筆表單填完的結果，由呼叫端存進 repository。
@@ -554,20 +677,17 @@ class _NewTradeSheet extends StatefulWidget {
 
 class _NewTradeSheetState extends State<_NewTradeSheet> {
   static const _symbols = ['BTC', 'ETH', 'SOL'];
-  static const _leverages = [3.0, 5.0, 10.0, 20.0, 50.0];
 
   String _symbol = 'BTC';
   bool _customSymbol = false;
   bool _isLong = true;
   double _leverage = 10;
-  bool _customLeverage = false;
   late bool _closed;
   bool _win = true;
   late DateTime _openedAt;
   late DateTime _closedAt;
 
   final _symbolCtrl = TextEditingController();
-  final _leverageCtrl = TextEditingController();
   final _marginCtrl = TextEditingController();
   final _pnlCtrl = TextEditingController();
   final _noteCtrl = TextEditingController();
@@ -590,26 +710,14 @@ class _NewTradeSheetState extends State<_NewTradeSheet> {
     _openedAt = at.isAfter(now) ? now : at;
     _closedAt = _openedAt;
     _closed = isPast;
-    for (final c in [
-      _symbolCtrl,
-      _leverageCtrl,
-      _marginCtrl,
-      _pnlCtrl,
-      _noteCtrl,
-    ]) {
+    for (final c in [_symbolCtrl, _marginCtrl, _pnlCtrl, _noteCtrl]) {
       c.addListener(() => setState(() {}));
     }
   }
 
   @override
   void dispose() {
-    for (final c in [
-      _symbolCtrl,
-      _leverageCtrl,
-      _marginCtrl,
-      _pnlCtrl,
-      _noteCtrl,
-    ]) {
+    for (final c in [_symbolCtrl, _marginCtrl, _pnlCtrl, _noteCtrl]) {
       c.dispose();
     }
     super.dispose();
@@ -618,8 +726,7 @@ class _NewTradeSheetState extends State<_NewTradeSheet> {
   String get _sym =>
       _customSymbol ? _symbolCtrl.text.trim().toUpperCase() : _symbol;
 
-  double? get _lev =>
-      _customLeverage ? double.tryParse(_leverageCtrl.text) : _leverage;
+  double? get _lev => _leverage;
 
   double? get _margin => double.tryParse(_marginCtrl.text);
 
@@ -730,40 +837,11 @@ class _NewTradeSheetState extends State<_NewTradeSheet> {
           leftSelected: _isLong,
           onChanged: (v) => setState(() => _isLong = v),
         ),
-        _fieldLabel('槓桿'),
-        Wrap(
-          spacing: 6,
-          runSpacing: 6,
-          children: [
-            for (final l in _leverages)
-              _choice(
-                fmtLev(l),
-                !_customLeverage && _leverage == l,
-                () => setState(() {
-                  _leverage = l;
-                  _customLeverage = false;
-                }),
-              ),
-            _choice(
-              '自訂',
-              _customLeverage,
-              () => setState(() => _customLeverage = true),
-            ),
-          ],
+        _fieldLabel('槓桿', trailing: '最高 ${_maxLeverage.round()}x'),
+        LeverageSlider(
+          value: _leverage,
+          onChanged: (v) => setState(() => _leverage = v),
         ),
-        if (_customLeverage)
-          Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: TextField(
-              controller: _leverageCtrl,
-              autofocus: true,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              inputFormatters: _decimalOnly,
-              decoration: _input('倍數', suffix: 'x'),
-            ),
-          ),
         _fieldLabel('本金（保證金）'),
         TextField(
           controller: _marginCtrl,

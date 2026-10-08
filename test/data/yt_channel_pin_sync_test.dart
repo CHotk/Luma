@@ -24,7 +24,9 @@ void main() {
     );
     final beforePin = (await repo.loadChannels()).first;
     // A 裝置置頂。
-    await repo.updateChannel(beforePin.copyWith(pinnedAt: DateTime(2026, 1, 1)));
+    await repo.updateChannel(
+      beforePin.copyWith(pinnedAt: DateTime(2026, 1, 1)),
+    );
     final afterPin = (await repo.loadChannels()).first;
     expect(afterPin.pinnedAt, DateTime(2026, 1, 1));
     final pinUpdatedAt = afterPin.updatedAt;

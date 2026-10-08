@@ -103,8 +103,14 @@ class AppTopBar extends StatelessWidget {
             ],
           ),
         ),
-        ...actions,
-        if (showSettings)
+        // 右上角按鈕之間固定留 6 的空隙，全 App 一致（2026-10-08 使用者
+        // 回報多裝置同步右上角太擠：雲朵這種比較寬的圖示貼在一起很明顯）。
+        for (var i = 0; i < actions.length; i++) ...[
+          if (i > 0) const SizedBox(width: 6),
+          actions[i],
+        ],
+        if (showSettings) ...[
+          if (actions.isNotEmpty) const SizedBox(width: 6),
           IconButton(
             onPressed: () => openSettings(context),
             icon: const SettingsIcon(size: 20),
@@ -114,6 +120,7 @@ class AppTopBar extends StatelessWidget {
             visualDensity: VisualDensity.compact,
             constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
           ),
+        ],
       ],
     );
   }

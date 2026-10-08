@@ -20,7 +20,7 @@ import 'trade_ui.dart';
 
 const _cooldownLength = Duration(minutes: 10);
 
-/// 交易與自律（2026-10-08 使用者要求把「看盤記錄」改成這個名字，整合看盤
+/// 交易&自律（2026-10-08 使用者要求把「看盤記錄」改成這個名字，整合看盤
 /// 次數跟每一單的損益）。版面照 `design-history/已選擇完成/2026-10-08_投資與自律五種設計.html`
 /// 使用者挑的組合：
 /// - 版本 3 的看盤卡片放最上面（距離上次看盤、冷靜 10 分鐘、看了）——
@@ -56,7 +56,7 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
               children: [
                 const SizedBox(height: Gap.sm),
                 AppTopBar(
-                  title: '交易與自律',
+                  title: '交易&自律',
                   titleIcon: Icons.candlestick_chart_outlined,
                   showBack: false,
                   actions: [
@@ -255,7 +255,11 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
               const SizedBox(width: 6),
               _kpi(
                 ret == null ? '設定' : fmtPct(ret),
-                ret == null ? '月初資金' : '月報酬',
+                // 月初資金的數字直接寫出來（2026-10-08 使用者回報：設定完
+                // 只看到 0.0%，看不到剛填的金額，以為沒存到）。
+                ret == null
+                    ? '月初資金'
+                    : '月初 ${fmtAmount(data.capitalOf(_month)!)}',
                 color: ret == null ? AppColors.accent : pnlColor(ret),
                 onTap: () => editCapitalFlow(
                   context,

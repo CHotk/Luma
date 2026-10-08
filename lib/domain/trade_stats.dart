@@ -1,7 +1,7 @@
 import 'crypto_watch_stats.dart' show dayOf;
 import 'models/trade_entry.dart';
 
-/// 交易與自律的統計（純函式，給主畫面月曆、日誌、月報跟測試用）。
+/// 交易&自律的統計（純函式，給主畫面月曆、日誌、月報跟測試用）。
 ///
 /// 損益一律算在**平倉那天**；持倉中的單不算進任何損益數字。
 

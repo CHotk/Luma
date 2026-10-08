@@ -265,7 +265,7 @@ final appRouter = GoRouter(
   ],
 );
 
-/// 交易與自律的網址參數：月份 `2026-9`、日期 `2026-9-5`，格式不對回傳 null。
+/// 交易&自律的網址參數：月份 `2026-9`、日期 `2026-9-5`，格式不對回傳 null。
 DateTime? _parseMonth(String? s) {
   final p = s?.split('-').map(int.tryParse).toList();
   if (p == null || p.length != 2 || p.contains(null)) return null;

@@ -5,7 +5,7 @@ import '../seed/seed_merge.dart';
 import '../storage/key_value_store.dart';
 import 'yt_tracker_repository.dart' show ytDiffCount;
 
-/// 交易與自律的「每一單」跟「每月月初資金」（2026-10-08）。看盤次數還是
+/// 交易&自律的「每一單」跟「每月月初資金」（2026-10-08）。看盤次數還是
 /// 存在 [CryptoWatchRepository]，這裡只管交易，兩份各自同步。
 ///
 /// 整包 JSON 讀寫，刪除用墓碑標記，跟看盤記錄同一套多裝置同步做法。

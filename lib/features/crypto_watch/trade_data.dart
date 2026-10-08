@@ -9,7 +9,7 @@ import '../../domain/trade_stats.dart';
 import '../../shared/widgets/app_notice.dart';
 import 'trade_ui.dart';
 
-/// 交易與自律各頁共用的一包資料：看盤紀錄＋每一單＋每月月初資金。
+/// 交易&自律各頁共用的一包資料：看盤紀錄＋每一單＋每月月初資金。
 class TradeData {
   TradeData({
     required this.watches,
@@ -145,6 +145,13 @@ Future<void> editCapitalFlow(
   if (value == null) return;
   await ref.read(tradeRepositoryProvider).setCapital(month, value);
   _bump(ref);
+  if (context.mounted) {
+    showAppNotice(
+      context,
+      '已設定 ${month.month} 月初資金：${fmtAmount(value)} USDT',
+      detail: '月報酬 %＝本月損益 ÷ 這個數字',
+    );
+  }
 }
 
 class _CapitalDialog extends StatefulWidget {

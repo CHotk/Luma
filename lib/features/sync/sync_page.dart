@@ -127,7 +127,7 @@ class _SyncPageState extends ConsumerState<SyncPage> {
                   title: '多裝置同步',
                   titleIcon: Icons.cloud_sync_outlined,
                   showBack: false,
-                  // 按鈕大小、間距跟交易與自律等其他功能一致（2026-10-08
+                  // 按鈕大小、間距跟交易&自律等其他功能一致（2026-10-08
                   // 使用者回報這裡太擠）。
                   actions: [
                     IconButton(

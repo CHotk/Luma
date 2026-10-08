@@ -727,7 +727,7 @@ class R2SyncService {
     onPhase: onPhase,
   );
 
-  /// 交易與自律的每一單（`trades.json`）跟每月月初資金
+  /// 交易&自律的每一單（`trades.json`）跟每月月初資金
   /// （`trade_capital.json`），兩個檔各自比對、各自跳過，筆數加總回報。
   Future<({int downloaded, int uploaded})> syncTrades(
     TradeRepository repo, {

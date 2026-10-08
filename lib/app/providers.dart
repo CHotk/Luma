@@ -76,7 +76,7 @@ final cryptoWatchRepositoryProvider = Provider<CryptoWatchRepository>(
   (ref) => CryptoWatchRepository(ref.watch(keyValueStoreProvider)),
 );
 
-/// 交易與自律的每一單＋月初資金（2026-10-08），看盤次數還是在
+/// 交易&自律的每一單＋月初資金（2026-10-08），看盤次數還是在
 /// [cryptoWatchRepositoryProvider]。
 final tradeRepositoryProvider = Provider<TradeRepository>(
   (ref) => TradeRepository(ref.watch(keyValueStoreProvider)),

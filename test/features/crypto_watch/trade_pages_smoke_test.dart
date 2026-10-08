@@ -10,7 +10,7 @@ import 'package:lume/features/crypto_watch/trade_day_page.dart';
 import 'package:lume/features/crypto_watch/trade_journal_page.dart';
 import 'package:lume/features/crypto_watch/trade_report_page.dart';
 
-/// 交易與自律四頁在手機寬度（360）畫得出來、不爆版，有資料跟沒資料都要。
+/// 交易&自律四頁在手機寬度（360）畫得出來、不爆版，有資料跟沒資料都要。
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -86,7 +86,7 @@ void main() {
     testWidgets('主畫面$tag', (tester) async {
       final store = empty ? _MemoryStore() : await seeded();
       await pumpPage(tester, const CryptoWatchPage(), store);
-      expect(find.text('交易與自律'), findsOneWidget);
+      expect(find.text('交易&自律'), findsOneWidget);
       expect(find.text('距離上次看盤'), findsOneWidget);
       expect(find.text('看了（重新計時）'), findsOneWidget);
       await tester.drag(find.byType(ListView), const Offset(0, -900));
@@ -173,6 +173,25 @@ void main() {
     final closed = await repo.close(t.id, pnl: 50, at: at);
     expect(closed!.closedAt, at);
     expect((await repo.loadAll()).single.closedAt, at);
+  });
+
+  testWidgets('設定月初資金後，月報酬馬上出現', (tester) async {
+    await pumpPage(tester, const CryptoWatchPage(), _MemoryStore());
+    await tester.tap(find.text('設定'));
+    await tester.pumpAndSettle();
+    expect(find.text('${DateTime.now().month} 月初的資金'), findsOneWidget);
+    await tester.enterText(find.byType(TextField).last, '2000');
+    await tester.tap(find.text('儲存'));
+    for (var i = 0; i < 6; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)),
+      );
+      await tester.pump();
+    }
+    expect(find.text('月初 2,000 ✎'), findsOneWidget);
+    expect(find.textContaining('已設定'), findsOneWidget);
+    expect(find.text('設定'), findsNothing);
+    await finish(tester);
   });
 }
 
