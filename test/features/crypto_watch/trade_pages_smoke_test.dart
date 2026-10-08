@@ -138,6 +138,41 @@ void main() {
     expect(save().onPressed, isNotNull);
     await finish(tester);
   });
+
+  testWidgets('補記：開倉時間一定有、打開「已經平倉了」多出平倉時間', (tester) async {
+    await pumpPage(tester, const CryptoWatchPage(), _MemoryStore());
+    await tester.drag(find.byType(ListView), const Offset(0, -900));
+    await tester.pump();
+    await tester.tap(find.text('記一筆交易'));
+    await tester.pumpAndSettle();
+    expect(find.text('開倉時間'), findsOneWidget);
+    expect(find.text('平倉時間'), findsNothing);
+    await tester.scrollUntilVisible(
+      find.text('已經平倉了（補記一整單）'),
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.tap(find.text('已經平倉了（補記一整單）'));
+    await tester.pumpAndSettle();
+    expect(find.text('平倉時間'), findsOneWidget);
+    expect(find.textContaining('持倉'), findsWidgets);
+    await finish(tester);
+  });
+
+  test('平倉可以指定時間（補記以前的單）', () async {
+    final repo = TradeRepository(_MemoryStore());
+    final t = await repo.add(
+      symbol: 'BTC',
+      isLong: true,
+      leverage: 10,
+      margin: 100,
+      openedAt: DateTime(2026, 9, 1, 9),
+    );
+    final at = DateTime(2026, 9, 3, 21, 40);
+    final closed = await repo.close(t.id, pnl: 50, at: at);
+    expect(closed!.closedAt, at);
+    expect((await repo.loadAll()).single.closedAt, at);
+  });
 }
 
 class _MemoryStore implements KeyValueStore {

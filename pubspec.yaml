@@ -9,6 +9,11 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  # Material 內建元件（日期／時間選擇器、文字選單）的中文字串。交易與自律
+  # 補記舊資料要選開倉、平倉時間（2026-10-08），沒有這個選擇器會是英文。
+  # Flutter SDK 內建，不是外部套件。
+  flutter_localizations:
+    sdk: flutter
   # 狀態管理。每個 feature 的 provider 放自己的資料夾，不開全域大 provider。
   flutter_riverpod: ^2.6.1
   # 路由。所有路徑只在 app/router.dart 定義。

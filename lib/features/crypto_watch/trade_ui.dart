@@ -444,6 +444,75 @@ TextSpan _strong(String s, {Color color = AppColors.ink, double? size}) =>
       ),
     );
 
+/// 選日期再選時間（補記舊交易用，2026-10-08 使用者要求開倉、平倉時間都能
+/// 自己填）。不能選未來；取消回傳 null。
+Future<DateTime?> _pickDateTime(BuildContext context, DateTime initial) async {
+  final now = DateTime.now();
+  final date = await showDatePicker(
+    context: context,
+    initialDate: initial.isAfter(now) ? now : initial,
+    firstDate: DateTime(2015),
+    lastDate: now,
+    helpText: '選日期',
+  );
+  if (date == null || !context.mounted) return null;
+  final time = await showTimePicker(
+    context: context,
+    initialTime: TimeOfDay.fromDateTime(initial),
+    helpText: '選時間',
+  );
+  if (time == null) return null;
+  final picked = DateTime(
+    date.year,
+    date.month,
+    date.day,
+    time.hour,
+    time.minute,
+  );
+  return picked.isAfter(now) ? now : picked;
+}
+
+/// 「開倉時間 10/3（六）21:40 ›」這種點了會跳日期時間選擇器的一列。
+Widget _timeField(String label, DateTime value, VoidCallback onTap) => Padding(
+  padding: const EdgeInsets.only(top: 8),
+  child: Material(
+    color: const Color(0xFF161622),
+    borderRadius: BorderRadius.circular(12),
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFF2A2A3D)),
+        ),
+        child: Row(
+          children: [
+            Text(label, style: AppText.bodyDim),
+            const Spacer(),
+            Text(
+              '${value.year == DateTime.now().year ? '' : '${value.year}/'}'
+              '${fmtDay(value)} ${fmtHm(value)}',
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: AppColors.ink,
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Icon(
+              Icons.edit_calendar_outlined,
+              size: 17,
+              color: AppColors.ink2,
+            ),
+          ],
+        ),
+      ),
+    ),
+  ),
+);
+
 // ── 記一筆（開倉，或補記一整單）────────────────────────────
 
 /// 記一筆表單填完的結果，由呼叫端存進 repository。
@@ -494,7 +563,8 @@ class _NewTradeSheetState extends State<_NewTradeSheet> {
   bool _customLeverage = false;
   late bool _closed;
   bool _win = true;
-  late final DateTime _at;
+  late DateTime _openedAt;
+  late DateTime _closedAt;
 
   final _symbolCtrl = TextEditingController();
   final _leverageCtrl = TextEditingController();
@@ -514,9 +584,11 @@ class _NewTradeSheetState extends State<_NewTradeSheet> {
           d.month,
           d.day,
         ).isBefore(DateTime(now.year, now.month, now.day));
-    _at = d == null
+    final at = d == null
         ? now
         : DateTime(d.year, d.month, d.day, now.hour, now.minute);
+    _openedAt = at.isAfter(now) ? now : at;
+    _closedAt = _openedAt;
     _closed = isPast;
     for (final c in [
       _symbolCtrl,
@@ -558,7 +630,7 @@ class _NewTradeSheetState extends State<_NewTradeSheet> {
     if (_sym.isEmpty || lev == null || lev < 1 || m == null || m <= 0) {
       return false;
     }
-    return !_closed || _pnlAbs != null;
+    return !_closed || (_pnlAbs != null && !_closedAt.isBefore(_openedAt));
   }
 
   void _save() {
@@ -570,8 +642,8 @@ class _NewTradeSheetState extends State<_NewTradeSheet> {
         isLong: _isLong,
         leverage: _lev!,
         margin: _margin!,
-        openedAt: _at,
-        closedAt: _closed ? _at : null,
+        openedAt: _openedAt,
+        closedAt: _closed ? _closedAt : null,
         pnl: pnl,
         note: _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim(),
       ),
@@ -611,7 +683,7 @@ class _NewTradeSheetState extends State<_NewTradeSheet> {
     }
 
     return _SheetFrame(
-      title: _closed ? '補記一單・${fmtDay(_at)}' : '記一筆開倉',
+      title: _closed ? '補記一單' : '記一筆開倉',
       footer: FilledButton(
         onPressed: _valid ? _save : null,
         style: FilledButton.styleFrom(
@@ -712,6 +784,34 @@ class _NewTradeSheetState extends State<_NewTradeSheet> {
             style: TextStyle(fontSize: 13, color: AppColors.ink2),
           ),
         ),
+        _fieldLabel('時間', trailing: '補記以前的單可以改'),
+        _timeField('開倉時間', _openedAt, () async {
+          final t = await _pickDateTime(context, _openedAt);
+          if (t == null || !mounted) return;
+          setState(() {
+            _openedAt = t;
+            if (_closedAt.isBefore(t)) _closedAt = t;
+          });
+        }),
+        if (_closed) ...[
+          _timeField('平倉時間', _closedAt, () async {
+            final t = await _pickDateTime(context, _closedAt);
+            if (t != null && mounted) setState(() => _closedAt = t);
+          }),
+          Padding(
+            padding: const EdgeInsets.only(top: 6, left: 4),
+            child: Text(
+              _closedAt.isBefore(_openedAt)
+                  ? '⚠ 平倉時間比開倉早，改一下'
+                  : '持倉 ${fmtHold(_closedAt.difference(_openedAt))}',
+              style: AppText.note.copyWith(
+                color: _closedAt.isBefore(_openedAt)
+                    ? tradeDown
+                    : AppColors.ink3,
+              ),
+            ),
+          ),
+        ],
         if (_closed) ...[
           _fieldLabel('結果'),
           _twoWay(
@@ -720,7 +820,7 @@ class _NewTradeSheetState extends State<_NewTradeSheet> {
             leftSelected: _win,
             onChanged: (v) => setState(() => _win = v),
           ),
-          _fieldLabel('已實現損益', trailing: '記在 ${fmtDay(_at)}'),
+          _fieldLabel('已實現損益', trailing: '記在平倉那天 ${fmtDay(_closedAt)}'),
           TextField(
             controller: _pnlCtrl,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -756,28 +856,34 @@ class _NewTradeSheetState extends State<_NewTradeSheet> {
 
 // ── 平倉結算 ──────────────────────────────────────────────
 
-/// 回傳已實現損益（賠是負數），取消回傳 null。[monthTotal]、[capital]
-/// 是這個月目前的累計跟月初資金，用來即時算「結算後本月累計」。
-Future<double?> showCloseTradeSheet(
+/// 回傳已實現損益（賠是負數）跟平倉時間，取消回傳 null。平倉時間預設
+/// 現在，補記以前的單可以改（2026-10-08 使用者要求）。[monthTotalOf]、
+/// [capitalOf] 給某個月目前的累計跟月初資金，用來即時算「結算後那個月
+/// 累計」——平倉時間改到別的月，就算那個月。
+Future<({double pnl, DateTime at})?> showCloseTradeSheet(
   BuildContext context, {
   required TradeEntry trade,
-  required double monthTotal,
-  double? capital,
-}) => _sheet<double>(
+  required double Function(DateTime month) monthTotalOf,
+  required double? Function(DateTime month) capitalOf,
+}) => _sheet<({double pnl, DateTime at})>(
   context,
-  _CloseTradeSheet(trade: trade, monthTotal: monthTotal, capital: capital),
+  _CloseTradeSheet(
+    trade: trade,
+    monthTotalOf: monthTotalOf,
+    capitalOf: capitalOf,
+  ),
 );
 
 class _CloseTradeSheet extends StatefulWidget {
   const _CloseTradeSheet({
     required this.trade,
-    required this.monthTotal,
-    this.capital,
+    required this.monthTotalOf,
+    required this.capitalOf,
   });
 
   final TradeEntry trade;
-  final double monthTotal;
-  final double? capital;
+  final double Function(DateTime month) monthTotalOf;
+  final double? Function(DateTime month) capitalOf;
 
   @override
   State<_CloseTradeSheet> createState() => _CloseTradeSheetState();
@@ -785,6 +891,7 @@ class _CloseTradeSheet extends StatefulWidget {
 
 class _CloseTradeSheetState extends State<_CloseTradeSheet> {
   bool _win = true;
+  DateTime _at = DateTime.now();
   final _ctrl = TextEditingController();
 
   @override
@@ -813,14 +920,15 @@ class _CloseTradeSheetState extends State<_CloseTradeSheet> {
         _strong('這個月累計'),
       ]);
     } else {
-      final after = widget.monthTotal + v;
+      final after = widget.monthTotalOf(_at) + v;
+      final capital = widget.capitalOf(_at);
       calc.addAll([
         const TextSpan(text: '本金報酬率 '),
         _strong(fmtPct(v / t.margin * 100), color: pnlColor(v), size: 15),
-        TextSpan(text: '\n${DateTime.now().month} 月累計會變成 '),
+        TextSpan(text: '\n${_at.month} 月累計會變成 '),
         _strong(
           '${fmtPnl(after)} USDT'
-          '${widget.capital == null ? '' : '（${fmtPct(after / widget.capital! * 100)}）'}',
+          '${capital == null ? '' : '（${fmtPct(after / capital * 100)}）'}',
           color: pnlColor(after),
         ),
       ]);
@@ -836,11 +944,13 @@ class _CloseTradeSheetState extends State<_CloseTradeSheet> {
     return _SheetFrame(
       title: '平倉結算',
       footer: FilledButton(
-        onPressed: v == null ? null : () => Navigator.pop(context, v),
+        onPressed: v == null || _at.isBefore(t.openedAt)
+            ? null
+            : () => Navigator.pop(context, (pnl: v, at: _at)),
         style: FilledButton.styleFrom(
           padding: const EdgeInsets.symmetric(vertical: 14),
         ),
-        child: const Text('結算（記在今天）'),
+        child: Text(_isToday(_at) ? '結算（記在今天）' : '結算（記在 ${fmtDay(_at)}）'),
       ),
       children: [
         TradeCard(trade: t, onTap: () {}),
@@ -878,9 +988,29 @@ class _CloseTradeSheetState extends State<_CloseTradeSheet> {
             ),
           ),
         ),
+        _timeField('平倉時間', _at, () async {
+          final p = await _pickDateTime(context, _at);
+          if (p != null && mounted) setState(() => _at = p);
+        }),
+        Padding(
+          padding: const EdgeInsets.only(top: 6, left: 4),
+          child: Text(
+            _at.isBefore(t.openedAt)
+                ? '⚠ 平倉時間比開倉（${fmtDay(t.openedAt)} ${fmtHm(t.openedAt)}）早，改一下'
+                : '持倉 ${fmtHold(_at.difference(t.openedAt))}・補記以前平倉的單可以改時間',
+            style: AppText.note.copyWith(
+              color: _at.isBefore(t.openedAt) ? tradeDown : AppColors.ink3,
+            ),
+          ),
+        ),
         _calcBox(calc),
       ],
     );
+  }
+
+  static bool _isToday(DateTime d) {
+    final n = DateTime.now();
+    return d.year == n.year && d.month == n.month && d.day == n.day;
   }
 }
 

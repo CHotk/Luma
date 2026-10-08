@@ -98,21 +98,22 @@ Future<void> openTradeFlow(
 ) async {
   final repo = ref.read(tradeRepositoryProvider);
   if (trade.isOpen) {
-    final now = DateTime.now();
-    final pnl = await showCloseTradeSheet(
+    final result = await showCloseTradeSheet(
       context,
       trade: trade,
-      monthTotal: data.month(now).total,
-      capital: data.capitalOf(now),
+      monthTotalOf: (m) => data.month(m).total,
+      capitalOf: data.capitalOf,
     );
-    if (pnl == null) return;
-    await repo.close(trade.id, pnl: pnl);
+    if (result == null) return;
+    final pnl = result.pnl;
+    await repo.close(trade.id, pnl: pnl, at: result.at);
     _bump(ref);
     if (!context.mounted) return;
     showAppNotice(
       context,
       '結算完成：${trade.symbol} ${fmtPnl(pnl)} USDT',
-      detail: '本金報酬率 ${fmtPct(pnl / trade.margin * 100)}・記在今天',
+      detail:
+          '本金報酬率 ${fmtPct(pnl / trade.margin * 100)}・記在 ${fmtDay(result.at)}',
       isError: pnl < 0,
     );
     return;

@@ -1,5 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'router.dart';
 import 'theme/colors.dart';
@@ -31,6 +32,10 @@ class LumeApp extends StatelessWidget {
       title: 'Lume',
       debugShowCheckedModeBanner: false,
       routerConfig: appRouter,
+      // 內建元件（日期／時間選擇器等）用繁體中文。
+      locale: const Locale('zh', 'TW'),
+      supportedLocales: const [Locale('zh', 'TW'), Locale('en')],
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
       scrollBehavior: _AppScrollBehavior(),
       theme: ThemeData(
         brightness: Brightness.dark,
