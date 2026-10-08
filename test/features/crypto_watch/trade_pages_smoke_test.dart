@@ -92,6 +92,7 @@ void main() {
       await tester.drag(find.byType(ListView), const Offset(0, -900));
       await tester.pump();
       if (!empty) expect(find.textContaining('持倉中'), findsWidgets);
+      if (!empty) expect(find.textContaining('月持倉期間'), findsOneWidget);
       expect(find.text('記一筆交易'), findsOneWidget);
       await finish(tester);
     });

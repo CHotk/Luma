@@ -9,6 +9,7 @@ import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
 import '../../domain/crypto_watch_stats.dart';
+import '../../domain/models/trade_entry.dart';
 import '../../domain/trade_stats.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_side_drawer.dart';
@@ -37,6 +38,9 @@ class CryptoWatchPage extends ConsumerStatefulWidget {
 
 class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
   DateTime _month = DateTime(DateTime.now().year, DateTime.now().month);
+
+  /// 甘特圖點選的那一單，月曆上那幾天跟著亮起來；再點一次取消。
+  String? _ganttSel;
 
   @override
   Widget build(BuildContext context) {
@@ -81,6 +85,10 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
                             _WatchCard(data: data),
                             const SizedBox(height: Gap.md),
                             _buildMonthCard(data),
+                            if (_monthTrades(data).isNotEmpty) ...[
+                              const SizedBox(height: Gap.md),
+                              _buildGantt(data),
+                            ],
                             if (data.openTrades.isNotEmpty) ...[
                               const SizedBox(height: Gap.lg),
                               _sectionTitle('持倉中', '點一下去平倉'),
@@ -192,8 +200,14 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
       watchTotal +=
           data.watchCounts[DateTime(_month.year, _month.month, d)] ?? 0;
     }
-    final openDays = {for (final t in data.openTrades) dayOf(t.openedAt)};
     final ret = sum.returnPercent;
+    final holdDays = <DateTime>{};
+    final litDays = <DateTime>{};
+    for (final t in _monthTrades(data)) {
+      final days = _daysOf(t);
+      holdDays.addAll(days);
+      if (t.id == _ganttSel) litDays.addAll(days);
+    }
 
     return GlassCard(
       child: Column(
@@ -287,9 +301,10 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
                         d,
                       )] ??
                       0,
-                  hasOpen: openDays.contains(
+                  hold: holdDays.contains(
                     DateTime(_month.year, _month.month, d),
                   ),
+                  lit: litDays.contains(DateTime(_month.year, _month.month, d)),
                 ),
             ],
           ),
@@ -300,6 +315,7 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
             children: [
               _legend(tradeUp.withValues(alpha: 0.4), '賺'),
               _legend(tradeDown.withValues(alpha: 0.4), '賠'),
+              _legend(AppColors.mid.withValues(alpha: 0.45), '底部黃線＝有抱單'),
               Text('👁 看盤次數', style: AppText.note),
               Text(
                 '👁 黃＝超過 $heavyWatchThreshold 次',
@@ -358,7 +374,8 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
     DateTime day, {
     required double? pnl,
     required int watches,
-    required bool hasOpen,
+    required bool hold,
+    required bool lit,
   }) {
     final now = DateTime.now();
     final isToday = day == dayOf(now);
@@ -389,49 +406,70 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
                   ? Border.all(color: AppColors.ink2, width: 1)
                   : null,
             ),
-            padding: const EdgeInsets.fromLTRB(4, 3, 3, 3),
+            foregroundDecoration: lit
+                ? BoxDecoration(
+                    color: AppColors.mid.withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(9),
+                  )
+                : null,
             child: Stack(
               children: [
-                Text(
-                  '${day.day}',
-                  style: const TextStyle(fontSize: 10, color: AppColors.ink3),
-                ),
-                if (watches > 0)
-                  Align(
-                    alignment: Alignment.topRight,
-                    child: Text(
-                      '👁$watches',
-                      style: TextStyle(
-                        fontSize: 8.5,
-                        fontWeight: heavy ? FontWeight.w800 : FontWeight.w400,
-                        color: heavy ? AppColors.mid : AppColors.ink2,
-                      ),
-                    ),
-                  ),
-                if (hasOpen)
-                  Align(
-                    alignment: const Alignment(1, 0.1),
-                    child: Container(
-                      width: 5,
-                      height: 5,
-                      decoration: const BoxDecoration(
-                        color: AppColors.mid,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ),
-                if (pnl != null)
-                  Align(
-                    alignment: Alignment.bottomCenter,
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text(
-                        fmtPnl(pnl),
-                        style: TextStyle(
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w800,
-                          color: pnlColor(pnl),
+                Padding(
+                  // 底部留位置給持倉黃線，損益數字不壓在線上。
+                  padding: const EdgeInsets.fromLTRB(4, 3, 3, 7),
+                  child: Stack(
+                    children: [
+                      Text(
+                        '${day.day}',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: AppColors.ink3,
                         ),
+                      ),
+                      if (watches > 0)
+                        Align(
+                          alignment: Alignment.topRight,
+                          child: Text(
+                            '👁$watches',
+                            style: TextStyle(
+                              fontSize: 8.5,
+                              fontWeight: heavy
+                                  ? FontWeight.w800
+                                  : FontWeight.w400,
+                              color: heavy ? AppColors.mid : AppColors.ink2,
+                            ),
+                          ),
+                        ),
+                      if (pnl != null)
+                        Align(
+                          alignment: Alignment.bottomCenter,
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              fmtPnl(pnl),
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w800,
+                                color: pnlColor(pnl),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                // 持倉期間：格子最底部、在格子裡面的一條淡黃線（2026-10-08
+                // 使用者挑設計稿版本 3，要求放格子底部、顏色淡一點）。
+                if (hold)
+                  Positioned(
+                    left: 4,
+                    right: 4,
+                    bottom: 2,
+                    height: 3,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: AppColors.mid.withValues(alpha: 0.45),
+                        borderRadius: BorderRadius.circular(2),
                       ),
                     ),
                   ),
@@ -439,6 +477,204 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  // ── 下方甘特圖（設計稿版本 3）────────────────────────────
+
+  /// 持倉期間碰到這個月的單（含持倉中），依開倉時間排。
+  List<TradeEntry> _monthTrades(TradeData data) {
+    final start = DateTime(_month.year, _month.month);
+    final end = DateTime(_month.year, _month.month + 1);
+    final now = DateTime.now();
+    return data.trades
+        .where(
+          (t) =>
+              t.openedAt.isBefore(end) && !(t.closedAt ?? now).isBefore(start),
+        )
+        .toList()
+      ..sort((a, b) => a.openedAt.compareTo(b.openedAt));
+  }
+
+  /// 這一單在這個月裡抱著的每一天。
+  List<DateTime> _daysOf(TradeEntry t) {
+    final start = DateTime(_month.year, _month.month);
+    final last = DateTime(_month.year, _month.month + 1, 0);
+    var d = dayOf(t.openedAt);
+    final endDay = dayOf(t.closedAt ?? DateTime.now());
+    if (d.isBefore(start)) d = start;
+    final out = <DateTime>[];
+    while (!d.isAfter(endDay) && !d.isAfter(last)) {
+      out.add(d);
+      d = DateTime(d.year, d.month, d.day + 1);
+    }
+    return out;
+  }
+
+  /// 月曆下面的甘特圖：一單一條，長度精確到小時（半夜開、隔天中午平都
+  /// 看得出來），右端小色塊綠賺紅賠，持倉中的條一路到藍色「今天」線。點一條，
+  /// 月曆上那幾天亮起來、下面出那一單的卡片。
+  Widget _buildGantt(TradeData data) {
+    final list = _monthTrades(data);
+    final start = DateTime(_month.year, _month.month);
+    final end = DateTime(_month.year, _month.month + 1);
+    final span = end.difference(start).inMinutes.toDouble();
+    double frac(DateTime t) =>
+        (t.difference(start).inMinutes / span).clamp(0.0, 1.0);
+    final now = DateTime.now();
+    final showToday = now.isAfter(start) && now.isBefore(end);
+    final daysInMonth = DateTime(_month.year, _month.month + 1, 0).day;
+    final ticks = [1, 8, 15, 22, 29].where((d) => d <= daysInMonth).toList();
+    const labelW = 68.0;
+    final sel = list.where((t) => t.id == _ganttSel).firstOrNull;
+
+    Widget grid(double w, {bool labels = false}) => Stack(
+      clipBehavior: Clip.none,
+      children: [
+        for (final d in ticks)
+          Positioned(
+            left: frac(DateTime(_month.year, _month.month, d)) * w,
+            top: 0,
+            bottom: 0,
+            child: labels
+                ? FractionalTranslation(
+                    translation: const Offset(-0.5, 0),
+                    child: Text(
+                      '${_month.month}/$d',
+                      style: AppText.note.copyWith(
+                        fontSize: 9,
+                        color: AppColors.ink3,
+                      ),
+                    ),
+                  )
+                : Container(width: 1, color: const Color(0xFF2A2A3D)),
+          ),
+        if (showToday && !labels)
+          Positioned(
+            left: frac(now) * w,
+            top: 0,
+            bottom: 0,
+            child: Container(
+              width: 1.5,
+              color: AppColors.accent.withValues(alpha: 0.7),
+            ),
+          ),
+      ],
+    );
+
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Text('${_month.month} 月持倉期間', style: AppText.note),
+              const Spacer(),
+              Text(
+                '${list.length} 單・點一條在月曆上標出',
+                style: AppText.note.copyWith(color: AppColors.ink3),
+              ),
+            ],
+          ),
+          const SizedBox(height: Gap.sm),
+          Row(
+            children: [
+              const SizedBox(width: labelW),
+              Expanded(
+                child: SizedBox(
+                  height: 14,
+                  child: LayoutBuilder(
+                    builder: (_, c) => grid(c.maxWidth, labels: true),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          for (final t in list)
+            InkWell(
+              onTap: () =>
+                  setState(() => _ganttSel = _ganttSel == t.id ? null : t.id),
+              borderRadius: BorderRadius.circular(6),
+              child: Container(
+                height: 24,
+                decoration: BoxDecoration(
+                  color: t.id == _ganttSel
+                      ? AppColors.mid.withValues(alpha: 0.08)
+                      : null,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: labelW,
+                      child: Text(
+                        '${t.symbol}${t.isLong ? '多' : '空'} ${fmtLev(t.leverage)}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppText.note.copyWith(fontSize: 10.5),
+                      ),
+                    ),
+                    Expanded(
+                      child: LayoutBuilder(
+                        builder: (_, c) {
+                          final w = c.maxWidth;
+                          final l = frac(t.openedAt) * w;
+                          final r = frac(t.closedAt ?? now) * w;
+                          return Stack(
+                            children: [
+                              grid(w),
+                              Positioned(
+                                left: l,
+                                width: (r - l).clamp(4.0, w),
+                                top: 6,
+                                height: 12,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: AppColors.mid.withValues(
+                                      alpha: t.isOpen ? 0.3 : 0.45,
+                                    ),
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: t.isOpen
+                                        ? Border.all(
+                                            color: AppColors.mid.withValues(
+                                              alpha: 0.6,
+                                            ),
+                                          )
+                                        : null,
+                                  ),
+                                  alignment: Alignment.centerRight,
+                                  child: t.isOpen
+                                      ? null
+                                      : Container(
+                                          width: 5,
+                                          decoration: BoxDecoration(
+                                            color: pnlColor(t.pnl),
+                                            borderRadius:
+                                                const BorderRadius.horizontal(
+                                                  right: Radius.circular(6),
+                                                ),
+                                          ),
+                                        ),
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          if (sel != null) ...[
+            const SizedBox(height: Gap.sm),
+            TradeCard(
+              trade: sel,
+              onTap: () => openTradeFlow(context, ref, sel, data),
+            ),
+          ],
+        ],
       ),
     );
   }
