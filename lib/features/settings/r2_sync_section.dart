@@ -31,6 +31,13 @@ enum _Phase { idle, testing, success, error }
 /// 每加一個功能的同步，這個卡片就多加一行。
 enum _FeaturePhase { idle, downloading, uploading, done, error }
 
+/// 同步是不是正在跑，全 App 一個（2026-10-08 使用者回報：按了同步跳去別的
+/// 功能，回來看起來像被取消了）。同步本身離開頁面也會跑完（見 [_syncNow]），
+/// 但「同步中」原本只記在這個區塊自己的 State，換頁回來是新的 State，
+/// 按鈕又能按、看起來沒在跑，再按還會同時跑兩次。放這裡，回來還是看得到
+/// 「同步中」，也擋住重複同步。
+final r2SyncRunningProvider = StateProvider<bool>((ref) => false);
+
 /// 設定頁「多裝置同步」區塊，照設計稿
 /// `design-history/已選擇完成/雲端同步設計/01_簡潔卡片式.html` 做：沒設定過就是
 /// 輸入卡片（Account ID／Access Key ID／Secret Access Key 三欄＋
@@ -74,6 +81,7 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
     ('trade', '交易紀錄'),
     ('smoking', '抽菸記錄'),
     ('drinking', '喝酒記錄'),
+    ('debt', '負債還款'),
   ];
   _FeaturePhase _syncLogPhase = _FeaturePhase.idle;
   _FeaturePhase _errorLogPhase = _FeaturePhase.idle;
@@ -183,7 +191,12 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
     // 所以一開始就抓住 ProviderContainer，整段同步都用它讀。
     final container = ProviderScope.containerOf(context, listen: false);
     final credentials = container.read(r2CredentialsProvider);
-    if (credentials == null || _syncing) return;
+    if (credentials == null ||
+        _syncing ||
+        container.read(r2SyncRunningProvider)) {
+      return;
+    }
+    container.read(r2SyncRunningProvider.notifier).state = true;
     setState(() {
       _syncing = true;
       _diaryPhase = _FeaturePhase.downloading;
@@ -399,6 +412,14 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
             onPhase: onPhase,
           ),
         ),
+        run(
+          '負債還款',
+          (p) => _habitPhases['debt'] = p,
+          (onPhase) => service.syncDebts(
+            container.read(debtRepositoryProvider),
+            onPhase: onPhase,
+          ),
+        ),
       ]);
 
       // 同步紀錄本身這筆內容就是「這次同步的結果」，一定要等上面全部
@@ -455,6 +476,7 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
       // （2026-09-23 使用者回報）——跟練習紀錄頁那套「存檔完 bump 這個
       // provider」共用同一個機制，見 `dataRevisionProvider` 的其他用法。
       container.read(dataRevisionProvider.notifier).state++;
+      container.read(r2SyncRunningProvider.notifier).state = false;
       if (mounted) {
         setState(() {
           _lastSyncedAt = now;
@@ -496,6 +518,7 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
               detail: '意外錯誤：$e',
             ),
           );
+      container.read(r2SyncRunningProvider.notifier).state = false;
       if (mounted) {
         widget.onLogged?.call();
         setState(() => _syncing = false);
@@ -513,6 +536,13 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
   @override
   Widget build(BuildContext context) {
     final credentials = ref.watch(r2CredentialsProvider);
+    // 在別的頁面發起、還在背景跑的同步跑完了：重讀上次同步時間跟紀錄。
+    ref.listen(r2SyncRunningProvider, (was, now) {
+      if (was == true && !now && !_syncing) {
+        _loadLastSyncedAt();
+        widget.onLogged?.call();
+      }
+    });
     if (credentials == null) {
       return GlassCard(child: _buildInputCard());
     }
@@ -720,16 +750,26 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
               : '上次同步：${_relativeTime(_lastSyncedAt!)}',
           style: AppText.note,
         ),
+        if (!_syncing && ref.watch(r2SyncRunningProvider))
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              '同步還在背景跑，跑完上方會通知你',
+              style: AppText.note.copyWith(color: AppColors.mid),
+            ),
+          ),
         const SizedBox(height: Gap.sm),
         SizedBox(
           width: double.infinity,
           child: FilledButton(
-            onPressed: _syncing ? null : _syncNow,
+            onPressed: _syncing || ref.watch(r2SyncRunningProvider)
+                ? null
+                : _syncNow,
             style: FilledButton.styleFrom(
               backgroundColor: AppColors.accent,
               foregroundColor: AppColors.bgDeep,
             ),
-            child: _syncing
+            child: _syncing || ref.watch(r2SyncRunningProvider)
                 ? const SizedBox(
                     width: 16,
                     height: 16,
