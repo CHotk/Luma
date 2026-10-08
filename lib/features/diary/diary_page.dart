@@ -437,9 +437,7 @@ class _DiaryPageState extends ConsumerState<DiaryPage> {
                       constraints: const BoxConstraints(maxWidth: 320),
                       child: GlassCard(
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            vertical: Gap.md,
-                          ),
+                          padding: const EdgeInsets.symmetric(vertical: Gap.md),
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [

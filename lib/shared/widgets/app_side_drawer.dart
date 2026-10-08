@@ -34,6 +34,7 @@ class AppSideDrawer extends StatelessWidget {
     final isSync = location.startsWith('/sync');
     final isLocalStorage = location.startsWith('/local-storage');
     final isCryptoWatch = location.startsWith('/crypto-watch');
+    final isDebt = location.startsWith('/debt');
     final isSmoking = location.startsWith('/smoking-log');
     final isDrinking = location.startsWith('/drinking-log');
     final isLanguage =
@@ -44,6 +45,7 @@ class AppSideDrawer extends StatelessWidget {
         !isDebugLog &&
         !isSync &&
         !isCryptoWatch &&
+        !isDebt &&
         !isSmoking &&
         !isDrinking;
 
@@ -163,6 +165,15 @@ class AppSideDrawer extends StatelessWidget {
                     onTap: () {
                       Navigator.of(context).pop();
                       if (!isCryptoWatch) context.go('/crypto-watch');
+                    },
+                  ),
+                  _NavItem(
+                    icon: Icons.account_balance_wallet_outlined,
+                    label: '負債還款',
+                    active: isDebt,
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      if (!isDebt) context.go('/debt');
                     },
                   ),
                   _NavItem(

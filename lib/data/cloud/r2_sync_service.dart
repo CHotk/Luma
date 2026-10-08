@@ -22,8 +22,10 @@ import '../../domain/models/kana_practice.dart';
 import '../../domain/models/history.dart';
 import '../../domain/models/crypto_watch_entry.dart';
 import '../repositories/crypto_watch_repository.dart';
+import '../../domain/models/debt.dart';
 import '../../domain/models/smoking_entry.dart';
 import '../../domain/models/trade_entry.dart';
+import '../repositories/debt_repository.dart';
 import '../repositories/smoking_repository.dart';
 import '../repositories/trade_repository.dart';
 import '../../domain/models/drinking_entry.dart';
@@ -805,6 +807,40 @@ class R2SyncService {
     allForUpload: repo.allForUpload,
     onPhase: onPhase,
   );
+
+  /// 負債每月還款表：債務（`debts.json`）、繳款紀錄（`debt_payments.json`）、
+  /// 設定（`debt_settings.json`，月收入）三個檔各自比對、各自跳過，筆數加總。
+  Future<({int downloaded, int uploaded})> syncDebts(
+    DebtRepository repo, {
+    void Function(SyncPhase phase)? onPhase,
+  }) async {
+    final debts = await _syncRecords<Debt>(
+      key: 'debts.json',
+      fromJson: Debt.fromJson,
+      toJson: (e) => e.toJson(),
+      mergeFromCloud: repo.mergeDebtsFromCloud,
+      allForUpload: repo.debtsForUpload,
+      onPhase: onPhase,
+    );
+    final pays = await _syncRecords<DebtPayment>(
+      key: 'debt_payments.json',
+      fromJson: DebtPayment.fromJson,
+      toJson: (e) => e.toJson(),
+      mergeFromCloud: repo.mergePaymentsFromCloud,
+      allForUpload: repo.paymentsForUpload,
+    );
+    final settings = await _syncRecords<DebtSetting>(
+      key: 'debt_settings.json',
+      fromJson: DebtSetting.fromJson,
+      toJson: (e) => e.toJson(),
+      mergeFromCloud: repo.mergeSettingsFromCloud,
+      allForUpload: repo.settingsForUpload,
+    );
+    return (
+      downloaded: debts.downloaded + pays.downloaded + settings.downloaded,
+      uploaded: debts.uploaded + pays.uploaded + settings.uploaded,
+    );
+  }
 
   /// 喝酒記錄（`drinking.json`），各自獨立一份，不跟其他紀錄共用。
   Future<({int downloaded, int uploaded})> syncDrinking(

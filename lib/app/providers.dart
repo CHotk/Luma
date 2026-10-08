@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/cloud/r2_client.dart';
 import '../data/repositories/crypto_watch_repository.dart';
+import '../data/repositories/debt_repository.dart';
 import '../data/repositories/trade_repository.dart';
 import '../data/repositories/smoking_repository.dart';
 import '../data/repositories/drinking_repository.dart';
@@ -79,6 +80,11 @@ final cryptoWatchRepositoryProvider = Provider<CryptoWatchRepository>(
 /// [cryptoWatchRepositoryProvider]。
 final tradeRepositoryProvider = Provider<TradeRepository>(
   (ref) => TradeRepository(ref.watch(keyValueStoreProvider)),
+);
+
+/// 負債每月還款表（2026-10-08）：債務、繳款紀錄、月收入。
+final debtRepositoryProvider = Provider<DebtRepository>(
+  (ref) => DebtRepository(ref.watch(keyValueStoreProvider)),
 );
 
 final smokingRepositoryProvider = Provider<SmokingRepository>(
