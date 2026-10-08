@@ -40,7 +40,7 @@ class _CryptoWatchStatsPageState extends ConsumerState<CryptoWatchStatsPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: Gap.sm),
-                AppTopBar(title: '看盤記錄統計'),
+                AppTopBar(title: '看盤統計'),
                 const SizedBox(height: Gap.md),
                 Expanded(
                   child: FutureBuilder(

@@ -14,10 +14,7 @@ class YtSubscriberSnapshot {
   /// 頻道不會有這筆快照（沒有數字可記）。
   final int count;
 
-  Map<String, dynamic> toJson() => {
-    'at': at.toIso8601String(),
-    'count': count,
-  };
+  Map<String, dynamic> toJson() => {'at': at.toIso8601String(), 'count': count};
 
   factory YtSubscriberSnapshot.fromJson(Map<String, dynamic> json) =>
       YtSubscriberSnapshot(

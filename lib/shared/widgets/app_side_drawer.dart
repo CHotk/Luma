@@ -158,7 +158,7 @@ class AppSideDrawer extends StatelessWidget {
                   ),
                   _NavItem(
                     icon: Icons.candlestick_chart_outlined,
-                    label: '看盤記錄',
+                    label: '交易與自律',
                     active: isCryptoWatch,
                     onTap: () {
                       Navigator.of(context).pop();

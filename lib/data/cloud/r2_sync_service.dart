@@ -23,7 +23,9 @@ import '../../domain/models/history.dart';
 import '../../domain/models/crypto_watch_entry.dart';
 import '../repositories/crypto_watch_repository.dart';
 import '../../domain/models/smoking_entry.dart';
+import '../../domain/models/trade_entry.dart';
 import '../repositories/smoking_repository.dart';
+import '../repositories/trade_repository.dart';
 import '../../domain/models/drinking_entry.dart';
 import '../repositories/drinking_repository.dart';
 import '../repositories/fitness_repository.dart';
@@ -763,6 +765,33 @@ class R2SyncService {
     allForUpload: repo.allForUpload,
     onPhase: onPhase,
   );
+
+  /// 交易與自律的每一單（`trades.json`）跟每月月初資金
+  /// （`trade_capital.json`），兩個檔各自比對、各自跳過，筆數加總回報。
+  Future<({int downloaded, int uploaded})> syncTrades(
+    TradeRepository repo, {
+    void Function(SyncPhase phase)? onPhase,
+  }) async {
+    final trades = await _syncRecords<TradeEntry>(
+      key: 'trades.json',
+      fromJson: TradeEntry.fromJson,
+      toJson: (e) => e.toJson(),
+      mergeFromCloud: repo.mergeFromCloud,
+      allForUpload: repo.allForUpload,
+      onPhase: onPhase,
+    );
+    final capital = await _syncRecords<TradeMonthCapital>(
+      key: 'trade_capital.json',
+      fromJson: TradeMonthCapital.fromJson,
+      toJson: (e) => e.toJson(),
+      mergeFromCloud: repo.mergeCapitalFromCloud,
+      allForUpload: repo.capitalForUpload,
+    );
+    return (
+      downloaded: trades.downloaded + capital.downloaded,
+      uploaded: trades.uploaded + capital.uploaded,
+    );
+  }
 
   /// 抽菸記錄（`smoking.json`），各自獨立一份，不跟其他紀錄共用。
   Future<({int downloaded, int uploaded})> syncSmoking(

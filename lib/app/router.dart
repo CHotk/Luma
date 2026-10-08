@@ -2,6 +2,9 @@ import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 import '../features/crypto_watch/crypto_watch_page.dart';
 import '../features/crypto_watch/crypto_watch_stats_page.dart';
+import '../features/crypto_watch/trade_day_page.dart';
+import '../features/crypto_watch/trade_journal_page.dart';
+import '../features/crypto_watch/trade_report_page.dart';
 import '../features/smoking_log/smoking_page.dart';
 import '../features/smoking_log/smoking_stats_page.dart';
 import '../features/drinking_log/drinking_page.dart';
@@ -61,6 +64,22 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/crypto-watch/stats',
       builder: (_, _) => const CryptoWatchStatsPage(),
+    ),
+    GoRoute(
+      path: '/crypto-watch/journal',
+      builder: (_, _) => const TradeJournalPage(),
+    ),
+    GoRoute(
+      path: '/crypto-watch/report',
+      builder: (_, state) => TradeReportPage(
+        initialMonth: _parseMonth(state.uri.queryParameters['m']),
+      ),
+    ),
+    GoRoute(
+      path: '/crypto-watch/day/:d',
+      builder: (_, state) => TradeDayPage(
+        day: _parseDay(state.pathParameters['d']) ?? DateTime.now(),
+      ),
     ),
     GoRoute(path: '/smoking-log', builder: (_, _) => const SmokingPage()),
     GoRoute(
@@ -235,3 +254,16 @@ final appRouter = GoRouter(
     ),
   ],
 );
+
+/// 交易與自律的網址參數：月份 `2026-9`、日期 `2026-9-5`，格式不對回傳 null。
+DateTime? _parseMonth(String? s) {
+  final p = s?.split('-').map(int.tryParse).toList();
+  if (p == null || p.length != 2 || p.contains(null)) return null;
+  return DateTime(p[0]!, p[1]!);
+}
+
+DateTime? _parseDay(String? s) {
+  final p = s?.split('-').map(int.tryParse).toList();
+  if (p == null || p.length != 3 || p.contains(null)) return null;
+  return DateTime(p[0]!, p[1]!, p[2]!);
+}

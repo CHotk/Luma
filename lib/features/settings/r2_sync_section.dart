@@ -71,6 +71,7 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
   /// 看盤／抽菸／喝酒記錄的同步狀況列（id 對應 [_habitPhases]）。
   static const _habitRows = [
     ('crypto', '看盤記錄'),
+    ('trade', '交易紀錄'),
     ('smoking', '抽菸記錄'),
     ('drinking', '喝酒記錄'),
   ];
@@ -371,6 +372,14 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
           (p) => _habitPhases['crypto'] = p,
           (onPhase) => service.syncCryptoWatch(
             container.read(cryptoWatchRepositoryProvider),
+            onPhase: onPhase,
+          ),
+        ),
+        run(
+          '交易紀錄',
+          (p) => _habitPhases['trade'] = p,
+          (onPhase) => service.syncTrades(
+            container.read(tradeRepositoryProvider),
             onPhase: onPhase,
           ),
         ),

@@ -25,7 +25,7 @@ const appHomeCards = <HomeCard>[
   (id: 'diary', label: '日記'),
   (id: 'yt', label: 'YT 頻道'),
   (id: 'fitness', label: '健身'),
-  (id: 'crypto', label: '看盤記錄'),
+  (id: 'crypto', label: '交易與自律'),
   (id: 'smoking', label: '抽菸記錄'),
   (id: 'drinking', label: '喝酒記錄'),
   (id: 'sync', label: '多裝置同步'),
@@ -87,7 +87,7 @@ class AppHomePage extends ConsumerWidget {
       ),
       const _HomeItem(
         id: 'crypto',
-        label: '看盤記錄',
+        label: '交易與自律',
         icon: Icons.candlestick_chart_outlined,
         color: Color(0xFFF7931A),
         route: '/crypto-watch',

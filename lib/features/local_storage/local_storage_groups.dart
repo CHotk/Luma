@@ -54,6 +54,7 @@ const _rules = <(String prefix, String label, Color color)>[
   ('diary.', '日記', Color(0xFF8FBF9F)),
   ('fitness.', '健身', Color(0xFFF2A65A)),
   ('crypto_watch.', '看盤記錄', Color(0xFFF5C763)),
+  ('trade_log.', '交易紀錄', Color(0xFF5FE08D)),
   ('smoking.', '抽菸記錄', Color(0xFFB0A8A0)),
   ('drinking.', '喝酒記錄', Color(0xFFE0607E)),
   ('r2_sync.log', '同步紀錄', Color(0xFF7ED6D0)),
