@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../../app/theme/colors.dart';
@@ -115,6 +116,9 @@ class BubbleMenuDrag {
   }
 }
 
+/// 長按多久跳出泡泡選單（預設 500ms 的 2/3）。
+const bubbleLongPressDelay = Duration(milliseconds: 333);
+
 /// 包住卡片：長按跳出泡泡選單，手指不放開可以直接滑到按鈕上放開來選
 /// （見 [showBubbleMenu] 的 `drag`）。[onLongPress] 拿到卡片的範圍跟
 /// 這次長按的 [BubbleMenuDrag]，自己呼叫 [showBubbleMenu] 時傳進去。
@@ -137,15 +141,27 @@ class _BubbleLongPressState extends State<BubbleLongPress> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onLongPressStart: (d) {
-        final drag = _drag = BubbleMenuDrag(origin: d.globalPosition);
-        widget.onLongPress(bubbleAnchorOf(context), drag);
-      },
-      onLongPressMoveUpdate: (d) => _drag?.move(d.globalPosition),
-      onLongPressEnd: (d) {
-        _drag?.release(d.globalPosition);
-        _drag = null;
+    // 長按要按多久才跳選單：Flutter 預設 500ms，2026-10-08 使用者要求
+    // 快 1/3 → 約 333ms。GestureDetector 不能改這個時間，所以自己掛一個
+    // LongPressGestureRecognizer。
+    return RawGestureDetector(
+      gestures: {
+        LongPressGestureRecognizer:
+            GestureRecognizerFactoryWithHandlers<LongPressGestureRecognizer>(
+              () => LongPressGestureRecognizer(duration: bubbleLongPressDelay),
+              (r) => r
+                ..onLongPressStart = (d) {
+                  final drag = _drag = BubbleMenuDrag(origin: d.globalPosition);
+                  widget.onLongPress(bubbleAnchorOf(context), drag);
+                }
+                ..onLongPressMoveUpdate = (d) {
+                  _drag?.move(d.globalPosition);
+                }
+                ..onLongPressEnd = (d) {
+                  _drag?.release(d.globalPosition);
+                  _drag = null;
+                },
+            ),
       },
       child: widget.child,
     );
