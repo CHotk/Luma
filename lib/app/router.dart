@@ -41,6 +41,7 @@ import '../features/settings/home_card_order_page.dart';
 import '../features/settings/other_settings_page.dart';
 import '../features/settings/settings_page.dart';
 import '../features/splash/splash_page.dart';
+import '../features/sync/sync_log_page.dart';
 import '../features/sync/sync_page.dart';
 import '../features/yt_tracker/yt_category_order_page.dart';
 import '../features/yt_tracker/yt_tracker_browse_page.dart';
@@ -248,6 +249,7 @@ final appRouter = GoRouter(
       builder: (_, _) => const LocalStoragePage(),
     ),
     GoRoute(path: '/sync', builder: (_, _) => const SyncPage()),
+    GoRoute(path: '/sync/log', builder: (_, _) => const SyncLogPage()),
     GoRoute(
       path: '/notes/:collection/:no',
       builder: (_, state) => NoteDetailPage(

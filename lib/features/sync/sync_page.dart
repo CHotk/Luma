@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
@@ -17,6 +18,7 @@ import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
 import '../../shared/widgets/glass_card.dart';
 import '../settings/r2_sync_section.dart';
+import 'sync_log_row.dart';
 
 /// 多裝置同步，獨立成一個功能頁面，不是塞在「設定」頁裡的一個區塊
 /// ——2026-09-23 使用者要求：這個功能夠獨立、之後會一直擴充（日記
@@ -41,31 +43,14 @@ class _SyncPageState extends ConsumerState<SyncPage> {
   List<SyncLogEntry> _log = const [];
   bool _downloading = false;
 
-  /// 同步紀錄一次只顯示 10 筆，往下滑到底附近才多顯示下一個 10 筆
-  /// （2026-09-24 使用者要求）。
-  static const _logPageSize = 10;
-  int _visibleLogCount = _logPageSize;
-  final _scrollController = ScrollController();
+  /// 主畫面最多顯示 10 筆，其他從右上角「同步紀錄」按鈕進全部紀錄頁看
+  /// （2026-10-08 使用者要求；原本是往下滑一直多載，主畫面會越拉越長）。
+  static const _logPreview = 10;
 
   @override
   void initState() {
     super.initState();
-    _scrollController.addListener(_onScroll);
     _reloadLog();
-  }
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  void _onScroll() {
-    final pos = _scrollController.position;
-    if (pos.pixels >= pos.maxScrollExtent - 200 &&
-        _visibleLogCount < _log.length) {
-      setState(() => _visibleLogCount += _logPageSize);
-    }
   }
 
   Future<void> _reloadLog() async {
@@ -141,7 +126,21 @@ class _SyncPageState extends ConsumerState<SyncPage> {
                   title: '多裝置同步',
                   titleIcon: Icons.cloud_sync_outlined,
                   showBack: false,
+                  // 按鈕大小、間距跟交易與自律等其他功能一致（2026-10-08
+                  // 使用者回報這裡太擠）。
                   actions: [
+                    IconButton(
+                      onPressed: () => context.push('/sync/log'),
+                      icon: const Icon(Icons.receipt_long_outlined, size: 22),
+                      color: AppColors.ink2,
+                      tooltip: '全部同步紀錄',
+                      padding: EdgeInsets.zero,
+                      visualDensity: VisualDensity.compact,
+                      constraints: const BoxConstraints(
+                        minWidth: 36,
+                        minHeight: 32,
+                      ),
+                    ),
                     IconButton(
                       onPressed: _downloading ? null : _downloadBackup,
                       icon: _downloading
@@ -150,13 +149,13 @@ class _SyncPageState extends ConsumerState<SyncPage> {
                               height: 18,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : const Icon(Icons.cloud_download_outlined, size: 20),
+                          : const Icon(Icons.cloud_download_outlined, size: 22),
                       color: AppColors.ink2,
                       tooltip: '備份雲端資料到本機',
                       padding: EdgeInsets.zero,
                       visualDensity: VisualDensity.compact,
                       constraints: const BoxConstraints(
-                        minWidth: 32,
+                        minWidth: 36,
                         minHeight: 32,
                       ),
                     ),
@@ -165,7 +164,6 @@ class _SyncPageState extends ConsumerState<SyncPage> {
                 const SizedBox(height: Gap.md),
                 Expanded(
                   child: SingleChildScrollView(
-                    controller: _scrollController,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -186,7 +184,7 @@ class _SyncPageState extends ConsumerState<SyncPage> {
 
   Widget _buildLogCard() {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Row(
           children: [
@@ -199,19 +197,23 @@ class _SyncPageState extends ConsumerState<SyncPage> {
               ),
             ),
             const Spacer(),
-            Text('共 ${_log.length} 筆', style: AppText.note),
+            Text(
+              _log.length > _logPreview
+                  ? '最近 $_logPreview 筆・共 ${_log.length} 筆'
+                  : '共 ${_log.length} 筆',
+              style: AppText.note,
+            ),
           ],
         ),
         const SizedBox(height: Gap.sm),
         if (_log.isEmpty)
           Text('還沒有同步或備份紀錄', style: AppText.bodyDim)
         else
-          for (final entry in _log.take(_visibleLogCount))
-            _SyncLogRow(entry: entry),
-        if (_log.length > _visibleLogCount)
-          Padding(
-            padding: const EdgeInsets.only(top: Gap.sm),
-            child: Center(child: Text('往下滑載入更多', style: AppText.note)),
+          for (final entry in _log.take(_logPreview)) SyncLogRow(entry: entry),
+        if (_log.length > _logPreview)
+          TextButton(
+            onPressed: () => context.push('/sync/log'),
+            child: Text('看全部 ${_log.length} 筆紀錄 ›'),
           ),
       ],
     );
@@ -222,104 +224,4 @@ String _backupTodayStamp() {
   final now = DateTime.now();
   String two(int n) => n.toString().padLeft(2, '0');
   return '${now.year}${two(now.month)}${two(now.day)}';
-}
-
-String _relativeTime(DateTime t) {
-  final diff = DateTime.now().difference(t);
-  if (diff.inMinutes < 1) return '剛剛';
-  if (diff.inMinutes < 60) return '${diff.inMinutes} 分鐘前';
-  if (diff.inHours < 24) return '${diff.inHours} 小時前';
-  return '${diff.inDays} 天前';
-}
-
-String _absoluteTime(DateTime t) {
-  String two(int n) => n.toString().padLeft(2, '0');
-  return '${t.year}/${two(t.month)}/${two(t.day)}  ${two(t.hour)}:${two(t.minute)}:${two(t.second)}';
-}
-
-/// detail 是「；」分功能、「、」分項目的一整串文字（見 r2_sync_section
-/// 跟備份下載寫入的格式），畫面上拆成一項一行才不會全擠在同一行。
-List<String> _detailLines(String detail) => detail
-    .split(RegExp('[；、]'))
-    .map((s) => s.trim())
-    .where((s) => s.isNotEmpty)
-    .toList();
-
-class _SyncLogRow extends StatelessWidget {
-  const _SyncLogRow({required this.entry});
-
-  final SyncLogEntry entry;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = entry.success ? AppColors.ok : AppColors.bad;
-    final lines = entry.detail == null
-        ? const <String>[]
-        : _detailLines(entry.detail!);
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(12),
-        border: Border(left: BorderSide(color: color, width: 3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                entry.success ? Icons.check_circle : Icons.error_outline,
-                size: 15,
-                color: color,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                '${entry.action.label}${entry.success ? '' : '失敗'}',
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.ink,
-                ),
-              ),
-              const Spacer(),
-              Text(_relativeTime(entry.at), style: AppText.note),
-            ],
-          ),
-          const SizedBox(height: 2),
-          Padding(
-            padding: const EdgeInsets.only(left: 21),
-            child: Text(
-              '${_absoluteTime(entry.at)}  ·  ${entry.device ?? '未知裝置'}',
-              style: AppText.note,
-            ),
-          ),
-          if (lines.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.only(left: 21),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  for (final line in lines)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 3),
-                      child: Text(
-                        line,
-                        style: TextStyle(
-                          fontSize: 12,
-                          height: 1.4,
-                          color: entry.success ? AppColors.ink2 : AppColors.bad,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
 }
