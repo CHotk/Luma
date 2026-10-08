@@ -2,10 +2,7 @@
 // 根因是每次進 YT 首頁都會跑的快照合併（mergeSeedChannels）沒比
 // updatedAt，快照同 id 就整筆蓋掉本機，置頂雖然被 patch 留住，
 // updatedAt 卻被洗成快照的 null——同步時變成「最舊的版本」，雲端舊版
-// 反過來把置頂蓋掉。這份測試用真的內建快照檔跑一輪「置頂→回首頁→同步」。
-import 'dart:convert';
-import 'dart:io';
-
+// 反過來把置頂蓋掉。這份測試用快照格式的頻道跑一輪「置頂→回首頁→同步」。
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lume/data/repositories/yt_tracker_repository.dart';
 import 'package:lume/data/storage/key_value_store.dart';
@@ -14,17 +11,35 @@ import 'package:lume/domain/models/yt_tracker.dart';
 void main() {
   late List<YtChannel> seed;
 
+  // 原本讀內建快照檔 assets/data/yt_tracker_channels.json，2026-10-08 那份
+  // 快照清空了（資料都在雲端同步，不再打包進 App），改成在這裡放兩筆
+  // 原本快照裡的頻道（沒有 updatedAt，跟當年的快照一樣）。
   setUpAll(() {
-    seed =
-        (jsonDecode(
-                  File(
-                    'assets/data/yt_tracker_channels.json',
-                  ).readAsStringSync(),
-                )
-                as List)
-            .cast<Map<String, dynamic>>()
-            .map(YtChannel.fromJson)
-            .toList();
+    seed = [
+      for (final j in const [
+        {
+          'id': 'seed-shasha77',
+          'name': '志祺七七',
+          'categoryId': 'seed-current-affairs',
+          'avatarEmoji': '📺',
+          'avatarImageUrl': '',
+          'url': 'https://www.youtube.com/@shasha77',
+          'description': '時事懶人包',
+          'addedAt': '2026-09-22T00:00:00.000',
+        },
+        {
+          'id': 'seed-youtubercrypto',
+          'name': '科幣託',
+          'categoryId': 'seed-crypto',
+          'avatarEmoji': '📺',
+          'avatarImageUrl': '',
+          'url': 'https://youtube.com/@youtubercrypto',
+          'description': '虛擬貨幣KOL',
+          'addedAt': '2026-09-22T00:00:00.000',
+        },
+      ])
+        YtChannel.fromJson(j),
+    ];
   });
 
   test('置頂後回首頁（快照合併）不會洗掉 updatedAt', () async {
