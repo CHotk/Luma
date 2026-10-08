@@ -42,9 +42,9 @@ void main() {
     final a = await repo.addDebt(
       d('國泰信貸 名字也很長很長很長', DebtType.loan, 300000, 6.5, 60),
     );
-    await repo.addDebt(d('iPhone 分期', DebtType.card, 36000, 0, 12));
+    await repo.addDebt(d('iPhone 手機貸', DebtType.phone, 36000, 0, 12));
     await repo.addDebt(
-      d('跟媽媽借', DebtType.family, 9999999, 0, 0, flex: true, fp: 5000),
+      d('中信卡 名字很長很長很長很長', DebtType.card, 0, 0, 0, fp: 9999999),
     );
     await repo.addPayment(debtId: a.id, date: first, amount: 5870, period: 1);
     await repo.setIncome(60000);

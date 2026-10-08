@@ -172,7 +172,7 @@ class _DebtPageState extends ConsumerState<DebtPage> {
     children: [
       Expanded(
         child: OutlinedButton.icon(
-          onPressed: () => showStrategySheet(context, data.totals.active),
+          onPressed: () => showStrategySheet(context, data.totals.loans),
           icon: const Icon(Icons.explore_outlined, size: 18),
           label: const Text('先還哪一筆'),
           style: _outline,
@@ -199,7 +199,7 @@ class _DebtPageState extends ConsumerState<DebtPage> {
   List<Widget> _empty(DebtData data) => [
     InlineEmptyCard(
       title: '還沒有債務',
-      message: '按右下角 ＋ 新增第一筆：信貸、車貸、學貸、信用卡分期、跟家人借的都可以',
+      message: '按右下角 ＋ 新增第一筆：信貸、手機貸、筆電貸，信用卡只要記每期帳單大概多少',
       actions: [EmptyAction('新增債務', () => debtFormFlow(context, ref, data))],
     ),
   ];
@@ -221,7 +221,7 @@ class _DebtPageState extends ConsumerState<DebtPage> {
                 Text('剩餘負債總額', style: AppText.note),
                 const Spacer(),
                 Text(
-                  '${t.active.length} 筆',
+                  '${t.loans.length} 筆貸款',
                   style: AppText.note.copyWith(color: AppColors.ink3),
                 ),
               ],
@@ -450,7 +450,7 @@ class _DebtPageState extends ConsumerState<DebtPage> {
             Text('每一筆的「提前還」可以分開試算；這裡看整體該先還哪一筆。', style: AppText.bodyDim),
             const SizedBox(height: Gap.md),
             FilledButton.icon(
-              onPressed: () => showStrategySheet(context, t.active),
+              onPressed: () => showStrategySheet(context, t.loans),
               icon: const Icon(Icons.explore_outlined, size: 18),
               label: const Text('多的錢先還哪一筆'),
             ),
@@ -488,8 +488,8 @@ class _DebtPageState extends ConsumerState<DebtPage> {
         ),
       ),
       _section('每筆提前還款試算'),
-      if (t.active.isEmpty) Text('沒有還款中的債務', style: AppText.bodyDim),
-      for (final s in t.active)
+      if (t.loans.isEmpty) Text('沒有還款中的貸款', style: AppText.bodyDim),
+      for (final s in t.loans)
         Padding(
           padding: const EdgeInsets.only(bottom: 7),
           child: Material(

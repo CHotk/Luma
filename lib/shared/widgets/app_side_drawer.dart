@@ -169,7 +169,7 @@ class AppSideDrawer extends StatelessWidget {
                   ),
                   _NavItem(
                     icon: Icons.account_balance_wallet_outlined,
-                    label: '負債還款',
+                    label: '負債管理',
                     active: isDebt,
                     onTap: () {
                       Navigator.of(context).pop();

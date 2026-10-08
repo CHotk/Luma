@@ -19,9 +19,9 @@ DateTime dueDateOf(Debt d, int k) {
   return DateTime(y, m, math.min(d.dueDay, dim));
 }
 
-/// 每月要繳多少（自由還款是預計每月還的）。
+/// 每月要繳多少（自由還款是預計每月還的；信用卡是本期帳單大概金額）。
 double monthlyPayment(Debt d) {
-  if (d.flexible) return d.flexPay;
+  if (d.flexible || d.isBill) return d.flexPay;
   if (d.term <= 0) return 0;
   final r = d.rate / 1200;
   if (r == 0) return (d.principal / d.term).ceilToDouble();
@@ -59,9 +59,14 @@ class DebtRow {
 
 /// 這筆債的攤還表。[payments] 是這筆債的繳款（不用排序）。提前清償過的
 /// 只留已繳的那幾期。
-List<DebtRow> scheduleOf(Debt d, Iterable<DebtPayment> payments) {
+List<DebtRow> scheduleOf(
+  Debt d,
+  Iterable<DebtPayment> payments, {
+  DateTime? today,
+}) {
   final m = monthlyPayment(d);
   final rows = <DebtRow>[];
+  if (d.isBill) return _billRows(d, payments, today ?? DateTime.now());
   var b = d.principal;
   if (d.flexible) {
     final pays = [...payments]..sort((a, b) => a.date.compareTo(b.date));
@@ -125,6 +130,35 @@ List<DebtRow> scheduleOf(Debt d, Iterable<DebtPayment> payments) {
   return d.payoffAt != null ? rows.where((r) => r.isPaid).toList() : rows;
 }
 
+/// 信用卡帳單：從第一期每月一期，排到這個月再多一期（下個月），已繳的
+/// 照實繳金額，沒繳的照本期帳單大概金額。沒有本金、利息、剩餘。
+List<DebtRow> _billRows(
+  Debt d,
+  Iterable<DebtPayment> payments,
+  DateTime today,
+) {
+  final byK = {
+    for (final p in payments)
+      if (p.period != null) p.period!: p,
+  };
+  final first = d.firstYear * 12 + d.firstMonth - 1;
+  final nowIdx = today.year * 12 + today.month - 1;
+  var last = math.max(1, nowIdx - first + 2);
+  if (byK.isNotEmpty) last = math.max(last, byK.keys.reduce(math.max) + 1);
+  return [
+    for (var k = 1; k <= last; k++)
+      DebtRow(
+        k: k,
+        date: dueDateOf(d, k),
+        pay: byK[k]?.amount ?? d.flexPay,
+        principal: 0,
+        interest: 0,
+        balance: 0,
+        payment: byK[k],
+      ),
+  ];
+}
+
 /// 一筆債的狀況。
 class DebtStats {
   DebtStats._(this.debt, this.rows, this.today);
@@ -133,7 +167,11 @@ class DebtStats {
     Debt d,
     Iterable<DebtPayment> payments, {
     DateTime? today,
-  }) => DebtStats._(d, scheduleOf(d, payments), today ?? DateTime.now());
+  }) => DebtStats._(
+    d,
+    scheduleOf(d, payments, today: today),
+    today ?? DateTime.now(),
+  );
 
   final Debt debt;
   final List<DebtRow> rows;
@@ -148,7 +186,7 @@ class DebtStats {
 
   double get monthly => monthlyPayment(debt);
 
-  late final double remaining = debt.payoffAt != null
+  late final double remaining = debt.payoffAt != null || debt.isBill
       ? 0
       : paid.isEmpty
       ? debt.principal
@@ -157,7 +195,10 @@ class DebtStats {
   /// 還清了：提前清償過、固定期數繳滿、或自由還款還完。
   bool get closed =>
       debt.payoffAt != null ||
-      (!debt.flexible && rows.isNotEmpty && rows.every((r) => r.isPaid)) ||
+      (!debt.isBill &&
+          !debt.flexible &&
+          rows.isNotEmpty &&
+          rows.every((r) => r.isPaid)) ||
       (debt.flexible &&
           rows.isNotEmpty &&
           rows.last.isPaid &&
@@ -173,11 +214,14 @@ class DebtStats {
   double get interestTotal => interestPaid + interestLeft;
 
   /// 預計（或實際）還清的日子。
-  DateTime? get payoffDate =>
-      debt.payoffAt ?? (rows.isEmpty ? null : rows.last.date);
+  DateTime? get payoffDate => debt.isBill
+      ? null
+      : debt.payoffAt ?? (rows.isEmpty ? null : rows.last.date);
 
-  /// 已還本金比例（0–100）。
-  double get percent => debt.principal <= 0
+  /// 已還本金比例（0–100）。信用卡帳單沒有本金，固定 0。
+  double get percent => debt.isBill
+      ? 0
+      : debt.principal <= 0
       ? 100
       : ((debt.principal - remaining) / debt.principal * 100).clamp(0, 100);
 
@@ -304,8 +348,15 @@ class DebtTotals {
 
   late final List<DebtStats> active = all.where((s) => !s.closed).toList();
 
+  /// 還在攤還的（不含信用卡帳單），算剩餘、還清日、先還哪一筆用。
+  late final List<DebtStats> loans = active
+      .where((s) => !s.debt.isBill)
+      .toList();
+
   double get remaining => active.fold(0.0, (s, x) => s + x.remaining);
-  double get principal => all.fold(0.0, (s, x) => s + x.debt.principal);
+  double get principal => all
+      .where((x) => !x.debt.isBill)
+      .fold(0.0, (s, x) => s + x.debt.principal);
   double get paidPercent =>
       principal <= 0 ? 100 : (principal - remaining) / principal * 100;
 

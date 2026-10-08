@@ -81,7 +81,7 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
     ('trade', '交易紀錄'),
     ('smoking', '抽菸記錄'),
     ('drinking', '喝酒記錄'),
-    ('debt', '負債還款'),
+    ('debt', '負債管理'),
   ];
   _FeaturePhase _syncLogPhase = _FeaturePhase.idle;
   _FeaturePhase _errorLogPhase = _FeaturePhase.idle;
@@ -413,7 +413,7 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
           ),
         ),
         run(
-          '負債還款',
+          '負債管理',
           (p) => _habitPhases['debt'] = p,
           (onPhase) => service.syncDebts(
             container.read(debtRepositoryProvider),

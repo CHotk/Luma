@@ -226,10 +226,9 @@ class _PaySheetState extends State<_PaySheet> {
   Widget build(BuildContext context) {
     final s = widget.stats, d = s.debt, r = s.next!;
     final amt = double.tryParse(_ctrl.text);
-    final after = math.max(
-      0.0,
-      s.remaining - (d.flexible ? (amt ?? 0) : r.principal),
-    );
+    final after = d.isBill
+        ? 0.0
+        : math.max(0.0, s.remaining - (d.flexible ? (amt ?? 0) : r.principal));
     return _Frame(
       title: '標記已繳',
       footer: FilledButton(
@@ -258,7 +257,12 @@ class _PaySheetState extends State<_PaySheet> {
                     ),
                   ),
                   Text(
-                    '${d.lender}・${d.flexible ? '' : '第 ${r.k} / ${s.totalCount} 期・'}'
+                    '${d.lender}・'
+                    '${d.isBill
+                        ? '${r.date.month} 月帳單・'
+                        : d.flexible
+                        ? ''
+                        : '第 ${r.k} / ${s.totalCount} 期・'}'
                     '${mdw(r.date)} 扣款',
                     style: AppText.note,
                   ),
@@ -304,20 +308,23 @@ class _PaySheetState extends State<_PaySheet> {
             padding: const EdgeInsets.symmetric(vertical: 12),
           ),
         ),
-        _calc([
-          const TextSpan(text: '繳完剩餘本金 '),
-          _b(money(after)),
-          if (after <= 0.5) const TextSpan(text: ' 🎉 這筆就還清了'),
-          if (!d.flexible)
-            TextSpan(
-              text: '\n本期本金 ${money(r.principal)}・利息 ${money(r.interest)}',
-            ),
-          if (amt != null && amt < r.pay && !d.flexible)
-            TextSpan(
-              text: '\n比應繳少 ${money(r.pay - amt)}，差額記得補',
-              style: const TextStyle(color: AppColors.mid),
-            ),
-        ]),
+        if (d.isBill)
+          _calc([const TextSpan(text: '信用卡帳單：照這期實際繳多少填，下個月一樣提醒你。')])
+        else
+          _calc([
+            const TextSpan(text: '繳完剩餘本金 '),
+            _b(money(after)),
+            if (after <= 0.5) const TextSpan(text: ' 🎉 這筆就還清了'),
+            if (!d.flexible)
+              TextSpan(
+                text: '\n本期本金 ${money(r.principal)}・利息 ${money(r.interest)}',
+              ),
+            if (amt != null && amt < r.pay && !d.flexible)
+              TextSpan(
+                text: '\n比應繳少 ${money(r.pay - amt)}，差額記得補',
+                style: const TextStyle(color: AppColors.mid),
+              ),
+          ]),
       ],
     );
   }
@@ -350,7 +357,7 @@ class _DebtForm extends StatefulWidget {
 
 class _DebtFormState extends State<_DebtForm> {
   late DebtType _type = widget.edit?.type ?? DebtType.loan;
-  late bool _flex = widget.edit?.flexible ?? false;
+  late final bool _flex = widget.edit?.flexible ?? false;
   late DateTime _first = widget.edit == null
       ? DateTime(DateTime.now().year, DateTime.now().month + 1)
       : DateTime(widget.edit!.firstYear, widget.edit!.firstMonth);
@@ -400,14 +407,23 @@ class _DebtFormState extends State<_DebtForm> {
     super.dispose();
   }
 
+  /// 信用卡：只記每月帳單大概多少，不填本金、利率、期數。
+  bool get _bill => _type == DebtType.card;
+
   Debt? get _draft {
-    final p = double.tryParse(_principal.text);
-    final rate = _flex ? 0.0 : (double.tryParse(_rate.text) ?? 0);
-    final term = _flex ? 0 : (int.tryParse(_term.text) ?? 0);
-    final fp = _flex ? (double.tryParse(_flexPay.text) ?? 0) : 0.0;
+    final bill = _bill;
+    final p = bill ? 0.0 : double.tryParse(_principal.text);
+    final rate = _flex || bill ? 0.0 : (double.tryParse(_rate.text) ?? 0);
+    final term = _flex || bill ? 0 : (int.tryParse(_term.text) ?? 0);
+    final fp = _flex || bill ? (double.tryParse(_flexPay.text) ?? 0) : 0.0;
     final due = int.tryParse(_dueDay.text) ?? 0;
-    if (_name.text.trim().isEmpty || p == null || p <= 0) return null;
-    if (_flex ? fp <= 0 : term <= 0) return null;
+    if (_name.text.trim().isEmpty || p == null) return null;
+    if (bill) {
+      if (fp <= 0) return null;
+    } else {
+      if (p <= 0) return null;
+      if (_flex ? fp <= 0 : term <= 0) return null;
+    }
     if (due < 1 || due > 31) return null;
     final e = widget.edit;
     return Debt(
@@ -421,7 +437,7 @@ class _DebtFormState extends State<_DebtForm> {
       firstYear: _first.year,
       firstMonth: _first.month,
       dueDay: due,
-      flexible: _flex,
+      flexible: _flex && !bill,
       flexPay: fp,
       payoffAt: e?.payoffAt,
       payoffAmount: e?.payoffAmount,
@@ -435,12 +451,16 @@ class _DebtFormState extends State<_DebtForm> {
     final calc = <InlineSpan>[];
     if (d == null) {
       calc.addAll([
-        TextSpan(text: '填完名稱、本金和${_flex ? '每月預計還多少' : '利率、期數'}，這裡會算出'),
-        _b('每月要繳'),
-        const TextSpan(text: '、'),
-        _b('總利息'),
-        const TextSpan(text: '和'),
-        _b('還清日'),
+        if (_bill)
+          const TextSpan(text: '填名稱和這期帳單大概多少，每個月扣款日會提醒你繳')
+        else ...[
+          TextSpan(text: '填完名稱、本金和${_flex ? '每月預計還多少' : '利率、期數'}，這裡會算出'),
+          _b('每月要繳'),
+          const TextSpan(text: '、'),
+          _b('總利息'),
+          const TextSpan(text: '和'),
+          _b('還清日'),
+        ],
       ]);
     } else {
       final s = DebtStats.of(d, const []);
@@ -450,18 +470,26 @@ class _DebtFormState extends State<_DebtForm> {
                 widget.income! *
                 100;
       calc.addAll([
-        const TextSpan(text: '每月要繳 '),
+        TextSpan(text: _bill ? '每月大概要繳 ' : '每月要繳 '),
         _b(money(s.monthly), size: 15),
         if (_flex) const TextSpan(text: '（預計）'),
-        if (!_flex) ...[
+        if (_bill)
+          const TextSpan(
+            text:
+                '\n信用卡只記每期帳單，不算本金、利息、還清日；'
+                '帳單金額變了到「資料」改一下就好',
+          ),
+        if (!_flex && !_bill) ...[
           const TextSpan(text: '\n總利息 '),
           _b(money(s.interestTotal)),
           const TextSpan(text: '・總共要還 '),
           _b(money(d.principal + s.interestTotal)),
         ],
-        const TextSpan(text: '\n預計 '),
-        _b(s.payoffDate == null ? '—' : ym(s.payoffDate!)),
-        const TextSpan(text: ' 還清'),
+        if (!_bill) ...[
+          const TextSpan(text: '\n預計 '),
+          _b(s.payoffDate == null ? '—' : ym(s.payoffDate!)),
+          const TextSpan(text: ' 還清'),
+        ],
         if (ratio != null && widget.edit == null) ...[
           const TextSpan(text: '\n加上這筆，每月還款佔收入 '),
           _b(
@@ -492,10 +520,7 @@ class _DebtFormState extends State<_DebtForm> {
                 label: Text('${t.emoji} ${t.label}'),
                 selected: _type == t,
                 showCheckmark: false,
-                onSelected: (_) => setState(() {
-                  _type = t;
-                  if (t == DebtType.family) _flex = true;
-                }),
+                onSelected: (_) => setState(() => _type = t),
               ),
           ],
         ),
@@ -522,67 +547,72 @@ class _DebtFormState extends State<_DebtForm> {
             ),
           ],
         ),
-        _label('還款方式'),
-        SegmentedButton<bool>(
-          segments: const [
-            ButtonSegment(value: false, label: Text('固定期數（銀行）')),
-            ButtonSegment(value: true, label: Text('自由還款（親友）')),
-          ],
-          selected: {_flex},
-          showSelectedIcon: false,
-          onSelectionChanged: (v) => setState(() => _flex = v.first),
-        ),
-        _label('借款本金'),
-        TextField(
-          controller: _principal,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          inputFormatters: _digits,
-          decoration: _input('例如 300000', suffix: '元'),
-        ),
-        if (_flex) ...[
-          _label('預計每月還'),
+        // 親友借款拿掉了（2026-10-08），「自由還款」只留給舊資料編輯用。
+        if (_bill) ...[
+          _label('這期帳單大概多少'),
           TextField(
             controller: _flexPay,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             inputFormatters: _digits,
-            decoration: _input('例如 5000', suffix: '元'),
+            decoration: _input('例如 8000', suffix: '元'),
           ),
-        ] else
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _label('年利率'),
-                    TextField(
-                      controller: _rate,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
+        ] else ...[
+          _label('借款本金'),
+          TextField(
+            controller: _principal,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: _digits,
+            decoration: _input('例如 300000', suffix: '元'),
+          ),
+          if (_flex) ...[
+            _label('預計每月還'),
+            TextField(
+              controller: _flexPay,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              inputFormatters: _digits,
+              decoration: _input('例如 5000', suffix: '元'),
+            ),
+          ] else
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _label('年利率'),
+                      TextField(
+                        controller: _rate,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        inputFormatters: _digits,
+                        decoration: _input('例如 6.5', suffix: '%'),
                       ),
-                      inputFormatters: _digits,
-                      decoration: _input('例如 6.5', suffix: '%'),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: Gap.sm),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _label('期數'),
-                    TextField(
-                      controller: _term,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      decoration: _input('例如 60', suffix: '期'),
-                    ),
-                  ],
+                const SizedBox(width: Gap.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _label('期數'),
+                      TextField(
+                        controller: _term,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                        ],
+                        decoration: _input('例如 24', suffix: '期'),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
+        ],
         Row(
           children: [
             Expanded(
@@ -604,7 +634,7 @@ class _DebtFormState extends State<_DebtForm> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _label('第一期月份'),
+                  _label(_bill ? '從哪個月開始記' : '第一期月份'),
                   OutlinedButton(
                     onPressed: () async {
                       final p = await _pickDate(context, _first);
@@ -654,7 +684,13 @@ class _DebtDetail extends StatefulWidget {
 }
 
 class _DebtDetailState extends State<_DebtDetail> {
-  late DebtDetailView _view = widget.initial;
+  // 信用卡帳單沒有攤還表、提前還，打開時落在「紀錄」。
+  late DebtDetailView _view =
+      widget.stats.debt.isBill &&
+          (widget.initial == DebtDetailView.schedule ||
+              widget.initial == DebtDetailView.prepay)
+      ? DebtDetailView.records
+      : widget.initial;
   final _extra = TextEditingController(text: '2000');
   final _lump = TextEditingController(text: '0');
 
@@ -686,7 +722,9 @@ class _DebtDetailState extends State<_DebtDetail> {
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),
               child: Text(
-                '標記${d.flexible ? '' : '第 ${next.k} 期'}已繳・${money(next.pay)}',
+                d.isBill
+                    ? '標記 ${next.date.month} 月帳單已繳・約 ${money(next.pay)}'
+                    : '標記${d.flexible ? '' : '第 ${next.k} 期'}已繳・${money(next.pay)}',
               ),
             ),
       children: [
@@ -707,7 +745,11 @@ class _DebtDetailState extends State<_DebtDetail> {
                   ),
                   Text(
                     '${d.lender}・${d.type.label}・'
-                    '${d.flexible ? '自由還款' : '年利率 ${d.rate}%'}',
+                    '${d.isBill
+                        ? '每月帳單'
+                        : d.flexible
+                        ? '自由還款'
+                        : '年利率 ${d.rate}%'}',
                     style: AppText.note,
                   ),
                 ],
@@ -719,47 +761,71 @@ class _DebtDetailState extends State<_DebtDetail> {
               DebtPill('逾期 ${s.overdueDays} 天', color: debtBad),
           ],
         ),
-        const SizedBox(height: 10),
-        DebtBar(s.percent, color: d.type.color),
-        const SizedBox(height: 6),
-        Row(
-          children: [
-            Text(
-              '已還 ${s.percent.toStringAsFixed(0)}%・${s.paidCount}'
-              '${d.flexible ? '' : ' / ${s.totalCount}'} 期',
-              style: AppText.note,
-            ),
-            const Spacer(),
-            Text('剩 ', style: AppText.note),
-            Text(
-              money(s.remaining),
-              style: const TextStyle(
-                fontWeight: FontWeight.w800,
-                color: AppColors.ink,
+        if (d.isBill) ...[
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              DebtKpi(money(d.flexPay), '這期大概'),
+              const SizedBox(width: 6),
+              DebtKpi(next == null ? '—' : mdw(next.date), '下次扣款'),
+              const SizedBox(width: 6),
+              DebtKpi('${s.paidCount} 期', '已經繳過'),
+            ],
+          ),
+        ] else ...[
+          const SizedBox(height: 10),
+          DebtBar(s.percent, color: d.type.color),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Text(
+                '已還 ${s.percent.toStringAsFixed(0)}%・${s.paidCount}'
+                '${d.flexible ? '' : ' / ${s.totalCount}'} 期',
+                style: AppText.note,
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            DebtKpi(money(s.monthly), d.flexible ? '預計每月' : '每月'),
-            const SizedBox(width: 6),
-            DebtKpi(
-              s.payoffDate == null ? '—' : ym(s.payoffDate!),
-              s.closed ? '還清於' : '預計還清',
-            ),
-            const SizedBox(width: 6),
-            DebtKpi(money(s.interestLeft), '還要付利息'),
-          ],
-        ),
+              const Spacer(),
+              Text('剩 ', style: AppText.note),
+              Text(
+                money(s.remaining),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.ink,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              DebtKpi(money(s.monthly), d.flexible ? '預計每月' : '每月'),
+              const SizedBox(width: 6),
+              DebtKpi(
+                s.payoffDate == null ? '—' : ym(s.payoffDate!),
+                s.closed ? '還清於' : '預計還清',
+              ),
+              const SizedBox(width: 6),
+              DebtKpi(money(s.interestLeft), '還要付利息'),
+            ],
+          ),
+        ],
         const SizedBox(height: 12),
         SegmentedButton<DebtDetailView>(
-          segments: const [
-            ButtonSegment(value: DebtDetailView.schedule, label: Text('攤還表')),
-            ButtonSegment(value: DebtDetailView.records, label: Text('紀錄')),
-            ButtonSegment(value: DebtDetailView.prepay, label: Text('提前還')),
-            ButtonSegment(value: DebtDetailView.info, label: Text('資料')),
+          segments: [
+            if (!d.isBill)
+              const ButtonSegment(
+                value: DebtDetailView.schedule,
+                label: Text('攤還表'),
+              ),
+            const ButtonSegment(
+              value: DebtDetailView.records,
+              label: Text('紀錄'),
+            ),
+            if (!d.isBill)
+              const ButtonSegment(
+                value: DebtDetailView.prepay,
+                label: Text('提前還'),
+              ),
+            const ButtonSegment(value: DebtDetailView.info, label: Text('資料')),
           ],
           selected: {_view},
           showSelectedIcon: false,
@@ -955,13 +1021,28 @@ class _DebtDetailState extends State<_DebtDetail> {
   List<Widget> _info(DebtStats s) {
     final d = s.debt;
     return [
-      _kv('原始本金', money(d.principal)),
-      _kv('年利率', '${d.rate}%'),
-      _kv('期數', d.flexible ? '不固定' : '${d.term} 期'),
-      _kv('每月扣款日', '${d.dueDay} 號'),
-      _kv('第一期', ym(dueDateOf(d, 1))),
-      _kv('利息總額', money(s.interestTotal)),
-      _kv('已付利息', money(s.interestPaid)),
+      if (d.isBill) ...[
+        _kv('這期帳單大概', money(d.flexPay)),
+        _kv('每月扣款日', '${d.dueDay} 號'),
+        _kv('從哪個月開始記', ym(dueDateOf(d, 1))),
+        _kv(
+          '已經繳過',
+          '${s.paidCount} 期・共 ${money(s.paid.fold(0.0, (a, r) => a + r.pay))}',
+        ),
+        const SizedBox(height: 6),
+        Text(
+          '帳單金額每個月不一樣，按「編輯」改這期大概多少就好',
+          style: AppText.note.copyWith(color: AppColors.ink3),
+        ),
+      ] else ...[
+        _kv('原始本金', money(d.principal)),
+        _kv('年利率', '${d.rate}%'),
+        _kv('期數', d.flexible ? '不固定' : '${d.term} 期'),
+        _kv('每月扣款日', '${d.dueDay} 號'),
+        _kv('第一期', ym(dueDateOf(d, 1))),
+        _kv('利息總額', money(s.interestTotal)),
+        _kv('已付利息', money(s.interestPaid)),
+      ],
       const SizedBox(height: 12),
       Row(
         children: [

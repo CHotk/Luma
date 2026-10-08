@@ -152,4 +152,52 @@ void main() {
     final p = pay(3, DateTime(2026, 3, 10), 4387);
     expect(DebtPayment.fromJson(p.toJson()).toJson(), p.toJson());
   });
+
+  test('信用卡帳單：每月一期照帳單金額、沒有本金利息剩餘、不會還清', () {
+    final card = Debt(
+      id: 'c',
+      name: '中信卡',
+      lender: '中信',
+      type: DebtType.card,
+      principal: 0,
+      rate: 0,
+      term: 0,
+      firstYear: 2026,
+      firstMonth: 8,
+      dueDay: 15,
+      flexible: false,
+      flexPay: 8000,
+    );
+    expect(card.isBill, isTrue);
+    final today = DateTime(2026, 10, 20);
+    final s = DebtStats.of(card, [
+      DebtPayment(
+        id: 'p',
+        debtId: 'c',
+        period: 1,
+        date: DateTime(2026, 8, 15),
+        amount: 7321,
+      ),
+    ], today: today);
+    // 8、9、10 月，再多排到 11 月
+    expect(s.rows.map((r) => r.date.month), [8, 9, 10, 11]);
+    expect(s.rows.first.pay, 7321);
+    expect(s.rows[1].pay, 8000);
+    expect(s.remaining, 0);
+    expect(s.closed, isFalse);
+    expect(s.payoffDate, isNull);
+    expect(s.interestTotal, 0);
+    expect(s.next!.date, DateTime(2026, 9, 15));
+    expect(s.overdueDays, 35);
+    final t = DebtTotals([s], income: null, today: today);
+    expect(t.monthly, 8000);
+    expect(t.loans, isEmpty);
+    expect(t.remaining, 0);
+    expect(duesOfMonth([s], DateTime(2026, 10)).single.amount, 8000);
+  });
+
+  test('拿掉的舊種類讀進來變「其他」', () {
+    final j = debt().toJson()..['type'] = 'family';
+    expect(Debt.fromJson(j).type, DebtType.other);
+  });
 }

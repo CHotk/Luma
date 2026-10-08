@@ -5,7 +5,7 @@ import '../../app/theme/typography.dart';
 import '../../domain/debt_schedule.dart';
 import '../../domain/models/debt.dart';
 
-/// 負債還款各頁共用的小東西（只給這個功能用）：金額日期格式、債務圖示、
+/// 負債管理各頁共用的小東西（只給這個功能用）：金額日期格式、債務圖示、
 /// 一期繳款列、債務卡。
 
 const debtAccent = Color(0xFF7EA6FF);
@@ -178,7 +178,11 @@ class DueTile extends StatelessWidget {
                         const SizedBox(height: 2),
                         Text(
                           '${mdw(r.date)}・${d.lender}'
-                          '${item.isPayoff || d.flexible ? '' : '・第 ${r.k} 期'}',
+                          '${item.isPayoff || d.flexible
+                              ? ''
+                              : d.isBill
+                              ? '・${r.date.month} 月帳單'
+                              : '・第 ${r.k} 期'}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: AppText.note.copyWith(color: AppColors.ink3),
@@ -223,6 +227,7 @@ class DebtCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = stats, d = s.debt;
+    if (d.isBill) return _bill(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Material(
@@ -303,6 +308,76 @@ class DebtCard extends StatelessWidget {
                             : s.closed
                             ? '還清於 ${ym(s.payoffDate!)}'
                             : '預計 ${ym(s.payoffDate!)} 還清',
+                        style: AppText.note.copyWith(fontSize: 10.5),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+extension on DebtCard {
+  /// 信用卡帳單：不畫進度條、不寫剩餘，寫這期大概多少跟下次扣款日。
+  Widget _bill(BuildContext context) {
+    final s = stats, d = s.debt, next = s.next;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Material(
+        color: const Color(0xFF161622),
+        borderRadius: BorderRadius.circular(14),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                DebtIcon(d.type),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        d.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.ink,
+                        ),
+                      ),
+                      Text(
+                        '${d.lender}・每月帳單・每月 ${d.dueDay} 號扣款',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppText.note.copyWith(color: AppColors.ink3),
+                      ),
+                    ],
+                  ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      '約 ${money(d.flexPay)}',
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.ink,
+                      ),
+                    ),
+                    if (s.overdueDays > 0)
+                      DebtPill('逾期 ${s.overdueDays} 天', color: debtBad)
+                    else
+                      Text(
+                        next == null ? '' : '下次 ${mdw(next.date)}',
                         style: AppText.note.copyWith(fontSize: 10.5),
                       ),
                   ],

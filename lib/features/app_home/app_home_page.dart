@@ -26,7 +26,7 @@ const appHomeCards = <HomeCard>[
   (id: 'yt', label: 'YT 頻道'),
   (id: 'fitness', label: '健身'),
   (id: 'crypto', label: '交易&自律'),
-  (id: 'debt', label: '負債還款'),
+  (id: 'debt', label: '負債管理'),
   (id: 'smoking', label: '抽菸記錄'),
   (id: 'drinking', label: '喝酒記錄'),
   (id: 'sync', label: '多裝置同步'),
@@ -95,7 +95,7 @@ class AppHomePage extends ConsumerWidget {
       ),
       const _HomeItem(
         id: 'debt',
-        label: '負債還款',
+        label: '負債管理',
         icon: Icons.account_balance_wallet_outlined,
         color: Color(0xFFFF9F7A),
         route: '/debt',

@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart' show Color;
 
-/// 負債種類（2026-10-08 負債每月還款表）。只影響圖示跟顏色，計算都一樣。
+/// 負債種類（2026-10-08 負債管理）。使用者實際有的：信貸、手機貸、筆電貸、
+/// 信用卡（2026-10-08 拿掉房貸、車貸、學貸、親友借款，加手機貸、筆電貸）。
+///
+/// 信用卡是**每月帳單**，不是攤還：使用者說「信用卡分期很難算，只能看當期
+/// 帳單大概多少」，所以信用卡只記每月大概要繳多少（[Debt.flexPay] 當本期
+/// 帳單金額），不算本金、利息、剩餘、還清日，見 [Debt.isBill]。
+/// 其他種類照本息平均攤還算。舊資料裡已經拿掉的種類讀進來當「其他」。
 enum DebtType {
   loan('信貸', '💳', Color(0xFF7EA6FF)),
-  car('車貸', '🚗', Color(0xFF5FD3C6)),
-  student('學貸', '🎓', Color(0xFFB79CFF)),
-  card('信用卡分期', '🧾', Color(0xFFFF9F7A)),
-  family('親友借款', '🤝', Color(0xFFF5C763)),
-  house('房貸', '🏠', Color(0xFF8BD17C)),
+  phone('手機貸', '📱', Color(0xFF5FD3C6)),
+  laptop('筆電貸', '💻', Color(0xFFB79CFF)),
+  card('信用卡', '🧾', Color(0xFFFF9F7A)),
   other('其他', '📌', Color(0xFFA3A2B2));
 
   const DebtType(this.label, this.emoji, this.color);
@@ -86,6 +90,9 @@ class Debt {
   final DateTime? deletedAt;
 
   DateTime get syncedAt => updatedAt ?? DateTime(2000);
+
+  /// 每月帳單型（信用卡）：每個月繳一次大概 [flexPay] 元，沒有本金、期數。
+  bool get isBill => type == DebtType.card;
 
   Debt copyWith({
     String? name,
