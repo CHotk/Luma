@@ -9,6 +9,8 @@ const _nonEnglishPrefixes = [
   '/jp-',
   '/kana-',
   '/diary',
+  // 負債管理（2026-10-08：齒輪裡改密碼，跟日記同一組）。
+  '/debt',
   '/yt-tracker',
   '/fitness',
   '/sync',
