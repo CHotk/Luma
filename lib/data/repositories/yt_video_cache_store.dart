@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:convert';
 
 import '../services/youtube_api_service.dart';
 import '../storage/key_value_store.dart';
+import 'yt_video_tags.dart';
 
 /// 頻道詳情頁「上傳頻率」圖表用的歷史影片本機快取，一個頻道一份，
 /// key 帶頻道 id（2026-09-23 使用者要求：抓過的影片存起來，下次不用
@@ -51,10 +53,41 @@ class YtVideoCacheStore {
   Future<List<YoutubeVideo>> load(String channelId) async {
     final raw = await _store.read(_keyFor(channelId));
     if (raw == null) return const [];
-    return (jsonDecode(raw) as List)
+    final list = (jsonDecode(raw) as List)
         .cast<Map<String, dynamic>>()
         .map(YoutubeVideo.fromJson)
         .toList();
+    YtVideoTags.publish(list);
+    return list;
+  }
+
+  Future<void> _writeVideos(String channelId, Iterable<YoutubeVideo> videos) {
+    final list = videos.toList();
+    YtVideoTags.publish(list);
+    return _store.write(
+      _keyFor(channelId),
+      jsonEncode([for (final v in list) v.toJson()]),
+    );
+  }
+
+  /// 同一個頻道的快取「讀出來→改→寫回去」一次只跑一個（2026-10-08
+  /// 使用者回報「偶爾還是有幾部沒標上類型」）。原本背景掃類型、往下捲
+  /// 抓更早影片、上傳頻率圖各自讀一份、改完整份寫回，誰晚寫誰贏，先寫
+  /// 的那份（例如剛標好的類型、剛抓到的影片）就被蓋掉。排隊之後每一個
+  /// 都是在前一個寫完的最新內容上改。static：頁面上每次都 new 一個
+  /// store，排隊要跨實例共用。
+  static final _queues = <String, Future<void>>{};
+
+  static Future<T> _serial<T>(String channelId, Future<T> Function() body) {
+    final prev = _queues[channelId] ?? Future<void>.value();
+    final done = Completer<void>();
+    _queues[channelId] = done.future;
+    return prev.then((_) => body()).whenComplete(() {
+      done.complete();
+      if (identical(_queues[channelId], done.future)) {
+        _queues.remove(channelId);
+      }
+    });
   }
 
   static String _stampKeyFor(String channelId) =>
@@ -103,6 +136,10 @@ class YtVideoCacheStore {
   /// 的影片保留有時長的那份。回傳真的新增／補到時長的部數。
   Future<int> upsertVideos(String channelId, List<YoutubeVideo> videos) async {
     if (videos.isEmpty) return 0;
+    return _serial(channelId, () => _upsert(channelId, videos));
+  }
+
+  Future<int> _upsert(String channelId, List<YoutubeVideo> videos) async {
     final byId = {for (final v in await load(channelId)) v.videoId: v};
     var changed = 0;
     for (final v in videos) {
@@ -113,12 +150,7 @@ class YtVideoCacheStore {
         changed++;
       }
     }
-    if (changed > 0) {
-      await _store.write(
-        _keyFor(channelId),
-        jsonEncode([for (final v in byId.values) v.toJson()]),
-      );
-    }
+    if (changed > 0) await _writeVideos(channelId, byId.values);
     return changed;
   }
 
@@ -133,6 +165,17 @@ class YtVideoCacheStore {
     YtResume? cloudResume,
   }) async {
     if (cloudResume != null) await saveResumeIfDeeper(channelId, cloudResume);
+    return _serial(
+      channelId,
+      () => _mergeCloud(channelId, cloud, cloudFetchedAt),
+    );
+  }
+
+  Future<int> _mergeCloud(
+    String channelId,
+    List<YoutubeVideo> cloud,
+    DateTime? cloudFetchedAt,
+  ) async {
     final local = await load(channelId);
     final byId = {for (final v in local) v.videoId: v};
     var changed = 0;
@@ -148,12 +191,7 @@ class YtVideoCacheStore {
     final newest = [localAt, cloudFetchedAt]
         .whereType<DateTime>()
         .fold<DateTime?>(null, (a, b) => a == null || b.isAfter(a) ? b : a);
-    if (changed > 0) {
-      await _store.write(
-        _keyFor(channelId),
-        jsonEncode([for (final v in byId.values) v.toJson()]),
-      );
-    }
+    if (changed > 0) await _writeVideos(channelId, byId.values);
     if (newest != null && newest != localAt) {
       await _store.write(_stampKeyFor(channelId), newest.toIso8601String());
     }
@@ -167,7 +205,7 @@ class YtVideoCacheStore {
   Future<int> retag(
     String channelId,
     YoutubeVideo Function(YoutubeVideo) retag,
-  ) async {
+  ) => _serial(channelId, () async {
     final next = <YoutubeVideo>[];
     var changed = 0;
     for (final v in await load(channelId)) {
@@ -175,25 +213,30 @@ class YtVideoCacheStore {
       if (!identical(r, v)) changed++;
       next.add(r);
     }
-    if (changed > 0) {
-      await _store.write(
-        _keyFor(channelId),
-        jsonEncode([for (final v in next) v.toJson()]),
-      );
-    }
+    if (changed > 0) await _writeVideos(channelId, next);
     return changed;
-  }
+  });
 
-  Future<void> save(String channelId, List<YoutubeVideo> videos) async {
-    await _store.write(
-      _keyFor(channelId),
-      jsonEncode([for (final v in videos) v.toJson()]),
-    );
-    await _store.write(
-      _stampKeyFor(channelId),
-      DateTime.now().toIso8601String(),
-    );
-  }
+  /// 上傳頻率圖抓完後存回整批影片。[videos] 是它一開始讀的快取＋這次
+  /// 抓到的，抓的那段時間裡快取可能已經被別人寫過（背景標好的類型、
+  /// 往下捲抓到的影片），所以**不是整份覆蓋**：在排隊拿到的最新快取上
+  /// 合併——[videos] 裡的值優先，它沒有的時長／類型從快取補，快取裡有、
+  /// [videos] 沒有的影片也留著。
+  Future<void> save(String channelId, List<YoutubeVideo> videos) =>
+      _serial(channelId, () async {
+        final byId = {for (final v in await load(channelId)) v.videoId: v};
+        for (final v in videos) {
+          final current = byId[v.videoId];
+          byId[v.videoId] = current == null ? v : _fillGaps(v, current);
+        }
+        final merged = byId.values.toList()
+          ..sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
+        await _writeVideos(channelId, merged);
+        await _store.write(
+          _stampKeyFor(channelId),
+          DateTime.now().toIso8601String(),
+        );
+      });
 }
 
 /// 同一部影片已經在快取裡時，只把快取還沒有、新來的那份有的資訊補上：

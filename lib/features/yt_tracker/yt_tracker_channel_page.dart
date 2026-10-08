@@ -134,6 +134,11 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
   // （2026-09-30 使用者要求）。
   List<YoutubeVideo> _typedVideos = const [];
   bool _typeScanRunning = false;
+
+  /// 掃描跑到一半又有人要求重掃（往下捲抓到更早的影片）：記下來，這輪
+  /// 跑完馬上再掃一次。以前直接忽略，新抓到的那幾部就一直沒標類型
+  /// （2026-10-08 使用者回報偶爾漏標）。
+  bool _typeScanAgain = false;
   String? _typeScannedChannelId;
   DateTime? _typeScannedAt;
   bool _typedReachedEnd = false;
@@ -349,7 +354,10 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
   /// 進頁面只掃一次（2026-10-06 使用者決定：待在頁面上不自動更新）；
   /// [force]（按重新整理、「全部」往下翻到更早）不受這個限制。
   Future<void> _scanVideoTypes({bool force = false}) async {
-    if (_typeScanRunning) return;
+    if (_typeScanRunning) {
+      if (force) _typeScanAgain = true;
+      return;
+    }
     final sameChannel = _typeScannedChannelId == _loadMoreChannelId;
     if (!force && sameChannel && _typeScannedAt != null) return;
     _typeScannedChannelId = _loadMoreChannelId;
@@ -402,6 +410,10 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
       // 背景工作，失敗就下次再掃。
     } finally {
       _typeScanRunning = false;
+      if (_typeScanAgain && mounted) {
+        _typeScanAgain = false;
+        _scanVideoTypes(force: true);
+      }
     }
   }
 

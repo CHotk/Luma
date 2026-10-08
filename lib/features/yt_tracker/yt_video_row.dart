@@ -11,6 +11,7 @@ import '../../data/external_link.dart';
 import '../../data/repositories/yt_embed_player_style_store.dart';
 import '../../data/repositories/yt_video_hidden_store.dart';
 import '../../data/repositories/yt_video_open_mode_store.dart';
+import '../../data/repositories/yt_video_tags.dart';
 import '../../data/repositories/yt_video_watch_store.dart';
 import '../../data/services/youtube_api_service.dart';
 import '../../domain/models/yt_video_watch.dart';
@@ -675,29 +676,44 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
                               // 左下角類型小標籤：影片／Shorts／直播
                               // （2026-10-06 使用者要求）。類型還不知道
                               // （快取裡還沒標過）就不顯示，不亂猜。
-                              if (_typeLabel(video) case final label?)
-                                Positioned(
-                                  left: 3,
-                                  bottom: 3,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 4,
-                                      vertical: 1,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: label.color.withValues(alpha: 0.9),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      label.text,
-                                      style: const TextStyle(
-                                        fontSize: 9.5,
-                                        fontWeight: FontWeight.w700,
-                                        color: Colors.white,
+                              // 標籤從共用的 [YtVideoTags] 補：背景一標
+                              // 到，這一列自己重畫出來，不用等整份清單
+                              // 換新（2026-10-08 使用者回報偶爾漏標）。
+                              Positioned(
+                                left: 3,
+                                bottom: 3,
+                                child: ValueListenableBuilder(
+                                  valueListenable: YtVideoTags.notifier,
+                                  builder: (context, tags, _) {
+                                    final label = _typeLabel(
+                                      YtVideoTags.apply(video, tags),
+                                    );
+                                    if (label == null) {
+                                      return const SizedBox.shrink();
+                                    }
+                                    return Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 4,
+                                        vertical: 1,
                                       ),
-                                    ),
-                                  ),
+                                      decoration: BoxDecoration(
+                                        color: label.color.withValues(
+                                          alpha: 0.9,
+                                        ),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        label.text,
+                                        style: const TextStyle(
+                                          fontSize: 9.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    );
+                                  },
                                 ),
+                              ),
                               // 左上角「已看過」小標籤，點下去直接開「開啟
                               // 紀錄」視窗，不是靠 Tooltip 長按才看得到
                               // （2026-09-30 使用者要求：長按太不直覺，
