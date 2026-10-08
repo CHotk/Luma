@@ -11,30 +11,31 @@ import 'package:lume/domain/models/yt_tracker.dart';
 void main() {
   late List<YtChannel> seed;
 
-  // 原本讀內建快照檔 assets/data/yt_tracker_channels.json，2026-10-08 那份
-  // 快照清空了（資料都在雲端同步，不再打包進 App），改成在這裡放兩筆
-  // 原本快照裡的頻道（沒有 updatedAt，跟當年的快照一樣）。
+  // 測試用的假頻道，不是 App 的資料：這份測試只驗證「快照合併不會洗掉
+  // 置頂」這段邏輯，跟真的頻道是誰無關，也不能連真的雲端（要金鑰、要網路、
+  // 還會動到真資料）。原本讀打包在 App 裡的快照檔，2026-10-08 那份清空了，
+  // 改成在這裡放兩筆跟快照同格式（沒有 updatedAt）的假頻道。
   setUpAll(() {
     seed = [
       for (final j in const [
         {
-          'id': 'seed-shasha77',
-          'name': '志祺七七',
-          'categoryId': 'seed-current-affairs',
+          'id': 'test-channel-a',
+          'name': '測試頻道 A',
+          'categoryId': 'test-category',
           'avatarEmoji': '📺',
           'avatarImageUrl': '',
-          'url': 'https://www.youtube.com/@shasha77',
-          'description': '時事懶人包',
+          'url': 'https://www.youtube.com/@test-a',
+          'description': '',
           'addedAt': '2026-09-22T00:00:00.000',
         },
         {
-          'id': 'seed-youtubercrypto',
-          'name': '科幣託',
-          'categoryId': 'seed-crypto',
+          'id': 'test-channel-b',
+          'name': '測試頻道 B',
+          'categoryId': 'test-category',
           'avatarEmoji': '📺',
           'avatarImageUrl': '',
-          'url': 'https://youtube.com/@youtubercrypto',
-          'description': '虛擬貨幣KOL',
+          'url': 'https://www.youtube.com/@test-b',
+          'description': '',
           'addedAt': '2026-09-22T00:00:00.000',
         },
       ])
