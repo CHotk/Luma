@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 import '../features/crypto_watch/crypto_watch_page.dart';
 import '../features/crypto_watch/crypto_watch_stats_page.dart';
@@ -44,8 +45,14 @@ import '../features/yt_tracker/yt_channel_log_page.dart';
 import '../features/yt_tracker/yt_purged_channels_page.dart';
 import '../features/yt_tracker/yt_trash_page.dart';
 
+/// 最外層 Navigator 的 key。給「發起的頁面已經被關掉，事情做完還是要
+/// 跳提示」的情況拿 context 用（例如同步途中離開設定頁，見
+/// `r2_sync_section.dart`）。
+final rootNavigatorKey = GlobalKey<NavigatorState>();
+
 /// 全 App 的路徑只在這裡定義，畫面裡不准自己組路徑字串。
 final appRouter = GoRouter(
+  navigatorKey: rootNavigatorKey,
   initialLocation: '/',
   routes: [
     GoRoute(path: '/', builder: (_, _) => const SplashPage()),

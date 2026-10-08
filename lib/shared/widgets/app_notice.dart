@@ -16,9 +16,13 @@ import '../../app/theme/spacing.dart';
 /// 用法：`showAppNotice(context, '已完成')`，跟原本
 /// `ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(...)))`
 /// 是同一個使用時機，只是換一顆函式呼叫。
+///
+/// [detail] 是第二行灰色小字（例如同步通知的「來自 iOS・Safari · 21:08」），
+/// 不給就只有一行。
 Future<void> showAppNotice(
   BuildContext context,
   String message, {
+  String? detail,
   bool isError = false,
   Duration duration = const Duration(seconds: 3),
 }) {
@@ -36,6 +40,7 @@ Future<void> showAppNotice(
   entry = OverlayEntry(
     builder: (context) => _AppNoticeOverlay(
       message: message,
+      detail: detail,
       isError: isError,
       duration: duration,
       onDismissed: remove,
@@ -48,12 +53,14 @@ Future<void> showAppNotice(
 class _AppNoticeOverlay extends StatefulWidget {
   const _AppNoticeOverlay({
     required this.message,
+    required this.detail,
     required this.isError,
     required this.duration,
     required this.onDismissed,
   });
 
   final String message;
+  final String? detail;
   final bool isError;
   final Duration duration;
   final VoidCallback onDismissed;
@@ -125,6 +132,7 @@ class _AppNoticeOverlayState extends State<_AppNoticeOverlay>
                 onTap: _dismiss,
                 child: _NoticeCard(
                   message: widget.message,
+                  detail: widget.detail,
                   isError: widget.isError,
                 ),
               ),
@@ -137,9 +145,14 @@ class _AppNoticeOverlayState extends State<_AppNoticeOverlay>
 }
 
 class _NoticeCard extends StatelessWidget {
-  const _NoticeCard({required this.message, required this.isError});
+  const _NoticeCard({
+    required this.message,
+    required this.detail,
+    required this.isError,
+  });
 
   final String message;
+  final String? detail;
   final bool isError;
 
   @override
@@ -181,14 +194,30 @@ class _NoticeCard extends StatelessWidget {
                 ),
                 const SizedBox(width: Gap.sm),
                 Flexible(
-                  child: Text(
-                    message,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.ink,
-                    ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        message,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.ink,
+                        ),
+                      ),
+                      if (detail != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          detail!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: AppColors.ink2,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
               ],

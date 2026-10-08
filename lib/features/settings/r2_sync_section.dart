@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
+import '../../app/router.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
@@ -175,7 +176,12 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
   }
 
   Future<void> _syncNow() async {
-    final credentials = ref.read(r2CredentialsProvider);
+    // 同步途中使用者可能已經離開設定頁（2026-10-08 使用者回報：點同步後
+    // 跳去別的功能，上方通知沒出來）。頁面一卸載 `ref.read` 就會丟
+    // StateError，後半段的同步紀錄、上次同步時間、通知全部跟著斷掉，
+    // 所以一開始就抓住 ProviderContainer，整段同步都用它讀。
+    final container = ProviderScope.containerOf(context, listen: false);
+    final credentials = container.read(r2CredentialsProvider);
     if (credentials == null || _syncing) return;
     setState(() {
       _syncing = true;
@@ -200,16 +206,23 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
     // 因為其中一個掛了就整批放棄，明明其他已經做完的）。
     final details = <String>[];
     final failures = <String>[];
+    // 給上方通知用的（2026-10-08 使用者挑「多裝置同步上方通知」第 2 版：
+    // 毛玻璃提示改寫成「日記 +2、YT 頻道追蹤 +3」這種摘要）。
+    final downloads = <String, int>{};
+    final failedLabels = <String>[];
 
     try {
       final client = R2Client(
         credentials: credentials,
-        bucket: ref.read(r2BucketNameProvider),
+        bucket: container.read(r2BucketNameProvider),
       );
       // 帶本機儲存進去，同步才能記住「上次同步完的內容指紋／雲端 ETag」，
       // 下次兩邊都沒變就整段跳過（2026-09-29 使用者要求加速，見
       // `R2SyncService` 建構子跟 `_canSkip` 的說明）。
-      final service = R2SyncService(client, ref.read(keyValueStoreProvider));
+      final service = R2SyncService(
+        client,
+        container.read(keyValueStoreProvider),
+      );
 
       // 單一功能同步的共用包裝：跑完記結果、標記完成；失敗記下來、標記
       // 失敗，不往外丟例外——這樣外層才能用 `Future.wait` 讓每個功能
@@ -229,10 +242,12 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
           final r = await task(_phaseCallback(setPhase));
           _record(label, r);
           details.add('$label 上傳${r.uploaded}／下載${r.downloaded}');
+          if (r.downloaded > 0) downloads[label] = r.downloaded;
           if (mounted) setState(() => setPhase(_FeaturePhase.done));
         } catch (e, stack) {
           AppLog.add('[同步] $label 失敗：$e\n$stack', isError: true);
           failures.add('$label：$e');
+          failedLabels.add(label);
           if (mounted) setState(() => setPhase(_FeaturePhase.error));
         }
       }
@@ -243,11 +258,11 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
           // 功能範疇內的資料，包進同一個「日記」任務一起跑，不另外開
           // 一個平行任務跟一顆狀態列。
           final entryResult = await service.syncDiary(
-            ref.read(diaryRepositoryProvider),
+            container.read(diaryRepositoryProvider),
             onPhase: onPhase,
           );
           final pwResult = await service.syncDiaryPassword(
-            DiaryPasswordStore(ref.read(keyValueStoreProvider)),
+            DiaryPasswordStore(container.read(keyValueStoreProvider)),
           );
           return (
             downloaded: entryResult.downloaded + pwResult.downloaded,
@@ -258,7 +273,7 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
           '健身',
           (p) => _fitnessPhase = p,
           (onPhase) => service.syncFitness(
-            ref.read(fitnessRepositoryProvider),
+            container.read(fitnessRepositoryProvider),
             onPhase: onPhase,
           ),
         ),
@@ -267,26 +282,26 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
           // 這兩步本來就有先後依賴，包成同一個「功能」一起跑，跟其他
           // 互不相關的功能平行，不是說「YT 也要平行」就硬拆開兩步。
           final ytResult = await service.syncYtTracker(
-            ref.read(ytTrackerRepositoryProvider),
+            container.read(ytTrackerRepositoryProvider),
             onPhase: onPhase,
           );
           final ytVideoResult = await service.syncYtVideoCache(
-            YtVideoCacheStore(ref.read(keyValueStoreProvider)),
-            await ref.read(ytTrackerRepositoryProvider).loadChannels(),
+            YtVideoCacheStore(container.read(keyValueStoreProvider)),
+            await container.read(ytTrackerRepositoryProvider).loadChannels(),
           );
           // 影片「看過了」記錄也算 YT 這個功能範疇內的資料（2026-09-29
           // 使用者要求），跟分類／頻道／影片快取一起同步，不另開一個
           // 平行任務。分類顯示順序也是（2026-09-30 使用者回報：原本這個
           // 設定只存本機，從沒接進同步，A 裝置調完順序 B 裝置看不到）。
           final watchResult = await service.syncYtVideoWatch(
-            YtVideoWatchStore(ref.read(keyValueStoreProvider)),
+            YtVideoWatchStore(container.read(keyValueStoreProvider)),
           );
           final orderResult = await service.syncYtCategoryOrder(
-            YtCategoryOrderStore(ref.read(keyValueStoreProvider)),
+            YtCategoryOrderStore(container.read(keyValueStoreProvider)),
           );
           // 頻道紀錄（2026-10-06）也是 YT 範疇內的資料，一起同步。
           final logResult = await service.syncYtChannelLog(
-            YtChannelLogStore(ref.read(keyValueStoreProvider)),
+            YtChannelLogStore(container.read(keyValueStoreProvider)),
           );
           return (
             downloaded:
@@ -305,13 +320,13 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
         }),
         run('五十音練習', (p) => _kanaPracticePhase = p, (onPhase) async {
           final r = await service.syncKanaPractice(
-            ref.read(kanaPracticeRepositoryProvider),
+            container.read(kanaPracticeRepositoryProvider),
             onPhase: onPhase,
           );
           // 日文首頁卡片順序（2026-10-05）跟日文練習一起同步，不另開
           // 一個任務跟一顆狀態列。
           final order = await service.syncHomeCardOrder(
-            HomeCardOrderStore(ref.read(keyValueStoreProvider), 'jp'),
+            HomeCardOrderStore(container.read(keyValueStoreProvider), 'jp'),
           );
           return (
             downloaded: r.downloaded + order.downloaded,
@@ -322,21 +337,21 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
           '五十音考試',
           (p) => _kanaExamPhase = p,
           (onPhase) => service.syncKanaExam(
-            ref.read(kanaExamRepositoryProvider),
+            container.read(kanaExamRepositoryProvider),
             onPhase: onPhase,
           ),
         ),
         run('英文單字紀錄', (p) => _englishPhase = p, (onPhase) async {
           final r = await service.syncEnglishHistory(
-            ref.read(historyRepositoryProvider),
+            container.read(historyRepositoryProvider),
             onPhase: onPhase,
           );
           // 單字庫有記憶體快取（對錯次數是從紀錄現算的），紀錄變了要
           // 丟掉重算。
-          ref.read(wordRepositoryProvider).invalidate();
+          container.read(wordRepositoryProvider).invalidate();
           // 英文首頁卡片順序（2026-10-05）跟英文紀錄一起同步。
           final order = await service.syncHomeCardOrder(
-            HomeCardOrderStore(ref.read(keyValueStoreProvider), 'en'),
+            HomeCardOrderStore(container.read(keyValueStoreProvider), 'en'),
           );
           return (
             downloaded: r.downloaded + order.downloaded,
@@ -348,14 +363,14 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
           '首頁',
           (p) => _appHomePhase = p,
           (_) => service.syncHomeCardOrder(
-            HomeCardOrderStore(ref.read(keyValueStoreProvider), 'app'),
+            HomeCardOrderStore(container.read(keyValueStoreProvider), 'app'),
           ),
         ),
         run(
           '看盤記錄',
           (p) => _habitPhases['crypto'] = p,
           (onPhase) => service.syncCryptoWatch(
-            ref.read(cryptoWatchRepositoryProvider),
+            container.read(cryptoWatchRepositoryProvider),
             onPhase: onPhase,
           ),
         ),
@@ -363,7 +378,7 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
           '抽菸記錄',
           (p) => _habitPhases['smoking'] = p,
           (onPhase) => service.syncSmoking(
-            ref.read(smokingRepositoryProvider),
+            container.read(smokingRepositoryProvider),
             onPhase: onPhase,
           ),
         ),
@@ -371,7 +386,7 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
           '喝酒記錄',
           (p) => _habitPhases['drinking'] = p,
           (onPhase) => service.syncDrinking(
-            ref.read(drinkingRepositoryProvider),
+            container.read(drinkingRepositoryProvider),
             onPhase: onPhase,
           ),
         ),
@@ -381,10 +396,10 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
       // 功能都做完（不管成功失敗）才能寫，所以留在 Future.wait 之後、
       // 序列做，不是漏掉平行化。
       final now = DateTime.now();
-      await ref
+      await container
           .read(keyValueStoreProvider)
           .write(_lastSyncedKey, now.toIso8601String());
-      await ref
+      await container
           .read(syncLogRepositoryProvider)
           .add(
             SyncLogEntry(
@@ -407,7 +422,7 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
         if (mounted) {
           setState(() => _errorLogPhase = _FeaturePhase.downloading);
         }
-        final errorRepo = ref.read(errorLogRepositoryProvider);
+        final errorRepo = container.read(errorLogRepositoryProvider);
         final errorResult = await service.syncErrorLog(errorRepo);
         _record('除錯錯誤日誌', errorResult);
         AppLog.restore(await errorRepo.loadAll());
@@ -418,30 +433,43 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
           });
         }
         final logResult = await service.syncLog(
-          ref.read(syncLogRepositoryProvider),
+          container.read(syncLogRepositoryProvider),
         );
         _record('同步紀錄', logResult);
         if (mounted) setState(() => _syncLogPhase = _FeaturePhase.done);
       } catch (_) {
         // 紀錄上傳失敗不擋主流程：其他功能已經同步成功。
       }
-      widget.onLogged?.call();
+      if (mounted) widget.onLogged?.call();
       // 同步抓回來的資料要讓日記頁／健身頁（可能還留在導覽堆疊底下沒被
       // 重建）知道要重讀，不然使用者按返回時畫面還是同步前的舊資料
       // （2026-09-23 使用者回報）——跟練習紀錄頁那套「存檔完 bump 這個
       // provider」共用同一個機制，見 `dataRevisionProvider` 的其他用法。
-      ref.read(dataRevisionProvider.notifier).state++;
-      if (!mounted) return;
-      setState(() {
-        _lastSyncedAt = now;
-        _syncing = false;
-      });
-      if (failures.isEmpty) {
-        showAppNotice(context, '資料雲端同步完成');
+      container.read(dataRevisionProvider.notifier).state++;
+      if (mounted) {
+        setState(() {
+          _lastSyncedAt = now;
+          _syncing = false;
+        });
+      }
+      final source = downloads.isEmpty
+          ? null
+          : await _latestOtherDevice(container);
+      final noticeContext = mounted ? context : rootNavigatorKey.currentContext;
+      if (noticeContext == null || !noticeContext.mounted) return;
+      if (failedLabels.isEmpty) {
+        showAppNotice(
+          noticeContext,
+          downloads.isEmpty
+              ? '同步完成：沒有新資料'
+              : '同步完成：${_downloadSummary(downloads)}',
+          detail: source,
+        );
       } else {
         showAppNotice(
-          context,
-          '同步完成，但有 ${failures.length} 項失敗：${failures.join('、')}',
+          noticeContext,
+          '同步完成，但 ${failedLabels.length} 項失敗：${failedLabels.join('、')}',
+          detail: '其他功能已經更新',
           isError: true,
         );
       }
@@ -450,7 +478,7 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
       // 本身出問題）——各功能自己的失敗已經在 `run` 裡接住了，不會
       // 跑到這裡。
       AppLog.add('[同步] 意外錯誤：$e\n$stack', isError: true);
-      await ref
+      await container
           .read(syncLogRepositoryProvider)
           .add(
             SyncLogEntry(
@@ -461,11 +489,44 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
               detail: '意外錯誤：$e',
             ),
           );
-      widget.onLogged?.call();
-      if (!mounted) return;
-      setState(() => _syncing = false);
-      showAppNotice(context, '同步失敗：$e', isError: true);
+      if (mounted) {
+        widget.onLogged?.call();
+        setState(() => _syncing = false);
+      }
+      final noticeContext = mounted ? context : rootNavigatorKey.currentContext;
+      if (noticeContext == null || !noticeContext.mounted) return;
+      showAppNotice(noticeContext, '同步失敗：$e', isError: true);
     }
+  }
+
+  /// 「日記 +2、YT 頻道追蹤 +3」：只列這次真的有下載到東西的功能。
+  static String _downloadSummary(Map<String, int> downloads) =>
+      downloads.entries.map((e) => '${e.key} +${e.value}').join('、');
+
+  /// 通知第二行的「來自 iOS・Safari · 21:08」：同步紀錄已經跟雲端合併過，
+  /// 裡面最新一筆「不是這台裝置」做的同步，就是這次帶回來的資料最可能
+  /// 的來源。舊紀錄沒有裝置名稱、或只有這台在同步時回傳 null，不顯示
+  /// 第二行。
+  static Future<String?> _latestOtherDevice(ProviderContainer container) async {
+    final here = currentDeviceLabel();
+    final List<SyncLogEntry> log;
+    try {
+      log = await container.read(syncLogRepositoryProvider).loadAll();
+    } catch (_) {
+      return null;
+    }
+    for (final e in log) {
+      if (e.action != SyncLogAction.sync) continue;
+      if (e.device == null || e.device == here) continue;
+      final t = e.at.toLocal();
+      final now = DateTime.now();
+      final hm =
+          '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+      final sameDay =
+          t.year == now.year && t.month == now.month && t.day == now.day;
+      return '來自 ${e.device} · ${sameDay ? hm : '${t.month}/${t.day} $hm'}';
+    }
+    return null;
   }
 
   @override
