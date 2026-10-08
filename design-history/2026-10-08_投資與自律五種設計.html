@@ -1,0 +1,323 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>投資&amp;自律 五種設計</title><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;800&display=swap" rel="stylesheet"><style>
+:root{--bg:#0c0c13;--panel:#161622;--panel2:#1e1e2e;--line:#2a2a3d;--text:#eceaf5;--sub:#8b8ba3;--dim:#5d5d72;--acc:#7EA6FF;--blue:#2E6BFF;--up:#5FE08D;--down:#FF7A70;--mid:#F5C763}
+*{box-sizing:border-box;margin:0}
+html,body{min-height:100%}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-serif;padding:32px 16px 48px}
+.intro{max-width:860px;margin:0 auto 26px;text-align:center}
+.eyebrow{color:var(--acc);font-size:12px;letter-spacing:.2em}
+h1{font-size:22px;margin:6px 0}
+.intro p{color:var(--sub);font-size:13px;line-height:1.7}
+.intro b,.assume b{color:var(--text)}
+.assume{max-width:860px;margin:0 auto 34px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 16px;font-size:12.5px;color:var(--sub);line-height:1.85}
+.sec{max-width:1800px;margin:0 auto 18px;text-align:center}
+.sec h3{font-size:16px;margin-bottom:4px}
+.sec p{color:var(--sub);font-size:12.5px}
+.wrap{display:flex;flex-wrap:wrap;gap:40px 28px;justify-content:center;max-width:1800px;margin:0 auto 56px}
+.variant{width:300px;flex-shrink:0}
+.vhead{min-height:140px;margin-bottom:6px}
+.vhead .num{color:var(--acc);font-size:11px;letter-spacing:.15em}
+.vhead h2{font-size:17px;margin:4px 0 6px}
+.vhead p{color:var(--sub);font-size:12.5px;line-height:1.65}
+.tag{display:inline-block;background:var(--acc);color:#0c0c13;border-radius:99px;padding:1px 9px;font-size:10.5px;margin-left:6px;vertical-align:2px;font-weight:700}
+.cap{font-size:11px;color:var(--sub);letter-spacing:.1em;margin:14px 0 6px}
+.scr{width:300px;height:540px;flex-shrink:0;border:6px solid #000;border-radius:24px;background:var(--bg);overflow:hidden;position:relative;padding:12px}
+.scr.scroll{overflow-y:auto}
+.note{color:var(--sub);font-size:12px;line-height:1.7;margin-top:12px}
+.note b{color:var(--text)}
+.top{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700;margin-bottom:12px}
+.top .burger{width:16px;height:2px;background:var(--sub);box-shadow:0 5px 0 var(--sub),0 -5px 0 var(--sub);margin-right:4px}
+.top em{margin-left:auto;font-style:normal;font-size:11px;color:var(--sub);font-weight:400}
+.card{background:var(--panel);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:12px;margin-bottom:10px}
+.lbl{font-size:10.5px;color:var(--sub);letter-spacing:.06em;margin-bottom:6px}
+.big{font-size:26px;font-weight:800}
+.up{color:var(--up)}.down{color:var(--down)}.mid{color:var(--mid)}.sub{color:var(--sub)}.dim{color:var(--dim)}
+.btn{display:block;text-align:center;border-radius:12px;padding:11px 0;font-size:13.5px;font-weight:700;background:var(--blue);color:#fff}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--sub);font-weight:500}
+.row{display:flex;align-items:center;gap:8px}
+.kpis{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.kpi{background:var(--panel2);border-radius:10px;padding:7px 6px;text-align:center}
+.kpi b{display:block;font-size:14px}
+.kpi span{font-size:9.5px;color:var(--sub)}
+.tr{display:flex;align-items:center;gap:7px;font-size:11.5px;padding:7px 0;border-top:1px solid var(--line)}
+.tr:first-child{border-top:none}
+.tr .d{color:var(--sub);min-width:34px;white-space:nowrap}
+.tr .p{margin-left:auto;font-weight:700;text-align:right;line-height:1.25}
+.tr .p small{display:block;font-size:9.5px;font-weight:500}
+.lev{font-size:9.5px;padding:1px 6px;border-radius:6px;background:rgba(126,166,255,.14);color:var(--acc);font-weight:700}
+.lev.hi{background:rgba(255,122,112,.15);color:var(--down)}
+.pill{font-size:9.5px;padding:1px 7px;border-radius:99px;background:rgba(255,255,255,.07);color:var(--sub)}
+.fab{position:absolute;right:16px;bottom:58px;width:46px;height:46px;border-radius:50%;background:var(--blue);display:grid;place-items:center;font-size:24px;box-shadow:0 6px 18px rgba(46,107,255,.45)}
+.tabs{position:absolute;left:0;right:0;bottom:0;height:48px;background:var(--panel);border-top:1px solid var(--line);display:flex}
+.tabs div{flex:1;text-align:center;font-size:9.5px;color:var(--dim);padding-top:7px}
+.tabs div i{display:block;font-style:normal;font-size:15px}
+.tabs div.on{color:var(--acc)}
+/* 月曆 */
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.cal .h{font-size:9px;color:var(--dim);text-align:center;padding-bottom:2px}
+.cal .c{height:40px;border-radius:6px;background:rgba(255,255,255,.035);font-size:8.5px;color:var(--dim);padding:2px 3px;position:relative}
+.cal .c.e{background:none}
+.cal .c b{position:absolute;left:0;right:0;bottom:3px;text-align:center;font-size:9px;font-weight:700}
+.cal .c.w{background:rgba(95,224,141,.16)}.cal .c.w2{background:rgba(95,224,141,.38)}
+.cal .c.l{background:rgba(255,122,112,.16)}.cal .c.l2{background:rgba(255,122,112,.38)}
+.cal .c.sel{outline:1.5px solid var(--acc)}
+.cal .c .eye{position:absolute;right:3px;top:2px;font-size:8px;color:var(--sub)}
+.cal .c .eye.hot{color:var(--mid);font-weight:700}
+.cal.tall .c{height:46px}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--panel2);border-radius:18px 18px 0 0;padding:12px 14px 14px;border-top:1px solid var(--line);box-shadow:0 -10px 30px rgba(0,0,0,.5)}
+.grab{width:36px;height:4px;border-radius:9px;background:var(--line);margin:0 auto 10px}
+.bar{height:7px;background:var(--panel2);border-radius:9px;overflow:hidden}
+.bar i{display:block;height:100%;border-radius:9px}
+.field{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:7px 10px;margin-bottom:7px}
+.field span{display:block;font-size:9.5px;color:var(--sub)}
+.field b{font-size:14px}
+.seg{display:flex;background:var(--panel2);border-radius:10px;padding:3px;gap:3px;margin-bottom:7px}
+.seg div{flex:1;text-align:center;font-size:11.5px;padding:5px 0;border-radius:8px;color:var(--sub)}
+.seg div.on{background:var(--blue);color:#fff;font-weight:700}
+.seg div.on.upbg{background:rgba(95,224,141,.25);color:var(--up)}
+.seg div.on.downbg{background:rgba(255,122,112,.25);color:var(--down)}
+.chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:7px}
+.chips div{font-size:11px;padding:3px 9px;border-radius:99px;border:1px solid var(--line);color:var(--sub)}
+.chips div.on{border-color:var(--acc);color:var(--acc);background:rgba(126,166,255,.1)}
+.calc{background:rgba(95,224,141,.08);border:1px dashed rgba(95,224,141,.4);border-radius:10px;padding:8px 10px;font-size:11px;color:var(--sub);line-height:1.6;margin-bottom:8px}
+.timer{text-align:center;padding:14px 0 4px}
+.timer .t{font-size:40px;font-weight:800;color:var(--up);letter-spacing:.02em;line-height:1.1}
+.dayg{font-size:10.5px;color:var(--sub);margin:10px 0 5px;display:flex}
+.dayg span{margin-left:auto}
+.tcard{background:var(--panel);border-radius:12px;padding:9px 10px;margin-bottom:6px;border-left:3px solid var(--up)}
+.tcard.loss{border-left-color:var(--down)}
+.tcard.open{border-left-color:var(--mid)}
+.tcard .r1{display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700}
+.tcard .r1 .p{margin-left:auto}
+.tcard .r2{display:flex;gap:10px;font-size:10px;color:var(--sub);margin-top:4px}
+.week{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.week div{background:var(--panel2);border-radius:8px;text-align:center;padding:5px 0;font-size:9px;color:var(--sub)}
+.week div b{display:block;font-size:10.5px;margin-top:2px}
+.week div.today{outline:1.5px solid var(--acc)}
+.cmp{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.cmp div{background:var(--panel2);border-radius:10px;padding:9px;text-align:center;font-size:10px;color:var(--sub)}
+.cmp div b{display:block;font-size:17px;margin:3px 0}
+.heat{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+.heat div{border-radius:9px;padding:8px 4px;text-align:center;font-size:9.5px;color:var(--sub);background:var(--panel2)}
+.heat div b{display:block;font-size:12px;margin-top:2px}
+/* 月報項目選單 */
+.menu{max-width:980px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px}
+.mi{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.mi h4{font-size:14px;margin-bottom:4px;display:flex;align-items:center;gap:6px}
+.mi h4 .star{font-size:10px;color:#0c0c13;background:var(--mid);border-radius:99px;padding:1px 7px}
+.mi p{color:var(--sub);font-size:12px;line-height:1.65}
+.mi .ex{margin-top:6px;font-size:12px;background:var(--panel2);border-radius:8px;padding:6px 9px}
+</style></head><body>
+
+<div class="intro"><div class="eyebrow">功能整合 · 看盤記錄 → 投資&amp;自律</div><h1>投資&amp;自律：五種設計</h1>
+<p>把三件事放進同一個功能：<b>① 看盤次數</b>（原本的看盤記錄，距離上次、冷靜按鈕都保留）、<b>② 每一單的損益</b>（槓桿幾倍、本金多少、賺賠幾 %）、<b>③ 月曆＋月報</b>（哪天賺哪天賠、本月收益）。<br>每一版兩支手機：左邊是<b>平常打開</b>，右邊是<b>回顧／月報</b>。最上面是所有版本共用的「記一筆」，最下面列出月報可以放的項目，讓你勾想要的。</p></div>
+
+<div class="assume"><b>先假設的（不對再跟我說）：</b><br>
+① <b>綠漲紅跌</b>：賺錢綠、賠錢紅（照你說的）。<br>
+② <b>只記已實現損益</b>：平倉那天才記錄賺賠，開著的單只顯示「持倉中」，不追浮盈浮虧（要一直看價格才算得出來，會違背少看盤的目的）。<br>
+③ <b>每單 % ＝ 損益 ÷ 本金（保證金）</b>：本金 500、10 倍、賺 246 → +49.2%。<b>本月 % ＝ 本月損益 ÷ 月初資金</b>（月初資金每個月自己填一次）。<br>
+④ 金額單位先用 <b>USDT</b>，手動記錄，不連交易所。<br>
+⑤ 示範資料是 2026 年 9 月：11 單、本月 +209 USDT、月初資金 2,000。數字是假的，只是讓畫面看起來像真的。</div>
+
+<!-- ============ 共用：記一筆 ============ -->
+<div class="sec"><h3>所有版本共用：記一筆</h3><p>開倉時先記一筆（持倉中），平倉時點那一單補上損益，% 自動算。</p></div>
+<div class="wrap">
+ <div class="variant"><div class="cap">開倉時</div><div class="scr">
+  <div class="top">✕ <span style="margin-left:4px">記一筆開倉</span><em>10/08 14:20</em></div>
+  <div class="lbl">幣種</div><div class="chips"><div class="on">BTC</div><div>ETH</div><div>SOL</div><div>＋ 其他</div></div>
+  <div class="lbl">方向</div><div class="seg"><div class="on upbg">多 ↑</div><div>空 ↓</div></div>
+  <div class="lbl">槓桿</div><div class="chips"><div>3x</div><div>5x</div><div class="on">10x</div><div>20x</div><div>自訂</div></div>
+  <div class="field"><span>本金（保證金）USDT</span><b>400</b></div>
+  <div class="calc">倉位大小 ＝ 400 × 10 ＝ <b style="color:var(--text)">4,000 USDT</b><br>價格反向跌 10% 本金就歸零</div>
+  <div class="field"><span>備註（選填）</span><b class="dim" style="font-weight:400;font-size:12px">突破前高、停損設 61,200</b></div>
+  <div class="btn" style="margin-top:10px">儲存（持倉中）</div>
+ </div><p class="note">槓桿用常見倍數的按鈕，點一下就好，不常用的才自訂。底下即時算出<b>倉位大小</b>和<b>反向幾 % 會爆倉</b>，按下去之前先看清楚風險。</p></div>
+
+ <div class="variant"><div class="cap">平倉時（點持倉中那一單）</div><div class="scr">
+  <div class="top">✕ <span style="margin-left:4px">平倉結算</span><em>10/08 22:05</em></div>
+  <div class="card"><div class="row" style="font-size:13px;font-weight:700">BTC 多 <span class="lev">10x</span><span class="sub" style="margin-left:auto;font-weight:400;font-size:11px">10/01 開倉 · 持倉 7 天</span></div><div class="sub" style="font-size:11px;margin-top:4px">本金 400 USDT · 倉位 4,000</div></div>
+  <div class="lbl">結果</div><div class="seg"><div class="on upbg">賺</div><div>賠</div></div>
+  <div class="field"><span>已實現損益 USDT</span><b class="up">+ 132</b></div>
+  <div class="calc">本金報酬率 <b class="up" style="font-size:15px">+33.0%</b><br>本月累計變成 <b style="color:var(--text)">+110 USDT（+5.5%）</b></div>
+  <div class="field"><span>手續費／資金費率（選填，扣在損益裡）</span><b class="dim" style="font-weight:400;font-size:12px">−4.2</b></div>
+  <div class="btn" style="margin-top:10px">結算</div>
+  <div class="btn ghost" style="margin-top:7px">部分平倉</div>
+ </div><p class="note">只填<b>賺或賠多少</b>，其他都自動算。記在<b>平倉那天</b>的月曆格子裡，不是開倉那天。</p></div>
+</div>
+
+<!-- ============ 五個版本 ============ -->
+<div class="sec"><h3>五種主畫面</h3><p>差別在「打開第一眼看到什麼」，以及看盤和損益怎麼放在一起</p></div>
+<div class="wrap">
+
+<!-- V1 主流 -->
+<div class="variant"><div class="vhead"><div class="num">版本 1</div><h2>交易日誌＋損益月曆<span class="tag">主流</span></h2><p>參考交易日誌 App（TradingView 損益月曆、Tradervue、幣安的盈虧日曆）：下方分頁切換「總覽／月曆／報表／看盤」，右下角＋記一筆。看盤次數放在獨立分頁。</p></div>
+ <div class="cap">總覽</div><div class="scr">
+  <div class="top"><span class="burger"></span>投資&amp;自律<em>10 月</em></div>
+  <div class="card"><div class="lbl">本月已實現損益</div><div class="row"><span class="big down">−22</span><span class="sub" style="font-size:12px">USDT · −1.1%</span></div>
+   <div class="kpis" style="margin-top:9px"><div class="kpi"><b>2</b><span>已平倉</span></div><div class="kpi"><b>50%</b><span>勝率</span></div><div class="kpi"><b class="mid">1</b><span>持倉中</span></div></div></div>
+  <div class="card"><div class="lbl">最近</div>
+   <div class="tr"><span class="d">10/01</span>BTC 多 <span class="lev">10x</span><span class="p mid">持倉中<small class="sub">本金 400</small></span></div>
+   <div class="tr"><span class="d">10/06</span>BTC 空 <span class="lev hi">20x</span><span class="p down">−58<small>−29.0%</small></span></div>
+   <div class="tr"><span class="d">10/03</span>ETH 多 <span class="lev">5x</span><span class="p up">+36<small>+12.0%</small></span></div>
+   <div class="tr"><span class="d">9/29</span>BTC 多 <span class="lev">3x</span><span class="p up">+41<small>+8.2%</small></span></div></div>
+  <div class="fab">＋</div>
+  <div class="tabs"><div class="on"><i>◉</i>總覽</div><div><i>▦</i>月曆</div><div><i>▤</i>報表</div><div><i>👁</i>看盤</div></div>
+ </div>
+ <div class="cap">月曆（點一天看那天的單）</div><div class="scr">
+  <div class="top"><span class="burger"></span>2026 年 9 月<em>‹ ›</em></div>
+  <div class="row" style="margin-bottom:8px"><span class="big up" style="font-size:20px">+209</span><span class="sub" style="font-size:11px">USDT · +10.5% · 勝 5 敗 6</span></div>
+  <div class="cal" data-cal="pnl" data-sel="18"></div>
+  <div class="sheet" style="bottom:48px"><div class="grab"></div><div class="row" style="font-size:12px;font-weight:700">9/18（五）<span class="up" style="margin-left:auto">+246</span></div>
+   <div class="tr" style="border-top:none"><span class="d">21:40</span>BTC 多 <span class="lev">10x</span><span class="sub">本金 500</span><span class="p up">+246<small>+49.2%</small></span></div></div>
+  <div class="tabs"><div><i>◉</i>總覽</div><div class="on"><i>▦</i>月曆</div><div><i>▤</i>報表</div><div><i>👁</i>看盤</div></div>
+ </div>
+ <p class="note"><b>優點：</b>大家都這樣做，一看就懂；記錄和回顧分得很清楚。<b>缺點：</b>看盤次數被放到最後一個分頁，「自律」這部分很容易被忽略，跟損益之間也看不出關聯。</p></div>
+
+<!-- V2 月曆合一 -->
+<div class="variant"><div class="vhead"><div class="num">版本 2</div><h2>同一格月曆：損益＋看盤次數</h2><p>月曆就是首頁。每一格下面寫當天損益（綠賺紅賠），右上角 👁 寫當天看盤幾次，看太多次會變黃。最能一眼看出「看越多是不是賠越多」。</p></div>
+ <div class="cap">首頁＝月曆</div><div class="scr">
+  <div class="top"><span class="burger"></span>投資&amp;自律<em>9 月 ‹ ›</em></div>
+  <div class="kpis" style="margin-bottom:8px"><div class="kpi"><b class="up">+209</b><span>本月損益</span></div><div class="kpi"><b class="up">+10.5%</b><span>月報酬</span></div><div class="kpi"><b>4.8</b><span>日均看盤</span></div></div>
+  <div class="cal tall" data-cal="both" data-sel="5"></div>
+  <div class="row" style="font-size:9.5px;color:var(--sub);margin-top:6px;gap:10px"><span>👁 看盤次數</span><span class="mid">👁 黃＝超過 8 次</span></div>
+  <div class="btn" style="margin-top:9px">＋ 記一筆</div>
+ </div>
+ <div class="cap">點 9/5 → 那天發生什麼</div><div class="scr">
+  <div class="top">‹ <span style="margin-left:4px">9/5（六）</span><em>當天回顧</em></div>
+  <div class="card"><div class="row"><div><div class="lbl">損益</div><span class="big down">−120</span></div><div style="margin-left:auto;text-align:right"><div class="lbl">看盤</div><span class="big mid">14 次</span></div></div></div>
+  <div class="card"><div class="lbl">時間軸</div>
+   <div class="tr"><span class="d">09:10</span><span class="sub">👁 看盤 ×3</span></div>
+   <div class="tr"><span class="d">11:42</span>BTC 空 <span class="lev hi">25x</span> 開倉<span class="p sub">本金 300</span></div>
+   <div class="tr"><span class="d">12–18</span><span class="mid">👁 看盤 ×9</span><span class="p sub" style="font-weight:400">平均 40 分鐘一次</span></div>
+   <div class="tr"><span class="d">18:25</span>平倉<span class="p down">−120<small>−40.0%</small></span></div>
+   <div class="tr"><span class="d">22:30</span><span class="sub">👁 看盤 ×2</span></div></div>
+  <div class="card" style="border-color:rgba(245,199,99,.35)"><div style="font-size:11.5px;color:var(--sub);line-height:1.6">開倉之後 6 小時內看了 <b class="mid">9 次</b>。這個月看盤超過 8 次的 6 天，<b class="down">全部都是賠的</b>。</div></div>
+ </div>
+ <p class="note"><b>優點：</b>直接把兩種資料放在一起對照，整合的價值最明顯；點進某一天能看到「開倉後一直盯盤」的完整過程。<b>缺點：</b>格子裡塞了兩個數字，手機上字很小；看盤計時器和冷靜按鈕要再往下一層才找得到。</p></div>
+
+<!-- V3 自律優先 -->
+<div class="variant"><div class="vhead"><div class="num">版本 3</div><h2>自律優先儀表</h2><p>首頁最上面還是原本看盤記錄的「距離上次看盤」計時器和冷靜按鈕，下面接本月損益和本週 7 天小條。月報的重點是「守規矩 vs 破規矩」的成績比較。</p></div>
+ <div class="cap">平常打開</div><div class="scr">
+  <div class="top"><span class="burger"></span>投資&amp;自律<em>10/08（四）</em></div>
+  <div class="card"><div class="timer"><div class="sub" style="font-size:11px">距離上次看盤</div><div class="t">1:42:15</div><div class="sub" style="font-size:11px;margin-top:4px">今天看了 6 次 · 本月開倉 3 / 6 單</div></div>
+   <div class="row" style="gap:6px;margin-top:10px"><div class="btn ghost" style="flex:1;font-size:12px;padding:9px 0">⏳ 冷靜 10 分</div><div class="btn ghost" style="flex:1;font-size:12px;padding:9px 0;color:var(--down);border-color:#5a2f2f">看了</div></div></div>
+  <div class="card"><div class="row"><div><div class="lbl">10 月已實現</div><span class="big down" style="font-size:22px">−22</span><span class="sub" style="font-size:11px"> USDT · −1.1%</span></div><div class="btn" style="margin-left:auto;padding:8px 14px;font-size:12px">＋ 記一筆</div></div></div>
+  <div class="card"><div class="lbl">本週</div><div class="week"><div>日<b class="dim">·</b></div><div>一<b class="dim">·</b></div><div>二<b class="down">−58</b></div><div>三<b class="dim">·</b></div><div class="today">四<b class="dim">·</b></div><div>五<b class="dim"> </b></div><div>六<b class="dim"> </b></div></div></div>
+ </div>
+ <div class="cap">月報：自律成績單</div><div class="scr scroll">
+  <div class="top"><span class="burger"></span>9 月成績單<em>‹ ›</em></div>
+  <div class="card" style="text-align:center"><div class="lbl">本月已實現</div><div class="big up">+209 <span style="font-size:13px">USDT</span></div><div class="up" style="font-size:12px;font-weight:700">+10.5%（月初資金 2,000）</div></div>
+  <div class="card"><div class="lbl">看盤少的日子 vs 看盤多的日子（有交易的天）</div><div class="cmp"><div>看 ≤ 8 次（5 天）<b class="up">+112</b>平均每天</div><div>看 &gt; 8 次（6 天）<b class="down">−59</b>平均每天</div></div></div>
+  <div class="card"><div class="lbl">槓桿 ≤ 10x vs &gt; 10x</div><div class="cmp"><div>5 單 · 勝 5<b class="up">+560</b></div><div>6 單 · 勝 0<b class="down">−351</b></div></div></div>
+  <div class="card"><div class="lbl">本月自律</div>
+   <div class="tr"><span>日均看盤</span><span class="p">4.8 次</span></div>
+   <div class="tr"><span>冷靜按鈕成功擋下</span><span class="p up">9 次</span></div>
+   <div class="tr"><span>開倉額度</span><span class="p down">11 / 6 單（超過）</span></div></div>
+ </div>
+ <p class="note"><b>優點：</b>原本的看盤習慣不用改，打開還是先看到計時器；月報直接用數字告訴你「少看盤、低槓桿才賺錢」，最能督促自己。<b>缺點：</b>首頁沒有整個月曆，要進月報或往下滑才看得到每天賺賠。</p></div>
+
+<!-- V4 日誌卡片 -->
+<div class="variant"><div class="vhead"><div class="num">版本 4</div><h2>交易日誌卡片流</h2><p>以「每一單」為主角。依日期分組的卡片，每張卡都寫清楚槓桿、本金、倉位、損益、%，持倉中的用黃色標出來。月報偏向分析「什麼樣的單在賺錢」。</p></div>
+ <div class="cap">日誌</div><div class="scr scroll">
+  <div class="top"><span class="burger"></span>投資&amp;自律<em>10 月 −22 · −1.1%</em></div>
+  <div class="dayg">持倉中<span>1 單</span></div>
+  <div class="tcard open"><div class="r1">BTC 多 <span class="lev">10x</span><span class="p mid">持倉中</span></div><div class="r2"><span>本金 400</span><span>倉位 4,000</span><span>10/01 開 · 7 天</span></div></div>
+  <div class="dayg">10/06（二）<span class="down">−58 · 👁 11</span></div>
+  <div class="tcard loss"><div class="r1">BTC 空 <span class="lev hi">20x</span><span class="p down">−58 <small style="font-size:10px">−29.0%</small></span></div><div class="r2"><span>本金 200</span><span>倉位 4,000</span><span>持倉 3 小時</span></div></div>
+  <div class="dayg">10/03（六）<span class="up">+36 · 👁 4</span></div>
+  <div class="tcard"><div class="r1">ETH 多 <span class="lev">5x</span><span class="p up">+36 <small style="font-size:10px">+12.0%</small></span></div><div class="r2"><span>本金 300</span><span>倉位 1,500</span><span>持倉 1 天</span></div></div>
+  <div class="dayg">9/29（二）<span class="up">+41 · 👁 3</span></div>
+  <div class="tcard"><div class="r1">BTC 多 <span class="lev">3x</span><span class="p up">+41 <small style="font-size:10px">+8.2%</small></span></div><div class="r2"><span>本金 500</span><span>倉位 1,500</span><span>持倉 2 天</span></div></div>
+  <div class="dayg">9/27（日）<span class="down">−64 · 👁 13</span></div>
+  <div class="tcard loss"><div class="r1">ETH 空 <span class="lev hi">20x</span><span class="p down">−64 <small style="font-size:10px">−32.0%</small></span></div><div class="r2"><span>本金 200</span><span>倉位 4,000</span><span>持倉 5 小時</span></div></div>
+  <div class="fab" style="bottom:16px">＋</div>
+ </div>
+ <div class="cap">月報：什麼樣的單在賺</div><div class="scr scroll">
+  <div class="top"><span class="burger"></span>9 月分析<em>‹ ›</em></div>
+  <div class="kpis" style="margin-bottom:10px"><div class="kpi"><b class="up">+209</b><span>本月</span></div><div class="kpi"><b>45%</b><span>勝率</span></div><div class="kpi"><b>1.9</b><span>盈虧比</span></div></div>
+  <div class="card"><div class="lbl">依槓桿</div>
+   <div class="tr"><span class="lev">≤ 5x</span><span class="sub">4 單 · 勝 4</span><span class="p up">+314</span></div>
+   <div class="tr"><span class="lev">10x</span><span class="sub">1 單 · 勝 1</span><span class="p up">+246</span></div>
+   <div class="tr"><span class="lev hi">15–25x</span><span class="sub">6 單 · 勝 0</span><span class="p down">−351</span></div></div>
+  <div class="card"><div class="lbl">依方向</div>
+   <div class="tr"><span>多單</span><span class="sub">7 單 · 勝 5</span><span class="p up">+490</span></div>
+   <div class="tr"><span>空單</span><span class="sub">4 單 · 勝 0</span><span class="p down">−281</span></div></div>
+  <div class="card"><div class="lbl">依幣種</div>
+   <div class="tr"><span>BTC</span><span class="sub">6 單</span><span class="p up">+140</span></div>
+   <div class="tr"><span>ETH</span><span class="sub">4 單</span><span class="p up">+14</span></div>
+   <div class="tr"><span>SOL</span><span class="sub">1 單</span><span class="p up">+55</span></div></div>
+ </div>
+ <p class="note"><b>優點：</b>每一單的資訊最完整，槓桿和本金不會被藏起來；分析頁能看出「做空、高槓桿都在賠」這種規律。<b>缺點：</b>沒有月曆，看不出日期上的節奏（例如連賠之後是不是亂開）；看盤次數只是每天標題旁的小字。</p></div>
+
+<!-- V5 報表儀表板 -->
+<div class="variant"><div class="vhead"><div class="num">版本 5</div><h2>報表儀表板＋年度熱圖</h2><p>首頁就是月報：累計損益曲線、重點數字、最大單日賺賠。另一頁是 12 個月的熱圖，看長期趨勢，點某個月再進月曆。適合想看「整體賺多少」的人。</p></div>
+ <div class="cap">首頁＝本月報表</div><div class="scr scroll">
+  <div class="top"><span class="burger"></span>投資&amp;自律<em>9 月 ‹ ›</em></div>
+  <div class="card"><div class="row"><div><div class="lbl">本月已實現</div><span class="big up">+209</span> <span class="up" style="font-size:12px;font-weight:700">+10.5%</span></div></div>
+   <svg id="curve" viewBox="0 0 260 96" style="width:100%;height:96px;margin-top:6px"></svg>
+   <div class="row sub" style="font-size:9px;justify-content:space-between"><span>9/1</span><span>累計損益</span><span>9/30</span></div></div>
+  <div class="kpis" style="margin-bottom:10px"><div class="kpi"><b>5 / 6</b><span>賺 / 賠天數</span></div><div class="kpi"><b>45%</b><span>勝率</span></div><div class="kpi"><b>11</b><span>總單數</span></div></div>
+  <div class="card"><div class="tr"><span>最大單日賺</span><span class="p up">+246<small class="sub">9/18</small></span></div>
+   <div class="tr"><span>最大單日賠</span><span class="p down">−120<small class="sub">9/5</small></span></div>
+   <div class="tr"><span>平均槓桿</span><span class="p">13.5x</span></div>
+   <div class="tr"><span>日均看盤</span><span class="p">4.8 次</span></div></div>
+  <div class="btn">＋ 記一筆</div>
+ </div>
+ <div class="cap">年度熱圖</div><div class="scr">
+  <div class="top"><span class="burger"></span>2026 年<em>‹ ›</em></div>
+  <div class="card" style="text-align:center"><div class="lbl">今年累計</div><span class="big up">+486</span> <span class="sub" style="font-size:11px">USDT · 7 個月</span></div>
+  <div class="heat">
+   <div class="dim">1 月<b>—</b></div><div class="dim">2 月<b>—</b></div><div class="dim">3 月<b>—</b></div><div style="background:rgba(95,224,141,.22)">4 月<b class="up">+152</b></div>
+   <div style="background:rgba(255,122,112,.3)">5 月<b class="down">−210</b></div><div style="background:rgba(95,224,141,.14)">6 月<b class="up">+64</b></div><div style="background:rgba(95,224,141,.3)">7 月<b class="up">+318</b></div><div style="background:rgba(255,122,112,.14)">8 月<b class="down">−25</b></div>
+   <div style="background:rgba(95,224,141,.26);outline:1.5px solid var(--acc)">9 月<b class="up">+209</b></div><div style="background:rgba(255,122,112,.08)">10 月<b class="down">−22</b></div><div class="dim">11 月<b>—</b></div><div class="dim">12 月<b>—</b></div></div>
+  <div class="card" style="margin-top:10px"><div class="tr"><span>賺錢月份</span><span class="p up">4 個</span></div><div class="tr"><span>賠錢月份</span><span class="p down">3 個</span></div><div class="tr"><span>最好的月</span><span class="p up">7 月 +318</span></div></div>
+ </div>
+ <p class="note"><b>優點：</b>本月收益、曲線、勝率一打開就看到，長期也看得出趨勢。<b>缺點：</b>最不像「自律」工具，看盤計時器要另外放；每天的細節要點好幾層才看得到。</p></div>
+
+</div>
+
+<!-- ============ 月報項目 ============ -->
+<div class="sec"><h3>月報可以放的項目（你不確定要哪些，這裡列給你勾）</h3><p>標 ★ 的是我建議一定要有的；其他看你覺得有沒有用</p></div>
+<div class="menu">
+ <div class="mi"><h4>本月已實現損益 <span class="star">★</span></h4><p>這個月平倉的單加起來賺賠多少，最基本的數字。</p><div class="ex"><span class="up">+209 USDT</span></div></div>
+ <div class="mi"><h4>月報酬率 % <span class="star">★</span></h4><p>本月損益 ÷ 月初資金。比單看金額公平，本金變大之後也能比較。</p><div class="ex"><span class="up">+10.5%</span>（月初 2,000）</div></div>
+ <div class="mi"><h4>賺／賠天數 <span class="star">★</span></h4><p>有交易的天數裡，賺的幾天、賠的幾天。</p><div class="ex">賺 5 天 · 賠 6 天</div></div>
+ <div class="mi"><h4>勝率</h4><p>賺錢的單 ÷ 總單數。要配合盈虧比一起看，勝率低但賺大賠小也會賺。</p><div class="ex">45%（5 / 11）</div></div>
+ <div class="mi"><h4>盈虧比</h4><p>平均每次賺多少 ÷ 平均每次賠多少。大於 1 代表賺的時候賺得比賠的時候多。</p><div class="ex">112 ÷ 59 ≈ 1.9</div></div>
+ <div class="mi"><h4>最大單日賺／賠 <span class="star">★</span></h4><p>這個月最好和最差的一天，提醒自己一天最多能賠多少。</p><div class="ex"><span class="up">+246</span>（9/18）· <span class="down">−120</span>（9/5）</div></div>
+ <div class="mi"><h4>累計損益曲線</h4><p>從月初到月底，每天累積起來的走勢。看得出是穩穩往上，還是大起大落。</p><div class="ex">版本 5 首頁那條線</div></div>
+ <div class="mi"><h4>依槓桿分組 <span class="star">★</span></h4><p>低槓桿和高槓桿的單分別賺賠多少。跟你說的「當時槓桿幾倍」直接相關。</p><div class="ex">≤10x <span class="up">+560</span> · &gt;10x <span class="down">−351</span></div></div>
+ <div class="mi"><h4>看盤多 vs 少的日子 <span class="star">★</span></h4><p>整合之後才有的數字：看盤次數多的日子平均賺賠多少。最能督促自律。</p><div class="ex">≤8 次 <span class="up">+112</span> · &gt;8 次 <span class="down">−59</span></div></div>
+ <div class="mi"><h4>依方向／幣種</h4><p>多單 vs 空單、BTC vs ETH 各自的成績。單數少的話參考價值不高。</p><div class="ex">多 <span class="up">+490</span> · 空 <span class="down">−281</span></div></div>
+ <div class="mi"><h4>最大連續虧損</h4><p>連續賠幾單、總共賠多少。連賠之後最容易想翻本亂開。</p><div class="ex">連 3 單 · <span class="down">−190</span>（9/2–9/6）</div></div>
+ <div class="mi"><h4>開倉次數／額度</h4><p>這個月開了幾單，有沒有超過自己訂的上限（之前「開倉紀律」設計稿的想法）。</p><div class="ex">11 / 6 單（超過）</div></div>
+</div>
+
+<script>
+// 2026 年 9 月：9/1 是星期二
+const pnl={2:-40,5:-120,6:-30,9:55,11:88,15:-22,18:246,22:130,24:-75,27:-64,29:41};
+const eye={1:3,2:11,3:4,4:2,5:14,6:12,7:5,8:3,9:4,10:2,11:5,12:1,13:2,14:3,15:9,16:4,17:3,18:2,19:1,20:2,21:3,22:4,23:5,24:10,25:6,26:2,27:13,28:4,29:3,30:2};
+document.querySelectorAll('[data-cal]').forEach(el=>{
+  const mode=el.dataset.cal, sel=+el.dataset.sel;
+  let h='日一二三四五六'.split('').map(d=>`<div class="h">${d}</div>`).join('');
+  h+='<div class="c e"></div><div class="c e"></div>';
+  for(let d=1;d<=30;d++){
+    const v=pnl[d]; let cls='c';
+    if(v!==undefined) cls+= v>0 ? (v>=100?' w2':' w') : (v<=-60?' l2':' l');
+    if(d===sel) cls+=' sel';
+    let inner=d;
+    if(mode==='both') inner+=`<span class="eye${eye[d]>8?' hot':''}">👁${eye[d]}</span>`;
+    if(v!==undefined) inner+=`<b class="${v>0?'up':'down'}">${v>0?'+':'−'}${Math.abs(v)}</b>`;
+    h+=`<div class="${cls}">${inner}</div>`;
+  }
+  el.innerHTML=h;
+});
+// 累計曲線
+const svg=document.getElementById('curve');
+let cum=0, pts=[], lo=-220, hi=340;
+const Y=v=>(hi-v)/(hi-lo)*96, X=d=>(d-1)/29*260;
+for(let d=1;d<=30;d++){ if(pnl[d]) cum+=pnl[d]; pts.push(`${X(d).toFixed(1)},${Y(cum).toFixed(1)}`); }
+svg.innerHTML=`<line x1="0" x2="260" y1="${Y(0)}" y2="${Y(0)}" stroke="#2a2a3d" stroke-dasharray="3 3"/>`+
+  `<polyline points="${pts.join(' ')}" fill="none" stroke="#5FE08D" stroke-width="2" stroke-linejoin="round"/>`+
+  `<circle cx="${X(30)}" cy="${Y(cum)}" r="3" fill="#5FE08D"/>`;
+</script>
+</body></html>

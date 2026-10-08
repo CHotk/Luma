@@ -1,0 +1,601 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>投資&amp;自律 版本1互動原型</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0c0c13;--bg2:#101019;--panel:#161622;--panel2:#1e1e2e;--panel3:#26263a;--line:#2a2a3d;--ink:#f3f2f8;--ink2:#a3a2b2;--ink3:#74738a;--acc:#7EA6FF;--blue:#2E6BFF;--up:#5FE08D;--down:#FF7A70;--mid:#F5C763;--glassEdge:rgba(255,255,255,.14)}
+*{box-sizing:border-box;margin:0;-webkit-tap-highlight-color:transparent}
+html,body{min-height:100%}
+body{background:radial-gradient(1200px 600px at 50% -10%,#1a1f3d 0%,var(--bg) 60%);color:var(--ink);font-family:'Noto Sans TC',sans-serif;padding:28px 16px 48px;display:flex;flex-direction:column;align-items:center}
+.intro{max-width:640px;text-align:center;margin-bottom:22px}
+.eyebrow{color:var(--acc);font-size:12px;letter-spacing:.2em}
+h1{font-size:21px;margin:6px 0}
+.intro p{color:var(--ink2);font-size:13px;line-height:1.75}
+.intro b{color:var(--ink)}
+.layout{display:flex;gap:32px;align-items:flex-start;flex-wrap:wrap;justify-content:center}
+.side{width:280px;color:var(--ink2);font-size:12.5px;line-height:1.8}
+.side h3{color:var(--ink);font-size:14px;margin:0 0 6px}
+.side ol{padding-left:18px;margin-bottom:16px}
+.side li b{color:var(--ink)}
+.side .reset{display:inline-block;margin-top:4px;border:1px solid var(--line);border-radius:10px;padding:6px 12px;cursor:pointer;color:var(--ink)}
+/* 手機 */
+.phone{width:380px;height:790px;flex-shrink:0;border:9px solid #000;border-radius:44px;background:var(--bg);position:relative;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.6),0 0 0 1px #2b2b38}
+.status{height:34px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;font-size:12px;font-weight:700}
+.appbar{display:flex;align-items:center;gap:10px;padding:4px 16px 10px}
+.appbar .burger{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;cursor:pointer}
+.appbar .burger i{width:16px;height:2px;background:var(--ink2);box-shadow:0 5px 0 var(--ink2),0 -5px 0 var(--ink2)}
+.appbar h2{font-size:17px;font-weight:800;flex:1}
+.mnav{display:flex;align-items:center;gap:2px;background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:2px}
+.mnav button{background:none;border:0;color:var(--ink2);width:28px;height:28px;border-radius:9px;font-size:15px;cursor:pointer}
+.mnav button:hover{background:var(--panel2);color:var(--ink)}
+.mnav span{font-size:12.5px;font-weight:700;min-width:62px;text-align:center}
+.content{position:absolute;top:92px;left:0;right:0;bottom:64px;overflow-y:auto;padding:2px 14px 90px;scrollbar-width:none}
+.content::-webkit-scrollbar{display:none}
+.view{display:none;animation:fade .22s ease}
+.view.on{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+/* 卡片 */
+.card{background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.07);border-radius:18px;padding:14px;margin-bottom:12px}
+.lbl{font-size:11px;color:var(--ink2);letter-spacing:.05em;margin-bottom:6px;display:flex;align-items:center}
+.lbl .r{margin-left:auto;color:var(--ink3);font-size:10.5px}
+.hero{position:relative;overflow:hidden}
+.hero::after{content:'';position:absolute;right:-40px;top:-40px;width:160px;height:160px;border-radius:50%;background:radial-gradient(var(--glow,rgba(95,224,141,.18)),transparent 70%);pointer-events:none}
+.bignum{font-size:36px;font-weight:800;letter-spacing:-.01em;font-variant-numeric:tabular-nums;line-height:1.1}
+.unit{font-size:13px;color:var(--ink2);font-weight:500;margin-left:4px}
+.pct{display:inline-block;margin-top:6px;font-size:12px;font-weight:700;padding:2px 9px;border-radius:99px}
+.pct.up{background:rgba(95,224,141,.13)}.pct.down{background:rgba(255,122,112,.13)}
+.cap-edit{font-size:11px;color:var(--ink3);margin-top:8px;cursor:pointer}
+.cap-edit u{color:var(--ink2);text-decoration-style:dotted}
+.up{color:var(--up)}.down{color:var(--down)}.mid{color:var(--mid)}.muted{color:var(--ink3)}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.kpi{background:rgba(255,255,255,.04);border-radius:12px;padding:8px 6px;text-align:center}
+.kpi b{display:block;font-size:16px;font-variant-numeric:tabular-nums}
+.kpi span{font-size:10px;color:var(--ink2)}
+.sech{display:flex;align-items:center;font-size:12.5px;font-weight:700;margin:16px 4px 8px;color:var(--ink2)}
+.sech .r{margin-left:auto;font-weight:400;font-size:11px;color:var(--ink3)}
+/* 交易列 */
+.trade{display:flex;align-items:center;gap:10px;padding:11px 12px;background:var(--panel);border:1px solid rgba(255,255,255,.05);border-radius:14px;margin-bottom:7px;cursor:pointer;transition:transform .12s,background .15s}
+.trade:hover{background:#1b1b29}
+.trade:active{transform:scale(.98)}
+.coin{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;font-size:11px;font-weight:800;flex-shrink:0}
+.coin.BTC{background:rgba(247,147,26,.16);color:#F7931A}.coin.ETH{background:rgba(126,166,255,.16);color:#9db8ff}.coin.SOL{background:rgba(180,120,255,.16);color:#c9a2ff}.coin.X{background:rgba(255,255,255,.08);color:var(--ink2)}
+.tmain{flex:1;min-width:0}
+.tmain .t1{font-size:13.5px;font-weight:700;display:flex;align-items:center;gap:6px}
+.tmain .t2{font-size:10.5px;color:var(--ink3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dirL{color:var(--up);font-size:11px}.dirS{color:var(--down);font-size:11px}
+.lev{font-size:10px;padding:1px 6px;border-radius:6px;background:rgba(126,166,255,.14);color:var(--acc);font-weight:800}
+.lev.hi{background:rgba(255,122,112,.15);color:var(--down)}
+.tpnl{text-align:right;font-weight:800;font-size:14px;font-variant-numeric:tabular-nums}
+.tpnl small{display:block;font-size:10.5px;font-weight:600;margin-top:1px}
+.open-badge{font-size:10.5px;color:var(--mid);background:rgba(245,199,99,.12);padding:3px 8px;border-radius:99px;font-weight:700;white-space:nowrap}
+.empty{text-align:center;color:var(--ink3);font-size:12px;padding:18px 0}
+/* 月曆 */
+.calsum{display:flex;align-items:flex-end;gap:10px;margin:0 2px 12px}
+.calsum .bignum{font-size:28px}
+.calsum .meta{font-size:11px;color:var(--ink2);line-height:1.6;margin-left:auto;text-align:right}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal .h{font-size:10px;color:var(--ink3);text-align:center;padding-bottom:3px}
+.cal .c{height:52px;border-radius:10px;background:rgba(255,255,255,.035);font-size:10px;color:var(--ink3);padding:4px 5px;position:relative;cursor:pointer;transition:transform .12s,outline-color .15s;outline:1.5px solid transparent}
+.cal .c:hover{outline-color:rgba(126,166,255,.35)}
+.cal .c:active{transform:scale(.94)}
+.cal .c.e{background:none;cursor:default;outline:none}
+.cal .c.fut{opacity:.4}
+.cal .c.today{outline:1.5px dashed var(--ink3)}
+.cal .c.sel{outline:1.5px solid var(--acc)}
+.cal .c b{position:absolute;left:0;right:0;bottom:6px;text-align:center;font-size:10.5px;font-weight:800;font-variant-numeric:tabular-nums}
+.cal .c .dot{position:absolute;right:5px;top:6px;width:5px;height:5px;border-radius:50%;background:var(--mid)}
+.legend{display:flex;gap:12px;font-size:10.5px;color:var(--ink3);margin:10px 2px 0;align-items:center}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+/* 報表 */
+.rgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.rbox{background:var(--panel);border:1px solid rgba(255,255,255,.05);border-radius:14px;padding:11px 12px}
+.rbox span{font-size:10.5px;color:var(--ink2)}
+.rbox b{display:block;font-size:19px;margin-top:3px;font-variant-numeric:tabular-nums}
+.rbox small{font-size:10px;color:var(--ink3)}
+.lvrow{display:flex;align-items:center;gap:8px;font-size:12px;padding:9px 0;border-top:1px solid var(--line)}
+.lvrow:first-of-type{border-top:0}
+.lvrow .bar{flex:1;height:6px;background:var(--panel2);border-radius:9px;overflow:hidden}
+.lvrow .bar i{display:block;height:100%;border-radius:9px}
+.lvrow .v{width:56px;text-align:right;font-weight:800;font-variant-numeric:tabular-nums}
+/* 看盤 */
+.timer{text-align:center;padding:22px 0 8px}
+.timer .t{font-size:52px;font-weight:800;letter-spacing:.01em;font-variant-numeric:tabular-nums;line-height:1}
+.timer .s{font-size:11.5px;color:var(--ink2);margin-top:8px}
+.ring{width:210px;height:210px;margin:6px auto 4px;position:relative}
+.ring svg{position:absolute;inset:0;transform:rotate(-90deg)}
+.ring .in{position:absolute;inset:0;display:grid;place-items:center;text-align:center}
+.btnrow{display:flex;gap:8px;margin-top:12px}
+.btn{flex:1;border:0;border-radius:14px;padding:13px 0;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;transition:transform .1s,filter .15s}
+.btn:active{transform:scale(.97)}
+.btn.pri{background:linear-gradient(180deg,#4f7cf0,#2E6BFF);color:#fff;box-shadow:0 6px 18px rgba(46,107,255,.35)}
+.btn.pri:disabled{background:var(--panel2);color:var(--ink3);box-shadow:none;cursor:not-allowed}
+.btn.ghost{background:var(--panel2);color:var(--ink);border:1px solid var(--line)}
+.btn.warn{background:rgba(255,122,112,.1);color:var(--down);border:1px solid rgba(255,122,112,.3)}
+.btn.red{background:#e5484d;color:#fff}
+.looks{display:flex;flex-wrap:wrap;gap:6px}
+.looks span{font-size:11px;background:var(--panel2);border-radius:8px;padding:3px 8px;color:var(--ink2);font-variant-numeric:tabular-nums}
+.bars7{display:flex;align-items:flex-end;gap:8px;height:90px;padding-top:6px}
+.bars7 div{flex:1;text-align:center;font-size:9.5px;color:var(--ink3);display:flex;flex-direction:column;justify-content:flex-end;height:100%}
+.bars7 div i{display:block;border-radius:6px 6px 3px 3px;background:var(--acc);margin-bottom:4px;min-height:3px}
+.bars7 div i.hot{background:var(--mid)}
+/* FAB & 分頁 */
+.fab{position:absolute;right:18px;bottom:80px;width:56px;height:56px;border-radius:18px;background:linear-gradient(180deg,#4f7cf0,#2E6BFF);display:grid;place-items:center;font-size:28px;color:#fff;cursor:pointer;box-shadow:0 10px 26px rgba(46,107,255,.5);transition:transform .15s,opacity .2s;z-index:5;border:0}
+.fab:active{transform:scale(.92)}
+.fab.hide{opacity:0;pointer-events:none;transform:scale(.6)}
+.tabs{position:absolute;left:0;right:0;bottom:0;height:64px;background:rgba(18,18,28,.92);backdrop-filter:blur(18px);border-top:1px solid var(--line);display:flex;padding-bottom:6px;z-index:6}
+.tabs button{flex:1;background:none;border:0;color:var(--ink3);font-family:inherit;font-size:10.5px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;position:relative}
+.tabs button svg{width:22px;height:22px}
+.tabs button.on{color:var(--acc)}
+.tabs button.on::before{content:'';position:absolute;top:0;width:26px;height:3px;border-radius:0 0 3px 3px;background:var(--acc)}
+/* 底部抽屜 */
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.55);opacity:0;pointer-events:none;transition:opacity .25s;z-index:20}
+.scrim.on{opacity:1;pointer-events:auto}
+.sheet{position:absolute;left:0;right:0;bottom:0;max-height:88%;background:#171724;border-radius:24px 24px 0 0;border-top:1px solid var(--glassEdge);transform:translateY(105%);transition:transform .32s cubic-bezier(.2,.9,.25,1);z-index:21;display:flex;flex-direction:column}
+.sheet.on{transform:none}
+.sheet .grab{width:40px;height:5px;border-radius:9px;background:var(--line);margin:10px auto 4px;flex-shrink:0}
+.sheet .sh{display:flex;align-items:center;padding:6px 18px 10px;flex-shrink:0}
+.sheet .sh h3{font-size:16px;flex:1}
+.sheet .sh .x{width:30px;height:30px;border-radius:10px;background:var(--panel2);display:grid;place-items:center;cursor:pointer;color:var(--ink2);font-size:14px}
+.sheet .sb{overflow-y:auto;padding:0 18px 20px;scrollbar-width:none}
+.sheet .sb::-webkit-scrollbar{display:none}
+.fl{font-size:11px;color:var(--ink2);margin:12px 0 6px;display:flex}
+.fl .r{margin-left:auto;color:var(--ink3)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--panel);color:var(--ink2);border-radius:99px;padding:6px 13px;font-size:12.5px;cursor:pointer;font-family:inherit;transition:all .15s}
+.chip.on{border-color:var(--acc);color:#fff;background:rgba(46,107,255,.35)}
+.seg{display:flex;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:3px;gap:3px}
+.seg button{flex:1;background:none;border:0;color:var(--ink2);font-family:inherit;font-size:13px;padding:8px 0;border-radius:9px;cursor:pointer;font-weight:700;transition:all .15s}
+.seg button.on.L{background:rgba(95,224,141,.18);color:var(--up)}
+.seg button.on.S{background:rgba(255,122,112,.18);color:var(--down)}
+.inp{display:flex;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:0 12px;transition:border-color .15s}
+.inp:focus-within{border-color:var(--acc)}
+.inp input{flex:1;background:none;border:0;outline:0;color:var(--ink);font-family:inherit;font-size:17px;font-weight:700;padding:11px 0;min-width:0}
+.inp input::placeholder{color:var(--ink3);font-weight:400;font-size:14px}
+.inp em{font-style:normal;color:var(--ink3);font-size:12px}
+.inp .sign{font-size:18px;font-weight:800;margin-right:6px}
+.calc{margin-top:10px;background:rgba(255,255,255,.03);border:1px dashed var(--line);border-radius:12px;padding:10px 12px;font-size:12px;color:var(--ink2);line-height:1.75}
+.calc b{color:var(--ink)}
+.toggle{display:flex;align-items:center;gap:10px;margin-top:14px;font-size:12.5px;color:var(--ink2);cursor:pointer;user-select:none}
+.sw{width:38px;height:22px;border-radius:99px;background:var(--panel3);position:relative;transition:background .2s;flex-shrink:0}
+.sw::after{content:'';position:absolute;left:3px;top:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .2s}
+.toggle.on .sw{background:var(--blue)}
+.toggle.on .sw::after{transform:translateX(16px)}
+.sumcard{display:flex;align-items:center;gap:10px;background:var(--panel);border-radius:14px;padding:11px 12px}
+.foot{padding:12px 18px 18px;border-top:1px solid var(--line);flex-shrink:0;display:flex;gap:8px}
+.kv{display:flex;font-size:12.5px;padding:9px 0;border-top:1px solid var(--line)}
+.kv:first-child{border-top:0}
+.kv span{color:var(--ink2)}
+.kv b{margin-left:auto;font-variant-numeric:tabular-nums}
+/* 確認框（照 App 共用 showAppConfirmDialog：置中、取消左、紅色確認右） */
+.dlg{position:absolute;left:34px;right:34px;top:50%;transform:translateY(-50%) scale(.92);opacity:0;pointer-events:none;background:#1b1b29;border:1px solid var(--glassEdge);border-radius:20px;padding:20px 18px 16px;text-align:center;z-index:31;transition:all .2s}
+.dlg.on{opacity:1;pointer-events:auto;transform:translateY(-50%) scale(1)}
+.dlg h4{font-size:16px;margin-bottom:6px}
+.dlg p{font-size:12.5px;color:var(--ink2);line-height:1.6;margin-bottom:16px}
+.dscrim{position:absolute;inset:0;background:rgba(0,0,0,.5);z-index:30;opacity:0;pointer-events:none;transition:opacity .2s}
+.dscrim.on{opacity:1;pointer-events:auto}
+/* 頂端毛玻璃提示（照 App 共用 showAppNotice） */
+.toast{position:absolute;left:14px;right:14px;top:40px;z-index:40;background:rgba(20,18,32,.88);backdrop-filter:blur(22px);border:1px solid var(--glassEdge);border-radius:16px;padding:12px 14px;text-align:center;font-size:13px;font-weight:600;transform:translateY(-140%);opacity:0;transition:all .28s cubic-bezier(.2,.9,.25,1);box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.toast.on{transform:none;opacity:1}
+.toast small{display:block;font-size:11px;color:var(--ink2);font-weight:400;margin-top:2px}
+.toast .ic{color:var(--up);margin-right:6px}
+.toast.err .ic{color:var(--down)}
+</style></head><body>
+
+<div class="intro"><div class="eyebrow">投資&amp;自律 · 版本 1 互動原型</div><h1>交易日誌＋損益月曆（主流）</h1>
+<p>這支手機<b>可以真的操作</b>：右下角 ＋ 記一筆開倉、點「持倉中」那單去平倉、切到月曆點某一天、換月份、看報表、到看盤分頁按「看了」。資料只存在這個頁面的記憶體裡，重新整理就會回到示範資料。</p></div>
+
+<div class="layout">
+<div class="phone" id="phone">
+ <div class="status"><span id="clock">14:20</span><span>●●● 5G ▮</span></div>
+ <div class="appbar"><div class="burger"><i></i></div><h2 id="title">投資&amp;自律</h2>
+  <div class="mnav" id="mnav"><button onclick="shiftMonth(-1)">‹</button><span id="mlabel"></span><button onclick="shiftMonth(1)">›</button></div></div>
+
+ <div class="content" id="content">
+  <!-- 總覽 -->
+  <div class="view on" id="v-home"></div>
+  <!-- 月曆 -->
+  <div class="view" id="v-cal"></div>
+  <!-- 報表 -->
+  <div class="view" id="v-report"></div>
+  <!-- 看盤 -->
+  <div class="view" id="v-watch"></div>
+ </div>
+
+ <button class="fab" id="fab" onclick="openTradeSheet()">＋</button>
+
+ <nav class="tabs" id="tabs">
+  <button data-v="home" class="on" onclick="go('home')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 11l8-6 8 6v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></svg>總覽</button>
+  <button data-v="cal" onclick="go('cal')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="5" width="16" height="15" rx="2.5"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>月曆</button>
+  <button data-v="report" onclick="go('report')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 19V11M10 19V6M15 19v-5M20 19V9"/></svg>報表</button>
+  <button data-v="watch" onclick="go('watch')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/></svg>看盤</button>
+ </nav>
+
+ <div class="scrim" id="scrim" onclick="closeSheet()"></div>
+ <div class="sheet" id="sheet"><div class="grab"></div><div class="sh"><h3 id="shTitle"></h3><div class="x" onclick="closeSheet()">✕</div></div><div class="sb" id="shBody"></div><div class="foot" id="shFoot"></div></div>
+
+ <div class="dscrim" id="dscrim"></div>
+ <div class="dlg" id="dlg"><h4 id="dlgT"></h4><p id="dlgP"></p><div class="btnrow" style="margin-top:0"><button class="btn ghost" onclick="closeDlg()">取消</button><button class="btn red" id="dlgOk">刪除</button></div></div>
+
+ <div class="toast" id="toast"></div>
+</div>
+
+<div class="side">
+ <h3>可以試試看</h3>
+ <ol>
+  <li>右下角 <b>＋</b> → 選幣種、多空、槓桿、填本金，底下會即時算出倉位大小和爆倉幅度</li>
+  <li>開「<b>已經平倉了（補記）</b>」可以一次記完整單</li>
+  <li>總覽點<b>持倉中</b>那單 → 填賺或賠多少 → 結算，月曆和報表會跟著更新</li>
+  <li><b>月曆</b>點有顏色的日子 → 看那天的單；點空白日子也能直接替那天補記</li>
+  <li>上方 <b>‹ ›</b> 換月份，9 月有完整示範資料</li>
+  <li>總覽點「<b>月初資金</b>」可以改，月報酬 % 會重算</li>
+  <li><b>看盤</b>分頁：按「看了」重新計時，或先「冷靜 10 分鐘」</li>
+  <li>點已平倉的單 → 可以<b>刪除</b>（會先跳確認框）</li>
+ </ol>
+ <h3>顏色</h3>
+ <p><span class="up">綠＝賺</span>、<span class="down">紅＝賠</span>（照你說的綠漲紅跌）。黃色是持倉中或看盤太多次。</p>
+ <span class="reset" onclick="resetDemo()">↺ 回到示範資料</span>
+</div>
+</div>
+
+<script>
+// ===== 資料 =====
+const NOW = new Date();
+const pad = n => String(n).padStart(2,'0');
+const ymd = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const ym = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}`;
+const hm = d => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+const md = d => `${d.getMonth()+1}/${d.getDate()}`;
+const WD = '日一二三四五六';
+const fmt = n => (n>0?'+':n<0?'−':'') + Math.abs(Math.round(n)).toLocaleString();
+const fmtP = n => (n>0?'+':n<0?'−':'') + Math.abs(n).toFixed(1) + '%';
+const cls = n => n>0?'up':n<0?'down':'muted';
+
+let trades, capital, looks, lastLook, coolUntil, seq;
+function seed(){
+  const T=(sym,dir,lev,margin,o,c,pnl,note='')=>({id:++seq,sym,dir,lev,margin,openAt:new Date(o),closeAt:c?new Date(c):null,pnl,note});
+  seq=0;
+  trades=[
+    T('BTC','L',20,200,'2026-09-02T10:05','2026-09-02T15:30',-40),
+    T('BTC','S',25,300,'2026-09-05T11:42','2026-09-05T18:25',-120,'想追空'),
+    T('ETH','L',20,150,'2026-09-06T09:20','2026-09-06T13:10',-30),
+    T('SOL','L',5,400,'2026-09-08T21:00','2026-09-09T20:15',55),
+    T('BTC','L',5,500,'2026-09-10T10:00','2026-09-11T22:40',88),
+    T('ETH','S',15,200,'2026-09-15T14:00','2026-09-15T19:30',-22),
+    T('BTC','L',10,500,'2026-09-16T09:00','2026-09-18T21:40',246,'突破前高'),
+    T('ETH','L',5,600,'2026-09-21T10:00','2026-09-22T16:00',130),
+    T('BTC','S',20,250,'2026-09-24T13:00','2026-09-24T17:45',-75),
+    T('ETH','S',20,200,'2026-09-27T11:00','2026-09-27T16:20',-64),
+    T('BTC','L',3,500,'2026-09-27T20:00','2026-09-29T11:00',41),
+    T('BTC','L',10,400,'2026-10-01T22:10',null,null,'突破前高，停損 61,200'),
+    T('ETH','L',5,300,'2026-10-02T09:30','2026-10-03T14:00',36),
+    T('BTC','S',20,200,'2026-10-06T10:15','2026-10-06T13:20',-58),
+  ];
+  capital={'2026-09':2000,'2026-10':2209};
+  // 每天看盤次數（示範），今天的用真實時間戳
+  looks={};
+  const sep=[3,11,4,2,14,12,5,3,4,2,5,1,2,3,9,4,3,2,1,2,3,4,5,10,6,2,13,4,3,2];
+  sep.forEach((n,i)=>looks[`2026-09-${pad(i+1)}`]=n);
+  [4,3,5,2,6,11,4].forEach((n,i)=>looks[`2026-10-${pad(i+1)}`]=n);
+  lastLook=new Date(NOW.getTime()-(1*3600+42*60+15)*1000);
+  const t0=new Date(NOW);
+  looks.today=[ [8,12],[9,40],[10,5],[11,30],[12,15], [lastLook.getHours(),lastLook.getMinutes()] ].map(([h,m])=>{const d=new Date(t0);d.setHours(h,m,0,0);return d}).filter(d=>d<=NOW);
+  coolUntil=null;
+}
+seed();
+let view='home', month=new Date(NOW.getFullYear(),NOW.getMonth(),1), selDay=null;
+
+const lookCount = key => key===ymd(NOW) ? looks.today.length : (looks[key]||0);
+const closedIn = (y,m) => trades.filter(t=>t.closeAt && t.closeAt.getFullYear()===y && t.closeAt.getMonth()===m);
+function monthStats(d){
+  const list=closedIn(d.getFullYear(),d.getMonth());
+  const total=list.reduce((s,t)=>s+t.pnl,0);
+  const byDay={}; list.forEach(t=>{const k=ymd(t.closeAt);byDay[k]=(byDay[k]||0)+t.pnl});
+  const days=Object.entries(byDay);
+  const wins=list.filter(t=>t.pnl>0), losses=list.filter(t=>t.pnl<0);
+  const cap=capital[ym(d)];
+  return {list,total,byDay,winDays:days.filter(([,v])=>v>0).length,lossDays:days.filter(([,v])=>v<0).length,
+    winRate:list.length?wins.length/list.length*100:null,
+    avgWin:wins.length?wins.reduce((s,t)=>s+t.pnl,0)/wins.length:0,
+    avgLoss:losses.length?-losses.reduce((s,t)=>s+t.pnl,0)/losses.length:0,
+    best:days.length?days.reduce((a,b)=>b[1]>a[1]?b:a):null,
+    worst:days.length?days.reduce((a,b)=>b[1]<a[1]?b:a):null,
+    cap, pct:cap?total/cap*100:null};
+}
+
+// ===== 共用小元件 =====
+const levTag = l => `<span class="lev${l>10?' hi':''}">${l}x</span>`;
+const dirTag = d => d==='L'?'<span class="dirL">多 ▲</span>':'<span class="dirS">空 ▼</span>';
+const coin = s => `<div class="coin ${['BTC','ETH','SOL'].includes(s)?s:'X'}">${s.slice(0,4)}</div>`;
+function tradeRow(t){
+  const r = t.closeAt
+    ? `<div class="tpnl ${cls(t.pnl)}">${fmt(t.pnl)}<small>${fmtP(t.pnl/t.margin*100)}</small></div>`
+    : `<span class="open-badge">持倉中</span>`;
+  const when = t.closeAt ? `${md(t.closeAt)} 平倉` : `${md(t.openAt)} 開倉 · ${Math.max(0,Math.floor((NOW-t.openAt)/86400000))} 天`;
+  return `<div class="trade" onclick="openTrade(${t.id})">${coin(t.sym)}<div class="tmain"><div class="t1">${t.sym} ${dirTag(t.dir)} ${levTag(t.lev)}</div><div class="t2">${when} · 本金 ${t.margin.toLocaleString()}${t.note?' · '+t.note:''}</div></div>${r}</div>`;
+}
+
+// ===== 畫面 =====
+function render(){
+  document.getElementById('mlabel').textContent=`${month.getFullYear()} 年 ${month.getMonth()+1} 月`;
+  document.getElementById('mnav').style.visibility = view==='watch'?'hidden':'visible';
+  document.getElementById('fab').classList.toggle('hide', view==='watch');
+  ({home:renderHome,cal:renderCal,report:renderReport,watch:renderWatch})[view]();
+}
+function renderHome(){
+  const s=monthStats(month);
+  const open=trades.filter(t=>!t.closeAt);
+  const recent=s.list.slice().sort((a,b)=>b.closeAt-a.closeAt);
+  const glow = s.total<0?'rgba(255,122,112,.18)':'rgba(95,224,141,.18)';
+  document.getElementById('v-home').innerHTML=`
+   <div class="card hero" style="--glow:${glow}">
+    <div class="lbl">${month.getMonth()+1} 月已實現損益</div>
+    <div><span class="bignum ${cls(s.total)}">${fmt(s.total)}</span><span class="unit">USDT</span></div>
+    ${s.pct!=null?`<span class="pct ${cls(s.total)}">${fmtP(s.pct)}</span>`:''}
+    <div class="cap-edit" onclick="editCapital()">月初資金 <u>${s.cap!=null?s.cap.toLocaleString()+' USDT':'點這裡設定'}</u> ✎</div>
+    <div class="kpis"><div class="kpi"><b>${s.list.length}</b><span>已平倉</span></div><div class="kpi"><b>${s.winRate==null?'—':Math.round(s.winRate)+'%'}</b><span>勝率</span></div><div class="kpi"><b class="${open.length?'mid':''}">${open.length}</b><span>持倉中</span></div></div>
+   </div>
+   ${open.length?`<div class="sech">持倉中<span class="r">點一下去平倉</span></div>${open.map(tradeRow).join('')}`:''}
+   <div class="sech">${month.getMonth()+1} 月已平倉<span class="r">${recent.length} 單</span></div>
+   ${recent.length?recent.map(tradeRow).join(''):'<div class="empty">這個月還沒有平倉的單</div>'}`;
+}
+function renderCal(){
+  const s=monthStats(month);
+  const y=month.getFullYear(), m=month.getMonth();
+  const first=new Date(y,m,1).getDay(), n=new Date(y,m+1,0).getDate();
+  let h=[...WD].map(d=>`<div class="h">${d}</div>`).join('')+'<div class="c e"></div>'.repeat(first);
+  for(let d=1;d<=n;d++){
+    const dt=new Date(y,m,d), k=ymd(dt), v=s.byDay[k];
+    let c='c';
+    if(v!==undefined){ const a=Math.min(Math.abs(v)/200,1); }
+    if(dt>NOW) c+=' fut';
+    if(k===ymd(NOW)) c+=' today';
+    if(selDay===k) c+=' sel';
+    const bg = v===undefined?'':`background:${v>0?`rgba(95,224,141,${.12+Math.min(Math.abs(v)/250,1)*.33})`:`rgba(255,122,112,${.12+Math.min(Math.abs(v)/250,1)*.33})`}`;
+    const hasOpen = trades.some(t=>!t.closeAt && ymd(t.openAt)===k);
+    h+=`<div class="${c}" style="${bg}" onclick="openDay('${k}')">${d}${hasOpen?'<span class="dot"></span>':''}${v!==undefined?`<b class="${cls(v)}">${fmt(v)}</b>`:''}</div>`;
+  }
+  document.getElementById('v-cal').innerHTML=`
+   <div class="calsum"><div><div class="lbl" style="margin:0">本月已實現</div><span class="bignum ${cls(s.total)}">${fmt(s.total)}</span><span class="unit">USDT</span></div>
+    <div class="meta">${s.pct!=null?`<b class="${cls(s.total)}">${fmtP(s.pct)}</b><br>`:''}賺 ${s.winDays} 天 · 賠 ${s.lossDays} 天</div></div>
+   <div class="cal">${h}</div>
+   <div class="legend"><span><i style="background:rgba(95,224,141,.4)"></i>賺</span><span><i style="background:rgba(255,122,112,.4)"></i>賠</span><span><i style="background:var(--mid);border-radius:50%;width:6px;height:6px"></i>那天開倉、還持倉中</span></div>
+   <div class="legend" style="margin-top:4px">顏色越深賺賠越多 · 損益記在平倉那天</div>`;
+}
+function renderReport(){
+  const s=monthStats(month);
+  const y=month.getFullYear(), m=month.getMonth(), n=new Date(y,m+1,0).getDate();
+  // 累計曲線
+  let cum=0; const pts=[]; let lo=0, hi=0;
+  const series=[];
+  for(let d=1;d<=n;d++){const k=ymd(new Date(y,m,d)); if(s.byDay[k]) cum+=s.byDay[k]; series.push(cum); lo=Math.min(lo,cum); hi=Math.max(hi,cum);}
+  const pad_=Math.max(30,(hi-lo)*.15); lo-=pad_; hi+=pad_;
+  const W=300,H=110, X=i=>i/(n-1)*W, Y=v=>(hi-v)/(hi-lo)*H;
+  const line=series.map((v,i)=>`${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(' ');
+  const color = cum>=0?'#5FE08D':'#FF7A70';
+  // 依槓桿
+  const g=[['≤ 5x',t=>t.lev<=5],['6–10x',t=>t.lev>5&&t.lev<=10],['> 10x',t=>t.lev>10]].map(([name,f])=>{const l=s.list.filter(f);return {name,cnt:l.length,w:l.filter(t=>t.pnl>0).length,sum:l.reduce((a,t)=>a+t.pnl,0)}});
+  const maxAbs=Math.max(1,...g.map(x=>Math.abs(x.sum)));
+  const ratio = s.avgLoss? (s.avgWin/s.avgLoss).toFixed(1) : (s.avgWin? '∞':'—');
+  document.getElementById('v-report').innerHTML=`
+   <div class="card"><div class="lbl">累計損益<span class="r">${m+1}/1 – ${m+1}/${n}</span></div>
+    <div><span class="bignum ${cls(s.total)}" style="font-size:28px">${fmt(s.total)}</span><span class="unit">USDT</span> ${s.pct!=null?`<span class="pct ${cls(s.total)}" style="margin-left:6px">${fmtP(s.pct)}</span>`:''}</div>
+    <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px;margin-top:10px;overflow:visible">
+     <defs><linearGradient id="gf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity=".28"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>
+     <line x1="0" x2="${W}" y1="${Y(0)}" y2="${Y(0)}" stroke="#2a2a3d" stroke-dasharray="4 4"/>
+     <polygon points="0,${Y(0)} ${line} ${W},${Y(0)}" fill="url(#gf)"/>
+     <polyline points="${line}" fill="none" stroke="${color}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
+     <circle cx="${X(n-1)}" cy="${Y(cum)}" r="4" fill="${color}"/>
+    </svg></div>
+   <div class="rgrid">
+    <div class="rbox"><span>賺 / 賠天數</span><b><span class="up">${s.winDays}</span> <span class="muted">/</span> <span class="down">${s.lossDays}</span></b></div>
+    <div class="rbox"><span>勝率</span><b>${s.winRate==null?'—':Math.round(s.winRate)+'%'}</b><small>${s.list.filter(t=>t.pnl>0).length} 勝 / ${s.list.length} 單</small></div>
+    <div class="rbox"><span>最大單日賺</span><b class="up">${s.best&&s.best[1]>0?fmt(s.best[1]):'—'}</b><small>${s.best&&s.best[1]>0?s.best[0].slice(5).replace('-','/'):''}</small></div>
+    <div class="rbox"><span>最大單日賠</span><b class="down">${s.worst&&s.worst[1]<0?fmt(s.worst[1]):'—'}</b><small>${s.worst&&s.worst[1]<0?s.worst[0].slice(5).replace('-','/'):''}</small></div>
+    <div class="rbox"><span>盈虧比</span><b>${ratio}</b><small>平均賺 ${Math.round(s.avgWin)} ÷ 平均賠 ${Math.round(s.avgLoss)}</small></div>
+    <div class="rbox"><span>平均槓桿</span><b>${s.list.length?(s.list.reduce((a,t)=>a+t.lev,0)/s.list.length).toFixed(1)+'x':'—'}</b></div>
+   </div>
+   <div class="card" style="margin-top:12px"><div class="lbl">依槓桿</div>
+    ${g.map(x=>`<div class="lvrow"><span style="width:44px">${x.name}</span><span class="muted" style="width:62px;font-size:11px">${x.cnt} 單 · 勝 ${x.w}</span><div class="bar"><i style="width:${Math.abs(x.sum)/maxAbs*100}%;background:${x.sum>=0?'var(--up)':'var(--down)'}"></i></div><span class="v ${cls(x.sum)}">${x.cnt?fmt(x.sum):'—'}</span></div>`).join('')}
+   </div>`;
+}
+let watchTimer;
+function renderWatch(){
+  const days=[];
+  for(let i=6;i>=0;i--){const d=new Date(NOW);d.setDate(d.getDate()-i);days.push(d)}
+  const counts=days.map(d=>lookCount(ymd(d)));
+  const mx=Math.max(8,...counts);
+  document.getElementById('v-watch').innerHTML=`
+   <div class="card" style="text-align:center">
+    <div class="ring"><svg viewBox="0 0 210 210"><circle cx="105" cy="105" r="94" stroke="#1e1e2e" stroke-width="10" fill="none"/><circle id="ringArc" cx="105" cy="105" r="94" stroke="#5FE08D" stroke-width="10" fill="none" stroke-linecap="round" stroke-dasharray="590.6" stroke-dashoffset="590.6" style="transition:stroke-dashoffset .6s"/></svg>
+     <div class="in"><div><div style="font-size:11.5px;color:var(--ink2)" id="ringLbl">距離上次看盤</div><div class="t" id="since" style="font-size:40px;font-weight:800;font-variant-numeric:tabular-nums;margin:4px 0">0:00:00</div><div style="font-size:11px;color:var(--ink3)" id="ringSub">目標：撐過 3 小時</div></div></div></div>
+    <div class="btnrow"><button class="btn ghost" id="coolBtn" onclick="cool()">⏳ 先冷靜 10 分鐘</button><button class="btn warn" onclick="looked()">還是看了</button></div>
+   </div>
+   <div class="card"><div class="lbl">今天看了 <b style="color:var(--ink);margin:0 3px">${looks.today.length}</b> 次<span class="r">超過 8 次會變黃</span></div><div class="looks">${looks.today.map(d=>`<span>${hm(d)}</span>`).join('')||'<span>還沒看過</span>'}</div></div>
+   <div class="card"><div class="lbl">最近 7 天</div><div class="bars7">${days.map((d,i)=>`<div><span style="color:var(--ink2);font-size:10px">${counts[i]}</span><i class="${counts[i]>8?'hot':''}" style="height:${counts[i]/mx*60}px"></i>${i===6?'今天':WD[d.getDay()]}</div>`).join('')}</div></div>`;
+  tickWatch();
+}
+function tickWatch(){
+  const el=document.getElementById('since'); if(!el) return;
+  const now=new Date();
+  const lbl=document.getElementById('ringLbl'), sub=document.getElementById('ringSub'), arc=document.getElementById('ringArc'), btn=document.getElementById('coolBtn');
+  if(coolUntil && now<coolUntil){
+    const left=Math.ceil((coolUntil-now)/1000);
+    lbl.textContent='冷靜中'; el.textContent=`${Math.floor(left/60)}:${pad(left%60)}`; el.style.color='var(--acc)';
+    sub.textContent='倒數完還想看再看'; arc.style.stroke='#7EA6FF';
+    arc.style.strokeDashoffset=590.6*(1-(600-left)/600);
+    btn.textContent='冷靜中…'; btn.disabled=true; btn.style.opacity=.5;
+  } else {
+    if(coolUntil){coolUntil=null; toast('冷靜 10 分鐘完成','還想看嗎？不想的話計時繼續累積');}
+    const s=Math.floor((now-lastLook)/1000);
+    lbl.textContent='距離上次看盤'; el.textContent=`${Math.floor(s/3600)}:${pad(Math.floor(s/60)%60)}:${pad(s%60)}`;
+    const p=Math.min(s/10800,1); el.style.color = p>=1?'var(--up)':p>.33?'var(--ink)':'var(--mid)';
+    sub.textContent = p>=1?'今天目標達成 🎉':`目標：撐過 3 小時（還差 ${Math.ceil((10800-s)/60)} 分）`;
+    arc.style.stroke = p>=1?'#5FE08D':'#5FE08D'; arc.style.strokeDashoffset=590.6*(1-p);
+    btn.textContent='⏳ 先冷靜 10 分鐘'; btn.disabled=false; btn.style.opacity=1;
+  }
+}
+setInterval(()=>{ if(view==='watch') tickWatch(); const n=new Date(); document.getElementById('clock').textContent=hm(n); },1000);
+function looked(){ const n=new Date(); lastLook=n; looks.today.push(n); coolUntil=null; renderWatch(); toast('已記錄看盤，重新計時',`今天第 ${looks.today.length} 次`, looks.today.length>8); }
+function cool(){ coolUntil=new Date(Date.now()+600000); tickWatch(); toast('先冷靜 10 分鐘','真的有好機會，10 分鐘後它還會在'); }
+
+// ===== 導覽 =====
+function go(v){
+  view=v; selDay=null;
+  document.querySelectorAll('.view').forEach(e=>e.classList.toggle('on',e.id==='v-'+v));
+  document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+  document.getElementById('content').scrollTop=0;
+  render();
+}
+function shiftMonth(d){ month=new Date(month.getFullYear(),month.getMonth()+d,1); selDay=null; render(); }
+
+// ===== 底部抽屜 =====
+function openSheet(title, body, foot){
+  document.getElementById('shTitle').textContent=title;
+  document.getElementById('shBody').innerHTML=body;
+  document.getElementById('shFoot').innerHTML=foot||'';
+  document.getElementById('shFoot').style.display=foot?'flex':'none';
+  document.getElementById('shBody').scrollTop=0;
+  document.getElementById('scrim').classList.add('on');
+  document.getElementById('sheet').classList.add('on');
+}
+function closeSheet(){ document.getElementById('scrim').classList.remove('on'); document.getElementById('sheet').classList.remove('on'); if(selDay){selDay=null; if(view==='cal') renderCal();} }
+
+// ----- 記一筆（開倉／補記） -----
+let F;
+function openTradeSheet(dayKey){
+  const at = dayKey ? new Date(dayKey+'T'+hm(NOW)) : new Date();
+  F={sym:'BTC',dir:'L',lev:10,margin:'',closed:!!(dayKey && dayKey!==ymd(NOW)),win:true,pnl:'',note:'',at,customSym:''};
+  drawTradeSheet();
+}
+function drawTradeSheet(){
+  const body=`
+   <div class="fl">幣種</div><div class="chips">${['BTC','ETH','SOL'].map(s=>`<button class="chip ${F.sym===s?'on':''}" onclick="F.sym='${s}';drawTradeSheet()">${s}</button>`).join('')}<button class="chip ${!['BTC','ETH','SOL'].includes(F.sym)?'on':''}" onclick="customSym()">${!['BTC','ETH','SOL'].includes(F.sym)?F.sym:'＋ 其他'}</button></div>
+   <div class="fl">方向</div><div class="seg"><button class="${F.dir==='L'?'on L':''}" onclick="F.dir='L';drawTradeSheet()">多 ▲</button><button class="${F.dir==='S'?'on S':''}" onclick="F.dir='S';drawTradeSheet()">空 ▼</button></div>
+   <div class="fl">槓桿</div><div class="chips">${[3,5,10,20,50].map(l=>`<button class="chip ${F.lev===l?'on':''}" onclick="F.lev=${l};drawTradeSheet()">${l}x</button>`).join('')}<button class="chip ${![3,5,10,20,50].includes(F.lev)?'on':''}" onclick="customLev()">${![3,5,10,20,50].includes(F.lev)?F.lev+'x':'自訂'}</button></div>
+   <div class="fl">本金（保證金）</div><div class="inp"><input id="fMargin" inputmode="decimal" placeholder="例如 400" value="${F.margin}" oninput="F.margin=this.value;updCalc()"><em>USDT</em></div>
+   <div class="calc" id="calc"></div>
+   <div class="toggle ${F.closed?'on':''}" onclick="F.closed=!F.closed;drawTradeSheet()"><div class="sw"></div>已經平倉了（補記一整單）</div>
+   ${F.closed?`
+    <div class="fl">結果</div><div class="seg"><button class="${F.win?'on L':''}" onclick="F.win=true;drawTradeSheet()">賺</button><button class="${!F.win?'on S':''}" onclick="F.win=false;drawTradeSheet()">賠</button></div>
+    <div class="fl">已實現損益<span class="r">平倉日 ${md(F.at)}</span></div><div class="inp"><span class="sign ${F.win?'up':'down'}">${F.win?'+':'−'}</span><input id="fPnl" inputmode="decimal" placeholder="賺或賠多少" value="${F.pnl}" oninput="F.pnl=this.value;updCalc()"><em>USDT</em></div>`:''}
+   <div class="fl">備註（選填）</div><div class="inp"><input placeholder="為什麼開這單？停損設哪？" value="${F.note}" oninput="F.note=this.value" style="font-size:13.5px;font-weight:500"></div>`;
+  const foot=`<button class="btn pri" id="saveBtn" onclick="saveTrade()">${F.closed?'儲存':'儲存（持倉中）'}</button>`;
+  openSheet(F.closed?`補記一單 · ${md(F.at)}`:'記一筆開倉', body, foot);
+  updCalc();
+}
+function customSym(){ const s=prompt('幣種代號（例如 DOGE）', !['BTC','ETH','SOL'].includes(F.sym)?F.sym:''); if(s&&s.trim()){F.sym=s.trim().toUpperCase().slice(0,6);} drawTradeSheet(); }
+function customLev(){ const s=prompt('槓桿倍數', F.lev); const v=parseFloat(s); if(v>=1&&v<=200) F.lev=v; drawTradeSheet(); }
+function updCalc(){
+  const m=parseFloat(F.margin), el=document.getElementById('calc'), btn=document.getElementById('saveBtn');
+  const p=parseFloat(F.pnl);
+  let ok = m>0 && (!F.closed || p>=0);
+  if(!(m>0)){ el.innerHTML='填本金之後，這裡會算出<b>倉位大小</b>和<b>反向多少 % 本金歸零</b>'; }
+  else {
+    const liq=100/F.lev;
+    let h=`倉位大小 ＝ ${m.toLocaleString()} × ${F.lev} ＝ <b>${(m*F.lev).toLocaleString()} USDT</b><br>價格${F.dir==='L'?'下跌':'上漲'} <b class="${liq<=5?'down':''}">${liq.toFixed(liq<10?1:0)}%</b> 本金就歸零${liq<=5?'　⚠ 很容易爆倉':''}`;
+    if(F.closed && p>=0 && F.pnl!==''){ const v=F.win?p:-p; h+=`<br>本金報酬率 <b class="${cls(v)}">${fmtP(v/m*100)}</b>`; }
+    el.innerHTML=h;
+  }
+  if(F.closed && F.pnl==='') ok=false;
+  btn.disabled=!ok;
+}
+function saveTrade(){
+  const m=parseFloat(F.margin); if(!(m>0)) return;
+  const t={id:++seq,sym:F.sym,dir:F.dir,lev:F.lev,margin:m,openAt:new Date(F.at),closeAt:null,pnl:null,note:F.note.trim()};
+  if(F.closed){ const p=parseFloat(F.pnl); t.pnl=F.win?p:-p; t.closeAt=new Date(F.at); }
+  trades.push(t); closeSheet();
+  month=new Date(t.openAt.getFullYear(),t.openAt.getMonth(),1);
+  render();
+  if(t.closeAt) toast('已記錄', `${t.sym} ${fmt(t.pnl)} USDT（${fmtP(t.pnl/t.margin*100)}）`, t.pnl<0);
+  else toast('已記錄開倉', `${t.sym} ${t.dir==='L'?'多':'空'} ${t.lev}x · 本金 ${m.toLocaleString()}，平倉時點它結算`);
+}
+
+// ----- 點一單：持倉中 → 平倉；已平倉 → 明細 -----
+let C;
+function openTrade(id){
+  const t=trades.find(x=>x.id===id); if(!t) return;
+  if(!t.closeAt){ C={t,win:true,pnl:'',partial:false}; drawClose(); return; }
+  const body=`<div class="sumcard">${coin(t.sym)}<div class="tmain"><div class="t1">${t.sym} ${dirTag(t.dir)} ${levTag(t.lev)}</div><div class="t2">${t.note||'沒有備註'}</div></div><div class="tpnl ${cls(t.pnl)}" style="font-size:18px">${fmt(t.pnl)}<small>${fmtP(t.pnl/t.margin*100)}</small></div></div>
+   <div style="margin-top:12px">
+    <div class="kv"><span>本金</span><b>${t.margin.toLocaleString()} USDT</b></div>
+    <div class="kv"><span>倉位大小</span><b>${(t.margin*t.lev).toLocaleString()} USDT</b></div>
+    <div class="kv"><span>開倉</span><b>${md(t.openAt)}（${WD[t.openAt.getDay()]}）${hm(t.openAt)}</b></div>
+    <div class="kv"><span>平倉</span><b>${md(t.closeAt)}（${WD[t.closeAt.getDay()]}）${hm(t.closeAt)}</b></div>
+    <div class="kv"><span>持倉時間</span><b>${dur(t.closeAt-t.openAt)}</b></div>
+    <div class="kv"><span>平倉那天看盤</span><b class="${lookCount(ymd(t.closeAt))>8?'mid':''}">${lookCount(ymd(t.closeAt))} 次</b></div>
+   </div>`;
+  openSheet('這一單', body, `<button class="btn warn" onclick="askDelete(${t.id})">刪除</button><button class="btn ghost" onclick="closeSheet()">關閉</button>`);
+}
+function dur(ms){ const h=Math.round(ms/3600000); return h<24?`${Math.max(h,1)} 小時`:`${Math.floor(h/24)} 天 ${h%24} 小時`; }
+function drawClose(){
+  const t=C.t;
+  const body=`<div class="sumcard">${coin(t.sym)}<div class="tmain"><div class="t1">${t.sym} ${dirTag(t.dir)} ${levTag(t.lev)}</div><div class="t2">${md(t.openAt)} 開倉 · 持倉 ${dur(NOW-t.openAt)} · 本金 ${t.margin.toLocaleString()}</div></div></div>
+   ${t.note?`<div style="font-size:11.5px;color:var(--ink3);margin-top:8px">📝 ${t.note}</div>`:''}
+   <div class="fl">結果</div><div class="seg"><button class="${C.win?'on L':''}" onclick="C.win=true;drawClose()">賺</button><button class="${!C.win?'on S':''}" onclick="C.win=false;drawClose()">賠</button></div>
+   <div class="fl">已實現損益<span class="r">手續費直接扣在裡面</span></div><div class="inp"><span class="sign ${C.win?'up':'down'}">${C.win?'+':'−'}</span><input id="cPnl" inputmode="decimal" placeholder="賺或賠多少" value="${C.pnl}" oninput="C.pnl=this.value;updClose()"><em>USDT</em></div>
+   <div class="calc" id="ccalc"></div>`;
+  openSheet('平倉結算', body, `<button class="btn pri" id="cBtn" onclick="saveClose()">結算</button>`);
+  updClose();
+  setTimeout(()=>document.getElementById('cPnl')?.focus(),350);
+}
+function updClose(){
+  const p=parseFloat(C.pnl), el=document.getElementById('ccalc'), b=document.getElementById('cBtn');
+  if(!(p>=0)){ el.innerHTML='填完會算出<b>本金報酬率</b>和<b>這個月累計</b>'; b.disabled=true; return; }
+  const v=C.win?p:-p; const s=monthStats(NOW); const after=s.total+v; const cap=capital[ym(NOW)];
+  el.innerHTML=`本金報酬率 <b class="${cls(v)}" style="font-size:15px">${fmtP(v/C.t.margin*100)}</b><br>${NOW.getMonth()+1} 月累計會變成 <b class="${cls(after)}">${fmt(after)} USDT${cap?'（'+fmtP(after/cap*100)+'）':''}</b>`;
+  if(!C.win && p>C.t.margin) el.innerHTML+=`<br><span class="down">⚠ 賠的比本金還多？確認一下數字</span>`;
+  b.disabled=false;
+}
+function saveClose(){
+  const p=parseFloat(C.pnl); if(!(p>=0)) return;
+  const t=C.t; t.pnl=C.win?p:-p; t.closeAt=new Date();
+  closeSheet(); month=new Date(NOW.getFullYear(),NOW.getMonth(),1); render();
+  toast(t.pnl>=0?'結算完成，賺了':'結算完成，賠了', `${t.sym} ${fmt(t.pnl)} USDT（${fmtP(t.pnl/t.margin*100)}）· 記在今天`, t.pnl<0);
+}
+
+// ----- 月曆點一天 -----
+function openDay(k){
+  const d=new Date(k+'T12:00'); if(d>NOW && k!==ymd(NOW)) return;
+  selDay=k; renderCal();
+  const closed=trades.filter(t=>t.closeAt&&ymd(t.closeAt)===k), opened=trades.filter(t=>!t.closeAt&&ymd(t.openAt)===k);
+  const sum=closed.reduce((a,t)=>a+t.pnl,0), lc=lookCount(k);
+  const body=`
+   <div class="kpis" style="margin-top:0"><div class="kpi"><b class="${cls(sum)}">${closed.length?fmt(sum):'—'}</b><span>當天損益</span></div><div class="kpi"><b>${closed.length}</b><span>平倉</span></div><div class="kpi"><b class="${lc>8?'mid':''}">${lc}</b><span>看盤次數</span></div></div>
+   ${closed.length?`<div class="sech" style="margin-top:14px">平倉</div>${closed.map(tradeRow).join('')}`:''}
+   ${opened.length?`<div class="sech" style="margin-top:14px">這天開的、還持倉中</div>${opened.map(tradeRow).join('')}`:''}
+   ${!closed.length&&!opened.length?'<div class="empty">這天沒有交易紀錄</div>':''}
+   ${lc>8&&sum<0?`<div class="calc" style="border-color:rgba(245,199,99,.4);margin-top:10px">這天看了 <b class="mid">${lc} 次</b>盤，結果${fmt(sum)}。</div>`:''}`;
+  openSheet(`${d.getMonth()+1}/${d.getDate()}（${WD[d.getDay()]}）`, body, `<button class="btn ghost" onclick="openTradeSheet('${k}')">＋ 替這天補記一單</button>`);
+}
+
+// ----- 月初資金 -----
+function editCapital(){
+  const k=ym(month); const s=prompt(`${month.getMonth()+1} 月初的資金（USDT）\n月報酬 % ＝ 本月損益 ÷ 這個數字`, capital[k]||'');
+  if(s===null) return; const v=parseFloat(s);
+  if(v>0){ capital[k]=v; render(); toast('已更新月初資金', `${v.toLocaleString()} USDT`); }
+}
+
+// ----- 刪除確認（App 共用確認框樣式） -----
+function askDelete(id){
+  const t=trades.find(x=>x.id===id);
+  document.getElementById('dlgT').textContent='刪除這一單？';
+  document.getElementById('dlgP').textContent=`${md(t.closeAt)} ${t.sym} ${fmt(t.pnl)} USDT，刪掉之後月曆和報表會重算。`;
+  document.getElementById('dlgOk').onclick=()=>{ trades=trades.filter(x=>x.id!==id); closeDlg(); closeSheet(); render(); toast('已刪除'); };
+  document.getElementById('dscrim').classList.add('on'); document.getElementById('dlg').classList.add('on');
+}
+function closeDlg(){ document.getElementById('dscrim').classList.remove('on'); document.getElementById('dlg').classList.remove('on'); }
+
+// ----- 頂端提示（App 共用 showAppNotice 樣式） -----
+let toastT;
+function toast(msg, sub, err){
+  const el=document.getElementById('toast');
+  el.className='toast'+(err?' err':'');
+  el.innerHTML=`<span class="ic">${err?'!':'✓'}</span>${msg}${sub?`<small>${sub}</small>`:''}`;
+  requestAnimationFrame(()=>el.classList.add('on'));
+  clearTimeout(toastT); toastT=setTimeout(()=>el.classList.remove('on'),3000);
+}
+document.getElementById('toast').onclick=()=>document.getElementById('toast').classList.remove('on');
+
+function resetDemo(){ seed(); month=new Date(NOW.getFullYear(),NOW.getMonth(),1); closeSheet(); closeDlg(); go('home'); toast('已回到示範資料'); }
+
+render();
+</script>
+</body></html>
