@@ -177,7 +177,7 @@ class DueTile extends StatelessWidget {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          '${mdw(r.date)}・${d.lender}'
+                          '${mdw(r.date)}${d.lender.isEmpty ? '' : '・${d.lender}'}'
                           '${item.isPayoff || d.flexible
                               ? ''
                               : d.isBill
@@ -260,7 +260,7 @@ class DebtCard extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            '${d.lender}・${d.flexible ? '自由還款' : '${d.rate}%'}'
+                            '${d.lenderPrefix}${d.flexible ? '自由還款' : '${d.rate}%'}'
                             '・${s.closed ? '已還清' : '每月 ${money(s.monthly)}'}',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -354,7 +354,7 @@ extension on DebtCard {
                         ),
                       ),
                       Text(
-                        '${d.lender}・每月帳單・每月 ${d.dueDay} 號扣款',
+                        '${d.lenderPrefix}每月帳單・每月 ${d.dueDay} 號扣款',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: AppText.note.copyWith(color: AppColors.ink3),

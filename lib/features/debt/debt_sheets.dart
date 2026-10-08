@@ -257,7 +257,7 @@ class _PaySheetState extends State<_PaySheet> {
                     ),
                   ),
                   Text(
-                    '${d.lender}・'
+                    '${d.lenderPrefix}'
                     '${d.isBill
                         ? '${r.date.month} 月帳單・'
                         : d.flexible
@@ -362,7 +362,6 @@ class _DebtFormState extends State<_DebtForm> {
       ? DateTime(DateTime.now().year, DateTime.now().month + 1)
       : DateTime(widget.edit!.firstYear, widget.edit!.firstMonth);
   late final _name = TextEditingController(text: widget.edit?.name);
-  late final _lender = TextEditingController(text: widget.edit?.lender);
   late final _principal = TextEditingController(
     text: _n(widget.edit?.principal),
   );
@@ -373,6 +372,7 @@ class _DebtFormState extends State<_DebtForm> {
         : '${widget.edit!.term}',
   );
   late final _flexPay = TextEditingController(text: _n(widget.edit?.flexPay));
+  late final _fee = TextEditingController(text: _n(widget.edit?.fee));
   late final _dueDay = TextEditingController(
     text: '${widget.edit?.dueDay ?? 10}',
   );
@@ -383,11 +383,11 @@ class _DebtFormState extends State<_DebtForm> {
 
   List<TextEditingController> get _all => [
     _name,
-    _lender,
     _principal,
     _rate,
     _term,
     _flexPay,
+    _fee,
     _dueDay,
   ];
 
@@ -429,7 +429,7 @@ class _DebtFormState extends State<_DebtForm> {
     return Debt(
       id: e?.id ?? '',
       name: _name.text.trim(),
-      lender: _lender.text.trim(),
+      lender: widget.edit?.lender ?? '',
       type: _type,
       principal: p,
       rate: rate,
@@ -439,6 +439,7 @@ class _DebtFormState extends State<_DebtForm> {
       dueDay: due,
       flexible: _flex && !bill,
       flexPay: fp,
+      fee: bill ? 0 : (double.tryParse(_fee.text) ?? 0),
       payoffAt: e?.payoffAt,
       payoffAmount: e?.payoffAmount,
       updatedAt: e?.updatedAt,
@@ -484,6 +485,12 @@ class _DebtFormState extends State<_DebtForm> {
           _b(money(s.interestTotal)),
           const TextSpan(text: '・總共要還 '),
           _b(money(d.principal + s.interestTotal)),
+          if (d.fee > 0) ...[
+            const TextSpan(text: '\n開辦費 '),
+            _b(money(d.fee)),
+            const TextSpan(text: '・總成本（利息＋開辦費）'),
+            _b(money(s.totalCost), color: AppColors.mid),
+          ],
         ],
         if (!_bill) ...[
           const TextSpan(text: '\n預計 '),
@@ -524,29 +531,9 @@ class _DebtFormState extends State<_DebtForm> {
               ),
           ],
         ),
-        Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _label('名稱'),
-                  TextField(controller: _name, decoration: _input('例如 國泰信貸')),
-                ],
-              ),
-            ),
-            const SizedBox(width: Gap.sm),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _label('銀行／對象'),
-                  TextField(controller: _lender, decoration: _input('例如 國泰世華')),
-                ],
-              ),
-            ),
-          ],
-        ),
+        // 只有一個名稱欄（2026-10-08 使用者：名稱跟銀行不用分兩欄）。
+        _label('名稱'),
+        TextField(controller: _name, decoration: _input('例如 國泰信貸')),
         // 親友借款拿掉了（2026-10-08），「自由還款」只留給舊資料編輯用。
         if (_bill) ...[
           _label('這期帳單大概多少'),
@@ -612,6 +599,13 @@ class _DebtFormState extends State<_DebtForm> {
                 ),
               ],
             ),
+          _label('開辦費', trailing: '沒有就留空'),
+          TextField(
+            controller: _fee,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: _digits,
+            decoration: _input('例如 3000', suffix: '元'),
+          ),
         ],
         Row(
           children: [
@@ -744,7 +738,7 @@ class _DebtDetailState extends State<_DebtDetail> {
                     ),
                   ),
                   Text(
-                    '${d.lender}・${d.type.label}・'
+                    '${d.lenderPrefix}${d.type.label}・'
                     '${d.isBill
                         ? '每月帳單'
                         : d.flexible
@@ -1042,6 +1036,8 @@ class _DebtDetailState extends State<_DebtDetail> {
         _kv('第一期', ym(dueDateOf(d, 1))),
         _kv('利息總額', money(s.interestTotal)),
         _kv('已付利息', money(s.interestPaid)),
+        _kv('開辦費', d.fee > 0 ? money(d.fee) : '沒有'),
+        _kv('總成本（利息＋開辦費）', money(s.totalCost)),
       ],
       const SizedBox(height: 12),
       Row(

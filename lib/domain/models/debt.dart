@@ -48,6 +48,7 @@ class Debt {
     required this.dueDay,
     required this.flexible,
     required this.flexPay,
+    this.fee = 0,
     this.payoffAt,
     this.payoffAmount,
     this.updatedAt,
@@ -91,6 +92,13 @@ class Debt {
 
   DateTime get syncedAt => updatedAt ?? DateTime(2000);
 
+  /// 開辦費（一次性，例如信貸的手續費），算總成本用，不影響每月要繳。
+  final double fee;
+
+  /// 畫面上接在名稱後面的「銀行・」。2026-10-08 起新增債務只填一個名稱
+  /// （使用者：名稱跟銀行不用分兩欄），舊資料有填銀行的才會顯示。
+  String get lenderPrefix => lender.isEmpty ? '' : '$lender・';
+
   /// 每月帳單型（信用卡）：每個月繳一次大概 [flexPay] 元，沒有本金、期數。
   bool get isBill => type == DebtType.card;
 
@@ -106,6 +114,7 @@ class Debt {
     int? dueDay,
     bool? flexible,
     double? flexPay,
+    double? fee,
     DateTime? Function()? payoffAt,
     double? Function()? payoffAmount,
     DateTime? updatedAt,
@@ -123,6 +132,7 @@ class Debt {
     dueDay: dueDay ?? this.dueDay,
     flexible: flexible ?? this.flexible,
     flexPay: flexPay ?? this.flexPay,
+    fee: fee ?? this.fee,
     payoffAt: payoffAt == null ? this.payoffAt : payoffAt(),
     payoffAmount: payoffAmount == null ? this.payoffAmount : payoffAmount(),
     updatedAt: updatedAt ?? this.updatedAt,
@@ -142,6 +152,7 @@ class Debt {
     'dueDay': dueDay,
     'flexible': flexible,
     'flexPay': flexPay,
+    'fee': fee,
     'payoffAt': payoffAt?.toIso8601String(),
     'payoffAmount': payoffAmount,
     'updatedAt': updatedAt?.toIso8601String(),
@@ -161,6 +172,7 @@ class Debt {
     dueDay: (j['dueDay'] as num).toInt(),
     flexible: j['flexible'] as bool? ?? false,
     flexPay: (j['flexPay'] as num?)?.toDouble() ?? 0,
+    fee: (j['fee'] as num?)?.toDouble() ?? 0,
     payoffAt: _date(j['payoffAt']),
     payoffAmount: (j['payoffAmount'] as num?)?.toDouble(),
     updatedAt: _date(j['updatedAt']),

@@ -107,11 +107,14 @@ void main() {
     expect(save().onPressed, isNull);
     final fields = find.byType(TextField);
     await tester.enterText(fields.at(0), '測試信貸');
-    await tester.enterText(fields.at(2), '100000');
-    await tester.enterText(fields.at(3), '5');
-    await tester.enterText(fields.at(4), '24');
+    await tester.enterText(fields.at(1), '100000');
+    await tester.enterText(fields.at(2), '5');
+    await tester.enterText(fields.at(3), '24');
+    await tester.enterText(fields.at(4), '3000');
     await tester.pump();
     expect(find.textContaining('4,387'), findsOneWidget);
+    // 開辦費 3,000＋利息約 5,290＝總成本
+    expect(find.textContaining('8,29'), findsOneWidget);
     expect(save().onPressed, isNotNull);
   });
 }

@@ -200,4 +200,12 @@ void main() {
     final j = debt().toJson()..['type'] = 'family';
     expect(Debt.fromJson(j).type, DebtType.other);
   });
+
+  test('開辦費算進總成本、不影響月付', () {
+    final d = Debt.fromJson({...debt().toJson(), 'fee': 3000});
+    final s = DebtStats.of(d, const []);
+    expect(s.monthly, 4387);
+    expect(s.totalCost, closeTo(s.interestTotal + 3000, 0.01));
+    expect(Debt.fromJson(debt().toJson()).fee, 0);
+  });
 }

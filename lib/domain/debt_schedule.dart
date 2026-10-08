@@ -213,6 +213,9 @@ class DebtStats {
       : rows.where((r) => !r.isPaid).fold(0.0, (s, r) => s + r.interest);
   double get interestTotal => interestPaid + interestLeft;
 
+  /// 借這筆錢的總成本：利息＋開辦費。
+  double get totalCost => interestTotal + debt.fee;
+
   /// 預計（或實際）還清的日子。
   DateTime? get payoffDate => debt.isBill
       ? null
