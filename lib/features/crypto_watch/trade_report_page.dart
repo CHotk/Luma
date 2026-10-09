@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
@@ -124,6 +125,7 @@ class _TradeReportPageState extends ConsumerState<TradeReportPage> {
     final sum = data.month(_month);
     final ret = sum.returnPercent;
     final cap = data.capitalOf(_month);
+    final rate = ref.watch(usdtTwdRateProvider);
     return GlassCard(
       child: Column(
         children: [
@@ -147,6 +149,10 @@ class _TradeReportPageState extends ConsumerState<TradeReportPage> {
               ],
             ),
           ),
+          Text(
+            fmtTwd(sum.total, rate, signed: true),
+            style: AppText.note.copyWith(color: AppColors.ink2),
+          ),
           if (ret != null)
             Text(
               fmtPct(ret),
@@ -159,7 +165,9 @@ class _TradeReportPageState extends ConsumerState<TradeReportPage> {
           TextButton(
             onPressed: () => editCapitalFlow(context, ref, _month, cap),
             child: Text(
-              cap == null ? '設定月初資金，算月報酬 % ✎' : '月初資金 ${fmtAmount(cap)} USDT ✎',
+              cap == null
+                  ? '設定月初資金，算月報酬 % ✎'
+                  : '月初資金 ${fmtAmount(cap)} USDT（${fmtTwd(cap, rate)}）✎',
             ),
           ),
         ],

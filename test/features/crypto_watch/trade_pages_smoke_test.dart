@@ -89,6 +89,8 @@ void main() {
       expect(find.text('距離上次看盤'), findsNothing);
       expect(find.textContaining('👁'), findsNothing);
       if (!empty) expect(find.text('+98,645.43'), findsWidgets);
+      // USDT 後面有台幣換算（預設匯率 31）。
+      if (!empty) expect(find.textContaining('≈ +NT\$'), findsWidgets);
       await tester.drag(find.byType(ListView), const Offset(0, -900));
       await tester.pump();
       if (!empty) expect(find.textContaining('持倉中'), findsWidgets);

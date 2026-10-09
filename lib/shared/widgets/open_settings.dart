@@ -17,6 +17,12 @@ const _nonEnglishPrefixes = [
   '/debug-log',
   // App 首頁（2026-10-05：有「首頁樣式」可以切）。
   '/start',
+  // 2026-10-10 使用者回報：交易頁的齒輪打開是英文學習的設定——這幾個
+  // 功能當初沒加進來。新增功能時記得把路徑補進這份清單。
+  '/crypto-watch',
+  '/smoking-log',
+  '/drinking-log',
+  '/local-storage',
 ];
 
 /// 全 App 共用的「點齒輪」動作：依目前所在的功能決定開哪一頁設定。

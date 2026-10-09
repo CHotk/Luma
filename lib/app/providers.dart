@@ -21,6 +21,7 @@ import '../data/repositories/yt_stats_refresh_setting_store.dart';
 import '../data/repositories/yt_tracker_repository.dart';
 import '../data/repositories/yt_embed_player_style_store.dart';
 import '../data/repositories/yt_video_open_mode_store.dart';
+import '../data/repositories/usdt_twd_rate_store.dart';
 import '../data/seed/app_defaults_loader.dart';
 import '../data/seed/word_seed_loader.dart';
 import '../data/storage/key_value_store.dart';
@@ -150,6 +151,12 @@ final ytApiKeyProvider = StateProvider<String?>((ref) => null);
 /// 要求：預設一天一輪，見 `YtStatsRefreshSettingStore`）。跟 [ytApiKeyProvider]
 /// 同一套模式：記憶體 provider 讓畫面即時反映，實際持久化交給 store，
 /// 開機時 `main.dart` 讀一次存進去的值 override 進來。
+/// 交易&自律的 USDT → 台幣匯率，開機時從 [UsdtTwdRateStore] 讀出來
+/// override，設定頁改了直接更新這個。
+final usdtTwdRateProvider = StateProvider<double>(
+  (ref) => UsdtTwdRateStore.defaultRate,
+);
+
 final ytStatsRefreshDaysProvider = StateProvider<int>(
   (ref) => YtStatsRefreshSettingStore.defaultDays,
 );

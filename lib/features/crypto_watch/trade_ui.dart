@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
@@ -52,6 +54,25 @@ String fmtPct(double v) =>
         : v < 0
         ? '−'
         : ''}${v.abs().toStringAsFixed(1)}%';
+
+/// USDT 換台幣，接在 USDT 金額後面（2026-10-10 使用者要求：匯率預設 31，
+/// 設定可改）。台幣取到整數，例如「≈ NT$12,400」；[signed] 給損益用，
+/// 帶正負號「≈ −NT$3,720」。
+String fmtTwd(double usdt, double rate, {bool signed = false}) {
+  final v = (usdt * rate).roundToDouble();
+  final sign = !signed
+      ? ''
+      : v > 0
+      ? '+'
+      : v < 0
+      ? '−'
+      : '';
+  return '≈ ${sign}NT\$${_num(v)}';
+}
+
+/// 底部表單這些不是 Consumer 的地方拿目前匯率用。
+double twdRateOf(BuildContext context) =>
+    ProviderScope.containerOf(context, listen: false).read(usdtTwdRateProvider);
 
 String fmtLev(double v) =>
     '${v == v.roundToDouble() ? v.round() : v.toStringAsFixed(1)}x';
@@ -432,8 +453,14 @@ Widget _pnlField({
   String hint = '點左邊 + / − 切換賺賠',
   String suffix = 'USDT',
   String signKey = 'pnl-sign',
+  double? twdRate,
 }) {
   final c = win ? tradeUp : tradeDown;
+  final amount = double.tryParse(controller.text);
+  // USDT 後面接台幣換算（給了匯率、也填了數字才顯示）。
+  final shownSuffix = twdRate == null || amount == null
+      ? suffix
+      : '$suffix  ${fmtTwd(win ? amount : -amount, twdRate, signed: true)}';
   return TextField(
     controller: controller,
     autofocus: autofocus,
@@ -442,7 +469,7 @@ Widget _pnlField({
     style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: c),
     decoration: _input(
       hint,
-      suffix: suffix,
+      suffix: shownSuffix,
       prefix: Padding(
         padding: const EdgeInsets.only(left: 6, right: 6),
         child: Material(
@@ -881,6 +908,7 @@ class _NewTradeSheetState extends State<_NewTradeSheet> {
   @override
   Widget build(BuildContext context) {
     final lev = _lev, m = _margin;
+    final rate = twdRateOf(context);
     final calc = <InlineSpan>[];
     if (lev == null || m == null || m <= 0 || lev < 1) {
       calc.addAll([
@@ -895,13 +923,15 @@ class _NewTradeSheetState extends State<_NewTradeSheet> {
         calc.addAll([
           TextSpan(text: '本金＝${fmtAmount(_pnlAbs!)} ÷ ${_numText(_pct!)}%＝'),
           _strong('${fmtAmount(m)} USDT'),
-          const TextSpan(text: '\n'),
+          TextSpan(text: ' ${fmtTwd(m, rate)}\n'),
         ]);
       }
       calc.addAll([
         TextSpan(text: '倉位大小＝${fmtAmount(m)} × ${fmtLev(lev)}＝'),
         _strong('${fmtAmount(m * lev)} USDT'),
-        TextSpan(text: '\n價格${_isLong ? '下跌' : '上漲'} '),
+        TextSpan(
+          text: ' ${fmtTwd(m * lev, rate)}\n價格${_isLong ? '下跌' : '上漲'} ',
+        ),
         _strong(
           '${liq.toStringAsFixed(liq < 10 ? 1 : 0)}%',
           color: liq <= 5 ? tradeDown : AppColors.ink,
@@ -1003,6 +1033,7 @@ class _NewTradeSheetState extends State<_NewTradeSheet> {
             controller: _pnlCtrl,
             win: _win,
             onToggle: () => setState(() => _win = !_win),
+            twdRate: rate,
           ),
         ],
         _fieldLabel(
@@ -1017,7 +1048,7 @@ class _NewTradeSheetState extends State<_NewTradeSheet> {
           style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
           decoration: _input(
             _closed && !_marginManual ? '填完 % 跟損益就會算出來' : '例如 400',
-            suffix: 'USDT',
+            suffix: m == null ? 'USDT' : 'USDT  ${fmtTwd(m, rate)}',
           ),
         ),
         if (_closed &&
@@ -1130,6 +1161,7 @@ class _CloseTradeSheetState extends State<_CloseTradeSheet> {
   @override
   Widget build(BuildContext context) {
     final t = widget.trade;
+    final rate = twdRateOf(context);
     final abs = double.tryParse(_ctrl.text);
     final v = abs == null ? null : (_win ? abs : -abs);
     final calc = <InlineSpan>[];
@@ -1152,6 +1184,7 @@ class _CloseTradeSheetState extends State<_CloseTradeSheet> {
           '${capital == null ? '' : '（${fmtPct(after / capital * 100)}）'}',
           color: pnlColor(after),
         ),
+        TextSpan(text: ' ${fmtTwd(after, rate, signed: true)}'),
       ]);
       if (v < 0 && -v > t.margin) {
         calc.add(
@@ -1192,6 +1225,7 @@ class _CloseTradeSheetState extends State<_CloseTradeSheet> {
           win: _win,
           onToggle: () => setState(() => _win = !_win),
           autofocus: true,
+          twdRate: rate,
         ),
         _timeField('平倉時間', _at, () async {
           final p = await _pickDateTime(context, _at);
@@ -1244,21 +1278,39 @@ class _TradeDetailSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = trade;
-    Widget kv(String k, String v, {Color? color}) => Container(
+    final rate = twdRateOf(context);
+    // [sub] 是值底下那行小字（台幣換算），手機寬度一行放不下 USDT 跟台幣。
+    // 值本身太長（例如備註）就換行，不撐爆。
+    Widget kv(String k, String v, {Color? color, String? sub}) => Container(
       padding: const EdgeInsets.symmetric(vertical: 10),
       decoration: const BoxDecoration(
         border: Border(top: BorderSide(color: Color(0xFF2A2A3D))),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(k, style: AppText.bodyDim),
-          const Spacer(),
-          Text(
-            v,
-            style: TextStyle(
-              fontSize: 13.5,
-              fontWeight: FontWeight.w700,
-              color: color ?? AppColors.ink,
+          const SizedBox(width: Gap.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  v,
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                    color: color ?? AppColors.ink,
+                  ),
+                ),
+                if (sub != null)
+                  Text(
+                    sub,
+                    textAlign: TextAlign.right,
+                    style: AppText.note.copyWith(color: AppColors.ink3),
+                  ),
+              ],
             ),
           ),
         ],
@@ -1275,7 +1327,8 @@ class _TradeDetailSheet extends StatelessWidget {
                   context,
                   title: '刪除這一單？',
                   message:
-                      '${fmtDay(t.closedAt!)} ${t.symbol} ${fmtPnl(t.pnl!)} USDT，'
+                      '${fmtDay(t.closedAt!)} ${t.symbol} ${fmtPnl(t.pnl!)} USDT'
+                      '（${fmtTwd(t.pnl!, rate, signed: true)}），'
                       '刪掉之後月曆和月報會重算。',
                   confirmLabel: '刪除',
                 );
@@ -1307,8 +1360,18 @@ class _TradeDetailSheet extends StatelessWidget {
       children: [
         TradeCard(trade: t, onTap: () {}),
         const SizedBox(height: 6),
-        kv('本金', '${fmtAmount(t.margin)} USDT'),
-        kv('倉位大小', '${fmtAmount(t.positionSize)} USDT'),
+        kv(
+          '已實現損益',
+          '${fmtPnl(t.pnl!)} USDT',
+          color: pnlColor(t.pnl),
+          sub: fmtTwd(t.pnl!, rate, signed: true),
+        ),
+        kv('本金', '${fmtAmount(t.margin)} USDT', sub: fmtTwd(t.margin, rate)),
+        kv(
+          '倉位大小',
+          '${fmtAmount(t.positionSize)} USDT',
+          sub: fmtTwd(t.positionSize, rate),
+        ),
         kv('開倉', '${fmtDay(t.openedAt)} ${fmtHm(t.openedAt)}'),
         kv('平倉', '${fmtDay(t.closedAt!)} ${fmtHm(t.closedAt!)}'),
         kv('持倉時間', fmtHold(t.closedAt!.difference(t.openedAt))),

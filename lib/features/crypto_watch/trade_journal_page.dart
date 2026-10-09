@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
@@ -111,6 +112,7 @@ class TradeJournalPage extends ConsumerWidget {
                       fit: BoxFit.scaleDown,
                       child: Text(
                         '${fmtPnl(m.total)} USDT'
+                        ' ${fmtTwd(m.total, ref.watch(usdtTwdRateProvider), signed: true)}'
                         '${m.returnPercent == null ? '' : '・${fmtPct(m.returnPercent!)}'}',
                         style: TextStyle(
                           fontSize: 13,

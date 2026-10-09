@@ -73,7 +73,8 @@ Future<void> addTradeFlow(
   } else {
     showAppNotice(
       context,
-      '已記錄：${draft.symbol} ${fmtPnl(draft.pnl!)} USDT',
+      '已記錄：${draft.symbol} ${fmtPnl(draft.pnl!)} USDT'
+      '（${fmtTwd(draft.pnl!, ref.read(usdtTwdRateProvider), signed: true)}）',
       detail: '本金報酬率 ${fmtPct(draft.pnl! / draft.margin * 100)}',
       isError: draft.pnl! < 0,
     );
@@ -105,7 +106,8 @@ Future<void> openTradeFlow(
     if (!context.mounted) return;
     showAppNotice(
       context,
-      '結算完成：${trade.symbol} ${fmtPnl(pnl)} USDT',
+      '結算完成：${trade.symbol} ${fmtPnl(pnl)} USDT'
+      '（${fmtTwd(pnl, ref.read(usdtTwdRateProvider), signed: true)}）',
       detail:
           '本金報酬率 ${fmtPct(pnl / trade.margin * 100)}・記在 ${fmtDay(result.at)}',
       isError: pnl < 0,
@@ -168,7 +170,8 @@ Future<void> editCapitalFlow(
   if (context.mounted) {
     showAppNotice(
       context,
-      '已設定 ${month.month} 月初資金：${fmtAmount(value)} USDT',
+      '已設定 ${month.month} 月初資金：${fmtAmount(value)} USDT'
+      '（${fmtTwd(value, ref.read(usdtTwdRateProvider))}）',
       detail: '月報酬 %＝本月損益 ÷ 這個數字',
     );
   }
@@ -189,7 +192,7 @@ class _CapitalDialogState extends State<_CapitalDialog> {
     text: widget.current == null
         ? ''
         : fmtAmount(widget.current!).replaceAll(',', ''),
-  );
+  )..addListener(() => setState(() {}));
 
   @override
   void dispose() {
@@ -216,7 +219,16 @@ class _CapitalDialogState extends State<_CapitalDialog> {
             controller: _ctrl,
             autofocus: true,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(suffixText: 'USDT'),
+            decoration: InputDecoration(
+              suffixText: 'USDT',
+              // 邊打邊看台幣多少。
+              helperText: switch (double.tryParse(
+                _ctrl.text.replaceAll(',', ''),
+              )) {
+                final v? => fmtTwd(v, twdRateOf(context)),
+                null => null,
+              },
+            ),
             onSubmitted: (_) => _save(),
           ),
         ],

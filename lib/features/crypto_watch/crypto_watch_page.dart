@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
@@ -697,6 +698,7 @@ class _MonthPnlCard extends ConsumerWidget {
     final ret = sum.returnPercent;
     final cap = data.capitalOf(month);
     final open = data.openTrades.length;
+    final rate = ref.watch(usdtTwdRateProvider);
     return GlassCard(
       padding: const EdgeInsets.fromLTRB(15, 12, 15, 15),
       child: Column(
@@ -748,6 +750,11 @@ class _MonthPnlCard extends ConsumerWidget {
               ),
             ),
           ),
+          Text(
+            fmtTwd(sum.total, rate, signed: true),
+            textAlign: TextAlign.center,
+            style: AppText.note.copyWith(color: AppColors.ink2),
+          ),
           Center(
             child: TextButton(
               onPressed: () => editCapitalFlow(context, ref, month, cap),
@@ -766,7 +773,8 @@ class _MonthPnlCard extends ConsumerWidget {
                     TextSpan(
                       text: cap == null
                           ? '設定月初資金，算月報酬 % ✎'
-                          : '月初 ${fmtAmount(cap)} USDT ✎',
+                          : '月初 ${fmtAmount(cap)} USDT'
+                                '（${fmtTwd(cap, rate)}）✎',
                     ),
                   ],
                 ),

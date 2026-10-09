@@ -9,6 +9,7 @@ import '../../app/theme/typography.dart';
 import '../../data/repositories/app_home_style_store.dart';
 import '../../data/repositories/diary_password_store.dart';
 import '../../data/repositories/jp_home_ring_store.dart';
+import '../../data/repositories/usdt_twd_rate_store.dart';
 import '../../data/repositories/yt_embed_player_style_store.dart';
 import '../../data/repositories/yt_stats_refresh_setting_store.dart';
 import '../../data/repositories/yt_video_open_mode_store.dart';
@@ -42,6 +43,7 @@ class OtherSettingsPage extends ConsumerWidget {
     // 在負債改了，日記也跟著改），所以直接用同一個設定區塊。
     final isDebt = fromLocation?.startsWith('/debt') ?? false;
     final isAppHome = fromLocation == '/start';
+    final isTrade = fromLocation?.startsWith('/crypto-watch') ?? false;
     final isJp = const [
       '/jp',
       '/kana',
@@ -88,6 +90,8 @@ class OtherSettingsPage extends ConsumerWidget {
                         ? const _JpSettings()
                         : isAppHome
                         ? const _AppHomeSettings()
+                        : isTrade
+                        ? const _TradeSettings()
                         : Center(
                             child: Text('這個功能還沒有設定項目', style: AppText.bodyDim),
                           ),
@@ -186,6 +190,116 @@ class _AppHomeSettings extends ConsumerWidget {
                 onPressed: () => context.push('/home-card-order/app'),
                 child: const Text('調整'),
               ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// 交易&自律的設定（2026-10-10 使用者要求）：USDT 換台幣的匯率，預設 31。
+/// 只存這台裝置，改完各頁的「≈ NT$」馬上跟著變。
+class _TradeSettings extends ConsumerStatefulWidget {
+  const _TradeSettings();
+
+  @override
+  ConsumerState<_TradeSettings> createState() => _TradeSettingsState();
+}
+
+class _TradeSettingsState extends ConsumerState<_TradeSettings> {
+  late final _ctrl = TextEditingController(
+    text: _fmt(ref.read(usdtTwdRateProvider)),
+  )..addListener(() => setState(() {}));
+
+  static String _fmt(double v) =>
+      v == v.roundToDouble() ? v.toInt().toString() : v.toString();
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  double? get _value {
+    final v = double.tryParse(_ctrl.text.trim());
+    return v == null || v <= 0 ? null : v;
+  }
+
+  Future<void> _save(double rate) async {
+    ref.read(usdtTwdRateProvider.notifier).state = rate;
+    await UsdtTwdRateStore(ref.read(keyValueStoreProvider)).save(rate);
+    if (!mounted) return;
+    FocusScope.of(context).unfocus();
+    showAppNotice(context, '已設定匯率：1 USDT ≈ ${_fmt(rate)} 台幣');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final saved = ref.watch(usdtTwdRateProvider);
+    final v = _value;
+    return ListView(
+      children: [
+        Text('交易&自律', style: AppText.note),
+        const SizedBox(height: Gap.sm),
+        GlassCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'USDT 換台幣匯率',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.ink,
+                ),
+              ),
+              Text(
+                'USDT 金額後面會加上「≈ NT\$」換算，預設 '
+                '${_fmt(UsdtTwdRateStore.defaultRate)}',
+                style: AppText.note,
+              ),
+              const SizedBox(height: Gap.sm),
+              Row(
+                children: [
+                  const Text(
+                    '1 USDT ＝',
+                    style: TextStyle(fontSize: 14, color: AppColors.ink2),
+                  ),
+                  const SizedBox(width: Gap.sm),
+                  Expanded(
+                    child: TextField(
+                      controller: _ctrl,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      decoration: InputDecoration(
+                        suffixText: '台幣',
+                        isDense: true,
+                        errorText: _ctrl.text.trim().isNotEmpty && v == null
+                            ? '要大於 0 的數字'
+                            : null,
+                      ),
+                      onSubmitted: (_) {
+                        if (v != null) _save(v);
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: Gap.sm),
+                  FilledButton(
+                    onPressed: v == null || v == saved ? null : () => _save(v),
+                    child: const Text('儲存'),
+                  ),
+                ],
+              ),
+              if (saved != UsdtTwdRateStore.defaultRate)
+                TextButton(
+                  onPressed: () {
+                    _ctrl.text = _fmt(UsdtTwdRateStore.defaultRate);
+                    _save(UsdtTwdRateStore.defaultRate);
+                  },
+                  child: Text('改回預設 ${_fmt(UsdtTwdRateStore.defaultRate)}'),
+                ),
             ],
           ),
         ),
