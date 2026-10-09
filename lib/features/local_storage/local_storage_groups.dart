@@ -53,8 +53,6 @@ const _rules = <(String prefix, String label, Color color)>[
   ('yt_tracker.', 'YT 頻道與設定', Color(0xFFFF2D40)),
   ('diary.', '日記', Color(0xFF8FBF9F)),
   ('fitness.', '健身', Color(0xFFF2A65A)),
-  // 看盤次數 2026-10-10 整個移除，舊資料沒刪，留著標籤讓使用者在這頁看得到、自己清。
-  ('crypto_watch.', '看盤記錄（已停用）', Color(0xFFF5C763)),
   ('trade_log.', '交易紀錄', Color(0xFF5FE08D)),
   ('smoking.', '抽菸記錄', Color(0xFFB0A8A0)),
   ('drinking.', '喝酒記錄', Color(0xFFE0607E)),

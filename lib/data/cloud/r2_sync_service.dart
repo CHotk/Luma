@@ -712,6 +712,18 @@ class R2SyncService {
     onPhase: onPhase,
   );
 
+  /// 已移除功能留在雲端的檔案（看盤次數的 `crypto_watch.json`，2026-10-10
+  /// 使用者要求舊資料也刪）。每台裝置成功刪過一次就記下來，之後同步不再
+  /// 多打這個請求；R2 對不存在的檔案也回成功，兩台都刪一次沒關係。
+  Future<void> deleteRetiredCloudFiles() async {
+    const done = 'r2_sync.retired_deleted.crypto_watch.json';
+    final store = _metaStore;
+    if (store != null && await store.read(done) != null) return;
+    await _client.deleteObject('crypto_watch.json');
+    await store?.remove('r2_sync.meta.crypto_watch.json');
+    await store?.write(done, DateTime.now().toIso8601String());
+  }
+
   /// 交易&自律的每一單（`trades.json`）跟每月月初資金
   /// （`trade_capital.json`），兩個檔各自比對、各自跳過，筆數加總回報。
   Future<({int downloaded, int uploaded})> syncTrades(

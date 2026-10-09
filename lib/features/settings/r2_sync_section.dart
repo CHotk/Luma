@@ -379,14 +379,14 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
             HomeCardOrderStore(container.read(keyValueStoreProvider), 'app'),
           ),
         ),
-        run(
-          '交易紀錄',
-          (p) => _habitPhases['trade'] = p,
-          (onPhase) => service.syncTrades(
+        run('交易紀錄', (p) => _habitPhases['trade'] = p, (onPhase) async {
+          // 順便刪掉已移除的看盤次數留在雲端的 crypto_watch.json。
+          await service.deleteRetiredCloudFiles();
+          return service.syncTrades(
             container.read(tradeRepositoryProvider),
             onPhase: onPhase,
-          ),
-        ),
+          );
+        }),
         run(
           '抽菸記錄',
           (p) => _habitPhases['smoking'] = p,

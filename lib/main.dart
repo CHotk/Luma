@@ -17,6 +17,7 @@ import 'data/repositories/yt_stats_refresh_setting_store.dart';
 import 'data/repositories/yt_video_open_mode_store.dart';
 import 'data/seed/app_defaults_loader.dart';
 import 'data/storage/platform_store.dart';
+import 'data/storage/retired_data_cleanup.dart';
 import 'shared/debug/app_log.dart';
 
 /// 開機流程做兩件事：把要非同步準備的儲存後端先開好，
@@ -53,6 +54,12 @@ Future<void> _start() async {
     final errorLog = ErrorLogRepository(store);
     AppLog.persistError = errorLog.add;
     AppLog.restore(await errorLog.loadAll());
+    // 已移除功能的舊資料（看盤次數）順手清掉；失敗不影響開機。
+    try {
+      await removeRetiredLocalData(store);
+    } catch (e, stack) {
+      AppLog.add('清除已移除功能的舊資料失敗：$e\n$stack', isError: true);
+    }
     final tagOrder = await loadLibraryTagOrder();
     // 過期（存進去一週之後）就是 null，跟原本沒存過一樣——見
     // yt_api_key_store.dart 的說明。
