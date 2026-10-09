@@ -422,13 +422,16 @@ final _decimalOnly = [
 String _numText(double v) =>
     v == v.roundToDouble() ? v.toInt().toString() : v.toString();
 
-/// 已實現損益輸入框：左邊的 + / − 點一下切換賺賠（2026-10-10 使用者要求：
-/// 不用另外選賺或賠，點符號切換正負）。
+/// 損益輸入框（USDT 或 %）：左邊的 + / − 點一下切換賺賠（2026-10-10 使用者
+/// 要求：不用另外選賺或賠，點符號切換正負）。
 Widget _pnlField({
   required TextEditingController controller,
   required bool win,
   required VoidCallback onToggle,
   bool autofocus = false,
+  String hint = '點左邊 + / − 切換賺賠',
+  String suffix = 'USDT',
+  String signKey = 'pnl-sign',
 }) {
   final c = win ? tradeUp : tradeDown;
   return TextField(
@@ -438,15 +441,15 @@ Widget _pnlField({
     inputFormatters: _decimalOnly,
     style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: c),
     decoration: _input(
-      '點左邊 + / − 切換賺賠',
-      suffix: 'USDT',
+      hint,
+      suffix: suffix,
       prefix: Padding(
         padding: const EdgeInsets.only(left: 6, right: 6),
         child: Material(
           color: c.withValues(alpha: 0.18),
           borderRadius: BorderRadius.circular(8),
           child: InkWell(
-            key: const ValueKey('pnl-sign'),
+            key: ValueKey(signKey),
             onTap: onToggle,
             borderRadius: BorderRadius.circular(8),
             child: SizedBox(
@@ -756,7 +759,13 @@ class _NewTradeSheetState extends State<_NewTradeSheet> {
   final _symbolCtrl = TextEditingController();
   final _marginCtrl = TextEditingController();
   final _pnlCtrl = TextEditingController();
+  final _pctCtrl = TextEditingController();
   final _noteCtrl = TextEditingController();
+
+  /// 補記已平倉的單時，本金預設由「損益 ÷ 盈虧 %」自動算（2026-10-10 使用者
+  /// 要求：幣安歷史紀錄看得到 % 跟損益，本金反而要自己算）。使用者自己改過
+  /// 本金就不再自動蓋掉，按「用 % 重新算」才回到自動。
+  bool _marginManual = false;
 
   @override
   void initState() {
@@ -793,20 +802,45 @@ class _NewTradeSheetState extends State<_NewTradeSheet> {
       if (t.pnl != null) {
         _win = t.pnl! >= 0;
         _pnlCtrl.text = _numText(t.pnl!.abs());
+        if (t.pnlPercent != null) {
+          _pctCtrl.text = _numText(_round2(t.pnlPercent!.abs()));
+        }
       }
+      // 編輯舊單：原本存的本金是準的，% 是四捨五入過的，不要拿 % 回推蓋掉。
+      _marginManual = true;
       _noteCtrl.text = t.note ?? '';
     }
-    for (final c in [_symbolCtrl, _marginCtrl, _pnlCtrl, _noteCtrl]) {
+    _pnlCtrl.addListener(_autoMargin);
+    _pctCtrl.addListener(_autoMargin);
+    for (final c in [_symbolCtrl, _marginCtrl, _pnlCtrl, _pctCtrl, _noteCtrl]) {
       c.addListener(() => setState(() {}));
     }
   }
 
   @override
   void dispose() {
-    for (final c in [_symbolCtrl, _marginCtrl, _pnlCtrl, _noteCtrl]) {
+    for (final c in [_symbolCtrl, _marginCtrl, _pnlCtrl, _pctCtrl, _noteCtrl]) {
       c.dispose();
     }
     super.dispose();
+  }
+
+  static double _round2(double v) => (v * 100).roundToDouble() / 100;
+
+  double? get _pct => double.tryParse(_pctCtrl.text);
+
+  /// 損益 ÷ 盈虧 %，兩個都填了而且 % 不是 0 才算得出來。
+  double? get _derivedMargin {
+    final p = _pnlAbs, pct = _pct;
+    if (p == null || pct == null || pct == 0) return null;
+    return _round2(p / pct * 100);
+  }
+
+  void _autoMargin() {
+    if (!_closed || _marginManual) return;
+    final m = _derivedMargin;
+    final text = m == null ? '' : _numText(m);
+    if (_marginCtrl.text != text) _marginCtrl.text = text;
   }
 
   String get _sym =>
@@ -849,13 +883,20 @@ class _NewTradeSheetState extends State<_NewTradeSheet> {
     final calc = <InlineSpan>[];
     if (lev == null || m == null || m <= 0 || lev < 1) {
       calc.addAll([
-        const TextSpan(text: '填本金之後，這裡會算出'),
+        TextSpan(text: _closed ? '填完 % 跟損益（或本金）之後，這裡會算出' : '填本金之後，這裡會算出'),
         _strong('倉位大小'),
         const TextSpan(text: '和'),
         _strong('價格反向走多少 % 本金就歸零'),
       ]);
     } else {
       final liq = 100 / lev;
+      if (_closed && !_marginManual && _pct != null) {
+        calc.addAll([
+          TextSpan(text: '本金＝${fmtAmount(_pnlAbs!)} ÷ ${_numText(_pct!)}%＝'),
+          _strong('${fmtAmount(m)} USDT'),
+          const TextSpan(text: '\n'),
+        ]);
+      }
       calc.addAll([
         TextSpan(text: '倉位大小＝${fmtAmount(m)} × ${fmtLev(lev)}＝'),
         _strong('${fmtAmount(m * lev)} USDT'),
@@ -933,26 +974,66 @@ class _NewTradeSheetState extends State<_NewTradeSheet> {
           value: _leverage,
           onChanged: (v) => setState(() => _leverage = v),
         ),
-        _fieldLabel('本金（保證金）'),
+        SwitchListTile(
+          value: _closed,
+          onChanged: (v) => setState(() {
+            _closed = v;
+            _autoMargin();
+          }),
+          contentPadding: EdgeInsets.zero,
+          dense: true,
+          title: Text(
+            widget.initial == null ? '已經平倉了（補記以前的單）' : '已經平倉了',
+            style: const TextStyle(fontSize: 13, color: AppColors.ink2),
+          ),
+        ),
+        if (_closed) ...[
+          _fieldLabel('盈虧 %', trailing: '本金報酬率，幣安紀錄上那個 %'),
+          _pnlField(
+            controller: _pctCtrl,
+            win: _win,
+            onToggle: () => setState(() => _win = !_win),
+            hint: '例如 12.5',
+            suffix: '%',
+            signKey: 'pct-sign',
+          ),
+          _fieldLabel('已實現損益', trailing: '記在平倉那天 ${fmtDay(_closedAt)}'),
+          _pnlField(
+            controller: _pnlCtrl,
+            win: _win,
+            onToggle: () => setState(() => _win = !_win),
+          ),
+        ],
+        _fieldLabel(
+          _closed && !_marginManual ? '本金（自動算）' : '本金（保證金）',
+          trailing: _closed && !_marginManual ? '＝損益 ÷ 盈虧 %，可以自己改' : null,
+        ),
         TextField(
           controller: _marginCtrl,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           inputFormatters: _decimalOnly,
+          onChanged: (_) => setState(() => _marginManual = true),
           style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
-          decoration: _input('例如 400', suffix: 'USDT'),
-        ),
-        _calcBox(calc),
-        const SizedBox(height: 6),
-        SwitchListTile(
-          value: _closed,
-          onChanged: (v) => setState(() => _closed = v),
-          contentPadding: EdgeInsets.zero,
-          dense: true,
-          title: Text(
-            widget.initial == null ? '已經平倉了（補記一整單）' : '已經平倉了',
-            style: const TextStyle(fontSize: 13, color: AppColors.ink2),
+          decoration: _input(
+            _closed && !_marginManual ? '填完 % 跟損益就會算出來' : '例如 400',
+            suffix: 'USDT',
           ),
         ),
+        if (_closed &&
+            _marginManual &&
+            _derivedMargin != null &&
+            _derivedMargin != _margin)
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: () => setState(() {
+                _marginManual = false;
+                _autoMargin();
+              }),
+              child: Text('用 % 重新算（${fmtAmount(_derivedMargin!)}）'),
+            ),
+          ),
+        _calcBox(calc),
         _fieldLabel('時間', trailing: '補記以前的單可以改'),
         _timeField('開倉時間', _openedAt, () async {
           final t = await _pickDateTime(context, _openedAt);
@@ -979,14 +1060,6 @@ class _NewTradeSheetState extends State<_NewTradeSheet> {
                     : AppColors.ink3,
               ),
             ),
-          ),
-        ],
-        if (_closed) ...[
-          _fieldLabel('已實現損益', trailing: '記在平倉那天 ${fmtDay(_closedAt)}'),
-          _pnlField(
-            controller: _pnlCtrl,
-            win: _win,
-            onToggle: () => setState(() => _win = !_win),
           ),
         ],
         _fieldLabel('備註（選填）'),

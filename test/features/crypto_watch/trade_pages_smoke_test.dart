@@ -150,11 +150,11 @@ void main() {
     expect(find.text('開倉時間'), findsOneWidget);
     expect(find.text('平倉時間'), findsNothing);
     await tester.scrollUntilVisible(
-      find.text('已經平倉了（補記一整單）'),
+      find.text('已經平倉了（補記以前的單）'),
       200,
       scrollable: find.byType(Scrollable).last,
     );
-    await tester.tap(find.text('已經平倉了（補記一整單）'));
+    await tester.tap(find.text('已經平倉了（補記以前的單）'));
     await tester.pumpAndSettle();
     expect(find.text('平倉時間'), findsOneWidget);
     expect(find.textContaining('持倉'), findsWidgets);
@@ -168,11 +168,11 @@ void main() {
     await tester.tap(find.text('記一筆交易'));
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
-      find.text('已經平倉了（補記一整單）'),
+      find.text('已經平倉了（補記以前的單）'),
       200,
       scrollable: find.byType(Scrollable).last,
     );
-    await tester.tap(find.text('已經平倉了（補記一整單）'));
+    await tester.tap(find.text('已經平倉了（補記以前的單）'));
     await tester.pumpAndSettle();
     // 背後主畫面月曆圖例也有「賺」「賠」，只看表單裡的。
     final sheet = find.byType(BottomSheet);
@@ -188,6 +188,61 @@ void main() {
     await tester.tap(sign);
     await tester.pump();
     expect(find.descendant(of: sign, matching: find.text('−')), findsOneWidget);
+    // % 那格的符號跟著一起變，賺賠只有一個。
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('pct-sign')),
+        matching: find.text('−'),
+      ),
+      findsOneWidget,
+    );
+    await finish(tester);
+  });
+
+  testWidgets('補記：開關緊接在槓桿後面，填 % 跟損益自動算出本金', (tester) async {
+    await pumpPage(tester, const CryptoWatchPage(), _MemoryStore());
+    await tester.drag(find.byType(ListView), const Offset(0, -900));
+    await tester.pump();
+    await tester.tap(find.text('記一筆交易'));
+    await tester.pumpAndSettle();
+    final sheetScroll = find.byType(Scrollable).last;
+    final sw = find.text('已經平倉了（補記以前的單）');
+    await tester.scrollUntilVisible(sw, 200, scrollable: sheetScroll);
+    // 開關在本金輸入框上面。
+    expect(
+      tester.getTopLeft(sw).dy,
+      lessThan(tester.getTopLeft(find.text('本金（保證金）')).dy),
+    );
+    await tester.tap(sw);
+    await tester.pumpAndSettle();
+    expect(find.text('本金（自動算）'), findsOneWidget);
+
+    Finder fieldWithHint(String hint) => find.byWidgetPredicate(
+      (w) => w is TextField && w.decoration?.hintText == hint,
+    );
+    await tester.enterText(fieldWithHint('例如 12.5'), '12.5');
+    await tester.enterText(fieldWithHint('點左邊 + / − 切換賺賠'), '50');
+    await tester.pump();
+    final margin = tester.widget<TextField>(fieldWithHint('填完 % 跟損益就會算出來'));
+    expect(margin.controller!.text, '400');
+    expect(find.textContaining('本金＝50 ÷ 12.5%＝'), findsOneWidget);
+    expect(
+      tester
+          .widget<FilledButton>(find.widgetWithText(FilledButton, '儲存'))
+          .onPressed,
+      isNotNull,
+    );
+
+    // 自己改本金之後，再改 % 不會蓋掉，可以按「用 % 重新算」回來。
+    await tester.enterText(fieldWithHint('填完 % 跟損益就會算出來'), '420');
+    await tester.pump();
+    expect(find.text('本金（保證金）'), findsOneWidget);
+    await tester.enterText(fieldWithHint('例如 12.5'), '10');
+    await tester.pump();
+    expect(margin.controller!.text, '420');
+    await tester.tap(find.textContaining('用 % 重新算'));
+    await tester.pump();
+    expect(margin.controller!.text, '500');
     await finish(tester);
   });
 
