@@ -6,6 +6,7 @@ import '../../app/router.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
+import '../../data/repositories/usdt_twd_rate_store.dart';
 import '../../data/cloud/r2_client.dart';
 import '../../data/cloud/r2_credentials_store.dart';
 import '../../data/cloud/r2_sync_service.dart';
@@ -382,9 +383,22 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
         run('交易紀錄', (p) => _habitPhases['trade'] = p, (onPhase) async {
           // 順便刪掉已移除的看盤次數留在雲端的 crypto_watch.json。
           await service.deleteRetiredCloudFiles();
-          return service.syncTrades(
+          final trades = await service.syncTrades(
             container.read(tradeRepositoryProvider),
             onPhase: onPhase,
+          );
+          // USDT 換台幣匯率也算交易的設定，一起同步；別台改過就套用到畫面。
+          final rateStore = UsdtTwdRateStore(
+            container.read(keyValueStoreProvider),
+          );
+          final rate = await service.syncUsdtTwdRate(rateStore);
+          if (rate.downloaded > 0) {
+            container.read(usdtTwdRateProvider.notifier).state = await rateStore
+                .load();
+          }
+          return (
+            downloaded: trades.downloaded + rate.downloaded,
+            uploaded: trades.uploaded + rate.uploaded,
           );
         }),
         run(

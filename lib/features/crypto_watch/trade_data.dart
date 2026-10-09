@@ -202,7 +202,7 @@ class _CapitalDialogState extends State<_CapitalDialog> {
 
   void _save() {
     final v = double.tryParse(_ctrl.text.replaceAll(',', ''));
-    if (v != null && v > 0) Navigator.pop(context, v);
+    if (v != null && v > 0) Navigator.pop(context, round1(v));
   }
 
   @override
@@ -219,6 +219,7 @@ class _CapitalDialogState extends State<_CapitalDialog> {
             controller: _ctrl,
             autofocus: true,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: oneDecimalInput,
             decoration: InputDecoration(
               suffixText: 'USDT',
               // 邊打邊看台幣多少。

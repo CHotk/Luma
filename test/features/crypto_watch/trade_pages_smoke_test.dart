@@ -11,6 +11,7 @@ import 'package:lume/features/crypto_watch/crypto_watch_page.dart';
 import 'package:lume/features/crypto_watch/trade_day_page.dart';
 import 'package:lume/features/crypto_watch/trade_journal_page.dart';
 import 'package:lume/features/crypto_watch/trade_report_page.dart';
+import 'package:lume/features/crypto_watch/trade_ui.dart';
 
 /// 交易&自律四頁在手機寬度（360）畫得出來、不爆版，有資料跟沒資料都要。
 void main() {
@@ -88,7 +89,8 @@ void main() {
       expect(find.text('${DateTime.now().month} 月已實現損益'), findsOneWidget);
       expect(find.text('距離上次看盤'), findsNothing);
       expect(find.textContaining('👁'), findsNothing);
-      if (!empty) expect(find.text('+98,645.43'), findsWidgets);
+      // 舊資料有兩位小數，顯示一律四捨五入到小數第一位。
+      if (!empty) expect(find.text('+98,645.4'), findsWidgets);
       // USDT 後面有台幣換算（預設匯率 31）。
       if (!empty) expect(find.textContaining('≈ +NT\$'), findsWidgets);
       await tester.drag(find.byType(ListView), const Offset(0, -900));
@@ -439,6 +441,85 @@ void main() {
     await finish(tester);
   });
 
+  testWidgets('最上面的損益卡跟著月曆的月份變；月曆標出開倉日、平倉日', (tester) async {
+    final store = _MemoryStore();
+    final repo = TradeRepository(store);
+    final now = DateTime.now();
+    final last = DateTime(now.year, now.month - 1);
+    await repo.add(
+      symbol: 'BTC',
+      isLong: true,
+      leverage: 10,
+      margin: 100,
+      openedAt: DateTime(last.year, last.month, 3, 9),
+      closedAt: DateTime(last.year, last.month, 5, 12),
+      pnl: 77,
+    );
+    await repo.add(
+      symbol: 'ETH',
+      isLong: true,
+      leverage: 5,
+      margin: 100,
+      openedAt: DateTime(now.year, now.month, 1, 9),
+      closedAt: DateTime(now.year, now.month, 1, 12),
+      pnl: -12,
+    );
+    await pumpPage(tester, const CryptoWatchPage(), store);
+    expect(find.textContaining('${now.month} 月已實現損益'), findsOneWidget);
+    expect(find.text('−12'), findsWidgets);
+    // 這個月 1 號同一天開又平：開、平兩個標籤都在（另外圖例各一個）。
+    expect(find.text('開'), findsNWidgets(2));
+    expect(find.text('平'), findsNWidgets(2));
+
+    await tester.tap(find.byTooltip('上一個有紀錄的月份'));
+    await tester.pump();
+    expect(find.textContaining('${last.month} 月已實現損益'), findsOneWidget);
+    expect(find.text('+77'), findsWidgets);
+    expect(find.text('−12'), findsNothing);
+    // 上個月 3 號開、5 號平：各一個標籤＋圖例。
+    expect(find.text('開'), findsNWidgets(2));
+    expect(find.text('平'), findsNWidgets(2));
+    await finish(tester);
+  });
+
+  test('交易數字最多小數第一位，超過四捨五入', () {
+    expect(round1(12.36), 12.4);
+    expect(round1(12.34), 12.3);
+    expect(fmtAmount(1234.56), '1,234.6');
+    expect(fmtPnl(-0.04), '0');
+    expect(fmtPnl(98765.43), '+98,765.4');
+    expect(fmtAmount(400), '400');
+  });
+
+  testWidgets('輸入框打到小數第二位自動四捨五入；本金自動算也只到第一位', (tester) async {
+    await pumpPage(tester, const CryptoWatchPage(), _MemoryStore());
+    await tester.drag(find.byType(ListView), const Offset(0, -900));
+    await tester.pump();
+    await tester.tap(find.text('記一筆交易'));
+    await tester.pumpAndSettle();
+    final sheetScroll = find.byType(Scrollable).last;
+    final sw = find.text('已經平倉了（補記以前的單）');
+    await tester.scrollUntilVisible(sw, 200, scrollable: sheetScroll);
+    await tester.tap(sw);
+    await tester.pumpAndSettle();
+    Finder fieldWithHint(String hint) => find.byWidgetPredicate(
+      (w) => w is TextField && w.decoration?.hintText == hint,
+    );
+    TextField field(String hint) =>
+        tester.widget<TextField>(fieldWithHint(hint));
+
+    // 盈虧 % 打 12.36 → 變 12.4。
+    await tester.enterText(fieldWithHint('例如 12.5'), '12.36');
+    await tester.pump();
+    expect(field('例如 12.5').controller!.text, '12.4');
+
+    // 損益 50 ÷ 12.4% ＝ 403.2258… → 本金 403.2。
+    await tester.enterText(fieldWithHint('點左邊 + / − 切換賺賠'), '50');
+    await tester.pump();
+    expect(field('填完 % 跟損益就會算出來').controller!.text, '403.2');
+    await finish(tester);
+  });
+
   testWidgets('槓桿拉桿最高 18x', (tester) async {
     await pumpPage(tester, const CryptoWatchPage(), _MemoryStore());
     await tester.drag(find.byType(ListView), const Offset(0, -900));
@@ -470,7 +551,8 @@ void main() {
 
   testWidgets('設定月初資金後，月報酬馬上出現', (tester) async {
     await pumpPage(tester, const CryptoWatchPage(), _MemoryStore());
-    await tester.tap(find.text('設定'));
+    // 月初資金在最上面的損益卡裡點（月曆上那排小格子跟它重複，拿掉了）。
+    await tester.tap(find.textContaining('設定月初資金'));
     await tester.pumpAndSettle();
     expect(find.text('${DateTime.now().month} 月初的資金'), findsOneWidget);
     await tester.enterText(find.byType(TextField).last, '2000');
@@ -481,9 +563,9 @@ void main() {
       );
       await tester.pump();
     }
-    expect(find.text('月初 2,000 ✎'), findsOneWidget);
+    expect(find.textContaining('月初 2,000 USDT'), findsOneWidget);
     expect(find.textContaining('已設定'), findsOneWidget);
-    expect(find.text('設定'), findsNothing);
+    expect(find.textContaining('設定月初資金'), findsNothing);
     await finish(tester);
   });
 }

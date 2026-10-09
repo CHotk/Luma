@@ -19,6 +19,7 @@ import '../../shared/widgets/app_notice.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
 import '../../shared/widgets/glass_card.dart';
+import '../crypto_watch/trade_ui.dart' show oneDecimalInput, round1;
 import '../yt_tracker/yt_api_key_dialog.dart';
 import '../yt_tracker/yt_tracker_browse_page.dart'
     show refreshYtSubscriberStats;
@@ -199,7 +200,7 @@ class _AppHomeSettings extends ConsumerWidget {
 }
 
 /// 交易&自律的設定（2026-10-10 使用者要求）：USDT 換台幣的匯率，預設 31。
-/// 只存這台裝置，改完各頁的「≈ NT$」馬上跟著變。
+/// 改完各頁的「≈ NT$」馬上跟著變，按同步會帶到其他裝置。
 class _TradeSettings extends ConsumerStatefulWidget {
   const _TradeSettings();
 
@@ -212,8 +213,10 @@ class _TradeSettingsState extends ConsumerState<_TradeSettings> {
     text: _fmt(ref.read(usdtTwdRateProvider)),
   )..addListener(() => setState(() {}));
 
-  static String _fmt(double v) =>
-      v == v.roundToDouble() ? v.toInt().toString() : v.toString();
+  static String _fmt(double v) {
+    final r = round1(v);
+    return r == r.roundToDouble() ? r.toInt().toString() : r.toStringAsFixed(1);
+  }
 
   @override
   void dispose() {
@@ -223,7 +226,7 @@ class _TradeSettingsState extends ConsumerState<_TradeSettings> {
 
   double? get _value {
     final v = double.tryParse(_ctrl.text.trim());
-    return v == null || v <= 0 ? null : v;
+    return v == null || v <= 0 ? null : round1(v);
   }
 
   Future<void> _save(double rate) async {
@@ -256,7 +259,7 @@ class _TradeSettingsState extends ConsumerState<_TradeSettings> {
               ),
               Text(
                 'USDT 金額後面會加上「≈ NT\$」換算，預設 '
-                '${_fmt(UsdtTwdRateStore.defaultRate)}',
+                '${_fmt(UsdtTwdRateStore.defaultRate)}・同步時會帶到其他裝置',
                 style: AppText.note,
               ),
               const SizedBox(height: Gap.sm),
@@ -273,6 +276,8 @@ class _TradeSettingsState extends ConsumerState<_TradeSettings> {
                       keyboardType: const TextInputType.numberWithOptions(
                         decimal: true,
                       ),
+                      // 跟交易功能其他數字一樣最多小數第一位。
+                      inputFormatters: oneDecimalInput,
                       decoration: InputDecoration(
                         suffixText: '台幣',
                         isDense: true,

@@ -35,6 +35,7 @@ import '../repositories/history_repository.dart';
 import '../repositories/kana_exam_repository.dart';
 import '../repositories/kana_practice_repository.dart';
 import '../repositories/sync_log_repository.dart';
+import '../repositories/usdt_twd_rate_store.dart';
 import '../storage/key_value_store.dart';
 import 'r2_client.dart';
 
@@ -711,6 +712,46 @@ class R2SyncService {
     allForUpload: repo.allForUpload,
     onPhase: onPhase,
   );
+
+  /// USDT 換台幣匯率（`usdt_twd_rate.json`，2026-10-10 使用者要求跨裝置
+  /// 同步）。跟首頁功能順序同一套：比改的時間，後改的贏；兩邊都沒設定
+  /// 過就什麼都不做。
+  Future<({int downloaded, int uploaded})> syncUsdtTwdRate(
+    UsdtTwdRateStore store,
+  ) async {
+    const key = UsdtTwdRateStore.cloudKey;
+    final local = await store.loadRecord();
+    final beforeBytes = utf8.encode(jsonEncode(local?.toJson()));
+    if (await _canSkip(key, beforeBytes)) return (downloaded: 0, uploaded: 0);
+
+    final fetched = await _client.getObjectWithEtag(key);
+    if (fetched.bytes == null) {
+      if (local == null) return (downloaded: 0, uploaded: 0);
+      final body = utf8.encode(jsonEncode(local.toJson()));
+      final etag = await _client.putObject(key, Uint8List.fromList(body));
+      await _writeMeta(key, body, etag);
+      return (downloaded: 0, uploaded: 1);
+    }
+
+    final cloud = UsdtTwdRateRecord.fromJson(
+      jsonDecode(utf8.decode(fetched.bytes!)) as Map<String, dynamic>,
+    );
+    if (local == null || cloud.updatedAt.isAfter(local.updatedAt)) {
+      await store.saveRecord(cloud);
+      final body = utf8.encode(jsonEncode(cloud.toJson()));
+      await _writeMeta(key, body, fetched.etag);
+      return (downloaded: 1, uploaded: 0);
+    }
+    if (local.updatedAt.isAfter(cloud.updatedAt)) {
+      final body = utf8.encode(jsonEncode(local.toJson()));
+      final etag = await _client.putObject(key, Uint8List.fromList(body));
+      await _writeMeta(key, body, etag);
+      return (downloaded: 0, uploaded: 1);
+    }
+    final body = utf8.encode(jsonEncode(local.toJson()));
+    await _writeMeta(key, body, fetched.etag);
+    return (downloaded: 0, uploaded: 0);
+  }
 
   /// 已移除功能留在雲端的檔案（看盤次數的 `crypto_watch.json`，2026-10-10
   /// 使用者要求舊資料也刪）。每台裝置成功刪過一次就記下來，之後同步不再

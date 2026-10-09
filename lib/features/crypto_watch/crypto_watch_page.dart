@@ -21,8 +21,8 @@ import 'trade_ui.dart';
 /// - 最上面是**當月損益**卡片。原本是版本 3 的看盤卡片（距離上次看盤、
 ///   冷靜 10 分鐘、看了），2026-10-10 使用者要求整個移除看盤次數功能，
 ///   改成當月損益；
-/// - 版本 2 的月曆：每格寫當天損益（綠賺紅賠），點一天進「那天發生
-///   什麼」。‹ › 只停在有紀錄的月份＋當月（2026-10-10 使用者要求：6、9、
+/// - 版本 2 的月曆：每格寫當天損益（綠賺紅賠）、開倉日／平倉日的「開」
+///   「平」小標籤，點一天進「那天發生什麼」。‹ › 只停在有紀錄的月份＋當月（2026-10-10 使用者要求：6、9、
 ///   10 月有紀錄，往前看就是 10 → 9 → 6）；
 /// - 右上角「交易日誌」接版本 4 的卡片流，「月報」是版本 3 的自律成績單
 ///   ＋版本 4 的什麼樣的單在賺，每個月（含當月）都能看。
@@ -79,7 +79,7 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
                         )
                       : ListView(
                           children: [
-                            _MonthPnlCard(data: data),
+                            _MonthPnlCard(data: data, month: _month),
                             const SizedBox(height: Gap.md),
                             _buildMonthCard(data),
                             if (_monthTrades(data).isNotEmpty) ...[
@@ -194,7 +194,6 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
     final months = data.navMonths;
     final prev = prevRecordMonth(months, _month);
     final next = nextRecordMonth(months, _month);
-    final ret = sum.returnPercent;
     final holdDays = <DateTime>{};
     final litDays = <DateTime>{};
     for (final t in _monthTrades(data)) {
@@ -202,6 +201,11 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
       holdDays.addAll(days);
       if (t.id == _ganttSel) litDays.addAll(days);
     }
+    final openDays = {for (final t in data.trades) dayOf(t.openedAt)};
+    final closeDays = {
+      for (final t in data.trades)
+        if (t.closedAt != null) dayOf(t.closedAt!),
+    };
 
     return GlassCard(
       child: Column(
@@ -254,37 +258,6 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
                 ),
             ],
           ),
-          const SizedBox(height: Gap.xs),
-          Row(
-            children: [
-              _kpi(
-                fmtPnl(sum.total),
-                '${_month.month} 月損益',
-                color: pnlColor(sum.total),
-              ),
-              const SizedBox(width: 6),
-              _kpi(
-                ret == null ? '設定' : fmtPct(ret),
-                // 月初資金的數字直接寫出來（2026-10-08 使用者回報：設定完
-                // 只看到 0.0%，看不到剛填的金額，以為沒存到）。
-                ret == null
-                    ? '月初資金'
-                    : '月初 ${fmtAmount(data.capitalOf(_month)!)}',
-                color: ret == null ? AppColors.accent : pnlColor(ret),
-                onTap: () => editCapitalFlow(
-                  context,
-                  ref,
-                  _month,
-                  data.capitalOf(_month),
-                ),
-              ),
-              const SizedBox(width: 6),
-              _kpi(
-                '${sum.closed.length} 單',
-                sum.winRate == null ? '已平倉' : '勝率 ${sum.winRate!.round()}%',
-              ),
-            ],
-          ),
           const SizedBox(height: Gap.md),
           Row(
             children: [
@@ -312,6 +285,12 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
                     DateTime(_month.year, _month.month, d),
                   ),
                   lit: litDays.contains(DateTime(_month.year, _month.month, d)),
+                  opened: openDays.contains(
+                    DateTime(_month.year, _month.month, d),
+                  ),
+                  closed: closeDays.contains(
+                    DateTime(_month.year, _month.month, d),
+                  ),
                 ),
             ],
           ),
@@ -323,6 +302,22 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
               _legend(tradeUp.withValues(alpha: 0.4), '賺'),
               _legend(tradeDown.withValues(alpha: 0.4), '賠'),
               _legend(AppColors.mid.withValues(alpha: 0.45), '底部黃線＝有抱單'),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _tag('開', open: true),
+                  const SizedBox(width: 4),
+                  Text('開倉日', style: AppText.note),
+                ],
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _tag('平', open: false),
+                  const SizedBox(width: 4),
+                  Text('平倉日', style: AppText.note),
+                ],
+              ),
             ],
           ),
           const SizedBox(height: 4),
@@ -335,48 +330,13 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
     );
   }
 
-  Widget _kpi(
-    String value,
-    String label, {
-    Color color = AppColors.ink,
-    VoidCallback? onTap,
-  }) => Expanded(
-    child: Material(
-      color: Colors.white.withValues(alpha: 0.04),
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Column(
-            children: [
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: color,
-                  fontFeatures: const [FontFeature.tabularFigures()],
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                onTap == null ? label : '$label ✎',
-                style: AppText.note.copyWith(fontSize: 10.5),
-              ),
-            ],
-          ),
-        ),
-      ),
-    ),
-  );
-
   Widget _dayCell(
     DateTime day, {
     required double? pnl,
     required bool hold,
     required bool lit,
+    required bool opened,
+    required bool closed,
   }) {
     final now = DateTime.now();
     final isToday = day == dayOf(now);
@@ -426,6 +386,21 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
                           color: AppColors.ink3,
                         ),
                       ),
+                      // 開倉日／平倉日的小標籤，放在損益上面（2026-10-10
+                      // 使用者要求月曆上看得到哪天開、哪天平，照持倉期間
+                      // 設計稿版本 2 的「開」黃底、「平」深底）。
+                      if (opened || closed)
+                        Align(
+                          alignment: const Alignment(-1, 0.05),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (opened) _tag('開', open: true),
+                              if (opened && closed) const SizedBox(width: 2),
+                              if (closed) _tag('平', open: false),
+                            ],
+                          ),
+                        ),
                       if (pnl != null)
                         Align(
                           alignment: Alignment.bottomCenter,
@@ -665,6 +640,23 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
     );
   }
 
+  Widget _tag(String text, {required bool open}) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 2.5),
+    decoration: BoxDecoration(
+      color: open ? AppColors.mid : const Color(0xFF2A2A3D),
+      borderRadius: BorderRadius.circular(3),
+    ),
+    child: Text(
+      text,
+      style: TextStyle(
+        fontSize: 8.5,
+        height: 1.3,
+        fontWeight: FontWeight.w800,
+        color: open ? const Color(0xFF1A1405) : AppColors.ink,
+      ),
+    ),
+  );
+
   Widget _legend(Color c, String label) => Row(
     mainAxisSize: MainAxisSize.min,
     children: [
@@ -682,22 +674,24 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
   );
 }
 
-/// 最上面的當月損益卡（2026-10-10 取代原本的看盤卡片）：永遠是這個月，
-/// 跟下面月曆切到哪個月無關。大字本月已實現損益，下面月報酬 %、月初資金
-/// （點了改），再一行已平倉幾單、勝率、持倉中幾單。
+/// 最上面的月損益卡（2026-10-10 取代原本的看盤卡片）：跟著下面月曆選的
+/// 月份變（使用者回報：原本固定當月，切月曆它不會跟著變）。大字那個月的
+/// 已實現損益，下面月報酬 %、月初資金（點了改），再一行已平倉幾單、勝率；
+/// 看的是當月才多寫持倉中幾單。
 class _MonthPnlCard extends ConsumerWidget {
-  const _MonthPnlCard({required this.data});
+  const _MonthPnlCard({required this.data, required this.month});
 
   final TradeData data;
+  final DateTime month;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final now = DateTime.now();
-    final month = DateTime(now.year, now.month);
+    final isThisMonth = month.year == now.year && month.month == now.month;
     final sum = data.month(month);
     final ret = sum.returnPercent;
     final cap = data.capitalOf(month);
-    final open = data.openTrades.length;
+    final open = isThisMonth ? data.openTrades.length : 0;
     final rate = ref.watch(usdtTwdRateProvider);
     return GlassCard(
       padding: const EdgeInsets.fromLTRB(15, 12, 15, 15),
@@ -712,7 +706,11 @@ class _MonthPnlCard extends ConsumerWidget {
                 color: AppColors.ink2,
               ),
               const SizedBox(width: 6),
-              Text('${now.month} 月已實現損益', style: AppText.note),
+              Text(
+                '${month.year == now.year ? '' : '${month.year} 年 '}'
+                '${month.month} 月已實現損益',
+                style: AppText.note,
+              ),
               const Spacer(),
               TextButton(
                 onPressed: () => context.push(

@@ -23,10 +23,14 @@ Color pnlColor(double? v) => v == null || v == 0
     ? tradeUp
     : tradeDown;
 
+/// 交易功能的數字一律最多小數第一位，超過四捨五入（2026-10-10 使用者
+/// 要求：本金自動算、輸入、顯示全部一樣）。
+double round1(double v) => (v * 10).roundToDouble() / 10;
+
 String _num(double v) {
-  final abs = v.abs();
+  final abs = round1(v.abs());
   final whole = abs == abs.roundToDouble();
-  final s = whole ? abs.round().toString() : abs.toStringAsFixed(2);
+  final s = whole ? abs.round().toString() : abs.toStringAsFixed(1);
   final parts = s.split('.');
   final intPart = parts[0].replaceAllMapped(
     RegExp(r'\B(?=(\d{3})+(?!\d))'),
@@ -38,22 +42,27 @@ String _num(double v) {
 }
 
 /// 「+246」「−120」「0」。
-String fmtPnl(double v) =>
-    '${v > 0
-        ? '+'
-        : v < 0
-        ? '−'
-        : ''}${_num(v)}';
+String fmtPnl(double v) {
+  // 正負號看四捨五入後的值，−0.04 顯示「0」不是「−0」。
+  final r = round1(v);
+  return '${r > 0
+      ? '+'
+      : r < 0
+      ? '−'
+      : ''}${_num(r)}';
+}
 
 /// 不帶正負號的金額，例如本金 1,500。
 String fmtAmount(double v) => _num(v);
 
-String fmtPct(double v) =>
-    '${v > 0
-        ? '+'
-        : v < 0
-        ? '−'
-        : ''}${v.abs().toStringAsFixed(1)}%';
+String fmtPct(double v) {
+  final r = round1(v);
+  return '${r > 0
+      ? '+'
+      : r < 0
+      ? '−'
+      : ''}${r.abs().toStringAsFixed(1)}%';
+}
 
 /// USDT 換台幣，接在 USDT 金額後面（2026-10-10 使用者要求：匯率預設 31，
 /// 設定可改）。台幣取到整數，例如「≈ NT$12,400」；[signed] 給損益用，
@@ -435,13 +444,31 @@ InputDecoration _input(String hint, {String? suffix, Widget? prefix}) =>
       ),
     );
 
-final _decimalOnly = [
-  FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,4}')),
+/// 交易功能的數字輸入框：只收數字跟一個小數點，打到小數第二位就自動
+/// 四捨五入回第一位（12.36 → 12.4），不是擋住不讓打。記一筆、平倉、
+/// 月初資金、匯率設定共用。
+final oneDecimalInput = <TextInputFormatter>[
+  FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
+  TextInputFormatter.withFunction((oldValue, newValue) {
+    final t = newValue.text;
+    final dot = t.indexOf('.');
+    if (dot < 0 || t.length - dot - 1 <= 1) return newValue;
+    final v = double.tryParse(t);
+    if (v == null) return oldValue;
+    final text = _numText(v);
+    return TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+    );
+  }),
 ];
 
-/// 數字放回輸入框用（編輯舊單時），整數不帶 `.0`、也不加千分位逗號。
-String _numText(double v) =>
-    v == v.roundToDouble() ? v.toInt().toString() : v.toString();
+/// 數字放回輸入框用（編輯舊單、自動算本金），最多小數第一位，整數不帶
+/// `.0`、也不加千分位逗號。
+String _numText(double v) {
+  final r = round1(v);
+  return r == r.roundToDouble() ? r.toInt().toString() : r.toStringAsFixed(1);
+}
 
 /// 損益輸入框（USDT 或 %）：左邊的 + / − 點一下切換賺賠（2026-10-10 使用者
 /// 要求：不用另外選賺或賠，點符號切換正負）。
@@ -465,7 +492,7 @@ Widget _pnlField({
     controller: controller,
     autofocus: autofocus,
     keyboardType: const TextInputType.numberWithOptions(decimal: true),
-    inputFormatters: _decimalOnly,
+    inputFormatters: oneDecimalInput,
     style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: c),
     decoration: _input(
       hint,
@@ -831,7 +858,7 @@ class _NewTradeSheetState extends State<_NewTradeSheet> {
         _win = t.pnl! >= 0;
         _pnlCtrl.text = _numText(t.pnl!.abs());
         if (t.pnlPercent != null) {
-          _pctCtrl.text = _numText(_round2(t.pnlPercent!.abs()));
+          _pctCtrl.text = _numText(t.pnlPercent!.abs());
         }
       }
       // 編輯舊單：原本存的本金是準的，% 是四捨五入過的，不要拿 % 回推蓋掉。
@@ -853,15 +880,13 @@ class _NewTradeSheetState extends State<_NewTradeSheet> {
     super.dispose();
   }
 
-  static double _round2(double v) => (v * 100).roundToDouble() / 100;
-
   double? get _pct => double.tryParse(_pctCtrl.text);
 
   /// 損益 ÷ 盈虧 %，兩個都填了而且 % 不是 0 才算得出來。
   double? get _derivedMargin {
     final p = _pnlAbs, pct = _pct;
     if (p == null || pct == null || pct == 0) return null;
-    return _round2(p / pct * 100);
+    return round1(p / pct * 100);
   }
 
   void _autoMargin() {
@@ -1043,7 +1068,7 @@ class _NewTradeSheetState extends State<_NewTradeSheet> {
         TextField(
           controller: _marginCtrl,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          inputFormatters: _decimalOnly,
+          inputFormatters: oneDecimalInput,
           onChanged: (_) => setState(() => _marginManual = true),
           style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
           decoration: _input(
