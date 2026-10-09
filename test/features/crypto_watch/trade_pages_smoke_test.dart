@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lume/app/providers.dart';
 import 'package:lume/data/repositories/crypto_watch_repository.dart';
@@ -188,6 +189,70 @@ void main() {
     await tester.pump();
     expect(find.descendant(of: sign, matching: find.text('−')), findsOneWidget);
     await finish(tester);
+  });
+
+  testWidgets('開倉時間一打開就是直接輸入，打字填日期時間', (tester) async {
+    tester.view.physicalSize = const Size(360 * 3, 780 * 3);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    // 跟 App 一樣用繁中，日期輸入格式才會跟實機一樣。
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [keyValueStoreProvider.overrideWithValue(_MemoryStore())],
+        child: const MaterialApp(
+          locale: Locale('zh', 'TW'),
+          supportedLocales: [Locale('zh', 'TW'), Locale('en')],
+          localizationsDelegates: GlobalMaterialLocalizations.delegates,
+          home: CryptoWatchPage(),
+        ),
+      ),
+    );
+    for (var i = 0; i < 6; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)),
+      );
+      await tester.pump();
+    }
+    await tester.drag(find.byType(ListView), const Offset(0, -900));
+    await tester.pump();
+    await tester.tap(find.text('記一筆交易'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('開倉時間'),
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.tap(find.text('開倉時間'));
+    await tester.pumpAndSettle();
+
+    // 日期：直接是輸入框，不是月曆。
+    expect(find.byType(CalendarDatePicker), findsNothing);
+    final dateField = find.descendant(
+      of: find.byType(Dialog),
+      matching: find.byType(TextField),
+    );
+    expect(dateField, findsOneWidget);
+    await tester.enterText(dateField, '2026/9/3');
+    await tester.tap(find.text('確定'));
+    await tester.pumpAndSettle();
+
+    // 時間：直接是時、分兩個輸入框，不是時鐘。
+    final timeFields = find.descendant(
+      of: find.byType(Dialog),
+      matching: find.byType(TextField),
+    );
+    expect(timeFields, findsNWidgets(2));
+    // 24 小時制：直接打 21 就是晚上九點，不用選上午下午。
+    expect(find.text('上午'), findsNothing);
+    await tester.enterText(timeFields.at(0), '21');
+    await tester.enterText(timeFields.at(1), '05');
+    await tester.tap(find.text('確定'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('9/3'), findsWidgets);
+    expect(find.textContaining('21:05'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
   });
 
   test('編輯一單：欄位全換，平倉的可以改回持倉中', () async {

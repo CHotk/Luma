@@ -498,6 +498,10 @@ TextSpan _strong(String s, {Color color = AppColors.ink, double? size}) =>
 
 /// 選日期再選時間（補記舊交易用，2026-10-08 使用者要求開倉、平倉時間都能
 /// 自己填）。不能選未來；取消回傳 null。
+///
+/// 2026-10-10 使用者要求一打開就是直接打字輸入（等同按了選擇器右下角的
+/// 鍵盤按鈕），不用先在月曆、時鐘上點；想看月曆／時鐘一樣能按圖示切回去。
+/// 舊版長相存在 `design-history/2026-10-10_交易記一筆表單現況.html`。
 Future<DateTime?> _pickDateTime(BuildContext context, DateTime initial) async {
   final now = DateTime.now();
   final date = await showDatePicker(
@@ -505,13 +509,27 @@ Future<DateTime?> _pickDateTime(BuildContext context, DateTime initial) async {
     initialDate: initial.isAfter(now) ? now : initial,
     firstDate: DateTime(2015),
     lastDate: now,
-    helpText: '選日期',
+    initialEntryMode: DatePickerEntryMode.input,
+    helpText: '輸入日期',
+    fieldLabelText: '日期',
+    errorFormatText: '日期格式不對',
+    errorInvalidText: '不能是未來，也不能早於 2015 年',
   );
   if (date == null || !context.mounted) return null;
   final time = await showTimePicker(
     context: context,
     initialTime: TimeOfDay.fromDateTime(initial),
-    helpText: '選時間',
+    initialEntryMode: TimePickerEntryMode.input,
+    // 24 小時制，跟 App 裡顯示的 21:40 一致；不然繁中預設 12 小時制，
+    // 打 9 還要另外選上午／下午，下午打開會被當成 21 點。
+    builder: (context, child) => MediaQuery(
+      data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
+      child: child!,
+    ),
+    helpText: '輸入時間',
+    hourLabelText: '時',
+    minuteLabelText: '分',
+    errorInvalidText: '時間不對',
   );
   if (time == null) return null;
   final picked = DateTime(

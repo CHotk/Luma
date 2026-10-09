@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>交易記一筆表單（2026-10-10 現況）</title>
+<style>
+  :root {
+    --bg: #0C0C13; --sheet: #1A1A27; --field: #161622; --line: #2A2A3D;
+    --ink: #F3F2F8; --ink2: #A3A2B2; --ink3: #74738A;
+    --accent: #7EA6FF; --accentSolid: #2E6BFF;
+    --up: #5FE08D; --down: #FF7A70; --yellow: #F0B90B;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font: 14px/1.5 system-ui, -apple-system, "Segoe UI", "Microsoft JhengHei", sans-serif;
+    padding: 24px 16px 48px; }
+  .intro { max-width: 720px; margin: 0 auto 24px; color: var(--ink2); font-size: 13px; }
+  .intro h1 { color: var(--ink); font-size: 18px; margin: 0 0 8px; }
+  .intro li { margin: 2px 0; }
+  .phone { width: 360px; max-width: 100%; margin: 0 auto; border-radius: 28px;
+    background: #111119; border: 1px solid var(--line); overflow: hidden; }
+  .sheet { background: var(--sheet); border-radius: 24px 24px 0 0; margin-top: 40px; }
+  .handle { width: 40px; height: 5px; border-radius: 9px; background: rgba(255,255,255,.14); margin: 10px auto 6px; }
+  .title { display: flex; align-items: center; padding: 4px 8px 4px 18px; }
+  .title b { flex: 1; font-size: 16px; font-weight: 800; }
+  .x { color: var(--ink2); font-size: 18px; padding: 8px 12px; }
+  .body { padding: 0 18px 12px; }
+  .label { display: flex; font-size: 11.5px; color: var(--ink2); padding: 14px 0 6px; }
+  .label span { margin-left: auto; color: var(--ink3); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { border: 1px solid var(--line); color: var(--ink2); border-radius: 8px; padding: 6px 14px;
+    font-size: 13px; cursor: pointer; background: transparent; }
+  .chip.on { border-color: var(--accent); color: #fff; background: rgba(46,107,255,.4); }
+  .two { display: flex; padding: 3px; background: var(--field); border: 1px solid var(--line); border-radius: 12px; }
+  .two button { flex: 1; border: 0; background: transparent; padding: 9px; border-radius: 9px;
+    font-weight: 700; font-size: 13.5px; color: var(--ink2); cursor: pointer; }
+  .two .l.on { background: rgba(95,224,141,.2); color: var(--up); }
+  .two .r.on { background: rgba(255,122,112,.2); color: var(--down); }
+  .lev { background: var(--field); border: 1px solid var(--line); border-radius: 12px; padding: 8px;
+    text-align: center; font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .lev.hi { color: var(--down); }
+  input[type=range] { width: 100%; margin: 10px 0 0; accent-color: var(--yellow); }
+  input[type=range].hi { accent-color: var(--down); }
+  .ticks { display: flex; justify-content: space-between; font-size: 11px; color: var(--ink3); padding: 0 4px; }
+  .ticks span { cursor: pointer; }
+  .ticks .on { font-weight: 800; color: var(--yellow); }
+  .ticks .on.hi { color: var(--down); }
+  .input { display: flex; align-items: center; background: var(--field); border: 1px solid var(--line);
+    border-radius: 12px; padding: 0 12px; }
+  .input:focus-within { border-color: var(--accent); }
+  .input input { flex: 1; min-width: 0; background: transparent; border: 0; outline: 0; color: var(--ink);
+    padding: 12px 0; font-size: 17px; font-weight: 700; }
+  .input input.plain { font-size: 14px; font-weight: 400; }
+  .input .suf { color: var(--ink2); font-size: 13px; }
+  .calc { margin-top: 10px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line);
+    background: rgba(255,255,255,.03); font-size: 12px; color: var(--ink2); line-height: 1.7; }
+  .calc b { color: var(--ink); }
+  .switch { display: flex; align-items: center; padding: 10px 0 0; font-size: 13px; color: var(--ink2); cursor: pointer; }
+  .switch i { margin-left: auto; width: 40px; height: 22px; border-radius: 11px; background: #3a3a50; position: relative; }
+  .switch i::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px;
+    border-radius: 50%; background: #c9c8d6; transition: .15s; }
+  .switch.on i { background: var(--accentSolid); }
+  .switch.on i::after { left: 21px; background: #fff; }
+  .time { display: flex; align-items: center; gap: 4px; margin-top: 8px; background: var(--field);
+    border: 1px solid var(--line); border-radius: 12px; padding: 12px; font-size: 13.5px; color: var(--ink2); }
+  .time b { margin-left: auto; color: var(--ink); font-size: 14px; }
+  .hold { font-size: 11.5px; color: var(--ink3); padding: 6px 4px 0; }
+  .sign { width: 34px; height: 34px; border-radius: 8px; border: 0; margin-right: 8px; font-size: 20px;
+    font-weight: 800; cursor: pointer; }
+  .footer { border-top: 1px solid var(--line); padding: 10px 18px 16px; }
+  .save { width: 100%; border: 0; border-radius: 20px; padding: 14px; font-size: 14px; font-weight: 600;
+    background: var(--accentSolid); color: #fff; }
+  .save:disabled { background: rgba(255,255,255,.12); color: rgba(255,255,255,.38); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="intro">
+  <h1>交易&自律：記一筆表單（2026-10-10 現況存檔）</h1>
+  <ul>
+    <li>這份記錄的是開倉／平倉時間<b>改成直接輸入之前</b>的版本，照 <code>lib/features/crypto_watch/trade_ui.dart</code> 的 <code>_NewTradeSheet</code> 刻的，顏色、間距用 App 裡的數值。</li>
+    <li>當時點「開倉時間」「平倉時間」會先跳 Material 月曆選日期，再跳圓形時鐘選時間（右下角有鍵盤按鈕可以切成手動輸入）。</li>
+    <li>同一天稍早已經做的調整：損益改成點 + / − 切換（拿掉賺／賠按鈕）、槓桿只留拉桿（拿掉 −／＋）。編輯一單也是用這張表單，標題改成「編輯這一單」。</li>
+    <li>下面可以點：幣種、多空、拉桿、本金、「已經平倉了」、+ / −。</li>
+  </ul>
+</div>
+
+<div class="phone">
+  <div class="sheet">
+    <div class="handle"></div>
+    <div class="title"><b id="title">記一筆開倉</b><span class="x">✕</span></div>
+    <div class="body">
+      <div class="label">幣種</div>
+      <div class="chips" id="symbols">
+        <button class="chip on">BTC</button><button class="chip">ETH</button>
+        <button class="chip">SOL</button><button class="chip">其他</button>
+      </div>
+
+      <div class="label">方向</div>
+      <div class="two" id="dir"><button class="l on">多 ▲</button><button class="r">空 ▼</button></div>
+
+      <div class="label">槓桿<span>最高 20x</span></div>
+      <div class="lev" id="levText">10x</div>
+      <input type="range" id="lev" min="1" max="20" step="1" value="10">
+      <div class="ticks" id="ticks"></div>
+
+      <div class="label">本金（保證金）</div>
+      <div class="input"><input id="margin" inputmode="decimal" placeholder="例如 400"><span class="suf">USDT</span></div>
+      <div class="calc" id="calc"></div>
+
+      <div class="switch" id="closedSw">已經平倉了（補記一整單）<i></i></div>
+
+      <div class="label">時間<span>補記以前的單可以改</span></div>
+      <div class="time">開倉時間<b>10/10（六） 21:40</b> 🗓</div>
+      <div id="closedPart" hidden>
+        <div class="time">平倉時間<b>10/10（六） 23:05</b> 🗓</div>
+        <div class="hold">持倉 1 小時 25 分</div>
+        <div class="label">已實現損益<span>記在平倉那天 10/10（六）</span></div>
+        <div class="input"><button class="sign" id="sign">+</button>
+          <input id="pnl" inputmode="decimal" placeholder="點左邊 + / − 切換賺賠"><span class="suf">USDT</span></div>
+      </div>
+
+      <div class="label">備註（選填）</div>
+      <div class="input"><input class="plain" placeholder="為什麼開這單？停損設哪？"></div>
+    </div>
+    <div class="footer"><button class="save" id="save" disabled>儲存（持倉中）</button></div>
+  </div>
+</div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  let isLong = true, closed = false, win = true;
+
+  $('symbols').addEventListener('click', (e) => {
+    if (e.target.tagName !== 'BUTTON') return;
+    for (const b of $('symbols').children) b.classList.toggle('on', b === e.target);
+  });
+  $('dir').addEventListener('click', (e) => {
+    if (e.target.tagName !== 'BUTTON') return;
+    isLong = e.target.classList.contains('l');
+    $('dir').children[0].classList.toggle('on', isLong);
+    $('dir').children[1].classList.toggle('on', !isLong);
+    render();
+  });
+  const ticks = [1, 5, 10, 15, 20];
+  $('ticks').innerHTML = ticks.map((t) => `<span data-t="${t}">${t}x</span>`).join('');
+  $('ticks').addEventListener('click', (e) => {
+    if (e.target.dataset.t) { $('lev').value = e.target.dataset.t; render(); }
+  });
+  $('lev').addEventListener('input', render);
+  $('margin').addEventListener('input', render);
+  $('pnl').addEventListener('input', render);
+  $('closedSw').addEventListener('click', () => { closed = !closed; render(); });
+  $('sign').addEventListener('click', () => { win = !win; render(); });
+
+  function fmt(n) { return n.toLocaleString('en-US', { maximumFractionDigits: 2 }); }
+
+  function render() {
+    const lev = +$('lev').value, hi = lev > 10;
+    $('levText').textContent = lev + 'x';
+    $('levText').classList.toggle('hi', hi);
+    $('lev').classList.toggle('hi', hi);
+    for (const s of $('ticks').children) {
+      const on = +s.dataset.t === lev;
+      s.className = on ? (lev > 10 ? 'on hi' : 'on') : '';
+    }
+    const m = parseFloat($('margin').value);
+    const pnlAbs = parseFloat($('pnl').value);
+    let html;
+    if (!(m > 0)) {
+      html = '填本金之後，這裡會算出<b>倉位大小</b>和<b>價格反向走多少 % 本金就歸零</b>';
+    } else {
+      const liq = 100 / lev, danger = liq <= 5;
+      html = `倉位大小＝${fmt(m)} × ${lev}x＝<b>${fmt(m * lev)} USDT</b><br>` +
+        `價格${isLong ? '下跌' : '上漲'} <b style="color:${danger ? 'var(--down)' : 'var(--ink)'}">` +
+        `${liq.toFixed(liq < 10 ? 1 : 0)}%</b> 本金就歸零${danger ? '　⚠ 很容易爆倉' : ''}`;
+      if (closed && pnlAbs >= 0) {
+        const v = win ? pnlAbs : -pnlAbs, pct = v / m * 100;
+        html += `<br>本金報酬率 <b style="color:${v >= 0 ? 'var(--up)' : 'var(--down)'}">` +
+          `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%</b>`;
+      }
+    }
+    $('calc').innerHTML = html;
+    $('closedSw').classList.toggle('on', closed);
+    $('closedPart').hidden = !closed;
+    $('title').textContent = closed ? '補記一單' : '記一筆開倉';
+    const c = win ? 'var(--up)' : 'var(--down)';
+    $('sign').textContent = win ? '+' : '−';
+    $('sign').style.color = c;
+    $('sign').style.background = win ? 'rgba(95,224,141,.18)' : 'rgba(255,122,112,.18)';
+    $('pnl').style.color = c;
+    $('save').textContent = closed ? '儲存' : '儲存（持倉中）';
+    $('save').disabled = !(m > 0) || (closed && !(pnlAbs >= 0));
+  }
+  render();
+</script>
+</body>
+</html>
