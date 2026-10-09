@@ -89,7 +89,7 @@ Future<void> addTradeFlow(
   }
 }
 
-/// 點一單：持倉中的去平倉，已平倉的看明細（可刪除）。
+/// 點一單：持倉中的去平倉，已平倉的看明細（可刪除）；兩邊都能點進去編輯。
 Future<void> openTradeFlow(
   BuildContext context,
   WidgetRef ref,
@@ -97,13 +97,16 @@ Future<void> openTradeFlow(
   TradeData data,
 ) async {
   final repo = ref.read(tradeRepositoryProvider);
+  var wantEdit = false;
   if (trade.isOpen) {
     final result = await showCloseTradeSheet(
       context,
       trade: trade,
       monthTotalOf: (m) => data.month(m).total,
       capitalOf: data.capitalOf,
+      onEdit: () => wantEdit = true,
     );
+    if (wantEdit && context.mounted) return editTradeFlow(context, ref, trade);
     if (result == null) return;
     final pnl = result.pnl;
     await repo.close(trade.id, pnl: pnl, at: result.at);
@@ -122,11 +125,38 @@ Future<void> openTradeFlow(
     context,
     trade: trade,
     watchCountThatDay: data.watchCounts[dayOf(trade.closedAt!)] ?? 0,
+    onEdit: () => wantEdit = true,
   );
+  if (wantEdit && context.mounted) return editTradeFlow(context, ref, trade);
   if (!deleted) return;
   await repo.delete(trade.id);
   _bump(ref);
   if (context.mounted) showAppNotice(context, '已刪除這一單');
+}
+
+/// 編輯一單（從平倉結算或已平倉明細點「編輯」進來）。
+Future<void> editTradeFlow(
+  BuildContext context,
+  WidgetRef ref,
+  TradeEntry trade,
+) async {
+  final draft = await showEditTradeSheet(context, trade: trade);
+  if (draft == null) return;
+  await ref
+      .read(tradeRepositoryProvider)
+      .edit(
+        trade.id,
+        symbol: draft.symbol,
+        isLong: draft.isLong,
+        leverage: draft.leverage,
+        margin: draft.margin,
+        openedAt: draft.openedAt,
+        closedAt: draft.closedAt,
+        pnl: draft.pnl,
+        note: draft.note,
+      );
+  _bump(ref);
+  if (context.mounted) showAppNotice(context, '已更新這一單');
 }
 
 /// 改某個月的月初資金。

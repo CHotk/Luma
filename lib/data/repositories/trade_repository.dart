@@ -68,6 +68,31 @@ class TradeRepository {
   Future<TradeEntry?> close(String id, {required double pnl, DateTime? at}) =>
       _update(id, (e) => e.closed(pnl: pnl, at: at ?? DateTime.now()));
 
+  /// 編輯整單，回傳改完的那一筆；找不到回傳 null。
+  Future<TradeEntry?> edit(
+    String id, {
+    required String symbol,
+    required bool isLong,
+    required double leverage,
+    required double margin,
+    required DateTime openedAt,
+    DateTime? closedAt,
+    double? pnl,
+    String? note,
+  }) => _update(
+    id,
+    (e) => e.edited(
+      symbol: symbol,
+      isLong: isLong,
+      leverage: leverage,
+      margin: margin,
+      openedAt: openedAt,
+      closedAt: closedAt,
+      pnl: pnl,
+      note: note,
+    ),
+  );
+
   Future<void> delete(String id) =>
       _update(id, (e) => e.stamped(deleted: true));
 

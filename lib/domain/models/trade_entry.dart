@@ -70,6 +70,31 @@ class TradeEntry {
   TradeEntry closed({required double pnl, required DateTime at}) =>
       _copy(closedAt: at, pnl: pnl, updatedAt: DateTime.now());
 
+  /// 編輯整單：除了 id 跟刪除標記，欄位全部換成新的（平倉的改回持倉中時
+  /// [closedAt]、[pnl] 會變回 null）。
+  TradeEntry edited({
+    required String symbol,
+    required bool isLong,
+    required double leverage,
+    required double margin,
+    required DateTime openedAt,
+    DateTime? closedAt,
+    double? pnl,
+    String? note,
+  }) => TradeEntry(
+    id: id,
+    symbol: symbol,
+    isLong: isLong,
+    leverage: leverage,
+    margin: margin,
+    openedAt: openedAt,
+    closedAt: closedAt,
+    pnl: pnl,
+    note: note,
+    updatedAt: DateTime.now(),
+    deletedAt: deletedAt,
+  );
+
   TradeEntry _copy({
     DateTime? closedAt,
     double? pnl,

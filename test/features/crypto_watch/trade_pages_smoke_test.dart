@@ -160,6 +160,99 @@ void main() {
     await finish(tester);
   });
 
+  testWidgets('補記：沒有賺／賠按鈕，點 + 切成 −', (tester) async {
+    await pumpPage(tester, const CryptoWatchPage(), _MemoryStore());
+    await tester.drag(find.byType(ListView), const Offset(0, -900));
+    await tester.pump();
+    await tester.tap(find.text('記一筆交易'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('已經平倉了（補記一整單）'),
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.tap(find.text('已經平倉了（補記一整單）'));
+    await tester.pumpAndSettle();
+    // 背後主畫面月曆圖例也有「賺」「賠」，只看表單裡的。
+    final sheet = find.byType(BottomSheet);
+    expect(find.descendant(of: sheet, matching: find.text('賺')), findsNothing);
+    expect(find.descendant(of: sheet, matching: find.text('賠')), findsNothing);
+    final sign = find.byKey(const ValueKey('pnl-sign'));
+    await tester.scrollUntilVisible(
+      sign,
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(find.descendant(of: sign, matching: find.text('+')), findsOneWidget);
+    await tester.tap(sign);
+    await tester.pump();
+    expect(find.descendant(of: sign, matching: find.text('−')), findsOneWidget);
+    await finish(tester);
+  });
+
+  test('編輯一單：欄位全換，平倉的可以改回持倉中', () async {
+    final repo = TradeRepository(_MemoryStore());
+    final t = await repo.add(
+      symbol: 'BTC',
+      isLong: true,
+      leverage: 10,
+      margin: 100,
+      openedAt: DateTime(2026, 9, 1, 9),
+      closedAt: DateTime(2026, 9, 2, 9),
+      pnl: 50,
+      note: '舊備註',
+    );
+    final edited = await repo.edit(
+      t.id,
+      symbol: 'ETH',
+      isLong: false,
+      leverage: 5,
+      margin: 200,
+      openedAt: DateTime(2026, 9, 1, 8),
+      closedAt: DateTime(2026, 9, 3, 9),
+      pnl: -30,
+    );
+    expect(edited!.id, t.id);
+    final saved = (await repo.loadAll()).single;
+    expect(saved.symbol, 'ETH');
+    expect(saved.isLong, false);
+    expect(saved.margin, 200);
+    expect(saved.pnl, -30);
+    expect(saved.note, isNull);
+
+    await repo.edit(
+      t.id,
+      symbol: 'ETH',
+      isLong: false,
+      leverage: 5,
+      margin: 200,
+      openedAt: DateTime(2026, 9, 1, 8),
+    );
+    final reopened = (await repo.loadAll()).single;
+    expect(reopened.isOpen, true);
+    expect(reopened.pnl, isNull);
+  });
+
+  testWidgets('已平倉的一單點進去可以編輯，欄位先填好', (tester) async {
+    final store = await seeded();
+    await pumpPage(tester, const TradeJournalPage(), store);
+    await tester.tap(find.textContaining('想追空').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, '編輯'));
+    await tester.pumpAndSettle();
+    expect(find.text('編輯這一單'), findsOneWidget);
+    expect(find.text('300'), findsOneWidget);
+    final sign = find.byKey(const ValueKey('pnl-sign'));
+    await tester.scrollUntilVisible(
+      sign,
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(find.text('120'), findsOneWidget);
+    expect(find.descendant(of: sign, matching: find.text('−')), findsOneWidget);
+    await finish(tester);
+  });
+
   test('平倉可以指定時間（補記以前的單）', () async {
     final repo = TradeRepository(_MemoryStore());
     final t = await repo.add(

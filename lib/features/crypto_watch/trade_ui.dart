@@ -345,7 +345,7 @@ Widget _choice(String label, bool selected, VoidCallback onTap) => ChoiceChip(
   ),
 );
 
-/// 多／空、賺／賠這種二選一的大按鈕，選到的那邊用綠或紅底。
+/// 多／空這種二選一的大按鈕，選到的那邊用綠或紅底。
 Widget _twoWay({
   required String left,
   required String right,
@@ -417,6 +417,58 @@ InputDecoration _input(String hint, {String? suffix, Widget? prefix}) =>
 final _decimalOnly = [
   FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,4}')),
 ];
+
+/// 數字放回輸入框用（編輯舊單時），整數不帶 `.0`、也不加千分位逗號。
+String _numText(double v) =>
+    v == v.roundToDouble() ? v.toInt().toString() : v.toString();
+
+/// 已實現損益輸入框：左邊的 + / − 點一下切換賺賠（2026-10-10 使用者要求：
+/// 不用另外選賺或賠，點符號切換正負）。
+Widget _pnlField({
+  required TextEditingController controller,
+  required bool win,
+  required VoidCallback onToggle,
+  bool autofocus = false,
+}) {
+  final c = win ? tradeUp : tradeDown;
+  return TextField(
+    controller: controller,
+    autofocus: autofocus,
+    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+    inputFormatters: _decimalOnly,
+    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: c),
+    decoration: _input(
+      '點左邊 + / − 切換賺賠',
+      suffix: 'USDT',
+      prefix: Padding(
+        padding: const EdgeInsets.only(left: 6, right: 6),
+        child: Material(
+          color: c.withValues(alpha: 0.18),
+          borderRadius: BorderRadius.circular(8),
+          child: InkWell(
+            key: const ValueKey('pnl-sign'),
+            onTap: onToggle,
+            borderRadius: BorderRadius.circular(8),
+            child: SizedBox(
+              width: 34,
+              height: 34,
+              child: Center(
+                child: Text(
+                  win ? '+' : '−',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: c,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
 
 Widget _calcBox(List<InlineSpan> spans, {Color? border}) => Container(
   margin: const EdgeInsets.only(top: 10),
@@ -666,10 +718,19 @@ class TradeDraft {
 Future<TradeDraft?> showNewTradeSheet(BuildContext context, {DateTime? day}) =>
     _sheet<TradeDraft>(context, _NewTradeSheet(day: day));
 
+/// 編輯已經記下的一單（2026-10-10 使用者要求交易紀錄能編輯）：同一張表單，
+/// 欄位先填好原本的值；持倉中的也能直接打開「已經平倉了」補上結果，
+/// 已平倉的關掉就變回持倉中。
+Future<TradeDraft?> showEditTradeSheet(
+  BuildContext context, {
+  required TradeEntry trade,
+}) => _sheet<TradeDraft>(context, _NewTradeSheet(initial: trade));
+
 class _NewTradeSheet extends StatefulWidget {
-  const _NewTradeSheet({this.day});
+  const _NewTradeSheet({this.day, this.initial});
 
   final DateTime? day;
+  final TradeEntry? initial;
 
   @override
   State<_NewTradeSheet> createState() => _NewTradeSheetState();
@@ -710,6 +771,26 @@ class _NewTradeSheetState extends State<_NewTradeSheet> {
     _openedAt = at.isAfter(now) ? now : at;
     _closedAt = _openedAt;
     _closed = isPast;
+    final t = widget.initial;
+    if (t != null) {
+      if (_symbols.contains(t.symbol)) {
+        _symbol = t.symbol;
+      } else {
+        _customSymbol = true;
+        _symbolCtrl.text = t.symbol;
+      }
+      _isLong = t.isLong;
+      _leverage = t.leverage.clamp(1.0, _maxLeverage);
+      _marginCtrl.text = _numText(t.margin);
+      _openedAt = t.openedAt;
+      _closed = !t.isOpen;
+      _closedAt = t.closedAt ?? t.openedAt;
+      if (t.pnl != null) {
+        _win = t.pnl! >= 0;
+        _pnlCtrl.text = _numText(t.pnl!.abs());
+      }
+      _noteCtrl.text = t.note ?? '';
+    }
     for (final c in [_symbolCtrl, _marginCtrl, _pnlCtrl, _noteCtrl]) {
       c.addListener(() => setState(() {}));
     }
@@ -789,14 +870,19 @@ class _NewTradeSheetState extends State<_NewTradeSheet> {
       }
     }
 
+    final editing = widget.initial != null;
     return _SheetFrame(
-      title: _closed ? '補記一單' : '記一筆開倉',
+      title: editing ? '編輯這一單' : (_closed ? '補記一單' : '記一筆開倉'),
       footer: FilledButton(
         onPressed: _valid ? _save : null,
         style: FilledButton.styleFrom(
           padding: const EdgeInsets.symmetric(vertical: 14),
         ),
-        child: Text(_closed ? '儲存' : '儲存（持倉中）'),
+        child: Text(
+          editing
+              ? (_closed ? '儲存修改' : '儲存修改（持倉中）')
+              : (_closed ? '儲存' : '儲存（持倉中）'),
+        ),
       ),
       children: [
         _fieldLabel('幣種'),
@@ -825,7 +911,7 @@ class _NewTradeSheetState extends State<_NewTradeSheet> {
             padding: const EdgeInsets.only(top: 8),
             child: TextField(
               controller: _symbolCtrl,
-              autofocus: true,
+              autofocus: widget.initial == null,
               textCapitalization: TextCapitalization.characters,
               decoration: _input('幣種代號，例如 DOGE'),
             ),
@@ -857,9 +943,9 @@ class _NewTradeSheetState extends State<_NewTradeSheet> {
           onChanged: (v) => setState(() => _closed = v),
           contentPadding: EdgeInsets.zero,
           dense: true,
-          title: const Text(
-            '已經平倉了（補記一整單）',
-            style: TextStyle(fontSize: 13, color: AppColors.ink2),
+          title: Text(
+            widget.initial == null ? '已經平倉了（補記一整單）' : '已經平倉了',
+            style: const TextStyle(fontSize: 13, color: AppColors.ink2),
           ),
         ),
         _fieldLabel('時間', trailing: '補記以前的單可以改'),
@@ -891,38 +977,11 @@ class _NewTradeSheetState extends State<_NewTradeSheet> {
           ),
         ],
         if (_closed) ...[
-          _fieldLabel('結果'),
-          _twoWay(
-            left: '賺',
-            right: '賠',
-            leftSelected: _win,
-            onChanged: (v) => setState(() => _win = v),
-          ),
           _fieldLabel('已實現損益', trailing: '記在平倉那天 ${fmtDay(_closedAt)}'),
-          TextField(
+          _pnlField(
             controller: _pnlCtrl,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            inputFormatters: _decimalOnly,
-            style: TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.w700,
-              color: _win ? tradeUp : tradeDown,
-            ),
-            decoration: _input(
-              '賺或賠多少',
-              suffix: 'USDT',
-              prefix: Center(
-                widthFactor: 1,
-                child: Text(
-                  _win ? '+' : '−',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: _win ? tradeUp : tradeDown,
-                  ),
-                ),
-              ),
-            ),
+            win: _win,
+            onToggle: () => setState(() => _win = !_win),
           ),
         ],
         _fieldLabel('備註（選填）'),
@@ -937,18 +996,21 @@ class _NewTradeSheetState extends State<_NewTradeSheet> {
 /// 回傳已實現損益（賠是負數）跟平倉時間，取消回傳 null。平倉時間預設
 /// 現在，補記以前的單可以改（2026-10-08 使用者要求）。[monthTotalOf]、
 /// [capitalOf] 給某個月目前的累計跟月初資金，用來即時算「結算後那個月
-/// 累計」——平倉時間改到別的月，就算那個月。
+/// 累計」——平倉時間改到別的月，就算那個月。按「編輯開倉資料」會先呼叫
+/// [onEdit] 再關掉表單（回傳 null），由呼叫端接著開編輯表單。
 Future<({double pnl, DateTime at})?> showCloseTradeSheet(
   BuildContext context, {
   required TradeEntry trade,
   required double Function(DateTime month) monthTotalOf,
   required double? Function(DateTime month) capitalOf,
+  required VoidCallback onEdit,
 }) => _sheet<({double pnl, DateTime at})>(
   context,
   _CloseTradeSheet(
     trade: trade,
     monthTotalOf: monthTotalOf,
     capitalOf: capitalOf,
+    onEdit: onEdit,
   ),
 );
 
@@ -957,11 +1019,13 @@ class _CloseTradeSheet extends StatefulWidget {
     required this.trade,
     required this.monthTotalOf,
     required this.capitalOf,
+    required this.onEdit,
   });
 
   final TradeEntry trade;
   final double Function(DateTime month) monthTotalOf;
   final double? Function(DateTime month) capitalOf;
+  final VoidCallback onEdit;
 
   @override
   State<_CloseTradeSheet> createState() => _CloseTradeSheetState();
@@ -1032,39 +1096,23 @@ class _CloseTradeSheetState extends State<_CloseTradeSheet> {
       ),
       children: [
         TradeCard(trade: t, onTap: () {}),
-        _fieldLabel('結果'),
-        _twoWay(
-          left: '賺',
-          right: '賠',
-          leftSelected: _win,
-          onChanged: (w) => setState(() => _win = w),
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton.icon(
+            onPressed: () {
+              widget.onEdit();
+              Navigator.pop(context);
+            },
+            icon: const Icon(Icons.edit_outlined, size: 16),
+            label: const Text('編輯開倉資料'),
+          ),
         ),
         _fieldLabel('已實現損益', trailing: '手續費直接扣在裡面'),
-        TextField(
+        _pnlField(
           controller: _ctrl,
+          win: _win,
+          onToggle: () => setState(() => _win = !_win),
           autofocus: true,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          inputFormatters: _decimalOnly,
-          style: TextStyle(
-            fontSize: 17,
-            fontWeight: FontWeight.w700,
-            color: _win ? tradeUp : tradeDown,
-          ),
-          decoration: _input(
-            '賺或賠多少',
-            suffix: 'USDT',
-            prefix: Center(
-              widthFactor: 1,
-              child: Text(
-                _win ? '+' : '−',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: _win ? tradeUp : tradeDown,
-                ),
-              ),
-            ),
-          ),
         ),
         _timeField('平倉時間', _at, () async {
           final p = await _pickDateTime(context, _at);
@@ -1094,24 +1142,35 @@ class _CloseTradeSheetState extends State<_CloseTradeSheet> {
 
 // ── 已平倉那一單的明細 ────────────────────────────────────
 
-/// 回傳 true＝使用者確認刪除了。
+/// 回傳 true＝使用者確認刪除了。按「編輯」會先呼叫 [onEdit] 再關掉明細
+/// （回傳 false），由呼叫端接著開編輯表單。
 Future<bool> showTradeDetailSheet(
   BuildContext context, {
   required TradeEntry trade,
   required int watchCountThatDay,
+  required VoidCallback onEdit,
 }) async {
   final deleted = await _sheet<bool>(
     context,
-    _TradeDetailSheet(trade: trade, watchCount: watchCountThatDay),
+    _TradeDetailSheet(
+      trade: trade,
+      watchCount: watchCountThatDay,
+      onEdit: onEdit,
+    ),
   );
   return deleted ?? false;
 }
 
 class _TradeDetailSheet extends StatelessWidget {
-  const _TradeDetailSheet({required this.trade, required this.watchCount});
+  const _TradeDetailSheet({
+    required this.trade,
+    required this.watchCount,
+    required this.onEdit,
+  });
 
   final TradeEntry trade;
   final int watchCount;
+  final VoidCallback onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -1164,11 +1223,14 @@ class _TradeDetailSheet extends StatelessWidget {
           const SizedBox(width: Gap.sm),
           Expanded(
             child: FilledButton.tonal(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () {
+                onEdit();
+                Navigator.pop(context, false);
+              },
               style: FilledButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 13),
               ),
-              child: const Text('關閉'),
+              child: const Text('編輯'),
             ),
           ),
         ],
