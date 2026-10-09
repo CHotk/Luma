@@ -22,8 +22,6 @@ import '../repositories/error_log_repository.dart';
 import '../../domain/models/kana_exam.dart';
 import '../../domain/models/kana_practice.dart';
 import '../../domain/models/history.dart';
-import '../../domain/models/crypto_watch_entry.dart';
-import '../repositories/crypto_watch_repository.dart';
 import '../../domain/models/debt.dart';
 import '../../domain/models/smoking_entry.dart';
 import '../../domain/models/trade_entry.dart';
@@ -708,19 +706,6 @@ class R2SyncService {
   }) => _syncRecords<KanaPracticeEntry>(
     key: 'kana_practice.json',
     fromJson: KanaPracticeEntry.fromJson,
-    toJson: (e) => e.toJson(),
-    mergeFromCloud: repo.mergeFromCloud,
-    allForUpload: repo.allForUpload,
-    onPhase: onPhase,
-  );
-
-  /// 看盤記錄（`crypto_watch.json`），各自獨立一份，不跟其他紀錄共用。
-  Future<({int downloaded, int uploaded})> syncCryptoWatch(
-    CryptoWatchRepository repo, {
-    void Function(SyncPhase phase)? onPhase,
-  }) => _syncRecords<CryptoWatchEntry>(
-    key: 'crypto_watch.json',
-    fromJson: CryptoWatchEntry.fromJson,
     toJson: (e) => e.toJson(),
     mergeFromCloud: repo.mergeFromCloud,
     allForUpload: repo.allForUpload,

@@ -1,21 +1,17 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lume/data/repositories/crypto_watch_repository.dart';
 import 'package:lume/data/repositories/drinking_repository.dart';
 import 'package:lume/data/repositories/smoking_repository.dart';
 import 'package:lume/data/storage/key_value_store.dart';
 
 void main() {
-  test('看盤／抽菸／喝酒各自一份資料，互不影響', () async {
+  test('抽菸／喝酒各自一份資料，互不影響', () async {
     final store = _MemoryStore();
-    final crypto = CryptoWatchRepository(store);
     final smoking = SmokingRepository(store);
     final drinking = DrinkingRepository(store);
-    await crypto.add(reason: '焦慮');
-    await crypto.add();
     await smoking.add(reason: '壓力');
+    await smoking.add();
 
-    expect((await crypto.loadAll()).length, 2);
-    expect((await smoking.loadAll()).length, 1);
+    expect((await smoking.loadAll()).length, 2);
     expect(await drinking.loadAll(), isEmpty);
   });
 

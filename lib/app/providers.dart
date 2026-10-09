@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/cloud/r2_client.dart';
-import '../data/repositories/crypto_watch_repository.dart';
 import '../data/repositories/debt_repository.dart';
 import '../data/repositories/trade_repository.dart';
 import '../data/repositories/smoking_repository.dart';
@@ -72,12 +71,8 @@ final ytTrackerRepositoryProvider = Provider<YtTrackerRepository>(
   (ref) => YtTrackerRepository(ref.watch(keyValueStoreProvider)),
 );
 
-final cryptoWatchRepositoryProvider = Provider<CryptoWatchRepository>(
-  (ref) => CryptoWatchRepository(ref.watch(keyValueStoreProvider)),
-);
-
-/// 交易&自律的每一單＋月初資金（2026-10-08），看盤次數還是在
-/// [cryptoWatchRepositoryProvider]。
+/// 交易&自律的每一單＋月初資金（2026-10-08）。看盤次數紀錄 2026-10-10
+/// 使用者要求整個移除，不再讀寫。
 final tradeRepositoryProvider = Provider<TradeRepository>(
   (ref) => TradeRepository(ref.watch(keyValueStoreProvider)),
 );

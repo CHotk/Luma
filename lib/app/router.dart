@@ -1,7 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 import '../features/crypto_watch/crypto_watch_page.dart';
-import '../features/crypto_watch/crypto_watch_stats_page.dart';
 import '../features/crypto_watch/trade_day_page.dart';
 import '../features/crypto_watch/trade_journal_page.dart';
 import '../features/crypto_watch/trade_report_page.dart';
@@ -65,10 +64,6 @@ final appRouter = GoRouter(
     GoRoute(path: '/', builder: (_, _) => const SplashPage()),
     // 看盤／抽菸／喝酒各自獨立的頁面（不共用）。
     GoRoute(path: '/crypto-watch', builder: (_, _) => const CryptoWatchPage()),
-    GoRoute(
-      path: '/crypto-watch/stats',
-      builder: (_, _) => const CryptoWatchStatsPage(),
-    ),
     GoRoute(
       path: '/crypto-watch/journal',
       builder: (_, _) => const TradeJournalPage(),

@@ -12,9 +12,10 @@ import '../../shared/widgets/glass_card.dart';
 import 'trade_data.dart';
 import 'trade_ui.dart';
 
-/// 月報（使用者要求：每個月、包括當月都要能看）。上方 ‹ › 換月份，兩個分頁：
-/// - 自律成績單（設計稿版本 3）：本月損益與報酬、看盤少 vs 多的日子、
-///   低槓桿 vs 高槓桿、本月自律數字；
+/// 月報（使用者要求：每個月、包括當月都要能看）。上方 ‹ › 換月份，只停在
+/// 有紀錄的月份＋當月（2026-10-10），兩個分頁：
+/// - 自律成績單（設計稿版本 3）：本月損益與報酬、低槓桿 vs 高槓桿、本月
+///   自律數字（看盤相關的比較 2026-10-10 隨看盤功能一起移除）；
 /// - 什麼樣的單在賺（設計稿版本 4）：勝率、盈虧比、最大單日賺賠，
 ///   依槓桿／方向／幣種分組。
 class TradeReportPage extends ConsumerStatefulWidget {
@@ -37,6 +38,9 @@ class _TradeReportPageState extends ConsumerState<TradeReportPage> {
     final data = ref.watch(tradeDataProvider).valueOrNull;
     final now = DateTime.now();
     final isThisMonth = _month.year == now.year && _month.month == now.month;
+    final months = data?.navMonths ?? const <DateTime>[];
+    final prev = prevRecordMonth(months, _month);
+    final next = nextRecordMonth(months, _month);
     return Scaffold(
       drawer: const AppSideDrawer(),
       body: AmbientBackground(
@@ -52,11 +56,12 @@ class _TradeReportPageState extends ConsumerState<TradeReportPage> {
                 Row(
                   children: [
                     IconButton(
-                      onPressed: () => setState(
-                        () => _month = DateTime(_month.year, _month.month - 1),
-                      ),
+                      onPressed: prev == null
+                          ? null
+                          : () => setState(() => _month = prev),
                       icon: const Icon(Icons.chevron_left_rounded),
                       color: AppColors.ink2,
+                      disabledColor: AppColors.ink3.withValues(alpha: 0.4),
                     ),
                     Expanded(
                       child: Text(
@@ -71,11 +76,12 @@ class _TradeReportPageState extends ConsumerState<TradeReportPage> {
                       ),
                     ),
                     IconButton(
-                      onPressed: () => setState(
-                        () => _month = DateTime(_month.year, _month.month + 1),
-                      ),
+                      onPressed: next == null
+                          ? null
+                          : () => setState(() => _month = next),
                       icon: const Icon(Icons.chevron_right_rounded),
                       color: AppColors.ink2,
+                      disabledColor: AppColors.ink3.withValues(alpha: 0.4),
                     ),
                   ],
                 ),
@@ -165,46 +171,10 @@ class _TradeReportPageState extends ConsumerState<TradeReportPage> {
 
   List<Widget> _disciplineTab(TradeData data) {
     final sum = data.month(_month);
-    final split = splitByWatch(sum.dayPnl, data.watchCounts);
     final lev = lowVsHighLeverage(sum.closed);
-    final daysInMonth = DateTime(_month.year, _month.month + 1, 0).day;
-    final now = DateTime.now();
-    final isThisMonth = _month.year == now.year && _month.month == now.month;
-    final elapsed = isThisMonth ? now.day : daysInMonth;
-    var watchTotal = 0;
-    var maxWatch = 0;
-    DateTime? maxWatchDay;
-    var heavyDays = 0;
-    for (var d = 1; d <= daysInMonth; d++) {
-      final day = DateTime(_month.year, _month.month, d);
-      final n = data.watchCounts[day] ?? 0;
-      watchTotal += n;
-      if (n > heavyWatchThreshold) heavyDays++;
-      if (n > maxWatch) {
-        maxWatch = n;
-        maxWatchDay = day;
-      }
-    }
     final streak = longestLosingStreak(sum.closed);
 
     return [
-      _card(
-        '看盤少的日子 vs 看盤多的日子',
-        hint: '只算有平倉的日子・平均每天',
-        child: Row(
-          children: [
-            _cmp(
-              '看 ≤ $heavyWatchThreshold 次（${split.calmDays} 天）',
-              split.calmAvg,
-            ),
-            const SizedBox(width: 6),
-            _cmp(
-              '看 > $heavyWatchThreshold 次（${split.heavyDays} 天）',
-              split.heavyAvg,
-            ),
-          ],
-        ),
-      ),
       _card(
         '槓桿 ≤ 10x vs > 10x',
         child: Row(
@@ -225,22 +195,6 @@ class _TradeReportPageState extends ConsumerState<TradeReportPage> {
         '本月自律',
         child: Column(
           children: [
-            _row(
-              '日均看盤',
-              elapsed == 0
-                  ? '—'
-                  : '${(watchTotal / elapsed).toStringAsFixed(1)} 次',
-            ),
-            _row(
-              '看盤最多的一天',
-              maxWatchDay == null ? '—' : '${fmtDay(maxWatchDay)} $maxWatch 次',
-              color: maxWatch > heavyWatchThreshold ? AppColors.mid : null,
-            ),
-            _row(
-              '看盤超過 $heavyWatchThreshold 次的天數',
-              '$heavyDays 天',
-              color: heavyDays > 0 ? AppColors.mid : null,
-            ),
             _row('開倉次數', '${openedInMonth(data.trades, _month)} 單'),
             _row(
               '平均槓桿',

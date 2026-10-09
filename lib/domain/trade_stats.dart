@@ -1,13 +1,42 @@
-import 'crypto_watch_stats.dart' show dayOf;
 import 'models/trade_entry.dart';
 
 /// 交易&自律的統計（純函式，給主畫面月曆、日誌、月報跟測試用）。
 ///
 /// 損益一律算在**平倉那天**；持倉中的單不算進任何損益數字。
 
-/// 一天看盤超過這個次數就算「看太多」：月曆的 👁 變黃、月報分成
-/// 「看盤少的日子 vs 看盤多的日子」比較（2026-10-08 設計稿用的門檻）。
-const heavyWatchThreshold = 8;
+/// 去掉時分秒，只留日期。
+DateTime dayOf(DateTime t) => DateTime(t.year, t.month, t.day);
+
+/// 有紀錄的月份（開倉或平倉落在那個月），由舊到新、每個月一筆。月曆跟
+/// 月報的 ‹ › 只在這些月份之間跳（2026-10-10 使用者要求：6、9、10 月有紀錄，
+/// 往前看就是 10 → 9 → 6，沒紀錄的 7、8 月不停）。[always] 一定算進去
+/// （當月，沒紀錄也要能看）。
+List<DateTime> recordMonths(Iterable<TradeEntry> trades, {DateTime? always}) {
+  DateTime m(DateTime t) => DateTime(t.year, t.month);
+  final set = <DateTime>{
+    if (always != null) m(always),
+    for (final t in trades) ...[
+      m(t.openedAt),
+      if (t.closedAt != null) m(t.closedAt!),
+    ],
+  };
+  return set.toList()..sort();
+}
+
+/// [months]（由舊到新）裡比 [current] 早／晚的最近一個月，沒有回傳 null。
+DateTime? prevRecordMonth(List<DateTime> months, DateTime current) {
+  for (final m in months.reversed) {
+    if (m.isBefore(current)) return m;
+  }
+  return null;
+}
+
+DateTime? nextRecordMonth(List<DateTime> months, DateTime current) {
+  for (final m in months) {
+    if (m.isAfter(current)) return m;
+  }
+  return null;
+}
 
 /// 平倉時間落在 [month] 那個月的單（已平倉才算）。
 List<TradeEntry> closedInMonth(Iterable<TradeEntry> trades, DateTime month) => [
@@ -79,42 +108,6 @@ List<TradeGroup> bySymbol(List<TradeEntry> closed) {
   return [
     for (final s in symbols) _group(s, closed.where((t) => t.symbol == s)),
   ]..sort((a, b) => b.count.compareTo(a.count));
-}
-
-/// 「看盤少的日子 vs 看盤多的日子」：只看有平倉的日子，依當天看盤次數
-/// 分兩組，算每組幾天、平均每天賺賠。這是看盤跟交易整合起來才有的數字。
-class WatchSplit {
-  const WatchSplit({
-    required this.calmDays,
-    required this.calmAvg,
-    required this.heavyDays,
-    required this.heavyAvg,
-  });
-
-  final int calmDays;
-  final double? calmAvg;
-  final int heavyDays;
-  final double? heavyAvg;
-}
-
-WatchSplit splitByWatch(
-  Map<DateTime, double> dayPnl,
-  Map<DateTime, int> watchCounts, {
-  int threshold = heavyWatchThreshold,
-}) {
-  final calm = <double>[];
-  final heavy = <double>[];
-  dayPnl.forEach((day, pnl) {
-    ((watchCounts[day] ?? 0) > threshold ? heavy : calm).add(pnl);
-  });
-  double? avg(List<double> l) =>
-      l.isEmpty ? null : l.reduce((a, b) => a + b) / l.length;
-  return WatchSplit(
-    calmDays: calm.length,
-    calmAvg: avg(calm),
-    heavyDays: heavy.length,
-    heavyAvg: avg(heavy),
-  );
 }
 
 /// 最長連續虧損（依平倉時間排）：連賠幾單、合計賠多少。沒有虧損回傳 null。

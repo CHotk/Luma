@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
-import '../../domain/crypto_watch_stats.dart';
 import '../../domain/models/trade_entry.dart';
 import '../../domain/trade_stats.dart';
 import '../../shared/widgets/ambient_background.dart';
@@ -15,7 +14,7 @@ import 'trade_data.dart';
 import 'trade_ui.dart';
 
 /// 交易日誌（設計稿版本 4 的卡片流，從主畫面右上角／下方「交易日誌」進來）：
-/// 持倉中的放最上面，已平倉的依平倉日分組，每組標題寫當天損益跟看盤次數，
+/// 持倉中的放最上面，已平倉的依平倉日分組，每組標題寫當天損益，
 /// 每張卡寫清楚槓桿、本金、倉位、損益、%。
 class TradeJournalPage extends ConsumerWidget {
   const TradeJournalPage({super.key});
@@ -73,7 +72,7 @@ class TradeJournalPage extends ConsumerWidget {
     final children = <Widget>[];
     if (open.isNotEmpty) {
       children
-        ..add(_header('持倉中', '${open.length} 單', null))
+        ..add(_header('持倉中', '${open.length} 單'))
         ..addAll([
           for (final t in open)
             TradeCard(
@@ -128,9 +127,8 @@ class TradeJournalPage extends ConsumerWidget {
         );
       }
       final sum = entry.value.fold(0.0, (s, t) => s + t.pnl!);
-      final watches = data.watchCounts[d] ?? 0;
       children
-        ..add(_header(fmtDay(d), fmtPnl(sum), watches, color: pnlColor(sum)))
+        ..add(_header(fmtDay(d), fmtPnl(sum), color: pnlColor(sum)))
         ..addAll([
           for (final t in entry.value)
             TradeCard(
@@ -143,33 +141,21 @@ class TradeJournalPage extends ConsumerWidget {
     return ListView(children: children);
   }
 
-  Widget _header(String left, String right, int? watches, {Color? color}) =>
-      Padding(
-        padding: const EdgeInsets.fromLTRB(4, 12, 4, 6),
-        child: Row(
-          children: [
-            Text(left, style: AppText.note),
-            const Spacer(),
-            Text(
-              right,
-              style: TextStyle(
-                fontSize: 11.5,
-                fontWeight: FontWeight.w700,
-                color: color ?? AppColors.ink2,
-              ),
-            ),
-            if (watches != null) ...[
-              const SizedBox(width: 8),
-              Text(
-                '👁 $watches',
-                style: AppText.note.copyWith(
-                  color: watches > heavyWatchThreshold
-                      ? AppColors.mid
-                      : AppColors.ink3,
-                ),
-              ),
-            ],
-          ],
+  Widget _header(String left, String right, {Color? color}) => Padding(
+    padding: const EdgeInsets.fromLTRB(4, 12, 4, 6),
+    child: Row(
+      children: [
+        Text(left, style: AppText.note),
+        const Spacer(),
+        Text(
+          right,
+          style: TextStyle(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w700,
+            color: color ?? AppColors.ink2,
+          ),
         ),
-      );
+      ],
+    ),
+  );
 }

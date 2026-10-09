@@ -1,14 +1,10 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
-import '../../domain/crypto_watch_stats.dart';
 import '../../domain/models/trade_entry.dart';
 import '../../domain/trade_stats.dart';
 import '../../shared/widgets/ambient_background.dart';
@@ -18,15 +14,15 @@ import '../../shared/widgets/glass_card.dart';
 import 'trade_data.dart';
 import 'trade_ui.dart';
 
-const _cooldownLength = Duration(minutes: 10);
-
 /// 交易&自律（2026-10-08 使用者要求把「看盤記錄」改成這個名字，整合看盤
 /// 次數跟每一單的損益）。版面照 `design-history/已選擇完成/2026-10-08_投資與自律五種設計.html`
 /// 使用者挑的組合：
-/// - 版本 3 的看盤卡片放最上面（距離上次看盤、冷靜 10 分鐘、看了）——
-///   使用者明講兩個功能都要，不能只剩損益；
-/// - 版本 2 的月曆：每格寫當天損益（綠賺紅賠）＋右上角看盤次數，點一天
-///   進「那天發生什麼」；
+/// - 最上面是**當月損益**卡片。原本是版本 3 的看盤卡片（距離上次看盤、
+///   冷靜 10 分鐘、看了），2026-10-10 使用者要求整個移除看盤次數功能，
+///   改成當月損益；
+/// - 版本 2 的月曆：每格寫當天損益（綠賺紅賠），點一天進「那天發生
+///   什麼」。‹ › 只停在有紀錄的月份＋當月（2026-10-10 使用者要求：6、9、
+///   10 月有紀錄，往前看就是 10 → 9 → 6）；
 /// - 右上角「交易日誌」接版本 4 的卡片流，「月報」是版本 3 的自律成績單
 ///   ＋版本 4 的什麼樣的單在賺，每個月（含當月）都能看。
 class CryptoWatchPage extends ConsumerStatefulWidget {
@@ -82,7 +78,7 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
                         )
                       : ListView(
                           children: [
-                            _WatchCard(data: data),
+                            _MonthPnlCard(data: data),
                             const SizedBox(height: Gap.md),
                             _buildMonthCard(data),
                             if (_monthTrades(data).isNotEmpty) ...[
@@ -186,7 +182,7 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
     ),
   );
 
-  // ── 月曆：損益＋看盤次數（設計稿版本 2）────────────────────
+  // ── 月曆：每天損益（設計稿版本 2）──────────────────────────
 
   Widget _buildMonthCard(TradeData data) {
     final now = DateTime.now();
@@ -194,12 +190,9 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
     final daysInMonth = DateTime(_month.year, _month.month + 1, 0).day;
     final leading = DateTime(_month.year, _month.month).weekday % 7;
     final isThisMonth = _month.year == now.year && _month.month == now.month;
-    final elapsed = isThisMonth ? now.day : daysInMonth;
-    var watchTotal = 0;
-    for (var d = 1; d <= daysInMonth; d++) {
-      watchTotal +=
-          data.watchCounts[DateTime(_month.year, _month.month, d)] ?? 0;
-    }
+    final months = data.navMonths;
+    final prev = prevRecordMonth(months, _month);
+    final next = nextRecordMonth(months, _month);
     final ret = sum.returnPercent;
     final holdDays = <DateTime>{};
     final litDays = <DateTime>{};
@@ -216,11 +209,16 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
           Row(
             children: [
               IconButton(
-                onPressed: () => setState(
-                  () => _month = DateTime(_month.year, _month.month - 1),
-                ),
+                onPressed: prev == null
+                    ? null
+                    : () => setState(() {
+                        _month = prev;
+                        _ganttSel = null;
+                      }),
                 icon: const Icon(Icons.chevron_left_rounded),
                 color: AppColors.ink2,
+                disabledColor: AppColors.ink3.withValues(alpha: 0.4),
+                tooltip: '上一個有紀錄的月份',
                 visualDensity: VisualDensity.compact,
               ),
               Text(
@@ -232,18 +230,25 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
                 ),
               ),
               IconButton(
-                onPressed: () => setState(
-                  () => _month = DateTime(_month.year, _month.month + 1),
-                ),
+                onPressed: next == null
+                    ? null
+                    : () => setState(() {
+                        _month = next;
+                        _ganttSel = null;
+                      }),
                 icon: const Icon(Icons.chevron_right_rounded),
                 color: AppColors.ink2,
+                disabledColor: AppColors.ink3.withValues(alpha: 0.4),
+                tooltip: '下一個有紀錄的月份',
                 visualDensity: VisualDensity.compact,
               ),
               const Spacer(),
               if (!isThisMonth)
                 TextButton(
-                  onPressed: () =>
-                      setState(() => _month = DateTime(now.year, now.month)),
+                  onPressed: () => setState(() {
+                    _month = DateTime(now.year, now.month);
+                    _ganttSel = null;
+                  }),
                   child: const Text('回本月'),
                 ),
             ],
@@ -251,7 +256,11 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
           const SizedBox(height: Gap.xs),
           Row(
             children: [
-              _kpi(fmtPnl(sum.total), '本月損益', color: pnlColor(sum.total)),
+              _kpi(
+                fmtPnl(sum.total),
+                '${_month.month} 月損益',
+                color: pnlColor(sum.total),
+              ),
               const SizedBox(width: 6),
               _kpi(
                 ret == null ? '設定' : fmtPct(ret),
@@ -270,8 +279,8 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
               ),
               const SizedBox(width: 6),
               _kpi(
-                elapsed == 0 ? '—' : (watchTotal / elapsed).toStringAsFixed(1),
-                '日均看盤',
+                '${sum.closed.length} 單',
+                sum.winRate == null ? '已平倉' : '勝率 ${sum.winRate!.round()}%',
               ),
             ],
           ),
@@ -298,13 +307,6 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
                 _dayCell(
                   DateTime(_month.year, _month.month, d),
                   pnl: sum.dayPnl[DateTime(_month.year, _month.month, d)],
-                  watches:
-                      data.watchCounts[DateTime(
-                        _month.year,
-                        _month.month,
-                        d,
-                      )] ??
-                      0,
                   hold: holdDays.contains(
                     DateTime(_month.year, _month.month, d),
                   ),
@@ -320,11 +322,6 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
               _legend(tradeUp.withValues(alpha: 0.4), '賺'),
               _legend(tradeDown.withValues(alpha: 0.4), '賠'),
               _legend(AppColors.mid.withValues(alpha: 0.45), '底部黃線＝有抱單'),
-              Text('👁 看盤次數', style: AppText.note),
-              Text(
-                '👁 黃＝超過 $heavyWatchThreshold 次',
-                style: AppText.note.copyWith(color: AppColors.mid),
-              ),
             ],
           ),
           const SizedBox(height: 4),
@@ -377,7 +374,6 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
   Widget _dayCell(
     DateTime day, {
     required double? pnl,
-    required int watches,
     required bool hold,
     required bool lit,
   }) {
@@ -390,7 +386,6 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
         : (pnl > 0 ? tradeUp : tradeDown).withValues(
             alpha: 0.12 + strength * 0.3,
           );
-    final heavy = watches > heavyWatchThreshold;
     return Opacity(
       opacity: future ? 0.4 : 1,
       child: Material(
@@ -430,20 +425,6 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
                           color: AppColors.ink3,
                         ),
                       ),
-                      if (watches > 0)
-                        Align(
-                          alignment: Alignment.topRight,
-                          child: Text(
-                            '👁$watches',
-                            style: TextStyle(
-                              fontSize: 8.5,
-                              fontWeight: heavy
-                                  ? FontWeight.w800
-                                  : FontWeight.w400,
-                              color: heavy ? AppColors.mid : AppColors.ink2,
-                            ),
-                          ),
-                        ),
                       if (pnl != null)
                         Align(
                           alignment: Alignment.bottomCenter,
@@ -700,114 +681,22 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
   );
 }
 
-/// 看盤卡片（設計稿版本 3）：距離上次看盤、今天幾次、先冷靜 10 分鐘、
-/// 看了（重新計時）。每秒重畫只重畫這張卡，不拖著整頁月曆一起重算。
-class _WatchCard extends ConsumerStatefulWidget {
-  const _WatchCard({required this.data});
+/// 最上面的當月損益卡（2026-10-10 取代原本的看盤卡片）：永遠是這個月，
+/// 跟下面月曆切到哪個月無關。大字本月已實現損益，下面月報酬 %、月初資金
+/// （點了改），再一行已平倉幾單、勝率、持倉中幾單。
+class _MonthPnlCard extends ConsumerWidget {
+  const _MonthPnlCard({required this.data});
 
   final TradeData data;
 
   @override
-  ConsumerState<_WatchCard> createState() => _WatchCardState();
-}
-
-class _WatchCardState extends ConsumerState<_WatchCard> {
-  Timer? _tick;
-  DateTime _now = DateTime.now();
-
-  /// 冷靜倒數結束的時間，null 代表沒在冷靜。只存在這個畫面，離開就重來。
-  DateTime? _cooldownEnd;
-
-  @override
-  void initState() {
-    super.initState();
-    _tick = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted) return;
-      setState(() {
-        _now = DateTime.now();
-        if (_cooldownEnd != null && !_now.isBefore(_cooldownEnd!)) {
-          _cooldownEnd = null;
-        }
-      });
-    });
-  }
-
-  @override
-  void dispose() {
-    _tick?.cancel();
-    super.dispose();
-  }
-
-  Future<void> _looked() async {
-    final reason = await showModalBottomSheet<String>(
-      context: context,
-      backgroundColor: const Color(0xFF1A1A24),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (sheetContext) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                '為什麼想看？（選填）',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.ink,
-                ),
-              ),
-              const SizedBox(height: Gap.md),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (final r in const ['焦慮', '無聊', '例行', '有持倉', '睡前', '其他'])
-                    ActionChip(
-                      label: Text(r),
-                      onPressed: () => Navigator.pop(sheetContext, r),
-                    ),
-                ],
-              ),
-              const SizedBox(height: Gap.md),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: () => Navigator.pop(sheetContext, ''),
-                  child: const Text('直接記錄'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-    // null＝點空白處關掉，不記錄；空字串＝直接記錄、沒選原因。
-    if (reason == null) return;
-    await ref
-        .read(cryptoWatchRepositoryProvider)
-        .add(reason: reason.isEmpty ? null : reason);
-    ref.read(dataRevisionProvider.notifier).state++;
-    if (mounted) setState(() => _cooldownEnd = null);
-  }
-
-  String _clock(Duration d) {
-    String two(int n) => n.toString().padLeft(2, '0');
-    return '${d.inHours}:${two(d.inMinutes % 60)}:${two(d.inSeconds % 60)}';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final watches = widget.data.watches;
-    final last = watches.isEmpty ? null : watches.first.at;
-    final since = last == null ? null : _now.difference(last);
-    final today = widget.data.watchCounts[dayOf(_now)] ?? 0;
-    final longest = longestGapOnDay(watches, _now, _now);
-    final cooling = _cooldownEnd?.difference(_now);
-
+  Widget build(BuildContext context, WidgetRef ref) {
+    final now = DateTime.now();
+    final month = DateTime(now.year, now.month);
+    final sum = data.month(month);
+    final ret = sum.returnPercent;
+    final cap = data.capitalOf(month);
+    final open = data.openTrades.length;
     return GlassCard(
       padding: const EdgeInsets.fromLTRB(15, 12, 15, 15),
       child: Column(
@@ -816,98 +705,80 @@ class _WatchCardState extends ConsumerState<_WatchCard> {
           Row(
             children: [
               const Icon(
-                Icons.visibility_outlined,
+                Icons.account_balance_wallet_outlined,
                 size: 16,
                 color: AppColors.ink2,
               ),
               const SizedBox(width: 6),
-              Text(cooling == null ? '距離上次看盤' : '冷靜中', style: AppText.note),
+              Text('${now.month} 月已實現損益', style: AppText.note),
               const Spacer(),
               TextButton(
-                onPressed: () => context.push('/crypto-watch/stats'),
+                onPressed: () => context.push(
+                  '/crypto-watch/report?m=${month.year}-${month.month}',
+                ),
                 style: TextButton.styleFrom(
                   visualDensity: VisualDensity.compact,
                   padding: const EdgeInsets.symmetric(horizontal: 6),
                 ),
-                child: const Text('看盤統計 ›'),
+                child: const Text('月報 ›'),
               ),
             ],
           ),
           Center(
-            child: Text(
-              cooling != null
-                  ? _clock(cooling).substring(2)
-                  : since == null
-                  ? '--:--:--'
-                  : _clock(since),
-              style: TextStyle(
-                fontSize: 44,
-                fontWeight: FontWeight.w800,
-                fontFeatures: const [FontFeature.tabularFigures()],
-                color: cooling != null
-                    ? AppColors.accent
-                    : since == null
-                    ? AppColors.ink3
-                    : AppColors.ok,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(
+                      text: fmtPnl(sum.total),
+                      style: TextStyle(
+                        fontSize: 40,
+                        fontWeight: FontWeight.w800,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                        color: pnlColor(sum.total),
+                      ),
+                    ),
+                    const TextSpan(
+                      text: ' USDT',
+                      style: TextStyle(fontSize: 13, color: AppColors.ink2),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
-          const SizedBox(height: 2),
           Center(
-            child: Text(
-              cooling != null
-                  ? '倒數完還想看再看，真的有好機會它還會在'
-                  : since == null
-                  ? '還沒有紀錄，看完價格按「看了」記一筆'
-                  : '今天看了 $today 次'
-                        '${longest == null ? '' : '・今天最長撐過 ${formatDuration(longest)}'}',
-              style: AppText.note.copyWith(
-                color: today > heavyWatchThreshold && cooling == null
-                    ? AppColors.mid
-                    : AppColors.ink2,
+            child: TextButton(
+              onPressed: () => editCapitalFlow(context, ref, month, cap),
+              style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+              child: Text.rich(
+                TextSpan(
+                  children: [
+                    if (ret != null)
+                      TextSpan(
+                        text: '${fmtPct(ret)}・',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: pnlColor(ret),
+                        ),
+                      ),
+                    TextSpan(
+                      text: cap == null
+                          ? '設定月初資金，算月報酬 % ✎'
+                          : '月初 ${fmtAmount(cap)} USDT ✎',
+                    ),
+                  ],
+                ),
               ),
-              textAlign: TextAlign.center,
             ),
           ),
-          const SizedBox(height: Gap.md),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => setState(() {
-                    _cooldownEnd = cooling == null
-                        ? DateTime.now().add(_cooldownLength)
-                        : null;
-                  }),
-                  icon: Icon(
-                    cooling == null
-                        ? Icons.hourglass_bottom_rounded
-                        : Icons.close_rounded,
-                    size: 18,
-                  ),
-                  label: Text(cooling == null ? '先冷靜 10 分' : '取消冷靜'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.ink,
-                    side: const BorderSide(color: AppColors.glassEdge),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                ),
-              ),
-              const SizedBox(width: Gap.sm),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _looked,
-                  icon: const Icon(Icons.visibility_outlined, size: 18),
-                  label: const Text('看了（重新計時）'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: tradeDown,
-                    backgroundColor: tradeDown.withValues(alpha: 0.08),
-                    side: BorderSide(color: tradeDown.withValues(alpha: 0.35)),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                ),
-              ),
-            ],
+          Text(
+            '已平倉 ${sum.closed.length} 單'
+            '${sum.winRate == null ? '' : '・勝率 ${sum.winRate!.round()}%'}'
+            '${open == 0 ? '' : '・持倉中 $open 單'}',
+            textAlign: TextAlign.center,
+            style: AppText.note.copyWith(color: AppColors.ink3),
           ),
         ],
       ),

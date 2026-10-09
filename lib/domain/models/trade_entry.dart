@@ -5,7 +5,7 @@
 /// 平倉那天補上 [pnl]，賺賠算在平倉那天，不追浮盈浮虧（要一直盯價格才
 /// 算得出來，跟少看盤的目的相反）。
 ///
-/// 刪除用墓碑標記（[deletedAt]），跟看盤／日記同一套多裝置同步規矩。
+/// 刪除用墓碑標記（[deletedAt]），跟日記同一套多裝置同步規矩。
 class TradeEntry {
   const TradeEntry({
     required this.id,

@@ -586,11 +586,12 @@ Widget _timeField(String label, DateTime value, VoidCallback onTap) => Padding(
   ),
 );
 
-const _maxLeverage = 20.0;
+/// 2026-10-10 使用者要求整個交易功能槓桿最高 18x（原本 20x）。
+const _maxLeverage = 18.0;
 
 /// 槓桿拉桿，照幣安合約的樣子（2026-10-08 使用者要求：改跟幣安一樣的
-/// 拉桿，最高 20x）：上面一格大大的倍數，下面拉桿 1x–20x，刻度
-/// 1／5／10／15／20x 點了直接跳過去。超過 10x 拉桿跟數字變紅，提醒高槓桿。
+/// 拉桿）：上面一格大大的倍數，下面拉桿 1x–18x，刻度
+/// 1／5／10／15／18x 點了直接跳過去。超過 10x 拉桿跟數字變紅，提醒高槓桿。
 /// 2026-10-10 使用者要求只留拉桿，拿掉倍數兩邊的 −／＋ 按鈕。
 class LeverageSlider extends StatelessWidget {
   const LeverageSlider({
@@ -603,7 +604,7 @@ class LeverageSlider extends StatelessWidget {
   final ValueChanged<double> onChanged;
 
   static const _binanceYellow = Color(0xFFF0B90B);
-  static const _ticks = [1, 5, 10, 15, 20];
+  static const _ticks = [1, 5, 10, 15, 18];
 
   @override
   Widget build(BuildContext context) {
@@ -1225,29 +1226,19 @@ class _CloseTradeSheetState extends State<_CloseTradeSheet> {
 Future<bool> showTradeDetailSheet(
   BuildContext context, {
   required TradeEntry trade,
-  required int watchCountThatDay,
   required VoidCallback onEdit,
 }) async {
   final deleted = await _sheet<bool>(
     context,
-    _TradeDetailSheet(
-      trade: trade,
-      watchCount: watchCountThatDay,
-      onEdit: onEdit,
-    ),
+    _TradeDetailSheet(trade: trade, onEdit: onEdit),
   );
   return deleted ?? false;
 }
 
 class _TradeDetailSheet extends StatelessWidget {
-  const _TradeDetailSheet({
-    required this.trade,
-    required this.watchCount,
-    required this.onEdit,
-  });
+  const _TradeDetailSheet({required this.trade, required this.onEdit});
 
   final TradeEntry trade;
-  final int watchCount;
   final VoidCallback onEdit;
 
   @override
@@ -1321,11 +1312,6 @@ class _TradeDetailSheet extends StatelessWidget {
         kv('開倉', '${fmtDay(t.openedAt)} ${fmtHm(t.openedAt)}'),
         kv('平倉', '${fmtDay(t.closedAt!)} ${fmtHm(t.closedAt!)}'),
         kv('持倉時間', fmtHold(t.closedAt!.difference(t.openedAt))),
-        kv(
-          '平倉那天看盤',
-          '$watchCount 次',
-          color: watchCount > 8 ? AppColors.mid : null,
-        ),
         if (t.note != null) kv('備註', t.note!),
       ],
     );

@@ -2,22 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
-import '../../domain/crypto_watch_stats.dart';
-import '../../domain/models/crypto_watch_entry.dart';
 import '../../domain/models/trade_entry.dart';
 import '../../domain/trade_stats.dart';
 import '../../shared/widgets/app_notice.dart';
 import 'trade_ui.dart';
 
-/// 交易&自律各頁共用的一包資料：看盤紀錄＋每一單＋每月月初資金。
+/// 交易&自律各頁共用的一包資料：每一單＋每月月初資金。
 class TradeData {
-  TradeData({
-    required this.watches,
-    required this.trades,
-    required this.capitals,
-  }) : watchCounts = countsByDay(watches);
-
-  final List<CryptoWatchEntry> watches;
+  TradeData({required this.trades, required this.capitals});
 
   /// 新開的在前面。
   final List<TradeEntry> trades;
@@ -25,25 +17,24 @@ class TradeData {
   /// `yyyy-MM` → 月初資金。
   final Map<String, double> capitals;
 
-  final Map<DateTime, int> watchCounts;
-
   double? capitalOf(DateTime month) => capitals[TradeMonthCapital.idOf(month)];
 
   MonthTradeSummary month(DateTime month) =>
       summarizeMonth(trades, month, capital: capitalOf(month));
 
   List<TradeEntry> get openTrades => trades.where((t) => t.isOpen).toList();
+
+  /// 月曆、月報 ‹ › 能停的月份：有紀錄的月份＋當月。
+  List<DateTime> get navMonths => recordMonths(trades, always: DateTime.now());
 }
 
-/// 看 [dataRevisionProvider]：任何一頁記一筆、平倉、刪除、看了、改月初
+/// 看 [dataRevisionProvider]：任何一頁記一筆、平倉、刪除、改月初
 /// 資金後 bump 一下，主畫面、日誌、月報、某一天都會一起重算；雲端同步
 /// 帶回資料時同步那邊也會 bump。
 final tradeDataProvider = FutureProvider.autoDispose<TradeData>((ref) async {
   ref.watch(dataRevisionProvider);
-  final watches = await ref.read(cryptoWatchRepositoryProvider).loadAll();
   final repo = ref.read(tradeRepositoryProvider);
   return TradeData(
-    watches: watches,
     trades: await repo.loadAll(),
     capitals: await repo.loadCapitals(),
   );
@@ -124,7 +115,6 @@ Future<void> openTradeFlow(
   final deleted = await showTradeDetailSheet(
     context,
     trade: trade,
-    watchCountThatDay: data.watchCounts[dayOf(trade.closedAt!)] ?? 0,
     onEdit: () => wantEdit = true,
   );
   if (wantEdit && context.mounted) return editTradeFlow(context, ref, trade);

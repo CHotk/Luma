@@ -81,19 +81,6 @@ void main() {
     expect(bySymbol(closed).first.label, 'BTC');
   });
 
-  test('看盤少 vs 多：只算有平倉的日子', () {
-    final split = splitByWatch(pnlByDay(closedInMonth(trades, sep)), {
-      DateTime(2026, 9, 2): 11,
-      DateTime(2026, 9, 5): 14,
-      DateTime(2026, 9, 9): 3,
-      DateTime(2026, 9, 12): 20, // 沒有交易，不算
-    });
-    expect(split.heavyDays, 2);
-    expect(split.heavyAvg, -80);
-    expect(split.calmDays, 2);
-    expect(split.calmAvg, closeTo((55 + 276) / 2, 1e-9));
-  });
-
   test('最長連續虧損依平倉時間排', () {
     final s = longestLosingStreak(closedInMonth(trades, sep));
     expect(s!.count, 2);

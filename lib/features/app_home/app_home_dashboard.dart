@@ -120,7 +120,7 @@ final appHomeDashboardProvider =
 /// App 首頁的「今日儀表板」樣式（設計稿 `已選擇完成/首頁設計/02_今日儀表板`，
 /// 2026-10-05 使用者要求做出來當預設）：最上面一張大的英文進度卡，下面
 /// 四格日文／日記／健身／YT，最後一張同步狀態；點卡片進那個功能。
-/// 儀表板沒放到的功能（看盤、抽菸、喝酒）收在最下面一排小按鈕。
+/// 儀表板沒放到的功能（交易&自律、抽菸、喝酒）收在最下面一排小按鈕。
 class AppHomeDashboard extends ConsumerWidget {
   const AppHomeDashboard({super.key});
 
