@@ -568,9 +568,9 @@ Widget _timeField(String label, DateTime value, VoidCallback onTap) => Padding(
 const _maxLeverage = 20.0;
 
 /// 槓桿拉桿，照幣安合約的樣子（2026-10-08 使用者要求：改跟幣安一樣的
-/// 拉桿，最高 20x）：上面一格大大的倍數、左右 −／＋ 一次調 1 倍，下面
-/// 拉桿 1x–20x，刻度 1／5／10／15／20x 點了直接跳過去。超過 10x 拉桿
-/// 跟數字變紅，提醒高槓桿。
+/// 拉桿，最高 20x）：上面一格大大的倍數，下面拉桿 1x–20x，刻度
+/// 1／5／10／15／20x 點了直接跳過去。超過 10x 拉桿跟數字變紅，提醒高槓桿。
+/// 2026-10-10 使用者要求只留拉桿，拿掉倍數兩邊的 −／＋ 按鈕。
 class LeverageSlider extends StatelessWidget {
   const LeverageSlider({
     super.key,
@@ -589,38 +589,25 @@ class LeverageSlider extends StatelessWidget {
     final v = value.clamp(1.0, _maxLeverage);
     final hi = v > 10;
     final color = hi ? tradeDown : _binanceYellow;
-    Widget step(IconData icon, double next) => IconButton(
-      onPressed: next < 1 || next > _maxLeverage ? null : () => onChanged(next),
-      icon: Icon(icon, size: 20),
-      color: AppColors.ink,
-      disabledColor: AppColors.ink3,
-    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Container(
+          padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
             color: const Color(0xFF161622),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: const Color(0xFF2A2A3D)),
           ),
-          child: Row(
-            children: [
-              step(Icons.remove_rounded, v - 1),
-              Expanded(
-                child: Text(
-                  fmtLev(v),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: hi ? tradeDown : AppColors.ink,
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                  ),
-                ),
-              ),
-              step(Icons.add_rounded, v + 1),
-            ],
+          child: Text(
+            fmtLev(v),
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              color: hi ? tradeDown : AppColors.ink,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
           ),
         ),
         const SizedBox(height: 4),
