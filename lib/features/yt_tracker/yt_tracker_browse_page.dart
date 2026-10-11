@@ -106,6 +106,22 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
   /// 載入更多（頻道多，資料量會太大，2026-09-24 使用者決定）。
   static const _videosPerChannel = 10;
 
+  /// 同時抓幾個頻道。原本一個一個排隊抓，一個分類五十個頻道要等全部
+  /// 抓完才看得到東西（2026-10-12 使用者回報太久）；改成同時抓幾個、
+  /// 哪個頻道抓到就先顯示。瀏覽器對同一個網站本來就只會同時開 6 條
+  /// 連線，開再多也不會更快。
+  static const _parallelChannels = 6;
+
+  /// 這一輪抓取的編號：切篩選／重新整理會開新的一輪，舊一輪還在跑的
+  /// 抓取結果回來時編號對不上，就不要再蓋到畫面上。
+  int _videosGen = 0;
+
+  /// 這一輪已經抓到的影片（還沒全部抓完時就先顯示），跟哪些頻道已經
+  /// 抓完、總共幾個頻道（進度用）。
+  List<_ChannelVideo> _liveVideos = const [];
+  Set<String> _liveDoneChannels = const {};
+  int _liveTotal = 0;
+
   /// 「依影片顯示」用的看過紀錄、隱藏清單：頁面讀一次交給每一列，
   /// 不讓每一列各自讀整份（2026-10-06 效能檢查，見 [YtVideoRow.known]）。
   /// 還沒讀到前是 null，列表那邊就讓每一列照舊自己讀。
@@ -176,8 +192,12 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
     if (!force && sameSelection) return;
     _videosLoadedFor = ids;
     _videosLoadedType = _typeFilter;
+    final gen = ++_videosGen;
     setState(() {
-      _videosFuture = _fetchVideos(channels, apiKey);
+      _liveVideos = const [];
+      _liveDoneChannels = const {};
+      _liveTotal = channels.length;
+      _videosFuture = _fetchVideos(channels, apiKey, gen);
       _videoPreview = const [];
     });
     _loadVideoPreview(channels, ids);
@@ -318,16 +338,27 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
   Future<List<_ChannelVideo>> _fetchVideos(
     List<YtChannel> channels,
     String apiKey,
+    int gen,
   ) async {
     final service = YoutubeApiService(apiKey);
     final repo = ref.read(ytTrackerRepositoryProvider);
+    final cache = YtVideoCacheStore(ref.read(keyValueStoreProvider));
     final type = _typeFilter;
     final results = <_ChannelVideo>[];
-    for (final original in channels) {
+    final errors = <Object>[];
+
+    // 同時跑好幾個頻道，但寫本機儲存（頻道清單、影片快取）是「讀出來
+    // 改一筆再整份寫回去」，同時寫會互相蓋掉，所以寫的部分排隊一個一個來。
+    var writes = Future<void>.value();
+    Future<void> serial(Future<void> Function() task) =>
+        writes = writes.then((_) => task());
+
+    Future<List<_ChannelVideo>> fetchChannel(YtChannel original) async {
+      final found = <_ChannelVideo>[];
       var channel = original;
       if (channel.uploadsPlaylistId.isEmpty) {
         final handle = YoutubeApiService.parseHandle(channel.url);
-        if (handle == null) continue; // 沒網址／沒 @handle，這個頻道跳過
+        if (handle == null) return const []; // 沒網址／沒 @handle，這個頻道跳過
         final info = await service.fetchChannelInfo(handle);
         channel = channel.copyWith(
           // 順便拿這次呼叫本來就有的官方頭貼——但只在使用者自己沒貼過
@@ -342,7 +373,7 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
           statsUpdatedAt: DateTime.now(),
         );
         // 解析結果快取回本機，下次同一個頻道不用再打一次 channels.list。
-        await repo.updateChannel(channel);
+        await serial(() => repo.updateChannel(channel));
       }
       final uploads = channel.uploadsPlaylistId;
       if (type == _TypeFilter.all || !uploads.startsWith('UU')) {
@@ -359,28 +390,33 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
         );
         if (videos.isEmpty || !uploads.startsWith('UU')) {
           for (final v in videos) {
-            results.add(_ChannelVideo(video: v, channel: channel));
+            found.add(_ChannelVideo(video: v, channel: channel));
           }
-          continue;
+          return found;
         }
         final rest = uploads.substring(2);
         // 特殊清單只拿來核對「這部是不是 Shorts／直播」，抓寬一點
         // （50 部，quota 一樣是 1 單位不會比較貴）讓比對範圍盡量蓋過
         // 原始清單抓到的這幾部，同一招在 `yt_tracker_channel_page.dart`
         // 的上傳頻率圖已經用過。
-        final shortIds = await _fetchTypedIds(service, 'UUSH$rest', channel);
-        final liveIds = await _fetchTypedIds(service, 'UULV$rest', channel);
+        // 兩個特殊清單同時抓，不用等完一個才抓下一個。
+        final typed = await Future.wait([
+          _fetchTypedIds(service, 'UUSH$rest', channel),
+          _fetchTypedIds(service, 'UULV$rest', channel),
+        ]);
+        final shortIds = typed[0];
+        final liveIds = typed[1];
         for (final v in videos) {
           final isLive = liveIds.contains(v.videoId);
           final isShort = !isLive && shortIds.contains(v.videoId);
-          results.add(
+          found.add(
             _ChannelVideo(
               video: v.withShort(isShort).withLive(isLive),
               channel: channel,
             ),
           );
         }
-        continue;
+        return found;
       }
       // 選了特定類型：直接抓那個類型自己的特殊清單，比「抓全部再篩」
       // 更準——你要看的就是那個清單本身的內容，不是「剛好落在最近幾部
@@ -414,40 +450,86 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
           _TypeFilter.live => v.withShort(false).withLive(true),
           _ => v.withShort(false).withLive(false),
         };
-        results.add(_ChannelVideo(video: tagged, channel: channel));
+        found.add(_ChannelVideo(video: tagged, channel: channel));
       }
+      return found;
     }
-    // 時長要多打一次 videos.list，這裡混了好幾個頻道，一次把所有影片
-    // id 湊在一起問，不要每個頻道各打一次——省配額，最多一次 50 個 id
-    // 這個 App 用量遠遠用不到那個上限。這次失敗就算了，清單照樣顯示，
-    // 只是沒有時長角標。
-    try {
-      final durations = await service.fetchDurations([
-        for (final r in results) r.video.videoId,
-      ]);
-      for (var i = 0; i < results.length; i++) {
-        final d = durations[results[i].video.videoId];
-        if (d != null) {
-          results[i] = _ChannelVideo(
-            video: results[i].video.withDuration(d),
-            channel: results[i].channel,
-          );
+
+    // 時長要多打一次 videos.list，一次最多 50 個 id。混了好幾個頻道，
+    // 把抓到的影片 id 湊滿 50 個才問一次，不要每個頻道各打一次——省配額。
+    // 失敗就算了，清單照樣顯示，只是沒有時長角標。
+    final waitingDuration = <String>[];
+    Future<void> fillDurations({bool all = false}) async {
+      while (waitingDuration.length >= 50 ||
+          (all && waitingDuration.isNotEmpty)) {
+        final n = waitingDuration.length < 50 ? waitingDuration.length : 50;
+        final ids = waitingDuration.sublist(0, n);
+        waitingDuration.removeRange(0, n);
+        try {
+          final durations = await service.fetchDurations(ids);
+          for (var i = 0; i < results.length; i++) {
+            final d = durations[results[i].video.videoId];
+            if (d != null) {
+              results[i] = _ChannelVideo(
+                video: results[i].video.withDuration(d),
+                channel: results[i].channel,
+              );
+            }
+          }
+        } catch (_) {
+          // 忽略，影片清單本身已經抓到了。
         }
       }
-    } catch (_) {
-      // 忽略，影片清單本身已經抓到了。
     }
-    // 抓到的影片存進本機快取（跟頻道詳情頁共用同一份，也會跟著同步），
-    // 用影片 id 去重——每次進來都抓最近 10 部，大部分跟上次重複，只有
-    // 真的新的才會新增，已存的不會被寫兩次（2026-09-24 使用者要求）。
-    final cache = YtVideoCacheStore(ref.read(keyValueStoreProvider));
-    final byChannel = <String, List<YoutubeVideo>>{};
-    for (final r in results) {
-      byChannel.putIfAbsent(r.channel.id, () => []).add(r.video);
+
+    void show() {
+      if (!mounted || gen != _videosGen) return;
+      final sorted = [...results]
+        ..sort((a, b) => b.video.publishedAt.compareTo(a.video.publishedAt));
+      setState(() => _liveVideos = sorted);
     }
-    for (final entry in byChannel.entries) {
-      await cache.upsertVideos(entry.key, entry.value);
+
+    var next = 0;
+    Future<void> worker() async {
+      while (next < channels.length) {
+        // 這一輪已經被新的取代（切篩選、重新整理），剩下的不用抓了。
+        if (gen != _videosGen) return;
+        final channel = channels[next++];
+        try {
+          final found = await fetchChannel(channel);
+          results.addAll(found);
+          waitingDuration.addAll([for (final f in found) f.video.videoId]);
+          // 抓到的影片存進本機快取（跟頻道詳情頁共用同一份，也會跟著
+          // 同步），用影片 id 去重——每次進來都抓最近 10 部，大部分跟
+          // 上次重複，只有真的新的才會新增（2026-09-24 使用者要求）。
+          if (found.isNotEmpty) {
+            await serial(
+              () => cache.upsertVideos(channel.id, [
+                for (final f in found) f.video,
+              ]),
+            );
+          }
+        } catch (e, stack) {
+          // 一個頻道抓不到不要擋掉其他頻道。
+          errors.add(e);
+          AppLog.add('[YT] 抓「${channel.name}」的影片失敗：$e\n$stack', isError: true);
+        }
+        await fillDurations();
+        if (mounted && gen == _videosGen) {
+          _liveDoneChannels = {..._liveDoneChannels, channel.id};
+        }
+        show();
+      }
     }
+
+    await Future.wait([
+      for (var i = 0; i < _parallelChannels && i < channels.length; i++)
+        worker(),
+    ]);
+    await fillDurations(all: true);
+    await writes;
+    // 全部頻道都失敗才當成整個抓不下來；有抓到的就照樣顯示。
+    if (results.isEmpty && errors.isNotEmpty) throw errors.first;
     results.sort((a, b) => b.video.publishedAt.compareTo(a.video.publishedAt));
     return results;
   }
@@ -723,7 +805,22 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                   builder: (context, snap) {
                     if (snap.connectionState == ConnectionState.waiting) {
                       // 先顯示舊的、背景更新（2026-10-02 使用者選的第 5 版）。
-                      final preview = _videoPreview;
+                      // 哪個頻道抓到了就換成新抓的，還沒抓到的頻道先秀
+                      // 快取（2026-10-12 使用者要求抓到就先顯示）。
+                      final done = _liveDoneChannels;
+                      final preview =
+                          [
+                            ..._liveVideos,
+                            for (final p in _videoPreview)
+                              if (!done.contains(p.channel.id)) p,
+                          ]..sort(
+                            (a, b) => b.video.publishedAt.compareTo(
+                              a.video.publishedAt,
+                            ),
+                          );
+                      final progress = _liveTotal > 1
+                          ? '（${done.length}／$_liveTotal 個頻道）'
+                          : '';
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
@@ -731,8 +828,8 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                           const SizedBox(height: Gap.sm),
                           RefreshingPill(
                             label: preview.isEmpty
-                                ? '正在向 YouTube 拿影片…'
-                                : '正在檢查新影片…',
+                                ? '正在向 YouTube 拿影片…$progress'
+                                : '正在檢查新影片…$progress',
                           ),
                           const SizedBox(height: Gap.xs),
                           if (preview.isNotEmpty)
@@ -748,7 +845,9 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                                   video: preview[i].video,
                                   subtitle:
                                       '${preview[i].channel.name}・${ytRelativeTime(preview[i].video.publishedAt)}',
-                                  fromCache: true,
+                                  fromCache: !done.contains(
+                                    preview[i].channel.id,
+                                  ),
                                   known: _knownFor(preview[i].video.videoId),
                                   onWatchedChanged: (r) =>
                                       _onWatched(preview[i].video.videoId, r),
