@@ -20,6 +20,7 @@ import '../../domain/models/yt_video_watch.dart';
 import '../../shared/debug/app_log.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_notice.dart';
+import '../../shared/widgets/q_bounce.dart';
 import '../../shared/widgets/open_settings.dart';
 import '../../shared/widgets/app_confirm_dialog.dart';
 import '../../shared/widgets/app_side_drawer.dart';
@@ -2150,103 +2151,108 @@ class _ChannelGridState extends State<_ChannelGrid> {
     // （2026-09-24 加長按；2026-10-02 改成泡泡橫列，見 [_showChannelMenu]）。
     // 用 Builder 拿到卡片自己的 context，泡泡的尖角才對得準這張卡片。
     // 長按不放可以直接滑到選單按鈕上放開來選（2026-10-06 使用者要求）。
-    return Builder(
-      builder: (cardContext) => BubbleLongPress(
-        onLongPress: (_, drag) => _showChannelMenu(cardContext, c, drag: drag),
-        child: InkWell(
-          onTap: () => widget.onOpen(c),
-          borderRadius: BorderRadius.circular(Radii.card),
-          // 裁成卡片圓角，左側色條才會順著圓角收邊，不會凸出去。
-          child: ClipRRect(
+    // 長按、點 ⋮ 叫出選單時整張卡 Q 彈一下（2026-10-12 使用者要求），
+    // 見 [_showChannelMenu]。
+    return QBounce(
+      child: Builder(
+        builder: (cardContext) => BubbleLongPress(
+          onLongPress: (_, drag) =>
+              _showChannelMenu(cardContext, c, drag: drag),
+          child: InkWell(
+            onTap: () => widget.onOpen(c),
             borderRadius: BorderRadius.circular(Radii.card),
-            child: Stack(
-              children: [
-                Container(
-                  // 有色條（置頂／冷藏）的左邊多留一點，讓出色條的位置。
-                  padding: EdgeInsets.fromLTRB(
-                    stripColor != null ? 13 : 10,
-                    10,
-                    4,
-                    10,
-                  ),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(Radii.card),
-                    color: AppColors.glassFill,
-                    border: c.id == widget.lastOpenedId
-                        ? Border.all(color: AppColors.accent, width: 1.5)
-                        : Border.all(color: AppColors.glassEdge),
-                  ),
-                  child: Row(
-                    children: [
-                      // 冷藏的頭像跟名稱淡一點，一眼看得出是「收起來的」。
-                      Opacity(
-                        opacity: isCold ? 0.6 : 1,
-                        child: YtChannelAvatar(channel: c, radius: 17),
-                      ),
-                      const SizedBox(width: Gap.sm),
-                      Expanded(
-                        child: Opacity(
+            // 裁成卡片圓角，左側色條才會順著圓角收邊，不會凸出去。
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(Radii.card),
+              child: Stack(
+                children: [
+                  Container(
+                    // 有色條（置頂／冷藏）的左邊多留一點，讓出色條的位置。
+                    padding: EdgeInsets.fromLTRB(
+                      stripColor != null ? 13 : 10,
+                      10,
+                      4,
+                      10,
+                    ),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(Radii.card),
+                      color: AppColors.glassFill,
+                      border: c.id == widget.lastOpenedId
+                          ? Border.all(color: AppColors.accent, width: 1.5)
+                          : Border.all(color: AppColors.glassEdge),
+                    ),
+                    child: Row(
+                      children: [
+                        // 冷藏的頭像跟名稱淡一點，一眼看得出是「收起來的」。
+                        Opacity(
                           opacity: isCold ? 0.6 : 1,
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                c.name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 12.5,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.ink,
-                                ),
-                              ),
-                              if (c.subscriberLabel != null) ...[
-                                const SizedBox(height: 4),
+                          child: YtChannelAvatar(channel: c, radius: 17),
+                        ),
+                        const SizedBox(width: Gap.sm),
+                        Expanded(
+                          child: Opacity(
+                            opacity: isCold ? 0.6 : 1,
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
                                 Text(
-                                  c.subscriberLabel!,
+                                  c.name,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: AppText.note,
+                                  style: const TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.ink,
+                                  ),
                                 ),
+                                if (c.subscriberLabel != null) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    c.subscriberLabel!,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: AppText.note,
+                                  ),
+                                ],
                               ],
-                            ],
+                            ),
                           ),
                         ),
-                      ),
-                      IconButton(
-                        onPressed: () => _showChannelMenu(cardContext, c),
-                        icon: const Icon(Icons.more_vert_rounded, size: 18),
-                        color: AppColors.ink2,
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(
-                          minWidth: 32,
-                          minHeight: 32,
+                        IconButton(
+                          onPressed: () => _showChannelMenu(cardContext, c),
+                          icon: const Icon(Icons.more_vert_rounded, size: 18),
+                          color: AppColors.ink2,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(
+                            minWidth: 32,
+                            minHeight: 32,
+                          ),
+                          tooltip: '更多',
                         ),
-                        tooltip: '更多',
-                      ),
-                    ],
-                  ),
-                ),
-                if (widget.showDiscoveredBadge && c.discoveredVia.isNotEmpty)
-                  Positioned(
-                    top: 4,
-                    right: 4,
-                    child: _DiscoveredViaBadge(text: c.discoveredVia),
-                  ),
-                // 左側色條：置頂金色（2026-09-30 使用者選的「左側色條」）、
-                // 冷藏冰藍色（2026-10-02），一暖一冷，普通頻道沒有色條。
-                if (stripColor != null)
-                  Positioned(
-                    left: 0,
-                    top: 0,
-                    bottom: 0,
-                    child: SizedBox(
-                      width: 3,
-                      child: ColoredBox(color: stripColor),
+                      ],
                     ),
                   ),
-              ],
+                  if (widget.showDiscoveredBadge && c.discoveredVia.isNotEmpty)
+                    Positioned(
+                      top: 4,
+                      right: 4,
+                      child: _DiscoveredViaBadge(text: c.discoveredVia),
+                    ),
+                  // 左側色條：置頂金色（2026-09-30 使用者選的「左側色條」）、
+                  // 冷藏冰藍色（2026-10-02），一暖一冷，普通頻道沒有色條。
+                  if (stripColor != null)
+                    Positioned(
+                      left: 0,
+                      top: 0,
+                      bottom: 0,
+                      child: SizedBox(
+                        width: 3,
+                        child: ColoredBox(color: stripColor),
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
         ),
@@ -2264,6 +2270,7 @@ class _ChannelGridState extends State<_ChannelGrid> {
     BubbleMenuDrag? drag,
   }) async {
     widget.onTouched?.call(c);
+    QBounce.maybeOf(cardContext)?.play();
     final isPinned = c.pinnedAt != null;
     final isCold = c.coldAt != null;
     final action = await showBubbleMenu<_ChannelMenuAction>(

@@ -13,6 +13,7 @@ import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
 import '../../shared/widgets/glass_card.dart';
+import '../../shared/widgets/q_bounce.dart';
 import '../../shared/widgets/track_switcher.dart';
 import '../settings/home_card_order_page.dart' show HomeCard;
 import 'app_home_dashboard.dart';
@@ -229,15 +230,28 @@ class _HomeTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 點了先 Q 彈一下，等彈到一半多再換頁，不然一下就跳走看不到
+    // （2026-10-12 使用者要求）。
+    return QBounce(
+      child: Builder(
+        builder: (tileContext) => _card(tileContext, () async {
+          QBounce.maybeOf(tileContext)?.play();
+          await Future<void>.delayed(QBounce.settleDelay);
+          if (!tileContext.mounted) return;
+          if (item.onTap != null) {
+            item.onTap!();
+          } else {
+            tileContext.go(item.route!);
+          }
+        }),
+      ),
+    );
+  }
+
+  Widget _card(BuildContext context, VoidCallback onTap) {
     return GlassCard(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
-      onTap: () {
-        if (item.onTap != null) {
-          item.onTap!();
-        } else {
-          context.go(item.route!);
-        }
-      },
+      onTap: onTap,
       child: LayoutBuilder(
         builder: (context, c) {
           // 格子很矮時以高度為準，不讓 clamp 的上限比下限還小。
