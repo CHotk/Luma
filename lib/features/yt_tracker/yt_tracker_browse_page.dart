@@ -2285,26 +2285,31 @@ class _ChannelGridState extends State<_ChannelGrid> {
         // 不藏起來，按鈕位置不會跳。沒有「取消置頂」「取消冷藏」：每個
         // 頻道都一定在某一區，取消了也不知道要去哪，想換區直接按要去的
         // 那一區（2026-10-08 使用者要求，跟「一般」2026-10-06 的做法一樣）。
-        BubbleMenuItem(
-          value: _ChannelMenuAction.pin,
-          icon: Icons.push_pin_rounded,
-          label: '置頂',
-          iconColor: AppColors.ytPinAccent,
-          enabled: !isPinned,
-        ),
-        BubbleMenuItem(
-          value: _ChannelMenuAction.normal,
-          icon: Icons.subscriptions_outlined,
-          label: '一般',
-          enabled: c.pinnedAt != null || c.coldAt != null || c.pendingReview,
-        ),
-        BubbleMenuItem(
-          value: _ChannelMenuAction.cold,
-          icon: Icons.ac_unit_rounded,
-          label: ytColdSectionLabel,
-          iconColor: AppColors.ytColdAccent,
-          enabled: !isCold,
-        ),
+        //
+        // 「挖掘新頻道」分類裡的不給這三顆（2026-10-12 使用者要求）：那裡的
+        // 頻道只是在等被分類或刪除，不需要分置頂／一般／冷藏。
+        if (c.categoryId != ytDiscoverCategoryId) ...[
+          BubbleMenuItem(
+            value: _ChannelMenuAction.pin,
+            icon: Icons.push_pin_rounded,
+            label: '置頂',
+            iconColor: AppColors.ytPinAccent,
+            enabled: !isPinned,
+          ),
+          BubbleMenuItem(
+            value: _ChannelMenuAction.normal,
+            icon: Icons.subscriptions_outlined,
+            label: '一般',
+            enabled: c.pinnedAt != null || c.coldAt != null || c.pendingReview,
+          ),
+          BubbleMenuItem(
+            value: _ChannelMenuAction.cold,
+            icon: Icons.ac_unit_rounded,
+            label: ytColdSectionLabel,
+            iconColor: AppColors.ytColdAccent,
+            enabled: !isCold,
+          ),
+        ],
         const BubbleMenuItem(
           value: _ChannelMenuAction.move,
           icon: Icons.folder_open_rounded,
