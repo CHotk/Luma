@@ -45,9 +45,7 @@ void main() {
     expect(find.byType(Scrollbar), findsWidgets);
   });
 
-  testWidgets('編輯頻道：改過名的，名稱右邊顯示原本的名字，點了改回來', (
-    tester,
-  ) async {
+  testWidgets('編輯頻道：改過名的，名稱右邊顯示原本的名字，點了改回來', (tester) async {
     tester.view.physicalSize = const Size(400, 800);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);

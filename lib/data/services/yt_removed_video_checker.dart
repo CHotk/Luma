@@ -15,18 +15,26 @@ class YtRemovedVideoChecker {
   final KeyValueStore _store;
   final YoutubeApiService _api;
 
-  /// 多久查一次（2026-10-12 先定一週，同天改成兩週）。
+  /// 預設多久查一次（2026-10-12 先定一週，同天改成兩週；之後設定可調，
+  /// 見 `YtDisplayPrefs.removedCheckDays`）。
   static const interval = Duration(days: 14);
 
   static final _running = <String>{};
 
   /// 到期才查；沒到期、正在查、快取是空的都回傳 null（沒查）。查了就
   /// 回傳這次新發現下架的部數。
-  Future<int?> checkIfDue(String channelId, {DateTime? now}) async {
+  /// [every] 是多久查一次（設定裡調的），不給就用 [interval]。
+  Future<int?> checkIfDue(
+    String channelId, {
+    DateTime? now,
+    Duration? every,
+  }) async {
     final at = now ?? DateTime.now();
     final cache = YtVideoCacheStore(_store);
     final last = await cache.aliveCheckedAt(channelId);
-    if (last != null && at.difference(last) < interval) return null;
+    if (last != null && at.difference(last) < (every ?? interval)) {
+      return null;
+    }
     if (!_running.add(channelId)) return null;
     try {
       final ids = [for (final v in await cache.load(channelId)) v.videoId];

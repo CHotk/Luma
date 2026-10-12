@@ -612,13 +612,16 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     _removedCheckStartedFor = channel.id;
     final apiKey = ref.read(ytApiKeyProvider);
     if (apiKey == null || apiKey.isEmpty) return;
+    // 多久查一次照設定（0＝不檢查）。
+    final days = ref.read(ytDisplayPrefsProvider).removedCheckDays;
+    if (days <= 0) return;
     final kv = ref.read(keyValueStoreProvider);
     int? found;
     try {
       found = await YtRemovedVideoChecker(
         kv,
         YoutubeApiService(apiKey),
-      ).checkIfDue(channel.id);
+      ).checkIfDue(channel.id, every: Duration(days: days));
     } catch (_) {
       // 配額用完、沒網路：這次就不查，下次打開再說，不打擾使用者。
       return;

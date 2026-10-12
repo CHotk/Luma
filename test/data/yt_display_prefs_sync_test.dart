@@ -66,13 +66,21 @@ void main() {
     // 電腦後來關掉回到最上面、打開抓冷藏：手機同步後跟著變。
     await Future<void>.delayed(const Duration(milliseconds: 5));
     final c = YtDisplayPrefsStore(pc);
-    await c.save(onPc.copyWith(showBackToTop: false, videoIncludeCold: true));
+    await c.save(
+      onPc.copyWith(
+        showBackToTop: false,
+        videoIncludeCold: true,
+        removedCheckDays: 30,
+      ),
+    );
     await sync(pc);
     await sync(phone);
     final onPhone = await YtDisplayPrefsStore(phone).load();
     expect(onPhone.showScrollbar, isFalse);
     expect(onPhone.showBackToTop, isFalse);
     expect(onPhone.videoIncludeCold, isTrue);
+    // 下架檢查多久一次（2026-10-12）也一起同步。
+    expect(onPhone.removedCheckDays, 30);
   });
 }
 

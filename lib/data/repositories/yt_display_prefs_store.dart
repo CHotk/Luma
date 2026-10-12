@@ -10,6 +10,7 @@ class YtDisplayPrefs {
     this.videoIncludeCold = false,
     this.showScrollbar = true,
     this.showBackToTop = true,
+    this.removedCheckDays = defaultRemovedCheckDays,
     required this.updatedAt,
   });
 
@@ -22,6 +23,15 @@ class YtDisplayPrefs {
   /// 頻道詳情頁滑下去後右下角的「回到最上面」（2026-10-12：預設開）。
   final bool showBackToTop;
 
+  /// 影片下架檢查多久一次，天數；0＝不檢查（2026-10-12 使用者要求：設定
+  /// 能調、跨裝置同步）。見 `YtRemovedVideoChecker`。
+  final int removedCheckDays;
+
+  static const defaultRemovedCheckDays = 14;
+
+  /// 設定頁給的選項（天）：一週、兩週、一個月、不檢查。
+  static const removedCheckChoices = [7, 14, 30, 0];
+
   final DateTime updatedAt;
 
   /// 沒設定過：全部預設值，時間給很舊，雲端有設定就用雲端的。
@@ -31,11 +41,13 @@ class YtDisplayPrefs {
     bool? videoIncludeCold,
     bool? showScrollbar,
     bool? showBackToTop,
+    int? removedCheckDays,
     DateTime? updatedAt,
   }) => YtDisplayPrefs(
     videoIncludeCold: videoIncludeCold ?? this.videoIncludeCold,
     showScrollbar: showScrollbar ?? this.showScrollbar,
     showBackToTop: showBackToTop ?? this.showBackToTop,
+    removedCheckDays: removedCheckDays ?? this.removedCheckDays,
     updatedAt: updatedAt ?? this.updatedAt,
   );
 
@@ -43,6 +55,7 @@ class YtDisplayPrefs {
     'videoIncludeCold': videoIncludeCold,
     'showScrollbar': showScrollbar,
     'showBackToTop': showBackToTop,
+    'removedCheckDays': removedCheckDays,
     'updatedAt': updatedAt.toIso8601String(),
   };
 
@@ -51,6 +64,8 @@ class YtDisplayPrefs {
     videoIncludeCold: j['videoIncludeCold'] as bool? ?? false,
     showScrollbar: j['showScrollbar'] as bool? ?? true,
     showBackToTop: j['showBackToTop'] as bool? ?? true,
+    removedCheckDays:
+        (j['removedCheckDays'] as num?)?.toInt() ?? defaultRemovedCheckDays,
     updatedAt:
         DateTime.tryParse(j['updatedAt'] as String? ?? '') ?? DateTime(2000),
   );

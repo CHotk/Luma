@@ -880,6 +880,73 @@ class _YtDisplayPrefsRows extends ConsumerWidget {
           prefs.showBackToTop,
           (v) => update(prefs.copyWith(showBackToTop: v)),
         ),
+        // 影片下架檢查多久一次（2026-10-12 使用者要求：設定可調、跨裝置同步）。
+        Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Padding(
+                padding: EdgeInsets.only(top: 2),
+                child: Icon(
+                  Icons.playlist_remove_rounded,
+                  size: 18,
+                  color: AppColors.ink2,
+                ),
+              ),
+              const SizedBox(width: Gap.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '影片下架檢查',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.ink,
+                      ),
+                    ),
+                    Text(
+                      prefs.removedCheckDays <= 0
+                          ? '不檢查，已下架的影片不會被標出來'
+                          : '打開頻道時，超過這麼久沒查就問 YouTube 哪些影片被刪或改私人',
+                      style: AppText.note,
+                    ),
+                    const SizedBox(height: Gap.xs),
+                    SegmentedButton<int>(
+                      segments: [
+                        for (final d in YtDisplayPrefs.removedCheckChoices)
+                          ButtonSegment(
+                            value: d,
+                            label: Text(switch (d) {
+                              0 => '不檢查',
+                              7 => '一週',
+                              14 => '兩週',
+                              30 => '一個月',
+                              _ => '$d 天',
+                            }),
+                          ),
+                      ],
+                      selected: {prefs.removedCheckDays},
+                      showSelectedIcon: false,
+                      onSelectionChanged: (s) =>
+                          update(prefs.copyWith(removedCheckDays: s.first)),
+                      style: SegmentedButton.styleFrom(
+                        backgroundColor: AppColors.glassFill,
+                        foregroundColor: AppColors.ink2,
+                        selectedBackgroundColor: AppColors.accentSolid
+                            .withValues(alpha: 0.28),
+                        selectedForegroundColor: AppColors.ink,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
