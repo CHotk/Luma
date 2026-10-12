@@ -85,7 +85,7 @@ class YoutubeVideo {
   final bool? isLive;
 
   /// 發現這部影片已經下架（被刪除或改成私人）的時間，null＝還在
-  /// （2026-10-12 使用者要求）。打開頻道時超過一週沒查過，就把快取裡的
+  /// （2026-10-12 使用者要求）。打開頻道時超過兩週沒查過，就把快取裡的
   /// 影片編號丟回 YouTube 問一次（見 [YtRemovedVideoChecker]），沒回來的
   /// 就是下架了。快取不刪，標記起來，「已下架」分類看得到是哪幾部。
   final DateTime? removedAt;

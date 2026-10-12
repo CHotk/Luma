@@ -601,7 +601,7 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     });
   }
 
-  /// 下架檢查（2026-10-12 使用者要求）：超過一週沒查就背景查一次。只把
+  /// 下架檢查（2026-10-12 使用者要求）：超過兩週沒查就背景查一次。只把
   /// 本機儲存跟金鑰交給 [YtRemovedVideoChecker]，不靠這個頁面——點進來
   /// 馬上退出也會跑完、寫回快取。還在這頁的話，查完把畫面上的影片換成
   /// 標好的那份，有新下架的提示一下。

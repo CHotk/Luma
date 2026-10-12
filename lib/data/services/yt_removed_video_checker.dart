@@ -15,8 +15,8 @@ class YtRemovedVideoChecker {
   final KeyValueStore _store;
   final YoutubeApiService _api;
 
-  /// 多久查一次。
-  static const interval = Duration(days: 7);
+  /// 多久查一次（2026-10-12 先定一週，同天改成兩週）。
+  static const interval = Duration(days: 14);
 
   static final _running = <String>{};
 
