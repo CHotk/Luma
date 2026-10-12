@@ -57,6 +57,7 @@ class YoutubeVideo {
     this.duration,
     this.isShort,
     this.isLive,
+    this.removedAt,
   });
 
   final String videoId;
@@ -83,6 +84,12 @@ class YoutubeVideo {
   /// `_scanVideoTypes`）。null＝還沒比對過。
   final bool? isLive;
 
+  /// 發現這部影片已經下架（被刪除或改成私人）的時間，null＝還在
+  /// （2026-10-12 使用者要求）。打開頻道時超過一週沒查過，就把快取裡的
+  /// 影片編號丟回 YouTube 問一次（見 [YtRemovedVideoChecker]），沒回來的
+  /// 就是下架了。快取不刪，標記起來，「已下架」分類看得到是哪幾部。
+  final DateTime? removedAt;
+
   String get watchUrl => 'https://www.youtube.com/watch?v=$videoId';
 
   /// Shorts／一般影片的分辨啟發式判斷。YouTube Data API **沒有**任何
@@ -107,6 +114,7 @@ class YoutubeVideo {
     duration: value,
     isShort: isShort,
     isLive: isLive,
+    removedAt: removedAt,
   );
 
   YoutubeVideo withShort(bool value) => YoutubeVideo(
@@ -117,6 +125,7 @@ class YoutubeVideo {
     duration: duration,
     isShort: value,
     isLive: isLive,
+    removedAt: removedAt,
   );
 
   YoutubeVideo withLive(bool value) => YoutubeVideo(
@@ -127,6 +136,19 @@ class YoutubeVideo {
     duration: duration,
     isShort: isShort,
     isLive: value,
+    removedAt: removedAt,
+  );
+
+  /// [at] 是 null＝又查到了（重新公開），拿掉下架標記。
+  YoutubeVideo withRemoved(DateTime? at) => YoutubeVideo(
+    videoId: videoId,
+    title: title,
+    publishedAt: publishedAt,
+    thumbnailUrl: thumbnailUrl,
+    duration: duration,
+    isShort: isShort,
+    isLive: isLive,
+    removedAt: at,
   );
 
   /// 給 `yt_video_cache_store.dart` 落地快取用——只有歷史影片（上傳
@@ -139,6 +161,7 @@ class YoutubeVideo {
     'durationSeconds': duration?.inSeconds,
     'isShort': isShort,
     'isLive': isLive,
+    if (removedAt != null) 'removedAt': removedAt!.toIso8601String(),
   };
 
   factory YoutubeVideo.fromJson(Map<String, dynamic> json) => YoutubeVideo(
@@ -151,6 +174,7 @@ class YoutubeVideo {
         : Duration(seconds: json['durationSeconds'] as int),
     isShort: json['isShort'] as bool?,
     isLive: json['isLive'] as bool?,
+    removedAt: DateTime.tryParse(json['removedAt'] as String? ?? ''),
   );
 }
 
@@ -456,6 +480,40 @@ class YoutubeApiService {
           (item['contentDetails'] as Map<String, dynamic>)['duration']
               as String,
         );
+      }
+    }
+    return result;
+  }
+
+  /// [videoIds] 裡還看得到的那些（2026-10-12 下架檢查用）。一次問 50 部、
+  /// 只要 `id` 欄位，每次 1 單位配額；被刪除、改成私人的 YouTube 不會回，
+  /// 沒回來的就是下架了（分不出是刪除還是私人）。不公開（unlisted）的
+  /// 照樣會回，不算下架。
+  Future<Set<String>> fetchExistingVideoIds(List<String> videoIds) async {
+    final result = <String>{};
+    for (var i = 0; i < videoIds.length; i += 50) {
+      final batch = videoIds.sublist(
+        i,
+        i + 50 > videoIds.length ? videoIds.length : i + 50,
+      );
+      final uri = Uri.parse('$_base/videos').replace(
+        queryParameters: {
+          'part': 'id',
+          'id': batch.join(','),
+          'maxResults': '50',
+          'key': apiKey,
+        },
+      );
+      final res = await _get(uri);
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      if (res.statusCode != 200) {
+        throw YoutubeApiException(
+          _errorMessage(res.statusCode, body),
+          status: res.statusCode,
+        );
+      }
+      for (final item in ((body['items'] as List?) ?? const [])) {
+        result.add((item as Map<String, dynamic>)['id'] as String);
       }
     }
     return result;

@@ -217,6 +217,44 @@ class YtVideoCacheStore {
     return changed;
   });
 
+  static String _aliveKeyFor(String channelId) =>
+      'yt_tracker.video_alive_checked_at.$channelId.v1';
+
+  /// 上一次「下架檢查」的時間（2026-10-12），只存這台裝置。
+  Future<DateTime?> aliveCheckedAt(String channelId) async {
+    final raw = await _store.read(_aliveKeyFor(channelId));
+    return raw == null ? null : DateTime.tryParse(raw);
+  }
+
+  /// 下架檢查的結果寫回快取：[asked] 是這次問過的影片，其中 [alive] 是
+  /// YouTube 還回的。問了沒回的標下架（已經標過的保留原本的時間），
+  /// 又回來的拿掉標記。回傳這次新標成下架的部數。
+  Future<int> applyAliveCheck(
+    String channelId, {
+    required Set<String> asked,
+    required Set<String> alive,
+    required DateTime at,
+  }) => _serial(channelId, () async {
+    var newlyRemoved = 0, changed = 0;
+    final next = <YoutubeVideo>[];
+    for (final v in await load(channelId)) {
+      var r = v;
+      if (asked.contains(v.videoId)) {
+        if (alive.contains(v.videoId)) {
+          if (v.removedAt != null) r = v.withRemoved(null);
+        } else if (v.removedAt == null) {
+          r = v.withRemoved(at);
+          newlyRemoved++;
+        }
+      }
+      if (!identical(r, v)) changed++;
+      next.add(r);
+    }
+    if (changed > 0) await _writeVideos(channelId, next);
+    await _store.write(_aliveKeyFor(channelId), at.toIso8601String());
+    return newlyRemoved;
+  });
+
   /// 上傳頻率圖抓完後存回整批影片。[videos] 是它一開始讀的快取＋這次
   /// 抓到的，抓的那段時間裡快取可能已經被別人寫過（背景標好的類型、
   /// 往下捲抓到的影片），所以**不是整份覆蓋**：在排隊拿到的最新快取上
@@ -255,6 +293,10 @@ YoutubeVideo _fillGaps(YoutubeVideo existing, YoutubeVideo incoming) {
   }
   if (v.isLive == null && incoming.isLive != null) {
     v = v.withLive(incoming.isLive!);
+  }
+  // 下架標記（2026-10-12）：別台查到下架了，這台也標上。
+  if (v.removedAt == null && incoming.removedAt != null) {
+    v = v.withRemoved(incoming.removedAt);
   }
   return v;
 }

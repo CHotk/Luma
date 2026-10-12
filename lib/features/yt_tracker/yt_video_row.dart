@@ -311,6 +311,18 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
   }
 
   Future<void> _open() async {
+    // 已下架的影片（2026-10-12）：YouTube 上已經看不到，不開，說一聲。
+    final removedAt = widget.video.removedAt;
+    if (removedAt != null) {
+      showAppNotice(
+        context,
+        '這部影片已經下架',
+        detail:
+            '被刪除或改成私人，YouTube 上看不到了'
+            '（${removedAt.month}/${removedAt.day} 發現）',
+      );
+      return;
+    }
     if (ref.read(ytVideoOpenModeProvider) == YtVideoOpenMode.embedded) {
       // 內嵌播放是彈出 App 自己的對話框，不是叫瀏覽器開新分頁，沒有
       // window.open 那個「必須同步呼叫」的顧慮，可以先標記已看過再開。
@@ -644,6 +656,27 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
                                       ),
                                 ),
                               ),
+                              // 已下架（2026-10-12）：整張縮圖蓋暗、中間寫已下架。
+                              if (video.removedAt != null)
+                                Positioned.fill(
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: Container(
+                                      color: Colors.black.withValues(
+                                        alpha: 0.65,
+                                      ),
+                                      alignment: Alignment.center,
+                                      child: const Text(
+                                        '已下架',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w800,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
                               // 右下角時長角標，跟 YouTube 網站同一種慣例位置——API
                               // 沒辦法在抓清單那支就給，要多打一次 videos.list 才有
                               // （見 youtube_api_service.dart 的 fetchDurations），

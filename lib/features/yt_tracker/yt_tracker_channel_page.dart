@@ -12,6 +12,7 @@ import '../../data/repositories/yt_video_cache_store.dart';
 import '../../data/repositories/yt_video_hidden_store.dart';
 import '../../data/repositories/yt_video_watch_store.dart';
 import '../../data/services/youtube_api_service.dart';
+import '../../data/services/yt_removed_video_checker.dart';
 import '../../data/services/yt_video_type_scanner.dart';
 import '../../domain/models/yt_tracker.dart';
 import '../../domain/models/yt_video_watch.dart';
@@ -33,7 +34,10 @@ import 'yt_video_row.dart';
 /// 「影片」清單的類型篩選，跟 `yt_tracker_browse_page.dart` 的
 /// `_TypeFilter` 同一個概念、各自獨立一份（2026-09-30 使用者要求：
 /// 頻道詳情頁也要能直接篩全部／一般影片／Shorts／直播）。
-enum _TypeFilter { all, regular, shorts, live }
+///
+/// [removed]＝「已下架」（2026-10-12 使用者要求）：下架檢查查到有影片
+/// 被刪除或改成私人才出現這顆，列出快取裡標了下架的那些，不打 API。
+enum _TypeFilter { all, regular, shorts, live, removed }
 
 /// 頻道詳情。基本資料（名稱、分類、網址、簡介）可以編輯（刪除在分類頁長按），網址點
 /// 下去會開新分頁；「影片」清單真的接了 YouTube Data API（2026-09-22，
@@ -495,7 +499,9 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     _scanVideoTypes(force: true);
     // 目前如果正看著特定類型，重新整理也要連那份分開的分頁狀態一起
     // 重抓，不然按了重新整理、類型篩選那份還是舊的。
-    if (_typeFilter != _TypeFilter.all) {
+    if (_typeFilter == _TypeFilter.removed) {
+      _showRemovedFromCache();
+    } else if (_typeFilter != _TypeFilter.all) {
       setState(() {
         _typedVideos = const [];
         _typedReachedEnd = false;
@@ -575,7 +581,70 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
       _typedLoading = false;
       _typedError = null;
     });
-    if (next != _TypeFilter.all) _openTypedFilter();
+    if (next == _TypeFilter.removed) {
+      _showRemovedFromCache();
+    } else if (next != _TypeFilter.all) {
+      _openTypedFilter();
+    }
+  }
+
+  /// 「已下架」分類：直接列快取裡標了下架的影片，新到舊，不打 API。
+  void _showRemovedFromCache() {
+    final removed =
+        _cachedChannelVideos.where((v) => v.removedAt != null).toList()
+          ..sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
+    setState(() {
+      _typedVideos = removed;
+      _typedReachedEnd = true;
+      _typedLoading = false;
+      _typedError = null;
+    });
+  }
+
+  /// 下架檢查（2026-10-12 使用者要求）：超過一週沒查就背景查一次。只把
+  /// 本機儲存跟金鑰交給 [YtRemovedVideoChecker]，不靠這個頁面——點進來
+  /// 馬上退出也會跑完、寫回快取。還在這頁的話，查完把畫面上的影片換成
+  /// 標好的那份，有新下架的提示一下。
+  String? _removedCheckStartedFor;
+
+  Future<void> _checkRemovedVideos(YtChannel channel) async {
+    if (_removedCheckStartedFor == channel.id) return;
+    _removedCheckStartedFor = channel.id;
+    final apiKey = ref.read(ytApiKeyProvider);
+    if (apiKey == null || apiKey.isEmpty) return;
+    final kv = ref.read(keyValueStoreProvider);
+    int? found;
+    try {
+      found = await YtRemovedVideoChecker(
+        kv,
+        YoutubeApiService(apiKey),
+      ).checkIfDue(channel.id);
+    } catch (_) {
+      // 配額用完、沒網路：這次就不查，下次打開再說，不打擾使用者。
+      return;
+    }
+    if (found == null || !mounted || _loadMoreChannelId != channel.id) return;
+    final fresh = await YtVideoCacheStore(kv).load(channel.id);
+    if (!mounted || _loadMoreChannelId != channel.id) return;
+    final byId = {for (final v in fresh) v.videoId: v};
+    List<YoutubeVideo> swap(List<YoutubeVideo> list) => [
+      for (final v in list) byId[v.videoId] ?? v,
+    ];
+    setState(() {
+      _cachedChannelVideos = fresh;
+      _cachePreview = swap(_cachePreview);
+      _firstPage = swap(_firstPage);
+      _moreVideos = swap(_moreVideos);
+      _typedVideos = swap(_typedVideos);
+    });
+    if (_typeFilter == _TypeFilter.removed) _showRemovedFromCache();
+    if (found > 0) {
+      showAppNotice(
+        context,
+        '發現 $found 部影片已下架',
+        detail: '被刪除或改成私人，點「已下架」看是哪幾部',
+      );
+    }
   }
 
   String? _typedPlaylistId() {
@@ -586,7 +655,7 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
       _TypeFilter.shorts => 'UUSH$rest',
       _TypeFilter.live => 'UULV$rest',
       _TypeFilter.regular => 'UULF$rest',
-      _TypeFilter.all => null,
+      _TypeFilter.all || _TypeFilter.removed => null,
     };
   }
 
@@ -596,6 +665,7 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     _TypeFilter.shorts => v.isShort == true,
     _TypeFilter.live => v.isLive == true,
     _TypeFilter.regular => v.isShort == false && v.isLive == false,
+    _TypeFilter.removed => v.removedAt != null,
   };
 
   /// 從類型清單抓到的影片，標上它所屬的類型。
@@ -603,7 +673,7 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     _TypeFilter.shorts => v.withShort(true).withLive(false),
     _TypeFilter.live => v.withShort(false).withLive(true),
     _TypeFilter.regular => v.withShort(false).withLive(false),
-    _TypeFilter.all => v,
+    _TypeFilter.all || _TypeFilter.removed => v,
   };
 
   /// 打開某個類型（2026-10-05 使用者要求：跟「全部」一樣先用快取，再檢查
@@ -1501,6 +1571,7 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                         _ensureVideosLoaded(channel);
                         _ensureHistoryLoaded(channel);
                         _scanVideoTypes();
+                        _checkRemovedVideos(channel);
                       });
 
                       return Column(
@@ -1798,6 +1869,9 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     // 快取裡翻類型清單時標過類型的影片也一起算（[YoutubeVideo.isShort]／
     // [YoutubeVideo.isLive]），還沒標過類型的分不出來，只能等之後翻到。
     bool ofType(YoutubeVideo v) => _isOfType(v, _typeFilter);
+    final removedCount = _cachedChannelVideos
+        .where((v) => v.removedAt != null)
+        .length;
     final loaded = {
       for (final v in [
         ..._cachedChannelVideos.where(ofType),
@@ -1847,6 +1921,14 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
               selected: _typeFilter == _TypeFilter.live,
               onTap: () => _switchTypeFilter(_TypeFilter.live),
             ),
+            // 「已下架」：有查到下架的影片才出現（2026-10-12 使用者要求）。
+            if (removedCount > 0 || _typeFilter == _TypeFilter.removed)
+              _Pick(
+                label: '已下架 ($removedCount)',
+                color: AppColors.ink3,
+                selected: _typeFilter == _TypeFilter.removed,
+                onTap: () => _switchTypeFilter(_TypeFilter.removed),
+              ),
             // 時長篩選接在類型後面（2026-10-06 使用者挑設計稿第 03 版）。
             // 小選單裡每個選項旁的數字＝目前已載入、過了已看過／已隱藏
             // 兩個開關的影片裡，符合那個時長的有幾部。
