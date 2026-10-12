@@ -80,6 +80,18 @@ class _Body extends ConsumerWidget {
             (a.closedAt ?? a.openedAt).compareTo(b.closedAt ?? b.openedAt),
       );
     final pnl = closed.fold(0.0, (s, t) => s + t.pnl!);
+    // 這天沒開也沒平、但整天都抱著的單（2026-10-12 使用者回報：點月曆上
+    // 有持倉黃線的那天，進來什麼都沒有）。
+    final nextDay = DateTime(d.year, d.month, d.day + 1);
+    final holding =
+        data.trades
+            .where(
+              (t) =>
+                  t.openedAt.isBefore(d) &&
+                  (t.closedAt == null || !t.closedAt!.isBefore(nextDay)),
+            )
+            .toList()
+          ..sort((a, b) => a.openedAt.compareTo(b.openedAt));
     final events = <_Event>[
       for (final t in opened) _Event(t.openedAt, t, closing: false),
       for (final t in closed) _Event(t.closedAt!, t, closing: true),
@@ -105,7 +117,8 @@ class _Body extends ConsumerWidget {
                       ),
                     ),
                     Text(
-                      '平倉 ${closed.length} 單・開倉 ${opened.length} 單',
+                      '平倉 ${closed.length} 單・開倉 ${opened.length} 單'
+                      '${holding.isEmpty ? '' : '・抱著 ${holding.length} 單'}',
                       style: AppText.note.copyWith(color: AppColors.ink3),
                     ),
                   ],
@@ -124,13 +137,35 @@ class _Body extends ConsumerWidget {
               if (events.isEmpty)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 10),
-                  child: Text('這天沒有交易', style: AppText.bodyDim),
+                  child: Text(
+                    holding.isEmpty ? '這天沒有交易' : '這天沒有開倉或平倉，抱著的單在下面',
+                    style: AppText.bodyDim,
+                  ),
                 )
               else
                 for (final e in events) _eventRow(context, ref, e),
             ],
           ),
         ),
+        if (holding.isNotEmpty) ...[
+          const SizedBox(height: Gap.lg),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+            child: Text(
+              '這天一直抱著的單',
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: AppColors.mid,
+              ),
+            ),
+          ),
+          for (final t in holding)
+            TradeCard(
+              trade: t,
+              onTap: () => openTradeFlow(context, ref, t, data),
+            ),
+        ],
         if (dayTrades.isNotEmpty) ...[
           const SizedBox(height: Gap.lg),
           Padding(

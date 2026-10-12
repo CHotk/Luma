@@ -482,6 +482,67 @@ void main() {
     await finish(tester);
   });
 
+  // 2026-10-12 使用者回報：先平掉一單、晚上又開新的，月曆固定「開」在左
+  // 看起來像當天開當天平；點整天抱著單的那天，進去什麼都沒有。
+  Future<(_MemoryStore, DateTime)> heldAndSwapped() async {
+    final store = _MemoryStore();
+    final repo = TradeRepository(store);
+    final now = DateTime.now();
+    final m = DateTime(now.year, now.month - 1);
+    await repo.add(
+      symbol: 'BTC',
+      isLong: true,
+      leverage: 10,
+      margin: 100,
+      openedAt: DateTime(m.year, m.month, 2, 9),
+      closedAt: DateTime(m.year, m.month, 4, 10),
+      pnl: 30,
+    );
+    await repo.add(
+      symbol: 'ETH',
+      isLong: false,
+      leverage: 5,
+      margin: 100,
+      openedAt: DateTime(m.year, m.month, 4, 22),
+    );
+    return (store, m);
+  }
+
+  testWidgets('同一天先平後開：月曆上「平」排在「開」左邊', (tester) async {
+    final (store, _) = await heldAndSwapped();
+    await pumpPage(tester, const CryptoWatchPage(), store);
+    await tester.tap(find.byTooltip('上一個有紀錄的月份'));
+    await tester.pump();
+    // 月曆格子裡的標籤在圖例上面，取最上面那個。
+    Offset topMost(String text) => tester
+        .widgetList(find.text(text))
+        .map((w) => tester.getTopLeft(find.byWidget(w)))
+        .reduce((a, b) => a.dy < b.dy ? a : b);
+    final close = topMost('平'), open = topMost('開');
+    // 4 號那格：平在左、開在右（同一列）。2 號那格的「開」在更前面一格，
+    // 所以比的是 4 號的開：找跟「平」同一高度、在它右邊的那個「開」。
+    final opensOnRow = tester
+        .widgetList(find.text('開'))
+        .map((w) => tester.getTopLeft(find.byWidget(w)))
+        .where((o) => (o.dy - close.dy).abs() < 1 && o.dx > close.dx);
+    expect(opensOnRow, isNotEmpty);
+    expect(open.dy, lessThanOrEqualTo(close.dy));
+    await finish(tester);
+  });
+
+  testWidgets('點整天抱著單的那天：列出「這天一直抱著的單」', (tester) async {
+    final (store, m) = await heldAndSwapped();
+    await pumpPage(
+      tester,
+      TradeDayPage(day: DateTime(m.year, m.month, 3)),
+      store,
+    );
+    expect(find.text('這天一直抱著的單'), findsOneWidget);
+    expect(find.text('BTC'), findsOneWidget);
+    expect(find.textContaining('抱著 1 單'), findsOneWidget);
+    await finish(tester);
+  });
+
   test('交易數字最多小數第一位，超過四捨五入', () {
     expect(round1(12.36), 12.4);
     expect(round1(12.34), 12.3);

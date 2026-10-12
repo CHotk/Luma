@@ -206,6 +206,27 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
       for (final t in data.trades)
         if (t.closedAt != null) dayOf(t.closedAt!),
     };
+    // 同一天又開又平：「開」「平」照那天先發生的排（2026-10-12 使用者回報：
+    // 先平掉一單、晚上又開新的，固定開在左邊看起來像當天開當天平）。
+    final firstOpen = <DateTime, DateTime>{};
+    final firstClose = <DateTime, DateTime>{};
+    for (final t in data.trades) {
+      final o = dayOf(t.openedAt);
+      if (firstOpen[o] == null || t.openedAt.isBefore(firstOpen[o]!)) {
+        firstOpen[o] = t.openedAt;
+      }
+      final c = t.closedAt;
+      if (c != null) {
+        final cd = dayOf(c);
+        if (firstClose[cd] == null || c.isBefore(firstClose[cd]!)) {
+          firstClose[cd] = c;
+        }
+      }
+    }
+    bool closeFirst(DateTime d) =>
+        firstOpen[d] != null &&
+        firstClose[d] != null &&
+        firstClose[d]!.isBefore(firstOpen[d]!);
 
     return GlassCard(
       child: Column(
@@ -291,6 +312,9 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
                   closed: closeDays.contains(
                     DateTime(_month.year, _month.month, d),
                   ),
+                  closeFirst: closeFirst(
+                    DateTime(_month.year, _month.month, d),
+                  ),
                 ),
             ],
           ),
@@ -337,6 +361,7 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
     required bool lit,
     required bool opened,
     required bool closed,
+    bool closeFirst = false,
   }) {
     final now = DateTime.now();
     final isToday = day == dayOf(now);
@@ -395,9 +420,15 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              if (opened) _tag('開', open: true),
-                              if (opened && closed) const SizedBox(width: 2),
-                              if (closed) _tag('平', open: false),
+                              if (closeFirst && closed) ...[
+                                _tag('平', open: false),
+                                if (opened) const SizedBox(width: 2),
+                                if (opened) _tag('開', open: true),
+                              ] else ...[
+                                if (opened) _tag('開', open: true),
+                                if (opened && closed) const SizedBox(width: 2),
+                                if (closed) _tag('平', open: false),
+                              ],
                             ],
                           ),
                         ),
