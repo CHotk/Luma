@@ -126,7 +126,10 @@ class _SyncPageState extends ConsumerState<SyncPage> {
                 AppTopBar(
                   title: '多裝置同步',
                   titleIcon: Icons.cloud_sync_outlined,
-                  showBack: false,
+                  // 從上方同步進度條點進來的（push 進來）要能返回
+                  // （2026-10-12 使用者回報：點進來就出不去）；從選單進來
+                  // 的照舊是三條線。
+                  showBack: Navigator.of(context).canPop(),
                   // 按鈕大小、間距跟交易&自律等其他功能一致（2026-10-08
                   // 使用者回報這裡太擠）。
                   actions: [

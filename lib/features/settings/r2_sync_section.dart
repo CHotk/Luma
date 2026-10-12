@@ -60,6 +60,29 @@ class R2SyncSection extends ConsumerStatefulWidget {
   ConsumerState<R2SyncSection> createState() => _R2SyncSectionState();
 }
 
+/// 同步中每一項的狀態（2026-10-12 使用者回報：同步中離開同步頁再回來，
+/// 頁面上每一項的進度都不見了）。原本記在頁面的 State 裡，頁面一關就丟，
+/// 背景同步照跑、但新開的頁面什麼都看不到。改成放在頁面外面這一份，
+/// 同步一路寫進來；頁面開著就聽它的變化重畫，關掉再開也接得上。
+class _SyncUiState extends ChangeNotifier {
+  bool syncing = false;
+  _FeaturePhase diary = _FeaturePhase.idle;
+  _FeaturePhase fitness = _FeaturePhase.idle;
+  _FeaturePhase yt = _FeaturePhase.idle;
+  _FeaturePhase kanaPractice = _FeaturePhase.idle;
+  _FeaturePhase kanaExam = _FeaturePhase.idle;
+  _FeaturePhase english = _FeaturePhase.idle;
+  _FeaturePhase appHome = _FeaturePhase.idle;
+  _FeaturePhase syncLog = _FeaturePhase.idle;
+  _FeaturePhase errorLog = _FeaturePhase.idle;
+  final habits = <String, _FeaturePhase>{};
+  final results = <String, String>{};
+
+  void changed() => notifyListeners();
+}
+
+final _ui = _SyncUiState();
+
 class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
   final _endpointController = TextEditingController();
   final _accessKeyController = TextEditingController();
@@ -68,15 +91,24 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
   _Phase _phase = _Phase.idle;
   String? _errorMessage;
   DateTime? _lastSyncedAt;
-  bool _syncing = false;
-  _FeaturePhase _diaryPhase = _FeaturePhase.idle;
-  _FeaturePhase _fitnessPhase = _FeaturePhase.idle;
-  _FeaturePhase _ytPhase = _FeaturePhase.idle;
-  _FeaturePhase _kanaPracticePhase = _FeaturePhase.idle;
-  _FeaturePhase _kanaExamPhase = _FeaturePhase.idle;
-  _FeaturePhase _englishPhase = _FeaturePhase.idle;
-  _FeaturePhase _appHomePhase = _FeaturePhase.idle;
-  final Map<String, _FeaturePhase> _habitPhases = {};
+  // 下面這些都是 [_ui] 的別名，見 [_SyncUiState]。
+  bool get _syncing => _ui.syncing;
+  set _syncing(bool v) => _ui.syncing = v;
+  _FeaturePhase get _diaryPhase => _ui.diary;
+  set _diaryPhase(_FeaturePhase v) => _ui.diary = v;
+  _FeaturePhase get _fitnessPhase => _ui.fitness;
+  set _fitnessPhase(_FeaturePhase v) => _ui.fitness = v;
+  _FeaturePhase get _ytPhase => _ui.yt;
+  set _ytPhase(_FeaturePhase v) => _ui.yt = v;
+  _FeaturePhase get _kanaPracticePhase => _ui.kanaPractice;
+  set _kanaPracticePhase(_FeaturePhase v) => _ui.kanaPractice = v;
+  _FeaturePhase get _kanaExamPhase => _ui.kanaExam;
+  set _kanaExamPhase(_FeaturePhase v) => _ui.kanaExam = v;
+  _FeaturePhase get _englishPhase => _ui.english;
+  set _englishPhase(_FeaturePhase v) => _ui.english = v;
+  _FeaturePhase get _appHomePhase => _ui.appHome;
+  set _appHomePhase(_FeaturePhase v) => _ui.appHome = v;
+  Map<String, _FeaturePhase> get _habitPhases => _ui.habits;
 
   /// 交易／抽菸／喝酒／負債記錄的同步狀況列（id 對應 [_habitPhases]）。
   static const _habitRows = [
@@ -85,26 +117,35 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
     ('drinking', '喝酒記錄'),
     ('debt', '負債管理'),
   ];
-  _FeaturePhase _syncLogPhase = _FeaturePhase.idle;
-  _FeaturePhase _errorLogPhase = _FeaturePhase.idle;
+  _FeaturePhase get _syncLogPhase => _ui.syncLog;
+  set _syncLogPhase(_FeaturePhase v) => _ui.syncLog = v;
+  _FeaturePhase get _errorLogPhase => _ui.errorLog;
+  set _errorLogPhase(_FeaturePhase v) => _ui.errorLog = v;
 
   /// 各功能這次同步的上傳／下載筆數，顯示在「各功能同步狀況」每一列
   /// 右邊（2026-09-24 使用者要求：各功能同步狀況也要看得到結果）。
-  final Map<String, String> _results = {};
+  Map<String, String> get _results => _ui.results;
 
+  /// 頁面關掉也照寫（同步在背景跑），開著的頁面靠 [_onUiChanged] 重畫。
   void _record(String label, ({int downloaded, int uploaded}) r) {
-    if (!mounted) return;
-    setState(() => _results[label] = '↑${r.uploaded} ↓${r.downloaded}');
+    _results[label] = '↑${r.uploaded} ↓${r.downloaded}';
+    _ui.changed();
+  }
+
+  void _onUiChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
   void initState() {
     super.initState();
+    _ui.addListener(_onUiChanged);
     _loadLastSyncedAt();
   }
 
   @override
   void dispose() {
+    _ui.removeListener(_onUiChanged);
     _endpointController.dispose();
     _accessKeyController.dispose();
     _secretKeyController.dispose();
@@ -176,13 +217,11 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
     void Function(_FeaturePhase) onUpdate,
   ) {
     return (phase) {
-      if (!mounted) return;
-      setState(() {
-        onUpdate(switch (phase) {
-          SyncPhase.downloading => _FeaturePhase.downloading,
-          SyncPhase.uploading => _FeaturePhase.uploading,
-        });
+      onUpdate(switch (phase) {
+        SyncPhase.downloading => _FeaturePhase.downloading,
+        SyncPhase.uploading => _FeaturePhase.uploading,
       });
+      _ui.changed();
     };
   }
 
@@ -272,12 +311,14 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
           _record(label, r);
           details.add('$label 上傳${r.uploaded}／下載${r.downloaded}');
           if (r.downloaded > 0) downloads[label] = r.downloaded;
-          if (mounted) setState(() => setPhase(_FeaturePhase.done));
+          setPhase(_FeaturePhase.done);
+          _ui.changed();
         } catch (e, stack) {
           AppLog.add('[同步] $label 失敗：$e\n$stack', isError: true);
           failures.add('$label：$e');
           failedLabels.add(label);
-          if (mounted) setState(() => setPhase(_FeaturePhase.error));
+          setPhase(_FeaturePhase.error);
+          _ui.changed();
         } finally {
           final p = progress.state;
           if (p != null) {
@@ -489,24 +530,21 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
         // 日誌前面）。除錯日誌本身也可能收到這次同步過程中任何功能失敗
         // 寫進 AppLog 的錯誤（見上面 `run` 的 catch），所以放前面同步剛好
         // 也比較新；同步紀錄墊底才是真的「這次同步全部做完」的最終記錄。
-        if (mounted) {
-          setState(() => _errorLogPhase = _FeaturePhase.downloading);
-        }
+        _errorLogPhase = _FeaturePhase.downloading;
+        _ui.changed();
         final errorRepo = container.read(errorLogRepositoryProvider);
         final errorResult = await service.syncErrorLog(errorRepo);
         _record('除錯錯誤日誌', errorResult);
         AppLog.restore(await errorRepo.loadAll());
-        if (mounted) {
-          setState(() {
-            _errorLogPhase = _FeaturePhase.done;
-            _syncLogPhase = _FeaturePhase.downloading;
-          });
-        }
+        _errorLogPhase = _FeaturePhase.done;
+        _syncLogPhase = _FeaturePhase.downloading;
+        _ui.changed();
         final logResult = await service.syncLog(
           container.read(syncLogRepositoryProvider),
         );
         _record('同步紀錄', logResult);
-        if (mounted) setState(() => _syncLogPhase = _FeaturePhase.done);
+        _syncLogPhase = _FeaturePhase.done;
+        _ui.changed();
       } catch (_) {
         // 紀錄上傳失敗不擋主流程：其他功能已經同步成功。
       }
@@ -518,19 +556,26 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
       container.read(dataRevisionProvider.notifier).state++;
       container.read(r2SyncRunningProvider.notifier).state = false;
       progress.state = null;
-      if (mounted) {
-        setState(() {
-          _lastSyncedAt = now;
-          _syncing = false;
-        });
-      }
+      _syncing = false;
+      _ui.changed();
+      if (mounted) setState(() => _lastSyncedAt = now);
       // 不寫是哪台裝置傳的（2026-10-08 使用者：不用分 iPhone／Android，
       // 只要「本裝置從雲端更新了什麼」）。
+      // 已經離開同步頁：用整個 App 的 Navigator 底下那層 Overlay 顯示
+      // （見 [showAppNotice] 的 overlay 參數說明）。
       final noticeContext = mounted ? context : rootNavigatorKey.currentContext;
-      if (noticeContext == null || !noticeContext.mounted) return;
+      final noticeOverlay = mounted
+          ? null
+          : rootNavigatorKey.currentState?.overlay;
+      if (noticeContext == null ||
+          !noticeContext.mounted ||
+          (!mounted && noticeOverlay == null)) {
+        return;
+      }
       if (failedLabels.isEmpty) {
         showAppNotice(
           noticeContext,
+          overlay: noticeOverlay,
           downloads.isEmpty
               ? '同步完成，沒有新資料'
               : '本裝置從雲端更新：${_downloadSummary(downloads)}',
@@ -538,6 +583,7 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
       } else {
         showAppNotice(
           noticeContext,
+          overlay: noticeOverlay,
           '同步完成，但 ${failedLabels.length} 項失敗：${failedLabels.join('、')}',
           detail: '其他功能已經更新',
           isError: true,
@@ -561,13 +607,26 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
           );
       container.read(r2SyncRunningProvider.notifier).state = false;
       progress.state = null;
-      if (mounted) {
-        widget.onLogged?.call();
-        setState(() => _syncing = false);
-      }
+      _syncing = false;
+      _ui.changed();
+      if (mounted) widget.onLogged?.call();
+      // 已經離開同步頁：用整個 App 的 Navigator 底下那層 Overlay 顯示
+      // （見 [showAppNotice] 的 overlay 參數說明）。
       final noticeContext = mounted ? context : rootNavigatorKey.currentContext;
-      if (noticeContext == null || !noticeContext.mounted) return;
-      showAppNotice(noticeContext, '同步失敗：$e', isError: true);
+      final noticeOverlay = mounted
+          ? null
+          : rootNavigatorKey.currentState?.overlay;
+      if (noticeContext == null ||
+          !noticeContext.mounted ||
+          (!mounted && noticeOverlay == null)) {
+        return;
+      }
+      showAppNotice(
+        noticeContext,
+        '同步失敗：$e',
+        isError: true,
+        overlay: noticeOverlay,
+      );
     }
   }
 
@@ -580,7 +639,7 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
     final credentials = ref.watch(r2CredentialsProvider);
     // 在別的頁面發起、還在背景跑的同步跑完了：重讀上次同步時間跟紀錄。
     ref.listen(r2SyncRunningProvider, (was, now) {
-      if (was == true && !now && !_syncing) {
+      if (was == true && !now) {
         _loadLastSyncedAt();
         widget.onLogged?.call();
       }

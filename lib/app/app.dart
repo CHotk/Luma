@@ -34,17 +34,8 @@ class LumeApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       routerConfig: appRouter,
       // 同步中跳去別的頁面，最上面顯示即時進度（2026-10-12 使用者要求）。
-      builder: (context, child) => Stack(
-        children: [
-          child ?? const SizedBox.shrink(),
-          const Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: SyncProgressBanner(),
-          ),
-        ],
-      ),
+      builder: (context, child) =>
+          SyncProgressFrame(child: child ?? const SizedBox.shrink()),
       // 內建元件（日期／時間選擇器等）用繁體中文。
       locale: const Locale('zh', 'TW'),
       supportedLocales: const [Locale('zh', 'TW'), Locale('en')],

@@ -29,9 +29,16 @@ final syncProgressProvider = StateProvider<SyncProgress?>((ref) => null);
 /// 不顯示（那頁每一項都有自己的狀態）。點一下回同步頁。跑完這條收起來，
 /// 換成原本的「本裝置從雲端更新：…」通知。
 ///
-/// 放在 `MaterialApp.router` 的 builder 裡，蓋在所有頁面上面。
+/// 放在 `MaterialApp.router` 的 builder 裡（[SyncProgressFrame]）。
 class SyncProgressBanner extends ConsumerWidget {
   const SyncProgressBanner({super.key});
+
+  /// 現在要不要顯示：有在同步、而且不在同步頁。
+  static bool visible(SyncProgress? progress) =>
+      progress != null &&
+      !appRouter.routerDelegate.currentConfiguration.uri.path.startsWith(
+        '/sync',
+      );
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -39,8 +46,7 @@ class SyncProgressBanner extends ConsumerWidget {
     return ListenableBuilder(
       listenable: appRouter.routerDelegate,
       builder: (context, _) {
-        final path = appRouter.routerDelegate.currentConfiguration.uri.path;
-        final show = progress != null && !path.startsWith('/sync');
+        final show = visible(progress);
         return AnimatedSwitcher(
           duration: const Duration(milliseconds: 220),
           transitionBuilder: (child, anim) => SizeTransition(
@@ -49,8 +55,43 @@ class SyncProgressBanner extends ConsumerWidget {
             child: FadeTransition(opacity: anim, child: child),
           ),
           child: show
-              ? _Bar(key: const ValueKey('bar'), progress: progress)
+              ? _Bar(key: const ValueKey('bar'), progress: progress!)
               : const SizedBox.shrink(key: ValueKey('none')),
+        );
+      },
+    );
+  }
+}
+
+/// 進度條放在頁面上方、把頁面往下推，不是蓋在頁面上（2026-10-12 使用者
+/// 回報：蓋住左上角選單，點進同步頁就出不去）。顯示時頁面自己的上方安全
+/// 區拿掉，不然進度條跟頁面標題中間會多一段空白。
+class SyncProgressFrame extends ConsumerWidget {
+  const SyncProgressFrame({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final progress = ref.watch(syncProgressProvider);
+    return ListenableBuilder(
+      listenable: appRouter.routerDelegate,
+      builder: (context, _) {
+        final show = SyncProgressBanner.visible(progress);
+        return ColoredBox(
+          color: AppColors.bg,
+          child: Column(
+            children: [
+              const SyncProgressBanner(),
+              Expanded(
+                child: MediaQuery.removePadding(
+                  context: context,
+                  removeTop: show,
+                  child: child,
+                ),
+              ),
+            ],
+          ),
         );
       },
     );
@@ -70,7 +111,7 @@ class _Bar extends StatelessWidget {
     return SafeArea(
       bottom: false,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
+        padding: const EdgeInsets.fromLTRB(12, 6, 12, 4),
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 520),

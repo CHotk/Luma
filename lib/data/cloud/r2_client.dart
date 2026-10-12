@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:aws_common/aws_common.dart';
 import 'package:aws_signature_v4/aws_signature_v4.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart' show visibleForTesting;
 
 /// R2 連線用的憑證。三個欄位對應設定頁輸入卡片的三個欄位（見
 /// `design-history/已選擇完成/雲端同步設計/01_簡潔卡片式.html`）：`endpoint` 是
@@ -213,11 +214,38 @@ class R2Client {
       serviceConfiguration: S3ServiceConfiguration(),
     );
     final bytes = await signed.bodyBytes;
-    final httpRequest = http.Request(signed.method.value, signed.uri)
-      ..headers.addAll(signed.headers);
-    if (bytes.isNotEmpty) httpRequest.bodyBytes = bytes;
 
-    final streamed = await _http.send(httpRequest);
-    return http.Response.fromStream(streamed);
+    // 網路瞬斷自動重試（2026-10-12 使用者在 iPhone Safari 同步，五十音
+    // 練習那個檔「Load failed」整項失敗——所有功能平行同步、YT 影片快取
+    // 一次十幾個請求，手機網路一抖就有一個斷掉）。只重試「連不上／斷線」
+    // 跟 R2 暫時性的 5xx；這幾種請求（GET／HEAD／PUT／DELETE）重送結果
+    // 一樣，不會重複寫入。最多試 [_attempts] 次，中間等一下再試。
+    for (var attempt = 1; ; attempt++) {
+      try {
+        // Request 送過一次就不能再送，每次重建一個。
+        final httpRequest = http.Request(signed.method.value, signed.uri)
+          ..headers.addAll(signed.headers);
+        if (bytes.isNotEmpty) httpRequest.bodyBytes = bytes;
+        final res = await http.Response.fromStream(
+          await _http.send(httpRequest),
+        );
+        if (res.statusCode >= 500 && attempt < _attempts) {
+          await Future<void>.delayed(_retryDelay * attempt);
+          continue;
+        }
+        return res;
+      } on http.ClientException {
+        if (attempt >= _attempts) rethrow;
+        await Future<void>.delayed(_retryDelay * attempt);
+      }
+    }
   }
+
+  /// 網路失敗最多試幾次（含第一次）、每次重試前等多久（第 n 次等 n 倍）。
+  static const _attempts = 3;
+  static Duration _retryDelay = const Duration(milliseconds: 700);
+
+  /// 測試用：不要真的等。
+  @visibleForTesting
+  static set retryDelayForTest(Duration d) => _retryDelay = d;
 }

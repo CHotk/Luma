@@ -19,14 +19,22 @@ import '../../app/theme/spacing.dart';
 ///
 /// [detail] 是第二行灰色小字（例如同步有失敗時的「其他功能已經更新」），
 /// 不給就只有一行。
+///
+/// [overlay] 給「頁面已經關掉、手上只有整個 App 的 Navigator」的情況用
+/// （例如同步在背景跑完，使用者早就離開同步頁）：Navigator 自己的
+/// context 往上找不到 Overlay（Overlay 在它底下），直接 `Overlay.of` 會
+/// 「Null check operator used on a null value」當掉——2026-10-12 使用者
+/// 貼的同步紀錄「意外錯誤」就是這個，背景同步完的通知也因此從來沒出現。
+/// 這時改傳 `rootNavigatorKey.currentState?.overlay`。
 Future<void> showAppNotice(
   BuildContext context,
   String message, {
   String? detail,
   bool isError = false,
   Duration duration = const Duration(seconds: 3),
+  OverlayState? overlay,
 }) {
-  final overlay = Overlay.of(context, rootOverlay: true);
+  overlay ??= Overlay.of(context, rootOverlay: true);
   final completer = Completer<void>();
   late OverlayEntry entry;
   var removed = false;
