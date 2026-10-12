@@ -8,6 +8,7 @@ import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
 import '../../data/repositories/yt_channel_log_store.dart';
+import '../../data/repositories/yt_display_prefs_store.dart';
 import '../../data/repositories/yt_video_cache_store.dart';
 import '../../data/repositories/yt_video_hidden_store.dart';
 import '../../data/repositories/yt_video_watch_store.dart';
@@ -16,6 +17,7 @@ import '../../data/services/yt_removed_video_checker.dart';
 import '../../data/services/yt_video_type_scanner.dart';
 import '../../domain/models/yt_tracker.dart';
 import '../../domain/models/yt_video_watch.dart';
+import '../../shared/snap_to_edge.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_confirm_dialog.dart';
 import '../../shared/widgets/app_notice.dart';
@@ -1688,10 +1690,8 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                                 ),
                                 // 編輯中先藏起來，不跟儲存列擠。
                                 if (prefs.showBackToTop && !_editing)
-                                  Positioned(
-                                    right: 14,
-                                    bottom: 16,
-                                    child: _BackToTopButton(
+                                  Positioned.fill(
+                                    child: _BackToTopLayer(
                                       visible: _showBackToTop,
                                       onTap: () => _scroll.animateTo(
                                         0,
@@ -2076,6 +2076,142 @@ class _Pick extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// 「回到最上面」可以拖到想要的位置（2026-10-12 使用者要求：起始位置
+/// 靠上一點、最好可以拖）。拖的時候跟著手指走，放開存進
+/// [YtDisplayPrefs]（跨裝置同步）；只在頁面範圍內，不會拖出畫面。
+/// 只有按鈕本身接手勢，其他地方照樣點得到底下的影片。
+class _BackToTopLayer extends ConsumerStatefulWidget {
+  const _BackToTopLayer({required this.visible, required this.onTap});
+
+  final bool visible;
+  final VoidCallback onTap;
+
+  @override
+  ConsumerState<_BackToTopLayer> createState() => _BackToTopLayerState();
+}
+
+class _BackToTopLayerState extends ConsumerState<_BackToTopLayer>
+    with SingleTickerProviderStateMixin {
+  static const _size = 44.0;
+
+  /// 吸到邊之後離邊多遠。
+  static const _margin = 10.0;
+
+  /// 位置一律用「離右邊、離下面多遠」表示（跟設定存的一樣）。
+  /// 拖動中跟著手指的位置；null＝沒在拖。
+  Offset? _dragging;
+
+  /// 放開後滑去吸邊的動畫（像 iPhone 輔助觸控小圓點，2026-10-12 使用者
+  /// 要求：要絲滑、磁吸四邊）。
+  late final AnimationController _snap = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 320),
+  );
+  Offset _snapFrom = Offset.zero, _snapTo = Offset.zero;
+
+  @override
+  void dispose() {
+    _snap.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save(double right, double bottom) async {
+    final next = ref
+        .read(ytDisplayPrefsProvider)
+        .copyWith(backToTopRight: right, backToTopBottom: bottom);
+    ref.read(ytDisplayPrefsProvider.notifier).state = next;
+    final saved = await YtDisplayPrefsStore(
+      ref.read(keyValueStoreProvider),
+    ).save(next);
+    if (mounted) ref.read(ytDisplayPrefsProvider.notifier).state = saved;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final prefs = ref.watch(ytDisplayPrefsProvider);
+    return LayoutBuilder(
+      builder: (context, c) {
+        final maxRight = (c.maxWidth - _size).clamp(0.0, double.infinity);
+        final maxBottom = (c.maxHeight - _size).clamp(0.0, double.infinity);
+        Offset clampPos(Offset o) =>
+            Offset(o.dx.clamp(0.0, maxRight), o.dy.clamp(0.0, maxBottom));
+        return AnimatedBuilder(
+          animation: _snap,
+          builder: (context, _) {
+            final Offset pos;
+            if (_dragging != null) {
+              pos = _dragging!;
+            } else if (_snap.isAnimating) {
+              pos = Offset.lerp(
+                _snapFrom,
+                _snapTo,
+                Curves.easeOutBack.transform(_snap.value),
+              )!;
+            } else {
+              pos = clampPos(
+                Offset(prefs.backToTopRight, prefs.backToTopBottom),
+              );
+            }
+            return Stack(
+              children: [
+                Positioned(
+                  right: pos.dx,
+                  bottom: pos.dy,
+                  child: GestureDetector(
+                    onPanStart: widget.visible
+                        ? (_) {
+                            _snap.stop();
+                            setState(() => _dragging = pos);
+                          }
+                        : null,
+                    onPanUpdate: widget.visible
+                        ? (d) => setState(
+                            () => _dragging = clampPos(
+                              Offset(
+                                _dragging!.dx - d.delta.dx,
+                                _dragging!.dy - d.delta.dy,
+                              ),
+                            ),
+                          )
+                        : null,
+                    onPanEnd: widget.visible
+                        ? (_) {
+                            final from = _dragging!;
+                            final to = snapToNearestEdge(
+                              from,
+                              maxRight: maxRight,
+                              maxBottom: maxBottom,
+                              margin: _margin,
+                            );
+                            setState(() {
+                              _dragging = null;
+                              _snapFrom = from;
+                              _snapTo = to;
+                            });
+                            _snap.forward(from: 0);
+                            _save(to.dx, to.dy);
+                          }
+                        : null,
+                    // 拖的時候放大一點，手指知道抓到了。
+                    child: AnimatedScale(
+                      scale: _dragging != null ? 1.12 : 1,
+                      duration: const Duration(milliseconds: 150),
+                      child: _BackToTopButton(
+                        visible: widget.visible,
+                        onTap: widget.onTap,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 }

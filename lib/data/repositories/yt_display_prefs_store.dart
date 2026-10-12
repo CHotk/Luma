@@ -11,6 +11,8 @@ class YtDisplayPrefs {
     this.showScrollbar = true,
     this.showBackToTop = true,
     this.removedCheckDays = defaultRemovedCheckDays,
+    this.backToTopRight = defaultBackToTopRight,
+    this.backToTopBottom = defaultBackToTopBottom,
     required this.updatedAt,
   });
 
@@ -29,6 +31,14 @@ class YtDisplayPrefs {
 
   static const defaultRemovedCheckDays = 14;
 
+  /// 「回到最上面」按鈕離右邊、下面多遠（2026-10-12 使用者要求：起始
+  /// 位置靠上一點、可以拖；拖完記住，跟著同步）。
+  final double backToTopRight;
+  final double backToTopBottom;
+
+  static const defaultBackToTopRight = 10.0;
+  static const defaultBackToTopBottom = 110.0;
+
   /// 設定頁給的選項（天）：一週、兩週、一個月、不檢查。
   static const removedCheckChoices = [7, 14, 30, 0];
 
@@ -42,12 +52,16 @@ class YtDisplayPrefs {
     bool? showScrollbar,
     bool? showBackToTop,
     int? removedCheckDays,
+    double? backToTopRight,
+    double? backToTopBottom,
     DateTime? updatedAt,
   }) => YtDisplayPrefs(
     videoIncludeCold: videoIncludeCold ?? this.videoIncludeCold,
     showScrollbar: showScrollbar ?? this.showScrollbar,
     showBackToTop: showBackToTop ?? this.showBackToTop,
     removedCheckDays: removedCheckDays ?? this.removedCheckDays,
+    backToTopRight: backToTopRight ?? this.backToTopRight,
+    backToTopBottom: backToTopBottom ?? this.backToTopBottom,
     updatedAt: updatedAt ?? this.updatedAt,
   );
 
@@ -56,6 +70,8 @@ class YtDisplayPrefs {
     'showScrollbar': showScrollbar,
     'showBackToTop': showBackToTop,
     'removedCheckDays': removedCheckDays,
+    'backToTopRight': backToTopRight,
+    'backToTopBottom': backToTopBottom,
     'updatedAt': updatedAt.toIso8601String(),
   };
 
@@ -66,6 +82,10 @@ class YtDisplayPrefs {
     showBackToTop: j['showBackToTop'] as bool? ?? true,
     removedCheckDays:
         (j['removedCheckDays'] as num?)?.toInt() ?? defaultRemovedCheckDays,
+    backToTopRight:
+        (j['backToTopRight'] as num?)?.toDouble() ?? defaultBackToTopRight,
+    backToTopBottom:
+        (j['backToTopBottom'] as num?)?.toDouble() ?? defaultBackToTopBottom,
     updatedAt:
         DateTime.tryParse(j['updatedAt'] as String? ?? '') ?? DateTime(2000),
   );

@@ -57,6 +57,9 @@ void main() {
     expect(find.text('置頂'), findsNothing);
     expect(find.text('移動'), findsOneWidget);
     expect(find.text('刪除'), findsOneWidget);
+    // 分類頁也不分置頂／一般／冷藏／待評鑑，全部在「等分類」一區。
+    expect(find.textContaining('等分類 ·'), findsOneWidget);
+    expect(find.textContaining('待評鑑 ·'), findsNothing);
   });
 
   testWidgets('一般分類：照舊有置頂', (tester) async {

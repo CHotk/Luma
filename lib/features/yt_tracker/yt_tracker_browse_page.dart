@@ -1959,101 +1959,130 @@ class _ChannelGridState extends State<_ChannelGrid> {
       Widget header,
       List<Widget> body,
     ) => (header: header, body: body);
-    final sections = <({Widget header, List<Widget> body})>[
-      if (pinned.isNotEmpty)
-        section(
-          Row(
-            children: [
-              const Icon(
-                Icons.push_pin_rounded,
-                size: 13,
-                color: AppColors.ytPinAccent,
-              ),
-              const SizedBox(width: 4),
-              Text('已置頂 · ${pinned.length}', style: AppText.note),
-            ],
-          ),
-          [grid(pinned)],
-        ),
-      // 一般區（沒置頂也沒冷藏）也標數量，跟置頂、冷藏區一致
-      // （2026-10-06 使用者要求）。
-      if (rest.isNotEmpty)
-        section(
-          Row(
-            children: [
-              const Icon(
-                Icons.subscriptions_outlined,
-                size: 13,
-                color: AppColors.ink3,
-              ),
-              const SizedBox(width: 4),
-              Text('一般 · ${rest.length}', style: AppText.note),
-            ],
-          ),
-          [grid(rest)],
-        ),
-      if (cold.isNotEmpty)
-        section(
-          InkWell(
-            onTap: () => setState(() => _coldExpanded = !_coldExpanded),
-            borderRadius: BorderRadius.circular(8),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 6),
-              child: Row(
+    // 單獨看「挖掘新頻道」時不分置頂／一般／冷藏／待評鑑（2026-10-12
+    // 使用者要求：那裡的頻道只是在等被分類或刪除），全部放同一區。
+    final sections = widget.showDiscoveredBadge
+        ? <({Widget header, List<Widget> body})>[
+            section(
+              Row(
                 children: [
                   const Icon(
-                    Icons.ac_unit_rounded,
+                    Icons.travel_explore_rounded,
                     size: 13,
-                    color: AppColors.ytColdAccent,
+                    color: AppColors.ink3,
                   ),
                   const SizedBox(width: 4),
-                  Text(
-                    '$ytColdSectionLabel · ${cold.length}',
-                    style: AppText.note,
-                  ),
-                  const Spacer(),
-                  Text(_coldExpanded ? '收起' : '展開', style: AppText.note),
-                  Icon(
-                    _coldExpanded
-                        ? Icons.expand_less_rounded
-                        : Icons.expand_more_rounded,
-                    size: 18,
-                    color: AppColors.ink3,
+                  Text('等分類 · ${channels.length}', style: AppText.note),
+                  const SizedBox(width: Gap.sm),
+                  Expanded(
+                    child: Text(
+                      '長按移到其他分類或刪除',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.right,
+                      style: AppText.note,
+                    ),
                   ),
                 ],
               ),
+              [grid(channels)],
             ),
-          ),
-          [if (_coldExpanded) grid(cold)],
-        ),
-      // 待評鑑：剛加進來、還沒分到置頂／一般／冷藏的頻道，排在最下面，
-      // 等使用者自己長按分區（2026-10-06 使用者要求）。
-      if (pending.isNotEmpty)
-        section(
-          Row(
-            children: [
-              const Icon(
-                Icons.rate_review_outlined,
-                size: 13,
-                color: AppColors.ink3,
-              ),
-              const SizedBox(width: 4),
-              Text('待評鑑 · ${pending.length}', style: AppText.note),
-              const SizedBox(width: Gap.sm),
-              Expanded(
-                child: Text(
-                  '長按頻道分到置頂／一般／冷藏',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.right,
-                  style: AppText.note,
+          ]
+        : <({Widget header, List<Widget> body})>[
+            if (pinned.isNotEmpty)
+              section(
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.push_pin_rounded,
+                      size: 13,
+                      color: AppColors.ytPinAccent,
+                    ),
+                    const SizedBox(width: 4),
+                    Text('已置頂 · ${pinned.length}', style: AppText.note),
+                  ],
                 ),
+                [grid(pinned)],
               ),
-            ],
-          ),
-          [grid(pending)],
-        ),
-    ];
+            // 一般區（沒置頂也沒冷藏）也標數量，跟置頂、冷藏區一致
+            // （2026-10-06 使用者要求）。
+            if (rest.isNotEmpty)
+              section(
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.subscriptions_outlined,
+                      size: 13,
+                      color: AppColors.ink3,
+                    ),
+                    const SizedBox(width: 4),
+                    Text('一般 · ${rest.length}', style: AppText.note),
+                  ],
+                ),
+                [grid(rest)],
+              ),
+            if (cold.isNotEmpty)
+              section(
+                InkWell(
+                  onTap: () => setState(() => _coldExpanded = !_coldExpanded),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.ac_unit_rounded,
+                          size: 13,
+                          color: AppColors.ytColdAccent,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '$ytColdSectionLabel · ${cold.length}',
+                          style: AppText.note,
+                        ),
+                        const Spacer(),
+                        Text(_coldExpanded ? '收起' : '展開', style: AppText.note),
+                        Icon(
+                          _coldExpanded
+                              ? Icons.expand_less_rounded
+                              : Icons.expand_more_rounded,
+                          size: 18,
+                          color: AppColors.ink3,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                [if (_coldExpanded) grid(cold)],
+              ),
+            // 待評鑑：剛加進來、還沒分到置頂／一般／冷藏的頻道，排在最下面，
+            // 等使用者自己長按分區（2026-10-06 使用者要求）。
+            if (pending.isNotEmpty)
+              section(
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.rate_review_outlined,
+                      size: 13,
+                      color: AppColors.ink3,
+                    ),
+                    const SizedBox(width: 4),
+                    Text('待評鑑 · ${pending.length}', style: AppText.note),
+                    const SizedBox(width: Gap.sm),
+                    Expanded(
+                      child: Text(
+                        '長按頻道分到置頂／一般／冷藏',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.right,
+                        style: AppText.note,
+                      ),
+                    ),
+                  ],
+                ),
+                [grid(pending)],
+              ),
+          ];
     while (_headerKeys.length < sections.length) {
       _headerKeys.add(GlobalKey());
     }
