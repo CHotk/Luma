@@ -36,6 +36,7 @@ import '../repositories/kana_exam_repository.dart';
 import '../repositories/kana_practice_repository.dart';
 import '../repositories/sync_log_repository.dart';
 import '../repositories/usdt_twd_rate_store.dart';
+import '../repositories/yt_display_prefs_store.dart';
 import '../storage/key_value_store.dart';
 import 'r2_client.dart';
 
@@ -734,6 +735,46 @@ class R2SyncService {
     }
 
     final cloud = UsdtTwdRateRecord.fromJson(
+      jsonDecode(utf8.decode(fetched.bytes!)) as Map<String, dynamic>,
+    );
+    if (local == null || cloud.updatedAt.isAfter(local.updatedAt)) {
+      await store.saveRecord(cloud);
+      final body = utf8.encode(jsonEncode(cloud.toJson()));
+      await _writeMeta(key, body, fetched.etag);
+      return (downloaded: 1, uploaded: 0);
+    }
+    if (local.updatedAt.isAfter(cloud.updatedAt)) {
+      final body = utf8.encode(jsonEncode(local.toJson()));
+      final etag = await _client.putObject(key, Uint8List.fromList(body));
+      await _writeMeta(key, body, etag);
+      return (downloaded: 0, uploaded: 1);
+    }
+    final body = utf8.encode(jsonEncode(local.toJson()));
+    await _writeMeta(key, body, fetched.etag);
+    return (downloaded: 0, uploaded: 0);
+  }
+
+  /// YT 顯示設定（`yt_display_prefs.json`，2026-10-12 使用者要求設定也要
+  /// 跨裝置同步）。跟 USDT 匯率同一套：整組比改的時間，後改的贏；兩邊
+  /// 都沒設定過就什麼都不做。
+  Future<({int downloaded, int uploaded})> syncYtDisplayPrefs(
+    YtDisplayPrefsStore store,
+  ) async {
+    const key = YtDisplayPrefsStore.cloudKey;
+    final local = await store.loadRecord();
+    final beforeBytes = utf8.encode(jsonEncode(local?.toJson()));
+    if (await _canSkip(key, beforeBytes)) return (downloaded: 0, uploaded: 0);
+
+    final fetched = await _client.getObjectWithEtag(key);
+    if (fetched.bytes == null) {
+      if (local == null) return (downloaded: 0, uploaded: 0);
+      final body = utf8.encode(jsonEncode(local.toJson()));
+      final etag = await _client.putObject(key, Uint8List.fromList(body));
+      await _writeMeta(key, body, etag);
+      return (downloaded: 0, uploaded: 1);
+    }
+
+    final cloud = YtDisplayPrefs.fromJson(
       jsonDecode(utf8.decode(fetched.bytes!)) as Map<String, dynamic>,
     );
     if (local == null || cloud.updatedAt.isAfter(local.updatedAt)) {

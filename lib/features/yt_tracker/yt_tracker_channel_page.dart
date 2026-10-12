@@ -7,6 +7,7 @@ import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
+import '../../data/repositories/yt_channel_log_store.dart';
 import '../../data/repositories/yt_video_cache_store.dart';
 import '../../data/repositories/yt_video_hidden_store.dart';
 import '../../data/repositories/yt_video_watch_store.dart';
@@ -54,6 +55,10 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
   /// 「最近影片」往下滑到底繼續載入更早影片（2026-09-24 使用者要求）：
   /// 第一頁 10 部由 [_videosFuture] 抓，之後每頁 20 部接在 [_moreVideos]。
   final _scroll = ScrollController();
+
+  /// 往下滑超過這麼多才出現右下角「回到最上面」（2026-10-12 使用者要求）。
+  static const _backToTopAfter = 600.0;
+  bool _showBackToTop = false;
 
   /// 往下滑每次載入幾部。YouTube `playlistItems.list` 一次最多 50 部，
   /// 不管要 5 部還是 50 部都是 1 單位配額，所以直接拉滿（2026-09-24
@@ -170,9 +175,21 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     super.dispose();
   }
 
+  /// 設定開著才包一層一直顯示、可拖的捲動條（2026-10-12 使用者要求）。
+  Widget _withScrollbar(bool show, Widget child) => show
+      ? Scrollbar(
+          controller: _scroll,
+          thumbVisibility: true,
+          interactive: true,
+          child: child,
+        )
+      : child;
+
   void _onScroll() {
     if (!_scroll.hasClients) return;
     final pos = _scroll.position;
+    final showTop = pos.pixels > _backToTopAfter;
+    if (showTop != _showBackToTop) setState(() => _showBackToTop = showTop);
     if (pos.pixels < pos.maxScrollExtent - 300) return;
     // 選了特定類型就是翻那個類型自己的清單，跟「全部」是兩份分開的
     // 分頁狀態，見 `_loadTypedVideos` 的說明。
@@ -1274,6 +1291,24 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
       text: channel.description,
     );
     String? categoryId = channel.categoryId;
+    // 原本的名稱（2026-10-12 使用者要求：改過名也要知道原本叫啥）：頻道
+    // 紀錄裡最早那次改名的「改之前」；沒改過名就是現在這個。輸入框的字
+    // 跟它不一樣時，右邊顯示「原本：…」，點一下可以改回去。
+    final renames =
+        (await YtChannelLogStore(
+              ref.read(keyValueStoreProvider),
+            ).forChannel(channel.id))
+            .where(
+              (e) =>
+                  e.type == YtChannelEventType.renamed &&
+                  (e.detail['from'] ?? '').isNotEmpty,
+            )
+            .toList()
+          ..sort((a, b) => a.at.compareTo(b.at));
+    final originalName = renames.isEmpty
+        ? channel.name
+        : renames.first.detail['from']!;
+    if (!mounted) return;
     final action = await showDialog<String>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
@@ -1289,9 +1324,19 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                   controller: nameController,
                   autofocus: true,
                   maxLength: 30,
-                  decoration: const InputDecoration(
+                  onChanged: (_) => setDialogState(() {}),
+                  decoration: InputDecoration(
                     labelText: '頻道名稱',
                     counterText: '',
+                    suffixIcon: nameController.text.trim() == originalName
+                        ? null
+                        : _OriginalNameChip(
+                            name: originalName,
+                            onTap: () => setDialogState(
+                              () => nameController.text = originalName,
+                            ),
+                          ),
+                    suffixIconConstraints: const BoxConstraints(maxWidth: 150),
                   ),
                   style: const TextStyle(color: AppColors.ink),
                 ),
@@ -1450,6 +1495,7 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                       final category = categories.where(
                         (c) => c.id == channel.categoryId,
                       );
+                      final prefs = ref.watch(ytDisplayPrefsProvider);
                       final categoryLabel = category.isEmpty
                           ? '未分類'
                           : category.first.name;
@@ -1517,18 +1563,50 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                           // 不動——不然滑最近影片清單時，簡介跟圖表卻停在
                           // 原地不會一起往上滑，體驗很奇怪（2026-09-23
                           // 使用者回報）。只有頂部列固定在外面。
+                          //
+                          // 右側一直顯示捲動條、可以拖（2026-10-12 使用者
+                          // 要求）；滑下去一段右下角出「回到最上面」。
                           Expanded(
-                            child: CustomScrollView(
-                              controller: _scroll,
-                              slivers: [
-                                SliverToBoxAdapter(
-                                  child: _buildChannelBody(
-                                    channel,
-                                    categories,
-                                    categoryLabel,
+                            child: Stack(
+                              children: [
+                                // 捲動條自己畫，關掉 App 預設的（網頁桌機版
+                                // 預設會有一條），設定關掉就完全不顯示。
+                                ScrollConfiguration(
+                                  behavior: ScrollConfiguration.of(
+                                    context,
+                                  ).copyWith(scrollbars: false),
+                                  child: _withScrollbar(
+                                    prefs.showScrollbar,
+                                    CustomScrollView(
+                                      controller: _scroll,
+                                      slivers: [
+                                        SliverToBoxAdapter(
+                                          child: _buildChannelBody(
+                                            channel,
+                                            categories,
+                                            categoryLabel,
+                                          ),
+                                        ),
+                                        _buildVideos(channel),
+                                      ],
+                                    ),
                                   ),
                                 ),
-                                _buildVideos(channel),
+                                if (prefs.showBackToTop)
+                                  Positioned(
+                                    right: 14,
+                                    bottom: 16,
+                                    child: _BackToTopButton(
+                                      visible: _showBackToTop,
+                                      onTap: () => _scroll.animateTo(
+                                        0,
+                                        duration: const Duration(
+                                          milliseconds: 400,
+                                        ),
+                                        curve: Curves.easeOutCubic,
+                                      ),
+                                    ),
+                                  ),
                               ],
                             ),
                           ),
@@ -1857,6 +1935,81 @@ class _Pick extends StatelessWidget {
             fontSize: 11.5,
             fontWeight: FontWeight.w600,
             color: selected ? AppColors.ink : AppColors.ink2,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 頻道詳情頁右下角的「回到最上面」（2026-10-12 使用者要求：影片滑下去
+/// 以後一般 App 都有的那顆）。沒出現時縮小淡出、也點不到。
+class _BackToTopButton extends StatelessWidget {
+  const _BackToTopButton({required this.visible, required this.onTap});
+
+  final bool visible;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      ignoring: !visible,
+      child: AnimatedScale(
+        scale: visible ? 1 : 0.6,
+        duration: const Duration(milliseconds: 180),
+        child: AnimatedOpacity(
+          opacity: visible ? 1 : 0,
+          duration: const Duration(milliseconds: 180),
+          child: Tooltip(
+            message: '回到最上面',
+            child: Material(
+              color: AppColors.ytAccent,
+              shape: const CircleBorder(),
+              elevation: 4,
+              shadowColor: Colors.black54,
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: onTap,
+                child: const SizedBox(
+                  width: 44,
+                  height: 44,
+                  child: Icon(
+                    Icons.keyboard_arrow_up_rounded,
+                    size: 28,
+                    color: AppColors.ytAccentInk,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 編輯頻道名稱時右邊的「原本：…」（2026-10-12 使用者要求）。太長就
+/// 「…」，長按／滑過看完整名稱；點一下把名稱改回原本的。
+class _OriginalNameChip extends StatelessWidget {
+  const _OriginalNameChip({required this.name, required this.onTap});
+
+  final String name;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: '原本叫「$name」，點一下改回來',
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          child: Text(
+            '（原本：$name）',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppText.note.copyWith(color: AppColors.ink3),
           ),
         ),
       ),

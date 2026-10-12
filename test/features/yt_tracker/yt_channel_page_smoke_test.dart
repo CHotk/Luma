@@ -41,6 +41,53 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('還沒有設定 API 金鑰'), findsOneWidget);
     expect(find.text('全部'), findsOneWidget);
+    // 右側捲動條、回到最上面預設都開（2026-10-12）：捲動條在。
+    expect(find.byType(Scrollbar), findsWidgets);
+  });
+
+  testWidgets('編輯頻道：改過名的，名稱右邊顯示原本的名字，點了改回來', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(400, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final store = _MemoryStore();
+    await tester.runAsync(() async {
+      final repo = YtTrackerRepository(store);
+      final c = YtChannel(
+        id: 'a',
+        name: '頻道A',
+        categoryId: null,
+        addedAt: DateTime(2026, 9, 1),
+      );
+      await repo.addChannel(c);
+      await repo.updateChannel(c.copyWith(name: '我取的名字'));
+    });
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [keyValueStoreProvider.overrideWithValue(store)],
+        child: const MaterialApp(home: YtTrackerChannelPage(channelId: 'a')),
+      ),
+    );
+    Future<void> settle() async {
+      for (var i = 0; i < 6; i++) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 20)),
+        );
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+    }
+
+    await settle();
+    await tester.tap(find.byTooltip('編輯頻道'));
+    await settle();
+    expect(find.text('（原本：頻道A）'), findsOneWidget);
+
+    await tester.tap(find.text('（原本：頻道A）'));
+    await settle();
+    expect(find.widgetWithText(TextField, '頻道A'), findsOneWidget);
+    // 改回原本的名字就不用再提示。
+    expect(find.text('（原本：頻道A）'), findsNothing);
   });
 }
 

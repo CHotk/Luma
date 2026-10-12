@@ -15,7 +15,7 @@ import 'data/repositories/usdt_twd_rate_store.dart';
 import 'data/repositories/yt_api_key_store.dart';
 import 'data/repositories/yt_embed_player_style_store.dart';
 import 'data/repositories/yt_stats_refresh_setting_store.dart';
-import 'data/repositories/yt_video_include_cold_store.dart';
+import 'data/repositories/yt_display_prefs_store.dart';
 import 'data/repositories/yt_video_open_mode_store.dart';
 import 'data/seed/app_defaults_loader.dart';
 import 'data/storage/platform_store.dart';
@@ -73,7 +73,7 @@ Future<void> _start() async {
     final savedYtVideoOpenMode = await YtVideoOpenModeStore(store).load();
     final savedYtEmbedPlayerStyle = await YtEmbedPlayerStyleStore(store).load();
     final savedJpShowRing = await JpHomeRingStore(store).load();
-    final savedYtVideoIncludeCold = await YtVideoIncludeColdStore(store).load();
+    final savedYtDisplayPrefs = await YtDisplayPrefsStore(store).load();
     final savedAppHomeStyle = await AppHomeStyleStore(store).load();
     final savedUsdtTwdRate = await UsdtTwdRateStore(store).load();
     final r2BucketName = await loadR2BucketName();
@@ -94,9 +94,7 @@ Future<void> _start() async {
             (ref) => savedYtEmbedPlayerStyle,
           ),
           jpShowProgressRingProvider.overrideWith((ref) => savedJpShowRing),
-          ytVideoIncludeColdProvider.overrideWith(
-            (ref) => savedYtVideoIncludeCold,
-          ),
+          ytDisplayPrefsProvider.overrideWith((ref) => savedYtDisplayPrefs),
           appHomeStyleProvider.overrideWith((ref) => savedAppHomeStyle),
           usdtTwdRateProvider.overrideWith((ref) => savedUsdtTwdRate),
           r2BucketNameProvider.overrideWithValue(r2BucketName),

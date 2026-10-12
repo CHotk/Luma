@@ -7,6 +7,7 @@ import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
 import '../../data/repositories/usdt_twd_rate_store.dart';
+import '../../data/repositories/yt_display_prefs_store.dart';
 import '../../data/cloud/r2_client.dart';
 import '../../data/cloud/r2_credentials_store.dart';
 import '../../data/cloud/r2_sync_service.dart';
@@ -317,19 +318,30 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
           final logResult = await service.syncYtChannelLog(
             YtChannelLogStore(container.read(keyValueStoreProvider)),
           );
+          // YT 顯示設定（2026-10-12）也一起；別台改過就套用到畫面。
+          final prefsStore = YtDisplayPrefsStore(
+            container.read(keyValueStoreProvider),
+          );
+          final prefsResult = await service.syncYtDisplayPrefs(prefsStore);
+          if (prefsResult.downloaded > 0) {
+            container.read(ytDisplayPrefsProvider.notifier).state =
+                await prefsStore.load();
+          }
           return (
             downloaded:
                 ytResult.downloaded +
                 ytVideoResult.downloaded +
                 watchResult.downloaded +
                 orderResult.downloaded +
-                logResult.downloaded,
+                logResult.downloaded +
+                prefsResult.downloaded,
             uploaded:
                 ytResult.uploaded +
                 ytVideoResult.uploaded +
                 watchResult.uploaded +
                 orderResult.uploaded +
-                logResult.uploaded,
+                logResult.uploaded +
+                prefsResult.uploaded,
           );
         }),
         run('五十音練習', (p) => _kanaPracticePhase = p, (onPhase) async {

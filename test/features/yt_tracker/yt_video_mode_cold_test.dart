@@ -3,23 +3,31 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lume/app/providers.dart';
 import 'package:lume/data/repositories/yt_tracker_repository.dart';
-import 'package:lume/data/repositories/yt_video_include_cold_store.dart';
+import 'package:lume/data/repositories/yt_display_prefs_store.dart';
 import 'package:lume/data/storage/key_value_store.dart';
 import 'package:lume/domain/models/yt_tracker.dart';
 import 'package:lume/features/yt_tracker/yt_tracker_browse_page.dart';
 
 /// 2026-10-12 使用者要求：依影片顯示預設不抓冷藏頻道，設定裡可以打開。
 void main() {
-  test('設定預設不抓冷藏，存了會記住', () async {
+  test('設定預設：不抓冷藏、捲動條跟回到最上面都開；存了會記住', () async {
     final store = _MemoryStore();
-    expect(await YtVideoIncludeColdStore(store).load(), isFalse);
-    await YtVideoIncludeColdStore(store).save(true);
-    expect(await YtVideoIncludeColdStore(store).load(), isTrue);
+    final d = await YtDisplayPrefsStore(store).load();
+    expect(d.videoIncludeCold, isFalse);
+    expect(d.showScrollbar, isTrue);
+    expect(d.showBackToTop, isTrue);
+    expect(await YtDisplayPrefsStore(store).loadRecord(), isNull);
+    await YtDisplayPrefsStore(store).save(d.copyWith(videoIncludeCold: true));
+    expect((await YtDisplayPrefsStore(store).load()).videoIncludeCold, isTrue);
   });
 
-  testWidgets('分類裡只有冷藏頻道：依影片顯示提示去設定打開，打開後就會去抓', (
-    tester,
-  ) async {
+  test('早上只存本機的「抓冷藏」舊開關會帶進來', () async {
+    final store = _MemoryStore()
+      ..data['yt_tracker.video_include_cold.v1'] = 'true';
+    expect((await YtDisplayPrefsStore(store).load()).videoIncludeCold, isTrue);
+  });
+
+  testWidgets('分類裡只有冷藏頻道：依影片顯示提示去設定打開，打開後就會去抓', (tester) async {
     tester.view.physicalSize = const Size(400, 800);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -60,7 +68,9 @@ void main() {
     await _settle(tester);
     expect(find.text('這裡都是冷藏頻道'), findsOneWidget);
 
-    container.read(ytVideoIncludeColdProvider.notifier).state = true;
+    container.read(ytDisplayPrefsProvider.notifier).state = YtDisplayPrefs
+        .defaults
+        .copyWith(videoIncludeCold: true);
     await _settle(tester);
     expect(find.text('這裡都是冷藏頻道'), findsNothing);
   });

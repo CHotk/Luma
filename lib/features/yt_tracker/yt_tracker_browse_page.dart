@@ -709,10 +709,10 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
   }
 
   /// 「依影片顯示」實際要抓的頻道：預設不抓冷藏的（2026-10-12 使用者
-  /// 要求），設定裡打開 [ytVideoIncludeColdProvider] 才連冷藏一起抓。
+  /// 要求），設定裡打開（[YtDisplayPrefs.videoIncludeCold]）才連冷藏一起抓。
   /// 依頻道顯示不受影響，冷藏的照樣排在最下面。
   List<YtChannel> _videoSourceChannels(List<YtChannel> channels) =>
-      ref.watch(ytVideoIncludeColdProvider)
+      ref.watch(ytDisplayPrefsProvider).videoIncludeCold
       ? channels
       : [
           for (final c in channels)

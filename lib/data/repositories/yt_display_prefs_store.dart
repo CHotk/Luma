@@ -1,0 +1,106 @@
+import 'dart:convert';
+
+import '../storage/key_value_store.dart';
+
+/// YT 管理的顯示設定，跨裝置同步（2026-10-12 使用者要求：這類設定都要
+/// 能多裝置同步）。整組存成一筆「設定＋改的時間」，同步時比時間，後改
+/// 的贏（見 `R2SyncService.syncYtDisplayPrefs`），跟 USDT 匯率同一套。
+class YtDisplayPrefs {
+  const YtDisplayPrefs({
+    this.videoIncludeCold = false,
+    this.showScrollbar = true,
+    this.showBackToTop = true,
+    required this.updatedAt,
+  });
+
+  /// 「依影片顯示」要不要連冷藏頻道一起抓（2026-10-12：預設不抓）。
+  final bool videoIncludeCold;
+
+  /// 頻道詳情頁右側一直顯示捲動條（2026-10-12：預設開）。
+  final bool showScrollbar;
+
+  /// 頻道詳情頁滑下去後右下角的「回到最上面」（2026-10-12：預設開）。
+  final bool showBackToTop;
+
+  final DateTime updatedAt;
+
+  /// 沒設定過：全部預設值，時間給很舊，雲端有設定就用雲端的。
+  static final defaults = YtDisplayPrefs(updatedAt: DateTime(2000));
+
+  YtDisplayPrefs copyWith({
+    bool? videoIncludeCold,
+    bool? showScrollbar,
+    bool? showBackToTop,
+    DateTime? updatedAt,
+  }) => YtDisplayPrefs(
+    videoIncludeCold: videoIncludeCold ?? this.videoIncludeCold,
+    showScrollbar: showScrollbar ?? this.showScrollbar,
+    showBackToTop: showBackToTop ?? this.showBackToTop,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+
+  Map<String, dynamic> toJson() => {
+    'videoIncludeCold': videoIncludeCold,
+    'showScrollbar': showScrollbar,
+    'showBackToTop': showBackToTop,
+    'updatedAt': updatedAt.toIso8601String(),
+  };
+
+  /// 欄位缺的用預設值（之後加新設定，舊裝置上傳的檔案也讀得進來）。
+  factory YtDisplayPrefs.fromJson(Map<String, dynamic> j) => YtDisplayPrefs(
+    videoIncludeCold: j['videoIncludeCold'] as bool? ?? false,
+    showScrollbar: j['showScrollbar'] as bool? ?? true,
+    showBackToTop: j['showBackToTop'] as bool? ?? true,
+    updatedAt:
+        DateTime.tryParse(j['updatedAt'] as String? ?? '') ?? DateTime(2000),
+  );
+}
+
+class YtDisplayPrefsStore {
+  YtDisplayPrefsStore(this._store);
+
+  final KeyValueStore _store;
+
+  static const _key = 'yt_tracker.display_prefs.v1';
+
+  /// 2026-10-12 早上「依影片顯示也抓冷藏」先做成只存本機的開關，同一天
+  /// 改成整組同步；舊開關有存過就帶進來。
+  static const _legacyIncludeColdKey = 'yt_tracker.video_include_cold.v1';
+
+  /// 雲端上的檔名。
+  static const cloudKey = 'yt_display_prefs.json';
+
+  /// 沒設定過是 null（同步時就不上傳，用雲端的或預設值）。
+  Future<YtDisplayPrefs?> loadRecord() async {
+    final raw = await _store.read(_key);
+    if (raw != null) {
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is Map<String, dynamic>) {
+          return YtDisplayPrefs.fromJson(decoded);
+        }
+      } on FormatException {
+        // 壞掉的當沒設定過。
+      }
+    }
+    final legacy = await _store.read(_legacyIncludeColdKey);
+    if (legacy == 'true') {
+      return YtDisplayPrefs.defaults.copyWith(videoIncludeCold: true);
+    }
+    return null;
+  }
+
+  Future<YtDisplayPrefs> load() async =>
+      await loadRecord() ?? YtDisplayPrefs.defaults;
+
+  /// 使用者在設定頁改的：蓋上現在的時間。
+  Future<YtDisplayPrefs> save(YtDisplayPrefs prefs) async {
+    final stamped = prefs.copyWith(updatedAt: DateTime.now());
+    await saveRecord(stamped);
+    return stamped;
+  }
+
+  /// 同步帶回來的：原樣存，不改時間。
+  Future<void> saveRecord(YtDisplayPrefs prefs) =>
+      _store.write(_key, jsonEncode(prefs.toJson()));
+}

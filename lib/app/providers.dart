@@ -20,7 +20,7 @@ import '../data/repositories/word_repository.dart';
 import '../data/repositories/yt_stats_refresh_setting_store.dart';
 import '../data/repositories/yt_tracker_repository.dart';
 import '../data/repositories/yt_embed_player_style_store.dart';
-import '../data/repositories/yt_video_include_cold_store.dart';
+import '../data/repositories/yt_display_prefs_store.dart';
 import '../data/repositories/yt_video_open_mode_store.dart';
 import '../data/repositories/usdt_twd_rate_store.dart';
 import '../data/seed/app_defaults_loader.dart';
@@ -175,11 +175,11 @@ final ytVideoOpenModeProvider = StateProvider<YtVideoOpenMode>(
   (ref) => YtVideoOpenModeStore.defaultMode,
 );
 
-/// YT「依影片顯示」要不要連冷藏頻道一起抓（2026-10-12 使用者要求：預設
-/// 不抓，設定裡可以打開）。開機時 `main.dart` 從 [YtVideoIncludeColdStore]
-/// 讀一次 override 進來。
-final ytVideoIncludeColdProvider = StateProvider<bool>(
-  (ref) => YtVideoIncludeColdStore.defaultInclude,
+/// YT 顯示設定（依影片顯示抓不抓冷藏、頻道頁捲動條、回到最上面），
+/// 2026-10-12 使用者要求、跨裝置同步。開機時 `main.dart` 從
+/// [YtDisplayPrefsStore] 讀一次 override 進來；同步帶回新的也會更新這個。
+final ytDisplayPrefsProvider = StateProvider<YtDisplayPrefs>(
+  (ref) => YtDisplayPrefs.defaults,
 );
 
 /// 日文首頁要不要顯示「今天進度」那一圈（2026-10-05 使用者要求：預設

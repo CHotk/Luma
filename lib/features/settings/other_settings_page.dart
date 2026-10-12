@@ -12,7 +12,7 @@ import '../../data/repositories/jp_home_ring_store.dart';
 import '../../data/repositories/usdt_twd_rate_store.dart';
 import '../../data/repositories/yt_embed_player_style_store.dart';
 import '../../data/repositories/yt_stats_refresh_setting_store.dart';
-import '../../data/repositories/yt_video_include_cold_store.dart';
+import '../../data/repositories/yt_display_prefs_store.dart';
 import '../../data/repositories/yt_video_open_mode_store.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_confirm_dialog.dart';
@@ -497,7 +497,7 @@ class _YtTrackerSettings extends ConsumerWidget {
               const _VideoOpenModeRow(),
               const _EmbedPlayerStyleRow(),
               const Divider(height: Gap.lg, color: AppColors.glassEdge),
-              const _VideoIncludeColdRow(),
+              const _YtDisplayPrefsRows(),
               const Divider(height: Gap.lg, color: AppColors.glassEdge),
               // 永久刪除的頻道清單（2026-10-06 使用者要求：放設定裡，想看
               // 刪了哪些可以點開；放最下面）。
@@ -806,53 +806,87 @@ class _StatsRefreshRowState extends ConsumerState<_StatsRefreshRow> {
 
 /// 膠囊狀加減按鈕裡的其中一顆（2026-09-29 使用者要求：不要「圓圈裡一個
 /// 加減號」那種圖示，改成膠囊裡分兩半點）。
-/// 點影片要內嵌播放還是開新分頁（2026-09-30 使用者要求：預設內嵌，
-/// 設定頁能切回開新分頁）。
-/// 「依影片顯示」要不要連冷藏頻道一起抓（2026-10-12 使用者要求：預設
-/// 不抓，這裡可以打開）。
-class _VideoIncludeColdRow extends ConsumerWidget {
-  const _VideoIncludeColdRow();
+/// YT 顯示設定（2026-10-12 使用者要求）：依影片顯示要不要抓冷藏頻道、
+/// 頻道詳情頁的捲動條跟「回到最上面」。三個存成同一筆
+/// [YtDisplayPrefs]，跨裝置同步。
+class _YtDisplayPrefsRows extends ConsumerWidget {
+  const _YtDisplayPrefsRows();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final include = ref.watch(ytVideoIncludeColdProvider);
-    return Row(
-      children: [
-        const Icon(Icons.ac_unit_rounded, size: 18, color: AppColors.ink2),
-        const SizedBox(width: Gap.sm),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                '依影片顯示也抓冷藏頻道',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.ink,
+    final prefs = ref.watch(ytDisplayPrefsProvider);
+
+    Future<void> update(YtDisplayPrefs next) async {
+      ref.read(ytDisplayPrefsProvider.notifier).state = next;
+      final saved = await YtDisplayPrefsStore(
+        ref.read(keyValueStoreProvider),
+      ).save(next);
+      ref.read(ytDisplayPrefsProvider.notifier).state = saved;
+    }
+
+    Widget row(
+      IconData icon,
+      String title,
+      String note,
+      bool value,
+      ValueChanged<bool> onChanged,
+    ) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: AppColors.ink2),
+          const SizedBox(width: Gap.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.ink,
+                  ),
                 ),
-              ),
-              Text(
-                include ? '冷藏頻道的影片也會混進來' : '冷藏頻道不抓，依頻道顯示照樣看得到',
-                style: AppText.note,
-              ),
-            ],
+                Text(note, style: AppText.note),
+              ],
+            ),
           ),
+          Switch(value: value, onChanged: onChanged),
+        ],
+      ),
+    );
+
+    return Column(
+      children: [
+        row(
+          Icons.ac_unit_rounded,
+          '依影片顯示也抓冷藏頻道',
+          prefs.videoIncludeCold ? '冷藏頻道的影片也會混進來' : '冷藏頻道不抓，依頻道顯示照樣看得到',
+          prefs.videoIncludeCold,
+          (v) => update(prefs.copyWith(videoIncludeCold: v)),
         ),
-        Switch(
-          value: include,
-          onChanged: (v) async {
-            ref.read(ytVideoIncludeColdProvider.notifier).state = v;
-            await YtVideoIncludeColdStore(
-              ref.read(keyValueStoreProvider),
-            ).save(v);
-          },
+        row(
+          Icons.drag_handle_rounded,
+          '頻道頁右側捲動條',
+          '可以拖著快速捲到想看的影片',
+          prefs.showScrollbar,
+          (v) => update(prefs.copyWith(showScrollbar: v)),
+        ),
+        row(
+          Icons.vertical_align_top_rounded,
+          '頻道頁「回到最上面」按鈕',
+          '影片滑下去以後右下角出現',
+          prefs.showBackToTop,
+          (v) => update(prefs.copyWith(showBackToTop: v)),
         ),
       ],
     );
   }
 }
 
+/// 點影片要內嵌播放還是開新分頁（2026-09-30 使用者要求：預設內嵌，
+/// 設定頁能切回開新分頁）。
 class _VideoOpenModeRow extends ConsumerWidget {
   const _VideoOpenModeRow();
 
