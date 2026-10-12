@@ -89,6 +89,12 @@ void main() {
 
     expect(outlined('頻道B'), isTrue);
     expect(outlined('頻道A'), isFalse);
+
+    // 長按頻道A叫出選單，也算選中：藍框換到A（2026-10-12 使用者要求）。
+    await tester.longPress(find.text('頻道A'));
+    await settle();
+    expect(outlined('頻道A'), isTrue);
+    expect(outlined('頻道B'), isFalse);
   });
 }
 

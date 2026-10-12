@@ -94,8 +94,9 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
   // 頻道在左、影片在右（2026-10-06 使用者要求對調成這個順序）。
   _ViewMode _mode = _ViewMode.channel;
 
-  /// 剛剛點進去看的頻道（2026-10-12 使用者要求：從頻道頁返回分類時，那張
-  /// 卡片要有藍色外框，知道剛剛點的是哪個）。只記在這一頁，離開分類頁就忘。
+  /// 剛剛點進去看、或長按／點 ⋮ 操作過的頻道（2026-10-12 使用者要求：
+  /// 那張卡片要有藍色外框，知道剛剛動的是哪個）。只記在這一頁，離開分類頁
+  /// 就忘。
   String? _lastOpenedChannelId;
   _TypeFilter _typeFilter = _TypeFilter.all;
   // 預設依訂閱人數排序，不是加入順序（2026-09-29 使用者要求：每個分類
@@ -1236,6 +1237,9 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                                               _selected.single ==
                                                   ytDiscoverCategoryId,
                                           lastOpenedId: _lastOpenedChannelId,
+                                          onTouched: (c) => setState(
+                                            () => _lastOpenedChannelId = c.id,
+                                          ),
                                           onOpen: (c) {
                                             setState(
                                               () => _lastOpenedChannelId = c.id,
@@ -1855,12 +1859,17 @@ class _ChannelGrid extends StatefulWidget {
     this.onRestore,
     this.onPurge,
     this.lastOpenedId,
+    this.onTouched,
   });
 
   final List<YtChannel> channels;
 
   /// 剛剛點進去看的頻道，卡片畫藍色外框（見 [_YtTrackerBrowsePageState._lastOpenedChannelId]）。
   final String? lastOpenedId;
+
+  /// 長按、點 ⋮ 叫出選單時也算選中，同樣畫藍框（2026-10-12 使用者要求：
+  /// 有操作那個頻道就標出來）。
+  final void Function(YtChannel)? onTouched;
   final void Function(YtChannel) onOpen;
   final void Function(YtChannel) onMove;
   final void Function(YtChannel) onTogglePin;
@@ -2254,6 +2263,7 @@ class _ChannelGridState extends State<_ChannelGrid> {
     YtChannel c, {
     BubbleMenuDrag? drag,
   }) async {
+    widget.onTouched?.call(c);
     final isPinned = c.pinnedAt != null;
     final isCold = c.coldAt != null;
     final action = await showBubbleMenu<_ChannelMenuAction>(
