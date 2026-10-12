@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>編輯頻道最終版</title>
+<style>
+  :root {
+    --bg: #0C0C13; --card: #151520; --card2: #161622; --sheet: #1A1A27; --line: #2A2A3D;
+    --ink: #F3F2F8; --ink2: #A3A2B2; --ink3: #74738A;
+    --accent: #7EA6FF; --accentSolid: #2E6BFF; --yt: #FF4E45; --ok: #5FE08D; --mid: #F5C763;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--ink); min-height: 100vh; font: 14px/1.5 system-ui, -apple-system, "Segoe UI", "Microsoft JhengHei", sans-serif; }
+  .page { max-width: 1100px; margin: 0 auto; padding: 24px 16px 60px; }
+  h1 { font-size: 20px; margin: 0 0 6px; }
+  .lead { color: var(--ink2); font-size: 13px; margin: 0 0 18px; } .lead b { color: var(--ink); }
+  .stage { display: flex; gap: 28px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
+  .notes { flex: 1 1 340px; max-width: 480px; background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 18px 20px; font-size: 13.5px; color: var(--ink2); }
+  .notes h2 { color: var(--ink); font-size: 17px; margin: 0 0 8px; }
+  .notes h3 { color: var(--ink); font-size: 13.5px; margin: 14px 0 4px; }
+  .notes ul { margin: 0; padding-left: 18px; } .notes li { margin: 3px 0; }
+  .notes table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 4px; }
+  .notes td { padding: 5px 4px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .notes td:first-child { color: var(--ink); white-space: nowrap; width: 76px; }
+  .notes .try { margin-top: 14px; padding: 10px 12px; border-radius: 12px; background: rgba(126,166,255,.08); border: 1px solid rgba(126,166,255,.25); color: var(--ink); font-size: 12.5px; }
+  .reset { margin-top: 12px; border: 1px solid var(--line); background: transparent; color: var(--ink2); border-radius: 10px; padding: 6px 12px; cursor: pointer; font-size: 12px; }
+
+  .phone { width: 380px; max-width: 100%; height: 800px; flex-shrink: 0; border-radius: 34px; border: 1px solid var(--line);
+    background: radial-gradient(120% 60% at 20% 0%, #2a1520 0%, #0e0e17 60%); position: relative; overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,.5); }
+  .screen { position: absolute; inset: 0; overflow-y: auto; padding: 14px 16px 90px; scrollbar-width: thin; scrollbar-color: #4a4a66 transparent; }
+  .bar { display: flex; align-items: center; gap: 6px; padding: 4px 0 14px; }
+  .bar .t { flex: 1; font-weight: 800; font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ib { width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; color: var(--ink2); cursor: pointer; font-size: 16px; flex-shrink: 0; }
+  .ib:hover { background: rgba(255,255,255,.05); }
+  .done { border: 0; background: rgba(126,166,255,.15); color: var(--accent); font-weight: 800; border-radius: 10px; padding: 7px 12px; cursor: pointer; font-size: 13px; }
+  .note { font-size: 11.5px; color: var(--ink2); } .note3 { font-size: 11px; color: var(--ink3); }
+  .row { display: flex; align-items: center; gap: 8px; } .sp { flex: 1; }
+  .panel { font-size: 12px; color: var(--ink2); font-weight: 700; margin: 16px 0 6px; letter-spacing: .5px; }
+  .av { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; font-weight: 900; font-size: 22px; flex-shrink: 0; position: relative; background-size: cover; background-position: center; }
+  .link { color: var(--accent); text-decoration: underline; font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; cursor: pointer; }
+
+  /* 編輯狀態：可以點的地方虛線框＋小鉛筆 */
+  .ed { position: relative; border-radius: 8px; cursor: pointer; transition: background .15s; outline: 1.5px dashed rgba(126,166,255,.45); outline-offset: 2px; }
+  .ed:hover { background: rgba(126,166,255,.08); }
+  .ed.changed { outline-color: var(--accent); outline-style: solid; }
+  .pen { position: absolute; right: -6px; top: -8px; width: 18px; height: 18px; border-radius: 50%; background: var(--accentSolid); color: #fff; font-size: 10px; display: grid; place-items: center; pointer-events: none; }
+  .av.ed { outline-offset: 3px; border-radius: 50%; }
+  .av .cam { position: absolute; right: -3px; bottom: -3px; width: 22px; height: 22px; border-radius: 50%; background: var(--accentSolid); display: grid; place-items: center; font-size: 11px; border: 2px solid #121219; }
+  .editing-in { width: 100%; background: var(--card2); border: 1.5px solid var(--accent); border-radius: 10px; color: var(--ink); font: inherit; outline: 0; padding: 6px 8px; }
+  .inrow { display: flex; align-items: center; gap: 6px; background: var(--card2); border: 1.5px solid var(--accent); border-radius: 10px; padding: 0 6px 0 8px; }
+  .inrow input { flex: 1; min-width: 0; background: transparent; border: 0; outline: 0; color: var(--ink); font: inherit; padding: 6px 0; }
+  .orig { font-size: 11px; color: var(--ink3); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; padding: 2px 4px; border-radius: 6px; }
+  .orig:hover { background: rgba(255,255,255,.06); color: var(--ink2); }
+  .mini { border: 0; background: rgba(126,166,255,.14); color: var(--accent); border-radius: 8px; padding: 3px 8px; font-size: 11.5px; cursor: pointer; flex-shrink: 0; }
+  .ok { border: 0; background: var(--accentSolid); color: #fff; border-radius: 8px; padding: 3px 9px; font-size: 11.5px; cursor: pointer; flex-shrink: 0; }
+  .catpop { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px; padding: 8px; border-radius: 12px; background: #1d1d2c; border: 1px solid #34344c; animation: fade .15s; }
+  .chip { border: 1px solid var(--line); color: var(--ink2); border-radius: 99px; padding: 4px 11px; font-size: 12px; cursor: pointer; background: transparent; display: inline-flex; align-items: center; gap: 6px; }
+  .chip i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .dim { opacity: .3; pointer-events: none; filter: saturate(.5); transition: opacity .2s; }
+  .chart { height: 74px; display: flex; align-items: flex-end; gap: 5px; padding: 6px 2px; border-radius: 12px; background: rgba(255,255,255,.03); }
+  .chart i { flex: 1; background: rgba(255,78,69,.55); border-radius: 3px 3px 0 0; }
+  .vid { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,.05); }
+  .thumb { width: 116px; aspect-ratio: 16/9; border-radius: 10px; flex-shrink: 0; position: relative; }
+  .thumb b { position: absolute; right: 5px; bottom: 4px; font-size: 10px; background: rgba(0,0,0,.75); padding: 0 4px; border-radius: 4px; font-weight: 600; }
+  .vt { font-size: 12.5px; line-height: 1.35; }
+  .tchip { border: 1px solid var(--line); color: var(--ink2); border-radius: 99px; padding: 3px 10px; font-size: 11.5px; }
+  .tchip.on { background: rgba(255,78,69,.18); border-color: rgba(255,78,69,.6); color: #fff; }
+
+  .banner { margin: -4px 0 12px; padding: 8px 11px; border-radius: 12px; background: rgba(126,166,255,.1); border: 1px solid rgba(126,166,255,.3); font-size: 11.5px; color: var(--ink); animation: fade .2s; }
+  .savebar { position: absolute; left: 12px; right: 12px; bottom: 14px; z-index: 15; display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+    background: rgba(30,30,46,.96); backdrop-filter: blur(14px); border: 1px solid rgba(126,166,255,.4); border-radius: 16px; animation: up .2s; box-shadow: 0 10px 30px rgba(0,0,0,.55); }
+  .btn { border: 0; border-radius: 11px; padding: 8px 16px; font-weight: 700; font-size: 13.5px; cursor: pointer; background: var(--accentSolid); color: #fff; }
+  .btn.ghost { background: transparent; color: var(--ink2); }
+  .scrim { position: absolute; inset: 0; background: rgba(0,0,0,.55); z-index: 20; display: flex; align-items: flex-end; animation: fade .18s; }
+  .sheet { width: 100%; background: var(--sheet); border-radius: 24px 24px 0 0; padding: 0 18px 18px; animation: up .22s ease-out; }
+  .handle { width: 40px; height: 5px; border-radius: 9px; background: rgba(255,255,255,.14); margin: 10px auto 10px; }
+  .opt { display: flex; align-items: center; gap: 12px; padding: 11px 6px; border-radius: 12px; cursor: pointer; }
+  .opt:hover { background: rgba(255,255,255,.04); }
+  .opt .ic { width: 36px; height: 36px; border-radius: 11px; display: grid; place-items: center; background: rgba(255,255,255,.06); font-size: 16px; flex-shrink: 0; }
+  .field { display: flex; align-items: center; gap: 6px; background: var(--card2); border: 1px solid var(--line); border-radius: 12px; padding: 0 8px 0 12px; margin-top: 4px; }
+  .field:focus-within { border-color: var(--accent); }
+  .field input { flex: 1; min-width: 0; background: transparent; border: 0; outline: 0; color: var(--ink); font: inherit; padding: 10px 0; font-size: 13px; }
+  .toast { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); z-index: 40; max-width: 86%; background: rgba(30,30,46,.95); backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,.12); border-radius: 14px; padding: 9px 14px; font-size: 12.5px; text-align: center; animation: drop .25s; }
+  .confirm { position: absolute; inset: 0; z-index: 30; background: rgba(0,0,0,.6); display: grid; place-items: center; padding: 24px; animation: fade .15s; }
+  .confirm > div { background: #1d1d2c; border: 1px solid #34344c; border-radius: 20px; padding: 18px; text-align: center; width: 100%; }
+  @keyframes fade { from { opacity: 0 } }
+  @keyframes up { from { transform: translateY(30px); opacity: 0 } }
+  @keyframes drop { from { transform: translate(-50%, -14px); opacity: 0 } }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>YT 編輯頻道・最終版：頻道頁本身直接點著改</h1>
+  <p class="lead">
+    使用者選第 5 版，再加：<b>改頭像就點頭像、頻道連結原本就顯示在頁面上所以點連結就改、不要「更多」收起來展開</b>。
+    沒有另外的編輯視窗，按 ✏️ 進入編輯狀態，頁面上每個能改的地方都有藍色虛線框＋小鉛筆，點哪改哪；改了的地方虛線變實線，下面浮出儲存列，一次存。<br>
+    手機框照現在頻道詳情頁的版面畫（頭像、名稱、分類・訂閱、連結、簡介、上傳頻率、全部影片），全部能點。
+  </p>
+  <div class="stage">
+    <div class="phone" id="phone"></div>
+    <div class="notes">
+      <h2>規格</h2>
+      <h3>進出編輯</h3>
+      <ul>
+        <li>頂部列 ✏️ → 進入編輯：標題列右邊換成「完成」，頁面最上面一行藍色提示「點有虛線的地方直接改」。</li>
+        <li>上傳頻率、全部影片那些<b>改不到的區塊淡掉</b>、點不到，一看就知道哪些能改。</li>
+        <li>有改東西 → 底部浮出「已改 N 項・還原・儲存」。按儲存存一次、離開編輯狀態、上面提示「已儲存」。</li>
+        <li>沒存就按「完成」或返回 → 問「有改過的東西還沒存，要放棄嗎？」。</li>
+      </ul>
+      <h3>每個地方點了做什麼</h3>
+      <table>
+        <tr><td>頭像</td><td>從下面滑出「換頭像」：① 從頻道網址重新抓（跟新增頻道一樣自動抓，不用貼）② 貼圖片網址（有預覽）③ 不用圖片，用名稱第一個字。</td></tr>
+        <tr><td>名稱</td><td>原地變輸入框，右邊「（原本：…）」，點了改回原名；Enter 或點外面就收起。</td></tr>
+        <tr><td>分類</td><td>「學習・658 萬訂閱」裡的分類那段，點了在下面展開一排分類色塊，點一個就換、自動收起。</td></tr>
+        <tr><td>頻道連結</td><td>平常點了是開 YouTube；編輯狀態點了變輸入框＋「貼上」鈕。</td></tr>
+        <tr><td>簡介</td><td>原地變多行輸入框（最多 300 字，有字數）；原本沒簡介的，編輯時顯示「＋ 加簡介」。</td></tr>
+      </table>
+      <h3>其他</h3>
+      <ul>
+        <li>沒有刪除鈕（刪除在分類頁長按）。</li>
+        <li>改名、換分類照舊寫進頻道紀錄。</li>
+        <li>整個頁面可以捲，右側捲動條、回到最上面照舊（編輯時回到最上面先藏起來，避免跟儲存列擠）。</li>
+      </ul>
+      <div class="try">試試看：按 ✏️ → 點頭像換成「用名稱第一個字」→ 點名稱改掉一個字、按「原本：…」改回來 → 點分類換一個 → 點連結按貼上 → 點簡介打字 → 看底部「已改 N 項」→ 儲存。也可以改了不存直接按「完成」。</div>
+      <button class="reset" id="reset">↺ 重來（資料還原）</button>
+    </div>
+  </div>
+</div>
+<script>
+const CATS = [
+  { id: null, name: '未分類', color: '#74738A' }, { id: 'game', name: '遊戲', color: '#FF8A4C' }, { id: 'tech', name: '科技', color: '#7EA6FF' },
+  { id: 'food', name: '美食', color: '#5FE08D' }, { id: 'music', name: '音樂', color: '#C792EA' }, { id: 'study', name: '學習', color: '#F5C763' },
+];
+const ORIGINAL = '老高與小茉 Mr & Mrs Gao';
+const IMG = 'linear-gradient(135deg,#FF4E45,#C792EA)';
+function seed() {
+  return { name: '老高', url: 'https://www.youtube.com/@mrandmrsgao', avatar: 'img', desc: '老高的頻道，講各種奇怪的故事、宇宙、歷史謎團，一集大概 20～40 分鐘。', cat: 'study' };
+}
+const S = { ch: seed(), edit: false, draft: null, field: null, sheet: false, confirm: false, toast: null, avInput: '' };
+const KEYS = ['name', 'url', 'avatar', 'desc', 'cat'];
+const changed = k => S.draft && S.draft[k] !== S.ch[k];
+const nChanged = () => S.draft ? KEYS.filter(changed).length : 0;
+const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+const catOf = id => CATS.find(c => c.id === id) || CATS[0];
+function avatarHtml(d, size = 56) {
+  const bg = d.avatar === 'img' ? IMG : d.avatar === 'letter' ? '#2a2a3d' : `url(${d.avatar}), linear-gradient(135deg,#5FE08D,#7EA6FF)`;
+  const label = d.avatar === 'img' ? '🛸' : d.avatar === 'letter' ? esc((d.name || '?').slice(0, 1)) : '🖼';
+  return `<div class="av ${S.edit ? 'ed' + (changed('avatar') ? ' changed' : '') : ''}" ${S.edit ? 'data-a="avatar"' : ''} style="width:${size}px;height:${size}px;background:${bg}">${label}${S.edit ? '<span class="cam">📷</span>' : ''}</div>`;
+}
+function page() {
+  const d = S.edit ? S.draft : S.ch, c = catOf(d.cat);
+  const top = S.edit
+    ? `<div class="bar"><div class="ib" data-a="back">←</div><div class="t">${esc(d.name || '頻道')}</div><button class="done" data-a="finish">完成</button></div>
+       <div class="banner">✏️ 編輯中・點有虛線的地方直接改</div>`
+    : `<div class="bar"><div class="ib" data-a="back">←</div><div class="t">${esc(d.name)}</div><div class="ib" data-a="startEdit" title="編輯頻道">✏️</div><div class="ib" data-a="toast" data-m="開頻道紀錄">🕘</div><div class="ib">⚙</div></div>`;
+  // 名稱
+  let name;
+  if (S.field === 'name') name = `<div class="inrow"><input data-k="name" value="${esc(d.name)}" maxlength="30">${d.name.trim() !== ORIGINAL ? `<span class="orig" data-a="orig" title="點一下改回原本的名字">（原本：${esc(ORIGINAL)}）</span>` : ''}<button class="ok" data-a="fieldDone">好</button></div>`;
+  else if (S.edit) name = `<div class="ed ${changed('name') ? 'changed' : ''}" data-a="field" data-f="name" style="font-size:16.5px;font-weight:800;padding:1px 4px;display:inline-block;max-width:100%">${esc(d.name || '（沒有名稱）')}<span class="pen">✎</span></div>`;
+  else name = `<div style="font-size:16.5px;font-weight:800">${esc(d.name)}</div>`;
+  // 分類・訂閱
+  const catSpan = S.edit
+    ? `<span class="ed ${changed('cat') ? 'changed' : ''}" data-a="field" data-f="cat" style="padding:0 4px;color:${c.color}">● ${c.name}<span class="pen" style="top:-10px;right:-10px">✎</span></span>`
+    : `<span style="color:${c.color}">● ${c.name}</span>`;
+  const catPop = S.field === 'cat' ? `<div class="catpop">${CATS.map(x => `<button class="chip" data-a="pickCat" data-c="${x.id}" style="${d.cat === x.id ? `background:${x.color}33;border-color:${x.color};color:#fff` : ''}"><i style="background:${x.color}"></i>${x.name}</button>`).join('')}</div>` : '';
+  // 連結
+  let url;
+  if (S.field === 'url') url = `<div class="inrow" style="margin-top:4px"><input data-k="url" value="${esc(d.url)}" placeholder="https://www.youtube.com/@…"><button class="mini" data-a="paste">貼上</button><button class="ok" data-a="fieldDone">好</button></div>`;
+  else if (S.edit) url = `<div class="ed ${changed('url') ? 'changed' : ''}" data-a="field" data-f="url" style="margin-top:3px;padding:0 4px"><span class="link" style="text-decoration:none">${esc(d.url || '＋ 加頻道網址')}</span><span class="pen">✎</span></div>`;
+  else url = d.url ? `<span class="link" data-a="toast" data-m="開新分頁去 YouTube：${esc(d.url)}">${esc(d.url)}</span>` : '';
+  // 簡介
+  let desc = '';
+  if (S.field === 'desc') desc = `<div class="panel">簡介</div><textarea class="editing-in" data-k="desc" rows="4" maxlength="300">${esc(d.desc)}</textarea><div class="row"><span class="note3">${d.desc.length}/300</span><span class="sp"></span><button class="ok" data-a="fieldDone">好</button></div>`;
+  else if (S.edit) desc = `<div class="panel">簡介</div><div class="ed ${changed('desc') ? 'changed' : ''}" data-a="field" data-f="desc" style="padding:4px 6px;font-size:13px;color:var(--ink2)">${d.desc ? esc(d.desc) : '<span style="color:var(--accent)">＋ 加簡介</span>'}<span class="pen">✎</span></div>`;
+  else if (d.desc) desc = `<div class="panel">簡介</div><div style="font-size:13px;color:var(--ink2)">${esc(d.desc)}</div>`;
+
+  const vids = ['宇宙的盡頭是什麼？我們可能一直搞錯了', '金字塔裡被封住的房間，終於有人打開了', '這個實驗讓科學家沉默了十年', '為什麼古代人都說自己看過巨人'];
+  const rest = `<div class="${S.edit ? 'dim' : ''}"><div class="panel">上傳頻率（近半年）</div><div class="chart">${[3, 5, 2, 6, 4, 7, 5, 3, 6, 8, 4, 5, 6, 3, 7, 5, 4, 6, 5, 7, 3, 6, 4, 8, 5, 6].map(h => `<i style="height:${h * 10}%"></i>`).join('')}</div>
+    <div class="row" style="margin:16px 0 8px"><b style="font-size:18px">全部影片 (689)</b><span class="sp"></span><span class="note">↻ 重新整理</span></div>
+    <div class="row" style="gap:6px;flex-wrap:wrap"><span class="tchip on">全部</span><span class="tchip">一般影片</span><span class="tchip">Shorts</span><span class="tchip">直播</span><span class="tchip">隱藏已看過 (3)</span></div>
+    ${vids.map((t, i) => `<div class="vid"><div class="thumb" style="background:linear-gradient(135deg,hsl(${i * 70} 40% 22%),hsl(${i * 70 + 60} 45% 14%))"><b>${22 + i * 4}:0${i}</b></div><div><div class="vt">${t}</div><div class="note3">${i + 2} 天前・${40 + i * 13} 萬次</div></div></div>`).join('')}</div>`;
+
+  return top + `<div class="row" style="align-items:flex-start;gap:14px">${avatarHtml(d)}<div style="min-width:0;flex:1">${name}
+      <div class="note" style="margin-top:4px">${catSpan}・658 萬訂閱</div>${catPop}${url}</div></div>${desc}${rest}`;
+}
+function sheet() {
+  if (!S.sheet) return '';
+  const d = S.draft;
+  const opt = (k, ic, title, sub) => `<div class="opt" data-a="${k}"><div class="ic">${ic}</div><div class="sp"><div style="font-weight:700;font-size:13.5px">${title}</div><div class="note3">${sub}</div></div>${d.avatar === k.replace('av-', '') ? '<b style="color:var(--accent)">✓</b>' : ''}</div>`;
+  return `<div class="scrim" data-a="closeSheet"><div class="sheet" data-stop><div class="handle"></div>
+    <div class="row" style="margin-bottom:6px">${avatarHtml(d, 44).replace(/class="av[^"]*"/, 'class="av"').replace(/data-a="avatar"/, '').replace(/<span class="cam">📷<\/span>/, '')}<div><b style="font-size:16px">換頭像</b><div class="note3">點了馬上換，最後在儲存列一起存</div></div></div>
+    ${opt('av-img', '🔄', '從頻道網址重新抓', '跟新增頻道一樣，自動抓 YouTube 上的頭像')}
+    <div class="opt" style="cursor:default"><div class="ic">🔗</div><div class="sp"><div style="font-weight:700;font-size:13.5px">貼圖片網址</div>
+      <div class="field"><input data-k="avInput" value="${esc(S.avInput)}" placeholder="https://…jpg"><button class="mini" data-a="avPaste">貼上</button><button class="ok" data-a="avUse">用這張</button></div></div></div>
+    ${opt('av-letter', 'Aa', '不用圖片', '用名稱第一個字當頭像')}
+  </div></div>`;
+}
+const phone = document.getElementById('phone');
+function toast(m) { S.toast = m; clearTimeout(toast.t); toast.t = setTimeout(() => { S.toast = null; paint(); }, 2000); }
+function paint() {
+  const sc = phone.querySelector('.screen'), top = sc ? sc.scrollTop : 0;
+  const ae = document.activeElement, k = ae && phone.contains(ae) ? ae.dataset.k : null, pos = k ? ae.selectionStart : 0;
+  const n = nChanged();
+  phone.innerHTML = `<div class="screen">${page()}</div>
+    ${S.edit && n ? `<div class="savebar"><span class="note" style="color:var(--ink)">已改 ${n} 項</span><span class="sp"></span><button class="btn ghost" data-a="revert">還原</button><button class="btn" data-a="save">儲存</button></div>` : ''}
+    ${!S.edit ? '' : ''}${sheet()}
+    ${S.confirm ? `<div class="confirm"><div><b>有改過的東西還沒存</b><div class="note" style="margin:6px 0 14px">要放棄這些修改嗎？</div><div class="row"><button class="btn ghost" style="flex:1" data-a="keep">繼續改</button><button class="btn" style="flex:1;background:var(--yt)" data-a="discard">放棄</button></div></div></div>` : ''}
+    ${S.toast ? `<div class="toast">${S.toast}</div>` : ''}`;
+  phone.querySelector('.screen').scrollTop = top;
+  if (k) { const el = phone.querySelector(`[data-k="${k}"]`); if (el) { el.focus(); try { el.setSelectionRange(pos, pos); } catch (e) {} } }
+  else if (S.field && S.focusNext) { const el = phone.querySelector(`[data-k="${S.field}"]`); if (el) { el.focus(); el.setSelectionRange?.(el.value.length, el.value.length); } S.focusNext = false; }
+}
+function exitEdit() { S.edit = false; S.draft = null; S.field = null; S.sheet = false; }
+phone.addEventListener('input', e => {
+  const k = e.target.dataset.k; if (!k) return;
+  if (k === 'avInput') { S.avInput = e.target.value; return; }
+  S.draft[k] = e.target.value; paint();
+});
+phone.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.dataset.k && e.target.tagName === 'INPUT') { S.field = null; paint(); } });
+phone.addEventListener('click', e => {
+  const el = e.target.closest('[data-a]');
+  if (!el) { if (S.field && S.field !== 'desc' && !e.target.closest('.inrow,.catpop,textarea')) { S.field = null; paint(); } return; }
+  if (el.dataset.a === 'closeSheet' && e.target.closest('[data-stop]')) return;
+  const a = el.dataset.a;
+  switch (a) {
+    case 'startEdit': S.edit = true; S.draft = { ...S.ch }; break;
+    case 'field': S.field = el.dataset.f; S.focusNext = true; break;
+    case 'fieldDone': S.field = null; break;
+    case 'orig': S.draft.name = ORIGINAL; break;
+    case 'pickCat': S.draft.cat = el.dataset.c === 'null' ? null : el.dataset.c; S.field = null; break;
+    case 'paste': S.draft.url = 'https://www.youtube.com/@mrandmrsgao/videos'; toast('已貼上剪貼簿的網址'); break;
+    case 'avatar': S.field = null; S.sheet = true; S.avInput = ''; break;
+    case 'closeSheet': S.sheet = false; break;
+    case 'av-img': S.draft.avatar = 'img'; S.sheet = false; toast('已從頻道網址重新抓到頭像'); break;
+    case 'av-letter': S.draft.avatar = 'letter'; S.sheet = false; break;
+    case 'avPaste': S.avInput = 'https://yt3.example/new-avatar.jpg'; break;
+    case 'avUse': if (!S.avInput.trim()) { toast('先貼圖片網址'); break; } S.draft.avatar = S.avInput.trim(); S.sheet = false; break;
+    case 'revert': S.draft = { ...S.ch }; S.field = null; break;
+    case 'save': if (!S.draft.name.trim()) { toast('名稱不能空白'); break; } S.ch = { ...S.draft }; exitEdit(); toast('已儲存'); break;
+    case 'finish': case 'back': if (S.edit && nChanged()) { S.confirm = true; break; } if (S.edit) exitEdit(); else toast('回到上一頁'); break;
+    case 'keep': S.confirm = false; break;
+    case 'discard': S.confirm = false; exitEdit(); break;
+    case 'toast': toast(el.dataset.m); break;
+  }
+  paint();
+});
+document.getElementById('reset').onclick = () => { S.ch = seed(); exitEdit(); S.confirm = false; paint(); };
+paint();
+</script>
+</body>
+</html>
