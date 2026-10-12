@@ -16,6 +16,7 @@ import '../../data/services/yt_video_type_scanner.dart';
 import '../../domain/models/yt_tracker.dart';
 import '../../domain/models/yt_video_watch.dart';
 import '../../shared/widgets/ambient_background.dart';
+import '../../shared/widgets/app_confirm_dialog.dart';
 import '../../shared/widgets/app_notice.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
@@ -25,6 +26,7 @@ import '../../shared/widgets/inline_empty_card.dart';
 import 'upload_frequency_chart.dart';
 import 'yt_api_key_dialog.dart';
 import 'yt_channel_avatar.dart';
+import 'yt_channel_edit_header.dart';
 import 'yt_duration_filter.dart';
 import 'yt_video_row.dart';
 
@@ -446,7 +448,9 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     );
   }
 
-  void _reload() => setState(() => _future = _load());
+  void _reload() => setState(() {
+    _future = _load();
+  });
 
   void _ensureVideosLoaded(YtChannel channel, {bool force = false}) {
     final apiKey = ref.read(ytApiKeyProvider);
@@ -1278,22 +1282,40 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     );
   }
 
-  Future<void> _showEditDialog(
-    YtChannel channel,
-    List<YtCategory> categories,
-  ) async {
-    final nameController = TextEditingController(text: channel.name);
-    final urlController = TextEditingController(text: channel.url);
-    final avatarController = TextEditingController(
-      text: channel.avatarImageUrl,
-    );
-    final descriptionController = TextEditingController(
-      text: channel.description,
-    );
-    String? categoryId = channel.categoryId;
-    // 原本的名稱（2026-10-12 使用者要求：改過名也要知道原本叫啥）：頻道
-    // 紀錄裡最早那次改名的「改之前」；沒改過名就是現在這個。輸入框的字
-    // 跟它不一樣時，右邊顯示「原本：…」，點一下可以改回去。
+  // ── 編輯頻道：頻道頁本身直接點著改（2026-10-12 使用者挑設計稿第 5 版，
+  // 最終版見 design-history/已選擇完成/2026-10-12_YT編輯頻道最終版
+  // （頁面上直接改）.html）。按 ✏️ 進編輯，頭部換成
+  // [YtChannelEditHeader]，改不到的區塊淡掉，有改東西底部浮出儲存列，
+  // 一次存。原本的編輯對話框拿掉了。──
+
+  /// 編輯中的草稿；null＝沒在編輯。
+  YtChannel? _draft;
+
+  /// 進編輯時的樣子，拿來算改了幾項、按「還原」回到這裡。
+  YtChannel? _editBase;
+
+  /// 原本的名稱（2026-10-12 使用者要求：改過名也要知道原本叫啥）：頻道
+  /// 紀錄裡最早那次改名的「改之前」；沒改過名就是進編輯時的名字。
+  String _originalName = '';
+
+  /// 每次進編輯換一個 key，頭部的輸入框從草稿重新開始。
+  int _editSession = 0;
+
+  bool get _editing => _draft != null;
+
+  int get _changedCount {
+    final d = _draft, b = _editBase;
+    if (d == null || b == null) return 0;
+    return [
+      d.name != b.name,
+      d.categoryId != b.categoryId,
+      d.url != b.url,
+      d.avatarImageUrl != b.avatarImageUrl,
+      d.description != b.description,
+    ].where((x) => x).length;
+  }
+
+  Future<void> _startEdit(YtChannel channel) async {
     final renames =
         (await YtChannelLogStore(
               ref.read(keyValueStoreProvider),
@@ -1305,151 +1327,122 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
             )
             .toList()
           ..sort((a, b) => a.at.compareTo(b.at));
-    final originalName = renames.isEmpty
-        ? channel.name
-        : renames.first.detail['from']!;
     if (!mounted) return;
-    final action = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          backgroundColor: const Color(0xFF1A1A24),
-          title: const Text('編輯頻道', style: TextStyle(color: AppColors.ink)),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TextField(
-                  controller: nameController,
-                  autofocus: true,
-                  maxLength: 30,
-                  onChanged: (_) => setDialogState(() {}),
-                  decoration: InputDecoration(
-                    labelText: '頻道名稱',
-                    counterText: '',
-                    suffixIcon: nameController.text.trim() == originalName
-                        ? null
-                        : _OriginalNameChip(
-                            name: originalName,
-                            onTap: () => setDialogState(
-                              () => nameController.text = originalName,
-                            ),
-                          ),
-                    suffixIconConstraints: const BoxConstraints(maxWidth: 150),
-                  ),
-                  style: const TextStyle(color: AppColors.ink),
-                ),
-                const SizedBox(height: Gap.xs),
-                TextField(
-                  controller: urlController,
-                  decoration: InputDecoration(
-                    labelText: '頻道網址',
-                    // 旁邊放一顆小貼上按鈕，不用整段刪掉重打
-                    // （2026-09-29 使用者要求）。
-                    suffixIcon: IconButton(
-                      icon: const Icon(
-                        Icons.content_paste_go_rounded,
-                        size: 18,
-                      ),
-                      tooltip: '貼上',
-                      onPressed: () async {
-                        String? text;
-                        try {
-                          final data = await Clipboard.getData(
-                            Clipboard.kTextPlain,
-                          );
-                          text = data?.text?.trim();
-                        } catch (_) {
-                          // 權限被擋、瀏覽器不支援：當沒讀到，不影響再按一次。
-                        }
-                        if (text == null || text.isEmpty) return;
-                        urlController.text = text;
-                        setDialogState(() {});
-                      },
-                    ),
-                  ),
-                  style: const TextStyle(fontSize: 12.5, color: AppColors.ink),
-                ),
-                const SizedBox(height: Gap.xs),
-                TextField(
-                  controller: avatarController,
-                  decoration: const InputDecoration(labelText: '頭像圖片網址'),
-                  style: const TextStyle(fontSize: 12.5, color: AppColors.ink),
-                ),
-                const SizedBox(height: Gap.xs),
-                TextField(
-                  controller: descriptionController,
-                  minLines: 1,
-                  maxLines: 4,
-                  maxLength: 200,
-                  decoration: const InputDecoration(labelText: '簡介'),
-                  style: const TextStyle(fontSize: 12.5, color: AppColors.ink),
-                ),
-                const SizedBox(height: Gap.sm),
-                Text('分類', style: AppText.note),
-                const SizedBox(height: Gap.xs),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    _Pick(
-                      label: '未分類',
-                      color: AppColors.ink3,
-                      selected: categoryId == null,
-                      onTap: () => setDialogState(() => categoryId = null),
-                    ),
-                    for (final cat in categories)
-                      _Pick(
-                        label: cat.name,
-                        color: cat.color,
-                        selected: categoryId == cat.id,
-                        onTap: () => setDialogState(() => categoryId = cat.id),
-                      ),
-                  ],
-                ),
-              ],
-            ),
+    setState(() {
+      _originalName = renames.isEmpty
+          ? channel.name
+          : renames.first.detail['from']!;
+      _draft = channel;
+      _editBase = channel;
+      _editSession++;
+    });
+  }
+
+  Future<bool> _confirmDiscard() => showAppConfirmDialog(
+    context,
+    title: '有改過的東西還沒存',
+    message: '要放棄這些修改嗎？',
+    confirmLabel: '放棄',
+    cancelLabel: '繼續改',
+  );
+
+  /// 標題列的「完成」：沒改東西直接離開編輯；有改就先問要不要放棄。
+  Future<void> _finishEdit() async {
+    if (_changedCount > 0 && !await _confirmDiscard()) return;
+    if (!mounted) return;
+    setState(() => _draft = null);
+  }
+
+  Future<void> _saveEdit() async {
+    final d = _draft;
+    if (d == null) return;
+    final name = d.name.trim();
+    if (name.isEmpty) {
+      showAppNotice(context, '名稱不能空白', isError: true);
+      return;
+    }
+    // copyWith 保留已解析的頻道 ID／上傳清單 ID／訂閱人數；改名、換分類
+    // 照舊由 repository 寫進頻道紀錄。
+    await ref
+        .read(ytTrackerRepositoryProvider)
+        .updateChannel(
+          d.copyWith(
+            name: name,
+            url: d.url.trim(),
+            avatarImageUrl: d.avatarImageUrl.trim(),
+            description: d.description.trim(),
           ),
-          // 底部按鈕列照慣例：次要的「取消」在左（純文字），主要的「儲存」
-          // 在最右（實心強調色）。刪除不放這裡（2026-10-12 使用者要求：分類頁
-          // 長按就能刪，詳情頁跟編輯視窗都拿掉刪除鈕）。
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, 'cancel'),
-              child: const Text('取消'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, 'save'),
-              child: const Text('儲存'),
-            ),
-          ],
+        );
+    if (!mounted) return;
+    setState(() => _draft = null);
+    _reload();
+    showAppNotice(context, '已儲存');
+  }
+
+  /// 點頭像：從下面滑出「換頭像」——從頻道網址重新抓、貼圖片網址、不用
+  /// 圖片。換到草稿上，跟其他欄位一起在儲存列存。
+  Future<void> _pickAvatar() async {
+    final picked = await showModalBottomSheet<_AvatarChoice>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: const Color(0xFF1A1A27),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
         ),
+        child: _AvatarSheet(current: _draft!),
       ),
     );
-
-    final repo = ref.read(ytTrackerRepositoryProvider);
-    if (action == 'save') {
-      final name = nameController.text.trim();
-      if (name.isEmpty) return;
-      await repo.updateChannel(
-        // 用 copyWith 保留已解析的頻道 ID／上傳清單 ID／訂閱人數（原本整個
-        // 重建會把這些洗掉，編輯完下次又要重新問 API）。
-        channel.copyWith(
-          name: name,
-          categoryId: categoryId,
-          avatarImageUrl: avatarController.text.trim(),
-          url: urlController.text.trim(),
-          description: descriptionController.text.trim(),
-        ),
-      );
+    if (picked == null || !mounted || _draft == null) return;
+    if (!picked.refetch) {
+      setState(() => _draft = _draft!.copyWith(avatarImageUrl: picked.url));
+      return;
+    }
+    final apiKey = ref.read(ytApiKeyProvider);
+    if (apiKey == null || apiKey.isEmpty) {
+      showAppNotice(context, '要先設定 API 金鑰才能抓頭像', isError: true);
+      return;
+    }
+    final handle = YoutubeApiService.parseHandle(_draft!.url);
+    if (handle == null) {
+      showAppNotice(context, '頻道網址裡找不到 @帳號，先改網址', isError: true);
+      return;
+    }
+    try {
+      final info = await YoutubeApiService(apiKey).fetchChannelInfo(handle);
+      if (!mounted || _draft == null) return;
+      setState(() => _draft = _draft!.copyWith(avatarImageUrl: info.avatarUrl));
+      showAppNotice(context, '已抓到頭像，記得按儲存');
+    } catch (e) {
       if (!mounted) return;
-      _reload();
+      showAppNotice(context, '頭像抓不到', detail: '$e', isError: true);
     }
   }
 
+  Widget _dimWhileEditing(Widget child) => _editing
+      ? IgnorePointer(child: Opacity(opacity: 0.3, child: child))
+      : child;
+
   @override
   Widget build(BuildContext context) {
+    // 編輯中有改東西沒存：返回先問要不要放棄。
+    return PopScope(
+      canPop: _changedCount == 0,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        if (!await _confirmDiscard() || !mounted) return;
+        setState(() => _draft = null);
+        Navigator.of(this.context).pop();
+      },
+      child: _buildScaffold(context),
+    );
+  }
+
+  Widget _buildScaffold(BuildContext context) {
     return Scaffold(
       drawer: const AppSideDrawer(),
       body: AmbientBackground(
@@ -1514,35 +1507,54 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           AppTopBar(
-                            title: channel.name,
+                            title: _draft?.name ?? channel.name,
                             // 名字太長走馬燈（2026-10-12 使用者要求）。
                             marqueeTitle: true,
+                            showSettings: !_editing,
                             // 順序：編輯、紀錄（2026-10-06 使用者要求紀錄放
                             // 編輯右邊）。刪除鈕 2026-10-12 拿掉：分類頁長按
                             // 就能刪（使用者要求）。
-                            actions: [
-                              IconButton(
-                                onPressed: () =>
-                                    _showEditDialog(channel, categories),
-                                icon: const Icon(Icons.edit_outlined, size: 20),
-                                color: AppColors.ink2,
-                                tooltip: '編輯頻道',
-                              ),
-                              // 頻道紀錄（2026-10-06）：看影片、換分類、刪除還原…
-                              IconButton(
-                                onPressed: () => context.push(
-                                  '/yt-tracker/channel/${channel.id}/log',
-                                ),
-                                icon: const Icon(
-                                  Icons.history_rounded,
-                                  size: 20,
-                                ),
-                                color: AppColors.ink2,
-                                tooltip: '紀錄',
-                              ),
-                            ],
+                            actions: _editing
+                                ? [
+                                    TextButton(
+                                      onPressed: _finishEdit,
+                                      child: const Text(
+                                        '完成',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                    ),
+                                  ]
+                                : [
+                                    IconButton(
+                                      onPressed: () => _startEdit(channel),
+                                      icon: const Icon(
+                                        Icons.edit_outlined,
+                                        size: 20,
+                                      ),
+                                      color: AppColors.ink2,
+                                      tooltip: '編輯頻道',
+                                    ),
+                                    // 頻道紀錄（2026-10-06）：看影片、換分類、刪除還原…
+                                    IconButton(
+                                      onPressed: () => context.push(
+                                        '/yt-tracker/channel/${channel.id}/log',
+                                      ),
+                                      icon: const Icon(
+                                        Icons.history_rounded,
+                                        size: 20,
+                                      ),
+                                      color: AppColors.ink2,
+                                      tooltip: '紀錄',
+                                    ),
+                                  ],
                           ),
                           const SizedBox(height: Gap.md),
+                          if (_editing) ...[
+                            const _EditingBanner(),
+                            const SizedBox(height: Gap.sm),
+                          ],
                           // 從垃圾桶點進來的頻道：最上面提示一下，旁邊就能還原。
                           if (channel.deletedAt != null &&
                               channel.purgedAt == null) ...[
@@ -1587,12 +1599,21 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                                             categoryLabel,
                                           ),
                                         ),
-                                        _buildVideos(channel),
+                                        if (_editing)
+                                          SliverIgnorePointer(
+                                            sliver: SliverOpacity(
+                                              opacity: 0.3,
+                                              sliver: _buildVideos(channel),
+                                            ),
+                                          )
+                                        else
+                                          _buildVideos(channel),
                                       ],
                                     ),
                                   ),
                                 ),
-                                if (prefs.showBackToTop)
+                                // 編輯中先藏起來，不跟儲存列擠。
+                                if (prefs.showBackToTop && !_editing)
                                   Positioned(
                                     right: 14,
                                     bottom: 16,
@@ -1605,6 +1626,18 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                                         ),
                                         curve: Curves.easeOutCubic,
                                       ),
+                                    ),
+                                  ),
+                                if (_editing && _changedCount > 0)
+                                  Positioned(
+                                    left: 0,
+                                    right: 0,
+                                    bottom: 12,
+                                    child: _EditSaveBar(
+                                      count: _changedCount,
+                                      onRevert: () =>
+                                          setState(() => _draft = _editBase),
+                                      onSave: _saveEdit,
                                     ),
                                   ),
                               ],
@@ -1631,103 +1664,123 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          children: [
-            YtChannelAvatar(channel: channel, radius: 28),
-            const SizedBox(width: Gap.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        if (_editing)
+          YtChannelEditHeader(
+            key: ValueKey(_editSession),
+            draft: _draft!,
+            base: _editBase!,
+            categories: categories,
+            originalName: _originalName,
+            onChanged: (d) => setState(() => _draft = d),
+            onTapAvatar: _pickAvatar,
+          )
+        else ...[
+          Row(
+            children: [
+              YtChannelAvatar(channel: channel, radius: 28),
+              const SizedBox(width: Gap.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      channel.name,
+                      style: const TextStyle(
+                        fontSize: 16.5,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.ink,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      channel.subscriberLabel == null
+                          ? categoryLabel
+                          : '$categoryLabel・${channel.subscriberLabel}',
+                      style: AppText.note,
+                    ),
+                    if (channel.url.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      InkWell(
+                        onTap: () => openExternalUrl(context, channel.url),
+                        child: Text(
+                          channel.url,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppText.note.copyWith(
+                            // 連結照網頁慣例用淡藍色，不用
+                            // 這個功能自己的紅色強調色——
+                            // 紅在這個 App 的語意色系裡也
+                            // 常代表錯誤/警示，用在連結上
+                            // 會讓人誤會（2026-09-22
+                            // 使用者回饋）。AppColors.accent
+                            // 就是既有的淡藍色，不用另外
+                            // 開新色碼。
+                            color: AppColors.accent,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (channel.description.isNotEmpty) ...[
+            const SizedBox(height: Gap.md),
+            const PanelLabel('簡介'),
+            const SizedBox(height: Gap.xs),
+            Text(channel.description, style: AppText.bodyDim),
+          ],
+        ],
+        // 編輯中改不到的區塊淡掉、點不到，一看就知道哪些能改。
+        _dimWhileEditing(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: Gap.md),
+              const PanelLabel('上傳頻率（近半年）'),
+              const SizedBox(height: Gap.xs),
+              _buildHistoryChart(channel),
+              const SizedBox(height: Gap.md),
+              Row(
                 children: [
                   Text(
-                    channel.name,
+                    // 2026-09-30 使用者指出：叫「最近影片」不準確，往下滑其實
+                    // 能一路翻到頻道最早的影片，不是只有「最近」這一小段；括號
+                    // 裡的總數是 `channels.list` 的 `videoCount`（全部類型合計，
+                    // 不分一般影片／Shorts／直播——API 沒有分類型的統計，見
+                    // `YoutubeChannelInfo.videoCount` 的說明），還沒問到就先不
+                    // 顯示數字，不要顯示假的 0。
+                    channel.videoCount == null
+                        ? '全部影片'
+                        : '全部影片 (${channel.videoCount})',
                     style: const TextStyle(
-                      fontSize: 16.5,
-                      fontWeight: FontWeight.w800,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
                       color: AppColors.ink,
                     ),
                   ),
-                  const SizedBox(height: 3),
-                  Text(
-                    channel.subscriberLabel == null
-                        ? categoryLabel
-                        : '$categoryLabel・${channel.subscriberLabel}',
-                    style: AppText.note,
-                  ),
-                  if (channel.url.isNotEmpty) ...[
-                    const SizedBox(height: 2),
-                    InkWell(
-                      onTap: () => openExternalUrl(context, channel.url),
-                      child: Text(
-                        channel.url,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppText.note.copyWith(
-                          // 連結照網頁慣例用淡藍色，不用
-                          // 這個功能自己的紅色強調色——
-                          // 紅在這個 App 的語意色系裡也
-                          // 常代表錯誤/警示，用在連結上
-                          // 會讓人誤會（2026-09-22
-                          // 使用者回饋）。AppColors.accent
-                          // 就是既有的淡藍色，不用另外
-                          // 開新色碼。
-                          color: AppColors.accent,
-                          decoration: TextDecoration.underline,
-                        ),
-                      ),
+                  const Spacer(),
+                  TextButton.icon(
+                    onPressed: () => _refresh(channel),
+                    icon: const Icon(Icons.refresh, size: 15),
+                    label: const Text('重新整理'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.ink2,
+                      padding: EdgeInsets.zero,
+                      minimumSize: const Size(0, 0),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
-                  ],
+                  ),
                 ],
               ),
-            ),
-          ],
+              const SizedBox(height: Gap.sm),
+              _buildVideoFilterRow(),
+              const SizedBox(height: Gap.sm),
+            ],
+          ),
         ),
-        if (channel.description.isNotEmpty) ...[
-          const SizedBox(height: Gap.md),
-          const PanelLabel('簡介'),
-          const SizedBox(height: Gap.xs),
-          Text(channel.description, style: AppText.bodyDim),
-        ],
-        const SizedBox(height: Gap.md),
-        const PanelLabel('上傳頻率（近半年）'),
-        const SizedBox(height: Gap.xs),
-        _buildHistoryChart(channel),
-        const SizedBox(height: Gap.md),
-        Row(
-          children: [
-            Text(
-              // 2026-09-30 使用者指出：叫「最近影片」不準確，往下滑其實
-              // 能一路翻到頻道最早的影片，不是只有「最近」這一小段；括號
-              // 裡的總數是 `channels.list` 的 `videoCount`（全部類型合計，
-              // 不分一般影片／Shorts／直播——API 沒有分類型的統計，見
-              // `YoutubeChannelInfo.videoCount` 的說明），還沒問到就先不
-              // 顯示數字，不要顯示假的 0。
-              channel.videoCount == null
-                  ? '全部影片'
-                  : '全部影片 (${channel.videoCount})',
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: AppColors.ink,
-              ),
-            ),
-            const Spacer(),
-            TextButton.icon(
-              onPressed: () => _refresh(channel),
-              icon: const Icon(Icons.refresh, size: 15),
-              label: const Text('重新整理'),
-              style: TextButton.styleFrom(
-                foregroundColor: AppColors.ink2,
-                padding: EdgeInsets.zero,
-                minimumSize: const Size(0, 0),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: Gap.sm),
-        _buildVideoFilterRow(),
-        const SizedBox(height: Gap.sm),
       ],
     );
   }
@@ -1988,30 +2041,269 @@ class _BackToTopButton extends StatelessWidget {
   }
 }
 
-/// 編輯頻道名稱時右邊的「原本：…」（2026-10-12 使用者要求）。太長就
-/// 「…」，長按／滑過看完整名稱；點一下把名稱改回原本的。
-class _OriginalNameChip extends StatelessWidget {
-  const _OriginalNameChip({required this.name, required this.onTap});
-
-  final String name;
-  final VoidCallback onTap;
+/// 編輯中最上面那行藍色提示。
+class _EditingBanner extends StatelessWidget {
+  const _EditingBanner();
 
   @override
   Widget build(BuildContext context) {
-    return Tooltip(
-      message: '原本叫「$name」，點一下改回來',
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-          child: Text(
-            '（原本：$name）',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: AppText.note.copyWith(color: AppColors.ink3),
-          ),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.accent.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
+      ),
+      child: const Text(
+        '✏️ 編輯中・點有虛線的地方直接改',
+        style: TextStyle(fontSize: 12, color: AppColors.ink),
+      ),
+    );
+  }
+}
+
+/// 編輯中有改東西時浮在底部的「已改 N 項・還原・儲存」。
+class _EditSaveBar extends StatelessWidget {
+  const _EditSaveBar({
+    required this.count,
+    required this.onRevert,
+    required this.onSave,
+  });
+
+  final int count;
+  final VoidCallback onRevert;
+  final VoidCallback onSave;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: const Color(0xF51E1E2E),
+      elevation: 8,
+      shadowColor: Colors.black,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: AppColors.accent.withValues(alpha: 0.4)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 6, 8, 6),
+        child: Row(
+          children: [
+            Text(
+              '已改 $count 項',
+              style: const TextStyle(fontSize: 13, color: AppColors.ink),
+            ),
+            const Spacer(),
+            TextButton(onPressed: onRevert, child: const Text('還原')),
+            const SizedBox(width: 4),
+            FilledButton(onPressed: onSave, child: const Text('儲存')),
+          ],
         ),
+      ),
+    );
+  }
+}
+
+/// 換頭像選了什麼：[refetch] 是「從頻道網址重新抓」（要打 API，交給頁面
+/// 做）；不然就是直接用 [url]（空字串＝不用圖片）。
+class _AvatarChoice {
+  const _AvatarChoice.refetch() : refetch = true, url = '';
+  const _AvatarChoice.url(this.url) : refetch = false;
+
+  final bool refetch;
+  final String url;
+}
+
+/// 點頭像滑出來的「換頭像」表單（編輯頻道最終版設計稿）。
+class _AvatarSheet extends StatefulWidget {
+  const _AvatarSheet({required this.current});
+
+  final YtChannel current;
+
+  @override
+  State<_AvatarSheet> createState() => _AvatarSheetState();
+}
+
+class _AvatarSheetState extends State<_AvatarSheet> {
+  final _url = TextEditingController();
+
+  @override
+  void dispose() {
+    _url.dispose();
+    super.dispose();
+  }
+
+  Widget _option({
+    required IconData icon,
+    required String title,
+    required String note,
+    required VoidCallback onTap,
+    bool selected = false,
+  }) => InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(12),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(11),
+            ),
+            child: Icon(icon, size: 18, color: AppColors.ink2),
+          ),
+          const SizedBox(width: Gap.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.ink,
+                  ),
+                ),
+                Text(note, style: AppText.note),
+              ],
+            ),
+          ),
+          if (selected)
+            const Icon(Icons.check_rounded, size: 20, color: AppColors.accent),
+        ],
+      ),
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final noImage = widget.current.avatarImageUrl.isEmpty;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Center(
+            child: Container(
+              width: 40,
+              height: 5,
+              margin: const EdgeInsets.only(top: 10, bottom: 10),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(9),
+              ),
+            ),
+          ),
+          Row(
+            children: [
+              YtChannelAvatar(channel: widget.current, radius: 22),
+              const SizedBox(width: Gap.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '換頭像',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.ink,
+                      ),
+                    ),
+                    Text('換好後跟其他修改一起按儲存', style: AppText.note),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: Gap.sm),
+          _option(
+            icon: Icons.refresh_rounded,
+            title: '從頻道網址重新抓',
+            note: '跟新增頻道一樣，自動抓 YouTube 上的頭像',
+            onTap: () => Navigator.pop(context, const _AvatarChoice.refetch()),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+            child: Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(11),
+                  ),
+                  child: const Icon(
+                    Icons.link_rounded,
+                    size: 18,
+                    color: AppColors.ink2,
+                  ),
+                ),
+                const SizedBox(width: Gap.md),
+                Expanded(
+                  child: TextField(
+                    controller: _url,
+                    style: const TextStyle(fontSize: 13, color: AppColors.ink),
+                    onSubmitted: (v) {
+                      if (v.trim().isEmpty) return;
+                      Navigator.pop(context, _AvatarChoice.url(v.trim()));
+                    },
+                    decoration: InputDecoration(
+                      isDense: true,
+                      labelText: '貼圖片網址',
+                      hintText: 'https://…jpg',
+                      suffixIcon: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            tooltip: '貼上',
+                            visualDensity: VisualDensity.compact,
+                            icon: const Icon(
+                              Icons.content_paste_go_rounded,
+                              size: 18,
+                            ),
+                            onPressed: () async {
+                              String? text;
+                              try {
+                                text = (await Clipboard.getData(
+                                  Clipboard.kTextPlain,
+                                ))?.text?.trim();
+                              } catch (_) {
+                                // 權限被擋：當沒讀到。
+                              }
+                              if (text == null || text.isEmpty) return;
+                              _url.text = text;
+                            },
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              final v = _url.text.trim();
+                              if (v.isEmpty) return;
+                              Navigator.pop(context, _AvatarChoice.url(v));
+                            },
+                            child: const Text('用這張'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          _option(
+            icon: Icons.hide_image_outlined,
+            title: '不用圖片',
+            note: '顯示預設的頻道圖示',
+            selected: noImage,
+            onTap: () => Navigator.pop(context, const _AvatarChoice.url('')),
+          ),
+        ],
       ),
     );
   }

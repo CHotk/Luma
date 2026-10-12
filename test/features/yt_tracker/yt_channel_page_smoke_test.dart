@@ -79,7 +79,11 @@ void main() {
     }
 
     await settle();
+    // 2026-10-12 編輯改成頻道頁直接點著改：按 ✏️ 進編輯，點名稱變輸入框。
     await tester.tap(find.byTooltip('編輯頻道'));
+    await settle();
+    expect(find.textContaining('編輯中'), findsOneWidget);
+    await tester.tap(find.text('我取的名字').last);
     await settle();
     expect(find.text('（原本：頻道A）'), findsOneWidget);
 
@@ -88,6 +92,16 @@ void main() {
     expect(find.widgetWithText(TextField, '頻道A'), findsOneWidget);
     // 改回原本的名字就不用再提示。
     expect(find.text('（原本：頻道A）'), findsNothing);
+
+    // 改了一項，底部出儲存列；存了以後離開編輯、名稱真的改回去。
+    expect(find.text('已改 1 項'), findsOneWidget);
+    await tester.tap(find.text('儲存'));
+    await settle();
+    expect(find.textContaining('編輯中'), findsNothing);
+    final saved = await tester.runAsync(
+      () => YtTrackerRepository(store).loadChannels(),
+    );
+    expect(saved!.single.name, '頻道A');
   });
 }
 
