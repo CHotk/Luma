@@ -93,6 +93,10 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
   // 要求；之前分類預設依影片，但一進去就要抓影片，太慢）。切換鈕是
   // 頻道在左、影片在右（2026-10-06 使用者要求對調成這個順序）。
   _ViewMode _mode = _ViewMode.channel;
+
+  /// 剛剛點進去看的頻道（2026-10-12 使用者要求：從頻道頁返回分類時，那張
+  /// 卡片要有藍色外框，知道剛剛點的是哪個）。只記在這一頁，離開分類頁就忘。
+  String? _lastOpenedChannelId;
   _TypeFilter _typeFilter = _TypeFilter.all;
   // 預設依訂閱人數排序，不是加入順序（2026-09-29 使用者要求：每個分類
   // 預設頻道排序要照訂閱人數）。使用者還是能用排序鈕切回原本順序或
@@ -1231,11 +1235,17 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                                               _selected.length == 1 &&
                                               _selected.single ==
                                                   ytDiscoverCategoryId,
-                                          onOpen: (c) => context
-                                              .push(
-                                                '/yt-tracker/channel/${c.id}',
-                                              )
-                                              .then((_) => _reload()),
+                                          lastOpenedId: _lastOpenedChannelId,
+                                          onOpen: (c) {
+                                            setState(
+                                              () => _lastOpenedChannelId = c.id,
+                                            );
+                                            context
+                                                .push(
+                                                  '/yt-tracker/channel/${c.id}',
+                                                )
+                                                .then((_) => _reload());
+                                          },
                                           onMove: (c) =>
                                               _moveChannel(c, categories),
                                           onTogglePin: _togglePin,
@@ -1844,9 +1854,13 @@ class _ChannelGrid extends StatefulWidget {
     this.trash = false,
     this.onRestore,
     this.onPurge,
+    this.lastOpenedId,
   });
 
   final List<YtChannel> channels;
+
+  /// 剛剛點進去看的頻道，卡片畫藍色外框（見 [_YtTrackerBrowsePageState._lastOpenedChannelId]）。
+  final String? lastOpenedId;
   final void Function(YtChannel) onOpen;
   final void Function(YtChannel) onMove;
   final void Function(YtChannel) onTogglePin;
@@ -2149,7 +2163,9 @@ class _ChannelGridState extends State<_ChannelGrid> {
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(Radii.card),
                     color: AppColors.glassFill,
-                    border: Border.all(color: AppColors.glassEdge),
+                    border: c.id == widget.lastOpenedId
+                        ? Border.all(color: AppColors.accent, width: 1.5)
+                        : Border.all(color: AppColors.glassEdge),
                   ),
                   child: Row(
                     children: [
