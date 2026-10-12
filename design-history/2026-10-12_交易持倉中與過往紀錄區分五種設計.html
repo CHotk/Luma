@@ -1,0 +1,639 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>持倉中與過往紀錄區分</title>
+<style>
+  :root {
+    --bg: #0C0C13; --card: #151520; --card2: #161622; --sheet: #1A1A27; --line: #2A2A3D;
+    --ink: #F3F2F8; --ink2: #A3A2B2; --ink3: #74738A;
+    --accent: #7EA6FF; --accentSolid: #2E6BFF;
+    --up: #5FE08D; --down: #FF7A70; --mid: #F5C763;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--ink); min-height: 100vh;
+    font: 14px/1.5 system-ui, -apple-system, "Segoe UI", "Microsoft JhengHei", sans-serif; }
+  .page { max-width: 1100px; margin: 0 auto; padding: 24px 16px 60px; }
+  h1 { font-size: 20px; margin: 0 0 6px; }
+  .lead { color: var(--ink2); font-size: 13px; margin: 0 0 18px; }
+  .lead b { color: var(--ink); }
+  .vtabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+  .vtabs button { border: 1px solid var(--line); background: var(--card); color: var(--ink2);
+    padding: 8px 14px; border-radius: 99px; cursor: pointer; font-size: 13px; }
+  .vtabs button.on { border-color: var(--accent); color: #fff; background: rgba(46,107,255,.35); }
+  .stage { display: flex; gap: 28px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
+  .notes { flex: 1 1 320px; max-width: 460px; background: var(--card); border: 1px solid var(--line);
+    border-radius: 18px; padding: 18px 20px; font-size: 13.5px; color: var(--ink2); }
+  .notes h2 { color: var(--ink); font-size: 17px; margin: 0 0 4px; }
+  .notes .tag { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 99px;
+    background: rgba(245,199,99,.15); color: var(--mid); margin-bottom: 10px; }
+  .notes h3 { color: var(--ink); font-size: 13.5px; margin: 14px 0 4px; }
+  .notes ul { margin: 0; padding-left: 18px; }
+  .notes li { margin: 3px 0; }
+  .notes .try { margin-top: 14px; padding: 10px 12px; border-radius: 12px; background: rgba(126,166,255,.08);
+    border: 1px solid rgba(126,166,255,.25); color: var(--ink); font-size: 12.5px; }
+  .reset { margin-top: 12px; border: 1px solid var(--line); background: transparent; color: var(--ink2);
+    border-radius: 10px; padding: 6px 12px; cursor: pointer; font-size: 12px; }
+
+  /* 手機框：min-height＋flex-shrink:0，不要被 flex 擠扁 */
+  .phone { width: 380px; max-width: 100%; height: 800px; flex-shrink: 0; border-radius: 34px;
+    border: 1px solid var(--line); background: radial-gradient(120% 60% at 20% 0%, #1a1a33 0%, #0e0e17 60%);
+    position: relative; overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,.5); }
+  .screen { position: absolute; inset: 0; overflow-y: auto; padding: 14px 14px 30px; scrollbar-width: thin; scrollbar-color: #33334a transparent; }
+  .bar { display: flex; align-items: center; gap: 6px; padding: 4px 0 12px; }
+  .bar .t { flex: 1; font-weight: 800; font-size: 17px; display: flex; align-items: center; gap: 6px; }
+  .ib { width: 34px; height: 34px; border-radius: 11px; border: 1px solid var(--line); background: rgba(255,255,255,.03);
+    color: var(--ink2); display: grid; place-items: center; cursor: pointer; font-size: 15px; }
+  .glass { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); border-radius: 18px; padding: 13px; }
+  .gap { height: 12px; } .gap2 { height: 20px; }
+  .note { font-size: 11.5px; color: var(--ink2); }
+  .note3 { font-size: 11px; color: var(--ink3); }
+  .up { color: var(--up); } .down { color: var(--down); } .midc { color: var(--mid); }
+  .num { font-variant-numeric: tabular-nums; }
+  .link { color: var(--accent); cursor: pointer; font-size: 12.5px; background: none; border: 0; padding: 2px 4px; }
+
+  /* 月損益卡 */
+  .pnlcard { text-align: center; }
+  .pnlcard .h { display: flex; align-items: center; font-size: 12px; color: var(--ink2); text-align: left; }
+  .pnlcard .h span { flex: 1; }
+  .pnlcard .big { font-size: 38px; font-weight: 800; line-height: 1.15; margin-top: 2px; }
+  .pnlcard .big small { font-size: 13px; color: var(--ink2); font-weight: 400; }
+  .pnlcard .cap { font-size: 12.5px; color: var(--accent); cursor: pointer; margin: 4px 0 2px; }
+
+  /* 月曆 */
+  .calh { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+  .calh b { flex: 1; text-align: center; font-size: 15px; }
+  .arrow { width: 28px; height: 28px; border-radius: 9px; border: 1px solid var(--line); display: grid;
+    place-items: center; color: var(--ink2); cursor: pointer; font-size: 13px; }
+  .wk, .grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .wk div { text-align: center; font-size: 11px; color: var(--ink2); padding-bottom: 4px; }
+  .cell { aspect-ratio: .78; border-radius: 9px; background: rgba(255,255,255,.035); position: relative;
+    cursor: pointer; padding: 3px 3px 7px 4px; font-size: 10px; color: var(--ink3); transition: background .2s; }
+  .cell.today { outline: 1px solid var(--ink2); outline-offset: -1px; }
+  .cell.future { opacity: .4; cursor: default; }
+  .cell.lit::after { content: ""; position: absolute; inset: 0; border-radius: 9px; background: rgba(245,199,99,.18);
+    box-shadow: inset 0 0 0 1px rgba(245,199,99,.5); pointer-events: none; }
+  .cell .p { position: absolute; left: 0; right: 0; bottom: 7px; text-align: center; font-weight: 800; font-size: 10px; }
+  .cell .hold { position: absolute; left: 4px; right: 4px; bottom: 2px; height: 3px; border-radius: 2px; background: rgba(245,199,99,.45); }
+  .cell .tags { position: absolute; left: 4px; top: 42%; display: flex; gap: 2px; }
+  .tg { font-size: 8.5px; font-weight: 800; padding: 0 2.5px; border-radius: 3px; line-height: 1.35; }
+  .tg.o { background: var(--mid); color: #1A1405; } .tg.c { background: #2A2A3D; color: var(--ink); }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 8px; font-size: 11px; color: var(--ink2); align-items: center; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 4px; vertical-align: -1px; }
+
+  /* 甘特圖 */
+  .gh { display: flex; font-size: 11.5px; color: var(--ink2); margin-bottom: 6px; }
+  .gh span:first-child { flex: 1; }
+  .grow { display: flex; align-items: center; height: 26px; border-radius: 6px; cursor: pointer; }
+  .grow.sel { background: rgba(245,199,99,.09); }
+  .grow .lb { width: 70px; font-size: 10.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ink2); }
+  .track { flex: 1; position: relative; height: 100%; }
+  .track .tick { position: absolute; top: 0; bottom: 0; width: 1px; background: #23233a; }
+  .track .now { position: absolute; top: -2px; bottom: -2px; width: 1.5px; background: rgba(126,166,255,.75); }
+  .gbar { position: absolute; top: 7px; height: 12px; border-radius: 6px; background: rgba(245,199,99,.45); overflow: hidden; }
+  .gbar.open { background: rgba(245,199,99,.3); box-shadow: inset 0 0 0 1px rgba(245,199,99,.65); }
+  .gbar .end { position: absolute; right: 0; top: 0; bottom: 0; width: 5px; }
+  .gticks { display: flex; height: 14px; position: relative; margin-left: 70px; font-size: 9px; color: var(--ink3); }
+  .gticks span { position: absolute; transform: translateX(-50%); }
+  .ggroup { font-size: 10.5px; font-weight: 700; margin: 8px 0 2px; display: flex; align-items: center; gap: 6px; }
+
+  /* 共用按鈕 */
+  .btn { border: 0; border-radius: 14px; padding: 13px; width: 100%; font-weight: 700; font-size: 14px; cursor: pointer;
+    background: var(--accentSolid); color: #fff; }
+  .btn.y { background: var(--mid); color: #1A1405; }
+  .btn.ghost { background: transparent; border: 1px solid var(--line); color: var(--ink2); }
+  .btn.sm { padding: 8px 10px; font-size: 12.5px; border-radius: 10px; width: auto; }
+  .btn.red { background: rgba(255,122,112,.15); color: var(--down); }
+  .links { display: flex; gap: 8px; margin-top: 8px; }
+  .links button { flex: 1; border: 1px solid var(--line); background: rgba(255,255,255,.03); color: var(--ink2);
+    border-radius: 12px; padding: 10px; font-size: 12.5px; cursor: pointer; }
+  .sect { display: flex; align-items: baseline; gap: 8px; margin: 0 2px 8px; }
+  .sect b { font-size: 14px; }
+  .dir { font-size: 10.5px; font-weight: 800; padding: 1px 6px; border-radius: 5px; }
+  .dir.l { background: rgba(95,224,141,.15); color: var(--up); } .dir.s { background: rgba(255,122,112,.15); color: var(--down); }
+  .lev { font-size: 10.5px; font-weight: 800; padding: 1px 6px; border-radius: 5px; background: rgba(245,199,99,.14); color: var(--mid); }
+  .lev.hi { background: rgba(255,122,112,.15); color: var(--down); }
+  .sym { font-weight: 800; font-size: 14px; }
+  .row { display: flex; align-items: center; gap: 6px; }
+  .sp { flex: 1; }
+
+  /* 現在 App 的卡片（給對照用） */
+  .tcard { background: var(--card2); border-radius: 14px; border-left: 3px solid var(--mid); padding: 10px 12px; margin-bottom: 7px; cursor: pointer; }
+
+  /* 底部表單 */
+  .scrim { position: absolute; inset: 0; background: rgba(0,0,0,.55); z-index: 20; display: flex; align-items: flex-end;
+    animation: fade .18s; }
+  .sheet { width: 100%; background: var(--sheet); border-radius: 24px 24px 0 0; padding: 0 18px 18px; max-height: 88%; overflow-y: auto;
+    animation: up .22s ease-out; }
+  .handle { width: 40px; height: 5px; border-radius: 9px; background: rgba(255,255,255,.14); margin: 10px auto 8px; }
+  .sheet h4 { margin: 0 0 4px; font-size: 16px; display: flex; align-items: center; gap: 6px; }
+  .kv { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0; }
+  .kv div { background: var(--card2); border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px; }
+  .kv small { display: block; font-size: 10.5px; color: var(--ink3); }
+  .kv b { font-size: 13.5px; }
+  .field { display: flex; align-items: center; background: var(--card2); border: 1px solid var(--line); border-radius: 12px; padding: 0 12px; margin-top: 6px; }
+  .field input { flex: 1; min-width: 0; background: transparent; border: 0; outline: 0; color: var(--ink); padding: 12px 0; font-size: 18px; font-weight: 800; }
+  .sign { width: 34px; height: 34px; border-radius: 8px; border: 0; margin-right: 8px; font-size: 20px; font-weight: 800; cursor: pointer; }
+  .toast { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); z-index: 40; max-width: 86%;
+    background: rgba(30,30,46,.92); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,.12);
+    border-radius: 14px; padding: 9px 14px; font-size: 12.5px; text-align: center; animation: drop .25s; }
+  @keyframes fade { from { opacity: 0 } }
+  @keyframes up { from { transform: translateY(40px); opacity: 0 } }
+  @keyframes drop { from { transform: translate(-50%, -14px); opacity: 0 } }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(245,199,99,.6) } 70% { box-shadow: 0 0 0 7px rgba(245,199,99,0) } 100% { box-shadow: 0 0 0 0 rgba(245,199,99,0) } }
+  @keyframes flash { 0%,100% { background: transparent } 30% { background: rgba(245,199,99,.22) } }
+  @keyframes stripes { to { background-position: 24px 0 } }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--mid); animation: pulse 1.6s infinite; flex-shrink: 0; }
+  .flash { animation: flash 1.4s; }
+
+  /* V1 幣安式分頁 */
+  .seg { display: flex; border-bottom: 1px solid var(--line); margin: -2px -2px 10px; }
+  .seg button { flex: 1; background: none; border: 0; color: var(--ink3); padding: 10px 4px; font-size: 13.5px; font-weight: 700;
+    cursor: pointer; position: relative; }
+  .seg button.on { color: var(--ink); }
+  .seg button.on::after { content: ""; position: absolute; left: 30%; right: 30%; bottom: -1px; height: 3px; border-radius: 3px; background: var(--mid); }
+  .seg button .c { font-size: 11px; color: var(--ink3); margin-left: 3px; }
+  .bpos { border: 1px solid var(--line); border-radius: 14px; padding: 11px 12px; margin-bottom: 8px; background: var(--card2); }
+  .bpos .g3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 9px 0; }
+  .bpos .g3 small { display: block; font-size: 10px; color: var(--ink3); }
+  .bpos .g3 b { font-size: 12.5px; }
+  .hrow { display: flex; align-items: center; gap: 6px; padding: 9px 4px; border-bottom: 1px solid rgba(255,255,255,.05); cursor: pointer; border-radius: 8px; }
+  .hrow:last-child { border-bottom: 0; }
+  .hrow .meta { font-size: 10.5px; color: var(--ink3); }
+
+  /* V2 置頂即時面板 */
+  .live { border-radius: 18px; padding: 12px; background: linear-gradient(135deg, rgba(245,199,99,.16), rgba(245,199,99,.04));
+    border: 1px solid rgba(245,199,99,.45); }
+  .live .hd { display: flex; align-items: center; gap: 8px; font-weight: 800; color: var(--mid); font-size: 13.5px; }
+  .lpos { display: flex; align-items: center; gap: 8px; background: rgba(12,12,19,.55); border-radius: 12px; padding: 9px 10px; margin-top: 8px; }
+  .lpos .timer { font-size: 15px; font-weight: 800; color: var(--mid); font-variant-numeric: tabular-nums; }
+
+  /* V3 票根 */
+  .ocard { border-radius: 16px; padding: 12px; margin-bottom: 9px; cursor: pointer;
+    background: linear-gradient(135deg, rgba(245,199,99,.18), rgba(245,199,99,.05)); border: 1px solid rgba(245,199,99,.5); }
+  .ocard .big { font-size: 13px; color: var(--ink2); margin-top: 6px; }
+  .ocard .big b { color: var(--mid); font-size: 16px; }
+  .receipt { margin-top: 10px; border-radius: 14px; border: 1.5px dashed #3d3d55; background: rgba(255,255,255,.02); padding: 12px; position: relative; filter: saturate(.85); }
+  .receipt .hd { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--ink3); margin-bottom: 8px; }
+  .stamp { position: absolute; right: 12px; top: 34px; transform: rotate(-8deg); border: 2px solid; border-radius: 8px; padding: 2px 8px;
+    font-weight: 900; font-size: 15px; opacity: .9; }
+  .receipt .ln { display: flex; justify-content: space-between; font-size: 12px; color: var(--ink2); padding: 3px 0; border-bottom: 1px dotted #2d2d42; }
+  .receipt .ln:last-of-type { border-bottom: 0; }
+  .receipt .ln b { color: var(--ink); font-weight: 600; }
+
+  /* V4 甘特圖分組＋氣泡 */
+  .gbar.live { background-image: repeating-linear-gradient(45deg, rgba(245,199,99,.55) 0 6px, rgba(245,199,99,.25) 6px 12px);
+    background-size: 24px 12px; animation: stripes 1s linear infinite; box-shadow: none; }
+  .gbar.past { background: rgba(163,162,178,.28); }
+  .bubble { position: relative; margin: 6px 0 8px 70px; background: #232336; border: 1px solid #36364f; border-radius: 12px; padding: 10px 11px; font-size: 12px; animation: drop2 .2s; }
+  .bubble.o { border-color: rgba(245,199,99,.6); background: #2a2614; }
+  .bubble::before { content: ""; position: absolute; top: -7px; left: var(--x); width: 12px; height: 12px; background: inherit;
+    border-left: 1px solid; border-top: 1px solid; border-color: inherit; transform: translateX(-50%) rotate(45deg); }
+  @keyframes drop2 { from { opacity: 0; transform: translateY(-4px) } }
+  .chiprow { display: flex; gap: 6px; flex-wrap: wrap; }
+  .ochip { display: flex; align-items: center; gap: 6px; border-radius: 99px; padding: 6px 11px; border: 1px solid rgba(245,199,99,.5);
+    background: rgba(245,199,99,.1); font-size: 12px; cursor: pointer; }
+
+  /* V5 現在／回顧 */
+  .mode { display: flex; padding: 3px; background: var(--card2); border: 1px solid var(--line); border-radius: 14px; margin-bottom: 12px; }
+  .mode button { flex: 1; border: 0; background: transparent; color: var(--ink2); border-radius: 11px; padding: 9px; font-weight: 800; font-size: 13.5px; cursor: pointer; }
+  .mode button.on.n { background: rgba(245,199,99,.2); color: var(--mid); }
+  .mode button.on.r { background: rgba(126,166,255,.18); color: var(--accent); }
+  .nowhero { text-align: center; padding: 6px 0 2px; }
+  .nowhero .k { font-size: 44px; font-weight: 900; color: var(--mid); line-height: 1.1; }
+  .bigpos { border-radius: 18px; border: 1px solid rgba(245,199,99,.45); background: rgba(245,199,99,.07); padding: 13px; margin-bottom: 10px; }
+  .bigpos .timer { font-size: 22px; font-weight: 900; color: var(--mid); font-variant-numeric: tabular-nums; }
+  .minirow { display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,.03); border: 1px solid var(--line);
+    border-radius: 12px; padding: 10px 12px; font-size: 12.5px; cursor: pointer; margin-bottom: 8px; }
+  .dayh { font-size: 11px; color: var(--ink3); margin: 10px 2px 4px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>交易&自律：「持倉中」跟「過往倉位紀錄」怎麼一眼分開</h1>
+  <p class="lead">
+    <b>現在的問題：</b>點甘特圖上的一條，跳出來的已平倉卡片就在「持倉中」卡片正上方，兩種卡片樣式幾乎一樣（只差左邊色條跟右上角文字），所以看不出哪張是還抱著的、哪張是看過去的。<br>
+    五版都是完整的主畫面（月損益卡、月曆的開／平標籤跟黃線、甘特圖、記一筆、交易日誌、月報都在），手機框裡可以直接點：<b>點持倉中的單可以平倉</b>（平完會移到過去的紀錄）、<b>點甘特圖或過往紀錄看明細</b>、點月曆的某一天。左邊選版本，右下角「重來」可以把資料還原。
+  </p>
+  <div class="vtabs" id="vtabs"></div>
+  <div class="stage">
+    <div class="phone" id="phone"></div>
+    <div class="notes" id="notes"></div>
+  </div>
+</div>
+
+<script>
+// ── 假資料（2026/10，現在＝10/12 14:30）──────────────────────────
+const NOW0 = new Date(2026, 9, 12, 14, 30).getTime();
+const T0 = Date.now();
+const now = () => new Date(NOW0 + (Date.now() - T0));
+const RATE = 31, CAPITAL = 2000;
+function seed() {
+  const d = (m, day, h, mi = 0) => new Date(2026, m - 1, day, h, mi);
+  return [
+    { id: 1, sym: 'BTC', long: true, lev: 10, margin: 400, open: d(10, 1, 22, 10), close: d(10, 3, 9), pnl: 132, note: '突破追多' },
+    { id: 2, sym: 'ETH', long: false, lev: 5, margin: 200, open: d(10, 5, 10), close: d(10, 5, 18), pnl: -48 },
+    { id: 3, sym: 'SOL', long: true, lev: 15, margin: 150, open: d(10, 6, 21), close: d(10, 8, 11), pnl: 86.5, note: '回踩支撐' },
+    { id: 4, sym: 'BTC', long: false, lev: 8, margin: 300, open: d(10, 8, 14), close: d(10, 9, 2), pnl: -22 },
+    { id: 5, sym: 'DOGE', long: true, lev: 3, margin: 100, open: d(10, 9, 9), close: d(10, 10, 20), pnl: 12.3 },
+    { id: 6, sym: 'BTC', long: true, lev: 10, margin: 500, open: d(10, 10, 21, 30), close: null, pnl: null, note: '等 7 萬' },
+    { id: 7, sym: 'ETH', long: false, lev: 6, margin: 250, open: d(10, 11, 23), close: null, pnl: null },
+  ];
+}
+
+// ── 格式（跟 App 一樣：最多小數一位、+/− 號）──────────────────────
+const r1 = v => Math.round(v * 10) / 10;
+const num = v => r1(Math.abs(v)).toLocaleString('en-US', { maximumFractionDigits: 1 });
+const fp = v => (r1(v) > 0 ? '+' : r1(v) < 0 ? '−' : '') + num(v);
+const fpct = v => (r1(v) > 0 ? '+' : r1(v) < 0 ? '−' : '') + Math.abs(r1(v)).toFixed(1) + '%';
+const twd = (v, s) => '≈ NT$' + (s && v > 0 ? '+' : s && v < 0 ? '−' : '') + Math.round(Math.abs(v * RATE)).toLocaleString('en-US');
+const cls = v => v > 0 ? 'up' : v < 0 ? 'down' : '';
+const wk = ['日', '一', '二', '三', '四', '五', '六'];
+const md = t => `${t.getMonth() + 1}/${t.getDate()}`;
+const mdw = t => `${md(t)}（${wk[t.getDay()]}）`;
+const hm = t => `${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`;
+const dayKey = t => `${t.getFullYear()}-${t.getMonth()}-${t.getDate()}`;
+const sod = t => new Date(t.getFullYear(), t.getMonth(), t.getDate());
+function hold(ms) {
+  const h = Math.floor(ms / 3600000);
+  if (h < 1) return Math.max(1, Math.floor(ms / 60000)) + ' 分鐘';
+  if (h < 24) return h + ' 小時';
+  return Math.floor(h / 24) + ' 天' + (h % 24 ? ' ' + (h % 24) + ' 小時' : '');
+}
+function clock(ms) {
+  const s = Math.floor(ms / 1000), d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600),
+    m = Math.floor(s % 3600 / 60), ss = s % 60, p = x => String(x).padStart(2, '0');
+  return (d ? d + '天 ' : '') + `${p(h)}:${p(m)}:${p(ss)}`;
+}
+const pos = t => t.margin * t.lev;
+const pct = t => t.pnl / t.margin * 100;
+const dirH = t => `<span class="dir ${t.long ? 'l' : 's'}">${t.long ? '多' : '空'}</span>`;
+const levH = t => `<span class="lev ${t.lev > 10 ? 'hi' : ''}">${t.lev}x</span>`;
+const head = t => `<span class="sym">${t.sym}</span>${dirH(t)}${levH(t)}`;
+
+// ── 狀態 ──────────────────────────────────────────────────────
+const S = { v: 0, trades: seed(), sel: null, sheet: null, toast: null, tab: 'open', mode: 'now', flash: null };
+const openT = () => S.trades.filter(t => !t.close).sort((a, b) => a.open - b.open);
+const closedT = () => S.trades.filter(t => t.close).sort((a, b) => b.close - a.close);
+const byId = id => S.trades.find(t => t.id === id);
+
+// ── 共用區塊：上方列、月損益卡、月曆、甘特圖、記一筆＋連結 ─────────────
+function topBar() {
+  return `<div class="bar"><div class="ib">☰</div><div class="t">📈 交易&自律</div>
+    <div class="ib" data-a="toast" data-m="開「交易日誌」（全部單子照時間排）">🧾</div>
+    <div class="ib" data-a="toast" data-m="開 10 月月報">📊</div>
+    <div class="ib" data-a="toast" data-m="開設定（匯率、月初資金）">⚙</div></div>`;
+}
+function pnlCard(extra = '') {
+  const c = closedT(), tot = c.reduce((s, t) => s + t.pnl, 0), win = c.filter(t => t.pnl > 0).length;
+  const o = openT().length;
+  return `<div class="glass pnlcard">
+    <div class="h"><span>💼 10 月已實現損益</span><button class="link" data-a="toast" data-m="開 10 月月報">月報 ›</button></div>
+    <div class="big num ${cls(tot)}">${fp(tot)}<small> USDT</small></div>
+    <div class="note">${twd(tot, true)}</div>
+    <div class="cap" data-a="toast" data-m="改 10 月月初資金"><span class="${cls(tot)}" style="font-weight:700">${fpct(tot / CAPITAL * 100)}</span>・月初 ${num(CAPITAL)} USDT（${twd(CAPITAL)}）✎</div>
+    <div class="note3">已平倉 ${c.length} 單・勝率 ${c.length ? Math.round(win / c.length * 100) : 0}%${o && extra !== 'noopen' ? '・持倉中 ' + o + ' 單' : ''}</div>
+  </div>`;
+}
+function calendar() {
+  const first = new Date(2026, 9, 1), days = 31, lead = first.getDay(), n = now();
+  const dayP = {}, opened = new Set(), closed = new Set(), held = new Set(), lit = new Set();
+  for (const t of S.trades) {
+    const end = t.close || n;
+    for (let d = sod(t.open); d <= end; d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)) {
+      held.add(dayKey(d)); if (t.id === S.sel) lit.add(dayKey(d));
+    }
+    opened.add(dayKey(t.open));
+    if (t.close) { closed.add(dayKey(t.close)); dayP[dayKey(t.close)] = (dayP[dayKey(t.close)] || 0) + t.pnl; }
+  }
+  let cells = '';
+  for (let i = 0; i < lead; i++) cells += '<div></div>';
+  for (let d = 1; d <= days; d++) {
+    const dt = new Date(2026, 9, d), k = dayKey(dt), p = dayP[k];
+    const fut = dt > n, today = k === dayKey(n);
+    const st = p == null ? Math.min(1, 0) : Math.min(1, Math.abs(p) / 250);
+    const bg = p ? `background:${p > 0 ? 'rgba(95,224,141,' : 'rgba(255,122,112,'}${(0.12 + st * 0.3).toFixed(2)})` : '';
+    cells += `<div class="cell ${fut ? 'future' : ''} ${today ? 'today' : ''} ${lit.has(k) ? 'lit' : ''}" style="${bg}" ${fut ? '' : `data-a="day" data-d="${d}"`}>
+      ${d}
+      ${opened.has(k) || closed.has(k) ? `<div class="tags">${opened.has(k) ? '<span class="tg o">開</span>' : ''}${closed.has(k) ? '<span class="tg c">平</span>' : ''}</div>` : ''}
+      ${p != null ? `<div class="p ${cls(p)}">${fp(p)}</div>` : ''}
+      ${held.has(k) ? '<div class="hold"></div>' : ''}
+    </div>`;
+  }
+  return `<div class="glass">
+    <div class="calh"><div class="arrow" data-a="toast" data-m="上一個有紀錄的月份">‹</div><b>2026 年 10 月</b><div class="arrow" style="opacity:.35">›</div></div>
+    <div class="wk">${wk.map(w => `<div>${w}</div>`).join('')}</div>
+    <div class="grid">${cells}</div>
+    <div class="legend"><span><i style="background:rgba(95,224,141,.4)"></i>賺</span><span><i style="background:rgba(255,122,112,.4)"></i>賠</span>
+      <span><i style="background:rgba(245,199,99,.45);height:3px;width:12px"></i>底部黃線＝有抱單</span>
+      <span><span class="tg o">開</span> 開倉日</span><span><span class="tg c">平</span> 平倉日</span></div>
+    <div class="note3" style="margin-top:4px">點某一天看那天發生什麼・損益記在平倉那天</div>
+  </div>`;
+}
+// 甘特圖。opt.grouped：持倉中／已平倉分兩組；opt.bubble：點了在條下面出氣泡；opt.style：'v4' 換條的樣式
+function gantt(opt = {}) {
+  const start = new Date(2026, 9, 1).getTime(), end = new Date(2026, 10, 1).getTime(), span = end - start;
+  const f = t => Math.max(0, Math.min(1, (t - start) / span)) * 100, n = now();
+  const ticks = [1, 8, 15, 22, 29];
+  const tickH = ticks.map(d => `<div class="tick" style="left:${f(new Date(2026, 9, d))}%"></div>`).join('') +
+    `<div class="now" style="left:${f(n)}%"></div>`;
+  const row = t => {
+    const l = f(t.open), r = f(t.close || n), live = !t.close;
+    let barCls = live ? 'open' : '', endH = '';
+    if (opt.style === 'v4') barCls = live ? 'live' : 'past';
+    if (!live) endH = `<div class="end" style="background:${t.pnl > 0 ? 'var(--up)' : 'var(--down)'}"></div>`;
+    const lab = opt.style === 'v4' && live ? `<span class="midc">●</span> ${t.sym}${t.long ? '多' : '空'} ${t.lev}x` : `${t.sym}${t.long ? '多' : '空'} ${t.lev}x`;
+    let h = `<div class="grow ${S.sel === t.id ? 'sel' : ''}" data-a="bar" data-id="${t.id}">
+      <div class="lb">${lab}</div><div class="track">${tickH}<div class="gbar ${barCls}" style="left:${l}%;width:max(4px,${r - l}%)">${endH}</div></div></div>`;
+    if (opt.bubble && S.sel === t.id) h += bubble(t, (l + r) / 2);
+    return h;
+  };
+  const list = S.trades.slice().sort((a, b) => a.open - b.open);
+  let rows;
+  if (opt.grouped) {
+    const o = list.filter(t => !t.close), c = list.filter(t => t.close);
+    rows = (o.length ? `<div class="ggroup midc"><span class="dot"></span>持倉中 ${o.length} 單・條會一路長到今天</div>${o.map(row).join('')}` : '') +
+      `<div class="ggroup" style="color:var(--ink3)">已平倉 ${c.length} 單・灰色＝已經結束，右端綠賺紅賠</div>${c.map(row).join('')}`;
+  } else rows = list.map(row).join('');
+  return `<div class="glass">
+    <div class="gh"><span>10 月持倉期間</span><span class="note3">${S.trades.length} 單・${opt.hint || '點一條在月曆上標出'}</span></div>
+    <div class="gticks">${ticks.map(d => `<span style="left:${f(new Date(2026, 9, d))}%">10/${d}</span>`).join('')}</div>
+    ${rows}
+    ${opt.after || ''}
+  </div>`;
+}
+function addAndLinks() {
+  return `<div class="gap"></div><button class="btn" data-a="toast" data-m="開「記一筆交易」表單（跟現在一樣）">＋ 記一筆交易</button>
+  <div class="links"><button data-a="toast" data-m="開交易日誌">🧾 交易日誌</button><button data-a="toast" data-m="開 10 月月報">📊 10 月月報</button></div>`;
+}
+
+// ── 底部表單：平倉（持倉中）／明細（已平倉，唯讀）────────────────────
+function sheetHtml() {
+  if (!S.sheet) return '';
+  const t = byId(S.sheet.id);
+  if (!t) return '';
+  if (S.sheet.type === 'close') {
+    return `<div class="scrim" data-a="scrim"><div class="sheet" data-stop>
+      <div class="handle"></div>
+      <h4><span class="dot"></span>平倉 ${head(t)}</h4>
+      <div class="note">${mdw(t.open)} ${hm(t.open)} 開倉・已持倉 ${hold(now() - t.open)}</div>
+      <div class="kv"><div><small>本金</small><b>${num(t.margin)} U</b></div><div><small>倉位</small><b>${num(pos(t))} U</b></div></div>
+      <div class="note">這單賺／賠多少（USDT）</div>
+      <div class="field"><button class="sign" id="sgn" data-a="sign" style="background:rgba(95,224,141,.18);color:var(--up)">+</button>
+        <input id="pnlIn" inputmode="decimal" placeholder="例如 85.5" value=""><span class="note">USDT</span></div>
+      <div class="note3" style="margin:6px 2px 12px">平倉時間＝現在（${mdw(now())} ${hm(now())}），可以改</div>
+      <button class="btn y" data-a="doClose">確定平倉</button>
+      <div class="gap"></div><button class="btn ghost" data-a="toast" data-m="開編輯表單（改槓桿、本金、開倉時間）">編輯這單</button>
+    </div></div>`;
+  }
+  return `<div class="scrim" data-a="scrim"><div class="sheet" data-stop>
+    <div class="handle"></div>
+    <div class="note3" style="margin-bottom:4px">🔒 過往紀錄・已平倉（只是看，不會動到）</div>
+    <h4>${head(t)}<span class="sp"></span><span class="num ${cls(t.pnl)}" style="font-size:20px">${fp(t.pnl)}</span></h4>
+    <div class="note" style="text-align:right"><span class="${cls(t.pnl)}">${fpct(pct(t))}</span>・${twd(t.pnl, true)}</div>
+    <div class="kv">
+      <div><small>開倉</small><b>${mdw(t.open)} ${hm(t.open)}</b></div><div><small>平倉</small><b>${mdw(t.close)} ${hm(t.close)}</b></div>
+      <div><small>本金</small><b>${num(t.margin)} U</b></div><div><small>倉位</small><b>${num(pos(t))} U</b></div>
+      <div><small>持倉</small><b>${hold(t.close - t.open)}</b></div><div><small>筆記</small><b>${t.note || '—'}</b></div>
+    </div>
+    <div class="row"><button class="btn ghost sm" style="flex:1" data-a="toast" data-m="開編輯表單">編輯</button>
+      <button class="btn red sm" style="flex:1" data-a="del" data-id="${t.id}">刪除</button></div>
+  </div></div>`;
+}
+
+// ── 五個版本 ──────────────────────────────────────────────────
+const V = [];
+
+// 版本 1：主流（幣安／OKX 式）「持倉中｜歷史倉位」分頁
+V.push({
+  name: '1 幣安式分頁', title: '版本 1：「持倉中｜歷史倉位」分頁（主流做法）', tag: '幣安、OKX、Bybit 都這樣',
+  desc: `<h3>怎麼分</h3><ul>
+    <li>甘特圖下面一張卡，上方兩個分頁：<b>持倉中 (2)</b>、<b>歷史倉位 (5)</b>，一次只看一種，不會混在一起。</li>
+    <li>持倉中＝幣安那種倉位卡：本金／倉位／開倉時間三欄、底下兩顆按鈕「平倉」「編輯」。</li>
+    <li>歷史倉位＝一行一單的清單，比較小、比較淡，右邊損益。</li>
+    <li>點甘特圖：還抱著的單跳到「持倉中」分頁、已平倉的跳到「歷史倉位」，那一行閃一下，月曆同時標出期間。</li></ul>
+    <h3>好處</h3><ul><li>玩合約的人最熟，不用學。</li><li>主畫面就看得到過去的單，不一定要進交易日誌。</li></ul>
+    <h3>缺點</h3><ul><li>「持倉中」要看分頁才知道，不是一打開就在眼前（預設停在持倉中分頁）。</li></ul>`,
+  render() {
+    const o = openT(), c = closedT();
+    const tabs = `<div class="seg"><button class="${S.tab === 'open' ? 'on' : ''}" data-a="tab" data-t="open">持倉中<span class="c">${o.length}</span></button>
+      <button class="${S.tab === 'hist' ? 'on' : ''}" data-a="tab" data-t="hist">歷史倉位<span class="c">${c.length}</span></button></div>`;
+    let body;
+    if (S.tab === 'open') {
+      body = o.length ? o.map(t => `<div class="bpos ${S.flash === t.id ? 'flash' : ''}">
+        <div class="row">${head(t)}<span class="sp"></span><span class="note midc">● 持倉中</span></div>
+        <div class="g3"><div><small>本金</small><b>${num(t.margin)}</b></div><div><small>倉位</small><b>${num(pos(t))}</b></div><div><small>開倉</small><b>${md(t.open)} ${hm(t.open)}</b></div></div>
+        <div class="note3" style="margin-bottom:8px">已持倉 ${hold(now() - t.open)}${t.note ? '・' + t.note : ''}</div>
+        <div class="row"><button class="btn y sm" style="flex:1" data-a="close" data-id="${t.id}">平倉</button><button class="btn ghost sm" style="flex:1" data-a="toast" data-m="開編輯表單">編輯</button></div>
+      </div>`).join('') : `<div class="note3" style="text-align:center;padding:16px">目前沒有持倉</div>`;
+    } else {
+      body = c.map(t => `<div class="hrow ${S.flash === t.id ? 'flash' : ''}" data-a="detail" data-id="${t.id}">
+        <div><div class="row">${head(t)}</div><div class="meta">${md(t.open)} ${hm(t.open)} → ${md(t.close)} ${hm(t.close)}・${hold(t.close - t.open)}</div></div>
+        <span class="sp"></span><div style="text-align:right"><div class="num ${cls(t.pnl)}" style="font-weight:800">${fp(t.pnl)}</div><div class="meta ${cls(t.pnl)}">${fpct(pct(t))}</div></div></div>`).join('') +
+        `<div style="text-align:center"><button class="link" data-a="toast" data-m="開交易日誌（全部月份）">看全部 ›</button></div>`;
+    }
+    return topBar() + pnlCard() + '<div class="gap"></div>' + calendar() + '<div class="gap"></div>' + gantt() +
+      '<div class="gap"></div>' + `<div class="glass" id="tabcard">${tabs}${body}</div>` + addAndLinks();
+  },
+  bar(t) { S.sel = S.sel === t.id ? null : t.id; if (S.sel) { S.tab = t.close ? 'hist' : 'open'; S.flash = t.id; scrollToId('tabcard'); } },
+});
+
+// 版本 2：持倉中置頂成「即時面板」，過去的單一律用底部表單看
+V.push({
+  name: '2 置頂即時面板', title: '版本 2：持倉中放最上面當「即時面板」，過去的單用底部表單看', tag: '打開就看到還抱著什麼',
+  desc: `<h3>怎麼分</h3><ul>
+    <li>持倉中整個搬到<b>最上面</b>，黃色發光的面板，每單有一直在跳的「已持倉 天 時:分:秒」計時，旁邊一顆「平倉」。</li>
+    <li>過去的單<b>不再出現在頁面裡</b>：點甘特圖的已平倉那條，從下面滑出「🔒 過往紀錄」明細表單，關掉就沒了。</li>
+    <li>所以畫面上看得到的倉位卡＝一定是還抱著的，兩種東西不可能擺在一起。</li></ul>
+    <h3>好處</h3><ul><li>最直覺：打開 App 第一眼就是「我現在還抱著什麼、抱多久了」，順便有自律提醒的感覺。</li><li>改動小，甘特圖、月曆都不用動。</li></ul>
+    <h3>缺點</h3><ul><li>月損益卡被往下擠一點。</li><li>沒持倉時面板會消失（換成一行「目前沒有持倉」）。</li></ul>`,
+  render() {
+    const o = openT();
+    const live = o.length ? `<div class="live"><div class="hd"><span class="dot"></span>持倉中 ${o.length} 單<span class="sp"></span><span class="note3">平倉後才算損益</span></div>
+      ${o.map(t => `<div class="lpos"><div><div class="row">${head(t)}</div><div class="note3">本金 ${num(t.margin)}・倉位 ${num(pos(t))}・${md(t.open)} ${hm(t.open)} 開</div></div>
+        <span class="sp"></span><div style="text-align:right"><div class="timer" data-since="${t.open.getTime()}">${clock(now() - t.open)}</div>
+        <button class="btn y sm" data-a="close" data-id="${t.id}" style="padding:5px 12px;margin-top:3px">平倉</button></div></div>`).join('')}</div>`
+      : `<div class="glass note3" style="text-align:center">目前沒有持倉・記一筆就會出現在這裡</div>`;
+    return topBar() + live + '<div class="gap"></div>' + pnlCard('noopen') + '<div class="gap"></div>' + calendar() + '<div class="gap"></div>' +
+      gantt({ hint: '點一條看那一單' }) + addAndLinks();
+  },
+  bar(t) { S.sel = t.id; S.sheet = { type: t.close ? 'detail' : 'close', id: t.id }; },
+});
+
+// 版本 3：兩種卡片長得完全不一樣（亮黃卡 vs 票根）
+V.push({
+  name: '3 亮卡 vs 票根', title: '版本 3：位置不變，但兩種卡長得完全不一樣', tag: '改動最小',
+  desc: `<h3>怎麼分</h3><ul>
+    <li>位置跟現在一樣（甘特圖下面出點到的那單、再下面是持倉中），但外觀完全分開：</li>
+    <li><b>持倉中</b>＝亮黃色漸層卡、左上角會呼吸的黃點、右邊一顆實心「平倉」按鈕。</li>
+    <li><b>點到的過去紀錄</b>＝虛線框的「票根」，灰灰淡淡的，蓋一個斜的綠／紅損益章，標題寫「🧾 已平倉的紀錄」，右上角 ✕ 收起；而且直接長在甘特圖卡片<b>裡面</b>，不跟持倉中卡片並排。</li></ul>
+    <h3>好處</h3><ul><li>動的地方最少，習慣不用改。</li><li>票根把整單資訊一次列清楚（開／平時間、持倉、本金、倉位、筆記）。</li></ul>
+    <h3>缺點</h3><ul><li>還是要靠「長相」分辨，上下距離仍然近。</li></ul>`,
+  render() {
+    const sel = S.sel && byId(S.sel);
+    let after = '';
+    if (sel && sel.close) after = `<div class="receipt">
+      <div class="hd">🧾 已平倉的紀錄・只是看<span class="sp"></span><span style="cursor:pointer;font-size:14px" data-a="unsel">✕</span></div>
+      <div class="row" style="margin-bottom:6px">${head(sel)}</div>
+      <div class="stamp ${cls(sel.pnl)}" style="border-color:currentColor">${fp(sel.pnl)}</div>
+      <div class="ln"><span>開倉</span><b>${mdw(sel.open)} ${hm(sel.open)}</b></div>
+      <div class="ln"><span>平倉</span><b>${mdw(sel.close)} ${hm(sel.close)}</b></div>
+      <div class="ln"><span>持倉</span><b>${hold(sel.close - sel.open)}</b></div>
+      <div class="ln"><span>本金／倉位</span><b>${num(sel.margin)} / ${num(pos(sel))}</b></div>
+      <div class="ln"><span>報酬</span><b class="${cls(sel.pnl)}">${fpct(pct(sel))}・${twd(sel.pnl, true)}</b></div>
+      ${sel.note ? `<div class="ln"><span>筆記</span><b>${sel.note}</b></div>` : ''}
+      <div class="row" style="margin-top:8px"><button class="btn ghost sm" style="flex:1" data-a="toast" data-m="開編輯表單">編輯</button><button class="btn red sm" style="flex:1" data-a="del" data-id="${sel.id}">刪除</button></div>
+    </div>`;
+    if (sel && !sel.close) after = `<div class="note midc" style="margin-top:8px;text-align:center">這單還抱著 ↓ 在下面「持倉中」</div>`;
+    const o = openT();
+    const opens = o.length ? `<div class="sect"><span class="dot" style="align-self:center"></span><b class="midc">持倉中</b><span class="note3">點一下去平倉</span></div>` +
+      o.map(t => `<div class="ocard ${S.sel === t.id ? 'flash' : ''}" data-a="close" data-id="${t.id}">
+        <div class="row">${head(t)}<span class="sp"></span><button class="btn y sm" style="padding:6px 14px" data-a="close" data-id="${t.id}">平倉</button></div>
+        <div class="big">已持倉 <b>${hold(now() - t.open)}</b></div>
+        <div class="note3">本金 ${num(t.margin)}・倉位 ${num(pos(t))}・${mdw(t.open)} ${hm(t.open)} 開${t.note ? '・' + t.note : ''}</div></div>`).join('') : '';
+    return topBar() + pnlCard() + '<div class="gap"></div>' + calendar() + '<div class="gap"></div>' + gantt({ after }) +
+      '<div class="gap2"></div>' + opens + addAndLinks();
+  },
+  bar(t) { S.sel = S.sel === t.id ? null : t.id; S.flash = null; },
+});
+
+// 版本 4：甘特圖分「持倉中／已平倉」兩組，點條出氣泡
+V.push({
+  name: '4 甘特圖分組＋氣泡', title: '版本 4：甘特圖自己分兩組，點條在條下面出氣泡', tag: '資訊集中在甘特圖',
+  desc: `<h3>怎麼分</h3><ul>
+    <li>甘特圖上面一組「● 持倉中」：條是<b>會流動的黃色斜紋</b>，一路長到今天的藍線；下面一組「已平倉」：<b>灰色</b>的條，右端綠賺紅賠。</li>
+    <li>點一條：明細用<b>小氣泡</b>從那條下面冒出來（尖角指著那條），持倉中的氣泡是黃的、有「平倉」；已平倉的是灰的、寫「只是看」。</li>
+    <li>月損益卡下方另有一排黃色小膠囊列出持倉中的單，一點就平倉。</li></ul>
+    <h3>好處</h3><ul><li>氣泡黏在那條旁邊，一看就知道「這是你剛點的那條」，不會以為是別的卡片。</li><li>主畫面更短，少一整區卡片。</li></ul>
+    <h3>缺點</h3><ul><li>甘特圖單子多的時候會變長；氣泡內容比卡片少一點。</li></ul>`,
+  render() {
+    const o = openT();
+    const chips = o.length ? `<div class="gap"></div><div class="glass" style="padding:10px 12px"><div class="note" style="margin-bottom:6px"><span class="midc">●</span> 持倉中・點一下平倉</div>
+      <div class="chiprow">${o.map(t => `<div class="ochip" data-a="close" data-id="${t.id}"><b>${t.sym}</b>${dirH(t)}<span class="midc" style="font-weight:800">${t.lev}x</span><span class="note3">${hold(now() - t.open)}</span></div>`).join('')}</div></div>` : '';
+    return topBar() + pnlCard() + chips + '<div class="gap"></div>' + calendar() + '<div class="gap"></div>' +
+      gantt({ grouped: true, bubble: true, style: 'v4', hint: '點一條看明細' }) + addAndLinks();
+  },
+  bar(t) { S.sel = S.sel === t.id ? null : t.id; },
+});
+function bubble(t, x) {
+  if (!t.close) return `<div class="bubble o" style="--x:${x}%">
+    <div class="row">${head(t)}<span class="sp"></span><span class="midc" style="font-weight:800">● 持倉中</span></div>
+    <div class="note" style="margin:4px 0 8px">${mdw(t.open)} ${hm(t.open)} 開・已持倉 ${hold(now() - t.open)}・本金 ${num(t.margin)}・倉位 ${num(pos(t))}</div>
+    <div class="row"><button class="btn y sm" style="flex:1" data-a="close" data-id="${t.id}">平倉</button><button class="btn ghost sm" style="flex:1" data-a="toast" data-m="開編輯表單">編輯</button></div></div>`;
+  return `<div class="bubble" style="--x:${x}%">
+    <div class="row">${head(t)}<span class="sp"></span><span class="num ${cls(t.pnl)}" style="font-weight:800">${fp(t.pnl)}</span><span class="note ${cls(t.pnl)}">${fpct(pct(t))}</span></div>
+    <div class="note" style="margin:4px 0 6px">${md(t.open)} ${hm(t.open)} → ${md(t.close)} ${hm(t.close)}（${hold(t.close - t.open)}）・本金 ${num(t.margin)}${t.note ? '・' + t.note : ''}</div>
+    <div class="row"><span class="note3">🔒 已平倉・只是看</span><span class="sp"></span><button class="link" data-a="detail" data-id="${t.id}">完整明細 ›</button></div></div>`;
+}
+
+// 版本 5：整頁切「現在｜回顧」
+V.push({
+  name: '5 現在｜回顧', title: '版本 5：整頁上面切「現在」跟「回顧」兩種模式', tag: '分得最乾淨',
+  desc: `<h3>怎麼分</h3><ul>
+    <li>標題下面一個大切換：<b>現在</b>（黃）／<b>回顧</b>（藍），顏色也分開。</li>
+    <li><b>現在</b>：大字「持倉中 N 單」、每單一張大卡（即時計時、平倉按鈕）、記一筆；底下一行本月損益、最近平倉三筆，點了跳到回顧。</li>
+    <li><b>回顧</b>：月損益卡、月曆、甘特圖、這個月所有已平倉的單（照日期分組），全部都是過去的東西，點了用底部表單看明細。</li>
+    <li>持倉中的單在回顧裡只出現在甘特圖（斜紋黃條），點了會切回「現在」。</li></ul>
+    <h3>好處</h3><ul><li>兩種東西根本不在同一頁，絕對不會搞混。</li><li>「現在」頁很短，盤中打開最快。</li></ul>
+    <h3>缺點</h3><ul><li>多一層切換；想看月曆要先切到回顧（會記住上次停在哪）。</li></ul>`,
+  render() {
+    const mode = `<div class="mode"><button class="n ${S.mode === 'now' ? 'on' : ''}" data-a="mode" data-m="now">● 現在</button><button class="r ${S.mode === 'rev' ? 'on' : ''}" data-a="mode" data-m="rev">📅 回顧</button></div>`;
+    if (S.mode === 'now') {
+      const o = openT(), c = closedT(), tot = c.reduce((s, t) => s + t.pnl, 0);
+      return topBar() + mode + `<div class="nowhero"><div class="note">持倉中</div><div class="k">${o.length}<span style="font-size:16px;color:var(--ink2)"> 單</span></div></div>` +
+        (o.length ? o.map(t => `<div class="bigpos ${S.flash === t.id ? 'flash' : ''}"><div class="row">${head(t)}<span class="sp"></span><span class="dot"></span></div>
+          <div class="note3" style="margin-top:6px">已持倉</div><div class="timer" data-since="${t.open.getTime()}">${clock(now() - t.open)}</div>
+          <div class="note3">${mdw(t.open)} ${hm(t.open)} 開・本金 ${num(t.margin)}・倉位 ${num(pos(t))}${t.note ? '・' + t.note : ''}</div>
+          <div class="row" style="margin-top:9px"><button class="btn y sm" style="flex:2" data-a="close" data-id="${t.id}">平倉</button><button class="btn ghost sm" style="flex:1" data-a="toast" data-m="開編輯表單">編輯</button></div></div>`).join('')
+          : `<div class="glass note3" style="text-align:center">沒有持倉，休息也是一種紀律</div>`) +
+        `<div class="gap"></div><button class="btn" data-a="toast" data-m="開「記一筆交易」表單">＋ 記一筆交易</button><div class="gap2"></div>
+        <div class="minirow" data-a="mode" data-m="rev"><span>10 月已實現</span><span><b class="num ${cls(tot)}">${fp(tot)}</b> USDT ›</span></div>
+        <div class="note3" style="margin:4px 2px 6px">最近平倉</div>
+        ${c.slice(0, 3).map(t => `<div class="minirow" data-a="detail" data-id="${t.id}"><span>${head(t)}</span><span class="note3">${md(t.close)}</span><b class="num ${cls(t.pnl)}">${fp(t.pnl)}</b></div>`).join('')}
+        <div class="links"><button data-a="toast" data-m="開交易日誌">🧾 交易日誌</button><button data-a="toast" data-m="開 10 月月報">📊 10 月月報</button></div>`;
+    }
+    const groups = {};
+    for (const t of closedT()) (groups[md(t.close)] = groups[md(t.close)] || []).push(t);
+    const hist = Object.entries(groups).map(([d, ts]) => `<div class="dayh">${mdw(ts[0].close)}</div>` + ts.map(t => `<div class="hrow" data-a="detail" data-id="${t.id}">
+      <div><div class="row">${head(t)}</div><div class="meta">${md(t.open)} ${hm(t.open)} → ${hm(t.close)}・${hold(t.close - t.open)}</div></div><span class="sp"></span>
+      <div style="text-align:right"><div class="num ${cls(t.pnl)}" style="font-weight:800">${fp(t.pnl)}</div><div class="meta ${cls(t.pnl)}">${fpct(pct(t))}</div></div></div>`).join('')).join('');
+    return topBar() + mode + pnlCard() + '<div class="gap"></div>' + calendar() + '<div class="gap"></div>' + gantt({ style: 'v4', hint: '點一條看那一單' }) +
+      `<div class="gap"></div><div class="glass"><div class="sect"><b>10 月已平倉</b><span class="note3">${closedT().length} 單・點了看明細</span></div>${hist}</div>` +
+      `<div class="links"><button data-a="toast" data-m="開交易日誌">🧾 交易日誌</button><button data-a="toast" data-m="開 10 月月報">📊 10 月月報</button></div>`;
+  },
+  bar(t) {
+    if (!t.close) { S.mode = 'now'; S.flash = t.id; S.sel = null; toast('這單還抱著，切到「現在」'); return; }
+    S.sel = t.id; S.sheet = { type: 'detail', id: t.id };
+  },
+});
+
+// ── 畫面 ──────────────────────────────────────────────────────
+const phone = document.getElementById('phone');
+function scrollToId(id) { requestAnimationFrame(() => { const el = document.getElementById(id); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }); }
+function toast(m) { S.toast = m; clearTimeout(toast.t); toast.t = setTimeout(() => { S.toast = null; paint(); }, 2200); }
+function paint(keepScroll = true) {
+  const sc = phone.querySelector('.screen'), top = sc && keepScroll ? sc.scrollTop : 0;
+  phone.innerHTML = `<div class="screen">${V[S.v].render()}</div>${sheetHtml()}${S.toast ? `<div class="toast">${S.toast}</div>` : ''}`;
+  phone.querySelector('.screen').scrollTop = top;
+  if (S.flash) { const f = S.flash; setTimeout(() => { if (S.flash === f) S.flash = null; }, 1500); }
+}
+function pickVersion(i) {
+  S.v = i; S.sel = null; S.sheet = null; S.flash = null; S.tab = 'open'; S.mode = 'now';
+  document.querySelectorAll('#vtabs button').forEach((b, j) => b.classList.toggle('on', j === i));
+  const v = V[i];
+  document.getElementById('notes').innerHTML = `<h2>${v.title}</h2><span class="tag">${v.tag}</span>${v.desc}
+    <div class="try">試試看：點甘特圖上「BTC多 10x」（還抱著的）跟「SOL多 15x」（已平倉）比較差別；再按某一單的「平倉」，看它怎麼變成過去的紀錄。</div>
+    <button class="reset" id="reset">↺ 重來（資料還原）</button>`;
+  document.getElementById('reset').onclick = () => { S.trades = seed(); pickVersion(S.v); };
+  paint(false);
+}
+document.getElementById('vtabs').innerHTML = V.map((v, i) => `<button data-v="${i}">${v.name}</button>`).join('');
+document.getElementById('vtabs').onclick = e => { const b = e.target.closest('button'); if (b) pickVersion(+b.dataset.v); };
+
+phone.addEventListener('click', e => {
+  const el = e.target.closest('[data-a]');
+  if (!el) return;
+  if (el.dataset.a === 'scrim' && e.target.closest('[data-stop]')) return;
+  e.stopPropagation();
+  const a = el.dataset.a, id = +el.dataset.id;
+  switch (a) {
+    case 'toast': toast(el.dataset.m); break;
+    case 'day': toast(`進「10/${el.dataset.d} 那天發生什麼」`); break;
+    case 'bar': V[S.v].bar(byId(id)); break;
+    case 'close': S.sheet = { type: 'close', id }; break;
+    case 'detail': S.sheet = { type: 'detail', id }; S.sel = id; break;
+    case 'scrim': S.sheet = null; if (S.v === 1 || S.v === 4) S.sel = null; break;
+    case 'unsel': S.sel = null; break;
+    case 'tab': S.tab = el.dataset.t; break;
+    case 'mode': S.mode = el.dataset.m; S.sel = null; phone.querySelector('.screen').scrollTop = 0; break;
+    case 'sign': {
+      const b = document.getElementById('sgn'), neg = b.textContent === '+';
+      b.textContent = neg ? '−' : '+';
+      b.style.background = neg ? 'rgba(255,122,112,.18)' : 'rgba(95,224,141,.18)';
+      b.style.color = neg ? 'var(--down)' : 'var(--up)';
+      return;
+    }
+    case 'doClose': {
+      const v = parseFloat(document.getElementById('pnlIn').value);
+      if (isNaN(v)) { toast('先填這單賺／賠多少'); break; }
+      const t = byId(S.sheet.id), neg = document.getElementById('sgn').textContent === '−';
+      t.close = now(); t.pnl = r1(neg ? -Math.abs(v) : Math.abs(v));
+      S.sheet = null; S.sel = null;
+      toast(`已平倉 ${t.sym}：${fp(t.pnl)} USDT，移到過去的紀錄`);
+      break;
+    }
+    case 'del': {
+      if (!confirm('刪除這筆交易？')) return;
+      S.trades = S.trades.filter(t => t.id !== id); S.sheet = null; S.sel = null; toast('已刪除'); break;
+    }
+  }
+  paint();
+});
+// 即時計時（版本 2、5）
+setInterval(() => phone.querySelectorAll('[data-since]').forEach(el => el.textContent = clock(now() - +el.dataset.since)), 1000);
+pickVersion(0);
+</script>
+</body>
+</html>
