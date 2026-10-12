@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>頻道頁搜尋</title>
+<style>
+  :root {
+    --bg: #0C0C13; --card: #151520; --card2: #161622; --sheet: #1A1A27; --line: #2A2A3D;
+    --ink: #F3F2F8; --ink2: #A3A2B2; --ink3: #74738A;
+    --accent: #7EA6FF; --accentSolid: #2E6BFF; --yt: #FF4E45; --ok: #5FE08D; --mid: #F5C763;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--ink); min-height: 100vh; font: 14px/1.5 system-ui, -apple-system, "Segoe UI", "Microsoft JhengHei", sans-serif; }
+  .page { max-width: 1100px; margin: 0 auto; padding: 24px 16px 60px; }
+  h1 { font-size: 20px; margin: 0 0 6px; }
+  .lead { color: var(--ink2); font-size: 13px; margin: 0 0 18px; } .lead b { color: var(--ink); }
+  .vtabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+  .vtabs button { border: 1px solid var(--line); background: var(--card); color: var(--ink2); padding: 8px 14px; border-radius: 99px; cursor: pointer; font-size: 13px; }
+  .vtabs button.on { border-color: var(--accent); color: #fff; background: rgba(46,107,255,.35); }
+  .stage { display: flex; gap: 28px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
+  .notes { flex: 1 1 320px; max-width: 460px; background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 18px 20px; font-size: 13.5px; color: var(--ink2); }
+  .notes h2 { color: var(--ink); font-size: 17px; margin: 0 0 4px; }
+  .notes .tag { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 99px; background: rgba(255,78,69,.15); color: var(--yt); margin-bottom: 10px; }
+  .notes h3 { color: var(--ink); font-size: 13.5px; margin: 14px 0 4px; }
+  .notes ul { margin: 0; padding-left: 18px; } .notes li { margin: 3px 0; }
+  .notes .try { margin-top: 14px; padding: 10px 12px; border-radius: 12px; background: rgba(126,166,255,.08); border: 1px solid rgba(126,166,255,.25); color: var(--ink); font-size: 12.5px; }
+  .setbox { margin-top: 14px; padding: 12px; border-radius: 14px; border: 1px solid var(--line); background: var(--card2); }
+  .setbox b { color: var(--ink); font-size: 13px; }
+  .setrow { display: flex; align-items: center; gap: 10px; margin-top: 10px; font-size: 12.5px; color: var(--ink); }
+  .setrow small { display: block; color: var(--ink3); font-size: 11px; }
+  .seg2 { display: flex; padding: 2px; border: 1px solid var(--line); border-radius: 10px; margin-left: auto; flex-shrink: 0; }
+  .seg2 button { border: 0; background: transparent; color: var(--ink2); font-size: 11.5px; padding: 5px 9px; border-radius: 8px; cursor: pointer; }
+  .seg2 button.on { background: rgba(46,107,255,.4); color: #fff; }
+  .sw { margin-left: auto; width: 40px; height: 22px; border-radius: 11px; background: #3a3a50; position: relative; cursor: pointer; flex-shrink: 0; }
+  .sw::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #c9c8d6; transition: .15s; }
+  .sw.on { background: var(--accentSolid); } .sw.on::after { left: 21px; background: #fff; }
+
+  .phone { width: 380px; max-width: 100%; height: 800px; flex-shrink: 0; border-radius: 34px; border: 1px solid var(--line);
+    background: radial-gradient(120% 60% at 20% 0%, #2a1520 0%, #0e0e17 60%); position: relative; overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,.5); }
+  .screen { position: absolute; inset: 0; overflow-y: auto; padding: 14px 14px 30px; scrollbar-width: thin; scrollbar-color: #4a4a66 transparent; }
+  .bar { display: flex; align-items: center; gap: 6px; padding: 4px 0 12px; min-height: 50px; }
+  .bar .t { flex: 1; font-weight: 800; font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ib { width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; color: var(--ink2); cursor: pointer; font-size: 16px; flex-shrink: 0; }
+  .ib:hover { background: rgba(255,255,255,.05); }
+  .glass { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); border-radius: 18px; padding: 13px; }
+  .note { font-size: 11.5px; color: var(--ink2); } .note3 { font-size: 11px; color: var(--ink3); }
+  .row { display: flex; align-items: center; gap: 8px; } .sp { flex: 1; }
+  .gap { height: 12px; }
+  .av { width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; font-weight: 900; font-size: 20px; background: linear-gradient(135deg,#FF4E45,#C792EA); flex-shrink: 0; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip { border: 1px solid var(--line); color: var(--ink2); border-radius: 99px; padding: 4px 11px; font-size: 12px; cursor: pointer; background: transparent; }
+  .chip.on { background: rgba(255,78,69,.18); border-color: rgba(255,78,69,.6); color: #fff; }
+  .tog { border: 1px solid var(--line); color: var(--ink2); border-radius: 10px; padding: 5px 9px; font-size: 11.5px; cursor: pointer; background: transparent; }
+  .tog.on { border-color: var(--accent); color: var(--accent); background: rgba(126,166,255,.1); }
+  .vid { display: flex; gap: 10px; padding: 8px 2px; border-bottom: 1px solid rgba(255,255,255,.05); cursor: pointer; }
+  .vid.dim { opacity: .55; }
+  .thumb { width: 118px; aspect-ratio: 16/9; border-radius: 10px; flex-shrink: 0; position: relative; overflow: hidden; }
+  .thumb b { position: absolute; right: 5px; bottom: 4px; font-size: 10px; background: rgba(0,0,0,.75); padding: 0 4px; border-radius: 4px; font-weight: 600; }
+  .thumb .ty { position: absolute; left: 5px; bottom: 4px; font-size: 9.5px; background: rgba(0,0,0,.75); padding: 0 4px; border-radius: 4px; }
+  .vt { font-size: 12.5px; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  mark { background: rgba(245,199,99,.35); color: #fff; border-radius: 3px; padding: 0 1px; }
+  .badge { font-size: 10px; padding: 0 6px; border-radius: 6px; margin-right: 4px; display: inline-block; }
+  .b-w { background: rgba(95,224,141,.15); color: var(--ok); }
+  .b-h { background: rgba(163,162,178,.18); color: var(--ink2); }
+  .b-n { background: rgba(126,166,255,.15); color: var(--accent); }
+  .search { display: flex; align-items: center; gap: 8px; background: var(--card2); border: 1px solid var(--line); border-radius: 14px; padding: 0 10px; height: 40px; }
+  .search:focus-within { border-color: var(--accent); }
+  .search input { flex: 1; min-width: 0; background: transparent; border: 0; outline: 0; color: var(--ink); font: inherit; font-size: 14px; }
+  .x { color: var(--ink3); cursor: pointer; padding: 4px; }
+  .prog { margin: 8px 0 4px; padding: 9px 11px; border-radius: 12px; background: rgba(126,166,255,.07); border: 1px solid rgba(126,166,255,.2); font-size: 11.5px; color: var(--ink2); }
+  .bar2 { height: 4px; border-radius: 4px; background: #23233a; overflow: hidden; margin-top: 6px; }
+  .bar2 i { display: block; height: 100%; background: var(--accent); transition: width .2s; }
+  .done { color: var(--ok); }
+  .scrim { position: absolute; inset: 0; background: rgba(0,0,0,.55); z-index: 20; display: flex; align-items: flex-end; animation: fade .18s; }
+  .sheet { width: 100%; background: var(--sheet); border-radius: 24px 24px 0 0; height: 82%; display: flex; flex-direction: column; animation: up .22s ease-out; }
+  .sheet .body { flex: 1; overflow-y: auto; padding: 0 14px 14px; }
+  .handle { width: 40px; height: 5px; border-radius: 9px; background: rgba(255,255,255,.14); margin: 10px auto 8px; }
+  .full { position: absolute; inset: 0; z-index: 20; background: #101018; display: flex; flex-direction: column; animation: slide .2s ease-out; }
+  .full .body { flex: 1; overflow-y: auto; padding: 0 14px 20px; }
+  .fab { position: absolute; right: 16px; z-index: 12; width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; cursor: pointer; font-size: 18px; box-shadow: 0 6px 18px rgba(0,0,0,.5); }
+  .grp-h { font-size: 11px; color: var(--ink3); margin: 12px 2px 2px; display: flex; align-items: center; gap: 6px; }
+  .recent { display: flex; align-items: center; gap: 8px; padding: 9px 4px; border-bottom: 1px solid rgba(255,255,255,.05); font-size: 13px; cursor: pointer; color: var(--ink2); }
+  .toast { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); z-index: 40; max-width: 86%; background: rgba(30,30,46,.94); backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,.12); border-radius: 14px; padding: 9px 14px; font-size: 12.5px; text-align: center; animation: drop .25s; }
+  .pullhint { text-align: center; font-size: 11px; color: var(--ink3); padding: 2px 0 8px; }
+  .nav { gap: 2px; } .nav .ib { width: 28px; } .nav .search { padding: 0 6px; }
+  .navbox { position: sticky; top: 0; z-index: 5; background: rgba(16,16,24,.92); backdrop-filter: blur(10px); margin: 0 -14px; padding: 8px 14px; border-bottom: 1px solid var(--line); }
+  @keyframes fade { from { opacity: 0 } }
+  @keyframes up { from { transform: translateY(40px); opacity: 0 } }
+  @keyframes slide { from { transform: translateY(-10px); opacity: 0 } }
+  @keyframes drop { from { transform: translate(-50%, -14px); opacity: 0 } }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>YT 頻道詳情頁：搜尋影片五種設計</h1>
+  <p class="lead">
+    <b>搜尋怎麼找（五版都一樣）：</b>先在本機快取裡找，結果馬上出來；設定是「快取＋YouTube」（預設）的話，接著把這個頻道<b>全部影片</b>從 YouTube 一頁一頁抓完（每 50 部 1 次 API，額度很少），抓到新的符合就補上，全部抓完還沒有才說「整個頻道都找不到」。抓下來的影片也存進快取，下次搜尋就快。設定成「只搜快取」就完全不打 API。<br>
+    <b>不會重抓快取已經有的：</b>YouTube 的上傳清單是新到舊、一頁 50 部，沒辦法跟它說「跳過這些」，所以靠「從哪裡開始抓」來跳：① 新片從最新那頁往下抓，碰到快取裡已經有的那部就停；② 舊片從快取記著的「上次翻到哪裡」（現在就有存這個位置）接著往更早抓；③ 快取數量已經等於頻道總影片數（訂閱人數那支 API 順便帶回來的），就完全不打。快取有 990 部、頻道共 1000 部的話，大概只打 1～2 次。<br>
+    <b>搜尋結果</b>預設連「已看過」「已隱藏」的影片都列出來，加上小標籤，不受下面那兩個篩選開關影響；右邊設定可以改成「照篩選」。<br>
+    手機框裡真的能打字搜尋，試試「宇宙」「金字塔」「時間」「貓」。這個假頻道快取裡有 24 部、YouTube 上一共 180 部。
+  </p>
+  <div class="vtabs" id="vtabs"></div>
+  <div class="stage">
+    <div class="phone" id="phone"></div>
+    <div class="notes" id="notes"></div>
+  </div>
+</div>
+<script>
+// ── 假資料：快取 24 部、YouTube 上一共 180 部 ─────────────────────
+const WORDS = ['宇宙', '金字塔', '時間', '黑洞', '古文明', '外星人', '海底', '月球', '恐龍', '平行世界', '貓', '夢境', '火星', '沉船', '病毒', '量子', '巨人', '亞特蘭提斯'];
+const TPL = ['{w}的盡頭是什麼？我們可能一直搞錯了', '關於{w}，科學家終於說實話了', '{w}裡被封住的祕密', '如果{w}是真的，那人類就是…', '{w}其實不存在？', '這個{w}實驗讓人沉默了十年', '{w}背後真正的故事', '為什麼古代人都在講{w}'];
+const COLORS = [['#3a2232', '#1d2340'], ['#1f3a2d', '#1a2140'], ['#3b2f17', '#2a1830'], ['#162b3d', '#2b1b36'], ['#2f1f3f', '#1b2d2a']];
+const ALL = [];
+for (let i = 0; i < 180; i++) {
+  const w = WORDS[(i * 7 + 3) % WORDS.length], t = TPL[(i * 5) % TPL.length];
+  ALL.push({ id: i, title: t.replace('{w}', w) + (i % 9 === 0 ? '｜完整版' : ''), days: i * 4 + 1, len: `${12 + (i * 7) % 40}:${String((i * 13) % 60).padStart(2, '0')}`,
+    type: i % 11 === 3 ? 'Shorts' : i % 17 === 5 ? '直播' : '影片', views: (5 + (i * 37) % 300) + ' 萬', c: COLORS[i % COLORS.length],
+    watched: [1, 3, 4, 8, 12, 15, 40, 77].includes(i), hidden: [6, 13, 90].includes(i) });
+}
+const CACHED = 24;
+function age(d) { return d < 30 ? d + ' 天前' : d < 365 ? Math.floor(d / 30) + ' 個月前' : Math.floor(d / 365) + ' 年前'; }
+
+const S = { v: 0, mode: 'both', ignoreFilters: true, q: '', searching: false, fetched: CACHED, fetchTimer: null, done: false,
+  hideWatched: true, showHidden: false, type: '全部', open: false, recents: ['黑洞', '亞特蘭提斯'], toast: null, idx: 0 };
+const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+const hl = t => S.q ? esc(t).split(esc(S.q)).join(`<mark>${esc(S.q)}</mark>`) : esc(t);
+
+// 搜尋：先快取，模式是 both 再一頁一頁抓到完
+function startSearch() {
+  clearInterval(S.fetchTimer);
+  S.done = false; S.idx = 0;
+  if (!S.q.trim()) { S.searching = false; return; }
+  S.searching = true;
+  if (!S.recents.includes(S.q)) S.recents = [S.q, ...S.recents].slice(0, 6);
+  if (S.mode === 'cache' || S.fetched >= ALL.length) { S.done = true; return; }
+  S.fetchTimer = setInterval(() => {
+    S.fetched = Math.min(ALL.length, S.fetched + 50);
+    if (S.fetched >= ALL.length) { S.done = true; clearInterval(S.fetchTimer); }
+    paint();
+  }, 650);
+}
+function results() {
+  const pool = ALL.slice(0, S.mode === 'cache' ? CACHED : S.fetched);
+  return pool.filter(v => v.title.includes(S.q)).filter(v => S.ignoreFilters || ((!v.hidden || S.showHidden) && (!v.watched || !S.hideWatched)));
+}
+function filtered() {
+  return ALL.slice(0, CACHED).filter(v => (S.type === '全部' || v.type === S.type) && (!v.hidden || S.showHidden) && (!v.watched || !S.hideWatched));
+}
+function vidRow(v, opts = {}) {
+  const isNew = v.id >= CACHED;
+  const badges = (v.watched ? '<span class="badge b-w">已看過</span>' : '') + (v.hidden ? '<span class="badge b-h">已隱藏</span>' : '') + (opts.search && isNew ? '<span class="badge b-n">剛從 YouTube 抓到</span>' : '');
+  return `<div class="vid ${v.hidden ? 'dim' : ''}" data-a="play" data-id="${v.id}"><div class="thumb" style="background:linear-gradient(135deg,${v.c[0]},${v.c[1]})"><b>${v.len}</b>${v.type !== '影片' ? `<span class="ty">${v.type}</span>` : ''}</div>
+    <div style="min-width:0"><div class="vt">${opts.search ? hl(v.title) : esc(v.title)}</div><div class="note3">${age(v.days)}・${v.views} 次</div><div>${badges}</div></div></div>`;
+}
+// 搜尋狀態列：快取幾部、抓了幾部、找到幾部
+function statusBox() {
+  const r = results();
+  if (S.mode === 'cache') return `<div class="prog">只搜快取（${CACHED} 部）・找到 <b style="color:var(--ink)">${r.length}</b> 部${r.length ? '' : '・快取裡沒有，去設定改成「快取＋YouTube」可以搜整個頻道'}</div>`;
+  if (!S.done) return `<div class="prog">快取找完，正在向 YouTube 抓這個頻道全部影片…　${S.fetched}／${ALL.length} 部・目前找到 <b style="color:var(--ink)">${r.length}</b> 部<div class="bar2"><i style="width:${S.fetched / ALL.length * 100}%"></i></div></div>`;
+  return `<div class="prog"><span class="done">✓ 整個頻道 ${ALL.length} 部都找過了</span>・找到 <b style="color:var(--ink)">${r.length}</b> 部${r.length ? '' : '・確定沒有這個關鍵字的影片'}</div>`;
+}
+function resultList() {
+  const r = results();
+  if (!r.length && S.done) return `<div class="note3" style="text-align:center;padding:30px 10px">「${esc(S.q)}」整個頻道都找不到</div>`;
+  return r.map(v => vidRow(v, { search: true })).join('');
+}
+function header() {
+  return `<div class="glass"><div class="row"><div class="av">老</div><div><div style="font-weight:800;font-size:16px">老高與小茉 Mr & Mrs Gao</div><div class="note">訂閱 658 萬・<span style="color:var(--mid)">● 學習</span></div></div></div>
+    <div class="note" style="margin-top:8px">講各種奇怪的故事、宇宙、歷史謎團。</div></div>`;
+}
+function filters() {
+  return `<div class="chips" style="margin:12px 0 6px">${['全部', '影片', 'Shorts', '直播'].map(t => `<button class="chip ${S.type === t ? 'on' : ''}" data-a="type" data-t="${t}">${t}</button>`).join('')}</div>
+    <div class="row" style="margin-bottom:4px"><button class="tog ${S.hideWatched ? 'on' : ''}" data-a="hw">隱藏已看過</button><button class="tog ${S.showHidden ? 'on' : ''}" data-a="sh">顯示已隱藏</button></div>`;
+}
+function list() { return filtered().map(v => vidRow(v)).join('') + `<div class="note3" style="text-align:center;padding:10px">往下滑載入更多…</div>`; }
+function searchInput(ph = '搜尋這個頻道的影片') {
+  return `<div class="search"><span style="color:var(--ink3)">🔍</span><input data-k="q" value="${esc(S.q)}" placeholder="${ph}" autocomplete="off">${S.q ? '<span class="x" data-a="clear">✕</span>' : ''}</div>`;
+}
+function topBar(extra = '') {
+  return `<div class="bar"><div class="ib">←</div><div class="t">老高與小茉 Mr & Mrs Gao</div>${extra}<div class="ib">✏️</div><div class="ib">🕘</div><div class="ib">⚙</div></div>`;
+}
+
+const V = [
+  {
+    name: '1 頂部放大鏡（主流）', title: '版本 1：右上角放大鏡，點了標題列變搜尋框', tag: 'YouTube App 頻道頁就是這樣',
+    desc: `<h3>長相</h3><ul><li>頂部列多一顆 🔍。點了整條頂部列變成搜尋框（左邊 ← 收起），鍵盤直接跳出。</li>
+      <li>打字＋按 Enter 搜尋：下面整頁換成搜尋結果，上面一條狀態「快取找完、正在抓 50／180…」。</li><li>關鍵字黃色標起來；已看過／已隱藏的小標籤；新抓到的標「剛從 YouTube 抓到」。</li></ul>
+      <h3>好處</h3><ul><li>大家最熟；平常完全不佔空間。</li></ul><h3>缺點</h3><ul><li>要多按一下才打得了字。</li></ul>`,
+    render() {
+      if (!S.open) return topBar('<div class="ib" data-a="open">🔍</div>') + header() + filters() + list();
+      return `<div class="bar"><div class="ib" data-a="closeS">←</div><div style="flex:1">${searchInput()}</div></div>` +
+        (S.searching ? statusBox() + resultList() : `<div class="note3" style="margin:6px 2px">最近搜尋</div>${S.recents.map(r => `<div class="recent" data-a="recent" data-q="${esc(r)}">🕘 ${esc(r)}</div>`).join('')}`);
+    },
+  },
+  {
+    name: '2 篩選列上方常駐', title: '版本 2：搜尋框常駐在影片清單上面', tag: '打開就能打',
+    desc: `<h3>長相</h3><ul><li>頻道簡介下面、類型篩選上面，一條常駐的搜尋框。</li>
+      <li>一邊打字一邊找（不用按 Enter）：清單就地換成結果，篩選列暫時淡掉，旁邊寫「搜尋中不套用篩選」。</li><li>清空就回到原本清單，捲動位置也回來。</li></ul>
+      <h3>好處</h3><ul><li>零步驟，看到就能打；結果就在原本的位置，不會跳頁。</li></ul><h3>缺點</h3><ul><li>多佔一行高度。</li></ul>`,
+    render() {
+      return topBar() + header() + `<div class="gap"></div>${searchInput('在這個頻道裡搜尋…')}` +
+        (S.searching ? `<div style="opacity:.35;pointer-events:none">${filters()}</div><div class="note3">搜尋中不套用上面的篩選（設定可改）</div>${statusBox()}${resultList()}` : filters() + list());
+    },
+  },
+  {
+    name: '3 浮動按鈕＋底部面板', title: '版本 3：右下角浮動搜尋鈕，結果在底部面板', tag: '單手好按',
+    desc: `<h3>長相</h3><ul><li>右下角兩顆圓鈕：上面「回到最上面」、下面紅色 🔍（跟現在新做的回到最上面同一排）。</li>
+      <li>點 🔍 從底部拉出 80% 高的面板：最上面搜尋框、最近搜尋、結果都在面板裡；背後頻道頁的捲動位置不動。</li><li>點結果直接播，關掉面板回到原本看到的地方。</li></ul>
+      <h3>好處</h3><ul><li>手機單手最好按；搜完不會弄亂原本滑到的位置。</li></ul><h3>缺點</h3><ul><li>面板裡空間比整頁小一點。</li></ul>`,
+    render() {
+      let h = topBar() + header() + filters() + list();
+      return h;
+    },
+    overlay() {
+      let o = `<div class="fab" style="bottom:84px;background:#2a2a3d;color:var(--ink)" data-a="top">⌃</div><div class="fab" style="bottom:28px;background:var(--yt)" data-a="open">🔍</div>`;
+      if (S.open) o += `<div class="scrim" data-a="closeS"><div class="sheet" data-stop><div class="handle"></div><div style="padding:0 14px 8px">${searchInput()}</div><div class="body">` +
+        (S.searching ? statusBox() + resultList() : `<div class="note3" style="margin:4px 2px">最近搜尋</div>${S.recents.map(r => `<div class="recent" data-a="recent" data-q="${esc(r)}">🕘 ${esc(r)}</div>`).join('')}`) + '</div></div></div>';
+      return o;
+    },
+  },
+  {
+    name: '4 全螢幕搜尋頁', title: '版本 4：獨立的搜尋頁，結果分「快取」跟「YouTube 新抓到」兩組', tag: '來源最清楚',
+    desc: `<h3>長相</h3><ul><li>頂部 🔍 點了整頁換成搜尋頁：搜尋框、最近搜尋、下面一排「常見關鍵字」（從這個頻道標題裡統計最常出現的詞）。</li>
+      <li>結果分兩組：「快取裡找到 N 部」馬上出來，「YouTube 新抓到 N 部」邊抓邊長。</li><li>最下面一行「已看過、已隱藏也會列出來（設定可改）」。</li></ul>
+      <h3>好處</h3><ul><li>看得出哪些是剛抓的；不知道要搜什麼時有常見關鍵字可以點。</li></ul><h3>缺點</h3><ul><li>一樣要多點一下進去。</li></ul>`,
+    render() {
+      if (!S.open) return topBar('<div class="ib" data-a="open">🔍</div>') + header() + filters() + list();
+      const r = results(), c = r.filter(v => v.id < CACHED), n = r.filter(v => v.id >= CACHED);
+      const kw = ['宇宙', '金字塔', '時間', '黑洞', '外星人', '古文明', '貓'];
+      let b = `<div class="bar"><div class="ib" data-a="closeS">✕</div><div style="flex:1">${searchInput()}</div></div>`;
+      if (!S.searching) return b + `<div class="note3" style="margin:4px 2px 6px">常見關鍵字</div><div class="chips">${kw.map(k => `<button class="chip" data-a="recent" data-q="${k}">${k}</button>`).join('')}</div>
+        <div class="note3" style="margin:14px 2px 4px">最近搜尋</div>${S.recents.map(r => `<div class="recent" data-a="recent" data-q="${esc(r)}">🕘 ${esc(r)}<span class="sp"></span><span class="x" data-a="delrecent" data-q="${esc(r)}">✕</span></div>`).join('')}`;
+      return b + statusBox() + `<div class="grp-h">💾 快取裡找到 ${c.length} 部</div>${c.map(v => vidRow(v, { search: true })).join('') || '<div class="note3" style="padding:6px 2px">沒有</div>'}` +
+        (S.mode === 'both' ? `<div class="grp-h">▶ YouTube 新抓到 ${n.length} 部${S.done ? '' : '（還在抓）'}</div>${n.map(v => vidRow(v, { search: true })).join('') || `<div class="note3" style="padding:6px 2px">${S.done ? '沒有' : '…'}</div>`}` : '') +
+        `<div class="note3" style="text-align:center;margin-top:10px">${S.ignoreFilters ? '已看過、已隱藏也會列出來（設定可改）' : '照「隱藏已看過／顯示已隱藏」篩選（設定可改）'}</div>`;
+    },
+  },
+  {
+    name: '5 結果導覽列', title: '版本 5：搜尋列黏在上面，用 ↑↓ 在結果之間跳（像網頁的 Ctrl+F）', tag: '不換清單',
+    desc: `<h3>長相</h3><ul><li>頂部 🔍 點了，影片清單上方黏一條搜尋列，右邊「3／12　↑　↓」。</li>
+      <li><b>清單不換掉</b>：符合的影片原地標黃框、關鍵字標黃，↑↓ 一次跳到下一部並捲過去；不符合的變淡。</li><li>YouTube 新抓到的影片會接到清單尾巴、一樣可以跳過去。</li></ul>
+      <h3>好處</h3><ul><li>看得到前後是什麼影片，適合「我記得大概在那一段時間」這種找法。</li></ul><h3>缺點</h3><ul><li>結果很多時要一直按 ↓。</li></ul>`,
+    render() {
+      if (!S.open) return topBar('<div class="ib" data-a="open">🔍</div>') + header() + filters() + list();
+      const r = results(), ids = new Set(r.map(v => v.id)), cur = r[S.idx];
+      const pool = ALL.slice(0, S.mode === 'cache' ? CACHED : S.fetched).filter(v => S.ignoreFilters || ((!v.hidden || S.showHidden) && (!v.watched || !S.hideWatched)));
+      return topBar() + header() + `<div class="navbox"><div class="row nav"><div style="flex:1">${searchInput()}</div>
+        <span class="note" style="min-width:34px;text-align:center">${S.q ? (r.length ? S.idx + 1 : 0) + '／' + r.length : ''}</span><div class="ib" data-a="prev">↑</div><div class="ib" data-a="next">↓</div><div class="ib" data-a="closeS">✕</div></div>
+        ${S.searching ? statusBox() : ''}</div>` +
+        pool.map(v => {
+          if (!S.searching) return vidRow(v);
+          const hit = ids.has(v.id);
+          return `<div id="v${v.id}" style="${hit ? '' : 'opacity:.25'};${cur && cur.id === v.id ? 'outline:2px solid var(--mid);border-radius:10px;' : hit ? 'outline:1px solid rgba(245,199,99,.35);border-radius:10px;' : ''}">${vidRow(v, { search: hit })}</div>`;
+        }).join('');
+    },
+  },
+];
+
+const phone = document.getElementById('phone');
+function toast(m) { S.toast = m; clearTimeout(toast.t); toast.t = setTimeout(() => { S.toast = null; paint(); }, 1800); }
+function paint() {
+  const sc = phone.querySelector('.screen'), top = sc ? sc.scrollTop : 0;
+  const ae = document.activeElement, focus = ae && phone.contains(ae) && ae.dataset.k ? ae.selectionStart : null;
+  const bodySc = phone.querySelector('.sheet .body'), btop = bodySc ? bodySc.scrollTop : 0;
+  const v = V[S.v];
+  phone.innerHTML = `<div class="screen">${v.render()}</div>${v.overlay ? v.overlay() : ''}${S.toast ? `<div class="toast">${S.toast}</div>` : ''}`;
+  phone.querySelector('.screen').scrollTop = top;
+  const nb = phone.querySelector('.sheet .body'); if (nb) nb.scrollTop = btop;
+  if (focus != null) { const el = phone.querySelector('[data-k="q"]'); if (el) { el.focus(); el.setSelectionRange(focus, focus); } }
+}
+function notes() {
+  const v = V[S.v];
+  document.getElementById('notes').innerHTML = `<h2>${v.title}</h2><span class="tag">${v.tag}</span>${v.desc}
+    <div class="setbox"><b>⚙ 設定（五版共用，這裡改了手機框馬上套用）</b>
+      <div class="setrow"><div>搜尋範圍<small>${S.mode === 'both' ? '先找快取，再把整個頻道影片抓完' : '完全不打 API，只找抓過的'}</small></div>
+        <div class="seg2"><button class="${S.mode === 'both' ? 'on' : ''}" data-m="both">快取＋YouTube</button><button class="${S.mode === 'cache' ? 'on' : ''}" data-m="cache">只搜快取</button></div></div>
+      <div class="setrow"><div>搜尋時列出已看過、已隱藏<small>${S.ignoreFilters ? '不管下面兩個篩選開關，全部列出來＋小標籤' : '照「隱藏已看過／顯示已隱藏」篩'}</small></div><div class="sw ${S.ignoreFilters ? 'on' : ''}" id="swF"></div></div>
+      <div class="setrow"><div>模擬：清掉「已經抓過全部」<small>目前已抓 ${S.fetched}／${ALL.length} 部</small></div><button class="tog" id="resetFetch" style="margin-left:auto">重來</button></div>
+    </div>
+    <div class="try">試試看：搜「宇宙」看快取先出結果、再一頁一頁補；搜「亞特蘭提斯」看「剛從 YouTube 抓到」；把範圍切成「只搜快取」再搜一次比較。</div>`;
+  document.querySelectorAll('.seg2 button').forEach(b => b.onclick = () => { S.mode = b.dataset.m; if (S.searching) startSearch(); notes(); paint(); });
+  document.getElementById('swF').onclick = () => { S.ignoreFilters = !S.ignoreFilters; notes(); paint(); };
+  document.getElementById('resetFetch').onclick = () => { clearInterval(S.fetchTimer); S.fetched = CACHED; if (S.searching) startSearch(); notes(); paint(); };
+}
+function pick(i) {
+  clearInterval(S.fetchTimer);
+  Object.assign(S, { v: i, q: '', searching: false, open: i === 1, done: false, idx: 0 });
+  document.querySelectorAll('#vtabs button').forEach((b, j) => b.classList.toggle('on', j === i));
+  notes(); paint();
+}
+document.getElementById('vtabs').innerHTML = V.map(v => `<button>${v.name}</button>`).join('');
+document.querySelectorAll('#vtabs button').forEach((b, i) => b.onclick = () => pick(i));
+
+let debounce;
+phone.addEventListener('input', e => {
+  if (e.target.dataset.k !== 'q') return;
+  S.q = e.target.value.trim();
+  clearTimeout(debounce);
+  if (!S.q) { clearInterval(S.fetchTimer); S.searching = false; paint(); return; }
+  // 版本 2、5 打字就找；其他版本按 Enter
+  if (S.v === 1 || S.v === 4) debounce = setTimeout(() => { startSearch(); paint(); }, 350);
+});
+phone.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.dataset.k === 'q') { S.q = e.target.value.trim(); startSearch(); paint(); } });
+phone.addEventListener('click', e => {
+  const el = e.target.closest('[data-a]'); if (!el) return;
+  if (el.dataset.a === 'closeS' && e.target.closest('[data-stop]')) return;
+  const a = el.dataset.a;
+  switch (a) {
+    case 'open': S.open = true; paint(); setTimeout(() => phone.querySelector('[data-k="q"]')?.focus(), 30); return;
+    case 'closeS': clearInterval(S.fetchTimer); S.open = S.v === 1; S.q = ''; S.searching = false; break;
+    case 'clear': clearInterval(S.fetchTimer); S.q = ''; S.searching = false; break;
+    case 'recent': S.q = el.dataset.q; startSearch(); break;
+    case 'delrecent': e.stopPropagation(); S.recents = S.recents.filter(r => r !== el.dataset.q); break;
+    case 'type': S.type = el.dataset.t; break;
+    case 'hw': S.hideWatched = !S.hideWatched; break;
+    case 'sh': S.showHidden = !S.showHidden; break;
+    case 'top': phone.querySelector('.screen').scrollTo({ top: 0, behavior: 'smooth' }); return;
+    case 'play': toast('播放：' + ALL[+el.dataset.id].title.slice(0, 18) + '…'); break;
+    case 'next': case 'prev': {
+      const r = results(); if (!r.length) return;
+      S.idx = (S.idx + (a === 'next' ? 1 : r.length - 1)) % r.length; paint();
+      phone.querySelector('#v' + r[S.idx].id)?.scrollIntoView({ block: 'center', behavior: 'smooth' }); return;
+    }
+  }
+  paint();
+});
+pick(0);
+</script>
+</body>
+</html>

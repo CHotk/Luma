@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>編輯頻道視窗</title>
+<style>
+  :root {
+    --bg: #0C0C13; --card: #151520; --card2: #161622; --sheet: #1A1A27; --line: #2A2A3D;
+    --ink: #F3F2F8; --ink2: #A3A2B2; --ink3: #74738A;
+    --accent: #7EA6FF; --accentSolid: #2E6BFF; --yt: #FF4E45; --ok: #5FE08D;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--ink); min-height: 100vh;
+    font: 14px/1.5 system-ui, -apple-system, "Segoe UI", "Microsoft JhengHei", sans-serif; }
+  .page { max-width: 1100px; margin: 0 auto; padding: 24px 16px 60px; }
+  h1 { font-size: 20px; margin: 0 0 6px; }
+  .lead { color: var(--ink2); font-size: 13px; margin: 0 0 18px; }
+  .lead b { color: var(--ink); }
+  .vtabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+  .vtabs button { border: 1px solid var(--line); background: var(--card); color: var(--ink2); padding: 8px 14px; border-radius: 99px; cursor: pointer; font-size: 13px; }
+  .vtabs button.on { border-color: var(--accent); color: #fff; background: rgba(46,107,255,.35); }
+  .stage { display: flex; gap: 28px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
+  .notes { flex: 1 1 320px; max-width: 460px; background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 18px 20px; font-size: 13.5px; color: var(--ink2); }
+  .notes h2 { color: var(--ink); font-size: 17px; margin: 0 0 4px; }
+  .notes .tag { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 99px; background: rgba(255,78,69,.15); color: var(--yt); margin-bottom: 10px; }
+  .notes h3 { color: var(--ink); font-size: 13.5px; margin: 14px 0 4px; }
+  .notes ul { margin: 0; padding-left: 18px; } .notes li { margin: 3px 0; }
+  .notes .try { margin-top: 14px; padding: 10px 12px; border-radius: 12px; background: rgba(126,166,255,.08); border: 1px solid rgba(126,166,255,.25); color: var(--ink); font-size: 12.5px; }
+  .reset { margin-top: 12px; border: 1px solid var(--line); background: transparent; color: var(--ink2); border-radius: 10px; padding: 6px 12px; cursor: pointer; font-size: 12px; }
+
+  .phone { width: 380px; max-width: 100%; height: 800px; flex-shrink: 0; border-radius: 34px; border: 1px solid var(--line);
+    background: radial-gradient(120% 60% at 20% 0%, #2a1520 0%, #0e0e17 60%); position: relative; overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,.5); }
+  .screen { position: absolute; inset: 0; overflow-y: auto; padding: 14px 14px 30px; scrollbar-width: thin; scrollbar-color: #33334a transparent; }
+  .bar { display: flex; align-items: center; gap: 6px; padding: 4px 0 12px; }
+  .bar .t { flex: 1; font-weight: 800; font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ib { width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; color: var(--ink2); cursor: pointer; font-size: 16px; flex-shrink: 0; }
+  .ib:hover { background: rgba(255,255,255,.05); }
+  .glass { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); border-radius: 18px; padding: 13px; }
+  .note { font-size: 11.5px; color: var(--ink2); } .note3 { font-size: 11px; color: var(--ink3); }
+  .row { display: flex; align-items: center; gap: 8px; } .sp { flex: 1; }
+  .gap { height: 12px; }
+  .av { border-radius: 50%; display: grid; place-items: center; font-weight: 900; color: #fff; flex-shrink: 0; background-size: cover; background-position: center; }
+  .chip { border: 1px solid var(--line); color: var(--ink2); border-radius: 99px; padding: 5px 12px; font-size: 12.5px; cursor: pointer; background: transparent; display: inline-flex; align-items: center; gap: 6px; }
+  .chip i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .chip.on { color: #fff; border-color: transparent; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .btn { border: 0; border-radius: 12px; padding: 11px 16px; font-weight: 700; font-size: 14px; cursor: pointer; background: var(--accentSolid); color: #fff; }
+  .btn:disabled { opacity: .35; cursor: default; }
+  .btn.ghost { background: transparent; color: var(--ink2); }
+  .btn.line { background: transparent; border: 1px solid var(--line); color: var(--ink2); }
+  .field { position: relative; background: var(--card2); border: 1px solid var(--line); border-radius: 12px; padding: 7px 12px 8px; transition: border-color .15s; }
+  .field:focus-within { border-color: var(--accent); }
+  .field label { display: block; font-size: 11px; color: var(--ink3); }
+  .field .in { display: flex; align-items: center; gap: 6px; }
+  .field input, .field textarea { flex: 1; min-width: 0; background: transparent; border: 0; outline: 0; color: var(--ink); font: inherit; font-size: 14.5px; padding: 2px 0; resize: none; }
+  .field textarea { min-height: 62px; line-height: 1.5; font-size: 13.5px; }
+  .orig { font-size: 11.5px; color: var(--ink3); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; border-radius: 6px; padding: 2px 4px; }
+  .orig:hover { background: rgba(255,255,255,.06); color: var(--ink2); }
+  .paste { border: 0; background: rgba(126,166,255,.12); color: var(--accent); border-radius: 8px; padding: 4px 8px; font-size: 11.5px; cursor: pointer; flex-shrink: 0; }
+  .count { font-size: 10.5px; color: var(--ink3); }
+  .count.warn { color: var(--yt); }
+  .lbl { font-size: 11.5px; color: var(--ink2); margin: 14px 2px 6px; display: flex; }
+  .lbl span { margin-left: auto; color: var(--ink3); }
+  .dirty { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); display: inline-block; margin-left: 6px; vertical-align: middle; }
+
+  .scrim { position: absolute; inset: 0; background: rgba(0,0,0,.6); z-index: 20; animation: fade .18s; }
+  .scrim.bottom { display: flex; align-items: flex-end; }
+  .scrim.center { display: flex; align-items: center; justify-content: center; padding: 18px; }
+  .sheet { width: 100%; background: var(--sheet); border-radius: 24px 24px 0 0; max-height: 92%; display: flex; flex-direction: column; animation: up .22s ease-out; }
+  .sheet .body { overflow-y: auto; padding: 0 18px 12px; }
+  .handle { width: 40px; height: 5px; border-radius: 9px; background: rgba(255,255,255,.14); margin: 10px auto 6px; }
+  .dialog { width: 100%; background: var(--sheet); border-radius: 22px; max-height: 94%; display: flex; flex-direction: column; animation: pop .2s ease-out; border: 1px solid rgba(255,255,255,.07); }
+  .dialog .body { overflow-y: auto; padding: 0 16px 8px; }
+  .foot { display: flex; gap: 8px; padding: 10px 16px 14px; border-top: 1px solid var(--line); align-items: center; }
+  .full { position: absolute; inset: 0; z-index: 20; background: #101018; display: flex; flex-direction: column; animation: slide .22s ease-out; }
+  .full .body { flex: 1; overflow-y: auto; padding: 0 16px 24px; }
+  .toast { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); z-index: 40; max-width: 86%; background: rgba(30,30,46,.94); backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,.12); border-radius: 14px; padding: 9px 14px; font-size: 12.5px; text-align: center; animation: drop .25s; }
+  @keyframes fade { from { opacity: 0 } }
+  @keyframes up { from { transform: translateY(40px); opacity: 0 } }
+  @keyframes pop { from { transform: scale(.94); opacity: 0 } }
+  @keyframes slide { from { transform: translateX(30px); opacity: 0 } }
+  @keyframes drop { from { transform: translate(-50%, -14px); opacity: 0 } }
+
+  /* 頻道頁底圖 */
+  .chead { display: flex; gap: 12px; align-items: center; }
+  .stat { font-size: 11.5px; color: var(--ink2); }
+  .vid { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,.05); }
+  .thumb { width: 120px; aspect-ratio: 16/9; border-radius: 10px; flex-shrink: 0; background: linear-gradient(135deg, #3a2232, #1d2340); position: relative; }
+  .thumb b { position: absolute; right: 5px; bottom: 4px; font-size: 10px; background: rgba(0,0,0,.75); padding: 0 4px; border-radius: 4px; }
+  .vt { font-size: 12.5px; line-height: 1.35; }
+
+  /* 版本專屬 */
+  .grp { background: var(--card2); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+  .grp .it { display: flex; align-items: center; gap: 10px; padding: 11px 12px; border-bottom: 1px solid var(--line); }
+  .grp .it:last-child { border-bottom: 0; }
+  .grp .it .k { width: 52px; font-size: 12px; color: var(--ink3); flex-shrink: 0; }
+  .grp .it input, .grp .it textarea { flex: 1; min-width: 0; background: transparent; border: 0; outline: 0; color: var(--ink); font: inherit; font-size: 14px; resize: none; }
+  .tabs { display: flex; gap: 4px; padding: 3px; background: var(--card2); border: 1px solid var(--line); border-radius: 12px; margin: 0 0 12px; }
+  .tabs button { flex: 1; border: 0; background: transparent; color: var(--ink2); padding: 8px; border-radius: 9px; font-weight: 700; font-size: 13px; cursor: pointer; }
+  .tabs button.on { background: rgba(255,78,69,.18); color: var(--yt); }
+  .preview { border-radius: 16px; padding: 12px; background: linear-gradient(135deg, rgba(255,78,69,.12), rgba(126,166,255,.06)); border: 1px solid rgba(255,255,255,.08); }
+  .pill { font-size: 10.5px; padding: 1px 8px; border-radius: 99px; }
+  .inline-edit { border-bottom: 1px dashed rgba(255,255,255,.25); cursor: text; }
+  .inline-edit:hover { border-bottom-color: var(--accent); }
+  .savebar { position: absolute; left: 12px; right: 12px; bottom: 14px; z-index: 15; display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+    background: rgba(30,30,46,.95); backdrop-filter: blur(14px); border: 1px solid rgba(126,166,255,.35); border-radius: 16px; animation: up .2s; box-shadow: 0 10px 30px rgba(0,0,0,.5); }
+  .avbig { position: relative; cursor: pointer; }
+  .avbig .cam { position: absolute; right: -2px; bottom: -2px; width: 26px; height: 26px; border-radius: 50%; background: var(--accentSolid); display: grid; place-items: center; font-size: 12px; border: 2px solid var(--sheet); }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>YT 管理：「編輯頻道」視窗五種設計</h1>
+  <p class="lead">
+    現在的視窗是系統預設的白字對話框，名稱、網址、頭像網址、簡介四個輸入框直直排下來，分類一排小圓點，看起來很陽春。五版都放了一樣的欄位：<b>頭像、名稱（右邊有「原本：…」）、頻道網址（貼上鈕）、簡介、分類</b>，也都<b>沒有刪除鈕</b>（刪除改到分類頁長按）。<br>
+    手機框裡可以直接打字、換分類、按「原本：…」改回原名、按儲存（會更新背景的頻道頁）。點頻道頁右上角的 ✏️ 打開。
+  </p>
+  <div class="vtabs" id="vtabs"></div>
+  <div class="stage">
+    <div class="phone" id="phone"></div>
+    <div class="notes" id="notes"></div>
+  </div>
+</div>
+<script>
+const CATS = [
+  { id: null, name: '未分類', color: '#74738A' },
+  { id: 'game', name: '遊戲', color: '#FF8A4C' },
+  { id: 'tech', name: '科技', color: '#7EA6FF' },
+  { id: 'food', name: '美食', color: '#5FE08D' },
+  { id: 'music', name: '音樂', color: '#C792EA' },
+  { id: 'study', name: '學習', color: '#F5C763' },
+];
+const ORIGINAL = '老高與小茉 Mr & Mrs Gao';
+function seed() {
+  return { name: '老高', url: 'https://www.youtube.com/@mrandmrsgao', avatar: 'https://yt3.example/gao.jpg',
+    desc: '老高的頻道，講各種奇怪的故事、宇宙、歷史謎團，一集大概 20～40 分鐘。', cat: 'study', subs: '658 萬' };
+}
+const S = { v: 0, ch: seed(), draft: null, open: false, tab: 'basic', toast: null, inline: null };
+const catOf = id => CATS.find(c => c.id === id) || CATS[0];
+const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+const dirty = () => S.draft && ['name', 'url', 'avatar', 'desc', 'cat'].some(k => S.draft[k] !== S.ch[k]);
+const avatar = (size, name) => `<div class="av" style="width:${size}px;height:${size}px;font-size:${size * .4}px;background:linear-gradient(135deg,#FF4E45,#C792EA)">${esc((name || '?').trim().slice(0, 1) || '?')}</div>`;
+
+// ── 背景：頻道詳情頁 ──
+function channelPage() {
+  const c = catOf(S.ch.cat);
+  const vids = ['宇宙的盡頭是什麼？我們可能一直搞錯了', '金字塔裡被封住的房間，終於有人打開了', '這個實驗讓科學家沉默了十年', '為什麼古代人都說自己看過巨人', '時間其實不存在？'];
+  return `<div class="bar"><div class="ib">←</div><div class="t">${esc(S.ch.name)}</div>
+      <div class="ib" data-a="edit" title="編輯頻道">✏️</div><div class="ib" title="紀錄">🕘</div><div class="ib">⚙</div></div>
+    <div class="glass"><div class="chead">${avatar(56, S.ch.name)}<div style="min-width:0">
+      <div style="font-weight:800;font-size:16px">${esc(S.ch.name)}</div>
+      <div class="stat">訂閱 ${S.ch.subs}・<span style="color:${c.color}">● ${c.name}</span></div>
+      <div class="note3" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:230px">${esc(S.ch.url)}</div></div></div>
+      <div class="note" style="margin-top:8px">${esc(S.ch.desc)}</div></div>
+    <div class="gap"></div><div class="note" style="margin:0 2px 4px">最近影片</div>
+    ${vids.map((t, i) => `<div class="vid"><div class="thumb"><b>${20 + i * 3}:1${i}</b></div><div><div class="vt">${t}</div><div class="note3">${i + 2} 天前・${(40 + i * 13)} 萬次</div></div></div>`).join('')}`;
+}
+
+// ── 共用欄位 ──
+function nameField(opts = {}) {
+  const d = S.draft, showOrig = d.name.trim() !== ORIGINAL;
+  return `<div class="field"><label>頻道名稱${opts.dot && d.name !== S.ch.name ? '<span class="dirty"></span>' : ''}</label><div class="in">
+    <input data-k="name" value="${esc(d.name)}" maxlength="30" placeholder="頻道名稱">
+    ${showOrig ? `<span class="orig" data-a="orig" title="原本叫「${esc(ORIGINAL)}」，點一下改回來">（原本：${esc(ORIGINAL)}）</span>` : ''}
+  </div></div>`;
+}
+function urlField() {
+  return `<div class="field"><label>頻道網址</label><div class="in"><input data-k="url" value="${esc(S.draft.url)}" placeholder="https://www.youtube.com/@…"><button class="paste" data-a="paste">貼上</button></div></div>`;
+}
+function avatarField() {
+  return `<div class="field"><label>頭像圖片網址</label><div class="in"><input data-k="avatar" value="${esc(S.draft.avatar)}" placeholder="留空就用名稱第一個字"><button class="paste" data-a="refetch">從網址抓</button></div></div>`;
+}
+function descField() {
+  const n = S.draft.desc.length;
+  return `<div class="field"><label>簡介</label><div class="in"><textarea data-k="desc" maxlength="300" placeholder="寫點這個頻道在幹嘛">${esc(S.draft.desc)}</textarea></div>
+    <div class="count ${n > 280 ? 'warn' : ''}" style="text-align:right">${n}/300</div></div>`;
+}
+function catChips() {
+  return `<div class="chips">${CATS.map(c => `<button class="chip ${S.draft.cat === c.id ? 'on' : ''}" data-a="cat" data-c="${c.id}"
+    style="${S.draft.cat === c.id ? `background:${c.color}33;border-color:${c.color};color:#fff` : ''}"><i style="background:${c.color}"></i>${c.name}</button>`).join('')}</div>`;
+}
+
+// ── 五版 ──
+const V = [
+  {
+    name: '1 底部表單（主流）', title: '版本 1：從下面滑上來的表單（手機 App 主流）', tag: 'YouTube／Google 聯絡人都這樣',
+    desc: `<h3>長相</h3><ul><li>從底部滑上來，最上面大頭像＋「換頭像」，下面欄位用有標題的圓角框（Material 3 填色輸入框）。</li>
+      <li>名稱框右邊淡淡的「（原本：…）」，點了改回來；改回原名就自己消失。</li>
+      <li>分類用彩色膠囊，選中的會亮成分類顏色。</li><li>儲存鈕固定在最下面，沒改任何東西時是灰的。</li></ul>
+      <h3>好處</h3><ul><li>拇指搆得到，手機最順手；跟 App 其他底部表單（交易、負債）長得一樣。</li></ul>
+      <h3>缺點</h3><ul><li>欄位多時要往下滑一點。</li></ul>`,
+    render() {
+      return `<div class="scrim bottom" data-a="close"><div class="sheet" data-stop>
+        <div class="handle"></div>
+        <div class="row" style="padding:0 18px 6px"><b style="font-size:16px;flex:1">編輯頻道</b><div class="ib" data-a="close">✕</div></div>
+        <div class="body">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;margin:4px 0 10px">
+            <div class="avbig" data-a="refetch">${avatar(76, S.draft.name)}<div class="cam">📷</div></div>
+            <span class="note3">點頭像從頻道網址重新抓</span></div>
+          ${nameField()}<div class="gap" style="height:10px"></div>${urlField()}<div class="gap" style="height:10px"></div>${descField()}
+          <div class="lbl">分類</div>${catChips()}
+          <div class="lbl">進階</div>${avatarField()}
+        </div>
+        <div class="foot"><button class="btn ghost" data-a="close">取消</button><span class="sp"></span><button class="btn" data-a="save" ${dirty() ? '' : 'disabled'}>儲存</button></div>
+      </div></div>`;
+    },
+  },
+  {
+    name: '2 全頁編輯', title: '版本 2：整頁編輯（像 iPhone 聯絡人／YouTube Studio）', tag: '空間最大',
+    desc: `<h3>長相</h3><ul><li>點 ✏️ 整頁滑進來，上面「取消｜編輯頻道｜儲存」，儲存在右上角。</li>
+      <li>欄位用 iOS 設定那種「分組清單」：左邊小標、右邊直接打字，一組一張圓角卡。</li>
+      <li>原本名稱放在名稱那組的下面一行小字「原本叫：…　改回來」。</li>
+      <li>分類是一整組可點的清單，每行左邊色點、選中的打勾。</li></ul>
+      <h3>好處</h3><ul><li>最不擠，簡介可以寫很長；看起來最「正式」。</li></ul>
+      <h3>缺點</h3><ul><li>改一個字也要進一整頁，比較重。</li></ul>`,
+    render() {
+      const d = S.draft;
+      return `<div class="full">
+        <div class="row" style="padding:14px 12px 10px"><button class="btn ghost" data-a="close" style="padding:6px 8px">取消</button><b class="sp" style="text-align:center">編輯頻道</b>
+          <button class="btn ghost" data-a="save" ${dirty() ? '' : 'disabled'} style="color:var(--accent);padding:6px 8px">儲存</button></div>
+        <div class="body">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:8px;margin:6px 0 16px">${avatar(88, d.name)}<button class="chip" data-a="refetch">從網址重新抓頭像</button></div>
+          <div class="note3" style="margin:0 4px 6px">名稱</div>
+          <div class="grp"><div class="it"><input data-k="name" value="${esc(d.name)}" maxlength="30"><span class="count">${d.name.length}/30</span></div></div>
+          ${d.name.trim() !== ORIGINAL ? `<div class="note3" style="margin:6px 4px 0">原本叫：${esc(ORIGINAL)}　<span style="color:var(--accent);cursor:pointer" data-a="orig">改回來</span></div>` : ''}
+          <div class="note3" style="margin:16px 4px 6px">連結</div>
+          <div class="grp"><div class="it"><span class="k">網址</span><input data-k="url" value="${esc(d.url)}"><button class="paste" data-a="paste">貼上</button></div>
+            <div class="it"><span class="k">頭像</span><input data-k="avatar" value="${esc(d.avatar)}" placeholder="圖片網址"></div></div>
+          <div class="note3" style="margin:16px 4px 6px">簡介</div>
+          <div class="grp"><div class="it"><textarea data-k="desc" rows="4" maxlength="300">${esc(d.desc)}</textarea></div></div>
+          <div class="note3" style="margin:16px 4px 6px">分類</div>
+          <div class="grp">${CATS.map(c => `<div class="it" data-a="cat" data-c="${c.id}" style="cursor:pointer"><i style="width:10px;height:10px;border-radius:50%;background:${c.color}"></i><span class="sp">${c.name}</span>${d.cat === c.id ? '<b style="color:var(--accent)">✓</b>' : ''}</div>`).join('')}</div>
+        </div></div>`;
+    },
+  },
+  {
+    name: '3 即時預覽', title: '版本 3：上面即時預覽、下面改（改什麼馬上看到）', tag: '最直覺',
+    desc: `<h3>長相</h3><ul><li>置中的深色卡片視窗，最上面是<b>頻道卡片的即時預覽</b>：頭像、名稱、分類色、簡介前兩行，打字的同時跟著變。</li>
+      <li>預覽右上角顯示「已改 2 項」；名稱改過，預覽底下出現「原本：…」可以點回去。</li>
+      <li>下面欄位跟版本 1 一樣，但有改過的欄位標題後面多一個藍點。</li></ul>
+      <h3>好處</h3><ul><li>改名、換分類色、換頭像的效果一眼就知道，不用存了再看。</li></ul>
+      <h3>缺點</h3><ul><li>視窗比較高，小手機要捲。</li></ul>`,
+    render() {
+      const d = S.draft, c = catOf(d.cat);
+      const n = ['name', 'url', 'avatar', 'desc', 'cat'].filter(k => d[k] !== S.ch[k]).length;
+      return `<div class="scrim center" data-a="close"><div class="dialog" data-stop>
+        <div class="row" style="padding:14px 16px 10px"><b style="flex:1;font-size:16px">編輯頻道</b><div class="ib" data-a="close">✕</div></div>
+        <div class="body">
+          <div class="preview"><div class="row"><span class="note3">預覽</span><span class="sp"></span>${n ? `<span class="pill" style="background:rgba(126,166,255,.15);color:var(--accent)">已改 ${n} 項</span>` : '<span class="note3">還沒改</span>'}</div>
+            <div class="chead" style="margin-top:8px">${avatar(50, d.name)}<div style="min-width:0"><div style="font-weight:800;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(d.name || '（沒有名稱）')}</div>
+              <div class="stat">訂閱 ${S.ch.subs}・<span style="color:${c.color}">● ${c.name}</span></div></div></div>
+            <div class="note" style="margin-top:6px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${esc(d.desc || '沒有簡介')}</div></div>
+          <div class="gap"></div>
+          ${nameField({ dot: true })}<div class="gap" style="height:10px"></div>${urlField()}<div class="gap" style="height:10px"></div>${descField()}
+          <div class="lbl">分類${d.cat !== S.ch.cat ? '<span class="dirty" style="margin-left:6px;margin-top:5px"></span>' : ''}</div>${catChips()}
+          <div class="gap"></div>${avatarField()}
+        </div>
+        <div class="foot"><button class="btn ghost" data-a="reset" ${n ? '' : 'disabled'}>全部還原</button><span class="sp"></span><button class="btn ghost" data-a="close">取消</button><button class="btn" data-a="save" ${dirty() ? '' : 'disabled'}>儲存</button></div>
+      </div></div>`;
+    },
+  },
+  {
+    name: '4 分頁', title: '版本 4：視窗裡分「基本｜分類｜連結」三個分頁', tag: '每頁都很短',
+    desc: `<h3>長相</h3><ul><li>置中視窗，上面三個分頁：<b>基本</b>（頭像、名稱、簡介）／<b>分類</b>（大格子色塊）／<b>連結</b>（網址、頭像網址）。</li>
+      <li>有改過東西的分頁旁邊亮一個小藍點，按儲存一次存全部。</li>
+      <li>分類頁用兩欄大色塊，比小圓點好點很多。</li></ul>
+      <h3>好處</h3><ul><li>每一頁只有兩三樣，最清爽；最常改的「名稱」「分類」各自一頁。</li></ul>
+      <h3>缺點</h3><ul><li>要切頁才看得到全部欄位。</li></ul>`,
+    render() {
+      const d = S.draft;
+      const dot = k => k.some(x => d[x] !== S.ch[x]) ? '<span class="dirty"></span>' : '';
+      const tab = (id, label, keys) => `<button class="${S.tab === id ? 'on' : ''}" data-a="tab" data-t="${id}">${label}${dot(keys)}</button>`;
+      let body;
+      if (S.tab === 'basic') body = `<div style="display:flex;justify-content:center;margin:2px 0 12px">${avatar(70, d.name)}</div>${nameField()}<div class="gap" style="height:10px"></div>${descField()}`;
+      else if (S.tab === 'cat') body = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${CATS.map(c => `<div data-a="cat" data-c="${c.id}" style="cursor:pointer;border-radius:14px;padding:14px 12px;border:1.5px solid ${d.cat === c.id ? c.color : 'var(--line)'};background:${d.cat === c.id ? c.color + '26' : 'var(--card2)'}">
+          <div style="width:22px;height:22px;border-radius:7px;background:${c.color};margin-bottom:8px"></div><b>${c.name}</b>${d.cat === c.id ? '<span style="float:right;color:' + c.color + '">✓</span>' : ''}</div>`).join('')}</div>`;
+      else body = `${urlField()}<div class="note3" style="margin:6px 2px 12px">網址裡要有 @帳號，抓影片、抓頭像都靠它</div>${avatarField()}`;
+      return `<div class="scrim center" data-a="close"><div class="dialog" data-stop>
+        <div class="row" style="padding:14px 16px 10px">${avatar(28, d.name)}<b style="flex:1;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(d.name || '編輯頻道')}</b><div class="ib" data-a="close">✕</div></div>
+        <div class="body"><div class="tabs">${tab('basic', '基本', ['name', 'desc'])}${tab('cat', '分類', ['cat'])}${tab('link', '連結', ['url', 'avatar'])}</div>${body}<div class="gap"></div></div>
+        <div class="foot"><button class="btn ghost" data-a="close">取消</button><span class="sp"></span><button class="btn" data-a="save" ${dirty() ? '' : 'disabled'}>儲存</button></div>
+      </div></div>`;
+    },
+  },
+  {
+    name: '5 直接在頁面上改', title: '版本 5：不開視窗，頻道頁本身變成可以改', tag: '最少一層',
+    desc: `<h3>長相</h3><ul><li>按 ✏️ 頻道頁上方那張卡直接進入編輯狀態：名稱、網址、簡介變成虛線底線，點哪改哪；分類那行變成一排色塊。</li>
+      <li>有改東西時，底部浮出一條「已改 N 項・取消・儲存」的儲存列（像 Notion／Figma）。</li>
+      <li>名稱旁邊照樣有「原本：…」。</li></ul>
+      <h3>好處</h3><ul><li>不會跳出任何視窗，改的就是看到的那個地方。</li></ul>
+      <h3>缺點</h3><ul><li>網址、頭像網址這種平常不顯示的欄位，要多一個「更多」展開。</li></ul>`,
+    renderPage() {
+      const d = S.draft, c = catOf(d.cat);
+      const n = ['name', 'url', 'avatar', 'desc', 'cat'].filter(k => d[k] !== S.ch[k]).length;
+      return `<div class="bar"><div class="ib">←</div><div class="t">${esc(d.name)}</div><div class="ib" data-a="close" style="color:var(--accent)">完成</div></div>
+        <div class="glass" style="border-color:rgba(126,166,255,.4)">
+          <div class="note3" style="margin-bottom:8px">✏️ 編輯中・點有虛線的地方直接改</div>
+          <div class="chead">${avatar(56, d.name)}<div style="min-width:0;flex:1">
+            <input data-k="name" value="${esc(d.name)}" class="inline-edit" style="width:100%;background:transparent;border:0;border-bottom:1px dashed rgba(255,255,255,.3);color:var(--ink);font:inherit;font-weight:800;font-size:16px;outline:0">
+            ${d.name.trim() !== ORIGINAL ? `<div class="note3">原本：${esc(ORIGINAL)}　<span style="color:var(--accent);cursor:pointer" data-a="orig">改回來</span></div>` : ''}
+            <div class="stat">訂閱 ${S.ch.subs}</div></div></div>
+          <div class="lbl" style="margin-top:10px">分類</div>${catChips()}
+          <div class="lbl">簡介</div>
+          <textarea data-k="desc" rows="3" style="width:100%;background:transparent;border:1px dashed rgba(255,255,255,.25);border-radius:10px;color:var(--ink);font:inherit;font-size:13px;padding:8px;outline:0;resize:none">${esc(d.desc)}</textarea>
+          <details style="margin-top:8px"><summary class="note" style="cursor:pointer">更多：網址、頭像</summary><div class="gap" style="height:8px"></div>${urlField()}<div class="gap" style="height:8px"></div>${avatarField()}</details>
+        </div>
+        <div class="gap"></div><div class="note" style="opacity:.5">最近影片（編輯時先淡掉）</div>
+        ${n ? `<div class="savebar"><span class="note" style="color:var(--ink)">已改 ${n} 項</span><span class="sp"></span><button class="btn ghost" data-a="reset" style="padding:7px 10px">取消</button><button class="btn" data-a="save" style="padding:7px 16px">儲存</button></div>` : ''}`;
+    },
+  },
+];
+
+const phone = document.getElementById('phone');
+function toast(m) { S.toast = m; clearTimeout(toast.t); toast.t = setTimeout(() => { S.toast = null; paint(); }, 2000); }
+function paint() {
+  const sc = phone.querySelector('.screen'), top = sc ? sc.scrollTop : 0;
+  const focus = document.activeElement && phone.contains(document.activeElement) ? { k: document.activeElement.dataset.k, s: document.activeElement.selectionStart } : null;
+  const v = V[S.v];
+  let html;
+  if (v.renderPage && S.open) html = `<div class="screen">${v.renderPage()}</div>`;
+  else html = `<div class="screen">${channelPage()}</div>${S.open ? v.render() : ''}`;
+  phone.innerHTML = html + (S.toast ? `<div class="toast">${S.toast}</div>` : '');
+  const nsc = phone.querySelector('.screen'); if (nsc) nsc.scrollTop = top;
+  if (focus && focus.k) { const el = phone.querySelector(`[data-k="${focus.k}"]`); if (el) { el.focus(); try { el.setSelectionRange(focus.s, focus.s); } catch (e) {} } }
+}
+function openEdit() { S.draft = { ...S.ch }; S.open = true; S.tab = 'basic'; }
+function pick(i) {
+  S.v = i; S.open = false; S.draft = null;
+  document.querySelectorAll('#vtabs button').forEach((b, j) => b.classList.toggle('on', j === i));
+  const v = V[i];
+  document.getElementById('notes').innerHTML = `<h2>${v.title}</h2><span class="tag">${v.tag}</span>${v.desc}
+    <div class="try">試試看：把名稱改掉一個字，看右邊的「原本：…」；點它改回原名；換個分類；按儲存看背景的頻道頁有沒有跟著變。</div>
+    <button class="reset" id="reset">↺ 重來（資料還原）</button>`;
+  document.getElementById('reset').onclick = () => { S.ch = seed(); pick(S.v); };
+  openEdit(); paint();
+}
+document.getElementById('vtabs').innerHTML = V.map((v, i) => `<button>${v.name}</button>`).join('');
+document.querySelectorAll('#vtabs button').forEach((b, i) => b.onclick = () => pick(i));
+
+phone.addEventListener('input', e => {
+  const k = e.target.dataset.k; if (!k || !S.draft) return;
+  S.draft[k] = e.target.value; paint();
+});
+phone.addEventListener('click', e => {
+  const el = e.target.closest('[data-a]');
+  if (!el) return;
+  if (el.dataset.a === 'close' && e.target.closest('[data-stop]') && !e.target.closest('[data-stop] [data-a="close"]')) return;
+  const a = el.dataset.a;
+  if (a === 'edit') openEdit();
+  else if (a === 'close') { if (dirty() && !confirm('有改過的東西還沒存，要放棄嗎？')) return; S.open = false; S.draft = null; }
+  else if (a === 'orig') S.draft.name = ORIGINAL;
+  else if (a === 'cat') S.draft.cat = el.dataset.c === 'null' ? null : el.dataset.c;
+  else if (a === 'tab') S.tab = el.dataset.t;
+  else if (a === 'paste') { S.draft.url = 'https://www.youtube.com/@mrandmrsgao/videos'; toast('已貼上剪貼簿的網址'); }
+  else if (a === 'refetch') toast('從頻道網址重新抓頭像（跟新增頻道一樣，不用貼）');
+  else if (a === 'reset') S.draft = { ...S.ch };
+  else if (a === 'save') { if (!S.draft.name.trim()) { toast('名稱不能空白'); return; } S.ch = { ...S.draft }; S.open = false; S.draft = null; toast('已儲存'); }
+  paint();
+});
+pick(0);
+</script>
+</body>
+</html>
