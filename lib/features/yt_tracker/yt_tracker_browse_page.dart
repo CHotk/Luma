@@ -20,6 +20,7 @@ import '../../domain/models/yt_video_watch.dart';
 import '../../shared/debug/app_log.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_notice.dart';
+import '../../shared/widgets/open_settings.dart';
 import '../../shared/widgets/app_confirm_dialog.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
@@ -707,7 +708,19 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
     if (mounted) _reload();
   }
 
-  Widget _buildVideoPanel(List<YtChannel> channels) {
+  /// 「依影片顯示」實際要抓的頻道：預設不抓冷藏的（2026-10-12 使用者
+  /// 要求），設定裡打開 [ytVideoIncludeColdProvider] 才連冷藏一起抓。
+  /// 依頻道顯示不受影響，冷藏的照樣排在最下面。
+  List<YtChannel> _videoSourceChannels(List<YtChannel> channels) =>
+      ref.watch(ytVideoIncludeColdProvider)
+      ? channels
+      : [
+          for (final c in channels)
+            if (c.coldAt == null) c,
+        ];
+
+  Widget _buildVideoPanel(List<YtChannel> inScope) {
+    final channels = _videoSourceChannels(inScope);
     final apiKey = ref.watch(ytApiKeyProvider);
     if (apiKey == null || apiKey.isEmpty) {
       return Center(
@@ -740,6 +753,19 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
               ),
             ],
           ),
+        ),
+      );
+    }
+    if (channels.isEmpty && inScope.isNotEmpty) {
+      return SingleChildScrollView(
+        child: InlineEmptyCard(
+          title: '這裡都是冷藏頻道',
+          message: '依影片顯示預設不抓冷藏頻道，要一起抓可以到設定打開',
+          actions: [
+            EmptyAction('開設定', () => openSettings(context)),
+            if (_selected.isNotEmpty)
+              EmptyAction('看全部分類', () => setState(_selected.clear)),
+          ],
         ),
       );
     }
@@ -976,8 +1002,9 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                       // 當下直接呼叫（裡面可能觸發 setState），要排到這一幀
                       // 畫完之後。
                       if (_mode == _ViewMode.video) {
+                        final source = _videoSourceChannels(channels);
                         WidgetsBinding.instance.addPostFrameCallback((_) {
-                          if (mounted) _ensureVideosLoaded(channels);
+                          if (mounted) _ensureVideosLoaded(source);
                         });
                       }
 

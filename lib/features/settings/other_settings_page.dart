@@ -12,6 +12,7 @@ import '../../data/repositories/jp_home_ring_store.dart';
 import '../../data/repositories/usdt_twd_rate_store.dart';
 import '../../data/repositories/yt_embed_player_style_store.dart';
 import '../../data/repositories/yt_stats_refresh_setting_store.dart';
+import '../../data/repositories/yt_video_include_cold_store.dart';
 import '../../data/repositories/yt_video_open_mode_store.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_confirm_dialog.dart';
@@ -496,6 +497,8 @@ class _YtTrackerSettings extends ConsumerWidget {
               const _VideoOpenModeRow(),
               const _EmbedPlayerStyleRow(),
               const Divider(height: Gap.lg, color: AppColors.glassEdge),
+              const _VideoIncludeColdRow(),
+              const Divider(height: Gap.lg, color: AppColors.glassEdge),
               // 永久刪除的頻道清單（2026-10-06 使用者要求：放設定裡，想看
               // 刪了哪些可以點開；放最下面）。
               Row(
@@ -805,6 +808,51 @@ class _StatsRefreshRowState extends ConsumerState<_StatsRefreshRow> {
 /// 加減號」那種圖示，改成膠囊裡分兩半點）。
 /// 點影片要內嵌播放還是開新分頁（2026-09-30 使用者要求：預設內嵌，
 /// 設定頁能切回開新分頁）。
+/// 「依影片顯示」要不要連冷藏頻道一起抓（2026-10-12 使用者要求：預設
+/// 不抓，這裡可以打開）。
+class _VideoIncludeColdRow extends ConsumerWidget {
+  const _VideoIncludeColdRow();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final include = ref.watch(ytVideoIncludeColdProvider);
+    return Row(
+      children: [
+        const Icon(Icons.ac_unit_rounded, size: 18, color: AppColors.ink2),
+        const SizedBox(width: Gap.sm),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '依影片顯示也抓冷藏頻道',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.ink,
+                ),
+              ),
+              Text(
+                include ? '冷藏頻道的影片也會混進來' : '冷藏頻道不抓，依頻道顯示照樣看得到',
+                style: AppText.note,
+              ),
+            ],
+          ),
+        ),
+        Switch(
+          value: include,
+          onChanged: (v) async {
+            ref.read(ytVideoIncludeColdProvider.notifier).state = v;
+            await YtVideoIncludeColdStore(
+              ref.read(keyValueStoreProvider),
+            ).save(v);
+          },
+        ),
+      ],
+    );
+  }
+}
+
 class _VideoOpenModeRow extends ConsumerWidget {
   const _VideoOpenModeRow();
 
