@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
 import '../../app/router.dart';
+import '../sync/sync_progress_banner.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
@@ -198,6 +199,10 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
       return;
     }
     container.read(r2SyncRunningProvider.notifier).state = true;
+    // 即時進度（2026-10-12 使用者要求：同步中跳去別的地方，上方要顯示
+    // 跑到哪了），見 [SyncProgressBanner]。
+    final progress = container.read(syncProgressProvider.notifier);
+    progress.state = const SyncProgress(total: 0, done: 0, running: []);
     setState(() {
       _syncing = true;
       _diaryPhase = _FeaturePhase.downloading;
@@ -253,6 +258,15 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
         )
         task,
       ) async {
+        // 這段在第一個 await 之前，Future.wait 一排開時就全部算進總數。
+        final p0 = progress.state;
+        if (p0 != null) {
+          progress.state = SyncProgress(
+            total: p0.total + 1,
+            done: p0.done,
+            running: [...p0.running, label],
+          );
+        }
         try {
           final r = await task(_phaseCallback(setPhase));
           _record(label, r);
@@ -264,6 +278,15 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
           failures.add('$label：$e');
           failedLabels.add(label);
           if (mounted) setState(() => setPhase(_FeaturePhase.error));
+        } finally {
+          final p = progress.state;
+          if (p != null) {
+            progress.state = SyncProgress(
+              total: p.total,
+              done: p.done + 1,
+              running: [...p.running]..remove(label),
+            );
+          }
         }
       }
 
@@ -494,6 +517,7 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
       // provider」共用同一個機制，見 `dataRevisionProvider` 的其他用法。
       container.read(dataRevisionProvider.notifier).state++;
       container.read(r2SyncRunningProvider.notifier).state = false;
+      progress.state = null;
       if (mounted) {
         setState(() {
           _lastSyncedAt = now;
@@ -536,6 +560,7 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
             ),
           );
       container.read(r2SyncRunningProvider.notifier).state = false;
+      progress.state = null;
       if (mounted) {
         widget.onLogged?.call();
         setState(() => _syncing = false);
