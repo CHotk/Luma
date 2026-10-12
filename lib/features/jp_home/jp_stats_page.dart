@@ -125,9 +125,11 @@ class _SummarySection extends StatelessWidget {
           const SizedBox(height: Gap.sm),
           Row(
             children: [
-              _StatTile(label: '手寫練習', value: '${state.totalPracticeCount}'),
-              _StatTile(label: '考試', value: '${state.totalExamCount}'),
-              _StatTile(label: '今天', value: '${state.todayCount}'),
+              // 數字後面都寫單位（2026-10-12 使用者把「今天」那格的數字
+              // 誤看成練習天數：其實是今天練了幾題）。
+              _StatTile(label: '手寫練習', value: '${state.totalPracticeCount} 題'),
+              _StatTile(label: '考試', value: '${state.totalExamCount} 題'),
+              _StatTile(label: '今天練了', value: '${state.todayCount} 題'),
             ],
           ),
           if (start != null) ...[
@@ -143,9 +145,9 @@ class _SummarySection extends StatelessWidget {
             const SizedBox(height: Gap.xs),
             Row(
               children: [
-                _StatTile(label: '已經', value: '${state.daysSinceStart} 天'),
+                _StatTile(label: '已經過了', value: '${state.daysSinceStart} 天'),
                 _StatTile(
-                  label: '有練的天數',
+                  label: '練習天數',
                   value: '${state.allPracticedDates.length} 天',
                 ),
                 _StatTile(label: '連續中', value: '${state.streakDays} 天'),
