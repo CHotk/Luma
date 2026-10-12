@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
+import 'marquee_text.dart';
 import 'open_settings.dart';
 import 'settings_icon.dart';
 
@@ -29,6 +30,7 @@ class AppTopBar extends StatelessWidget {
     this.showBack = true,
     this.showSettings = true,
     this.actions = const [],
+    this.marqueeTitle = false,
   });
 
   final String title;
@@ -57,6 +59,10 @@ class AppTopBar extends StatelessWidget {
   /// 頁面自己專屬的按鈕（例如匯出、清空紀錄），排在標題右邊、
   /// 設定齒輪左邊。
   final List<Widget> actions;
+
+  /// 標題太長時走馬燈，不用「…」切掉（2026-10-12 使用者要求：YT 頻道
+  /// 詳情頁的頻道名稱）。預設 false，其他頁照舊。
+  final bool marqueeTitle;
 
   @override
   Widget build(BuildContext context) {
@@ -94,11 +100,13 @@ class AppTopBar extends StatelessWidget {
                 const SizedBox(width: 6),
               ],
               Flexible(
-                child: Text(
-                  title,
-                  style: AppText.title,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                child: marqueeTitle
+                    ? MarqueeText(title, style: AppText.title)
+                    : Text(
+                        title,
+                        style: AppText.title,
+                        overflow: TextOverflow.ellipsis,
+                      ),
               ),
             ],
           ),
