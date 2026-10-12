@@ -15,7 +15,6 @@ import '../../data/services/yt_video_type_scanner.dart';
 import '../../domain/models/yt_tracker.dart';
 import '../../domain/models/yt_video_watch.dart';
 import '../../shared/widgets/ambient_background.dart';
-import '../../shared/widgets/app_confirm_dialog.dart';
 import '../../shared/widgets/app_notice.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
@@ -33,7 +32,7 @@ import 'yt_video_row.dart';
 /// 頻道詳情頁也要能直接篩全部／一般影片／Shorts／直播）。
 enum _TypeFilter { all, regular, shorts, live }
 
-/// 頻道詳情。基本資料（名稱、分類、網址、簡介）可以編輯／刪除，網址點
+/// 頻道詳情。基本資料（名稱、分類、網址、簡介）可以編輯（刪除在分類頁長按），網址點
 /// 下去會開新分頁；「影片」清單真的接了 YouTube Data API（2026-09-22，
 /// 之前漏接，跟 `yt_tracker_browse_page.dart` 的「依影片顯示」補齊成
 /// 同一套邏輯，見 `yt_video_row.dart` 共用元件）。
@@ -1364,32 +1363,12 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                       ),
                   ],
                 ),
-                // 刪除是破壞性動作：跟一般的「取消／儲存」分開，獨立放在
-                // 內容最底下、紅色外框全寬按鈕（一般手機 App 的慣例），不跟
-                // 底部按鈕列擠在一起，也不用紅色實心搶過主要動作
-                // （2026-09-24 使用者要求重新配置）。
-                const SizedBox(height: Gap.lg),
-                const Divider(height: 1, color: AppColors.glassEdge),
-                const SizedBox(height: Gap.md),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () => Navigator.pop(dialogContext, 'delete'),
-                    icon: const Icon(Icons.delete_outline_rounded, size: 18),
-                    label: const Text('刪除頻道'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.bad,
-                      side: BorderSide(
-                        color: AppColors.bad.withValues(alpha: 0.5),
-                      ),
-                    ),
-                  ),
-                ),
               ],
             ),
           ),
           // 底部按鈕列照慣例：次要的「取消」在左（純文字），主要的「儲存」
-          // 在最右（實心強調色，用藍色不是紅色——紅色留給刪除）。
+          // 在最右（實心強調色）。刪除不放這裡（2026-10-12 使用者要求：分類頁
+          // 長按就能刪，詳情頁跟編輯視窗都拿掉刪除鈕）。
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, 'cancel'),
@@ -1421,35 +1400,7 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
       );
       if (!mounted) return;
       _reload();
-    } else if (action == 'delete') {
-      if (!mounted) return;
-      await _deleteFromHeader(channel);
     }
-  }
-
-  /// 詳情頁的刪除（頂部列那顆、編輯視窗裡那顆共用）。一般頻道是移到
-  /// 垃圾桶，可以還原；已經在垃圾桶裡的就是永久刪除。兩種都只是蓋標記，
-  /// 頻道資料、看影片的紀錄、頻道紀錄全部留著（2026-10-06 使用者確認）。
-  Future<void> _deleteFromHeader(YtChannel channel) async {
-    final repo = ref.read(ytTrackerRepositoryProvider);
-    final inTrash = channel.deletedAt != null;
-    final confirmed = await showAppConfirmDialog(
-      context,
-      title: inTrash ? '永久刪除「${channel.name}」？' : '刪除「${channel.name}」？',
-      message: inTrash
-          ? '垃圾桶裡就看不到它了，之後只能在設定的「永久刪除的頻道」看到。\n'
-                '觀看紀錄跟頻道紀錄都會保留。'
-          : '會移到垃圾桶，之後可以還原。\n觀看紀錄跟頻道紀錄都會保留。',
-      confirmLabel: inTrash ? '永久刪除' : '刪除',
-    );
-    if (!confirmed) return;
-    if (inTrash) {
-      await repo.purgeChannel(channel.id);
-    } else {
-      await repo.deleteChannel(channel.id);
-    }
-    if (!mounted) return;
-    Navigator.of(context).maybePop();
   }
 
   @override
@@ -1518,8 +1469,11 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                         children: [
                           AppTopBar(
                             title: channel.name,
-                            // 順序：編輯、紀錄、刪除（2026-10-06 使用者要求紀錄
-                            // 放編輯右邊，詳情頁也要有刪除鈕）。
+                            // 名字太長走馬燈（2026-10-12 使用者要求）。
+                            marqueeTitle: true,
+                            // 順序：編輯、紀錄（2026-10-06 使用者要求紀錄放
+                            // 編輯右邊）。刪除鈕 2026-10-12 拿掉：分類頁長按
+                            // 就能刪（使用者要求）。
                             actions: [
                               IconButton(
                                 onPressed: () =>
@@ -1540,22 +1494,6 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                                 color: AppColors.ink2,
                                 tooltip: '紀錄',
                               ),
-                              // 一般頻道：刪除（移到垃圾桶）；已經在垃圾桶裡：
-                              // 永久刪除。
-                              if (channel.purgedAt == null)
-                                IconButton(
-                                  onPressed: () => _deleteFromHeader(channel),
-                                  icon: Icon(
-                                    channel.deletedAt == null
-                                        ? Icons.delete_outline_rounded
-                                        : Icons.delete_forever_outlined,
-                                    size: 20,
-                                  ),
-                                  color: AppColors.bad,
-                                  tooltip: channel.deletedAt == null
-                                      ? '刪除頻道'
-                                      : '永久刪除',
-                                ),
                             ],
                           ),
                           const SizedBox(height: Gap.md),
