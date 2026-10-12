@@ -217,6 +217,11 @@ class _HomeItem {
   final Future<void> Function()? onTap;
 }
 
+/// 首頁圖示格的一格。圖示框跟圖示大小跟著這一格的大小走（2026-10-12
+/// 使用者回報：圖示太小、也不會跟著畫面比例縮放）：原本寫死 52／28，
+/// 手機上偏小、平板或電腦上格子變大圖示卻不變。現在圖示框約佔格子寬的
+/// 六成（也不超過高度的一半多，留位置給名稱），圖示佔框的六成。
+/// nav_icons 的小圖是 128px，放到最大 64 也還清楚。
 class _HomeTile extends StatelessWidget {
   const _HomeTile({required this.item});
 
@@ -224,7 +229,6 @@ class _HomeTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fallback = Icon(item.icon, size: 28, color: item.color);
     return GlassCard(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
       onTap: () {
@@ -234,47 +238,60 @@ class _HomeTile extends StatelessWidget {
           context.go(item.route!);
         }
       },
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              color: item.color.withValues(alpha: 0.16),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: item.color.withValues(alpha: 0.4)),
-            ),
-            alignment: Alignment.center,
-            child: item.imageAsset == null
-                ? fallback
-                // 縮小版圖示（見 `small_asset.dart`），沒有就退回原圖。
-                : Image.asset(
-                    smallAssetFor(item.imageAsset!),
-                    width: 28,
-                    height: 28,
-                    color: item.color,
-                    errorBuilder: (context, error, stack) => Image.asset(
-                      item.imageAsset!,
-                      width: 28,
-                      height: 28,
-                      color: item.color,
-                      errorBuilder: (context, error, stack) => fallback,
-                    ),
-                  ),
-          ),
-          const SizedBox(height: Gap.sm),
-          Text(
-            item.label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 12.5,
-              fontWeight: FontWeight.w600,
-              color: AppColors.ink,
-            ),
-          ),
-        ],
+      child: LayoutBuilder(
+        builder: (context, c) {
+          // 格子很矮時以高度為準，不讓 clamp 的上限比下限還小。
+          final box = [
+            c.maxWidth * 0.62,
+            c.maxHeight * 0.58,
+            104.0,
+          ].reduce((a, b) => a < b ? a : b).clamp(36.0, 104.0);
+          final icon = (box * 0.6).clamp(28.0, 64.0);
+          final font = (box * 0.19).clamp(12.5, 16.0);
+          final fallback = Icon(item.icon, size: icon, color: item.color);
+          return Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: box,
+                height: box,
+                decoration: BoxDecoration(
+                  color: item.color.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(box * 0.3),
+                  border: Border.all(color: item.color.withValues(alpha: 0.4)),
+                ),
+                alignment: Alignment.center,
+                child: item.imageAsset == null
+                    ? fallback
+                    // 縮小版圖示（見 `small_asset.dart`），沒有就退回原圖。
+                    : Image.asset(
+                        smallAssetFor(item.imageAsset!),
+                        width: icon,
+                        height: icon,
+                        color: item.color,
+                        errorBuilder: (context, error, stack) => Image.asset(
+                          item.imageAsset!,
+                          width: icon,
+                          height: icon,
+                          color: item.color,
+                          errorBuilder: (context, error, stack) => fallback,
+                        ),
+                      ),
+              ),
+              SizedBox(height: box * 0.14),
+              Text(
+                item.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: font,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.ink,
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
