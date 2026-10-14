@@ -956,6 +956,13 @@ class _YtDisplayPrefsRows extends ConsumerWidget {
           prefs.showBackToTop,
           (v) => update(prefs.copyWith(showBackToTop: v)),
         ),
+        row(
+          Icons.cloud_download_outlined,
+          '進頻道自動抓完全部影片',
+          prefs.autoFillChannel ? '背景慢慢抓，往下滑、搜尋都很快；每個頻道只有第一次花配額' : '往下滑到哪才抓到哪',
+          prefs.autoFillChannel,
+          (v) => update(prefs.copyWith(autoFillChannel: v)),
+        ),
         // 頻道頁搜尋（2026-10-14）：範圍、要不要照篩選。
         row(
           Icons.travel_explore_rounded,

@@ -12,6 +12,7 @@ class YtDisplayPrefs {
     this.searchUseApi = true,
     this.searchShowAll = true,
     this.videoTabChannelId = '',
+    this.autoFillChannel = true,
     this.showScrollbar = true,
     this.showBackToTop = true,
     this.removedCheckDays = defaultRemovedCheckDays,
@@ -38,6 +39,10 @@ class YtDisplayPrefs {
   /// YT 底部分頁列「影片」那格直接開哪個頻道（2026-10-14 使用者要求：
   /// 當快捷，設定裡可以換）。空字串＝還沒選，點了先問。
   final String videoTabChannelId;
+
+  /// 進頻道就在背景把全部影片抓進快取（2026-10-14 使用者要求，預設開）。
+  /// 每個頻道只有第一次要花配額，之後只補新片。
+  final bool autoFillChannel;
 
   /// 頻道詳情頁右側一直顯示捲動條（2026-10-12：預設開）。
   final bool showScrollbar;
@@ -73,6 +78,7 @@ class YtDisplayPrefs {
     bool? searchUseApi,
     bool? searchShowAll,
     String? videoTabChannelId,
+    bool? autoFillChannel,
     bool? showScrollbar,
     bool? showBackToTop,
     int? removedCheckDays,
@@ -85,6 +91,7 @@ class YtDisplayPrefs {
     searchUseApi: searchUseApi ?? this.searchUseApi,
     searchShowAll: searchShowAll ?? this.searchShowAll,
     videoTabChannelId: videoTabChannelId ?? this.videoTabChannelId,
+    autoFillChannel: autoFillChannel ?? this.autoFillChannel,
     showScrollbar: showScrollbar ?? this.showScrollbar,
     showBackToTop: showBackToTop ?? this.showBackToTop,
     removedCheckDays: removedCheckDays ?? this.removedCheckDays,
@@ -99,6 +106,7 @@ class YtDisplayPrefs {
     'searchUseApi': searchUseApi,
     'searchShowAll': searchShowAll,
     'videoTabChannelId': videoTabChannelId,
+    'autoFillChannel': autoFillChannel,
     'showScrollbar': showScrollbar,
     'showBackToTop': showBackToTop,
     'removedCheckDays': removedCheckDays,
@@ -114,6 +122,7 @@ class YtDisplayPrefs {
     searchUseApi: j['searchUseApi'] as bool? ?? true,
     searchShowAll: j['searchShowAll'] as bool? ?? true,
     videoTabChannelId: j['videoTabChannelId'] as String? ?? '',
+    autoFillChannel: j['autoFillChannel'] as bool? ?? true,
     showScrollbar: j['showScrollbar'] as bool? ?? true,
     showBackToTop: j['showBackToTop'] as bool? ?? true,
     removedCheckDays:

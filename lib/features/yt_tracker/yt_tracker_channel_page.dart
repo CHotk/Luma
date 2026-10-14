@@ -15,6 +15,7 @@ import '../../data/repositories/yt_video_cache_store.dart';
 import '../../data/repositories/yt_video_hidden_store.dart';
 import '../../data/repositories/yt_video_watch_store.dart';
 import '../../data/services/youtube_api_service.dart';
+import '../../data/services/yt_channel_filler.dart';
 import '../../data/services/yt_channel_search.dart';
 import '../../data/services/yt_removed_video_checker.dart';
 import '../../data/services/yt_video_type_scanner.dart';
@@ -263,9 +264,6 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                 ? null
                 : channel.uploadsPlaylistId);
       },
-      withDurations: service == null
-          ? null
-          : (videos) => _withDurations(service, videos),
     )..addListener(_onSearchChanged);
     setState(() => _search = search);
     FocusManager.instance.primaryFocus?.unfocus();
@@ -392,6 +390,15 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
           _loadingMore = false;
         });
         return;
+      }
+
+      // 背景正在把整個頻道抓進快取：等它下一頁，再從快取拿（不重複打 API）。
+      final filler = YtChannelFiller.of(channelId);
+      if (filler.running) {
+        await filler.nextTick();
+        if (!mounted) return;
+        setState(() => _loadingMore = false);
+        return _loadMoreVideos();
       }
 
       // 2. 打 API，從記下的位置續抓
@@ -577,6 +584,23 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
       _cachedChannelVideos = const [];
       _videosFuture = _fetchVideos(channel);
     });
+    // 背景把整個頻道抓完（2026-10-14 使用者要求）：先讀快取的狀態（有幾部、
+    // 抓完了沒），第一頁出來後再開始，不跟第一頁搶。
+    final filler = YtChannelFiller.of(channel.id);
+    filler.loadStatus(YtVideoCacheStore(ref.read(keyValueStoreProvider)));
+    _videosFuture!.then((_) {
+      if (!mounted || _videosLoadedForChannelId != channel.id) return;
+      if (!ref.read(ytDisplayPrefsProvider).autoFillChannel) return;
+      filler.start(
+        cache: YtVideoCacheStore(ref.read(keyValueStoreProvider)),
+        api: YoutubeApiService(apiKey),
+        uploadsId: () async =>
+            _uploadsId ??
+            (channel.uploadsPlaylistId.isEmpty
+                ? null
+                : channel.uploadsPlaylistId),
+      );
+    }, onError: (_) {});
     YtVideoCacheStore(ref.read(keyValueStoreProvider)).load(channel.id).then((
       cached,
     ) {
@@ -1499,6 +1523,15 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
   }
 
   Future<void> _startEdit(YtChannel channel) async {
+    // 在很下面按編輯時，捲回最上面才看得到要改的頭像、名稱（2026-10-14
+    // 使用者要求）。
+    if (_scroll.hasClients && _scroll.offset > 0) {
+      _scroll.animateTo(
+        0,
+        duration: const Duration(milliseconds: 380),
+        curve: Curves.easeOutCubic,
+      );
+    }
     final renames =
         (await YtChannelLogStore(
               ref.read(keyValueStoreProvider),
@@ -2003,6 +2036,32 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                           ? categoryLabel
                           : '$categoryLabel・${channel.subscriberLabel}',
                       style: AppText.note,
+                    ),
+                    // 影片數（2026-10-14 使用者要求）：整個頻道都抓進快取了
+                    // 才寫「共 N 部」；還在背景抓就寫抓到幾部。之後進來有新片
+                    // 數字跟著變，沒有就維持。
+                    ListenableBuilder(
+                      listenable: YtChannelFiller.of(channel.id),
+                      builder: (context, _) {
+                        final f = YtChannelFiller.of(channel.id);
+                        final text = f.complete
+                            ? '共 ${_fmtCount(f.cached)} 部影片'
+                            : f.running
+                            ? '正在抓全部影片…已有 ${_fmtCount(f.cached)} 部'
+                            : null;
+                        if (text == null) return const SizedBox.shrink();
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(
+                            text,
+                            style: AppText.note.copyWith(
+                              color: f.complete
+                                  ? AppColors.ink2
+                                  : AppColors.accent,
+                            ),
+                          ),
+                        );
+                      },
                     ),
                     if (channel.url.isNotEmpty) ...[
                       const SizedBox(height: 2),
@@ -2944,3 +3003,7 @@ class _SearchStatus extends StatelessWidget {
     );
   }
 }
+
+/// 1,240 這種千分位。
+String _fmtCount(int n) =>
+    n.toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => ',');

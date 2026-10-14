@@ -2,12 +2,13 @@ import 'package:flutter/foundation.dart';
 
 import '../repositories/yt_video_cache_store.dart';
 import 'youtube_api_service.dart';
+import 'yt_channel_filler.dart';
 
 /// 頻道頁搜尋影片（2026-10-14 使用者選了設計稿第 1 版：頂部放大鏡）。
 ///
 /// 1. 先找本機快取，馬上有結果。
-/// 2. 設定是「快取＋YouTube」（預設）就從快取記下的「翻到哪裡」
-///    （[YtResume]）接著往更早翻，一路翻到頻道最舊的影片才算找完——
+/// 2. 設定是「快取＋YouTube」（預設）就用 [YtChannelFiller] 先補最新、再從
+///    快取記下的「翻到哪裡」（[YtResume]）接著往更早翻，一路翻到頻道最舊的影片才算找完——
 ///    整個頻道都找過了還沒有，才說找不到。快取已經有的那一段整段跳過，
 ///    不重抓；翻過的一律存進快取（之後不用再請求、也會跟著同步），所以
 ///    同一個頻道只有第一次搜要花配額，之後只剩快取。
@@ -20,7 +21,6 @@ class YtChannelSearch extends ChangeNotifier {
     required this.cache,
     this.api,
     this.uploadsId,
-    this.withDurations,
     this.totalOnYoutube,
   });
 
@@ -33,9 +33,6 @@ class YtChannelSearch extends ChangeNotifier {
 
   /// 頻道的上傳清單 id；還不知道時給一個去拿的函式。
   final Future<String?> Function()? uploadsId;
-
-  /// 新抓到的影片補時長（跟頻道頁往下滑載入同一支）。
-  final Future<List<YoutubeVideo>> Function(List<YoutubeVideo>)? withDurations;
 
   /// 頻道上一共幾部（頻道資料裡的 videoCount），進度條用；不知道是 null。
   final int? totalOnYoutube;
@@ -92,52 +89,35 @@ class YtChannelSearch extends ChangeNotifier {
         done = true;
         return;
       }
-      final resume = await cache.loadResume(channelId);
-      if (resume != null && (resume.end || resume.token == null)) {
-        done = true;
-        return;
-      }
-      final uploads = await uploadsId?.call();
-      if (_cancelled) return;
-      if (uploads == null || uploads.isEmpty) {
-        throw StateError('找不到這個頻道的上傳清單');
-      }
-      // 沒有記過位置（還沒翻過）就從最新那頁開始。
-      String? token = resume?.token;
-      var offset = resume?.offset ?? 0;
-      while (true) {
-        final page = await api.fetchVideosPage(
-          uploads,
-          pageToken: token,
-          maxResults: 50,
-        );
+      // 跟頻道頁共用同一個背景抓取（[YtChannelFiller]）：先補最新、再補到
+      // 最舊，抓到一頁就拿來比對；頻道頁已經在抓的話直接接上，不會抓兩次。
+      final filler = YtChannelFiller.of(channelId);
+      void onTick() {
         if (_cancelled) return;
-        offset += page.videos.length;
-        var fresh = [
-          for (final v in page.videos)
+        final fresh = [
+          for (final v in filler.lastFresh)
             if (!known.contains(v.videoId)) v,
         ];
-        if (fresh.isNotEmpty && withDurations != null) {
-          fresh = await withDurations!(fresh);
-        }
-        await cache.upsertVideos(channelId, fresh);
-        await cache.saveResumeIfDeeper(
-          channelId,
-          YtResume(
-            token: page.nextPageToken,
-            offset: offset,
-            end: page.nextPageToken == null,
-          ),
-        );
-        if (_cancelled) return;
+        if (fresh.isEmpty) return;
         known.addAll(fresh.map((v) => v.videoId));
         fetchedIds.addAll(fresh.map((v) => v.videoId));
         scanned += fresh.length;
         _addMatches(fresh);
-        token = page.nextPageToken;
-        if (token == null) break;
         _changed();
       }
+
+      filler.addListener(onTick);
+      try {
+        await filler.start(
+          cache: cache,
+          api: api,
+          uploadsId: uploadsId ?? () async => null,
+        );
+      } finally {
+        filler.removeListener(onTick);
+      }
+      if (_cancelled) return;
+      if (filler.error != null) throw StateError(filler.error!);
       done = true;
     } catch (e) {
       error = '$e';

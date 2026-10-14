@@ -6,12 +6,15 @@ import 'package:http/testing.dart';
 import 'package:lume/data/repositories/yt_search_recents_store.dart';
 import 'package:lume/data/repositories/yt_video_cache_store.dart';
 import 'package:lume/data/services/youtube_api_service.dart';
+import 'package:lume/data/services/yt_channel_filler.dart';
 import 'package:lume/data/services/yt_channel_search.dart';
 import 'package:lume/data/storage/key_value_store.dart';
 
 /// 2026-10-14 頻道頁搜尋：先找快取，再從快取記下的位置接著把整個頻道
 /// 抓完；快取已經有的那段不重抓；抓過的存進快取，第二次搜不打 API。
 void main() {
+  setUp(YtChannelFiller.resetAll);
+
   // 頻道一共 130 部：v0（最新）… v129（最舊）。
   String title(int i) => i % 10 == 3 ? '黑洞的祕密 $i' : '其他影片 $i';
   final all = [for (var i = 0; i < 130; i++) i];
@@ -50,6 +53,10 @@ void main() {
 
     final askedTokens = <String?>[];
     final client = MockClient((req) async {
+      // 補時長（videos.list）不算翻頁，回空的就好。
+      if (!req.url.path.endsWith('playlistItems')) {
+        return http.Response('{"items":[]}', 200);
+      }
       final token = req.url.queryParameters['pageToken'];
       askedTokens.add(token);
       final start = switch (token) {
@@ -88,8 +95,9 @@ void main() {
     expect(seen.first, 5);
     expect(search.done, isTrue);
     expect(search.error, isNull);
-    // 沒從頭翻：只要了第 2、3 頁。
-    expect(askedTokens, ['p2', 'p3']);
+    // 先看最新那頁（全是快取有的 → 不用再往下補最新），再從記下的第 2 頁
+    // 接著翻到底；中間沒有從頭重翻。
+    expect(askedTokens, [null, 'p2', 'p3']);
     expect(search.matches.length, 13);
     expect(search.scanned, 130);
     expect(search.fetchedIds.length, 80);
