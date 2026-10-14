@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>二次元風格參考</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;800;900&family=Noto+Sans+TC:wght@500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --sky1: #5B8CFF; --sky2: #A78BFA; --pink: #FF7AC6; --gold: #FFD36E; --gold2: #F5A524; --cyan: #5CE1E6;
+    --ink: #1E1B3A; --white: #FFFFFF; --panel: rgba(255,255,255,.82); --hp: #FF5C7A; --exp: #6EE7B7;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; }
+  body { min-height: 100vh; background: #0F0B24; font-family: "M PLUS Rounded 1c", "Noto Sans TC", system-ui, sans-serif; color: var(--ink); overflow-x: hidden; }
+  .wrap { display: flex; gap: 28px; justify-content: center; align-items: flex-start; padding: 24px 16px 60px; flex-wrap: wrap; }
+  .intro { max-width: 380px; color: #CFC8FF; font-family: "Noto Sans TC", sans-serif; font-size: 13.5px; line-height: 1.7; }
+  .intro h1 { color: #fff; font-size: 22px; margin: 0 0 8px; }
+  .intro b { color: #fff; } .intro li { margin: 4px 0; }
+  .intro .pill { display: inline-block; font-size: 11px; padding: 2px 9px; border-radius: 99px; background: rgba(255,122,198,.2); color: var(--pink); margin-bottom: 10px; }
+
+  /* 手機框（手機上直接滿版） */
+  .phone { width: 390px; height: 844px; flex-shrink: 0; border-radius: 46px; overflow: hidden; position: relative; box-shadow: 0 30px 90px rgba(91,140,255,.35), 0 0 0 10px #1a1533, 0 0 0 11px #2d2655; }
+  @media (max-width: 460px) { .wrap { padding: 0; } .intro { padding: 18px 16px 0; } .phone { width: 100vw; height: 100dvh; border-radius: 0; box-shadow: none; } }
+  .bg { position: absolute; inset: 0; background: linear-gradient(170deg, #7FB2FF 0%, #A78BFA 45%, #FFB3E1 100%); }
+  .bg::before { content: ""; position: absolute; inset: 0; background:
+      radial-gradient(circle at 20% 15%, rgba(255,255,255,.55) 0 2px, transparent 3px) 0 0/46px 46px,
+      radial-gradient(circle at 70% 60%, rgba(255,255,255,.35) 0 1.5px, transparent 2.5px) 0 0/34px 34px; opacity: .7; }
+  .bg::after { content: "あいうえお かきくけこ さしすせそ"; position: absolute; left: -20px; top: 300px; white-space: nowrap; font-size: 74px; font-weight: 900; color: rgba(255,255,255,.12); transform: rotate(-12deg); letter-spacing: 6px; }
+  .slash { position: absolute; left: -40px; right: -40px; height: 120px; background: linear-gradient(90deg, rgba(255,255,255,.0), rgba(255,255,255,.28), rgba(255,255,255,0)); transform: rotate(-14deg); top: 180px; }
+  .scr { position: absolute; inset: 0; overflow-y: auto; padding: 104px 14px 120px; scrollbar-width: none; }
+  .scr::-webkit-scrollbar { display: none; }
+
+  /* HUD */
+  .hud { position: absolute; top: 0; left: 0; right: 0; z-index: 20; padding: 46px 12px 8px; display: flex; align-items: center; gap: 8px;
+    background: linear-gradient(rgba(40,25,95,.65), rgba(40,25,95,0)); }
+  .ava { width: 46px; height: 46px; border-radius: 14px; overflow: hidden; border: 2.5px solid var(--gold); box-shadow: 0 0 0 2px rgba(0,0,0,.25), 0 4px 12px rgba(0,0,0,.3); flex-shrink: 0; background: #fff; }
+  .ava img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 35%; transform: scale(1.35); }
+  .lv { color: #fff; font-weight: 900; font-size: 13px; text-shadow: 0 2px 0 rgba(0,0,0,.25); }
+  .expbar { width: 92px; height: 8px; border-radius: 8px; background: rgba(0,0,0,.3); overflow: hidden; margin-top: 3px; border: 1px solid rgba(255,255,255,.4); }
+  .expbar i { display: block; height: 100%; background: linear-gradient(90deg, #6EE7B7, #5CE1E6); transition: width .6s cubic-bezier(.2,.9,.3,1); }
+  .res { display: flex; align-items: center; gap: 4px; background: rgba(20,12,60,.55); border: 1.5px solid rgba(255,255,255,.35); border-radius: 99px; padding: 3px 9px 3px 4px; color: #fff; font-weight: 800; font-size: 12.5px; }
+  .res .ic { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; }
+  .sp { flex: 1; }
+
+  /* 角色舞台 */
+  .stage { position: relative; height: 330px; margin: 0 -14px; }
+  .chara { position: absolute; right: -24px; top: 6px; width: 300px; height: 300px; filter: drop-shadow(0 18px 30px rgba(60,30,140,.45)); animation: float 4s ease-in-out infinite; }
+  .chara img { width: 100%; height: 100%; object-fit: contain; clip-path: polygon(8% 7%, 93% 7%, 93% 92%, 8% 92%); }
+  .chara::after { content: ""; position: absolute; inset: 7% 7% 8% 8%; border-radius: 22%; background: linear-gradient(115deg, transparent 35%, rgba(255,255,255,.55) 50%, transparent 65%); background-size: 260% 100%; animation: shine 3.4s ease-in-out infinite; mix-blend-mode: soft-light; pointer-events: none; }
+  @keyframes float { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-10px) } }
+  @keyframes shine { 0%, 60% { background-position: 130% 0 } 100% { background-position: -30% 0 } }
+  .nameplate { position: absolute; left: 14px; top: 190px; z-index: 3; }
+  .nameplate .jp { font-size: 12px; font-weight: 800; color: #fff; letter-spacing: 3px; text-shadow: 0 2px 0 rgba(0,0,0,.2); }
+  .nameplate .nm { font-size: 38px; font-weight: 900; color: #fff; line-height: 1; -webkit-text-stroke: 1.5px #3B2A8F; text-shadow: 3px 3px 0 #3B2A8F, 0 0 18px rgba(255,122,198,.8); }
+  .nameplate .rare { display: inline-block; margin-top: 6px; font-size: 11px; font-weight: 900; color: #3B2A8F; background: linear-gradient(90deg, var(--gold), #FFF2B8, var(--gold)); padding: 2px 10px; clip-path: polygon(8% 0, 100% 0, 92% 100%, 0 100%); }
+  .bubble { position: absolute; left: 12px; top: 6px; z-index: 4; max-width: 205px; background: #fff; border-radius: 18px 18px 18px 4px; padding: 10px 12px; font-size: 13px; font-weight: 800; color: var(--ink); box-shadow: 0 8px 20px rgba(60,30,140,.25); border: 2.5px solid #3B2A8F; cursor: pointer; }
+  .bubble small { display: block; color: #8B7FD1; font-size: 10.5px; margin-top: 3px; }
+  .sparkle { position: absolute; color: #fff; font-size: 18px; animation: tw 2s ease-in-out infinite; pointer-events: none; text-shadow: 0 0 8px #fff; }
+  @keyframes tw { 0%,100% { opacity: .2; transform: scale(.6) } 50% { opacity: 1; transform: scale(1.1) } }
+
+  /* 面板 */
+  .panel { position: relative; background: var(--panel); backdrop-filter: blur(10px); border-radius: 20px; padding: 12px; margin-bottom: 12px; border: 2.5px solid #fff; box-shadow: 0 10px 24px rgba(60,30,140,.18); }
+  .ptitle { display: inline-flex; align-items: center; gap: 6px; font-weight: 900; font-size: 14px; color: #fff; padding: 4px 14px 4px 10px; margin: -24px 0 8px -4px;
+    background: linear-gradient(90deg, #6D5BFF, #FF7AC6); clip-path: polygon(0 0, 100% 0, 92% 100%, 0 100%); text-shadow: 0 1px 0 rgba(0,0,0,.2); }
+  .quest { display: flex; align-items: center; gap: 10px; padding: 8px 4px; border-bottom: 1.5px dashed rgba(59,42,143,.15); }
+  .quest:last-child { border-bottom: 0; }
+  .quest .qi { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; font-size: 19px; flex-shrink: 0; }
+  .quest .qn { font-weight: 800; font-size: 13.5px; }
+  .qbar { height: 7px; border-radius: 7px; background: rgba(59,42,143,.12); margin-top: 4px; overflow: hidden; }
+  .qbar i { display: block; height: 100%; background: linear-gradient(90deg, #FFB547, #FF7AC6); }
+  .claim { border: 0; font-family: inherit; font-weight: 900; font-size: 12.5px; padding: 7px 12px; color: #3B2A8F; cursor: pointer; flex-shrink: 0;
+    background: linear-gradient(180deg, #FFF2B8, var(--gold) 55%, var(--gold2)); clip-path: polygon(10% 0, 100% 0, 90% 100%, 0 100%); box-shadow: 0 3px 0 #C77F12; }
+  .claim:disabled { filter: grayscale(1); opacity: .5; cursor: default; }
+  .claim.done { background: #E9E6FF; color: #8B7FD1; }
+
+  /* 關卡地圖 */
+  .map { position: relative; height: 270px; }
+  .map svg { position: absolute; inset: 0; }
+  .node { position: absolute; width: 66px; height: 66px; transform: translate(-50%, -50%); text-align: center; cursor: pointer; }
+  .node .gem { width: 58px; height: 58px; margin: 0 auto; display: grid; place-items: center; font-size: 26px; font-weight: 900; color: #fff; border-radius: 18px; transform: rotate(45deg);
+    background: linear-gradient(135deg, #8B7BFF, #5B48E0); border: 3px solid #fff; box-shadow: 0 6px 0 #3B2A8F, 0 0 0 4px rgba(255,255,255,.25); }
+  .node .gem span { transform: rotate(-45deg); text-shadow: 0 2px 0 rgba(0,0,0,.25); }
+  .node.cur .gem { background: linear-gradient(135deg, #FF9ADB, #FF5CAD); animation: pulse 1.6s ease-in-out infinite; }
+  .node.lock .gem { background: linear-gradient(135deg, #C9C3E8, #9F98C7); box-shadow: 0 6px 0 #6E67A0; }
+  .node .stars { font-size: 11px; color: var(--gold2); margin-top: 8px; letter-spacing: -1px; text-shadow: 0 1px 0 #fff; }
+  @keyframes pulse { 0%,100% { box-shadow: 0 6px 0 #A3236B, 0 0 0 4px rgba(255,122,198,.4) } 50% { box-shadow: 0 6px 0 #A3236B, 0 0 0 12px rgba(255,122,198,0) } }
+
+  /* 大按鈕 */
+  .cta { display: block; width: 100%; border: 0; font-family: inherit; cursor: pointer; padding: 15px; font-size: 19px; font-weight: 900; color: #fff; letter-spacing: 2px;
+    background: linear-gradient(90deg, #FF5CAD, #8B5CFF); clip-path: polygon(4% 0, 100% 0, 96% 100%, 0 100%); text-shadow: 0 2px 0 rgba(0,0,0,.25); position: relative; overflow: hidden; }
+  .cta::after { content: ""; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,.5) 50%, transparent 70%); background-size: 250% 100%; animation: shine 2.6s infinite; }
+  .cta small { display: block; font-size: 11px; letter-spacing: 0; opacity: .9; }
+
+  /* 戰鬥 */
+  .battle { position: absolute; inset: 0; z-index: 40; background: linear-gradient(180deg, #2B1C6E, #6B3FA0 55%, #FF8CCB); display: flex; flex-direction: column; padding: 50px 16px 30px; animation: zoomin .35s cubic-bezier(.2,.9,.3,1); }
+  @keyframes zoomin { from { transform: scale(1.15); opacity: 0 } }
+  .enemy { position: relative; margin: 10px auto 0; width: 170px; height: 170px; display: grid; place-items: center; }
+  .slime { width: 150px; height: 120px; border-radius: 50% 50% 42% 42% / 62% 62% 38% 38%; background: radial-gradient(circle at 35% 30%, #CFFAFE, #5CE1E6 40%, #1BA4B5); position: relative; animation: wob 1.6s ease-in-out infinite; box-shadow: inset -10px -14px 0 rgba(0,0,0,.12), 0 18px 30px rgba(0,0,0,.3); display: grid; place-items: center; font-size: 46px; font-weight: 900; color: #fff; text-shadow: 0 3px 0 #0E7490; }
+  .slime::before, .slime::after { content: ""; position: absolute; top: 34px; width: 12px; height: 16px; border-radius: 50%; background: #1E1B3A; }
+  .slime::before { left: 40px; } .slime::after { right: 40px; }
+  @keyframes wob { 0%,100% { transform: scaleX(1) scaleY(1) } 50% { transform: scaleX(1.06) scaleY(.94) } }
+  .slime.hit { animation: hit .35s; } @keyframes hit { 0% { filter: brightness(3) } 40% { transform: translateX(10px) } 70% { transform: translateX(-8px) } }
+  .hpb { width: 210px; margin: 10px auto 0; height: 14px; border-radius: 10px; background: rgba(0,0,0,.35); border: 2px solid #fff; overflow: hidden; }
+  .hpb i { display: block; height: 100%; background: linear-gradient(90deg, #FF5C7A, #FFB547); transition: width .4s; }
+  .dmg { position: absolute; left: 50%; top: 20px; font-size: 34px; font-weight: 900; color: var(--gold); -webkit-text-stroke: 1.5px #7A2E00; animation: dmg .9s forwards; pointer-events: none; }
+  @keyframes dmg { from { transform: translate(-50%, 0) scale(.6); opacity: 1 } to { transform: translate(-50%, -70px) scale(1.2); opacity: 0 } }
+  .combo { text-align: center; font-weight: 900; color: #fff; font-size: 15px; margin-top: 6px; min-height: 22px; text-shadow: 0 2px 0 rgba(0,0,0,.3); }
+  .ask { margin-top: auto; background: rgba(255,255,255,.92); border-radius: 22px; padding: 14px; border: 3px solid #fff; }
+  .ask .q { text-align: center; font-weight: 900; color: #3B2A8F; font-size: 14px; }
+  .opts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+  .opt { border: 0; font-family: inherit; font-size: 22px; font-weight: 900; padding: 12px; border-radius: 16px; cursor: pointer; color: #3B2A8F; background: linear-gradient(180deg, #fff, #ECE8FF); box-shadow: 0 4px 0 #B9AEF5; }
+  .opt.ok { background: linear-gradient(180deg, #D1FAE5, #6EE7B7); box-shadow: 0 4px 0 #059669; }
+  .opt.ng { background: linear-gradient(180deg, #FFE4E6, #FDA4AF); box-shadow: 0 4px 0 #E11D48; animation: shake .3s; }
+  @keyframes shake { 25% { transform: translateX(-6px) } 75% { transform: translateX(6px) } }
+  .mini-ava { position: absolute; left: 14px; bottom: 210px; width: 92px; height: 92px; border-radius: 22px; overflow: hidden; border: 3px solid #fff; box-shadow: 0 8px 20px rgba(0,0,0,.35); transform: rotate(-6deg); }
+  .mini-ava img { width: 100%; height: 100%; object-fit: cover; object-position: 55% 35%; transform: scale(1.5); }
+  .say { position: absolute; left: 100px; bottom: 268px; background: #fff; color: #3B2A8F; font-weight: 900; font-size: 13px; padding: 7px 11px; border-radius: 14px 14px 14px 4px; border: 2.5px solid #3B2A8F; }
+
+  /* 抽卡 */
+  .gacha { position: absolute; inset: 0; z-index: 60; background: radial-gradient(circle at 50% 45%, #FFF2B8 0%, #FFB3E1 30%, #3B2A8F 75%); display: grid; place-items: center; animation: fadein .3s; }
+  @keyframes fadein { from { opacity: 0 } }
+  .rays { position: absolute; width: 900px; height: 900px; background: repeating-conic-gradient(rgba(255,255,255,.25) 0 8deg, transparent 8deg 22deg); animation: spin 14s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg) } }
+  .card { width: 210px; height: 300px; perspective: 900px; position: relative; cursor: pointer; }
+  .card .in { position: absolute; inset: 0; transition: transform .8s cubic-bezier(.3,1.3,.4,1); transform-style: preserve-3d; }
+  .card.flip .in { transform: rotateY(180deg); }
+  .card .face { position: absolute; inset: 0; border-radius: 20px; backface-visibility: hidden; border: 4px solid #fff; box-shadow: 0 0 40px rgba(255,211,110,.9); display: grid; place-items: center; }
+  .card .back { background: repeating-linear-gradient(45deg, #6D5BFF 0 14px, #8B7BFF 14px 28px); font-size: 60px; color: #fff; }
+  .card .front { transform: rotateY(180deg); background: linear-gradient(160deg, #FFF8DC, #FFD36E 60%, #F5A524); flex-direction: column; text-align: center; color: #3B2A8F; }
+  .card .front .kana { font-size: 110px; font-weight: 900; line-height: 1; text-shadow: 4px 4px 0 #fff; }
+  .ssr { font-weight: 900; font-size: 26px; color: #fff; -webkit-text-stroke: 1.5px #B45309; letter-spacing: 3px; }
+  .gtxt { position: absolute; bottom: 80px; left: 0; right: 0; text-align: center; color: #fff; font-weight: 900; font-size: 15px; text-shadow: 0 2px 6px rgba(0,0,0,.5); }
+
+  /* 底部導覽（遊戲式） */
+  .gnav { position: absolute; left: 10px; right: 10px; bottom: 18px; z-index: 30; display: flex; justify-content: space-around; align-items: flex-end; padding: 8px 6px; border-radius: 24px;
+    background: rgba(40,25,95,.78); backdrop-filter: blur(12px); border: 2px solid rgba(255,255,255,.35); }
+  .gnav button { border: 0; background: none; color: #CFC8FF; font-family: inherit; font-weight: 800; font-size: 11px; display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; }
+  .gnav button b { font-size: 21px; }
+  .gnav .main { width: 70px; height: 70px; margin-top: -34px; border-radius: 22px; transform: rotate(45deg); background: linear-gradient(135deg, #FF9ADB, #8B5CFF); border: 3px solid #fff; box-shadow: 0 8px 20px rgba(255,92,173,.5); display: grid; place-items: center; }
+  .gnav .main span { transform: rotate(-45deg); color: #fff; font-size: 13px; font-weight: 900; line-height: 1.1; }
+  .gnav .on { color: #fff; }
+  .toast { position: absolute; left: 50%; top: 100px; transform: translateX(-50%); z-index: 80; background: linear-gradient(90deg, #6D5BFF, #FF7AC6); color: #fff; font-weight: 900; padding: 9px 18px; clip-path: polygon(5% 0, 100% 0, 95% 100%, 0 100%); white-space: nowrap; animation: pop .3s cubic-bezier(.3,1.4,.4,1); }
+  @keyframes pop { from { transform: translate(-50%, -10px) scale(.7); opacity: 0 } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="intro">
+    <span class="pill">風格參考・不是五選一</span>
+    <h1>二次元風格：日文五十音「冒險」</h1>
+    把<b>日文五十音練習</b>做成像《傳說對決》次元突破造型那種 2D 動漫遊戲畫風，看看感覺。主角就是 App 圖示上的<b>貓耳少女</b>（直接用現有的 logo 圖）。
+    <ul>
+      <li><b>上面 HUD</b>：頭像、等級、經驗條、金幣、鑽石（練習換來的，不用花錢）。</li>
+      <li><b>角色舞台</b>：她會漂浮、身上有光澤掃過、對話泡泡講今天的進度（點泡泡換一句）。</li>
+      <li><b>每日任務</b>：手寫 10 題、考試 1 次、連續練習——做完按「領取」。</li>
+      <li><b>關卡地圖</b>：あ行、か行…一行一關，星星＝考試成績，還沒解鎖的灰色。</li>
+      <li><b>中間大菱形「出擊」</b>：五十音考試變成打史萊姆，答對攻擊、連擊加倍、答錯被擋。</li>
+      <li>打贏抽一張<b>假名卡</b>（翻牌＋光芒）——收集冊就是練過的字。</li>
+    </ul>
+    手機打開會整頁滿版。要的話可以只把「風格」套到某些地方（例如只換考試畫面），不用整個 App 都改。
+  </div>
+  <div class="phone" id="phone"></div>
+</div>
+<script>
+// 圖：App 現有的 logo（相對路徑，design-history/ 往上一層）
+const CHARA = '../assets/images/app_logo/logo02.png';
+const LINES = [
+  ['今天也一起練習吧！', 'か行再 3 題就升級喔～'],
+  ['昨天練了 15 題，好厲害！', '連續 6 天了，別斷掉喔'],
+  ['考試的時候不要緊張～', '答錯也沒關係，我會陪你'],
+  ['「さ」跟「ち」很像對吧？', '下面那一筆是往左勾喔'],
+];
+const QUESTS = [
+  { e: '✍️', n: '手寫練習 10 題', got: 10, need: 10, rw: '🪙 50', c: '#FFE3F2' },
+  { e: '⚔️', n: '出擊（考試）1 次', got: 0, need: 1, rw: '💎 5', c: '#E3EEFF' },
+  { e: '🔥', n: '連續練習 7 天', got: 6, need: 7, rw: '🪙 120', c: '#FFF2D6' },
+];
+const ROWS = [['あ', 3, 18, 60], ['か', 2, 50, 150], ['さ', 0, 82, 80], ['た', -1, 52, 230], ['な', -1, 20, 180]];
+const QS = [['か', 'ka', ['ka', 'ki', 'ko', 'ha']], ['き', 'ki', ['sa', 'ki', 'ke', 'chi']], ['く', 'ku', ['ku', 'he', 'ru', 'tsu']], ['け', 'ke', ['ha', 'ke', 'ki', 'ne']], ['こ', 'ko', ['ni', 'ko', 'ka', 'ro']]];
+
+const S = { line: 0, exp: 62, coin: 1280, gem: 36, quests: QUESTS.map(q => ({ ...q, claimed: false })), battle: null, gacha: null, toast: null, tab: 1 };
+const phone = document.getElementById('phone');
+function toast(m) { S.toast = m; clearTimeout(toast.t); toast.t = setTimeout(() => { S.toast = null; paint(); }, 1600); }
+
+function home() {
+  const [l1, l2] = LINES[S.line];
+  const path = 'M 60 18 C 120 40, 230 40, 300 50 S 300 120, 230 150 S 60 150, 80 190 S 160 240, 230 232';
+  return `<div class="stage">
+      <div class="chara"><img src="${CHARA}" alt=""></div>
+      <span class="sparkle" style="left:46px;top:150px">✦</span><span class="sparkle" style="right:30px;top:20px;animation-delay:.6s">✧</span><span class="sparkle" style="left:180px;top:250px;animation-delay:1.1s">✦</span>
+      <div class="bubble" data-a="talk">${l1}<br>${l2}<small>▶ 點一下換一句</small></div>
+      <div class="nameplate"><div class="jp">ルミ・LUME</div><div class="nm">露米</div><span class="rare">SSR・五十音導師</span></div>
+    </div>
+    <div class="panel"><div class="ptitle">📜 每日任務</div>
+      ${S.quests.map((q, i) => { const ok = q.got >= q.need; return `<div class="quest"><div class="qi" style="background:${q.c}">${q.e}</div>
+        <div style="flex:1"><div class="qn">${q.n}</div><div class="qbar"><i style="width:${Math.min(100, q.got / q.need * 100)}%"></i></div><div style="font-size:10.5px;color:#8B7FD1;margin-top:2px">${q.got}／${q.need}・獎勵 ${q.rw}</div></div>
+        <button class="claim ${q.claimed ? 'done' : ''}" data-a="claim" data-i="${i}" ${ok && !q.claimed ? '' : 'disabled'}>${q.claimed ? '已領' : ok ? '領取' : '進行中'}</button></div>`; }).join('')}</div>
+    <div class="panel"><div class="ptitle">🗺 五十音之塔</div>
+      <div class="map"><svg viewBox="0 0 340 270" preserveAspectRatio="none"><path d="${path}" fill="none" stroke="#fff" stroke-width="10" stroke-linecap="round" stroke-dasharray="2 18" opacity=".9"/></svg>
+      ${ROWS.map(([k, st, x, y], i) => `<div class="node ${st === -1 ? 'lock' : ''} ${i === 2 ? 'cur' : ''}" style="left:${x}%;top:${y / 270 * 100}%" data-a="${st === -1 ? 'locked' : 'battle'}" data-k="${k}">
+        <div class="gem"><span>${st === -1 ? '🔒' : k}</span></div><div class="stars">${st === -1 ? '' : '★'.repeat(Math.max(st, 0)) + '☆'.repeat(3 - Math.max(st, 0))}</div></div>`).join('')}</div></div>
+    <button class="cta" data-a="battle" data-k="か">⚔ 出擊！か行<small>5 題・答對就攻擊</small></button>`;
+}
+function battle() {
+  const b = S.battle, q = QS[b.i];
+  return `<div class="battle">
+    <div style="display:flex;align-items:center;color:#fff;font-weight:900"><span data-a="flee" style="cursor:pointer">✕ 撤退</span><span class="sp"></span>第 ${b.i + 1}／${QS.length} 題</div>
+    <div class="enemy">${b.dmg ? `<div class="dmg">-${b.dmg}</div>` : ''}<div class="slime ${b.hitAnim ? 'hit' : ''}">${q[0]}</div></div>
+    <div style="text-align:center;color:#fff;font-weight:900;margin-top:2px">か行史萊姆 Lv.${b.i + 3}</div>
+    <div class="hpb"><i style="width:${b.hp}%"></i></div>
+    <div class="combo">${b.combo > 1 ? `🔥 ${b.combo} 連擊！傷害 ×${b.combo}` : ''}</div>
+    <div class="mini-ava"><img src="${CHARA}" alt=""></div><div class="say">${b.say}</div>
+    <div class="ask"><div class="q">「${q[0]}」怎麼念？</div>
+      <div class="opts">${q[2].map(o => `<button class="opt ${b.pick === o ? (o === q[1] ? 'ok' : 'ng') : ''}" data-a="ans" data-o="${o}">${o}</button>`).join('')}</div></div></div>`;
+}
+function gacha() {
+  const g = S.gacha;
+  return `<div class="gacha"><div class="rays"></div>
+    <div class="card ${g.flip ? 'flip' : ''}" data-a="flip"><div class="in"><div class="face back">？</div>
+      <div class="face front"><div class="ssr">SSR</div><div class="kana">${g.k}</div><div style="font-weight:900">「${g.k}」卡・閃亮版</div><div style="font-size:11px;margin-top:4px">收集冊 23／46</div></div></div></div>
+    <div class="gtxt">${g.flip ? `🎉 打贏了！經驗 +40・🪙 +80<br><span data-a="closeG" style="display:inline-block;margin-top:10px;padding:8px 22px;background:#fff;color:#3B2A8F;border-radius:99px;cursor:pointer">收下</span>` : '點卡片翻開'}</div></div>`;
+}
+function paint() {
+  phone.innerHTML = `<div class="bg"></div><div class="slash"></div>
+    <div class="hud"><div class="ava"><img src="${CHARA}" alt=""></div><div><div class="lv">Lv.12 見習生</div><div class="expbar"><i style="width:${S.exp}%"></i></div></div><span class="sp"></span>
+      <div class="res"><span class="ic" style="background:#FFD36E">🪙</span>${S.coin.toLocaleString()}</div><div class="res"><span class="ic" style="background:#C4B5FD">💎</span>${S.gem}</div></div>
+    <div class="scr">${home()}</div>
+    <div class="gnav"><button data-a="nav" data-t="0" class="${S.tab === 0 ? 'on' : ''}"><b>📖</b>收集冊</button><button data-a="nav" data-t="0"><b>📜</b>任務</button>
+      <div class="main" data-a="battle" data-k="か"><span>出擊<br>⚔</span></div><button data-a="nav" data-t="0"><b>🏆</b>成績</button><button data-a="nav" data-t="0"><b>⚙</b>設定</button></div>
+    ${S.battle ? battle() : ''}${S.gacha ? gacha() : ''}${S.toast ? `<div class="toast">${S.toast}</div>` : ''}`;
+}
+phone.addEventListener('click', e => {
+  const el = e.target.closest('[data-a]'); if (!el) return;
+  const a = el.dataset.a;
+  switch (a) {
+    case 'talk': S.line = (S.line + 1) % LINES.length; break;
+    case 'claim': { const q = S.quests[+el.dataset.i]; q.claimed = true; if (q.rw.includes('🪙')) S.coin += +q.rw.replace(/\D/g, ''); else S.gem += +q.rw.replace(/\D/g, ''); S.exp = Math.min(100, S.exp + 12); toast('獲得 ' + q.rw + '！'); break; }
+    case 'locked': toast('🔒 先把さ行考到 2 星'); break;
+    case 'battle': S.battle = { i: 0, hp: 100, combo: 0, pick: null, say: '加油！看準了再按～', dmg: 0 }; break;
+    case 'flee': S.battle = null; break;
+    case 'ans': {
+      const b = S.battle, q = QS[b.i]; if (b.pick) return;
+      b.pick = el.dataset.o;
+      if (b.pick === q[1]) { b.combo++; b.dmg = 20 * b.combo; b.hp = Math.max(0, b.hp - 20 * Math.min(b.combo, 2)); b.hitAnim = true; b.say = ['好耶！', '漂亮！', '連擊中！', '太強了吧！'][Math.min(b.combo - 1, 3)]; }
+      else { b.combo = 0; b.dmg = 0; b.hitAnim = false; b.say = `是「${q[1]}」喔，記住了！`; }
+      paint();
+      setTimeout(() => {
+        b.dmg = 0; b.hitAnim = false; b.pick = null;
+        if (b.i === QS.length - 1 || b.hp <= 0) { S.battle = null; S.gacha = { k: 'か', flip: false }; S.exp = Math.min(100, S.exp + 18); S.quests[1].got = 1; }
+        else b.i++;
+        paint();
+      }, 850);
+      return;
+    }
+    case 'flip': S.gacha.flip = true; break;
+    case 'closeG': S.gacha = null; S.coin += 80; toast('任務「出擊 1 次」完成！'); break;
+    case 'nav': toast('（示意）'); break;
+  }
+  paint();
+});
+// 截圖用：#battle、#gacha 直接打開那個畫面
+if (location.hash === '#battle') S.battle = { i: 1, hp: 60, combo: 2, pick: null, say: '連擊中！', dmg: 0 };
+if (location.hash === '#gacha') S.gacha = { k: 'か', flip: true };
+paint();
+</script>
+</body>
+</html>
