@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>當天回顧設計</title>
+<style>
+  :root {
+    --bg: #0C0C13; --card: #151520; --card2: #1A1A27; --line: #2A2A3D;
+    --ink: #F3F2F8; --ink2: #A3A2B2; --ink3: #74738A; --accent: #7EA6FF; --up: #34D399; --down: #F87171; --mid: #F5C763;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--ink); min-height: 100vh; font: 14px/1.5 -apple-system, "SF Pro Text", system-ui, "Segoe UI", "Microsoft JhengHei", sans-serif; }
+  .page { max-width: 1140px; margin: 0 auto; padding: 24px 16px 60px; }
+  h1 { font-size: 20px; margin: 0 0 6px; }
+  .lead { color: var(--ink2); font-size: 13px; margin: 0 0 14px; } .lead b { color: var(--ink); }
+  .vtabs, .ntabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; align-items: center; }
+  .vtabs button, .ntabs button { border: 1px solid var(--line); background: var(--card); color: var(--ink2); padding: 8px 14px; border-radius: 99px; cursor: pointer; font-size: 13px; }
+  .vtabs button.on { border-color: var(--accent); color: #fff; background: rgba(46,107,255,.35); }
+  .ntabs button.on { border-color: var(--mid); color: #1a1405; background: var(--mid); font-weight: 800; }
+  .ntabs span { font-size: 12px; color: var(--ink3); }
+  .stage { display: flex; gap: 28px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
+  .notes { flex: 1 1 320px; max-width: 470px; background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 18px 20px; font-size: 13.5px; color: var(--ink2); }
+  .notes h2 { color: var(--ink); font-size: 17px; margin: 0 0 4px; }
+  .notes .tag { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 99px; background: rgba(245,199,99,.15); color: var(--mid); margin-bottom: 8px; }
+  .notes h3 { color: var(--ink); font-size: 13.5px; margin: 14px 0 4px; }
+  .notes ul { margin: 0; padding-left: 18px; } .notes li { margin: 3px 0; }
+  .notes .box { margin-top: 14px; padding: 11px 13px; border-radius: 12px; background: var(--card2); border: 1px solid var(--line); font-size: 12.5px; }
+  .notes .box b { color: var(--ink); }
+
+  .phone { width: 390px; max-width: 100%; height: 820px; flex-shrink: 0; border-radius: 44px; border: 1px solid var(--line);
+    background: radial-gradient(120% 55% at 20% 0%, #24203a 0%, #0e0e17 60%); position: relative; overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,.5); }
+  .screen { position: absolute; inset: 0; overflow-y: auto; padding: 46px 14px 40px; scrollbar-width: none; }
+  .screen::-webkit-scrollbar { display: none; }
+  .status { position: absolute; top: 0; left: 0; right: 0; height: 40px; display: flex; align-items: center; justify-content: space-between; padding: 0 30px; font-size: 13px; font-weight: 700; z-index: 30; pointer-events: none; }
+  .row { display: flex; align-items: center; gap: 8px; } .sp { flex: 1; }
+  .note { font-size: 12px; color: var(--ink2); } .note3 { font-size: 11px; color: var(--ink3); }
+  .bar { display: flex; align-items: center; gap: 8px; padding: 0 2px 10px; }
+  .bar .t { flex: 1; font-weight: 800; font-size: 18px; }
+  .sum { border-radius: 16px; padding: 12px 14px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); margin-bottom: 12px; }
+  .sym { font-weight: 800; }
+  .dir { font-size: 11px; font-weight: 800; padding: 0 5px; border-radius: 5px; margin-left: 4px; }
+  .dir.l { background: rgba(52,211,153,.15); color: var(--up); } .dir.s { background: rgba(248,113,113,.15); color: var(--down); }
+  .lev { font-size: 11px; color: var(--ink2); margin-left: 4px; }
+  .sw { width: 9px; height: 9px; border-radius: 3px; display: inline-block; margin-right: 6px; vertical-align: 1px; }
+  .sec { display: flex; align-items: center; gap: 8px; margin: 16px 2px 8px; font-weight: 800; font-size: 14px; }
+  .sec .c { font-size: 11px; font-weight: 800; padding: 1px 8px; border-radius: 99px; }
+  @keyframes breathe { 0% { box-shadow: 0 0 0 0 rgba(245,199,99,.6) } 70% { box-shadow: 0 0 0 7px rgba(245,199,99,0) } 100% { box-shadow: 0 0 0 0 rgba(245,199,99,0) } }
+  .bdot { width: 8px; height: 8px; border-radius: 50%; background: var(--mid); animation: breathe 1.6s infinite; flex-shrink: 0; }
+  /* 亮卡（抱著）與票根（已平倉），跟主畫面同一套 */
+  .live { border-radius: 16px; padding: 11px 12px; margin-bottom: 8px; background: linear-gradient(135deg, rgba(245,199,99,.17), rgba(245,199,99,.04)); border: 1px solid rgba(245,199,99,.5); }
+  .stub { position: relative; border-radius: 14px; padding: 11px 12px; margin-bottom: 8px; border: 1.5px dashed #3d3d55; background: rgba(255,255,255,.02); }
+  .stamp { position: absolute; right: 10px; top: 10px; transform: rotate(-8deg); border: 2px solid; border-radius: 8px; padding: 1px 8px; font-weight: 900; font-size: 14px; }
+  .pill { font-size: 10.5px; font-weight: 800; padding: 1px 7px; border-radius: 99px; }
+  /* V2 24 小時軸 */
+  .axis { position: relative; height: 18px; margin-left: 76px; }
+  .axis span { position: absolute; transform: translateX(-50%); font-size: 9.5px; color: var(--ink3); }
+  .trow { display: flex; align-items: center; height: 40px; }
+  .trow .lb { width: 76px; font-size: 11.5px; }
+  .track { flex: 1; position: relative; height: 100%; }
+  .track::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: rgba(255,255,255,.06); }
+  .tbar { position: absolute; top: 12px; height: 16px; border-radius: 8px; }
+  .tbar.flow { background-size: 24px 16px !important; animation: flow 1.6s linear infinite; }
+  @keyframes flow { to { background-position: 24px 0; } }
+  .tick { position: absolute; top: 0; bottom: 0; width: 1px; background: rgba(255,255,255,.05); }
+  .endmark { position: absolute; top: 8px; transform: translateX(-50%); font-size: 10px; font-weight: 900; padding: 0 5px; border-radius: 6px; white-space: nowrap; }
+  /* V3 徽章 */
+  .bcard { display: flex; gap: 10px; align-items: stretch; border-radius: 16px; background: rgba(255,255,255,.035); border: 1px solid rgba(255,255,255,.07); margin-bottom: 8px; overflow: hidden; }
+  .badge { width: 74px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 900; font-size: 12px; text-align: center; padding: 8px 4px; }
+  .badge b { font-size: 22px; line-height: 1.1; }
+  /* V4 看板 */
+  .kan { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .col { border-radius: 16px; padding: 8px; min-height: 200px; }
+  .kc { border-radius: 12px; padding: 8px 9px; margin-bottom: 7px; font-size: 12px; }
+  /* V5 事件流 */
+  .graph { position: relative; }
+  .ev { display: flex; gap: 10px; min-height: 52px; }
+  .ev .lanes { position: relative; width: 74px; flex-shrink: 0; }
+  .ev .lanes i { position: absolute; top: 0; bottom: 0; width: 3px; border-radius: 2px; }
+  .ev .lanes b { position: absolute; top: 18px; width: 13px; height: 13px; border-radius: 50%; transform: translateX(-5px); border: 2.5px solid; background: #0E0E16; }
+  .ev .body { flex: 1; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,.05); }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>交易「某一天」頁：還抱著 vs 已平倉・五種設計</h1>
+  <p class="lead">點月曆某一天進來的頁面，現在「這天開／平的」跟「這天一直抱著的」混在一起，<b>分不出哪幾單這天結束時還在、哪幾單已經收掉</b>。
+    五版都把一單分成兩種狀態：<b>這天收掉了</b>、<b>這天結束時還抱著</b>（再細分今天新開的、之前就開的），顏色跟月曆那份設計一樣一單一色。<br>上面切三種日子：簡單、一般、很亂。</p>
+  <div class="vtabs" id="vtabs"></div>
+  <div class="ntabs" id="ntabs"></div>
+  <div class="stage">
+    <div class="phone" id="phone"></div>
+    <div class="notes" id="notes"></div>
+  </div>
+</div>
+<script>
+const COL = ['#F5C763', '#60A5FA', '#C084FC', '#2DD4BF', '#F472B6'];
+// 那一天是 10/9（四）。o/c：{d: 日, h: 時, m: 分}；c 沒有＝還抱著
+const DAYS = {
+  simple: { name: '簡單', trades: [
+    { sym: 'BTC', l: true, lev: 10, o: { d: 3, h: 21, m: 5 }, c: { d: 9, h: 14, m: 20 }, pnl: 246, m0: 300 },
+    { sym: 'ETH', l: false, lev: 15, o: { d: 6, h: 9, m: 40 }, c: null, m0: 400 },
+  ] },
+  normal: { name: '一般', trades: [
+    { sym: 'BTC', l: true, lev: 10, o: { d: 3, h: 21, m: 5 }, c: { d: 9, h: 14, m: 20 }, pnl: 246, m0: 300 },
+    { sym: 'ETH', l: false, lev: 15, o: { d: 6, h: 9, m: 40 }, c: null, m0: 400 },
+    { sym: 'ADA', l: true, lev: 8, o: { d: 9, h: 9, m: 30 }, c: { d: 9, h: 11, m: 10 }, pnl: -32, m0: 120 },
+    { sym: 'XRP', l: false, lev: 12, o: { d: 9, h: 22, m: 50 }, c: null, m0: 200 },
+  ] },
+  busy: { name: '很亂（5 單）', trades: [
+    { sym: 'DOGE', l: true, lev: 8, o: { d: 1, h: 12, m: 0 }, c: null, m0: 500 },
+    { sym: 'BTC', l: true, lev: 10, o: { d: 3, h: 21, m: 5 }, c: { d: 9, h: 14, m: 20 }, pnl: 246, m0: 300 },
+    { sym: 'ETH', l: false, lev: 15, o: { d: 6, h: 9, m: 40 }, c: { d: 9, h: 20, m: 15 }, pnl: -120, m0: 400 },
+    { sym: 'ADA', l: true, lev: 8, o: { d: 9, h: 9, m: 30 }, c: { d: 9, h: 11, m: 10 }, pnl: -32, m0: 120 },
+    { sym: 'XRP', l: false, lev: 12, o: { d: 9, h: 22, m: 50 }, c: null, m0: 200 },
+  ] },
+};
+const DAY = 9, NOW = { d: 14, h: 21, m: 41 };
+const S = { v: 0, k: 'normal', open: null };
+const T = () => DAYS[S.k].trades.map((t, i) => ({ ...t, i, col: COL[i] }));
+const mins = p => (p.d - 1) * 1440 + p.h * 60 + p.m;
+const hm = p => `${String(p.h).padStart(2, '0')}:${String(p.m).padStart(2, '0')}`;
+const md = p => `10/${p.d}`;
+const fmt = v => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v);
+const pcol = v => v > 0 ? 'var(--up)' : 'var(--down)';
+const holdTxt = (a, b) => { const x = mins(b) - mins(a), d = Math.floor(x / 1440), h = Math.floor(x % 1440 / 60); return d ? `${d} 天 ${h} 小時` : h ? `${h} 小時 ${x % 60} 分` : `${x % 60} 分`; };
+const head = t => `<span class="sw" style="background:${t.col}"></span><span class="sym">${t.sym}</span><span class="dir ${t.l ? 'l' : 's'}">${t.l ? '多 ▲' : '空 ▼'}</span><span class="lev">${t.lev}x</span>`;
+// 分類
+function groups() {
+  const all = T();
+  const closed = all.filter(t => t.c && t.c.d === DAY);
+  const holding = all.filter(t => !t.c || t.c.d > DAY);
+  return { closed, holding, newOpen: holding.filter(t => t.o.d === DAY), carried: holding.filter(t => t.o.d < DAY), sameDay: closed.filter(t => t.o.d === DAY) };
+}
+const dayPnl = () => groups().closed.reduce((a, t) => a + t.pnl, 0);
+function topBar() {
+  const g = groups();
+  return `<div class="bar"><span>‹</span><div class="t">10/9（四）</div></div>
+    <div class="sum"><div class="row"><span class="note">這天已實現</span><span class="sp"></span><b style="color:${pcol(dayPnl())};font-size:20px">${g.closed.length ? fmt(dayPnl()) : '—'}</b></div>
+    <div class="note3">平了 ${g.closed.length} 單・這天結束時還抱著 ${g.holding.length} 單</div></div>`;
+}
+
+const V = [];
+V.push({
+  name: '1 兩區：收掉了／還抱著（主流）', title: '版本 1：分兩區，長相跟主畫面一樣（票根 vs 亮卡）', tag: '跟主畫面同一套',
+  desc: `<h3>長相</h3><ul><li>上面「✓ 這天收掉了」：每單一張<b>虛線票根</b>、斜蓋損益章（跟甘特圖點出來的一樣），寫開→平、抱了多久。</li>
+    <li>下面「● 這天結束時還抱著」：每單一張<b>亮黃卡＋呼吸黃點</b>（跟主畫面持倉中一樣），小標「今天新開」或「10/6 開・第 3 天」。</li>
+    <li>標題後面寫幾單；兩區中間一條粗分隔。</li></ul>
+    <h3>好處</h3><ul><li>長相跟主畫面一致，不用學第二套。</li></ul><h3>缺點</h3><ul><li>看不出這天裡先後順序（要看卡片上的時間）。</li></ul>`,
+  render() {
+    const g = groups();
+    const stub = t => `<div class="stub"><div class="row">${head(t)}</div><div class="stamp" style="color:${pcol(t.pnl)};border-color:${pcol(t.pnl)}">${fmt(t.pnl)}</div>
+      <div class="note" style="margin-top:6px">${md(t.o)} ${hm(t.o)} 開 → <b style="color:var(--ink)">${hm(t.c)} 平</b>・抱了 ${holdTxt(t.o, t.c)}</div></div>`;
+    const live = t => `<div class="live"><div class="row"><span class="bdot"></span>${head(t)}<span class="sp"></span><span class="pill" style="background:${t.o.d === DAY ? 'rgba(126,166,255,.18);color:var(--accent)' : 'rgba(245,199,99,.18);color:var(--mid)'}">${t.o.d === DAY ? '今天新開' : `第 ${DAY - t.o.d + 1} 天`}</span></div>
+      <div class="note" style="margin-top:6px">${md(t.o)} ${hm(t.o)} 開・這天結束時已抱 ${holdTxt(t.o, { d: DAY + 1, h: 0, m: 0 })}</div></div>`;
+    return topBar() +
+      `<div class="sec">✓ 這天收掉了<span class="c" style="background:rgba(255,255,255,.08);color:var(--ink2)">${g.closed.length}</span></div>${g.closed.map(stub).join('') || '<div class="note3" style="padding:6px 2px">沒有</div>'}
+       <div style="height:2px;background:linear-gradient(90deg,transparent,rgba(245,199,99,.5),transparent);margin:18px 0 4px"></div>
+       <div class="sec" style="color:var(--mid)"><span class="bdot"></span>這天結束時還抱著<span class="c" style="background:rgba(245,199,99,.18);color:var(--mid)">${g.holding.length}</span></div>${g.holding.map(live).join('') || '<div class="note3" style="padding:6px 2px">沒有</div>'}`;
+  },
+});
+V.push({
+  name: '2 一天 24 小時軸', title: '版本 2：一天 0–24 點的橫軸，一單一條', tag: '一眼看懂',
+  desc: `<h3>長相</h3><ul><li>橫軸是這一天 0 點到 24 點，一單一條（左邊寫幣種，一單一色）。</li>
+    <li><b>收掉的</b>：條在平倉那一刻結束，尾巴一個 ✓ 跟損益（綠賺紅賠）。</li>
+    <li><b>還抱著的</b>：條一路畫到 24 點、而且是<b>會流動的斜紋</b>，右邊「→ 還抱著」。之前就開的從 0 點開始（左邊寫「10/6 開」）。</li>
+    <li>下面列出每單的明細。</li></ul>
+    <h3>好處</h3><ul><li>收掉 vs 還在、先後順序，一張圖就清楚；最不會搞混。</li></ul><h3>缺點</h3><ul><li>同一天很短的單（幾分鐘）條會很短。</li></ul>`,
+  render() {
+    const all = T().filter(t => t.o.d <= DAY && (!t.c || t.c.d >= DAY));
+    const x = p => p.d < DAY ? 0 : p.d > DAY ? 100 : (p.h * 60 + p.m) / 1440 * 100;
+    const axis = [0, 6, 12, 18, 24].map(h => `<span style="left:${h / 24 * 100}%">${h}</span>`).join('');
+    const ticks = [6, 12, 18].map(h => `<div class="tick" style="left:${h / 24 * 100}%"></div>`).join('');
+    return topBar() + `<div class="sum" style="padding:12px 10px"><div class="axis">${axis}</div>${all.map(t => {
+      const a = x(t.o), closedToday = t.c && t.c.d === DAY, b = closedToday ? x(t.c) : 100;
+      const bg = closedToday ? t.col : `repeating-linear-gradient(45deg, ${t.col} 0 6px, ${t.col}88 6px 12px)`;
+      return `<div class="trow"><div class="lb"><span class="sw" style="background:${t.col}"></span><b>${t.sym}</b><div class="note3" style="margin-left:15px">${t.o.d < DAY ? md(t.o) + ' 開' : hm(t.o) + ' 開'}</div></div>
+        <div class="track">${ticks}<div class="tbar ${closedToday ? '' : 'flow'}" style="left:${a}%;width:max(6px,${b - a}%);background:${bg};opacity:${closedToday ? .85 : 1}"></div>
+        ${closedToday ? `<span class="endmark" style="left:${b}%;top:-1px;background:${pcol(t.pnl)};color:#06130d">✓ ${fmt(t.pnl)}</span>` : `<span class="endmark" style="left:auto;right:-6px;transform:none;top:-1px;color:var(--mid)">→</span>`}</div></div>`;
+    }).join('')}
+      <div class="row note3" style="margin-top:6px;gap:14px"><span><span class="sw" style="background:#888"></span>實心＝這天收掉</span><span><span class="sw" style="background:repeating-linear-gradient(45deg,#888 0 3px,#555 3px 6px)"></span>流動斜紋＝還抱著</span></div></div>
+      ${all.map(t => { const ct = t.c && t.c.d === DAY; return `<div class="row" style="padding:8px 2px;border-bottom:1px solid rgba(255,255,255,.05)">${head(t)}<span class="sp"></span>${ct ? `<span class="note">${hm(t.c)} 平</span><b style="color:${pcol(t.pnl)};margin-left:6px">${fmt(t.pnl)}</b>` : '<span class="pill" style="background:rgba(245,199,99,.18);color:var(--mid)">還抱著</span>'}</div>`; }).join('')}`;
+  },
+});
+V.push({
+  name: '3 左邊大狀態徽章', title: '版本 3：照時間排一張一張，每張左邊一塊大徽章寫狀態', tag: '掃一眼就知道',
+  desc: `<h3>長相</h3><ul><li>這天有關的單照時間排（平倉時間或開倉時間），每張卡左邊一大塊徽章：</li>
+    <li><b>✓ 已平倉</b>＋損益（綠／紅底）、<b>⏳ 抱著</b>（黃底，今天新開的寫「新開」、之前的寫「第 N 天」）。</li>
+    <li>右邊是幣種、方向、時間。</li></ul>
+    <h3>好處</h3><ul><li>不用讀字，掃左邊的顏色就知道誰收掉誰還在；同時保留時間順序。</li></ul><h3>缺點</h3><ul><li>收掉的跟還在的混在同一串（照時間），要靠徽章分。</li></ul>`,
+  render() {
+    const all = T().filter(t => t.o.d <= DAY && (!t.c || t.c.d >= DAY));
+    const key = t => t.c && t.c.d === DAY ? mins(t.c) : t.o.d === DAY ? mins(t.o) : 0;
+    return topBar() + all.slice().sort((a, b) => key(a) - key(b)).map(t => {
+      const ct = t.c && t.c.d === DAY;
+      const badge = ct ? `<div class="badge" style="background:${t.pnl > 0 ? 'rgba(52,211,153,.18)' : 'rgba(248,113,113,.18)'};color:${pcol(t.pnl)}"><b>✓</b>已平倉<div style="font-size:13px">${fmt(t.pnl)}</div></div>`
+        : `<div class="badge" style="background:rgba(245,199,99,.16);color:var(--mid)"><b>⏳</b>抱著<div style="font-size:11px">${t.o.d === DAY ? '新開' : `第 ${DAY - t.o.d + 1} 天`}</div></div>`;
+      return `<div class="bcard" style="border-left:3px solid ${t.col}">${badge}<div style="flex:1;padding:10px 10px 10px 0"><div class="row">${head(t)}</div>
+        <div class="note" style="margin-top:5px">${ct ? `${md(t.o)} ${hm(t.o)} 開 → <b style="color:var(--ink)">${hm(t.c)} 平</b>` : `${md(t.o)} ${hm(t.o)} 開・到這天結束還沒平`}</div></div></div>`;
+    }).join('');
+  },
+});
+V.push({
+  name: '4 兩欄看板', title: '版本 4：左右兩欄「收掉了 ✓」「還在場上 ●」', tag: '分得最開',
+  desc: `<h3>長相</h3><ul><li>左欄灰灰的「收掉了」，每單一張小卡（損益大字）；右欄亮黃的「還在場上」，每單一張小卡（抱了幾天）。</li>
+    <li>右欄最上面寫「這天結束時你手上有 N 單」。點卡片看明細。</li></ul>
+    <h3>好處</h3><ul><li>物理上分在兩邊，最不可能搞混。</li></ul><h3>缺點</h3><ul><li>手機兩欄比較窄，字要小一點；看不出時間順序。</li></ul>`,
+  render() {
+    const g = groups();
+    return topBar() + `<div class="kan"><div class="col" style="background:rgba(255,255,255,.03);border:1px dashed #3d3d55"><div class="row" style="margin-bottom:8px;font-weight:800;font-size:13px;color:var(--ink2)">✓ 收掉了 <span class="note3">${g.closed.length}</span></div>
+      ${g.closed.map(t => `<div class="kc" style="background:rgba(255,255,255,.04)"><div>${head(t)}</div><div style="font-size:18px;font-weight:900;color:${pcol(t.pnl)};margin-top:3px">${fmt(t.pnl)}</div><div class="note3">${hm(t.c)} 平・抱 ${holdTxt(t.o, t.c)}</div></div>`).join('') || '<div class="note3">沒有</div>'}</div>
+      <div class="col" style="background:rgba(245,199,99,.07);border:1px solid rgba(245,199,99,.35)"><div class="row" style="margin-bottom:8px;font-weight:800;font-size:13px;color:var(--mid)"><span class="bdot"></span>還在場上 <span class="note3">${g.holding.length}</span></div>
+      ${g.holding.map(t => `<div class="kc" style="background:rgba(245,199,99,.1)"><div>${head(t)}</div><div style="font-size:13px;font-weight:800;color:var(--mid);margin-top:3px">${t.o.d === DAY ? '今天新開' : `抱第 ${DAY - t.o.d + 1} 天`}</div><div class="note3">${md(t.o)} ${hm(t.o)} 開</div></div>`).join('') || '<div class="note3">沒有</div>'}</div></div>`;
+  },
+});
+V.push({
+  name: '5 收盤快照＋事件線', title: '版本 5：最上面「這天收盤時」快照，下面每單一條線的事件流', tag: '最完整',
+  desc: `<h3>長相</h3><ul><li>最上面一張快照：<b>「這天收盤時手上：BTC、ETH…（N 單）」</b>＋「這天平了：…」，像對帳單。</li>
+    <li>下面是這天發生的事照時間排（開倉、平倉），左邊每單一條直線（像 git 線圖）：還抱著的線一路畫到底、往下延伸；平倉那一格線停住、畫 ✓。</li></ul>
+    <h3>好處</h3><ul><li>先後順序、誰還在，兩種資訊都有。</li></ul><h3>缺點</h3><ul><li>五單時左邊五條線，要靠顏色對。</li></ul>`,
+  render() {
+    const g = groups(), all = T().filter(t => t.o.d <= DAY && (!t.c || t.c.d >= DAY));
+    const evs = [];
+    all.forEach(t => { if (t.o.d === DAY) evs.push({ t, k: '開', at: t.o }); if (t.c && t.c.d === DAY) evs.push({ t, k: '平', at: t.c }); });
+    evs.sort((a, b) => mins(a.at) - mins(b.at));
+    const lanes = all.map((t, li) => ({ t, x: 8 + li * 14 }));
+    const alive = (t, at) => mins(t.o) <= mins(at) && (!t.c || mins(t.c) >= mins(at));
+    const snap = `<div class="sum" style="border-color:rgba(245,199,99,.35)"><div class="note3">這天收盤時（24:00）手上</div>
+      <div style="margin:4px 0 8px">${g.holding.map(t => `<span style="display:inline-flex;align-items:center;margin:2px 8px 2px 0">${head(t)}</span>`).join('') || '<span class="note">空手</span>'}</div>
+      <div class="note3">這天平了</div><div>${g.closed.map(t => `<span style="display:inline-flex;align-items:center;margin:2px 8px 2px 0">${head(t)}<b style="color:${pcol(t.pnl)};margin-left:5px">${fmt(t.pnl)}</b></span>`).join('') || '<span class="note">沒有</span>'}</div></div>`;
+    const start = `<div class="ev"><div class="lanes">${lanes.map(({ t, x }) => t.o.d < DAY ? `<i style="left:${x}px;background:${t.col}"></i>` : '').join('')}</div><div class="body note3">00:00・接著抱進這天：${all.filter(t => t.o.d < DAY).map(t => t.sym).join('、') || '沒有'}</div></div>`;
+    const rows = evs.map(e => `<div class="ev"><div class="lanes">${lanes.map(({ t, x }) => {
+        const before = alive(t, e.at) || (e.t === t);
+        const line = (t === e.t && e.k === '平') ? `<i style="left:${x}px;background:${t.col};bottom:50%"></i>` : (t === e.t && e.k === '開') ? `<i style="left:${x}px;background:${t.col};top:50%"></i>` : before ? `<i style="left:${x}px;background:${t.col}"></i>` : '';
+        const node = t === e.t ? `<b style="left:${x}px;border-color:${t.col};${e.k === '平' ? `background:${t.col}` : ''}"></b>` : '';
+        return line + node; }).join('')}</div>
+      <div class="body"><div class="row"><span class="note3" style="width:40px">${hm(e.at)}</span>${head(e.t)}<span class="sp"></span>${e.k === '平' ? `<b style="color:${pcol(e.t.pnl)}">✓ 平 ${fmt(e.t.pnl)}</b>` : '<span class="pill" style="background:rgba(126,166,255,.18);color:var(--accent)">開倉</span>'}</div></div></div>`).join('');
+    const end = `<div class="ev"><div class="lanes">${lanes.map(({ t, x }) => (!t.c || t.c.d > DAY) ? `<i style="left:${x}px;background:${t.col};bottom:8px"></i><span style="position:absolute;left:${x - 4}px;bottom:-6px;color:${t.col};font-size:12px">▼</span>` : '').join('')}</div><div class="body note" style="color:var(--mid)">24:00・還抱著 ${g.holding.length} 單，往明天繼續</div></div>`;
+    return topBar() + snap + `<div class="graph">${start}${rows}${end}</div>`;
+  },
+});
+
+const phone = document.getElementById('phone');
+function paint() { phone.innerHTML = `<div class="status"><span>21:41</span><span>▮▮▮ ◔ 82%</span></div><div class="screen">${V[S.v].render()}</div>`; }
+function notes() {
+  const v = V[S.v];
+  document.getElementById('notes').innerHTML = `<h2>${v.title}</h2><span class="tag">${v.tag}</span>${v.desc}
+    <div class="box"><b>五版都一樣</b><ul><li>「還抱著」一律黃色系＋會動（呼吸點或流動斜紋），「收掉了」一律灰、虛線或 ✓＋綠紅損益——跟主畫面持倉中／票根同一套。</li>
+      <li>一單一個顏色，跟月曆重疊倉位那份設計同一組顏色。</li><li>「之前就開的」寫第幾天，「今天新開的」寫「新開」，不會跟收掉的混。</li>
+      <li>上面總結寫「平了幾單・這天結束時還抱著幾單」。</li></ul></div>`;
+}
+function pick(i) { S.v = i; document.querySelectorAll('#vtabs button').forEach((b, j) => b.classList.toggle('on', j === i)); notes(); paint(); }
+function pickK(k) { S.k = k; document.querySelectorAll('#ntabs button').forEach(b => b.classList.toggle('on', b.dataset.k === k)); paint(); }
+document.getElementById('vtabs').innerHTML = V.map(v => `<button>${v.name}</button>`).join('');
+document.querySelectorAll('#vtabs button').forEach((b, i) => b.onclick = () => pick(i));
+document.getElementById('ntabs').innerHTML = '<span>這天的狀況：</span>' + Object.entries(DAYS).map(([k, d]) => `<button data-k="${k}">${d.name}</button>`).join('');
+document.querySelectorAll('#ntabs button').forEach(b => b.onclick = () => pickK(b.dataset.k));
+pick(0); pickK('normal');
+</script>
+</body>
+</html>
