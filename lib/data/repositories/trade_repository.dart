@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 
 import '../../domain/models/trade_entry.dart';
 import '../seed/seed_merge.dart';
@@ -9,6 +10,8 @@ import 'yt_tracker_repository.dart' show ytDiffCount;
 ///
 /// 整包 JSON 讀寫，刪除用墓碑標記，跟抽菸／喝酒記錄同一套多裝置同步做法。
 class TradeRepository {
+  static final _random = Random();
+
   TradeRepository(this._store);
 
   static const _tradesKey = 'trade_log.trades.v1';
@@ -49,7 +52,9 @@ class TradeRepository {
     String? note,
   }) async {
     final entry = TradeEntry(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      // 時間後面加亂數：同一個時間刻度裡記兩單（網頁版時鐘只到毫秒）id
+      // 會一樣，點甘特圖選到的是另一單（2026-10-14 測試抓到）。
+      id: '${DateTime.now().microsecondsSinceEpoch}-${_random.nextInt(1000000)}',
       symbol: symbol,
       isLong: isLong,
       leverage: leverage,

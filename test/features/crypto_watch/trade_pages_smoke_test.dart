@@ -11,6 +11,7 @@ import 'package:lume/features/crypto_watch/crypto_watch_page.dart';
 import 'package:lume/features/crypto_watch/trade_day_page.dart';
 import 'package:lume/features/crypto_watch/trade_journal_page.dart';
 import 'package:lume/features/crypto_watch/trade_report_page.dart';
+import 'package:lume/features/crypto_watch/trade_ticket_widgets.dart';
 import 'package:lume/features/crypto_watch/trade_ui.dart';
 
 /// 交易&自律四頁在手機寬度（360）畫得出來、不爆版，有資料跟沒資料都要。
@@ -550,18 +551,31 @@ void main() {
     // 持倉中：亮卡上有實心「平倉」。
     expect(find.widgetWithText(FilledButton, '平倉'), findsOneWidget);
     expect(find.text('已平倉的紀錄・只是看', findRichText: true), findsNothing);
-    await tester.tap(find.textContaining('BTC空', findRichText: true));
+    await tester.pump(const Duration(seconds: 2));
+    final btc = find.textContaining('BTC空', findRichText: true);
+    await tester.ensureVisible(btc);
+    await tester.pump(const Duration(seconds: 1));
+    await tester.tap(btc);
     await tester.pump();
     expect(find.textContaining('已平倉的紀錄・只是看'), findsOneWidget);
-    expect(find.text(fmtPnl(-120)), findsWidgets);
-    expect(find.text('想追空，結果被軋'), findsWidgets);
+    // 票根裡是點到的那一單（BTC −120、筆記）。
+    Finder inReceipt(String text) => find.descendant(
+      of: find.byType(TradeReceipt),
+      matching: find.text(text, skipOffstage: false),
+      skipOffstage: false,
+    );
+    expect(inReceipt(fmtPnl(-120)), findsOneWidget);
+    expect(inReceipt('想追空，結果被軋'), findsOneWidget);
     await tester.tap(find.byIcon(Icons.close_rounded));
     await tester.pump();
     expect(find.textContaining('已平倉的紀錄・只是看'), findsNothing);
     // 點持倉中的那條：不出票根，指去下面的亮卡。
-    await tester.tap(find.textContaining('ETH多', findRichText: true));
+    final eth = find.textContaining('ETH多', findRichText: true);
+    await tester.ensureVisible(eth);
+    await tester.pump(const Duration(seconds: 1));
+    await tester.tap(eth);
     await tester.pump();
-    expect(find.textContaining('這單還抱著'), findsOneWidget);
+    expect(find.textContaining('這單還抱著', skipOffstage: false), findsOneWidget);
     await finish(tester);
   });
 
