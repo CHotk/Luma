@@ -130,6 +130,21 @@ List<TradeGroup> bySymbol(List<TradeEntry> closed) {
   return best.count == 0 ? null : best;
 }
 
+/// 某個月的起始資金：這個月平倉的單＋這個月開倉的單（不重複算）的平均
+/// 本金，無條件捨去成整數；沒有單是 null（2026-10-14 使用者要求）。
+double? monthCapital(Iterable<TradeEntry> trades, DateTime month) {
+  bool inMonth(DateTime d) => d.year == month.year && d.month == month.month;
+  final list = [
+    for (final t in trades)
+      if (t.deletedAt == null &&
+          ((t.closedAt != null && inMonth(t.closedAt!)) || inMonth(t.openedAt)))
+        t,
+  ];
+  if (list.isEmpty) return null;
+  final avg = list.fold(0.0, (s, t) => s + t.margin) / list.length;
+  return avg.floorToDouble();
+}
+
 /// 一個月的總結，主畫面、日誌、月報共用。
 class MonthTradeSummary {
   const MonthTradeSummary({
@@ -143,7 +158,7 @@ class MonthTradeSummary {
   final Map<DateTime, double> dayPnl;
   final double total;
 
-  /// 月初資金，沒填是 null。
+  /// 起始資金（這個月的單平均本金，見 [monthCapital]），沒有單是 null。
   final double? capital;
 
   /// 月報酬 %＝本月損益 ÷ 月初資金。

@@ -162,12 +162,15 @@ class _TradeReportPageState extends ConsumerState<TradeReportPage> {
                 color: pnlColor(ret),
               ),
             ),
-          TextButton(
-            onPressed: () => editCapitalFlow(context, ref, _month, cap),
+          // 起始資金自動算（這個月的單平均本金），不用填（2026-10-14）。
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
             child: Text(
               cap == null
-                  ? '設定月初資金，算月報酬 % ✎'
-                  : '月初資金 ${fmtAmount(cap)} USDT（${fmtTwd(cap, rate)}）✎',
+                  ? '這個月還沒有單'
+                  : '起始資金 ${fmtAmount(cap)} USDT（${fmtTwd(cap, rate)}）'
+                        '・這個月的單平均本金',
+              style: AppText.note.copyWith(color: AppColors.ink2),
             ),
           ),
         ],

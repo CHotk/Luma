@@ -796,23 +796,48 @@ void main() {
     expect((await repo.loadAll()).single.closedAt, at);
   });
 
-  testWidgets('設定月初資金後，月報酬馬上出現', (tester) async {
-    await pumpPage(tester, const CryptoWatchPage(), _MemoryStore());
-    // 月初資金在最上面的損益卡裡點（月曆上那排小格子跟它重複，拿掉了）。
-    await tester.tap(find.textContaining('設定月初資金'));
-    await tester.pumpAndSettle();
-    expect(find.text('${DateTime.now().month} 月初的資金'), findsOneWidget);
-    await tester.enterText(find.byType(TextField).last, '2000');
-    await tester.tap(find.text('儲存'));
-    for (var i = 0; i < 6; i++) {
-      await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 50)),
-      );
-      await tester.pump();
-    }
-    expect(find.textContaining('月初 2,000 USDT'), findsOneWidget);
-    expect(find.textContaining('已設定'), findsOneWidget);
+  test('起始資金＝這個月的單平均本金，捨去小數；上個月開這個月平的也算', () {
+    TradeEntry t(String id, double margin, DateTime open, [DateTime? close]) =>
+        TradeEntry(
+          id: id,
+          symbol: 'BTC',
+          isLong: true,
+          leverage: 10,
+          margin: margin,
+          openedAt: open,
+          closedAt: close,
+          pnl: close == null ? null : 10,
+        );
+    final sep = DateTime(2026, 9);
+    // 8 月開、9/1 平：算 9 月的第一筆。
+    final a = t('a', 500, DateTime(2026, 8, 30), DateTime(2026, 9, 1));
+    expect(monthCapital([a], sep), 500);
+    // 9/5 再開一單 50000：一起平均，捨去小數。
+    final b = t('b', 50001, DateTime(2026, 9, 5));
+    expect(monthCapital([a, b], sep), 25250);
+    // 8 月：a 是 8 月開的，也算 8 月。
+    expect(monthCapital([a, b], DateTime(2026, 8)), 500);
+    // 10 月沒有單。
+    expect(monthCapital([a, b], DateTime(2026, 10)), isNull);
+  });
+
+  testWidgets('起始資金自動算、不能填；月報酬跟著出來', (tester) async {
+    final store = _MemoryStore();
+    final now = DateTime.now();
+    await TradeRepository(store).add(
+      symbol: 'BTC',
+      isLong: true,
+      leverage: 10,
+      margin: 400.7,
+      openedAt: DateTime(now.year, now.month, 1, 9),
+      closedAt: DateTime(now.year, now.month, 1, 10),
+      pnl: 40,
+    );
+    await pumpPage(tester, const CryptoWatchPage(), store);
     expect(find.textContaining('設定月初資金'), findsNothing);
+    expect(find.textContaining('起始資金 400 USDT'), findsOneWidget);
+    // 40 ÷ 400 ＝ 10%。
+    expect(find.textContaining('+10.0%'), findsWidgets);
     await finish(tester);
   });
 }

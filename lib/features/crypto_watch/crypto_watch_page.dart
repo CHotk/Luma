@@ -954,10 +954,10 @@ class _MonthPnlCard extends ConsumerWidget {
             textAlign: TextAlign.center,
             style: AppText.note.copyWith(color: AppColors.ink2),
           ),
+          // 起始資金自動算（這個月的單平均本金），不能點、不用填（2026-10-14）。
           Center(
-            child: TextButton(
-              onPressed: () => editCapitalFlow(context, ref, month, cap),
-              style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
               child: Text.rich(
                 TextSpan(
                   children: [
@@ -971,12 +971,14 @@ class _MonthPnlCard extends ConsumerWidget {
                       ),
                     TextSpan(
                       text: cap == null
-                          ? '設定月初資金，算月報酬 % ✎'
-                          : '月初 ${fmtAmount(cap)} USDT'
-                                '（${fmtTwd(cap, rate)}）✎',
+                          ? '這個月還沒有單'
+                          : '起始資金 ${fmtAmount(cap)} USDT'
+                                '（${fmtTwd(cap, rate)}・這個月的單平均本金）',
+                      style: AppText.note.copyWith(color: AppColors.ink2),
                     ),
                   ],
                 ),
+                textAlign: TextAlign.center,
               ),
             ),
           ),

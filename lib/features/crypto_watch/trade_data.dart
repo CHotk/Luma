@@ -18,7 +18,12 @@ class TradeData {
   /// `yyyy-MM` → 月初資金。
   final Map<String, double> capitals;
 
-  double? capitalOf(DateTime month) => capitals[TradeMonthCapital.idOf(month)];
+  /// 這個月的起始資金＝這個月的單的平均本金，小數無條件捨去（2026-10-14
+  /// 使用者要求：不用自己填，抓這個月第一筆，之後每多一單就一起平均——不然
+  /// 第一天 500、第五天存到 50000 很難表達）。「這個月的單」＝這個月平倉的
+  /// （8 月開、9/1 平的算 9 月）加上這個月開、還沒平或也在這個月平的。
+  /// 沒有單是 null。原本手動填的那份（[capitals]）不再用，資料留著不刪。
+  double? capitalOf(DateTime month) => monthCapital(trades, month);
 
   MonthTradeSummary month(DateTime month) =>
       summarizeMonth(trades, month, capital: capitalOf(month));
