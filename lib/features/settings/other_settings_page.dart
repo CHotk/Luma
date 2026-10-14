@@ -867,6 +867,13 @@ class _YtDisplayPrefsRows extends ConsumerWidget {
           (v) => update(prefs.copyWith(videoIncludeCold: v)),
         ),
         row(
+          Icons.hourglass_empty_rounded,
+          '依影片顯示也抓待評鑑頻道',
+          prefs.videoIncludePending ? '還沒分區的頻道影片也會混進來' : '待評鑑頻道不抓，依頻道顯示照樣看得到',
+          prefs.videoIncludePending,
+          (v) => update(prefs.copyWith(videoIncludePending: v)),
+        ),
+        row(
           Icons.drag_handle_rounded,
           '頻道頁右側捲動條',
           '可以拖著快速捲到想看的影片',

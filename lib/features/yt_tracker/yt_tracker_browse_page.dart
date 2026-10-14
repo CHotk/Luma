@@ -715,15 +715,18 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
   }
 
   /// 「依影片顯示」實際要抓的頻道：預設不抓冷藏的（2026-10-12 使用者
-  /// 要求），設定裡打開（[YtDisplayPrefs.videoIncludeCold]）才連冷藏一起抓。
-  /// 依頻道顯示不受影響，冷藏的照樣排在最下面。
-  List<YtChannel> _videoSourceChannels(List<YtChannel> channels) =>
-      ref.watch(ytDisplayPrefsProvider).videoIncludeCold
-      ? channels
-      : [
-          for (final c in channels)
-            if (c.coldAt == null) c,
-        ];
+  /// 要求）、也不抓待評鑑的（2026-10-14 使用者要求），設定裡各自打開
+  /// （[YtDisplayPrefs.videoIncludeCold]、[YtDisplayPrefs.videoIncludePending]）
+  /// 才一起抓。依頻道顯示不受影響，照樣排在最下面。
+  List<YtChannel> _videoSourceChannels(List<YtChannel> channels) {
+    final prefs = ref.watch(ytDisplayPrefsProvider);
+    return [
+      for (final c in channels)
+        if ((prefs.videoIncludeCold || c.coldAt == null) &&
+            (prefs.videoIncludePending || !c.pendingReview))
+          c,
+    ];
+  }
 
   Widget _buildVideoPanel(List<YtChannel> inScope) {
     final channels = _videoSourceChannels(inScope);
@@ -765,8 +768,8 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
     if (channels.isEmpty && inScope.isNotEmpty) {
       return SingleChildScrollView(
         child: InlineEmptyCard(
-          title: '這裡都是冷藏頻道',
-          message: '依影片顯示預設不抓冷藏頻道，要一起抓可以到設定打開',
+          title: '這裡都是冷藏或待評鑑的頻道',
+          message: '依影片顯示預設不抓冷藏、待評鑑的頻道，要一起抓可以到設定打開',
           actions: [
             EmptyAction('開設定', () => openSettings(context)),
             if (_selected.isNotEmpty)

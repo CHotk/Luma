@@ -8,6 +8,7 @@ import '../storage/key_value_store.dart';
 class YtDisplayPrefs {
   const YtDisplayPrefs({
     this.videoIncludeCold = false,
+    this.videoIncludePending = false,
     this.showScrollbar = true,
     this.showBackToTop = true,
     this.removedCheckDays = defaultRemovedCheckDays,
@@ -18,6 +19,10 @@ class YtDisplayPrefs {
 
   /// 「依影片顯示」要不要連冷藏頻道一起抓（2026-10-12：預設不抓）。
   final bool videoIncludeCold;
+
+  /// 「依影片顯示」要不要連待評鑑（還沒分區）的頻道一起抓（2026-10-14
+  /// 使用者要求：跟冷藏一樣預設不抓，設定可以改）。
+  final bool videoIncludePending;
 
   /// 頻道詳情頁右側一直顯示捲動條（2026-10-12：預設開）。
   final bool showScrollbar;
@@ -49,6 +54,7 @@ class YtDisplayPrefs {
 
   YtDisplayPrefs copyWith({
     bool? videoIncludeCold,
+    bool? videoIncludePending,
     bool? showScrollbar,
     bool? showBackToTop,
     int? removedCheckDays,
@@ -57,6 +63,7 @@ class YtDisplayPrefs {
     DateTime? updatedAt,
   }) => YtDisplayPrefs(
     videoIncludeCold: videoIncludeCold ?? this.videoIncludeCold,
+    videoIncludePending: videoIncludePending ?? this.videoIncludePending,
     showScrollbar: showScrollbar ?? this.showScrollbar,
     showBackToTop: showBackToTop ?? this.showBackToTop,
     removedCheckDays: removedCheckDays ?? this.removedCheckDays,
@@ -67,6 +74,7 @@ class YtDisplayPrefs {
 
   Map<String, dynamic> toJson() => {
     'videoIncludeCold': videoIncludeCold,
+    'videoIncludePending': videoIncludePending,
     'showScrollbar': showScrollbar,
     'showBackToTop': showBackToTop,
     'removedCheckDays': removedCheckDays,
@@ -78,6 +86,7 @@ class YtDisplayPrefs {
   /// 欄位缺的用預設值（之後加新設定，舊裝置上傳的檔案也讀得進來）。
   factory YtDisplayPrefs.fromJson(Map<String, dynamic> j) => YtDisplayPrefs(
     videoIncludeCold: j['videoIncludeCold'] as bool? ?? false,
+    videoIncludePending: j['videoIncludePending'] as bool? ?? false,
     showScrollbar: j['showScrollbar'] as bool? ?? true,
     showBackToTop: j['showBackToTop'] as bool? ?? true,
     removedCheckDays:

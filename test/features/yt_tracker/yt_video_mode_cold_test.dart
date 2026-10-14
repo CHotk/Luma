@@ -14,6 +14,7 @@ void main() {
     final store = _MemoryStore();
     final d = await YtDisplayPrefsStore(store).load();
     expect(d.videoIncludeCold, isFalse);
+    expect(d.videoIncludePending, isFalse);
     expect(d.showScrollbar, isTrue);
     expect(d.showBackToTop, isTrue);
     expect(await YtDisplayPrefsStore(store).loadRecord(), isNull);
@@ -46,6 +47,15 @@ void main() {
           coldAt: DateTime(2026, 10, 1),
         ),
       );
+      // 待評鑑：沒置頂、沒冷藏、沒評鑑過。
+      await repo.addChannel(
+        YtChannel(
+          id: 'b',
+          name: '頻道B',
+          categoryId: 'games',
+          addedAt: DateTime(2026, 9, 1),
+        ),
+      );
     });
     final container = ProviderContainer(
       overrides: [
@@ -66,13 +76,21 @@ void main() {
 
     await tester.tap(find.text('依影片顯示'));
     await _settle(tester);
-    expect(find.text('這裡都是冷藏頻道'), findsOneWidget);
+    expect(find.text('這裡都是冷藏或待評鑑的頻道'), findsOneWidget);
 
     container.read(ytDisplayPrefsProvider.notifier).state = YtDisplayPrefs
         .defaults
         .copyWith(videoIncludeCold: true);
     await _settle(tester);
-    expect(find.text('這裡都是冷藏頻道'), findsNothing);
+    // 冷藏打開了，但待評鑑的還沒——頻道A 會抓，畫面不再是空的。
+    expect(find.text('這裡都是冷藏或待評鑑的頻道'), findsNothing);
+
+    container.read(ytDisplayPrefsProvider.notifier).state = YtDisplayPrefs
+        .defaults
+        .copyWith(videoIncludePending: true);
+    await _settle(tester);
+    // 只開待評鑑：頻道B 會抓。
+    expect(find.text('這裡都是冷藏或待評鑑的頻道'), findsNothing);
   });
 }
 
