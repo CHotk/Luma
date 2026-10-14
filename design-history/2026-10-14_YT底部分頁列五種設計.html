@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YT 底部分頁列</title>
+<style>
+  :root {
+    --bg: #0C0C13; --card: #151520; --card2: #161622; --sheet: #1C1C29; --line: #2A2A3D;
+    --ink: #F3F2F8; --ink2: #A3A2B2; --ink3: #74738A;
+    --accent: #7EA6FF; --accentSolid: #2E6BFF; --yt: #FF4E45; --ok: #5FE08D; --mid: #F5C763;
+    --ios: #0A84FF;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--ink); min-height: 100vh; font: 14px/1.5 -apple-system, "SF Pro Text", system-ui, "Segoe UI", "Microsoft JhengHei", sans-serif; }
+  .page { max-width: 1120px; margin: 0 auto; padding: 24px 16px 60px; }
+  h1 { font-size: 20px; margin: 0 0 6px; }
+  .lead { color: var(--ink2); font-size: 13px; margin: 0 0 18px; } .lead b { color: var(--ink); }
+  .vtabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+  .vtabs button { border: 1px solid var(--line); background: var(--card); color: var(--ink2); padding: 8px 14px; border-radius: 99px; cursor: pointer; font-size: 13px; }
+  .vtabs button.on { border-color: var(--accent); color: #fff; background: rgba(46,107,255,.35); }
+  .stage { display: flex; gap: 28px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
+  .notes { flex: 1 1 320px; max-width: 470px; background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 18px 20px; font-size: 13.5px; color: var(--ink2); }
+  .notes h2 { color: var(--ink); font-size: 17px; margin: 0 0 4px; }
+  .notes .tag { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 99px; background: rgba(255,78,69,.15); color: var(--yt); margin-bottom: 10px; }
+  .notes h3 { color: var(--ink); font-size: 13.5px; margin: 14px 0 4px; }
+  .notes ul { margin: 0; padding-left: 18px; } .notes li { margin: 3px 0; }
+  .notes .try { margin-top: 14px; padding: 10px 12px; border-radius: 12px; background: rgba(126,166,255,.08); border: 1px solid rgba(126,166,255,.25); color: var(--ink); font-size: 12.5px; }
+  .notes .common { margin-top: 14px; padding: 10px 12px; border-radius: 12px; background: var(--card2); border: 1px solid var(--line); font-size: 12.5px; }
+  .notes .common b { color: var(--ink); }
+
+  /* 手機框：固定高度、不被 flex 壓扁 */
+  .phone { width: 380px; max-width: 100%; height: 800px; flex-shrink: 0; border-radius: 40px; border: 1px solid var(--line);
+    background: radial-gradient(120% 60% at 20% 0%, #2a1520 0%, #0e0e17 60%); position: relative; overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,.5); }
+  .screen { position: absolute; inset: 0; overflow-y: auto; padding: 40px 14px 120px; scrollbar-width: none; }
+  .screen::-webkit-scrollbar { display: none; }
+  .status { position: absolute; top: 0; left: 0; right: 0; height: 36px; display: flex; align-items: center; justify-content: space-between; padding: 0 26px; font-size: 12.5px; font-weight: 600; z-index: 30; pointer-events: none; }
+  .home-ind { position: absolute; bottom: 7px; left: 50%; transform: translateX(-50%); width: 120px; height: 5px; border-radius: 9px; background: rgba(255,255,255,.55); z-index: 40; pointer-events: none; }
+
+  .bar { display: flex; align-items: center; gap: 6px; padding: 4px 0 10px; min-height: 48px; }
+  .bar .t { flex: 1; font-weight: 800; font-size: 22px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar .t.sm { font-size: 17px; }
+  .ib { width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; color: var(--ink2); cursor: pointer; flex-shrink: 0; }
+  .ib:hover { background: rgba(255,255,255,.05); }
+  .ib svg { width: 20px; height: 20px; }
+  .note { font-size: 11.5px; color: var(--ink2); } .note3 { font-size: 11px; color: var(--ink3); }
+  .row { display: flex; align-items: center; gap: 8px; } .sp { flex: 1; }
+  .glass { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); border-radius: 18px; padding: 13px; }
+
+  /* 頻道分頁：分類資料夾 */
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .folder { border-radius: 18px; padding: 12px; min-height: 104px; cursor: pointer; position: relative; overflow: hidden; border: 1px solid rgba(255,255,255,.08); }
+  .folder .fn { font-weight: 800; font-size: 15px; }
+  .folder .avs { display: flex; margin-top: 18px; }
+  .folder .avs i { width: 26px; height: 26px; border-radius: 50%; border: 2px solid #15151f; margin-left: -6px; display: grid; place-items: center; font-style: normal; font-size: 11px; font-weight: 800; }
+  .folder .avs i:first-child { margin-left: 0; }
+  .ch { display: flex; align-items: center; gap: 10px; padding: 9px 4px; border-bottom: 1px solid rgba(255,255,255,.05); cursor: pointer; }
+  .av { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-weight: 900; font-size: 15px; flex-shrink: 0; }
+  .av.big { width: 56px; height: 56px; font-size: 21px; }
+
+  /* 影片列 */
+  .vid { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,.05); }
+  .thumb { width: 118px; aspect-ratio: 16/9; border-radius: 10px; flex-shrink: 0; position: relative; overflow: hidden; cursor: pointer; }
+  .thumb b { position: absolute; right: 5px; bottom: 4px; font-size: 10px; background: rgba(0,0,0,.75); padding: 0 4px; border-radius: 4px; font-weight: 600; }
+  .vt { font-size: 12.5px; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; cursor: pointer; }
+  .dots { width: 26px; height: 30px; display: grid; place-items: center; color: var(--ink3); cursor: pointer; flex-shrink: 0; border-radius: 8px; font-size: 16px; }
+  .dots:hover { background: rgba(255,255,255,.06); }
+  .saved { font-size: 10px; color: var(--accent); }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip { border: 1px solid var(--line); color: var(--ink2); border-radius: 99px; padding: 4px 11px; font-size: 12px; cursor: pointer; background: transparent; }
+  .chip.on { background: rgba(255,78,69,.18); border-color: rgba(255,78,69,.6); color: #fff; }
+
+  /* 播放清單（v1：YouTube 式） */
+  .cover { aspect-ratio: 16/10; border-radius: 14px; overflow: hidden; position: relative; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 2px; background: #1b1b28; }
+  .cover .cnt { position: absolute; right: 0; top: 0; bottom: 0; width: 38%; background: rgba(10,10,16,.72); backdrop-filter: blur(6px); display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; }
+  .plhead { border-radius: 20px; padding: 16px; margin-bottom: 10px; }
+  .btn { border: 0; border-radius: 99px; padding: 8px 16px; font-weight: 700; font-size: 13px; cursor: pointer; background: #fff; color: #111; }
+  .btn.ghost { background: rgba(255,255,255,.12); color: var(--ink); }
+
+  /* 選單、表單、提示 */
+  .menu { position: absolute; z-index: 60; right: 18px; width: 210px; background: rgba(38,38,54,.96); backdrop-filter: blur(20px); border-radius: 14px; border: 1px solid rgba(255,255,255,.1); overflow: hidden; box-shadow: 0 16px 40px rgba(0,0,0,.6); animation: pop .15s ease-out; }
+  .menu div { padding: 11px 14px; font-size: 13.5px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,.06); display: flex; gap: 10px; align-items: center; }
+  .menu div:last-child { border-bottom: 0; }
+  .menu div:hover { background: rgba(255,255,255,.06); }
+  .scrim { position: absolute; inset: 0; background: rgba(0,0,0,.5); z-index: 70; display: flex; align-items: flex-end; animation: fade .18s; }
+  .sheet { width: 100%; background: var(--sheet); border-radius: 26px 26px 0 0; padding: 0 16px 34px; animation: up .25s cubic-bezier(.2,.9,.3,1); }
+  .handle { width: 40px; height: 5px; border-radius: 9px; background: rgba(255,255,255,.18); margin: 9px auto 10px; }
+  .pick { display: flex; align-items: center; gap: 12px; padding: 10px 2px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,.05); }
+  .cb { width: 22px; height: 22px; border-radius: 6px; border: 2px solid var(--ink3); display: grid; place-items: center; font-size: 13px; font-weight: 900; flex-shrink: 0; }
+  .cb.on { background: var(--ios); border-color: var(--ios); color: #fff; }
+  .toast { position: absolute; left: 50%; bottom: 112px; transform: translateX(-50%); z-index: 80; width: max-content; max-width: 86%; background: rgba(40,40,58,.96); backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,.12); border-radius: 14px; padding: 9px 14px; font-size: 12.5px; display: flex; gap: 12px; align-items: center; animation: rise .22s; }
+  .toast a { color: var(--ios); cursor: pointer; font-weight: 700; }
+  @keyframes fade { from { opacity: 0 } }
+  @keyframes up { from { transform: translateY(60px); opacity: .4 } }
+  @keyframes pop { from { transform: scale(.94); opacity: 0 } }
+  @keyframes rise { from { transform: translate(-50%, 12px); opacity: 0 } }
+
+  /* ── 版本 1：iOS 原生貼底分頁列 ── */
+  .tb1 { position: absolute; left: 0; right: 0; bottom: 0; z-index: 50; height: 84px; padding-bottom: 26px; display: flex;
+    background: rgba(22,22,30,.72); backdrop-filter: blur(24px) saturate(180%); -webkit-backdrop-filter: blur(24px) saturate(180%); border-top: .5px solid rgba(255,255,255,.14); }
+  .tb1 button { flex: 1; border: 0; background: transparent; color: #8E8E93; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 10px; font-weight: 500; cursor: pointer; padding-top: 6px; }
+  .tb1 button svg { width: 25px; height: 25px; }
+  .tb1 button.on { color: var(--ios); }
+
+  /* ── 版本 2：iOS 26 浮動毛玻璃膠囊 ── */
+  .lg { background: rgba(255,255,255,.07); backdrop-filter: blur(22px) saturate(190%); -webkit-backdrop-filter: blur(22px) saturate(190%);
+    border: 1px solid rgba(255,255,255,.16); box-shadow: inset 0 1px 0 rgba(255,255,255,.22), inset 0 -1px 0 rgba(255,255,255,.05), 0 10px 30px rgba(0,0,0,.45); }
+  .tb2 { position: absolute; left: 16px; bottom: 26px; z-index: 50; height: 62px; border-radius: 31px; display: flex; padding: 4px; transition: width .35s cubic-bezier(.3,1.25,.4,1); overflow: hidden; }
+  .tb2 .blob { position: absolute; top: 4px; bottom: 4px; border-radius: 27px; background: rgba(255,255,255,.14); box-shadow: inset 0 1px 0 rgba(255,255,255,.2); transition: left .38s cubic-bezier(.3,1.35,.4,1), width .38s; }
+  .tb2 button { position: relative; width: 84px; flex-shrink: 0; border: 0; background: transparent; color: var(--ink); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; font-size: 10px; font-weight: 600; cursor: pointer; transition: transform .2s; }
+  .tb2 button svg { width: 24px; height: 24px; }
+  .tb2 button.on { color: var(--ios); }
+  .tb2 button:active { transform: scale(.9); }
+  .tb2-search { position: absolute; right: 16px; bottom: 26px; z-index: 50; width: 62px; height: 62px; border-radius: 50%; display: grid; place-items: center; cursor: pointer; color: var(--ink); transition: transform .2s; }
+  .tb2-search svg { width: 24px; height: 24px; }
+  .tb2-search:active { transform: scale(.9); }
+
+  /* ── 版本 3：只有圖示、選中的展開字 ── */
+  .tb3 { position: absolute; left: 50%; transform: translateX(-50%); bottom: 26px; z-index: 50; height: 56px; border-radius: 28px; display: flex; gap: 4px; padding: 6px; }
+  .tb3 button { border: 0; background: transparent; color: var(--ink2); height: 44px; border-radius: 22px; display: flex; align-items: center; gap: 7px; padding: 0 13px; cursor: pointer; font-size: 13px; font-weight: 700; transition: background .3s, padding .3s, color .3s; white-space: nowrap; }
+  .tb3 button svg { width: 22px; height: 22px; flex-shrink: 0; }
+  .tb3 button span { max-width: 0; overflow: hidden; transition: max-width .35s cubic-bezier(.3,1.2,.4,1); }
+  .tb3 button.on { background: rgba(255,78,69,.2); color: #fff; padding: 0 16px 0 13px; }
+  .tb3 button.on span { max-width: 80px; }
+  .tb3 button.on svg { color: var(--yt); }
+
+  /* ── 版本 4：中間大 ＋ ── */
+  .tb4 { position: absolute; left: 0; right: 0; bottom: 0; z-index: 50; height: 84px; padding-bottom: 26px; display: flex; align-items: center;
+    background: rgba(22,22,30,.78); backdrop-filter: blur(24px) saturate(180%); border-top: .5px solid rgba(255,255,255,.14); }
+  .tb4 button { flex: 1; border: 0; background: transparent; color: #8E8E93; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 10px; cursor: pointer; padding-top: 6px; }
+  .tb4 button svg { width: 24px; height: 24px; }
+  .tb4 button.on { color: var(--ink); }
+  .tb4 button.on svg { color: var(--yt); }
+  .tb4 .plus { flex: 0 0 auto; width: 52px; height: 36px; margin: 6px 6px 0; border-radius: 12px; background: linear-gradient(135deg, #FF4E45, #ff7a52); color: #fff; padding: 0; display: grid; place-items: center; box-shadow: 0 6px 16px rgba(255,78,69,.35); }
+  .tb4 .plus svg { width: 22px; height: 22px; color: #fff !important; }
+  .act div { padding: 14px 4px; display: flex; gap: 12px; align-items: center; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,.06); font-size: 14px; }
+  .act div small { display: block; color: var(--ink3); font-size: 11px; }
+  .act .ic { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; background: rgba(255,255,255,.07); font-size: 17px; }
+
+  /* ── 版本 5：頂部分段控制 ── */
+  .seg { position: sticky; top: 0; z-index: 20; margin: -30px -14px 10px; padding: 38px 14px 10px; background: linear-gradient(rgba(16,14,22,.97) 75%, rgba(16,14,22,0)); }
+  .seg .in { display: flex; position: relative; background: rgba(118,118,128,.24); border-radius: 10px; padding: 2px; }
+  .seg .in .knob { position: absolute; top: 2px; bottom: 2px; border-radius: 8px; background: #636366; box-shadow: 0 3px 8px rgba(0,0,0,.25); transition: left .3s cubic-bezier(.3,1.2,.4,1); }
+  .seg .in button { position: relative; flex: 1; border: 0; background: transparent; color: var(--ink); font-size: 13px; font-weight: 600; padding: 6px 0; cursor: pointer; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>YT 管理：底部分頁列五種設計</h1>
+  <p class="lead">
+    YT 管理分成三個分頁：<b>頻道</b>（現在的分類資料夾）、<b>影片</b>（全部頻道依影片顯示）、<b>播放清單</b>（你選的第 1 版：⋮ →「存到稍後觀看」／「存到播放清單…」）。
+    App 是 Flutter 自己畫的，<b>網頁版、加到主畫面都長一樣</b>；iOS 風格照 Apple 的規格仿（毛玻璃、膠囊、藍色選中）。<br>
+    手機框都能點：切分頁、點頻道進去（分頁列還在）、影片 ⋮ 存進清單、播放清單點進去、往下滑看分頁列怎麼反應、再點一次同一個分頁回到最上面。
+  </p>
+  <div class="vtabs" id="vtabs"></div>
+  <div class="stage">
+    <div class="phone" id="phone"></div>
+    <div class="notes" id="notes"></div>
+  </div>
+</div>
+<script>
+// ── 圖示（照 SF Symbols 的樣子畫） ─────────────────────────────
+const IC = {
+  ch: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3" y="4" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="4" width="7.5" height="7.5" rx="2"/><rect x="3" y="14" width="7.5" height="6.5" rx="2"/><rect x="13.5" y="14" width="7.5" height="6.5" rx="2"/></svg>',
+  chOn: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="4" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="4" width="7.5" height="7.5" rx="2"/><rect x="3" y="14" width="7.5" height="6.5" rx="2"/><rect x="13.5" y="14" width="7.5" height="6.5" rx="2"/></svg>',
+  vid: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="4"/><path d="M10 9.2v5.6l4.8-2.8z" fill="currentColor"/></svg>',
+  vidOn: '<svg viewBox="0 0 24 24"><rect x="2.5" y="5" width="19" height="14" rx="4" fill="currentColor"/><path d="M10 9.2v5.6l4.8-2.8z" fill="#0E0E16"/></svg>',
+  pl: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h11M4 11h11M4 16h7"/><path d="M16 13.5v6.5l5-3.25z" fill="currentColor" stroke-linejoin="round"/></svg>',
+  plOn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 6h11M4 11h11M4 16h7"/><path d="M16 13.5v6.5l5-3.25z" fill="currentColor" stroke-linejoin="round" stroke-width="1.5"/></svg>',
+  search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 20 20"/></svg>',
+  plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+  back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>',
+  menu: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>',
+  gear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></svg>',
+};
+
+// ── 假資料 ─────────────────────────────────────────────
+const CATS = [
+  { id: 'learn', name: '學習', col: ['#1d3b6b', '#14223f'] },
+  { id: 'game', name: '遊戲', col: ['#4a1f3a', '#25142e'] },
+  { id: 'music', name: '音樂', col: ['#1f4a3a', '#132a25'] },
+  { id: 'food', name: '料理', col: ['#5a3a17', '#2c1e10'] },
+  { id: 'disc', name: '挖掘新頻道', col: ['#2b2b3d', '#1a1a26'] },
+];
+const CH = [
+  { id: 0, name: '老高與小茉', cat: 'learn', c: '#FF4E45' }, { id: 1, name: '啾啾鞋', cat: 'learn', c: '#7EA6FF' },
+  { id: 2, name: '這群人', cat: 'game', c: '#C792EA' }, { id: 3, name: '阿神', cat: 'game', c: '#5FE08D' },
+  { id: 4, name: 'YOASOBI', cat: 'music', c: '#F5C763' }, { id: 5, name: '詹姆士', cat: 'food', c: '#ff9a52' },
+  { id: 6, name: 'Kurzgesagt', cat: 'learn', c: '#52d1ff' }, { id: 7, name: '巧克力', cat: 'game', c: '#e86aa6' },
+];
+const TITLES = ['黑洞的盡頭是什麼？我們可能一直搞錯了', '一口氣看完日本戰國', '這遊戲讓我玩到凌晨四點', '夜に駆ける (Live)', '十分鐘做出餐廳等級的蛋包飯', '如果地球停止轉動 30 秒', '終於破關了！最後一戰', '金字塔裡被封住的祕密', '三杯雞其實不用三杯', '宇宙有多大？一支影片看懂', 'Minecraft 生存第 100 天', '群青 (Official Video)', '為什麼古代人都在講外星人', '只用電鍋做一桌菜', '量子力學 15 分鐘入門', '恐怖遊戲但我拿了一把鏟子'];
+const COLORS = [['#3a2232', '#1d2340'], ['#1f3a2d', '#1a2140'], ['#3b2f17', '#2a1830'], ['#162b3d', '#2b1b36'], ['#2f1f3f', '#1b2d2a']];
+const VIDS = TITLES.map((t, i) => ({ id: i, title: t, ch: [0, 4, 2, 4, 5, 6, 3, 0, 5, 6, 3, 4, 0, 5, 1, 7][i], days: i * 3 + 1, len: `${8 + (i * 7) % 30}:${String((i * 13) % 60).padStart(2, '0')}`, c: COLORS[i % 5] }));
+const age = d => d < 30 ? d + ' 天前' : Math.floor(d / 30) + ' 個月前';
+const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+
+const freshPls = () => [
+  { id: 'later', name: '稍後觀看', sys: true, color: '#7EA6FF', vids: [5, 9, 1] },
+  { id: 'fav', name: '最愛', color: '#FF4E45', vids: [0, 11, 3, 7] },
+  { id: 'learn', name: '想學的', color: '#5FE08D', vids: [14, 4] },
+];
+const S = { v: 0, tab: 'ch', stack: [], pls: freshPls(), menu: null, save: null, act: false, toast: null, mini: false, lastY: 0, newName: null };
+const pl = id => S.pls.find(p => p.id === id);
+const top = () => S.stack[S.stack.length - 1];
+
+// ── 共用內容 ────────────────────────────────────────────
+function thumb(v, w = 118) { return `<div class="thumb" style="width:${w}px;background:linear-gradient(135deg,${v.c[0]},${v.c[1]})" data-a="play" data-id="${v.id}"><b>${v.len}</b></div>`; }
+function vidRow(v, opts = {}) {
+  const inPl = S.pls.filter(p => p.vids.includes(v.id));
+  return `<div class="vid">${thumb(v)}<div style="min-width:0;flex:1"><div class="vt" data-a="play" data-id="${v.id}">${esc(v.title)}</div>
+    <div class="note3">${opts.noCh ? '' : esc(CH[v.ch].name) + '・'}${age(v.days)}</div>${inPl.length ? `<div class="saved">≡ 已存在：${inPl.map(p => esc(p.name)).join('、')}</div>` : ''}</div>
+    ${opts.rm ? `<div class="dots" data-a="rm" data-p="${opts.rm}" data-id="${v.id}" title="從清單移除">✕</div>` : `<div class="dots" data-a="dots" data-id="${v.id}">⋮</div>`}</div>`;
+}
+function navTitle(t, sub) {
+  // 子頁：左上返回；根頁：左邊選單（App 的側邊選單）＋大標題
+  if (sub) return `<div class="bar"><div class="ib" data-a="pop">${IC.back}</div><div class="t sm">${esc(t)}</div><div class="ib">${IC.gear}</div></div>`;
+  return `<div class="bar"><div class="ib">${IC.menu}</div><div class="t">${esc(t)}</div>${S.tab === 'pl' ? `<div class="ib" data-a="newPl">${IC.plus}</div>` : `<div class="ib">${IC.gear}</div>`}</div>`;
+}
+function chTab() {
+  return `<div class="grid2">${CATS.map(c => { const chs = CH.filter(x => x.cat === c.id);
+    return `<div class="folder" style="background:linear-gradient(150deg,${c.col[0]},${c.col[1]})" data-a="openCat" data-c="${c.id}"><div class="fn">${c.name}</div><div class="note3">${chs.length} 個頻道</div>
+      <div class="avs">${chs.slice(0, 4).map(x => `<i style="background:${x.c}">${x.name[0]}</i>`).join('')}</div></div>`; }).join('')}</div>
+    <div class="note3" style="text-align:center;margin:16px 0">往下滑看看分頁列</div>
+    ${CH.map(x => `<div class="ch" data-a="openCh" data-ch="${x.id}"><div class="av" style="background:${x.c}">${x.name[0]}</div><div><div style="font-weight:700">${esc(x.name)}</div><div class="note3">${CATS.find(c => c.id === x.cat).name}</div></div></div>`).join('')}`;
+}
+function catPage(id) {
+  const c = CATS.find(x => x.id === id);
+  return navTitle(c.name, true) + CH.filter(x => x.cat === id).map(x => `<div class="ch" data-a="openCh" data-ch="${x.id}"><div class="av" style="background:${x.c}">${x.name[0]}</div><div style="font-weight:700">${esc(x.name)}</div></div>`).join('')
+    || '<div class="note3" style="padding:30px;text-align:center">還沒有頻道</div>';
+}
+function chPage(id) {
+  const c = CH[id];
+  return navTitle(c.name, true) + `<div class="glass row" style="gap:12px"><div class="av big" style="background:${c.c}">${c.name[0]}</div><div><div style="font-weight:800;font-size:16px">${esc(c.name)}</div><div class="note">訂閱 123 萬</div></div></div>
+    <div class="chips" style="margin:12px 0 4px"><button class="chip on">全部</button><button class="chip">影片</button><button class="chip">Shorts</button></div>` +
+    VIDS.filter(v => v.ch === id).concat(VIDS.slice(0, 6)).map(v => vidRow(v, { noCh: true })).join('');
+}
+function vidTab() {
+  return `<div class="chips" style="margin-bottom:8px"><button class="chip on">全部分類</button>${CATS.slice(0, 4).map(c => `<button class="chip">${c.name}</button>`).join('')}</div>` + VIDS.map(v => vidRow(v)).join('');
+}
+function cover(p) {
+  const ts = p.vids.slice(0, 4).map(i => VIDS[i]);
+  return `<div class="cover">${[0, 1, 2, 3].map(k => ts[k] ? `<div style="background:linear-gradient(135deg,${ts[k].c[0]},${ts[k].c[1]})"></div>` : '<div></div>').join('')}
+    <div class="cnt"><span style="font-size:16px">≡</span>${p.vids.length}</div></div>`;
+}
+function plTab() {
+  return `<div class="grid2">${S.pls.map(p => `<div data-a="openPl" data-p="${p.id}" style="cursor:pointer">${cover(p)}<div style="font-weight:700;margin-top:6px">${esc(p.name)}</div><div class="note3">${p.sys ? '系統清單・' : ''}${p.vids.length} 部影片</div></div>`).join('')}</div>`;
+}
+function plPage(id) {
+  const p = pl(id);
+  return navTitle(p.name, true) + `<div class="plhead" style="background:linear-gradient(160deg,${p.color}55,${p.color}10)"><div style="font-weight:900;font-size:20px">${esc(p.name)}</div><div class="note">${p.vids.length} 部影片</div>
+    <div class="row" style="margin-top:12px"><button class="btn" data-a="playAll">▶ 全部播放</button><button class="btn ghost" data-a="playAll">🔀 隨機播放</button></div></div>` +
+    (p.vids.map(i => vidRow(VIDS[i], { rm: p.id })).join('') || '<div class="note3" style="padding:30px;text-align:center">還沒有影片，去影片 ⋮ →「存到播放清單」</div>');
+}
+const TAB_NAME = { ch: '頻道', vid: '影片', pl: '播放清單' };
+function pageBody() {
+  const t = top();
+  if (t) return t.k === 'cat' ? catPage(t.id) : t.k === 'ch' ? chPage(t.id) : plPage(t.id);
+  const body = S.tab === 'ch' ? chTab() : S.tab === 'vid' ? vidTab() : plTab();
+  return (V[S.v].noTitle ? '' : navTitle(TAB_NAME[S.tab])) + body;
+}
+
+// ── 五版：分頁列長相 ─────────────────────────────────────
+const TABS = [['ch', '頻道'], ['vid', '影片'], ['pl', '播放清單']];
+const icon = (k, on) => IC[on ? k + 'On' : k];
+const V = [
+  {
+    name: '1 iOS 原生貼底（主流）', title: '版本 1：iOS 原生分頁列，貼在最下面', tag: 'iPhone 內建 App、舊版 YouTube 都是這樣',
+    desc: `<h3>長相</h3><ul><li>整條貼底，毛玻璃半透明，內容滑到下面會透出來。</li><li>圖示＋小字，選中的變藍、圖示變實心（跟「設定」「照片」一樣）。</li></ul>
+      <h3>好處</h3><ul><li>最熟悉，不用學；字一直都在，一眼知道每格是什麼。</li></ul><h3>缺點</h3><ul><li>一直佔著最下面 84px，影片少看到一點。</li></ul>`,
+    bar() { return `<div class="tb1">${TABS.map(([k, n]) => `<button class="${S.tab === k ? 'on' : ''}" data-a="tab" data-t="${k}">${icon(k, S.tab === k)}${n}</button>`).join('')}</div>`; },
+  },
+  {
+    name: '2 iOS 26 浮動膠囊', title: '版本 2：iOS 26 浮起來的毛玻璃膠囊，右邊獨立搜尋鈕', tag: '現在的 YouTube iOS／Apple 新設計',
+    desc: `<h3>長相</h3><ul><li>浮在下面的毛玻璃膠囊，選中的那格底下有一塊亮玻璃，切分頁時<b>彈一下滑過去</b>。</li>
+      <li>右邊獨立一顆圓形 🔍（iOS 26 的慣例），點了搜全部頻道和影片。</li><li><b>往下滑會縮成一顆</b>（只剩目前那格），往上滑或點它就展開。</li></ul>
+      <h3>好處</h3><ul><li>最新、最好看；縮起來時幾乎不擋影片。</li></ul><h3>缺點</h3><ul><li>縮起來時要多點一下才換得了分頁。</li></ul>`,
+    bar() {
+      const i = TABS.findIndex(([k]) => k === S.tab), w = 84;
+      const mini = S.mini;
+      const shown = mini ? [TABS[i]] : TABS;
+      return `<div class="tb2 lg" style="width:${(mini ? 1 : 3) * w + 8}px">${mini ? '' : `<div class="blob" style="left:${4 + i * w}px;width:${w}px"></div>`}
+        ${shown.map(([k, n]) => `<button class="${S.tab === k ? 'on' : ''}" data-a="${mini ? 'expand' : 'tab'}" data-t="${k}">${icon(k, S.tab === k)}${n}</button>`).join('')}</div>
+        <div class="tb2-search lg" data-a="searchAll">${IC.search}</div>`;
+    },
+    miniOnScroll: true,
+  },
+  {
+    name: '3 只有圖示・選中展開', title: '版本 3：浮動小膠囊，只有圖示，選中的那格展開字', tag: '最省空間',
+    desc: `<h3>長相</h3><ul><li>置中的小膠囊，平常只有三個圖示。</li><li>選中的那格變紅底、<b>字從圖示旁邊滑出來</b>（「播放清單」），其他格只剩圖示。</li></ul>
+      <h3>好處</h3><ul><li>佔最少空間，又知道現在在哪；跟 App 的 YT 紅色一致。</li></ul><h3>缺點</h3><ul><li>沒選中的那兩格只有圖示，第一次要猜一下。</li></ul>`,
+    bar() { return `<div class="tb3 lg">${TABS.map(([k, n]) => `<button class="${S.tab === k ? 'on' : ''}" data-a="tab" data-t="${k}">${icon(k, S.tab === k)}<span>${n}</span></button>`).join('')}</div>`; },
+  },
+  {
+    name: '4 中間大 ＋', title: '版本 4：貼底分頁列，中間一顆紅色 ＋', tag: '舊版 YouTube／TikTok',
+    desc: `<h3>長相</h3><ul><li>跟版本 1 一樣貼底，中間多一顆紅色 ＋。</li><li>點 ＋ 從下面跳出：新增頻道、挖掘新頻道、新增播放清單。</li></ul>
+      <h3>好處</h3><ul><li>常用的「新增」在哪個分頁都按得到，不用先回頻道頁。</li></ul><h3>缺點</h3><ul><li>多一顆按鈕，三個分頁變得比較擠；＋ 不是分頁容易被當成分頁。</li></ul>`,
+    bar() {
+      const b = ([k, n]) => `<button class="${S.tab === k ? 'on' : ''}" data-a="tab" data-t="${k}">${icon(k, S.tab === k)}${n}</button>`;
+      return `<div class="tb4">${b(TABS[0])}${b(TABS[1])}<button class="plus" data-a="plus">${IC.plus}</button>${b(TABS[2])}</div>`;
+    },
+  },
+  {
+    name: '5 頂部分段控制', title: '版本 5：不放底部列，標題下面一條 iOS 分段控制', tag: '下面完全留給影片',
+    desc: `<h3>長相</h3><ul><li>大標題下面一條「頻道｜影片｜播放清單」分段控制（iOS 的 UISegmentedControl），往下滑時黏在最上面。</li>
+      <li>點進頻道、清單後分段控制收起來，用左上返回。</li></ul>
+      <h3>好處</h3><ul><li>最下面完全空出來，影片最多；跟 App 其他頁面一樣都沒有底部列，風格一致。</li></ul><h3>缺點</h3><ul><li>單手要伸到最上面才能換；進到子頁就沒得直接換分頁。</li></ul>`,
+    noTitle: true,
+    head() {
+      if (top()) return '';
+      const i = TABS.findIndex(([k]) => k === S.tab);
+      return `<div class="bar" style="padding-bottom:0"><div class="ib">${IC.menu}</div><div class="t">YT 管理</div>${S.tab === 'pl' ? `<div class="ib" data-a="newPl">${IC.plus}</div>` : `<div class="ib">${IC.gear}</div>`}</div>
+        <div class="seg"><div class="in"><div class="knob" style="left:calc(2px + ${i} * (100% - 4px) / 3);width:calc((100% - 4px) / 3)"></div>${TABS.map(([k, n]) => `<button data-a="tab" data-t="${k}">${n}</button>`).join('')}</div></div>`;
+    },
+    bar() { return ''; },
+  },
+];
+
+// 每個分頁各自記住子頁（跟 iOS 一樣）
+const stacks = { ch: [], vid: [], pl: [] };
+
+// ── 畫面 ───────────────────────────────────────────────
+const phone = document.getElementById('phone');
+function toast(msg, undo) { S.toast = { msg, undo }; clearTimeout(toast.t); toast.t = setTimeout(() => { S.toast = null; paint(); }, 2600); }
+function paint(keep = true) {
+  const sc = phone.querySelector('.screen'), y = sc && keep ? sc.scrollTop : 0;
+  const v = V[S.v];
+  let over = '';
+  if (S.menu != null) over += `<div class="menu" style="top:${S.menu.y}px"><div data-a="quickLater" data-id="${S.menu.id}">🕘　存到稍後觀看</div><div data-a="openSave" data-id="${S.menu.id}">≡＋ 存到播放清單…</div><div data-a="noop">🙈　隱藏這部</div><div data-a="noop">↗　在 YouTube 開啟</div></div>`;
+  if (S.save != null) {
+    over += `<div class="scrim" data-a="closeSheet"><div class="sheet" data-stop><div class="handle"></div><div class="row" style="margin-bottom:4px"><b style="font-size:16px">存到…</b><span class="sp"></span><span class="note3">可以勾好幾個</span></div>
+      ${S.pls.map(p => `<div class="pick" data-a="toggle" data-p="${p.id}" data-id="${S.save}"><div class="cb ${p.vids.includes(S.save) ? 'on' : ''}">${p.vids.includes(S.save) ? '✓' : ''}</div><div style="flex:1">${esc(p.name)}</div><span class="note3">${p.vids.length}</span></div>`).join('')}
+      ${S.newName != null ? `<div class="row" style="margin-top:10px"><input id="nn" placeholder="新清單名字" value="${esc(S.newName)}" style="flex:1;background:#14141f;border:1px solid var(--line);border-radius:10px;color:var(--ink);padding:9px 10px;font:inherit"><button class="btn" data-a="createPl">建立</button></div>`
+        : `<div class="pick" data-a="startNew"><div class="cb" style="border-style:dashed">＋</div><div style="color:var(--ios)">新增播放清單</div></div>`}
+      <button class="btn" style="width:100%;margin-top:14px" data-a="closeSheet">完成</button></div></div>`;
+  }
+  if (S.act) over += `<div class="scrim" data-a="closeSheet"><div class="sheet act" data-stop><div class="handle"></div>
+      <div data-a="noop"><span class="ic">＋</span><span>新增頻道<small>貼網址就好，名字頭像自動抓</small></span></div>
+      <div data-a="noop"><span class="ic">🧭</span><span>挖掘新頻道<small>從你看過的頻道找類似的</small></span></div>
+      <div data-a="newPl"><span class="ic">≡</span><span>新增播放清單</span></div></div></div>`;
+  phone.innerHTML = `<div class="status"><span>9:41</span><span>▮▮▮ 🔋</span></div>
+    <div class="screen">${v.head ? v.head() : ''}${pageBody()}</div>${v.bar()}${over}
+    ${S.toast ? `<div class="toast">${S.toast.msg}${S.toast.undo ? '<a data-a="undo">復原</a>' : ''}</div>` : ''}<div class="home-ind"></div>`;
+  const ns = phone.querySelector('.screen'); ns.scrollTop = y;
+  ns.addEventListener('scroll', onScroll, { passive: true });
+  const nn = phone.querySelector('#nn'); if (nn) { nn.focus(); nn.oninput = () => S.newName = nn.value; nn.onkeydown = e => { if (e.key === 'Enter') create(); }; }
+}
+function onScroll(e) {
+  const y = e.target.scrollTop;
+  if (V[S.v].miniOnScroll) {
+    const mini = y > S.lastY + 4 && y > 80 ? true : y < S.lastY - 4 ? false : S.mini;
+    if (mini !== S.mini) { S.mini = mini; S.lastY = y; const yy = y; paint(); phone.querySelector('.screen').scrollTop = yy; return; }
+  }
+  S.lastY = y;
+  if (S.menu) { S.menu = null; paint(); }
+}
+function create() {
+  const name = (S.newName || '').trim(); if (!name) return;
+  const p = { id: 'p' + Date.now(), name, color: ['#C792EA', '#F5C763', '#52d1ff'][S.pls.length % 3], vids: S.save != null ? [S.save] : [] };
+  S.pls.push(p); S.newName = null; toast(S.save != null ? `已建立「${esc(name)}」並存進去` : `已建立「${esc(name)}」`); paint();
+}
+function notes() {
+  const v = V[S.v];
+  document.getElementById('notes').innerHTML = `<h2>${v.title}</h2><span class="tag">${v.tag}</span>${v.desc}
+    <div class="common"><b>五版都一樣的地方</b><ul>
+      <li>點進頻道／分類／清單，<b>分頁列還在</b>（版本 5 除外），隨時換分頁；每個分頁記得自己看到哪、點進去哪一層。</li>
+      <li><b>再點一次目前的分頁</b>：在子頁就回到那個分頁的第一層，在第一層就捲回最上面（iOS 慣例）。</li>
+      <li>影片 ⋮ →「存到稍後觀看」一鍵存（可復原）、「存到播放清單…」勾選＋新建。</li>
+      <li>網頁版、iPhone 加到主畫面、桌機都長一樣；iPhone 底下的橫條（Home 指示條）會讓開。</li></ul></div>
+    <div class="try">試試看：點「學習」→「老高與小茉」，再點一次「頻道」回第一層；影片 ⋮ 存到清單，再去「播放清單」看封面變了；${S.v === 1 ? '<b>往下滑看膠囊縮成一顆</b>，往上滑展開；' : ''}${S.v === 3 ? '點中間紅色 ＋；' : ''}往下滑看內容從分頁列底下透出來。</div>`;
+}
+function pick(i) {
+  Object.assign(S, { v: i, tab: 'ch', stack: [], menu: null, save: null, act: false, mini: false, newName: null });
+  stacks.ch = []; stacks.vid = []; stacks.pl = [];
+  document.querySelectorAll('#vtabs button').forEach((b, j) => b.classList.toggle('on', j === i));
+  notes(); paint(false);
+}
+document.getElementById('vtabs').innerHTML = V.map(v => `<button>${v.name}</button>`).join('');
+document.querySelectorAll('#vtabs button').forEach((b, i) => b.onclick = () => pick(i));
+
+phone.addEventListener('click', e => {
+  const el = e.target.closest('[data-a]');
+  if (!el) { if (S.menu) { S.menu = null; paint(); } return; }
+  if (el.dataset.a === 'closeSheet' && e.target.closest('[data-stop]') && el.classList.contains('scrim')) return;
+  const a = el.dataset.a, id = +el.dataset.id;
+  if (a !== 'dots') S.menu = null;
+  switch (a) {
+    case 'tab': {
+      const t = el.dataset.t;
+      if (t === S.tab) {
+        if (S.stack.length) { S.stack = []; stacks[t] = []; paint(false); }
+        else phone.querySelector('.screen').scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+      }
+      stacks[S.tab] = S.stack; S.tab = t; S.stack = stacks[t]; S.mini = false; paint(false); return;
+    }
+    case 'expand': S.mini = false; break;
+    case 'pop': S.stack = S.stack.slice(0, -1); stacks[S.tab] = S.stack; paint(false); return;
+    case 'openCat': S.stack = [...S.stack, { k: 'cat', id: el.dataset.c }]; stacks[S.tab] = S.stack; paint(false); return;
+    case 'openCh': S.stack = [...S.stack, { k: 'ch', id: +el.dataset.ch }]; stacks[S.tab] = S.stack; paint(false); return;
+    case 'openPl': S.stack = [...S.stack, { k: 'pl', id: el.dataset.p }]; stacks[S.tab] = S.stack; paint(false); return;
+    case 'dots': {
+      const r = el.getBoundingClientRect(), pr = phone.getBoundingClientRect();
+      S.menu = { id, y: Math.min(r.top - pr.top + 28, 560) }; break;
+    }
+    case 'quickLater': {
+      const p = pl('later');
+      if (p.vids.includes(id)) toast('已經在「稍後觀看」了');
+      else { p.vids.unshift(id); toast('已存到「稍後觀看」', true); S.undo = () => { p.vids = p.vids.filter(x => x !== id); }; }
+      break;
+    }
+    case 'openSave': S.save = id; S.newName = null; break;
+    case 'toggle': { const p = pl(el.dataset.p); p.vids = p.vids.includes(id) ? p.vids.filter(x => x !== id) : [id, ...p.vids]; break; }
+    case 'startNew': S.newName = ''; break;
+    case 'createPl': create(); return;
+    case 'closeSheet': S.save = null; S.act = false; S.newName = null; break;
+    case 'rm': {
+      const p = pl(el.dataset.p), at = p.vids.indexOf(id);
+      p.vids = p.vids.filter(x => x !== id); toast('已從「' + esc(p.name) + '」移除', true); S.undo = () => p.vids.splice(at, 0, id); break;
+    }
+    case 'undo': if (S.undo) S.undo(); S.undo = null; S.toast = null; break;
+    case 'newPl': S.act = false; S.save = null;
+      { const name = prompt('新播放清單的名字'); if (name && name.trim()) { S.pls.push({ id: 'p' + Date.now(), name: name.trim(), color: '#C792EA', vids: [] }); toast(`已建立「${esc(name.trim())}」`); } S.newName = null; }
+      break;
+    case 'plus': S.act = true; break;
+    case 'searchAll': toast('🔍 搜全部頻道和影片（之後做）'); break;
+    case 'play': toast('▶ 播放：' + esc(VIDS[id].title.slice(0, 14)) + '…'); break;
+    case 'playAll': toast('▶ 從第一部開始播'); break;
+    case 'noop': S.act = false; toast('（示意）'); break;
+  }
+  paint();
+});
+pick(0);
+</script>
+</body>
+</html>
