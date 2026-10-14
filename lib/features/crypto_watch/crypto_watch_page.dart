@@ -191,40 +191,36 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
     final months = data.navMonths;
     final prev = prevRecordMonth(months, _month);
     final next = nextRecordMonth(months, _month);
-    final holdDays = <DateTime>{};
     final litDays = <DateTime>{};
-    for (final t in _monthTrades(data)) {
+    // 重疊的單用顏色分（2026-10-14 使用者選：1 單一條黃線、2～3 單每單一條
+    // 細色條、4 單以上分段色塊＋×N）。顏色照這個月開倉先後輪流給。
+    final monthTrades = _monthTrades(data);
+    final colorOf = <String, Color>{
+      for (var i = 0; i < monthTrades.length; i++)
+        monthTrades[i].id: tradeOverlapColors[i % tradeOverlapColors.length],
+    };
+    final heldOn = <DateTime, List<TradeEntry>>{};
+    for (final t in monthTrades) {
       final days = _daysOf(t);
-      holdDays.addAll(days);
+      for (final d in days) {
+        (heldOn[d] ??= []).add(t);
+      }
       if (t.id == _ganttSel) litDays.addAll(days);
     }
-    final openDays = {for (final t in data.trades) dayOf(t.openedAt)};
-    final closeDays = {
-      for (final t in data.trades)
-        if (t.closedAt != null) dayOf(t.closedAt!),
-    };
-    // 同一天又開又平：「開」「平」照那天先發生的排（2026-10-12 使用者回報：
-    // 先平掉一單、晚上又開新的，固定開在左邊看起來像當天開當天平）。
-    final firstOpen = <DateTime, DateTime>{};
-    final firstClose = <DateTime, DateTime>{};
+    final overlapped = [
+      for (final t in monthTrades)
+        if (_daysOf(t).any((d) => (heldOn[d]?.length ?? 0) > 1)) t,
+    ];
+    // 每天的開／平事件（照真的時間排），重疊那天標籤換成那單的顏色。
+    final events = <DateTime, List<(bool open, String id, DateTime at)>>{};
     for (final t in data.trades) {
-      final o = dayOf(t.openedAt);
-      if (firstOpen[o] == null || t.openedAt.isBefore(firstOpen[o]!)) {
-        firstOpen[o] = t.openedAt;
-      }
+      (events[dayOf(t.openedAt)] ??= []).add((true, t.id, t.openedAt));
       final c = t.closedAt;
-      if (c != null) {
-        final cd = dayOf(c);
-        if (firstClose[cd] == null || c.isBefore(firstClose[cd]!)) {
-          firstClose[cd] = c;
-        }
-      }
+      if (c != null) (events[dayOf(c)] ??= []).add((false, t.id, c));
     }
-    bool closeFirst(DateTime d) =>
-        firstOpen[d] != null &&
-        firstClose[d] != null &&
-        firstClose[d]!.isBefore(firstOpen[d]!);
-
+    for (final l in events.values) {
+      l.sort((a, b) => a.$3.compareTo(b.$3));
+    }
     return GlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -299,19 +295,14 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
                 _dayCell(
                   DateTime(_month.year, _month.month, d),
                   pnl: sum.dayPnl[DateTime(_month.year, _month.month, d)],
-                  hold: holdDays.contains(
-                    DateTime(_month.year, _month.month, d),
-                  ),
+                  held:
+                      heldOn[DateTime(_month.year, _month.month, d)] ??
+                      const [],
+                  colorOf: colorOf,
                   lit: litDays.contains(DateTime(_month.year, _month.month, d)),
-                  opened: openDays.contains(
-                    DateTime(_month.year, _month.month, d),
-                  ),
-                  closed: closeDays.contains(
-                    DateTime(_month.year, _month.month, d),
-                  ),
-                  closeFirst: closeFirst(
-                    DateTime(_month.year, _month.month, d),
-                  ),
+                  events:
+                      events[DateTime(_month.year, _month.month, d)] ??
+                      const [],
                 ),
             ],
           ),
@@ -341,6 +332,53 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
               ),
             ],
           ),
+          if (overlapped.isNotEmpty) ...[
+            const SizedBox(height: Gap.sm),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final t in overlapped)
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(6, 3, 9, 3),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(99),
+                      border: Border.all(color: const Color(0xFF2A2A3D)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 10,
+                          height: 10,
+                          decoration: BoxDecoration(
+                            color: colorOf[t.id],
+                            borderRadius: BorderRadius.circular(3),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          '${t.symbol}${t.isLong ? '多' : '空'} ${fmtLev(t.leverage)}',
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.ink,
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          t.isOpen ? '抱著' : fmtPnl(t.pnl!),
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            color: t.isOpen ? AppColors.mid : pnlColor(t.pnl),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ],
           const SizedBox(height: 4),
           Text(
             '點某一天看那天發生什麼・損益記在平倉那天',
@@ -354,12 +392,35 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
   Widget _dayCell(
     DateTime day, {
     required double? pnl,
-    required bool hold,
+    required List<TradeEntry> held,
+    required Map<String, Color> colorOf,
     required bool lit,
-    required bool opened,
-    required bool closed,
-    bool closeFirst = false,
+    required List<(bool open, String id, DateTime at)> events,
   }) {
+    final n = held.length;
+    // 兩單以上重疊時，開／平標籤用那單的顏色。
+    Widget eventTag((bool, String, DateTime) e) {
+      final c = n >= 2 ? colorOf[e.$2] : null;
+      if (c == null) return _tag(e.$1 ? '開' : '平', open: e.$1);
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 2.5),
+        decoration: BoxDecoration(
+          color: e.$1 ? c : Colors.transparent,
+          borderRadius: BorderRadius.circular(3),
+          border: Border.all(color: c, width: 1.1),
+        ),
+        child: Text(
+          e.$1 ? '開' : '平',
+          style: TextStyle(
+            fontSize: 8.5,
+            height: 1.2,
+            fontWeight: FontWeight.w800,
+            color: e.$1 ? const Color(0xFF111111) : c,
+          ),
+        ),
+      );
+    }
+
     final now = DateTime.now();
     final isToday = day == dayOf(now);
     final future = day.isAfter(dayOf(now));
@@ -411,22 +472,24 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
                       // 開倉日／平倉日的小標籤，放在損益上面（2026-10-10
                       // 使用者要求月曆上看得到哪天開、哪天平，照持倉期間
                       // 設計稿版本 2 的「開」黃底、「平」深底）。
-                      if (opened || closed)
+                      if (events.isNotEmpty)
                         Align(
                           alignment: const Alignment(-1, 0.05),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (closeFirst && closed) ...[
-                                _tag('平', open: false),
-                                if (opened) const SizedBox(width: 2),
-                                if (opened) _tag('開', open: true),
-                              ] else ...[
-                                if (opened) _tag('開', open: true),
-                                if (opened && closed) const SizedBox(width: 2),
-                                if (closed) _tag('平', open: false),
+                          // 一行排完，放不下就整排縮小（不換行）。
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // 照那天真的先後排（先平再開就是平在左邊）。
+                                for (final (i, e)
+                                    in events.take(4).indexed) ...[
+                                  if (i > 0) const SizedBox(width: 2),
+                                  eventTag(e),
+                                ],
                               ],
-                            ],
+                            ),
                           ),
                         ),
                       if (pnl != null)
@@ -449,7 +512,8 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
                 ),
                 // 持倉期間：格子最底部、在格子裡面的一條淡黃線（2026-10-08
                 // 使用者挑設計稿版本 3，要求放格子底部、顏色淡一點）。
-                if (hold)
+                // 只抱 1 單：跟原本一樣一條黃線。
+                if (n == 1)
                   Positioned(
                     left: 4,
                     right: 4,
@@ -462,6 +526,80 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
                       ),
                     ),
                   ),
+                // 2～3 單：每單一條細色條，由下往上疊（開倉、平倉那天兩端
+                // 內縮一點，連續幾天看得出是同一條）。
+                if (n >= 2 && n <= 3)
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 2,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      verticalDirection: VerticalDirection.up,
+                      children: [
+                        for (final t in held)
+                          Padding(
+                            padding: EdgeInsets.only(
+                              top: 1.5,
+                              left: dayOf(t.openedAt) == day ? 4 : 0,
+                              right:
+                                  t.closedAt != null &&
+                                      dayOf(t.closedAt!) == day
+                                  ? 4
+                                  : 0,
+                            ),
+                            child: Container(
+                              height: 2.5,
+                              decoration: BoxDecoration(
+                                color: colorOf[t.id],
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                // 4 單以上：一條分段色塊＋右上角 ×N。
+                if (n >= 4) ...[
+                  Positioned(
+                    left: 3,
+                    right: 3,
+                    bottom: 2,
+                    height: 6,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(3),
+                      child: Row(
+                        children: [
+                          for (var i = 0; i < n; i++) ...[
+                            if (i > 0) const SizedBox(width: 1),
+                            Expanded(
+                              child: ColoredBox(color: colorOf[held[i].id]!),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    right: 3,
+                    top: 2,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        '×$n',
+                        style: const TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.ink,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

@@ -96,7 +96,12 @@ void main() {
       await tester.drag(find.byType(ListView), const Offset(0, -900));
       await tester.pump();
       if (!empty) expect(find.textContaining('持倉中'), findsWidgets);
-      if (!empty) expect(find.textContaining('月持倉期間'), findsOneWidget);
+      if (!empty) {
+        expect(
+          find.textContaining('月持倉期間', skipOffstage: false),
+          findsOneWidget,
+        );
+      }
       expect(find.text('記一筆交易'), findsOneWidget);
       await finish(tester);
     });
@@ -283,19 +288,26 @@ void main() {
     );
     expect(field, findsOneWidget);
     expect(find.byType(CalendarDatePicker), findsNothing);
-    // 打開是空的，沒有「現在」按鈕。
-    expect(tester.widget<TextField>(field).controller!.text, isEmpty);
+    // 打開是空的（下面提示寫原本的時間），沒有「現在」按鈕。
+    expect(find.textContaining('原本'), findsOneWidget);
     expect(find.text('現在'), findsNothing);
     await tester.enterText(field, '09032105');
     await tester.pump();
-    expect(tester.widget<TextField>(field).controller!.text, '09/03 21:05');
+    Finder inDialog(String t) =>
+        find.descendant(of: find.byType(AlertDialog), matching: find.text(t));
+    expect(inDialog('09'), findsOneWidget);
+    expect(inDialog('21'), findsOneWidget);
+    expect(inDialog('05'), findsOneWidget);
     await tapIn(tester, find.text('好'));
     expect(find.textContaining('9/3'), findsWidgets);
     expect(find.textContaining('21:05'), findsOneWidget);
 
     // 不是今年：按「加年份」多一格年，沒按就是今年。
     await tapIn(tester, find.text('開倉時間'));
-    await tapIn(tester, find.text('不是今年？加年份'));
+    await tapIn(tester, find.text('加年份'));
+    // 年那格先帶今年；點「年」從那格重打。
+    await tester.tap(find.text('年'));
+    await tester.pump();
     expect(find.text('年'), findsOneWidget);
     await tester.enterText(
       find.descendant(
@@ -310,8 +322,8 @@ void main() {
 
     // 同一分鐘要分先後：點「加秒數」才出現秒數格，只用來排序、畫面不顯示秒。
     await tapIn(tester, find.text('開倉時間'));
-    expect(find.text('同一分鐘要分先後？加秒數'), findsOneWidget);
-    await tapIn(tester, find.text('同一分鐘要分先後？加秒數'));
+    expect(find.text('加秒數'), findsOneWidget);
+    await tapIn(tester, find.text('加秒數'));
     final fields = find.descendant(
       of: find.byType(AlertDialog),
       matching: find.byType(TextField),
@@ -451,6 +463,34 @@ void main() {
     );
     expect(find.text('120'), findsOneWidget);
     expect(find.descendant(of: sign, matching: find.text('−')), findsOneWidget);
+    // 編輯舊單：時間格子先帶入原本的時間，不是空的。
+    await tester.ensureVisible(find.text('開倉時間'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('開倉時間'));
+    await tester.pumpAndSettle();
+    final o = DateTime.now().subtract(const Duration(hours: 6));
+    String two(int v) => v.toString().padLeft(2, '0');
+    // 提示直接寫出時間＝格子已經填好、合法。
+    expect(find.textContaining('${fmtHm(o)}・'), findsOneWidget);
+    // 點「時」那格直接打新的：只換掉時，其他照舊。
+    final hourBox = find.descendant(
+      of: find.byType(AlertDialog),
+      matching: find.text(two(o.hour)),
+    );
+    await tester.tap(hourBox.first);
+    await tester.pump();
+    await tester.enterText(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.byType(TextField),
+      ),
+      '03',
+    );
+    await tester.pump();
+    final wanted = DateTime(o.year, o.month, o.day, 3, o.minute);
+    if (!wanted.isAfter(DateTime.now())) {
+      expect(find.textContaining('${fmtHm(wanted)}・'), findsOneWidget);
+    }
     await finish(tester);
   });
 
@@ -601,7 +641,8 @@ void main() {
     final opensOnRow = tester
         .widgetList(find.text('開'))
         .map((w) => tester.getTopLeft(find.byWidget(w)))
-        .where((o) => (o.dy - close.dy).abs() < 1 && o.dx > close.dx);
+        // 有顏色的標籤多一圈框，文字位置差一兩 px，同一列放寬到 3。
+        .where((o) => (o.dy - close.dy).abs() < 3 && o.dx > close.dx);
     expect(opensOnRow, isNotEmpty);
     expect(open.dy, lessThanOrEqualTo(close.dy));
     await finish(tester);
@@ -628,7 +669,8 @@ void main() {
     expect(find.widgetWithText(FilledButton, '平倉'), findsOneWidget);
     expect(find.text('已平倉的紀錄・只是看', findRichText: true), findsNothing);
     await tester.pump(const Duration(seconds: 2));
-    final btc = find.textContaining('BTC空', findRichText: true);
+    // 月曆下面的圖例也有同一單的名字，甘特圖那個是最後一個。
+    final btc = find.textContaining('BTC空', findRichText: true).last;
     await tester.ensureVisible(btc);
     await tester.pump(const Duration(seconds: 1));
     await tester.tap(btc);
@@ -646,12 +688,50 @@ void main() {
     await tester.pump();
     expect(find.textContaining('已平倉的紀錄・只是看'), findsNothing);
     // 點持倉中的那條：不出票根，指去下面的亮卡。
-    final eth = find.textContaining('ETH多', findRichText: true);
+    final eth = find.textContaining('ETH多', findRichText: true).last;
     await tester.ensureVisible(eth);
     await tester.pump(const Duration(seconds: 1));
     await tester.tap(eth);
     await tester.pump();
     expect(find.textContaining('這單還抱著', skipOffstage: false), findsOneWidget);
+    await finish(tester);
+  });
+
+  testWidgets('月曆重疊：4 單以上寫 ×4，2～3 單用色條、沒有數字', (tester) async {
+    final store = _MemoryStore();
+    final repo = TradeRepository(store);
+    final now = DateTime.now();
+    final base = DateTime(now.year, now.month, 1, 9);
+    // 4 單同一天都抱著（本月 1 號開、還沒平）。
+    for (final sym in ['A', 'B', 'C', 'D']) {
+      await repo.add(
+        symbol: sym,
+        isLong: true,
+        leverage: 5,
+        margin: 100,
+        openedAt: base,
+      );
+    }
+    await pumpPage(tester, const CryptoWatchPage(), store);
+    expect(find.text('×4'), findsWidgets);
+    await finish(tester);
+
+    final store2 = _MemoryStore();
+    final repo2 = TradeRepository(store2);
+    for (final sym in ['A', 'B']) {
+      await repo2.add(
+        symbol: sym,
+        isLong: true,
+        leverage: 5,
+        margin: 100,
+        openedAt: base,
+      );
+    }
+    await pumpPage(tester, const CryptoWatchPage(), store2);
+    expect(find.textContaining('×'), findsNothing);
+    // 圖例列出重疊過的那兩單。
+    expect(find.text('A多 5x'), findsOneWidget);
+    expect(find.text('B多 5x'), findsOneWidget);
     await finish(tester);
   });
 

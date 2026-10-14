@@ -19,6 +19,15 @@ import '../../shared/widgets/app_confirm_dialog.dart';
 const tradeUp = AppColors.ok;
 const tradeDown = Color(0xFFFF7A70);
 
+/// 重疊倉位的顏色（2026-10-14）：照開倉先後輪流用，避開綠／紅（那是賺賠）。
+const tradeOverlapColors = [
+  Color(0xFFF5C763),
+  Color(0xFF60A5FA),
+  Color(0xFFC084FC),
+  Color(0xFF2DD4BF),
+  Color(0xFFF472B6),
+];
+
 Color pnlColor(double? v) => v == null || v == 0
     ? AppColors.ink2
     : v > 0
@@ -426,6 +435,9 @@ InputDecoration _input(String hint, {String? suffix, Widget? prefix}) =>
     InputDecoration(
       hintText: hint,
       suffixText: suffix,
+      // 「USDT ≈ +NT$3,720」這種換算小一點、淡一點，不然看起來像賺了好幾千 U
+      // （2026-10-14 使用者回報）。
+      suffixStyle: const TextStyle(fontSize: 11, color: AppColors.ink3),
       prefixIcon: prefix,
       prefixIconConstraints: const BoxConstraints(minWidth: 34),
       isDense: true,
@@ -568,11 +580,17 @@ TextSpan _strong(String s, {Color color = AppColors.ink, double? size}) =>
 /// 2026-10-10 使用者要求一打開就是直接打字（不用先在月曆、時鐘上點），
 /// 這版維持直接打字。舊版（兩段）長相存在
 /// `design-history/2026-10-10_交易記一筆表單現況.html`。
-Future<DateTime?> _pickDateTime(BuildContext context, DateTime initial) =>
-    showDialog<DateTime>(
-      context: context,
-      builder: (_) => _DateTimeDialog(initial: initial),
-    );
+///
+/// [prefill]：編輯已經記下的單時，格子先填好原本的時間（2026-10-14 使用者
+/// 要求：都編輯了就不是重填），只改要改的那格。
+Future<DateTime?> _pickDateTime(
+  BuildContext context,
+  DateTime initial, {
+  bool prefill = false,
+}) => showDialog<DateTime>(
+  context: context,
+  builder: (_) => _DateTimeDialog(initial: initial, prefill: prefill),
+);
 
 /// 只留數字，照位數補上「/」「 」「:」。[withYear] 時前面多 4 位年份。
 @visibleForTesting
@@ -624,9 +642,10 @@ String _dateTimeText(DateTime t) =>
     '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
 
 class _DateTimeDialog extends StatefulWidget {
-  const _DateTimeDialog({required this.initial});
+  const _DateTimeDialog({required this.initial, this.prefill = false});
 
   final DateTime initial;
+  final bool prefill;
 
   @override
   State<_DateTimeDialog> createState() => _DateTimeDialogState();
@@ -637,6 +656,22 @@ class _DateTimeDialogState extends State<_DateTimeDialog> {
   // 原本的時間寫在下面提示裡）。取消就維持原本的時間。
   late final _ctrl = TextEditingController()
     ..addListener(() => setState(() {}));
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.prefill) {
+      final t = widget.initial;
+      String two(int v) => v.toString().padLeft(2, '0');
+      // 不是今年的就連年份一起帶（多一格「年」）。
+      _withYear = t.year != DateTime.now().year;
+      _ctrl.text = formatDateTimeDigits(
+        '${_withYear ? t.year : ''}${two(t.month)}${two(t.day)}'
+        '${two(t.hour)}${two(t.minute)}',
+        withYear: _withYear,
+      );
+    }
+  }
 
   /// 秒數（2026-10-14 使用者要求：同一分鐘開好幾單、又開又平時分不出
   /// 先後）。平常收起來，點「加秒數」才出現；只用來排先後，畫面上不顯示。
@@ -748,9 +783,9 @@ class _DateTimeDialogState extends State<_DateTimeDialog> {
               style: TextButton.styleFrom(
                 padding: EdgeInsets.zero,
                 visualDensity: VisualDensity.compact,
-                foregroundColor: AppColors.ink3,
+                foregroundColor: AppColors.accent,
               ),
-              child: Text(_withYear ? '不要年份（用今年）' : '不是今年？加年份'),
+              child: Text(_withYear ? '不要年份' : '加年份'),
             ),
           ),
           if (!_showSec)
@@ -761,9 +796,9 @@ class _DateTimeDialogState extends State<_DateTimeDialog> {
                 style: TextButton.styleFrom(
                   padding: EdgeInsets.zero,
                   visualDensity: VisualDensity.compact,
-                  foregroundColor: AppColors.ink3,
+                  foregroundColor: AppColors.accent,
                 ),
-                child: const Text('同一分鐘要分先後？加秒數'),
+                child: const Text('加秒數'),
               ),
             )
           else
@@ -774,6 +809,11 @@ class _DateTimeDialogState extends State<_DateTimeDialog> {
                   child: TextField(
                     controller: _secCtrl,
                     autofocus: true,
+                    // 點了就全選，直接打就蓋掉原本的（2026-10-14 使用者要求）。
+                    onTap: () => _secCtrl.selection = TextSelection(
+                      baseOffset: 0,
+                      extentOffset: _secCtrl.text.length,
+                    ),
                     keyboardType: TextInputType.number,
                     inputFormatters: [
                       FilteringTextInputFormatter.digitsOnly,
@@ -808,10 +848,14 @@ class _DateTimeDialogState extends State<_DateTimeDialog> {
 }
 
 /// 月、日、時、分各一格（按「加年份」多一格「年」），像輸入驗證碼那樣：
-/// 一路打數字，自動跳到下一格（2026-10-14 使用者要求）。背後其實是一個
-/// 看不見的輸入框，所以刪除、貼上都照常。空的格子淡淡顯示原本的值；那一格
-/// 打完但不合法（13 月、24 時、60 分…）變紅。
-class _DigitBoxes extends StatelessWidget {
+/// 一路打數字，自動跳到下一格（2026-10-14 使用者要求）。**點哪一格就從
+/// 那一格重打**：那格清空、打的數字蓋進去，接著跳下一格（已經有值的格子
+/// 也一樣，等於刪掉原本的填新的）；退格往回刪一位。空的格子淡淡顯示原本
+/// 的值；那一格打完但不合法（13 月、24 時、60 分…）變紅。
+///
+/// 背後是一個看不見的輸入框（只負責叫出鍵盤、收打字），每一格的數字由這裡
+/// 自己記；拼起來的完整時間寫回 [controller]（「10/14 21:40」那種格式）。
+class _DigitBoxes extends StatefulWidget {
   const _DigitBoxes({
     required this.controller,
     required this.initial,
@@ -825,8 +869,100 @@ class _DigitBoxes extends StatelessWidget {
   final VoidCallback onSubmitted;
 
   @override
+  State<_DigitBoxes> createState() => _DigitBoxesState();
+}
+
+class _DigitBoxesState extends State<_DigitBoxes> {
+  /// 看不見的輸入框永遠只放一個零寬字元：打了字就多出來、按退格就變空，
+  /// 收完再放回去（網頁、手機鍵盤都適用）。
+  static const _sentinel = '\u200b';
+  final _input = TextEditingController(text: _sentinel);
+  final _focus = FocusNode();
+  late List<String?> _cells;
+  var _pos = 0;
+
+  int get _total => widget.withYear ? 12 : 8;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFromController();
+    // 選中的那格有藍框；點別的地方失去焦點，藍框就消失（2026-10-14 使用者要求）。
+    _focus.addListener(() => setState(() {}));
+    _focus.requestFocus();
+  }
+
+  @override
+  void didUpdateWidget(_DigitBoxes old) {
+    super.didUpdateWidget(old);
+    if (old.withYear != widget.withYear) _loadFromController();
+  }
+
+  @override
+  void dispose() {
+    _input.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  void _loadFromController() {
+    final d = widget.controller.text.replaceAll(RegExp(r'\D'), '');
+    _cells = [for (var i = 0; i < _total; i++) i < d.length ? d[i] : null];
+    final firstEmpty = _cells.indexOf(null);
+    // 已經填好的（編輯舊單）直接打就從第一格開始蓋掉。
+    _pos = firstEmpty < 0 ? 0 : firstEmpty;
+  }
+
+  void _sync() {
+    final prefix = StringBuffer();
+    for (final c in _cells) {
+      if (c == null) break;
+      prefix.write(c);
+    }
+    widget.controller.text = formatDateTimeDigits(
+      prefix.toString(),
+      withYear: widget.withYear,
+    );
+  }
+
+  void _onChanged(String v) {
+    final typed = v.replaceAll(_sentinel, '').replaceAll(RegExp(r'\D'), '');
+    setState(() {
+      if (!v.contains(_sentinel) && typed.isEmpty) {
+        // 退格：往回刪一位。
+        if (_pos > 0) _pos--;
+        _cells[_pos] = null;
+      } else {
+        for (final ch in typed.split('')) {
+          if (_pos >= _total) break;
+          _cells[_pos] = ch;
+          _pos++;
+        }
+      }
+    });
+    _input.value = const TextEditingValue(
+      text: _sentinel,
+      selection: TextSelection.collapsed(offset: 1),
+    );
+    _sync();
+  }
+
+  /// 點某一格：那格清空，從那格開始打。
+  void _tapSegment(int start, int len) {
+    setState(() {
+      for (var i = start; i < start + len; i++) {
+        _cells[i] = null;
+      }
+      _pos = start;
+    });
+    _sync();
+    _focus.requestFocus();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final digits = controller.text.replaceAll(RegExp(r'\D'), '');
+    final withYear = widget.withYear;
+    final initial = widget.initial;
     String two(int v) => v.toString().padLeft(2, '0');
     // (標籤, 位數, 原本的值, 合法範圍)
     final segs = <(String, int, String, int, int)>[
@@ -837,23 +973,21 @@ class _DigitBoxes extends StatelessWidget {
       ('分', 2, two(initial.minute), 0, 59),
     ];
     final cells = <Widget>[];
-    var pos = 0;
+    var start = 0;
     for (var i = 0; i < segs.length; i++) {
       final (label, len, old, lo, hi) = segs[i];
-      final part = digits.length > pos
-          ? digits.substring(pos, (pos + len).clamp(0, digits.length))
-          : '';
-      final active = digits.length >= pos && digits.length < pos + len;
-      final full = part.length == len;
-      final bad = full && ((int.parse(part) < lo) || int.parse(part) > hi);
-      pos += len;
+      final mine = _cells.sublist(start, start + len);
+      final part = mine.takeWhile((c) => c != null).join();
+      final full = mine.every((c) => c != null);
+      final active = _focus.hasFocus && _pos >= start && _pos < start + len;
+      final bad = full && (int.parse(part) < lo || int.parse(part) > hi);
+      final segStart = start;
+      start += len;
       if (i > 0) {
-        final sep = segs[i].$1 == '日'
+        final sep = label == '日' || (label == '月' && withYear)
             ? '/'
-            : segs[i].$1 == '分'
+            : label == '分'
             ? ':'
-            : segs[i].$1 == '月' && withYear
-            ? '/'
             : '';
         cells.add(
           Container(
@@ -862,7 +996,6 @@ class _DigitBoxes extends StatelessWidget {
             alignment: Alignment.center,
             child: Text(
               sep,
-              textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 20, color: AppColors.ink3),
             ),
           ),
@@ -871,77 +1004,73 @@ class _DigitBoxes extends StatelessWidget {
       cells.add(
         Expanded(
           flex: len,
-          child: Column(
-            children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 120),
-                height: 52,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF161622),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: bad
-                        ? tradeDown
-                        : active
-                        ? AppColors.accent
-                        : const Color(0xFF2A2A3D),
-                    width: active || bad ? 2 : 1,
-                  ),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    part.isEmpty ? old : part,
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1,
-                      fontFeatures: const [FontFeature.tabularFigures()],
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => _tapSegment(segStart, len),
+            child: Column(
+              children: [
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 120),
+                  height: 52,
+                  alignment: Alignment.center,
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF161622),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
                       color: bad
                           ? tradeDown
-                          : part.isEmpty
-                          ? AppColors.ink3.withValues(alpha: 0.45)
-                          : AppColors.ink,
+                          : active
+                          ? AppColors.accent
+                          : const Color(0xFF2A2A3D),
+                      width: active || bad ? 2 : 1,
+                    ),
+                  ),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      part.isEmpty ? old : part,
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                        color: bad
+                            ? tradeDown
+                            : part.isEmpty
+                            ? AppColors.ink3.withValues(alpha: 0.45)
+                            : AppColors.ink,
+                      ),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 3),
-              Text(label, style: AppText.note.copyWith(fontSize: 10.5)),
-            ],
+                const SizedBox(height: 3),
+                Text(label, style: AppText.note.copyWith(fontSize: 10.5)),
+              ],
+            ),
           ),
         ),
       );
     }
     return Stack(
       children: [
-        Row(crossAxisAlignment: CrossAxisAlignment.start, children: cells),
-        // 真正接鍵盤的輸入框，蓋在格子上、看不見；點哪一格都是點它。
-        Positioned.fill(
-          bottom: 16,
+        // 看不見的輸入框：只負責叫出數字鍵盤、收打字。
+        Positioned(
+          left: 0,
+          top: 0,
+          width: 1,
+          height: 1,
           child: Opacity(
-            opacity: 0.01,
+            opacity: 0,
             child: TextField(
-              controller: controller,
+              controller: _input,
+              focusNode: _focus,
               autofocus: true,
               showCursor: false,
               keyboardType: TextInputType.number,
-              inputFormatters: [
-                TextInputFormatter.withFunction((oldValue, newValue) {
-                  final text = formatDateTimeDigits(
-                    newValue.text,
-                    withYear: withYear,
-                  );
-                  return TextEditingValue(
-                    text: text,
-                    selection: TextSelection.collapsed(offset: text.length),
-                  );
-                }),
-              ],
-              onSubmitted: (_) => onSubmitted(),
-              style: const TextStyle(color: Colors.transparent),
+              onChanged: _onChanged,
+              onSubmitted: (_) => widget.onSubmitted(),
+              onTapOutside: (_) => _focus.unfocus(),
               decoration: const InputDecoration(
                 border: InputBorder.none,
                 isCollapsed: true,
@@ -949,6 +1078,7 @@ class _DigitBoxes extends StatelessWidget {
             ),
           ),
         ),
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: cells),
       ],
     );
   }
@@ -1558,7 +1688,11 @@ class _NewTradeSheetState extends State<_NewTradeSheet> {
           _stepBox(_Step.time, [
             _fieldLabel('時間', trailing: _closed ? '補記以前的單可以改' : '預設現在'),
             _timeField('開倉時間', _openedAt, () async {
-              final t = await _pickDateTime(context, _openedAt);
+              final t = await _pickDateTime(
+                context,
+                _openedAt,
+                prefill: widget.initial != null,
+              );
               if (t == null || !mounted) return;
               setState(() {
                 _openedAt = t;
@@ -1567,7 +1701,11 @@ class _NewTradeSheetState extends State<_NewTradeSheet> {
             }),
             if (_closed) ...[
               _timeField('平倉時間', _closedAt, () async {
-                final t = await _pickDateTime(context, _closedAt);
+                final t = await _pickDateTime(
+                  context,
+                  _closedAt,
+                  prefill: widget.initial != null && !widget.initial!.isOpen,
+                );
                 if (t != null && mounted) setState(() => _closedAt = t);
               }),
               Padding(
