@@ -220,7 +220,11 @@ class YtVideoRow extends ConsumerStatefulWidget {
     this.fromCache = false,
     this.known,
     this.onWatchedChanged,
+    this.highlight,
   });
+
+  /// 搜尋關鍵字：標題裡符合的字標黃（2026-10-14 頻道頁搜尋）。
+  final String? highlight;
 
   /// 頁面已經讀好的「看過紀錄／有沒有隱藏」（2026-10-06 效能檢查：原本
   /// 每一列建出來都各自把整份看過紀錄、隱藏清單讀出來拆一次，100 列就
@@ -805,8 +809,11 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  video.title,
+                                Text.rich(
+                                  highlightedSpan(
+                                    video.title,
+                                    widget.highlight,
+                                  ),
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
@@ -928,4 +935,31 @@ String ytRelativeTime(DateTime t) {
     return (text: '影片', color: const Color(0xFF3D5AFE));
   }
   return null;
+}
+
+/// 把 [text] 裡符合 [query] 的地方（大小寫不分）標黃。
+TextSpan highlightedSpan(String text, String? query) {
+  final q = query?.trim().toLowerCase() ?? '';
+  if (q.isEmpty) return TextSpan(text: text);
+  final lower = text.toLowerCase();
+  final spans = <TextSpan>[];
+  var i = 0;
+  while (true) {
+    final hit = lower.indexOf(q, i);
+    if (hit < 0) break;
+    if (hit > i) spans.add(TextSpan(text: text.substring(i, hit)));
+    spans.add(
+      TextSpan(
+        text: text.substring(hit, hit + q.length),
+        style: const TextStyle(
+          color: Colors.white,
+          backgroundColor: Color(0x59F5C763),
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+    i = hit + q.length;
+  }
+  if (i < text.length) spans.add(TextSpan(text: text.substring(i)));
+  return TextSpan(children: spans);
 }

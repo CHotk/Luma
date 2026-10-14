@@ -887,6 +887,21 @@ class _YtDisplayPrefsRows extends ConsumerWidget {
           prefs.showBackToTop,
           (v) => update(prefs.copyWith(showBackToTop: v)),
         ),
+        // 頻道頁搜尋（2026-10-14）：範圍、要不要照篩選。
+        row(
+          Icons.travel_explore_rounded,
+          '頻道搜尋也問 YouTube',
+          prefs.searchUseApi ? '快取找完再把整個頻道影片抓完，抓過的不重抓' : '只搜抓過的影片，不花配額',
+          prefs.searchUseApi,
+          (v) => update(prefs.copyWith(searchUseApi: v)),
+        ),
+        row(
+          Icons.visibility_outlined,
+          '搜尋時列出已看過、已隱藏',
+          prefs.searchShowAll ? '不管「隱藏已看過／顯示已隱藏」，全部列出來' : '照「隱藏已看過／顯示已隱藏」篩',
+          prefs.searchShowAll,
+          (v) => update(prefs.copyWith(searchShowAll: v)),
+        ),
         // 影片下架檢查多久一次（2026-10-12 使用者要求：設定可調、跨裝置同步）。
         Padding(
           padding: const EdgeInsets.only(top: 6),

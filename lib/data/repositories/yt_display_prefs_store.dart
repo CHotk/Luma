@@ -9,6 +9,8 @@ class YtDisplayPrefs {
   const YtDisplayPrefs({
     this.videoIncludeCold = false,
     this.videoIncludePending = false,
+    this.searchUseApi = true,
+    this.searchShowAll = true,
     this.showScrollbar = true,
     this.showBackToTop = true,
     this.removedCheckDays = defaultRemovedCheckDays,
@@ -23,6 +25,14 @@ class YtDisplayPrefs {
   /// 「依影片顯示」要不要連待評鑑（還沒分區）的頻道一起抓（2026-10-14
   /// 使用者要求：跟冷藏一樣預設不抓，設定可以改）。
   final bool videoIncludePending;
+
+  /// 頻道頁搜尋：true＝快取找完再向 YouTube 把整個頻道抓完（預設），
+  /// false＝只搜快取、不打 API（2026-10-12 使用者定的規則）。
+  final bool searchUseApi;
+
+  /// 搜尋結果照樣列出已看過、已隱藏的（加標示），不受「隱藏已看過／
+  /// 顯示已隱藏」影響（預設）；false＝照那兩個開關篩。
+  final bool searchShowAll;
 
   /// 頻道詳情頁右側一直顯示捲動條（2026-10-12：預設開）。
   final bool showScrollbar;
@@ -55,6 +65,8 @@ class YtDisplayPrefs {
   YtDisplayPrefs copyWith({
     bool? videoIncludeCold,
     bool? videoIncludePending,
+    bool? searchUseApi,
+    bool? searchShowAll,
     bool? showScrollbar,
     bool? showBackToTop,
     int? removedCheckDays,
@@ -64,6 +76,8 @@ class YtDisplayPrefs {
   }) => YtDisplayPrefs(
     videoIncludeCold: videoIncludeCold ?? this.videoIncludeCold,
     videoIncludePending: videoIncludePending ?? this.videoIncludePending,
+    searchUseApi: searchUseApi ?? this.searchUseApi,
+    searchShowAll: searchShowAll ?? this.searchShowAll,
     showScrollbar: showScrollbar ?? this.showScrollbar,
     showBackToTop: showBackToTop ?? this.showBackToTop,
     removedCheckDays: removedCheckDays ?? this.removedCheckDays,
@@ -75,6 +89,8 @@ class YtDisplayPrefs {
   Map<String, dynamic> toJson() => {
     'videoIncludeCold': videoIncludeCold,
     'videoIncludePending': videoIncludePending,
+    'searchUseApi': searchUseApi,
+    'searchShowAll': searchShowAll,
     'showScrollbar': showScrollbar,
     'showBackToTop': showBackToTop,
     'removedCheckDays': removedCheckDays,
@@ -87,6 +103,8 @@ class YtDisplayPrefs {
   factory YtDisplayPrefs.fromJson(Map<String, dynamic> j) => YtDisplayPrefs(
     videoIncludeCold: j['videoIncludeCold'] as bool? ?? false,
     videoIncludePending: j['videoIncludePending'] as bool? ?? false,
+    searchUseApi: j['searchUseApi'] as bool? ?? true,
+    searchShowAll: j['searchShowAll'] as bool? ?? true,
     showScrollbar: j['showScrollbar'] as bool? ?? true,
     showBackToTop: j['showBackToTop'] as bool? ?? true,
     removedCheckDays:

@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lume/app/providers.dart';
 import 'package:lume/data/repositories/yt_tracker_repository.dart';
+import 'package:lume/data/repositories/yt_video_cache_store.dart';
+import 'package:lume/data/services/youtube_api_service.dart';
 import 'package:lume/data/storage/key_value_store.dart';
 import 'package:lume/domain/models/yt_tracker.dart';
 import 'package:lume/features/yt_tracker/yt_tracker_channel_page.dart';
@@ -100,6 +102,65 @@ void main() {
       () => YtTrackerRepository(store).loadChannels(),
     );
     expect(saved!.single.name, '頻道A');
+  });
+
+  testWidgets('頻道頁搜尋（設計稿第 1 版）：點放大鏡、按 Enter 出結果，返回收起', (tester) async {
+    tester.view.physicalSize = const Size(400, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final store = _MemoryStore();
+    await tester.runAsync(() async {
+      await YtTrackerRepository(store).addChannel(
+        YtChannel(
+          id: 'a',
+          name: '頻道A',
+          categoryId: null,
+          addedAt: DateTime(2026, 9, 1),
+        ),
+      );
+      await YtVideoCacheStore(store).upsertVideos('a', [
+        for (final (day, title) in [(1, '黑洞的祕密'), (2, '宇宙盡頭'), (3, '又是黑洞')])
+          YoutubeVideo(
+            videoId: 'v$day',
+            title: title,
+            publishedAt: DateTime(2026, 9, day),
+            thumbnailUrl: '',
+          ),
+      ]);
+    });
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [keyValueStoreProvider.overrideWithValue(store)],
+        child: const MaterialApp(home: YtTrackerChannelPage(channelId: 'a')),
+      ),
+    );
+    Future<void> settle() async {
+      for (var i = 0; i < 6; i++) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 20)),
+        );
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+    }
+
+    await settle();
+    await tester.tap(find.byTooltip('搜尋這個頻道的影片'));
+    await settle();
+    expect(find.byType(TextField), findsOneWidget);
+    await tester.enterText(find.byType(TextField), '黑洞');
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await settle();
+    expect(tester.takeException(), isNull);
+    // 沒金鑰：只搜快取。
+    expect(find.textContaining('只搜快取（3 部）'), findsOneWidget);
+    expect(find.textContaining('黑洞的祕密', findRichText: true), findsOneWidget);
+    expect(find.textContaining('又是黑洞', findRichText: true), findsOneWidget);
+    expect(find.textContaining('宇宙盡頭', findRichText: true), findsNothing);
+
+    await tester.tap(find.byTooltip('收起搜尋'));
+    await settle();
+    expect(find.byType(TextField), findsNothing);
+    expect(find.text('全部'), findsOneWidget);
   });
 }
 

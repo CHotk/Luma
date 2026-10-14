@@ -9,10 +9,12 @@ import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
 import '../../data/repositories/yt_channel_log_store.dart';
 import '../../data/repositories/yt_display_prefs_store.dart';
+import '../../data/repositories/yt_search_recents_store.dart';
 import '../../data/repositories/yt_video_cache_store.dart';
 import '../../data/repositories/yt_video_hidden_store.dart';
 import '../../data/repositories/yt_video_watch_store.dart';
 import '../../data/services/youtube_api_service.dart';
+import '../../data/services/yt_channel_search.dart';
 import '../../data/services/yt_removed_video_checker.dart';
 import '../../data/services/yt_video_type_scanner.dart';
 import '../../domain/models/yt_tracker.dart';
@@ -157,6 +159,16 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
   bool _typedLoading = false;
   String? _typedError;
 
+  /// 頻道頁搜尋（2026-10-14 使用者選了設計稿第 1 版「頂部放大鏡」，
+  /// YouTube App 頻道頁就是這樣）：點右上角 🔍，整條頂部列變成搜尋框，
+  /// 按 Enter 後下面整頁換成結果；← 收起回到原本的頁面、原本的位置。
+  /// 怎麼找見 [YtChannelSearch]。
+  bool _searchOpen = false;
+  final _searchCtrl = TextEditingController();
+  YtChannelSearch? _search;
+  List<String> _recents = const [];
+  double _scrollBeforeSearch = 0;
+
   @override
   void initState() {
     super.initState();
@@ -179,8 +191,90 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
 
   @override
   void dispose() {
+    _search?.cancel();
+    _search?.dispose();
+    _searchCtrl.dispose();
     _scroll.dispose();
     super.dispose();
+  }
+
+  Future<void> _openSearch() async {
+    _scrollBeforeSearch = _scroll.hasClients ? _scroll.offset : 0;
+    setState(() => _searchOpen = true);
+    if (_scroll.hasClients) _scroll.jumpTo(0);
+    final recents = await YtSearchRecentsStore(
+      ref.read(keyValueStoreProvider),
+    ).load();
+    if (mounted) setState(() => _recents = recents);
+  }
+
+  void _stopSearch() {
+    _search?.cancel();
+    _search?.dispose();
+    _search = null;
+  }
+
+  void _closeSearch() {
+    _stopSearch();
+    _searchCtrl.clear();
+    setState(() => _searchOpen = false);
+    // 回到開搜尋前看到的地方。
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scroll.hasClients) return;
+      _scroll.jumpTo(
+        _scrollBeforeSearch.clamp(0.0, _scroll.position.maxScrollExtent),
+      );
+    });
+  }
+
+  void _clearSearch() {
+    _stopSearch();
+    _searchCtrl.clear();
+    setState(() {});
+  }
+
+  Future<void> _submitSearch(YtChannel channel, String query) async {
+    final q = query.trim();
+    if (q.isEmpty) return _clearSearch();
+    if (_searchCtrl.text != q) _searchCtrl.text = q;
+    _stopSearch();
+    final store = ref.read(keyValueStoreProvider);
+    final prefs = ref.read(ytDisplayPrefsProvider);
+    final apiKey = ref.read(ytApiKeyProvider);
+    final service = prefs.searchUseApi && apiKey != null && apiKey.isNotEmpty
+        ? YoutubeApiService(apiKey)
+        : null;
+    final search = YtChannelSearch(
+      channelId: channel.id,
+      query: q,
+      cache: YtVideoCacheStore(store),
+      api: service,
+      totalOnYoutube: channel.videoCount,
+      uploadsId: () async {
+        if (_uploadsId == null && _videosFuture != null) {
+          // 第一頁還在抓（裡面會順便查出上傳清單 id）。
+          try {
+            await _videosFuture;
+          } catch (_) {}
+        }
+        return _uploadsId ??
+            (channel.uploadsPlaylistId.isEmpty
+                ? null
+                : channel.uploadsPlaylistId);
+      },
+      withDurations: service == null
+          ? null
+          : (videos) => _withDurations(service, videos),
+    )..addListener(_onSearchChanged);
+    setState(() => _search = search);
+    FocusManager.instance.primaryFocus?.unfocus();
+    final recents = await YtSearchRecentsStore(store).add(q);
+    if (mounted) setState(() => _recents = recents);
+    await search.run();
+  }
+
+  void _onSearchChanged() {
+    if (mounted) setState(() {});
   }
 
   /// 設定開著才包一層一直顯示、可拖的捲動條（2026-10-12 使用者要求）。
@@ -198,6 +292,7 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     final pos = _scroll.position;
     final showTop = pos.pixels > _backToTopAfter;
     if (showTop != _showBackToTop) setState(() => _showBackToTop = showTop);
+    if (_searchOpen) return;
     if (pos.pixels < pos.maxScrollExtent - 300) return;
     // 選了特定類型就是翻那個類型自己的清單，跟「全部」是兩份分開的
     // 分頁狀態，見 `_loadTypedVideos` 的說明。
@@ -529,33 +624,41 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
   /// 每次切篩選、隱藏一部、背景補完標籤，全部都要重算一次；改成清單只建
   /// 畫面上看得到的（上下多準備一小段），捲過去的收掉，縮圖有圖片快取，
   /// 捲回來不用重新下載。
-  Widget _videoRows(List<YoutubeVideo> list, {bool allFromCache = false}) =>
-      SliverList.separated(
-        itemCount: list.length,
-        separatorBuilder: (_, _) =>
-            const Divider(height: 1, color: AppColors.glassEdge),
-        itemBuilder: (_, i) => YtVideoRow(
-          // 一定要給明確的 key，理由跟 yt_tracker_browse_page.dart
-          // 那邊一樣：篩選開關一切換，清單位置就會洗牌，沒有 key
-          // 的話 Flutter 照位置重用 State，「已看過」狀態會錯配到
-          // 別支影片上（2026-09-30 使用者回報抓到）。
-          key: ValueKey(list[i].videoId),
-          video: list[i],
-          subtitle: ytRelativeTime(list[i].publishedAt),
-          forceShow: _hiddenVideoIds.contains(list[i].videoId),
-          known: (
-            watched: _watchedRecords[list[i].videoId],
-            hidden: _hiddenVideoIds.contains(list[i].videoId),
-          ),
-          // 點開影片：只更新這一筆，不用整份重讀。
-          onWatchedChanged: (record) => setState(() {
-            _watchedRecords = {..._watchedRecords, list[i].videoId: record};
-            _watchedVideoIds = {..._watchedVideoIds, list[i].videoId};
-          }),
-          onHiddenChanged: _loadVideoFilters,
-          fromCache: allFromCache || _cachedVideoIds.contains(list[i].videoId),
-        ),
-      );
+  Widget _videoRows(
+    List<YoutubeVideo> list, {
+    bool allFromCache = false,
+    String? highlight,
+    Set<String> justFetched = const {},
+    bool forceShowHidden = false,
+  }) => SliverList.separated(
+    itemCount: list.length,
+    separatorBuilder: (_, _) =>
+        const Divider(height: 1, color: AppColors.glassEdge),
+    itemBuilder: (_, i) => YtVideoRow(
+      // 一定要給明確的 key，理由跟 yt_tracker_browse_page.dart
+      // 那邊一樣：篩選開關一切換，清單位置就會洗牌，沒有 key
+      // 的話 Flutter 照位置重用 State，「已看過」狀態會錯配到
+      // 別支影片上（2026-09-30 使用者回報抓到）。
+      key: ValueKey(list[i].videoId),
+      video: list[i],
+      subtitle: justFetched.contains(list[i].videoId)
+          ? '${ytRelativeTime(list[i].publishedAt)}・剛從 YouTube 抓到'
+          : ytRelativeTime(list[i].publishedAt),
+      highlight: highlight,
+      forceShow: forceShowHidden || _hiddenVideoIds.contains(list[i].videoId),
+      known: (
+        watched: _watchedRecords[list[i].videoId],
+        hidden: _hiddenVideoIds.contains(list[i].videoId),
+      ),
+      // 點開影片：只更新這一筆，不用整份重讀。
+      onWatchedChanged: (record) => setState(() {
+        _watchedRecords = {..._watchedRecords, list[i].videoId: record};
+        _watchedVideoIds = {..._watchedVideoIds, list[i].videoId};
+      }),
+      onHiddenChanged: _loadVideoFilters,
+      fromCache: allFromCache || _cachedVideoIds.contains(list[i].videoId),
+    ),
+  );
 
   // 切類型篩選（2026-09-30 使用者要求）。原本的做法是抓全部上傳清單，
   // 用另外抓來的 50 部樣本 id 去核對「這部是不是 Shorts／直播」——這招
@@ -1506,9 +1609,11 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
   Widget build(BuildContext context) {
     // 編輯中有改東西沒存：返回先問要不要放棄。
     return PopScope(
-      canPop: _changedCount == 0,
+      canPop: _changedCount == 0 && !_searchOpen,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
+        // 搜尋中按返回：先收起搜尋，不離開頁面。
+        if (_searchOpen) return _closeSearch();
         if (!await _confirmDiscard() || !mounted) return;
         setState(() => _draft = null);
         Navigator.of(this.context).pop();
@@ -1582,50 +1687,67 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          AppTopBar(
-                            title: _draft?.name ?? channel.name,
-                            // 名字太長走馬燈（2026-10-12 使用者要求）。
-                            marqueeTitle: true,
-                            showSettings: !_editing,
-                            // 順序：編輯、紀錄（2026-10-06 使用者要求紀錄放
-                            // 編輯右邊）。刪除鈕 2026-10-12 拿掉：分類頁長按
-                            // 就能刪（使用者要求）。
-                            actions: _editing
-                                ? [
-                                    TextButton(
-                                      onPressed: _finishEdit,
-                                      child: const Text(
-                                        '完成',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w800,
+                          if (_searchOpen)
+                            _SearchBar(
+                              controller: _searchCtrl,
+                              onBack: _closeSearch,
+                              onClear: _clearSearch,
+                              onSubmit: (q) => _submitSearch(channel, q),
+                            )
+                          else
+                            AppTopBar(
+                              title: _draft?.name ?? channel.name,
+                              // 名字太長走馬燈（2026-10-12 使用者要求）。
+                              marqueeTitle: true,
+                              showSettings: !_editing,
+                              // 順序：編輯、紀錄（2026-10-06 使用者要求紀錄放
+                              // 編輯右邊）。刪除鈕 2026-10-12 拿掉：分類頁長按
+                              // 就能刪（使用者要求）。
+                              actions: _editing
+                                  ? [
+                                      TextButton(
+                                        onPressed: _finishEdit,
+                                        child: const Text(
+                                          '完成',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w800,
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                  ]
-                                : [
-                                    IconButton(
-                                      onPressed: () => _startEdit(channel),
-                                      icon: const Icon(
-                                        Icons.edit_outlined,
-                                        size: 20,
+                                    ]
+                                  : [
+                                      IconButton(
+                                        onPressed: _openSearch,
+                                        icon: const Icon(
+                                          Icons.search_rounded,
+                                          size: 21,
+                                        ),
+                                        color: AppColors.ink2,
+                                        tooltip: '搜尋這個頻道的影片',
                                       ),
-                                      color: AppColors.ink2,
-                                      tooltip: '編輯頻道',
-                                    ),
-                                    // 頻道紀錄（2026-10-06）：看影片、換分類、刪除還原…
-                                    IconButton(
-                                      onPressed: () => context.push(
-                                        '/yt-tracker/channel/${channel.id}/log',
+                                      IconButton(
+                                        onPressed: () => _startEdit(channel),
+                                        icon: const Icon(
+                                          Icons.edit_outlined,
+                                          size: 20,
+                                        ),
+                                        color: AppColors.ink2,
+                                        tooltip: '編輯頻道',
                                       ),
-                                      icon: const Icon(
-                                        Icons.history_rounded,
-                                        size: 20,
+                                      // 頻道紀錄（2026-10-06）：看影片、換分類、刪除還原…
+                                      IconButton(
+                                        onPressed: () => context.push(
+                                          '/yt-tracker/channel/${channel.id}/log',
+                                        ),
+                                        icon: const Icon(
+                                          Icons.history_rounded,
+                                          size: 20,
+                                        ),
+                                        color: AppColors.ink2,
+                                        tooltip: '紀錄',
                                       ),
-                                      color: AppColors.ink2,
-                                      tooltip: '紀錄',
-                                    ),
-                                  ],
-                          ),
+                                    ],
+                            ),
                           const SizedBox(height: Gap.md),
                           if (_editing) ...[
                             const _EditingBanner(),
@@ -1667,24 +1789,28 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                                     prefs.showScrollbar,
                                     CustomScrollView(
                                       controller: _scroll,
-                                      slivers: [
-                                        SliverToBoxAdapter(
-                                          child: _buildChannelBody(
-                                            channel,
-                                            categories,
-                                            categoryLabel,
-                                          ),
-                                        ),
-                                        if (_editing)
-                                          SliverIgnorePointer(
-                                            sliver: SliverOpacity(
-                                              opacity: 0.3,
-                                              sliver: _buildVideos(channel),
-                                            ),
-                                          )
-                                        else
-                                          _buildVideos(channel),
-                                      ],
+                                      slivers: _searchOpen
+                                          ? _buildSearch(channel)
+                                          : [
+                                              SliverToBoxAdapter(
+                                                child: _buildChannelBody(
+                                                  channel,
+                                                  categories,
+                                                  categoryLabel,
+                                                ),
+                                              ),
+                                              if (_editing)
+                                                SliverIgnorePointer(
+                                                  sliver: SliverOpacity(
+                                                    opacity: 0.3,
+                                                    sliver: _buildVideos(
+                                                      channel,
+                                                    ),
+                                                  ),
+                                                )
+                                              else
+                                                _buildVideos(channel),
+                                            ],
                                     ),
                                   ),
                                 ),
@@ -1728,6 +1854,96 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
         ),
       ),
     );
+  }
+
+  /// 搜尋頁的內容：還沒搜是最近搜尋；搜了是狀態列＋結果。
+  List<Widget> _buildSearch(YtChannel channel) {
+    final search = _search;
+    if (search == null) {
+      return [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(2, 2, 2, 6),
+            child: Text(
+              _recents.isEmpty ? '輸入關鍵字，按 Enter 搜尋這個頻道的影片標題' : '最近搜尋',
+              style: AppText.note,
+            ),
+          ),
+        ),
+        SliverList.list(
+          children: [
+            for (final r in _recents)
+              InkWell(
+                onTap: () => _submitSearch(channel, r),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.history_rounded,
+                        size: 18,
+                        color: AppColors.ink3,
+                      ),
+                      const SizedBox(width: Gap.sm),
+                      Expanded(child: Text(r, style: AppText.bodyDim)),
+                      IconButton(
+                        onPressed: () async {
+                          final next = await YtSearchRecentsStore(
+                            ref.read(keyValueStoreProvider),
+                          ).remove(r);
+                          if (mounted) setState(() => _recents = next);
+                        },
+                        icon: const Icon(Icons.close_rounded, size: 16),
+                        color: AppColors.ink3,
+                        tooltip: '刪掉這筆',
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ];
+    }
+    final prefs = ref.watch(ytDisplayPrefsProvider);
+    final results = prefs.searchShowAll
+        ? search.matches
+        : search.matches.where(_passesBaseFilters).toList();
+    final filteredOut = search.matches.length - results.length;
+    return [
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: Gap.sm),
+          child: _SearchStatus(
+            search: search,
+            shown: results.length,
+            filteredOut: filteredOut,
+            onRetry: search.run,
+          ),
+        ),
+      ),
+      if (results.isEmpty && search.done)
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 30),
+            child: Center(
+              child: Text(
+                search.usesApi
+                    ? '「${search.query}」整個頻道都找不到'
+                    : '快取裡找不到「${search.query}」',
+                style: AppText.note,
+              ),
+            ),
+          ),
+        ),
+      _videoRows(
+        results,
+        highlight: search.query,
+        justFetched: search.fetchedIds,
+        forceShowHidden: prefs.searchShowAll,
+      ),
+      const SliverToBoxAdapter(child: SizedBox(height: 40)),
+    ];
   }
 
   Widget _buildChannelBody(
@@ -2524,6 +2740,189 @@ class _AvatarSheetState extends State<_AvatarSheet> {
             selected: noImage,
             onTap: () => Navigator.pop(context, const _AvatarChoice.url('')),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 搜尋時取代頂部列的搜尋框（設計稿第 1 版）：左邊 ← 收起，鍵盤直接跳出。
+class _SearchBar extends StatelessWidget {
+  const _SearchBar({
+    required this.controller,
+    required this.onBack,
+    required this.onClear,
+    required this.onSubmit,
+  });
+
+  final TextEditingController controller;
+  final VoidCallback onBack;
+  final VoidCallback onClear;
+  final ValueChanged<String> onSubmit;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        IconButton(
+          onPressed: onBack,
+          icon: const Icon(Icons.arrow_back_rounded),
+          color: AppColors.ink2,
+          tooltip: '收起搜尋',
+        ),
+        Expanded(
+          child: ListenableBuilder(
+            listenable: controller,
+            builder: (context, _) => TextField(
+              controller: controller,
+              autofocus: true,
+              textInputAction: TextInputAction.search,
+              onSubmitted: onSubmit,
+              style: const TextStyle(fontSize: 14, color: AppColors.ink),
+              decoration: InputDecoration(
+                isDense: true,
+                hintText: '搜尋這個頻道的影片',
+                hintStyle: const TextStyle(color: AppColors.ink3),
+                prefixIcon: const Icon(
+                  Icons.search_rounded,
+                  size: 19,
+                  color: AppColors.ink3,
+                ),
+                suffixIcon: controller.text.isEmpty
+                    ? null
+                    : IconButton(
+                        onPressed: onClear,
+                        icon: const Icon(Icons.close_rounded, size: 17),
+                        color: AppColors.ink3,
+                        tooltip: '清掉',
+                      ),
+                filled: true,
+                fillColor: AppColors.glassFill,
+                contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: AppColors.glassEdge),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: AppColors.glassEdge),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: AppColors.accent),
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: Gap.xs),
+      ],
+    );
+  }
+}
+
+/// 搜尋狀態：快取找到幾部、YouTube 抓到哪了、是不是整個頻道都找過了。
+class _SearchStatus extends StatelessWidget {
+  const _SearchStatus({
+    required this.search,
+    required this.shown,
+    required this.filteredOut,
+    required this.onRetry,
+  });
+
+  final YtChannelSearch search;
+  final int shown;
+  final int filteredOut;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = search;
+    final found = TextSpan(
+      text: '$shown',
+      style: const TextStyle(color: AppColors.ink, fontWeight: FontWeight.w800),
+    );
+    final hiddenNote = filteredOut > 0
+        ? '（另有 $filteredOut 部被「隱藏已看過／顯示已隱藏」篩掉）'
+        : '';
+    final List<InlineSpan> text;
+    double? progress;
+    var showBar = false;
+    if (s.error != null) {
+      text = [
+        TextSpan(text: '抓到一半失敗：${s.error}・目前找到 '),
+        found,
+        const TextSpan(text: ' 部'),
+      ];
+    } else if (!s.usesApi) {
+      text = [
+        TextSpan(text: '只搜快取（${s.cachedCount} 部）・找到 '),
+        found,
+        TextSpan(
+          text: shown == 0 && filteredOut == 0
+              ? ' 部・設定打開「頻道搜尋也問 YouTube」可以搜整個頻道'
+              : ' 部$hiddenNote',
+        ),
+      ];
+    } else if (!s.done) {
+      final total = s.totalOnYoutube;
+      showBar = true;
+      if (total != null && total > 0) {
+        progress = (s.scanned / total).clamp(0.0, 1.0);
+      }
+      text = [
+        TextSpan(
+          text: s.scanned == s.cachedCount
+              ? '快取找完，正在向 YouTube 抓這個頻道其他影片…'
+              : '正在向 YouTube 抓這個頻道其他影片… ${s.scanned}'
+                    '${total == null ? '' : '／$total'} 部',
+        ),
+        const TextSpan(text: '・目前找到 '),
+        found,
+        TextSpan(text: ' 部$hiddenNote'),
+      ];
+    } else {
+      text = [
+        TextSpan(
+          text: '✓ 整個頻道 ${s.scanned} 部都找過了',
+          style: const TextStyle(color: AppColors.ok),
+        ),
+        const TextSpan(text: '・找到 '),
+        found,
+        TextSpan(text: ' 部$hiddenNote'),
+      ];
+    }
+    return Container(
+      padding: const EdgeInsets.fromLTRB(11, 9, 11, 9),
+      decoration: BoxDecoration(
+        color: AppColors.accent.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.accent.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text.rich(
+            TextSpan(children: text),
+            style: const TextStyle(fontSize: 11.5, color: AppColors.ink2),
+          ),
+          if (showBar) ...[
+            const SizedBox(height: 6),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: 4,
+                color: AppColors.accent,
+                backgroundColor: const Color(0xFF23233A),
+              ),
+            ),
+          ],
+          if (s.error != null)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(onPressed: onRetry, child: const Text('重試')),
+            ),
         ],
       ),
     );
