@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../app/app_bottom_nav.dart' show FloatingNavInset;
 import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
@@ -425,6 +426,7 @@ class _YtChannelLogPageState extends ConsumerState<YtChannelLogPage> {
     return GlassCard(
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
       child: ListView.builder(
+        padding: EdgeInsets.only(bottom: FloatingNavInset.of(context)),
         itemCount: rows.length,
         itemBuilder: (_, i) => rows[i],
       ),

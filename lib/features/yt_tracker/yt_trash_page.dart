@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../app/app_bottom_nav.dart' show FloatingNavInset;
 import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
@@ -166,6 +167,12 @@ class _YtTrashPageState extends ConsumerState<YtTrashPage> {
                                       onLongPress: null,
                                     );
                                   },
+                                ),
+                              ),
+                              // 底部浮動分頁列擋住的高度（2026-10-14）。
+                              SliverToBoxAdapter(
+                                child: SizedBox(
+                                  height: FloatingNavInset.of(context),
                                 ),
                               ),
                             ],

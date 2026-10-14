@@ -768,6 +768,7 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
     }
     if (channels.isEmpty && inScope.isNotEmpty) {
       return SingleChildScrollView(
+        padding: EdgeInsets.only(bottom: FloatingNavInset.of(context)),
         child: InlineEmptyCard(
           title: '這裡都是冷藏或待評鑑的頻道',
           message: '依影片顯示預設不抓冷藏、待評鑑的頻道，要一起抓可以到設定打開',
@@ -781,6 +782,7 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
     }
     if (channels.isEmpty) {
       return SingleChildScrollView(
+        padding: EdgeInsets.only(bottom: FloatingNavInset.of(context)),
         child: InlineEmptyCard(
           title: '這個分類還沒有頻道',
           message: '換個分類看看，或到首頁新增頻道',
@@ -901,6 +903,9 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                     }
                     if (snap.hasError) {
                       return SingleChildScrollView(
+                        padding: EdgeInsets.only(
+                          bottom: FloatingNavInset.of(context),
+                        ),
                         child: InlineEmptyCard(
                           title: '影片抓不下來',
                           message: '${snap.error}',
@@ -918,6 +923,9 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                     if (videos.isEmpty) {
                       final typed = _typeFilter != _TypeFilter.all;
                       return SingleChildScrollView(
+                        padding: EdgeInsets.only(
+                          bottom: FloatingNavInset.of(context),
+                        ),
                         child: InlineEmptyCard(
                           title: '這裡空空的',
                           message: typed
@@ -1917,6 +1925,7 @@ class _ChannelGridState extends State<_ChannelGrid> {
     final channels = widget.channels;
     if (channels.isEmpty) {
       return SingleChildScrollView(
+        padding: EdgeInsets.only(bottom: FloatingNavInset.of(context)),
         child: widget.trash
             ? const InlineEmptyCard(title: '這個分類沒有被刪除的頻道', message: '換個分類看看')
             : const InlineEmptyCard(

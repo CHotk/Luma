@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app/app_bottom_nav.dart' show FloatingNavInset;
 import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
@@ -108,6 +109,9 @@ class _YtCategoryOrderPageState extends ConsumerState<YtCategoryOrderPage> {
                           children: [
                             Expanded(
                               child: ReorderableListView.builder(
+                                padding: EdgeInsets.only(
+                                  bottom: FloatingNavInset.of(context),
+                                ),
                                 itemCount: categories.length,
                                 onReorder: _onReorder,
                                 itemBuilder: (context, i) {

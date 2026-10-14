@@ -12,6 +12,8 @@ const _nonEnglishPrefixes = [
   // 負債管理（2026-10-08：齒輪裡改密碼，跟日記同一組）。
   '/debt',
   '/yt-tracker',
+  // 播放清單也是 YT 的（2026-10-14 使用者回報：齒輪跑到首頁的設定）。
+  '/yt-playlists',
   '/fitness',
   '/sync',
   '/debug-log',

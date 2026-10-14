@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app/app_bottom_nav.dart' show FloatingNavInset;
 import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
@@ -63,6 +64,9 @@ class YtPurgedChannelsPage extends ConsumerWidget {
                         );
                       }
                       return ListView.separated(
+                        padding: EdgeInsets.only(
+                          bottom: FloatingNavInset.of(context),
+                        ),
                         itemCount: channels.length + 1,
                         separatorBuilder: (_, _) => const Divider(
                           height: 1,

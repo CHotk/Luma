@@ -41,7 +41,9 @@ class OtherSettingsPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isYtTracker = fromLocation?.startsWith('/yt-tracker') ?? false;
+    final isYtTracker =
+        (fromLocation?.startsWith('/yt-tracker') ?? false) ||
+        (fromLocation?.startsWith('/yt-playlists') ?? false);
     final isDiary = fromLocation?.startsWith('/diary') ?? false;
     // 負債管理的齒輪也能改密碼，跟日記同一組（2026-10-08 使用者要求：
     // 在負債改了，日記也跟著改），所以直接用同一個設定區塊。
@@ -408,6 +410,20 @@ class _YtTrackerSettings extends ConsumerWidget {
     return ListView(
       children: [
         Text('YT 頻道追蹤', style: AppText.note),
+        const SizedBox(height: Gap.sm),
+        // 底部分頁列放最上面（2026-10-14 使用者回報：在 YT 設定找不到
+        // 「影片」要開哪個頻道）。顯示方式跟首頁設定那張是同一份。
+        const _NavBarModeCard(),
+        const SizedBox(height: Gap.sm),
+        GlassCard(
+          child: Consumer(
+            builder: (context, ref, _) => _VideoTabChannelRow(
+              channelId: ref.watch(
+                ytDisplayPrefsProvider.select((p) => p.videoTabChannelId),
+              ),
+            ),
+          ),
+        ),
         const SizedBox(height: Gap.sm),
         GlassCard(
           child: Column(
@@ -940,8 +956,6 @@ class _YtDisplayPrefsRows extends ConsumerWidget {
           prefs.showBackToTop,
           (v) => update(prefs.copyWith(showBackToTop: v)),
         ),
-        // 底部分頁列「影片」那格開哪個頻道（2026-10-14，跨裝置同步）。
-        _VideoTabChannelRow(channelId: prefs.videoTabChannelId),
         // 頻道頁搜尋（2026-10-14）：範圍、要不要照篩選。
         row(
           Icons.travel_explore_rounded,
