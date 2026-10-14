@@ -560,8 +560,9 @@ TextSpan _strong(String s, {Color color = AppColors.ink, double? size}) =>
 
 /// 日期跟時間一起在同一格打（2026-10-14 使用者要求：原本先跳日期、再跳
 /// 時間兩段很麻煩）。只打數字就好，斜線、空白、冒號自動補：
-/// 「10142140」→「10/14 21:40」；要打年份就從 20 開頭
-/// 「202510142140」→「2025/10/14 21:40」。打開是空的、鍵盤直接出來。
+/// 「10142140」→「10/14 21:40」；月、日、時、分各一格（[_DigitBoxes]）。
+/// 年份預設今年，要改按「加年份」多一格（2026-10-14 使用者要求）。打開是
+/// 空的、鍵盤直接出來。
 /// 不能選未來；取消回傳 null。
 ///
 /// 2026-10-10 使用者要求一打開就是直接打字（不用先在月曆、時鐘上點），
@@ -573,11 +574,10 @@ Future<DateTime?> _pickDateTime(BuildContext context, DateTime initial) =>
       builder: (_) => _DateTimeDialog(initial: initial),
     );
 
-/// 只留數字，照位數補上「/」「 」「:」。20 開頭當成有年份。
+/// 只留數字，照位數補上「/」「 」「:」。[withYear] 時前面多 4 位年份。
 @visibleForTesting
-String formatDateTimeDigits(String input) {
+String formatDateTimeDigits(String input, {bool withYear = false}) {
   final d = input.replaceAll(RegExp(r'\D'), '');
-  final withYear = d.startsWith('20');
   final digits = d.substring(0, math.min(d.length, withYear ? 12 : 8));
   final seps = withYear
       ? {4: '/', 6: '/', 8: ' ', 10: ':'}
@@ -590,26 +590,31 @@ String formatDateTimeDigits(String input) {
   return out.toString();
 }
 
-/// 「10/14 21:40」或「2025/10/14 21:40」→ 時間；不完整、不存在的日期
-/// （例如 2/30）回 null。沒寫年份的用今年，今年的這天還沒到就當去年。
+/// 「10/14 21:40」或（[withYear]）「2025/10/14 21:40」→ 時間；不完整、不存在
+/// 的日期（例如 2/30）回 null。沒有年份就是今年（2026-10-14 使用者要求：
+/// 沒選年份都當今年；是未來的話視窗會說「不能是未來」）。
 @visibleForTesting
-DateTime? parseTradeDateTime(String text, {DateTime? now}) {
+DateTime? parseTradeDateTime(
+  String text, {
+  DateTime? now,
+  bool withYear = false,
+}) {
   now ??= DateTime.now();
   final d = text.replaceAll(RegExp(r'\D'), '');
   int n(int a, int b) => int.parse(d.substring(a, b));
   int y, mo, da, h, mi;
-  if (d.startsWith('20') && d.length == 12) {
+  if (withYear && d.length == 12) {
     (y, mo, da, h, mi) = (n(0, 4), n(4, 6), n(6, 8), n(8, 10), n(10, 12));
-  } else if (!d.startsWith('20') && d.length == 8) {
+  } else if (!withYear && d.length == 8) {
     (y, mo, da, h, mi) = (now.year, n(0, 2), n(2, 4), n(4, 6), n(6, 8));
   } else {
     return null;
   }
-  if (h > 23 || mi > 59) return null;
-  var t = DateTime(y, mo, da, h, mi);
+  // 不合法的一律不算（2026-10-14 使用者要求：別出現 24:01 這種）：時 0–23、
+  // 分 0–59、日期要真的存在（2/30、13 月都不行）、年份 2010 以後。
+  if (h > 23 || mi > 59 || y < 2010) return null;
+  final t = DateTime(y, mo, da, h, mi);
   if (t.month != mo || t.day != da) return null;
-  final noYear = !d.startsWith('20');
-  if (noYear && t.isAfter(now)) t = DateTime(y - 1, mo, da, h, mi);
   return t;
 }
 
@@ -637,6 +642,20 @@ class _DateTimeDialogState extends State<_DateTimeDialog> {
   /// 先後）。平常收起來，點「加秒數」才出現；只用來排先後，畫面上不顯示。
   /// 原本就有秒數的，收起來時照樣保留，點開時先填好。
   bool _showSec = false;
+
+  /// 多一格「年」（2026-10-14 使用者要求：用文字按鈕選要不要，沒選就是今年）。
+  bool _withYear = false;
+
+  void _toggleYear() {
+    final digits = _ctrl.text.replaceAll(RegExp(r'\D'), '');
+    setState(() => _withYear = !_withYear);
+    // 已經打的月日時分留著：開年份就在前面補今年，關掉就拿掉年份。
+    final next = _withYear
+        ? '${DateTime.now().year}$digits'
+        : (digits.length > 4 ? digits.substring(4) : '');
+    _ctrl.text = formatDateTimeDigits(next, withYear: _withYear);
+  }
+
   late final _secCtrl = TextEditingController(
     text: widget.initial.second == 0 ? '' : '${widget.initial.second}',
   )..addListener(() => setState(() {}));
@@ -653,8 +672,9 @@ class _DateTimeDialogState extends State<_DateTimeDialog> {
         t.hour == i.hour &&
         t.minute == i.minute;
     final sec = _showSec
-        ? (int.tryParse(_secCtrl.text) ?? 0).clamp(0, 59)
+        ? (int.tryParse(_secCtrl.text) ?? 0)
         : (sameMinute ? i.second : 0);
+    if (sec > 59) return null;
     return t.add(Duration(seconds: sec));
   }
 
@@ -668,14 +688,22 @@ class _DateTimeDialogState extends State<_DateTimeDialog> {
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
-    final t = _withSeconds(parseTradeDateTime(_ctrl.text, now: now));
+    final t = _withSeconds(
+      parseTradeDateTime(_ctrl.text, now: now, withYear: _withYear),
+    );
     final future = t != null && t.isAfter(now);
     final ok = t != null && !future;
     final String hint;
-    if (t == null) {
+    final badSec = _showSec && (int.tryParse(_secCtrl.text) ?? 0) > 59;
+    if (badSec) {
+      hint = '秒數只能 0–59';
+    } else if (t == null) {
       hint =
-          '原本 ${_dateTimeText(widget.initial)}・只打數字：月日時分，'
-          '例如 10142140 → 10/14 21:40';
+          _ctrl.text.replaceAll(RegExp(r'\D'), '').length >=
+              (_withYear ? 12 : 8)
+          ? '這個時間不存在（時 0–23、分 0–59、日期要有那天）'
+          : '原本 ${_dateTimeText(widget.initial)}・只打數字：月日時分，'
+                '例如 10142140 → 10/14 21:40';
     } else if (future) {
       hint = '不能是未來';
     } else {
@@ -691,40 +719,40 @@ class _DateTimeDialogState extends State<_DateTimeDialog> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          TextField(
+          _DigitBoxes(
             controller: _ctrl,
-            autofocus: true,
-            keyboardType: TextInputType.number,
-            inputFormatters: [
-              TextInputFormatter.withFunction((oldValue, newValue) {
-                final text = formatDateTimeDigits(newValue.text);
-                return TextEditingValue(
-                  text: text,
-                  selection: TextSelection.collapsed(offset: text.length),
-                );
-              }),
-            ],
-            onSubmitted: (_) {
+            initial: widget.initial,
+            withYear: _withYear,
+            onSubmitted: () {
               if (ok) Navigator.pop(context, t);
             },
-            style: const TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1,
-              fontFeatures: [FontFeature.tabularFigures()],
-            ),
-            decoration: _input('月/日 時:分'),
           ),
           const SizedBox(height: 8),
           Text(
             hint,
             style: AppText.note.copyWith(
-              color: future
+              color:
+                  future ||
+                      badSec ||
+                      (t == null &&
+                          _ctrl.text.replaceAll(RegExp(r'\D'), '').length >= 8)
                   ? tradeDown
                   : (ok ? AppColors.ink2 : AppColors.ink3),
             ),
           ),
           const SizedBox(height: 4),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              onPressed: _toggleYear,
+              style: TextButton.styleFrom(
+                padding: EdgeInsets.zero,
+                visualDensity: VisualDensity.compact,
+                foregroundColor: AppColors.ink3,
+              ),
+              child: Text(_withYear ? '不要年份（用今年）' : '不是今年？加年份'),
+            ),
+          ),
           if (!_showSec)
             Align(
               alignment: Alignment.centerLeft,
@@ -779,6 +807,153 @@ class _DateTimeDialogState extends State<_DateTimeDialog> {
   }
 }
 
+/// 月、日、時、分各一格（按「加年份」多一格「年」），像輸入驗證碼那樣：
+/// 一路打數字，自動跳到下一格（2026-10-14 使用者要求）。背後其實是一個
+/// 看不見的輸入框，所以刪除、貼上都照常。空的格子淡淡顯示原本的值；那一格
+/// 打完但不合法（13 月、24 時、60 分…）變紅。
+class _DigitBoxes extends StatelessWidget {
+  const _DigitBoxes({
+    required this.controller,
+    required this.initial,
+    required this.withYear,
+    required this.onSubmitted,
+  });
+
+  final TextEditingController controller;
+  final DateTime initial;
+  final bool withYear;
+  final VoidCallback onSubmitted;
+
+  @override
+  Widget build(BuildContext context) {
+    final digits = controller.text.replaceAll(RegExp(r'\D'), '');
+    String two(int v) => v.toString().padLeft(2, '0');
+    // (標籤, 位數, 原本的值, 合法範圍)
+    final segs = <(String, int, String, int, int)>[
+      if (withYear) ('年', 4, '${initial.year}', 2010, 2100),
+      ('月', 2, two(initial.month), 1, 12),
+      ('日', 2, two(initial.day), 1, 31),
+      ('時', 2, two(initial.hour), 0, 23),
+      ('分', 2, two(initial.minute), 0, 59),
+    ];
+    final cells = <Widget>[];
+    var pos = 0;
+    for (var i = 0; i < segs.length; i++) {
+      final (label, len, old, lo, hi) = segs[i];
+      final part = digits.length > pos
+          ? digits.substring(pos, (pos + len).clamp(0, digits.length))
+          : '';
+      final active = digits.length >= pos && digits.length < pos + len;
+      final full = part.length == len;
+      final bad = full && ((int.parse(part) < lo) || int.parse(part) > hi);
+      pos += len;
+      if (i > 0) {
+        final sep = segs[i].$1 == '日'
+            ? '/'
+            : segs[i].$1 == '分'
+            ? ':'
+            : segs[i].$1 == '月' && withYear
+            ? '/'
+            : '';
+        cells.add(
+          Container(
+            width: sep.isEmpty ? 8 : 12,
+            height: 52,
+            alignment: Alignment.center,
+            child: Text(
+              sep,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 20, color: AppColors.ink3),
+            ),
+          ),
+        );
+      }
+      cells.add(
+        Expanded(
+          flex: len,
+          child: Column(
+            children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 120),
+                height: 52,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF161622),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: bad
+                        ? tradeDown
+                        : active
+                        ? AppColors.accent
+                        : const Color(0xFF2A2A3D),
+                    width: active || bad ? 2 : 1,
+                  ),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    part.isEmpty ? old : part,
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                      color: bad
+                          ? tradeDown
+                          : part.isEmpty
+                          ? AppColors.ink3.withValues(alpha: 0.45)
+                          : AppColors.ink,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(label, style: AppText.note.copyWith(fontSize: 10.5)),
+            ],
+          ),
+        ),
+      );
+    }
+    return Stack(
+      children: [
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: cells),
+        // 真正接鍵盤的輸入框，蓋在格子上、看不見；點哪一格都是點它。
+        Positioned.fill(
+          bottom: 16,
+          child: Opacity(
+            opacity: 0.01,
+            child: TextField(
+              controller: controller,
+              autofocus: true,
+              showCursor: false,
+              keyboardType: TextInputType.number,
+              inputFormatters: [
+                TextInputFormatter.withFunction((oldValue, newValue) {
+                  final text = formatDateTimeDigits(
+                    newValue.text,
+                    withYear: withYear,
+                  );
+                  return TextEditingValue(
+                    text: text,
+                    selection: TextSelection.collapsed(offset: text.length),
+                  );
+                }),
+              ],
+              onSubmitted: (_) => onSubmitted(),
+              style: const TextStyle(color: Colors.transparent),
+              decoration: const InputDecoration(
+                border: InputBorder.none,
+                isCollapsed: true,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 /// 「開倉時間 10/3（六）21:40 ›」這種點了會跳日期時間選擇器的一列。
 Widget _timeField(String label, DateTime value, VoidCallback onTap) => Padding(
   padding: const EdgeInsets.only(top: 8),
@@ -797,14 +972,23 @@ Widget _timeField(String label, DateTime value, VoidCallback onTap) => Padding(
         child: Row(
           children: [
             Text(label, style: AppText.bodyDim),
-            const Spacer(),
-            Text(
-              '${value.year == DateTime.now().year ? '' : '${value.year}/'}'
-              '${fmtDay(value)} ${fmtHm(value)}',
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: AppColors.ink,
+            const SizedBox(width: 8),
+            // 帶年份時比較長，窄螢幕整串縮小，不擠爆。
+            Expanded(
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    '${value.year == DateTime.now().year ? '' : '${value.year}/'}'
+                    '${fmtDay(value)} ${fmtHm(value)}',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.ink,
+                    ),
+                  ),
+                ),
               ),
             ),
             const SizedBox(width: 4),

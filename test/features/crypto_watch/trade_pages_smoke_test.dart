@@ -293,6 +293,21 @@ void main() {
     expect(find.textContaining('9/3'), findsWidgets);
     expect(find.textContaining('21:05'), findsOneWidget);
 
+    // 不是今年：按「加年份」多一格年，沒按就是今年。
+    await tapIn(tester, find.text('開倉時間'));
+    await tapIn(tester, find.text('不是今年？加年份'));
+    expect(find.text('年'), findsOneWidget);
+    await tester.enterText(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.byType(TextField),
+      ),
+      '202509032105',
+    );
+    await tester.pump();
+    await tapIn(tester, find.text('好'));
+    expect(find.textContaining('2025/'), findsOneWidget);
+
     // 同一分鐘要分先後：點「加秒數」才出現秒數格，只用來排序、畫面不顯示秒。
     await tapIn(tester, find.text('開倉時間'));
     expect(find.text('同一分鐘要分先後？加秒數'), findsOneWidget);
@@ -303,6 +318,16 @@ void main() {
     );
     expect(fields, findsNWidgets(2));
     await tester.enterText(fields.first, '09032105');
+    // 秒數超過 59 不給按「好」。
+    await tester.enterText(fields.last, '75');
+    await tester.pump();
+    expect(find.text('秒數只能 0–59'), findsOneWidget);
+    expect(
+      tester
+          .widget<FilledButton>(find.widgetWithText(FilledButton, '好'))
+          .onPressed,
+      isNull,
+    );
     await tester.enterText(fields.last, '37');
     await tester.pump();
     await tapIn(tester, find.text('好'));
@@ -329,24 +354,41 @@ void main() {
     expect(formatDateTimeDigits('10142140'), '10/14 21:40');
     expect(formatDateTimeDigits('1014'), '10/14');
     expect(formatDateTimeDigits('101421409999'), '10/14 21:40');
-    expect(formatDateTimeDigits('202510142140'), '2025/10/14 21:40');
+    expect(
+      formatDateTimeDigits('202510142140', withYear: true),
+      '2025/10/14 21:40',
+    );
     final now = DateTime(2026, 10, 14, 22);
     expect(
       parseTradeDateTime('10/14 21:40', now: now),
       DateTime(2026, 10, 14, 21, 40),
     );
     expect(
-      parseTradeDateTime('2025/10/14 21:40', now: now),
+      parseTradeDateTime('2025/10/14 21:40', now: now, withYear: true),
       DateTime(2025, 10, 14, 21, 40),
     );
-    // 沒寫年份、今年還沒到的日子當去年。
+    // 沒選年份一律今年（未來的話視窗會擋）。
     expect(
       parseTradeDateTime('12/31 10:00', now: now),
-      DateTime(2025, 12, 31, 10),
+      DateTime(2026, 12, 31, 10),
     );
     expect(parseTradeDateTime('02/30 10:00', now: now), isNull);
     expect(parseTradeDateTime('10/14 25:00', now: now), isNull);
     expect(parseTradeDateTime('10/14 21', now: now), isNull);
+    // 不合法的時間（2026-10-14 使用者要求）。
+    expect(parseTradeDateTime('10/14 24:01', now: now), isNull);
+    expect(parseTradeDateTime('10/14 23:60', now: now), isNull);
+    expect(parseTradeDateTime('00/10 10:00', now: now), isNull);
+    expect(parseTradeDateTime('10/32 10:00', now: now), isNull);
+    expect(parseTradeDateTime('13/01 10:00', now: now), isNull);
+    expect(
+      parseTradeDateTime('2009/10/14 10:00', now: now, withYear: true),
+      isNull,
+    );
+    expect(
+      parseTradeDateTime('10/13 23:59', now: now),
+      DateTime(2026, 10, 13, 23, 59),
+    );
   });
 
   test('編輯一單：欄位全換，平倉的可以改回持倉中', () async {

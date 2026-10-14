@@ -99,15 +99,8 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
                                 ),
                             ],
                             const SizedBox(height: Gap.md),
-                            FilledButton.icon(
+                            _AddTradeButton(
                               onPressed: () => addTradeFlow(context, ref),
-                              icon: const Icon(Icons.add_rounded, size: 20),
-                              label: const Text('記一筆交易'),
-                              style: FilledButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 14,
-                                ),
-                              ),
                             ),
                             const SizedBox(height: Gap.sm),
                             Row(
@@ -857,6 +850,65 @@ class _MonthPnlCard extends ConsumerWidget {
             style: AppText.note.copyWith(color: AppColors.ink3),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// 「記一筆交易」：形狀不變（膠囊），換成藍到紫的漸層、柔和光暈、上緣一條
+/// 細反光（2026-10-14 使用者要求：好看一點，保持原本形狀）。
+class _AddTradeButton extends StatelessWidget {
+  const _AddTradeButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    const radius = BorderRadius.all(Radius.circular(99));
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: radius,
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF3B7BFF), Color(0xFF7C5CFF)],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF4F6BFF).withValues(alpha: 0.35),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: radius,
+          border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.center,
+            colors: [
+              Colors.white.withValues(alpha: 0.16),
+              Colors.white.withValues(alpha: 0),
+            ],
+          ),
+        ),
+        child: FilledButton.icon(
+          onPressed: onPressed,
+          icon: const Icon(Icons.add_rounded, size: 21),
+          label: const Text(
+            '記一筆交易',
+            style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 1),
+          ),
+          style: FilledButton.styleFrom(
+            backgroundColor: Colors.transparent,
+            foregroundColor: Colors.white,
+            shadowColor: Colors.transparent,
+            overlayColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 15),
+          ),
+        ),
       ),
     );
   }
