@@ -20,7 +20,9 @@ import '../data/repositories/word_repository.dart';
 import '../data/repositories/yt_stats_refresh_setting_store.dart';
 import '../data/repositories/yt_tracker_repository.dart';
 import '../data/repositories/yt_embed_player_style_store.dart';
+import '../data/repositories/nav_bar_prefs_store.dart';
 import '../data/repositories/yt_display_prefs_store.dart';
+import '../data/repositories/yt_playlist_store.dart';
 import '../data/repositories/yt_video_open_mode_store.dart';
 import '../data/repositories/usdt_twd_rate_store.dart';
 import '../data/seed/app_defaults_loader.dart';
@@ -180,6 +182,18 @@ final ytVideoOpenModeProvider = StateProvider<YtVideoOpenMode>(
 /// [YtDisplayPrefsStore] 讀一次 override 進來；同步帶回新的也會更新這個。
 final ytDisplayPrefsProvider = StateProvider<YtDisplayPrefs>(
   (ref) => YtDisplayPrefs.defaults,
+);
+
+/// 底部浮動分頁列的設定（2026-10-14，跨裝置同步）。開機時 `main.dart`
+/// 從 [NavBarPrefsStore] 讀一次 override 進來；同步帶回新的也會更新。
+final navBarPrefsProvider = StateProvider<NavBarPrefs>(
+  (ref) => NavBarPrefs.defaults,
+);
+
+/// YT 播放清單（2026-10-14，含刪掉的墓碑；畫面用
+/// [YtPlaylistStore.visible]）。開機時讀一次，改了同時寫回本機。
+final ytPlaylistsProvider = StateProvider<List<YtPlaylist>>(
+  (ref) => [YtPlaylist.emptyLater()],
 );
 
 /// 日文首頁要不要顯示「今天進度」那一圈（2026-10-05 使用者要求：預設

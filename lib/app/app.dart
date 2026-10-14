@@ -1,4 +1,5 @@
 import 'package:flutter/gestures.dart';
+import 'app_bottom_nav.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
@@ -34,8 +35,10 @@ class LumeApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       routerConfig: appRouter,
       // 同步中跳去別的頁面，最上面顯示即時進度（2026-10-12 使用者要求）。
-      builder: (context, child) =>
-          SyncProgressFrame(child: child ?? const SizedBox.shrink()),
+      // 底部浮動分頁列（2026-10-14 使用者要求）。
+      builder: (context, child) => SyncProgressFrame(
+        child: AppBottomNavFrame(child: child ?? const SizedBox.shrink()),
+      ),
       // 內建元件（日期／時間選擇器等）用繁體中文。
       locale: const Locale('zh', 'TW'),
       supportedLocales: const [Locale('zh', 'TW'), Locale('en')],

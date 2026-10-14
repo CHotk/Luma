@@ -361,6 +361,14 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
                       color: AppColors.ink2,
                       tooltip: '挖掘新頻道',
                     ),
+                    // 播放清單（2026-10-14）：底部分頁列關掉或用全 App 共用
+                    // 時，從這裡進。
+                    IconButton(
+                      onPressed: () => context.push('/yt-playlists'),
+                      icon: const Icon(Icons.video_library_outlined, size: 20),
+                      color: AppColors.ink2,
+                      tooltip: '播放清單',
+                    ),
                     // 全部頻道的紀錄（2026-10-06 使用者要求）。
                     IconButton(
                       onPressed: () => context.push('/yt-tracker/log'),

@@ -36,7 +36,9 @@ import '../repositories/kana_exam_repository.dart';
 import '../repositories/kana_practice_repository.dart';
 import '../repositories/sync_log_repository.dart';
 import '../repositories/usdt_twd_rate_store.dart';
+import '../repositories/nav_bar_prefs_store.dart';
 import '../repositories/yt_display_prefs_store.dart';
+import '../repositories/yt_playlist_store.dart';
 import '../storage/key_value_store.dart';
 import 'r2_client.dart';
 
@@ -792,6 +794,82 @@ class R2SyncService {
     final body = utf8.encode(jsonEncode(local.toJson()));
     await _writeMeta(key, body, fetched.etag);
     return (downloaded: 0, uploaded: 0);
+  }
+
+  /// 底部分頁列設定（2026-10-14），跟 [syncYtDisplayPrefs] 同一套：整組
+  /// 一筆，比改的時間，後改的贏。
+  Future<({int downloaded, int uploaded})> syncNavBarPrefs(
+    NavBarPrefsStore store,
+  ) async {
+    const key = NavBarPrefsStore.cloudKey;
+    final local = await store.loadRecord();
+    final beforeBytes = utf8.encode(jsonEncode(local?.toJson()));
+    if (await _canSkip(key, beforeBytes)) return (downloaded: 0, uploaded: 0);
+
+    final fetched = await _client.getObjectWithEtag(key);
+    if (fetched.bytes == null) {
+      if (local == null) return (downloaded: 0, uploaded: 0);
+      final body = utf8.encode(jsonEncode(local.toJson()));
+      final etag = await _client.putObject(key, Uint8List.fromList(body));
+      await _writeMeta(key, body, etag);
+      return (downloaded: 0, uploaded: 1);
+    }
+
+    final cloud = NavBarPrefs.fromJson(
+      jsonDecode(utf8.decode(fetched.bytes!)) as Map<String, dynamic>,
+    );
+    if (local == null || cloud.updatedAt.isAfter(local.updatedAt)) {
+      await store.saveRecord(cloud);
+      final body = utf8.encode(jsonEncode(cloud.toJson()));
+      await _writeMeta(key, body, fetched.etag);
+      return (downloaded: 1, uploaded: 0);
+    }
+    if (local.updatedAt.isAfter(cloud.updatedAt)) {
+      final body = utf8.encode(jsonEncode(local.toJson()));
+      final etag = await _client.putObject(key, Uint8List.fromList(body));
+      await _writeMeta(key, body, etag);
+      return (downloaded: 0, uploaded: 1);
+    }
+    final body = utf8.encode(jsonEncode(local.toJson()));
+    await _writeMeta(key, body, fetched.etag);
+    return (downloaded: 0, uploaded: 0);
+  }
+
+  /// YT 播放清單（2026-10-14）：一份一份比改的時間，後改的贏；刪掉的
+  /// 留墓碑一起傳（見 [YtPlaylistStore.merge]）。
+  Future<({int downloaded, int uploaded})> syncYtPlaylists(
+    YtPlaylistStore store,
+  ) async {
+    const key = YtPlaylistStore.cloudKey;
+    List<int> encode(List<YtPlaylist> list) =>
+        utf8.encode(jsonEncode([for (final p in list) p.toJson()]));
+    final local = await store.loadAll();
+    final localBytes = encode(local);
+    if (await _canSkip(key, localBytes)) return (downloaded: 0, uploaded: 0);
+
+    final fetched = await _client.getObjectWithEtag(key);
+    final cloud = fetched.bytes == null
+        ? <YtPlaylist>[]
+        : [
+            for (final p in jsonDecode(utf8.decode(fetched.bytes!)) as List)
+              YtPlaylist.fromJson(p as Map<String, dynamic>),
+          ];
+    final merged = YtPlaylistStore.merge(local, cloud);
+    int changedFrom(List<YtPlaylist> side) {
+      final byId = {for (final p in side) p.id: p.updatedAt};
+      return merged.where((p) => byId[p.id] != p.updatedAt).length;
+    }
+
+    final downloaded = changedFrom(local);
+    final uploaded = changedFrom(cloud);
+    if (downloaded > 0) await store.saveAll(merged);
+    final body = encode(merged);
+    var etag = fetched.etag;
+    if (uploaded > 0) {
+      etag = await _client.putObject(key, Uint8List.fromList(body));
+    }
+    await _writeMeta(key, body, etag);
+    return (downloaded: downloaded, uploaded: uploaded);
   }
 
   /// 已移除功能留在雲端的檔案（看盤次數的 `crypto_watch.json`，2026-10-10

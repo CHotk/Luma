@@ -9,6 +9,7 @@ import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
 import '../../data/external_link.dart';
 import '../../data/repositories/yt_embed_player_style_store.dart';
+import '../../data/repositories/yt_playlist_store.dart';
 import '../../data/repositories/yt_video_hidden_store.dart';
 import '../../data/repositories/yt_video_open_mode_store.dart';
 import '../../data/repositories/yt_video_tags.dart';
@@ -18,6 +19,7 @@ import '../../domain/models/yt_video_watch.dart';
 import '../../shared/widgets/app_notice.dart';
 import 'yt_embedded_player.dart';
 import 'yt_floating_player.dart';
+import 'yt_playlist_actions.dart';
 
 /// 開外部連結，失敗就退回複製到剪貼簿——跟匯出檔案失敗退回複製剪貼簿
 /// 同一個處理哲學。
@@ -221,7 +223,17 @@ class YtVideoRow extends ConsumerStatefulWidget {
     this.known,
     this.onWatchedChanged,
     this.highlight,
+    this.channelId,
+    this.channelName,
+    this.playlistId,
   });
+
+  /// 這部影片是哪個頻道的（存進播放清單時一起記下來，2026-10-14）。
+  final String? channelId;
+  final String? channelName;
+
+  /// 在某份播放清單裡顯示時給：⋮ 選單多「移到最上面」「從這個清單移除」。
+  final String? playlistId;
 
   /// 搜尋關鍵字：標題裡符合的字標黃（2026-10-14 頻道頁搜尋）。
   final String? highlight;
@@ -461,6 +473,99 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
 
   /// 這支影片每一次被點開的時間戳，新到舊列出來（2026-09-30 使用者
   /// 要求：小標籤只看得到最早跟最近一次，要有個地方能看完整紀錄）。
+  YtPlaylistItem get _playlistItem => YtPlaylistItem(
+    video: widget.video,
+    channelId: widget.channelId,
+    channelName: widget.channelName ?? '',
+    addedAt: DateTime.now(),
+  );
+
+  /// ⋮ 選單（2026-10-14 播放清單設計稿第 1 版：第一個是「存到稍後觀看」）。
+  Future<void> _showMenu() async {
+    final playlistId = widget.playlistId;
+    final playlist = playlistId == null
+        ? null
+        : YtPlaylistActions(ref).byId(playlistId);
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: const Color(0xFF1C1C29),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+      ),
+      builder: (context) {
+        Widget item(String value, IconData icon, String label) => ListTile(
+          leading: Icon(icon, color: AppColors.ink2),
+          title: Text(label, style: const TextStyle(color: AppColors.ink)),
+          onTap: () => Navigator.of(context).pop(value),
+        );
+        return SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
+                  child: Text(
+                    widget.video.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.note,
+                  ),
+                ),
+                item('later', Icons.watch_later_outlined, '存到稍後觀看'),
+                item('save', Icons.playlist_add_rounded, '存到播放清單…'),
+                if (playlist != null) ...[
+                  item('top', Icons.vertical_align_top_rounded, '移到最上面'),
+                  item(
+                    'remove',
+                    Icons.playlist_remove_rounded,
+                    '從「${playlist.name}」移除',
+                  ),
+                ],
+                _hidden
+                    ? item('unhide', Icons.visibility_rounded, '取消隱藏')
+                    : item('hide', Icons.visibility_off_rounded, '隱藏這部'),
+                item('youtube', Icons.open_in_new_rounded, '在 YouTube 開啟'),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+    if (!mounted || choice == null) return;
+    switch (choice) {
+      case 'later':
+        await saveToWatchLater(context, ref, _playlistItem);
+      case 'save':
+        await showSaveToPlaylistSheet(context, ref, _playlistItem);
+      case 'top':
+        await YtPlaylistActions(
+          ref,
+        ).moveToTop(playlistId!, widget.video.videoId);
+      case 'remove':
+        final actions = YtPlaylistActions(ref);
+        final old = playlist!.items.firstWhere(
+          (i) => i.videoId == widget.video.videoId,
+        );
+        final at = await actions.remove(playlistId!, widget.video.videoId);
+        if (!mounted || at < 0) return;
+        showAppNotice(
+          context,
+          '已從「${playlist.name}」移除',
+          actionLabel: '復原',
+          onAction: () => actions.insertAt(playlistId, old, at),
+        );
+      case 'hide':
+        await _hide();
+      case 'unhide':
+        await _unhide();
+      case 'youtube':
+        await openExternalUrl(context, widget.video.watchUrl);
+    }
+  }
+
   Future<void> _showHistory() async {
     _closeSwipe();
     final watched = _watched;
@@ -825,7 +930,24 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(widget.subtitle, style: AppText.note),
+                                _SavedIn(videoId: video.videoId),
                               ],
+                            ),
+                          ),
+                          // ⋮：存到稍後觀看／播放清單、隱藏、在 YouTube 開啟
+                          // （2026-10-14 播放清單設計稿第 1 版）。
+                          SizedBox(
+                            width: 30,
+                            child: IconButton(
+                              onPressed: _showMenu,
+                              icon: const Icon(
+                                Icons.more_vert_rounded,
+                                size: 18,
+                              ),
+                              color: AppColors.ink3,
+                              tooltip: '更多',
+                              padding: EdgeInsets.zero,
+                              visualDensity: VisualDensity.compact,
                             ),
                           ),
                         ],
@@ -962,4 +1084,29 @@ TextSpan highlightedSpan(String text, String? query) {
   }
   if (i < text.length) spans.add(TextSpan(text: text.substring(i)));
   return TextSpan(children: spans);
+}
+
+/// 「≡ 已存在：稍後觀看、最愛」——存過的影片在清單上看得出來。
+class _SavedIn extends ConsumerWidget {
+  const _SavedIn({required this.videoId});
+
+  final String videoId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final names = [
+      for (final p in YtPlaylistStore.visible(ref.watch(ytPlaylistsProvider)))
+        if (p.contains(videoId)) p.name,
+    ];
+    if (names.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 2),
+      child: Text(
+        '≡ 已存在：${names.join('、')}',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(fontSize: 10.5, color: AppColors.accent),
+      ),
+    );
+  }
 }

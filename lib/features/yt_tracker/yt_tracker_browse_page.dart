@@ -878,6 +878,8 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                                 itemBuilder: (_, i) => YtVideoRow(
                                   key: ValueKey(preview[i].video.videoId),
                                   video: preview[i].video,
+                                  channelId: preview[i].channel.id,
+                                  channelName: preview[i].channel.name,
                                   subtitle:
                                       '${preview[i].channel.name}・${ytRelativeTime(preview[i].video.publishedAt)}',
                                   fromCache: !done.contains(
@@ -947,6 +949,8 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                           // 已看過的標籤重新整理後不見了，就是這個坑）。
                           key: ValueKey(item.video.videoId),
                           video: item.video,
+                          channelId: item.channel.id,
+                          channelName: item.channel.name,
                           subtitle:
                               '${item.channel.name}・${ytRelativeTime(item.video.publishedAt)}',
                           known: _knownFor(item.video.videoId),

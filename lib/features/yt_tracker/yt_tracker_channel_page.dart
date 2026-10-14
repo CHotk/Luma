@@ -625,6 +625,7 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
   /// 畫面上看得到的（上下多準備一小段），捲過去的收掉，縮圖有圖片快取，
   /// 捲回來不用重新下載。
   Widget _videoRows(
+    YtChannel channel,
     List<YoutubeVideo> list, {
     bool allFromCache = false,
     String? highlight,
@@ -641,6 +642,8 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
       // 別支影片上（2026-09-30 使用者回報抓到）。
       key: ValueKey(list[i].videoId),
       video: list[i],
+      channelId: channel.id,
+      channelName: channel.name,
       subtitle: justFetched.contains(list[i].videoId)
           ? '${ytRelativeTime(list[i].publishedAt)}・剛從 YouTube 抓到'
           : ytRelativeTime(list[i].publishedAt),
@@ -1287,7 +1290,8 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                   ],
                 ),
               ),
-              if (preview.isNotEmpty) _videoRows(preview, allFromCache: true),
+              if (preview.isNotEmpty)
+                _videoRows(channel, preview, allFromCache: true),
             ],
           );
         }
@@ -1373,7 +1377,7 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
               SliverToBoxAdapter(
                 child: _filteredEmptyCard(channel, videos, isTyped),
               ),
-            _videoRows(visibleVideos),
+            _videoRows(channel, visibleVideos),
             // 往下滑到底會自動載入更早的影片；載入中轉圈、失敗給重試、
             // 沒有更多了就說一聲。
             SliverToBoxAdapter(
@@ -1937,6 +1941,7 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
           ),
         ),
       _videoRows(
+        channel,
         results,
         highlight: search.query,
         justFetched: search.fetchedIds,

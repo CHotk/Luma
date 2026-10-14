@@ -12,6 +12,7 @@ import '../../data/repositories/jp_home_ring_store.dart';
 import '../../data/repositories/usdt_twd_rate_store.dart';
 import '../../data/repositories/yt_embed_player_style_store.dart';
 import '../../data/repositories/yt_stats_refresh_setting_store.dart';
+import '../../data/repositories/nav_bar_prefs_store.dart';
 import '../../data/repositories/yt_display_prefs_store.dart';
 import '../../data/repositories/yt_video_open_mode_store.dart';
 import '../../shared/widgets/ambient_background.dart';
@@ -22,6 +23,7 @@ import '../../shared/widgets/app_top_bar.dart';
 import '../../shared/widgets/glass_card.dart';
 import '../crypto_watch/trade_ui.dart' show oneDecimalInput, round1;
 import '../yt_tracker/yt_api_key_dialog.dart';
+import '../yt_tracker/yt_playlist_actions.dart';
 import '../yt_tracker/yt_tracker_browse_page.dart'
     show refreshYtSubscriberStats;
 import '../yt_tracker/yt_tracker_home_page.dart' show showYtExportDialog;
@@ -160,6 +162,8 @@ class _AppHomeSettings extends ConsumerWidget {
             ],
           ),
         ),
+        const SizedBox(height: Gap.sm),
+        const _NavBarModeCard(),
         const SizedBox(height: Gap.sm),
         // 圖示格的功能順序（2026-10-06 使用者要求：像 YT 分類順序那樣，
         // 在設定裡拖曳調整）。
@@ -809,6 +813,55 @@ class _StatsRefreshRowState extends ConsumerState<_StatsRefreshRow> {
 /// YT 顯示設定（2026-10-12 使用者要求）：依影片顯示要不要抓冷藏頻道、
 /// 頻道詳情頁的捲動條跟「回到最上面」。三個存成同一筆
 /// [YtDisplayPrefs]，跨裝置同步。
+/// 底部浮動分頁列（2026-10-14 使用者要求）：全 App 共用一條、各功能
+/// 自己的、或不顯示。跨裝置同步。
+class _NavBarModeCard extends ConsumerWidget {
+  const _NavBarModeCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final prefs = ref.watch(navBarPrefsProvider);
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            '底部分頁列',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: AppColors.ink,
+            ),
+          ),
+          Text(switch (prefs.mode) {
+            NavBarMode.global => '英文／日文／YT 三格，在各功能首頁顯示',
+            NavBarMode.feature => '各功能自己的（YT：頻道／影片／播放清單）；沒有的功能不顯示',
+            NavBarMode.off => '都不顯示',
+          }, style: AppText.note),
+          const SizedBox(height: Gap.sm),
+          SegmentedButton<NavBarMode>(
+            segments: [
+              for (final m in NavBarMode.values)
+                ButtonSegment(value: m, label: Text(m.label)),
+            ],
+            selected: {prefs.mode},
+            showSelectedIcon: false,
+            onSelectionChanged: (s) async {
+              final next = prefs.copyWith(mode: s.first);
+              ref.read(navBarPrefsProvider.notifier).state = next;
+              ref
+                  .read(navBarPrefsProvider.notifier)
+                  .state = await NavBarPrefsStore(
+                ref.read(keyValueStoreProvider),
+              ).save(next);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _YtDisplayPrefsRows extends ConsumerWidget {
   const _YtDisplayPrefsRows();
 
@@ -887,6 +940,8 @@ class _YtDisplayPrefsRows extends ConsumerWidget {
           prefs.showBackToTop,
           (v) => update(prefs.copyWith(showBackToTop: v)),
         ),
+        // 底部分頁列「影片」那格開哪個頻道（2026-10-14，跨裝置同步）。
+        _VideoTabChannelRow(channelId: prefs.videoTabChannelId),
         // 頻道頁搜尋（2026-10-14）：範圍、要不要照篩選。
         row(
           Icons.travel_explore_rounded,
@@ -1161,6 +1216,64 @@ class _StepperButton extends StatelessWidget {
           color: enabled
               ? AppColors.ink2
               : AppColors.ink3.withValues(alpha: 0.4),
+        ),
+      ),
+    );
+  }
+}
+
+class _VideoTabChannelRow extends ConsumerWidget {
+  const _VideoTabChannelRow({required this.channelId});
+
+  final String channelId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return FutureBuilder(
+      future: channelId.isEmpty
+          ? Future.value(null)
+          : ref.read(ytTrackerRepositoryProvider).loadChannels().then((cs) {
+              for (final c in cs) {
+                if (c.id == channelId) return c;
+              }
+              return null;
+            }),
+      builder: (context, snap) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.smart_display_outlined,
+              size: 18,
+              color: AppColors.ink2,
+            ),
+            const SizedBox(width: Gap.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '底部分頁列「影片」開的頻道',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.ink,
+                    ),
+                  ),
+                  Text(
+                    channelId.isEmpty
+                        ? '還沒選，點「影片」時會先問'
+                        : snap.data?.name ?? '（頻道不在了）',
+                    style: AppText.note,
+                  ),
+                ],
+              ),
+            ),
+            TextButton(
+              onPressed: () => pickVideoTabChannel(context, ref),
+              child: const Text('選擇'),
+            ),
+          ],
         ),
       ),
     );

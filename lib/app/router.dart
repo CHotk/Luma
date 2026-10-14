@@ -1,4 +1,5 @@
 import 'package:flutter/widgets.dart';
+import 'app_bottom_nav.dart';
 import 'package:go_router/go_router.dart';
 import '../features/crypto_watch/crypto_watch_page.dart';
 import '../features/crypto_watch/trade_day_page.dart';
@@ -44,6 +45,7 @@ import '../features/splash/splash_page.dart';
 import '../features/sync/sync_log_page.dart';
 import '../features/sync/sync_page.dart';
 import '../features/yt_tracker/yt_category_order_page.dart';
+import '../features/yt_tracker/yt_playlists_page.dart';
 import '../features/yt_tracker/yt_tracker_browse_page.dart';
 import '../features/yt_tracker/yt_tracker_channel_page.dart';
 import '../features/yt_tracker/yt_tracker_home_page.dart';
@@ -60,6 +62,8 @@ final rootNavigatorKey = GlobalKey<NavigatorState>();
 final appRouter = GoRouter(
   navigatorKey: rootNavigatorKey,
   initialLocation: '/',
+  // 底部分頁列要知道有沒有對話框／底部面板開著（見 app_bottom_nav.dart）。
+  observers: [navBarRouteObserver],
   routes: [
     GoRoute(path: '/', builder: (_, _) => const SplashPage()),
     // 看盤／抽菸／喝酒各自獨立的頁面（不共用）。
@@ -179,6 +183,13 @@ final appRouter = GoRouter(
           YtTrackerChannelPage(channelId: state.pathParameters['id'] ?? ''),
     ),
     GoRoute(path: '/yt-tracker/trash', builder: (_, _) => const YtTrashPage()),
+    // 播放清單（2026-10-14，設計稿第 1 版）。
+    GoRoute(path: '/yt-playlists', builder: (_, _) => const YtPlaylistsPage()),
+    GoRoute(
+      path: '/yt-playlists/:id',
+      builder: (_, state) =>
+          YtPlaylistPage(playlistId: state.pathParameters['id'] ?? ''),
+    ),
     GoRoute(
       path: '/yt-tracker/channel/:id/log',
       builder: (_, state) =>

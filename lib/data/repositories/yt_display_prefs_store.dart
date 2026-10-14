@@ -11,6 +11,7 @@ class YtDisplayPrefs {
     this.videoIncludePending = false,
     this.searchUseApi = true,
     this.searchShowAll = true,
+    this.videoTabChannelId = '',
     this.showScrollbar = true,
     this.showBackToTop = true,
     this.removedCheckDays = defaultRemovedCheckDays,
@@ -33,6 +34,10 @@ class YtDisplayPrefs {
   /// 搜尋結果照樣列出已看過、已隱藏的（加標示），不受「隱藏已看過／
   /// 顯示已隱藏」影響（預設）；false＝照那兩個開關篩。
   final bool searchShowAll;
+
+  /// YT 底部分頁列「影片」那格直接開哪個頻道（2026-10-14 使用者要求：
+  /// 當快捷，設定裡可以換）。空字串＝還沒選，點了先問。
+  final String videoTabChannelId;
 
   /// 頻道詳情頁右側一直顯示捲動條（2026-10-12：預設開）。
   final bool showScrollbar;
@@ -67,6 +72,7 @@ class YtDisplayPrefs {
     bool? videoIncludePending,
     bool? searchUseApi,
     bool? searchShowAll,
+    String? videoTabChannelId,
     bool? showScrollbar,
     bool? showBackToTop,
     int? removedCheckDays,
@@ -78,6 +84,7 @@ class YtDisplayPrefs {
     videoIncludePending: videoIncludePending ?? this.videoIncludePending,
     searchUseApi: searchUseApi ?? this.searchUseApi,
     searchShowAll: searchShowAll ?? this.searchShowAll,
+    videoTabChannelId: videoTabChannelId ?? this.videoTabChannelId,
     showScrollbar: showScrollbar ?? this.showScrollbar,
     showBackToTop: showBackToTop ?? this.showBackToTop,
     removedCheckDays: removedCheckDays ?? this.removedCheckDays,
@@ -91,6 +98,7 @@ class YtDisplayPrefs {
     'videoIncludePending': videoIncludePending,
     'searchUseApi': searchUseApi,
     'searchShowAll': searchShowAll,
+    'videoTabChannelId': videoTabChannelId,
     'showScrollbar': showScrollbar,
     'showBackToTop': showBackToTop,
     'removedCheckDays': removedCheckDays,
@@ -105,6 +113,7 @@ class YtDisplayPrefs {
     videoIncludePending: j['videoIncludePending'] as bool? ?? false,
     searchUseApi: j['searchUseApi'] as bool? ?? true,
     searchShowAll: j['searchShowAll'] as bool? ?? true,
+    videoTabChannelId: j['videoTabChannelId'] as String? ?? '',
     showScrollbar: j['showScrollbar'] as bool? ?? true,
     showBackToTop: j['showBackToTop'] as bool? ?? true,
     removedCheckDays:

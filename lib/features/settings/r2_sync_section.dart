@@ -8,7 +8,9 @@ import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
 import '../../data/repositories/usdt_twd_rate_store.dart';
+import '../../data/repositories/nav_bar_prefs_store.dart';
 import '../../data/repositories/yt_display_prefs_store.dart';
+import '../../data/repositories/yt_playlist_store.dart';
 import '../../data/cloud/r2_client.dart';
 import '../../data/cloud/r2_credentials_store.dart';
 import '../../data/cloud/r2_sync_service.dart';
@@ -391,6 +393,15 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
             container.read(ytDisplayPrefsProvider.notifier).state =
                 await prefsStore.load();
           }
+          // 播放清單（2026-10-14）也是 YT 的資料。
+          final playlistStore = YtPlaylistStore(
+            container.read(keyValueStoreProvider),
+          );
+          final playlistResult = await service.syncYtPlaylists(playlistStore);
+          if (playlistResult.downloaded > 0) {
+            container.read(ytPlaylistsProvider.notifier).state =
+                await playlistStore.loadAll();
+          }
           return (
             downloaded:
                 ytResult.downloaded +
@@ -398,14 +409,16 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
                 watchResult.downloaded +
                 orderResult.downloaded +
                 logResult.downloaded +
-                prefsResult.downloaded,
+                prefsResult.downloaded +
+                playlistResult.downloaded,
             uploaded:
                 ytResult.uploaded +
                 ytVideoResult.uploaded +
                 watchResult.uploaded +
                 orderResult.uploaded +
                 logResult.uploaded +
-                prefsResult.uploaded,
+                prefsResult.uploaded +
+                playlistResult.uploaded,
           );
         }),
         run('五十音練習', (p) => _kanaPracticePhase = p, (onPhase) async {
@@ -449,13 +462,24 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
           );
         }),
         // App 首頁功能順序（2026-10-06），跟英文／日文卡片順序同一套。
-        run(
-          '首頁',
-          (p) => _appHomePhase = p,
-          (_) => service.syncHomeCardOrder(
+        run('首頁', (p) => _appHomePhase = p, (_) async {
+          final order = await service.syncHomeCardOrder(
             HomeCardOrderStore(container.read(keyValueStoreProvider), 'app'),
-          ),
-        ),
+          );
+          // 底部分頁列設定（2026-10-14）是整個 App 的，跟首頁一起同步。
+          final navStore = NavBarPrefsStore(
+            container.read(keyValueStoreProvider),
+          );
+          final nav = await service.syncNavBarPrefs(navStore);
+          if (nav.downloaded > 0) {
+            container.read(navBarPrefsProvider.notifier).state = await navStore
+                .load();
+          }
+          return (
+            downloaded: order.downloaded + nav.downloaded,
+            uploaded: order.uploaded + nav.uploaded,
+          );
+        }),
         run('交易紀錄', (p) => _habitPhases['trade'] = p, (onPhase) async {
           // 順便刪掉已移除的看盤次數留在雲端的 crypto_watch.json。
           await service.deleteRetiredCloudFiles();

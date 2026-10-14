@@ -33,6 +33,8 @@ Future<void> showAppNotice(
   bool isError = false,
   Duration duration = const Duration(seconds: 3),
   OverlayState? overlay,
+  String? actionLabel,
+  VoidCallback? onAction,
 }) {
   overlay ??= Overlay.of(context, rootOverlay: true);
   final completer = Completer<void>();
@@ -52,6 +54,8 @@ Future<void> showAppNotice(
       isError: isError,
       duration: duration,
       onDismissed: remove,
+      actionLabel: actionLabel,
+      onAction: onAction,
     ),
   );
   overlay.insert(entry);
@@ -65,6 +69,8 @@ class _AppNoticeOverlay extends StatefulWidget {
     required this.isError,
     required this.duration,
     required this.onDismissed,
+    this.actionLabel,
+    this.onAction,
   });
 
   final String message;
@@ -72,6 +78,10 @@ class _AppNoticeOverlay extends StatefulWidget {
   final bool isError;
   final Duration duration;
   final VoidCallback onDismissed;
+
+  /// 右邊一顆動作鈕（例如「復原」，2026-10-14 播放清單移除影片用）。
+  final String? actionLabel;
+  final VoidCallback? onAction;
 
   @override
   State<_AppNoticeOverlay> createState() => _AppNoticeOverlayState();
@@ -142,6 +152,13 @@ class _AppNoticeOverlayState extends State<_AppNoticeOverlay>
                   message: widget.message,
                   detail: widget.detail,
                   isError: widget.isError,
+                  actionLabel: widget.actionLabel,
+                  onAction: widget.onAction == null
+                      ? null
+                      : () {
+                          widget.onAction!();
+                          _dismiss();
+                        },
                 ),
               ),
             ),
@@ -157,11 +174,15 @@ class _NoticeCard extends StatelessWidget {
     required this.message,
     required this.detail,
     required this.isError,
+    this.actionLabel,
+    this.onAction,
   });
 
   final String message;
   final String? detail;
   final bool isError;
+  final String? actionLabel;
+  final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) {
@@ -228,6 +249,20 @@ class _NoticeCard extends StatelessWidget {
                     ],
                   ),
                 ),
+                if (actionLabel != null && onAction != null) ...[
+                  const SizedBox(width: Gap.sm),
+                  TextButton(
+                    onPressed: onAction,
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.accent,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    child: Text(
+                      actionLabel!,
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
