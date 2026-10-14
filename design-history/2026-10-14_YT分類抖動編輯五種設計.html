@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YT 分類抖動編輯</title>
+<style>
+  :root { --bg: #0C0C13; --card: #151520; --card2: #1A1A27; --sheet: #1C1C29; --line: #2A2A3D; --ink: #F3F2F8; --ink2: #A3A2B2; --ink3: #74738A; --accent: #7EA6FF; --ios: #0A84FF; --yt: #FF4E45; --red: #FF453A; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--ink); min-height: 100vh; font: 14px/1.5 -apple-system, "SF Pro Text", system-ui, "Segoe UI", "Microsoft JhengHei", sans-serif; }
+  .page { max-width: 1140px; margin: 0 auto; padding: 24px 16px 60px; }
+  h1 { font-size: 20px; margin: 0 0 6px; }
+  .lead { color: var(--ink2); font-size: 13px; margin: 0 0 14px; } .lead b { color: var(--ink); }
+  .vtabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+  .vtabs button { border: 1px solid var(--line); background: var(--card); color: var(--ink2); padding: 8px 14px; border-radius: 99px; cursor: pointer; font-size: 13px; }
+  .vtabs button.on { border-color: var(--accent); color: #fff; background: rgba(46,107,255,.35); }
+  .stage { display: flex; gap: 28px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
+  .notes { flex: 1 1 320px; max-width: 470px; background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 18px 20px; font-size: 13.5px; color: var(--ink2); }
+  .notes h2 { color: var(--ink); font-size: 17px; margin: 0 0 4px; }
+  .notes .tag { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 99px; background: rgba(126,166,255,.15); color: var(--accent); margin-bottom: 8px; }
+  .notes h3 { color: var(--ink); font-size: 13.5px; margin: 14px 0 4px; }
+  .notes ul { margin: 0; padding-left: 18px; } .notes li { margin: 3px 0; }
+  .notes .box { margin-top: 14px; padding: 11px 13px; border-radius: 12px; background: var(--card2); border: 1px solid var(--line); font-size: 12.5px; }
+  .notes .box b { color: var(--ink); }
+  .notes .try { margin-top: 14px; padding: 10px 12px; border-radius: 12px; background: rgba(126,166,255,.08); border: 1px solid rgba(126,166,255,.25); color: var(--ink); font-size: 12.5px; }
+
+  .phone { width: 390px; max-width: 100%; height: 820px; flex-shrink: 0; border-radius: 44px; border: 1px solid var(--line); background: radial-gradient(120% 55% at 20% 0%, #2a1520 0%, #0e0e17 60%); position: relative; overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,.5); user-select: none; -webkit-user-select: none; }
+  .screen { position: absolute; inset: 0; overflow-y: auto; padding: 46px 14px 110px; scrollbar-width: none; touch-action: pan-y; }
+  .screen::-webkit-scrollbar { display: none; }
+  .status { position: absolute; top: 0; left: 0; right: 0; height: 40px; display: flex; align-items: center; justify-content: space-between; padding: 0 30px; font-size: 13px; font-weight: 700; z-index: 30; pointer-events: none; }
+  .bar { display: flex; align-items: center; gap: 4px; padding: 0 0 12px; min-height: 46px; }
+  .bar .t { flex: 1; font-weight: 800; font-size: 17px; display: flex; align-items: center; gap: 6px; }
+  .ib { width: 36px; height: 36px; border-radius: 11px; display: grid; place-items: center; color: var(--ink2); cursor: pointer; font-size: 17px; position: relative; }
+  .ib:hover { background: rgba(255,255,255,.06); }
+  .done { background: var(--ios); color: #fff; border: 0; border-radius: 99px; padding: 7px 16px; font-weight: 800; font-size: 14px; cursor: pointer; animation: pop .25s cubic-bezier(.3,1.4,.4,1); }
+  @keyframes pop { from { transform: scale(.6); opacity: 0 } }
+  .note3 { font-size: 11px; color: var(--ink3); }
+
+  /* 分類卡 */
+  .grid { position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .card { position: relative; height: 92px; border-radius: 18px; overflow: visible; cursor: pointer; transition: transform .25s cubic-bezier(.2,.9,.3,1); touch-action: none; }
+  .card.wide { grid-column: span 2; height: 88px; }
+  .card .bg { position: absolute; inset: 0; border-radius: 18px; overflow: hidden; background: #222; }
+  .card .bg img { width: 100%; height: 100%; object-fit: cover; }
+  .card .bg::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(0,0,0,.65), rgba(0,0,0,.05)); }
+  .card .nm { position: absolute; left: 12px; bottom: 10px; z-index: 2; font-weight: 800; font-size: 15px; text-shadow: 0 1px 4px rgba(0,0,0,.6); }
+  .card .ct { position: absolute; right: 10px; top: 8px; z-index: 2; font-size: 11px; background: rgba(0,0,0,.45); padding: 1px 7px; border-radius: 99px; }
+  .card.fixed { opacity: .9; }
+  /* 抖動（iOS 主畫面那種：小角度左右晃、每張相位不同） */
+  .jiggle .card:not(.fixed):not(.dragging) { animation: jig .28s ease-in-out infinite alternate; }
+  .jiggle .card:nth-child(2n):not(.fixed):not(.dragging) { animation-duration: .3s; animation-delay: -.12s; }
+  .jiggle .card:nth-child(3n):not(.fixed):not(.dragging) { animation-duration: .26s; animation-delay: -.07s; }
+  @keyframes jig { from { transform: rotate(-1.4deg) translateY(.5px); } to { transform: rotate(1.4deg) translateY(-.5px); } }
+  .card.dragging { z-index: 50; transition: none; transform: scale(1.06); filter: drop-shadow(0 14px 24px rgba(0,0,0,.55)); }
+  .card.ghost .bg { opacity: .25; }
+  .minus { position: absolute; left: -7px; top: -7px; z-index: 5; width: 24px; height: 24px; border-radius: 50%; background: rgba(60,60,72,.95); color: #fff; display: grid; place-items: center; font-weight: 900; font-size: 16px; box-shadow: 0 2px 6px rgba(0,0,0,.5); border: 1px solid rgba(255,255,255,.2); animation: pop .2s; }
+  .pen { position: absolute; right: -6px; top: -6px; z-index: 5; width: 26px; height: 26px; border-radius: 50%; background: var(--ios); color: #fff; display: grid; place-items: center; font-size: 12px; box-shadow: 0 2px 6px rgba(0,0,0,.5); animation: pop .2s; }
+  .check { position: absolute; right: 8px; bottom: 8px; z-index: 5; width: 24px; height: 24px; border-radius: 50%; border: 2px solid #fff; display: grid; place-items: center; font-size: 13px; font-weight: 900; background: rgba(0,0,0,.3); }
+  .check.on { background: var(--ios); border-color: var(--ios); }
+  .lifted { box-shadow: 0 0 0 2px var(--accent); }
+
+  /* 列表模式 */
+  .lrow { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-radius: 14px; background: rgba(255,255,255,.04); margin-bottom: 6px; transition: transform .2s; touch-action: none; }
+  .lrow img { width: 64px; height: 36px; border-radius: 8px; object-fit: cover; }
+  .lrow .h { margin-left: auto; color: var(--ink3); font-size: 18px; cursor: grab; padding: 4px 6px; }
+  .lrow.dragging { z-index: 50; background: rgba(46,107,255,.3); transform: scale(1.03); box-shadow: 0 10px 22px rgba(0,0,0,.5); }
+
+  .tbar { position: absolute; left: 12px; right: 12px; bottom: 26px; z-index: 40; display: flex; gap: 8px; padding: 8px; border-radius: 22px; background: rgba(28,28,40,.75); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,.14); animation: rise .25s; }
+  .tbar button { flex: 1; border: 0; border-radius: 14px; padding: 10px 6px; font-weight: 700; font-size: 12.5px; cursor: pointer; background: rgba(255,255,255,.08); color: var(--ink); }
+  @keyframes rise { from { transform: translateY(20px); opacity: 0 } }
+  .hint { text-align: center; font-size: 12px; color: var(--ink2); margin: -4px 0 10px; animation: pop .25s; }
+  /* 編輯選單 */
+  .menu { position: absolute; right: 14px; top: 88px; z-index: 60; width: 230px; max-height: 420px; overflow-y: auto; background: rgba(30,30,44,.97); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,.12); border-radius: 18px; box-shadow: 0 16px 40px rgba(0,0,0,.6); padding: 6px; animation: drop .2s cubic-bezier(.2,.9,.3,1); transform-origin: top right; }
+  @keyframes drop { from { transform: scale(.9); opacity: 0 } }
+  .menu .mh { font-size: 11px; color: var(--ink3); padding: 6px 10px 4px; }
+  .menu .mi { display: flex; gap: 10px; align-items: center; padding: 7px 8px; border-radius: 12px; cursor: pointer; }
+  .menu .mi:hover { background: rgba(255,255,255,.07); }
+  .menu .mi img { width: 44px; height: 26px; border-radius: 6px; object-fit: cover; }
+  .menu .sep { height: 1px; background: rgba(255,255,255,.08); margin: 4px 8px; }
+  .scrim { position: absolute; inset: 0; z-index: 55; }
+  .dlg { position: absolute; inset: 0; z-index: 80; background: rgba(0,0,0,.5); display: grid; place-items: center; animation: pop .2s; }
+  .dlg .in { width: 300px; background: var(--sheet); border-radius: 22px; padding: 18px; }
+  .dlg input { width: 100%; background: #14141f; border: 1px solid var(--line); border-radius: 10px; color: var(--ink); padding: 9px 10px; font: inherit; margin-top: 8px; }
+  .dlg .btns { display: flex; gap: 8px; margin-top: 14px; }
+  .dlg .btns button { flex: 1; border: 0; border-radius: 12px; padding: 10px; font-weight: 800; cursor: pointer; }
+  .toast { position: absolute; left: 50%; top: 50px; transform: translateX(-50%); z-index: 99; background: rgba(40,40,58,.96); border: 1px solid rgba(255,255,255,.12); border-radius: 14px; padding: 8px 14px; font-size: 12.5px; white-space: nowrap; animation: pop .2s; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>YT 管理：分類「抖動編輯」五種設計</h1>
+  <p class="lead">長按分類 → 像 iPhone 桌面那樣大家一起抖，可以拖著換位置，按「完成」收工。原本長按跳出的「編輯分類」改到<b>上面一顆 ✏️ 按鈕</b>：點了往下長出選單，選要編輯哪個分類。<br>
+    手機框裡都能玩：<b>長按任何一張分類卡 0.5 秒</b>開始抖，拖著放到別的位置；用滑鼠或手指都可以。圖片是 App 裡真的分類底圖。</p>
+  <div class="vtabs" id="vtabs"></div>
+  <div class="stage"><div class="phone" id="phone"></div><div class="notes" id="notes"></div></div>
+</div>
+<script>
+const IMG = n => `../assets/images/yt_tracker/${n}.png`;
+const START = [
+  { id: 'study', n: '學習', img: 'study', c: 12 }, { id: 'games', n: '遊戲', img: 'games', c: 18 },
+  { id: 'music', n: '音樂', img: 'music', c: 9 }, { id: 'food', n: '美食', img: 'food', c: 7 },
+  { id: 'knowledge', n: '知識', img: 'knowledge', c: 15 }, { id: 'film', n: '影視', img: 'film_and_television', c: 6 },
+  { id: 'travel', n: '旅遊', img: 'travel', c: 4 }, { id: 'finance', n: '財經', img: 'finance', c: 8 },
+  { id: 'programming', n: '程式', img: 'programming', c: 5 }, { id: 'car', n: '汽車', img: 'car', c: 3 },
+];
+const S = { v: 0, cats: START.map(c => ({ ...c })), jiggle: false, drag: null, menu: false, dlg: null, toast: null, sel: new Set(), lift: null };
+
+const V = [];
+V.push({ name: '1 iOS 桌面（主流）', title: '版本 1：跟 iPhone 主畫面一樣——長按全部抖、左上「−」、右上「完成」', tag: '最像 iPhone',
+  desc: `<h3>怎麼用</h3><ul><li><b>長按任一張分類 0.5 秒</b>：所有分類一起輕輕左右抖（每張節奏不太一樣，像 iOS），左上角出現灰色「−」，右上角「完成」。</li>
+    <li>按著一張拖：那張放大浮起來、跟著手指走，其他分類即時讓位（彈性滑過去）。</li>
+    <li>點「−」：問要不要刪除這個分類（裡面的頻道移到未分類）。</li>
+    <li>按「完成」或點空白處：停止抖動，順序存起來（跨裝置同步）。</li>
+    <li>「全部」「未分類」「垃圾桶」固定在原位、不抖不能拖。</li></ul>
+    <h3>編輯分類</h3><ul><li>上面 ✏️ → 往下長出選單列出所有分類（縮圖＋名字＋幾個頻道），點一個就開「編輯分類」視窗（改名、換底圖）。</li></ul>`,
+  marks: { minus: true } });
+V.push({ name: '2 抖動中點卡片＝編輯', title: '版本 2：抖動時點分類直接編輯，右上藍色鉛筆', tag: '編輯最快',
+  desc: `<h3>怎麼用</h3><ul><li>長按開始抖；每張右上角一顆<b>藍色鉛筆</b>，左上一樣有「−」。</li>
+    <li>抖動中<b>點一下分類＝編輯它</b>（改名、換底圖），拖著＝換位置。</li><li>上面 ✏️ 選單一樣在，不想長按也能編。</li></ul>
+    <h3>好處</h3><ul><li>排順序、改名、刪除都在同一個模式完成。</li></ul><h3>缺點</h3><ul><li>抖動中不小心點到會開編輯（不過關掉就好）。</li></ul>`,
+  marks: { minus: true, pen: true }, tapEdits: true });
+V.push({ name: '3 抖動＋底部工具列', title: '版本 3：抖動時下面浮出工具列，可以多選一起處理', tag: '一次處理很多個',
+  desc: `<h3>怎麼用</h3><ul><li>長按開始抖，每張右下角一個圓圈可以勾；下面浮出工具列：<b>新增分類／編輯／刪除選取／完成</b>。</li>
+    <li>拖著照樣換位置。勾一個時「編輯」能按，勾好幾個時「刪除」一次刪。</li></ul>
+    <h3>好處</h3><ul><li>要整理一大堆分類時最省事。</li></ul><h3>缺點</h3><ul><li>比 iPhone 多一層（勾選），單純換順序時用不到。</li></ul>`,
+  marks: { check: true }, toolbar: true });
+V.push({ name: '4 浮起（不抖）', title: '版本 4：長按那張浮起來直接拖，其他不抖（Android／Pinterest 式）', tag: '最安靜',
+  desc: `<h3>怎麼用</h3><ul><li>長按一張分類：<b>只有那張</b>放大、陰影浮起，直接拖去要的位置，放開就排好（不用按完成）。</li>
+    <li>上面出一行小字「拖到想要的位置放開」。刪除、編輯從 ✏️ 選單進去。</li></ul>
+    <h3>好處</h3><ul><li>一個動作就換好位置；畫面不會晃。</li></ul><h3>缺點</h3><ul><li>沒有「整理模式」的感覺，不像你說的 iOS 抖動。</li></ul>`,
+  noJiggle: true });
+V.push({ name: '5 切成清單排序', title: '版本 5：長按切成清單，每列右邊把手拖著排（iOS 設定那種）', tag: '最好排',
+  desc: `<h3>怎麼用</h3><ul><li>長按任一張：大卡片縮成一列一列的清單（小縮圖＋名字＋幾個頻道），右邊「≡」把手拖著上下排；左邊紅色「−」刪除。</li>
+    <li>按「完成」變回大卡片。</li></ul>
+    <h3>好處</h3><ul><li>分類多時一頁看得完，拖的距離短，最準。</li></ul><h3>缺點</h3><ul><li>排的時候看不到大卡片的樣子。</li></ul>`,
+  list: true });
+
+const phone = document.getElementById('phone');
+function toast(m) { S.toast = m; clearTimeout(toast.t); toast.t = setTimeout(() => { S.toast = null; paint(); }, 1500); }
+function cardHtml(c, i) {
+  const v = V[S.v], edit = S.jiggle;
+  return `<div class="card ${S.drag && S.drag.id === c.id ? 'dragging' : ''} ${S.lift === c.id ? 'lifted' : ''}" data-id="${c.id}" data-i="${i}">
+    <div class="bg"><img src="${IMG(c.img)}" alt="" onerror="this.style.opacity=0"></div><span class="nm">${c.n}</span><span class="ct">${c.c}</span>
+    ${edit && v.marks?.minus ? `<span class="minus" data-a="minus" data-id="${c.id}">−</span>` : ''}
+    ${edit && v.marks?.pen ? `<span class="pen" data-a="edit" data-id="${c.id}">✎</span>` : ''}
+    ${edit && v.marks?.check ? `<span class="check ${S.sel.has(c.id) ? 'on' : ''}" data-a="check" data-id="${c.id}">${S.sel.has(c.id) ? '✓' : ''}</span>` : ''}</div>`;
+}
+function body() {
+  const v = V[S.v];
+  const right = S.jiggle && !v.noJiggle ? `<button class="done" data-a="done">完成</button>` : `<div class="ib" data-a="add">＋</div><div class="ib" data-a="menu" title="編輯分類">✎</div><div class="ib">⚙</div>`;
+  let h = `<div class="bar"><div class="ib">☰</div><div class="t"><span style="color:var(--yt)">▶</span>YT 頻道追蹤</div>${right}</div>`;
+  if (S.jiggle && !v.noJiggle && !v.list) h += `<div class="hint">拖著換位置・按「完成」結束</div>`;
+  if (v.noJiggle && S.drag) h += `<div class="hint">拖到想要的位置放開</div>`;
+  if (v.list && S.jiggle) {
+    h += S.cats.map((c, i) => `<div class="lrow ${S.drag && S.drag.id === c.id ? 'dragging' : ''}" data-id="${c.id}" data-i="${i}">
+      <span class="minus" style="position:static;background:var(--red);border:0" data-a="minus" data-id="${c.id}">−</span><img src="${IMG(c.img)}" alt=""><div><b>${c.n}</b><div class="note3">${c.c} 個頻道</div></div><span class="h" data-handle>≡</span></div>`).join('');
+    return h;
+  }
+  h += `<div class="grid ${S.jiggle && !v.noJiggle ? 'jiggle' : ''}" id="grid">
+    <div class="card wide fixed"><div class="bg"><img src="${IMG('all')}" alt=""></div><span class="nm">全部</span><span class="ct">${S.cats.reduce((a, c) => a + c.c, 0)}</span></div>
+    ${S.cats.map(cardHtml).join('')}
+    <div class="card fixed"><div class="bg"><img src="${IMG('uncategorized')}" alt=""></div><span class="nm">未分類</span><span class="ct">2</span></div>
+    <div class="card fixed"><div class="bg"><img src="${IMG('ashcan')}" alt=""></div><span class="nm">垃圾桶</span><span class="ct">3</span></div></div>`;
+  return h;
+}
+function overlay() {
+  let o = '';
+  const v = V[S.v];
+  if (S.jiggle && v.toolbar) o += `<div class="tbar"><button data-a="add">＋ 新增</button><button data-a="editSel" ${S.sel.size === 1 ? '' : 'style="opacity:.4"'}>✎ 編輯</button><button data-a="delSel" style="color:${S.sel.size ? 'var(--red)' : 'var(--ink3)'}">刪除${S.sel.size ? ' ' + S.sel.size : ''}</button><button data-a="done" style="background:var(--ios);color:#fff">完成</button></div>`;
+  if (S.menu) o += `<div class="scrim" data-a="closeMenu"></div><div class="menu"><div class="mh">要編輯哪個分類？</div>${S.cats.map(c => `<div class="mi" data-a="edit" data-id="${c.id}"><img src="${IMG(c.img)}" alt=""><div style="flex:1"><b>${c.n}</b><div class="note3">${c.c} 個頻道</div></div><span class="note3">›</span></div>`).join('')}
+    <div class="sep"></div><div class="mi" data-a="startJiggle"><span style="width:44px;text-align:center">⇅</span><b style="color:var(--accent)">排順序…</b></div></div>`;
+  if (S.dlg) { const c = S.cats.find(x => x.id === S.dlg.id);
+    o += S.dlg.k === 'edit' ? `<div class="dlg"><div class="in"><b style="font-size:16px">編輯分類</b><div class="note3" style="margin-top:6px">名稱</div><input id="nm" value="${c.n}"><div class="note3" style="margin-top:10px">底圖</div>
+      <div style="display:flex;gap:6px;margin-top:6px">${['study', 'games', 'music', 'food', 'travel'].map(n => `<img src="${IMG(n)}" style="width:48px;height:28px;border-radius:6px;object-fit:cover;outline:${c.img === n ? '2px solid var(--ios)' : 'none'};cursor:pointer" data-a="pickImg" data-img="${n}">`).join('')}</div>
+      <div class="btns"><button data-a="closeDlg" style="background:rgba(255,255,255,.1);color:var(--ink)">取消</button><button data-a="saveDlg" style="background:var(--ios);color:#fff">儲存</button></div></div></div>`
+    : `<div class="dlg"><div class="in"><b style="font-size:16px">刪除「${c.n}」？</b><div class="note3" style="margin-top:6px">裡面 ${c.c} 個頻道會移到「未分類」，頻道不會刪掉。</div>
+      <div class="btns"><button data-a="closeDlg" style="background:rgba(255,255,255,.1);color:var(--ink)">取消</button><button data-a="confirmDel" style="background:var(--red);color:#fff">刪除</button></div></div></div>`; }
+  if (S.toast) o += `<div class="toast">${S.toast}</div>`;
+  return o;
+}
+function paint(keep = true) {
+  const sc = phone.querySelector('.screen'), y = sc && keep ? sc.scrollTop : 0;
+  phone.innerHTML = `<div class="status"><span>21:41</span><span>▮▮▮ ◔ 82%</span></div><div class="screen">${body()}</div>${overlay()}`;
+  phone.querySelector('.screen').scrollTop = y;
+}
+function notes() {
+  const v = V[S.v];
+  document.getElementById('notes').innerHTML = `<h2>${v.title}</h2><span class="tag">${v.tag}</span>${v.desc}
+    <div class="box"><b>五版都一樣</b><ul><li>上面 ✏️：往下長出選單選要編輯的分類（原本長按跳出的「編輯分類」移到這裡）；選單最下面也有「排順序…」不用長按。</li>
+      <li>換好的順序存起來、跨裝置同步（就是現在設定裡「分類顯示順序」那份）。</li><li>「全部／未分類／垃圾桶」不是真的分類，固定不動。</li></ul></div>
+    <div class="try">試試看：長按「遊戲」0.5 秒 → 拖到「學習」前面放開${v.noJiggle ? '' : ' → 按「完成」'}；點上面 ✏️ 選一個分類改名。</div>`;
+}
+function pick(i) { Object.assign(S, { v: i, cats: START.map(c => ({ ...c })), jiggle: false, drag: null, menu: false, dlg: null, sel: new Set(), lift: null });
+  document.querySelectorAll('#vtabs button').forEach((b, j) => b.classList.toggle('on', j === i)); notes(); paint(false); }
+document.getElementById('vtabs').innerHTML = V.map(v => `<button>${v.name}</button>`).join('');
+document.querySelectorAll('#vtabs button').forEach((b, i) => b.onclick = () => pick(i));
+
+// ── 長按、拖曳 ──────────────────────────────────────
+let press = null;
+phone.addEventListener('pointerdown', e => {
+  if (e.target.closest('[data-a]')) return;
+  const el = e.target.closest('.card:not(.fixed), .lrow'); if (!el) return;
+  const v = V[S.v];
+  const start = { x: e.clientX, y: e.clientY, id: el.dataset.id, el };
+  if (S.jiggle && !v.noJiggle) { beginDrag(start, e); return; }
+  press = { ...start, t: setTimeout(() => {
+    if (v.noJiggle) { S.lift = start.id; beginDrag(start, e, true); }
+    else { S.jiggle = true; paint(); const nel = phone.querySelector(`[data-id="${start.id}"]`); beginDrag({ ...start, el: nel }, e, true); }
+    if (navigator.vibrate) navigator.vibrate(10);
+  }, 500) };
+});
+phone.addEventListener('pointermove', e => { if (press && Math.hypot(e.clientX - press.x, e.clientY - press.y) > 8) { clearTimeout(press.t); press = null; } });
+phone.addEventListener('pointerup', () => { if (press) { clearTimeout(press.t); press = null; } });
+function beginDrag(start, e, fromPress) {
+  const v = V[S.v];
+  let moved = false;
+  S.drag = { id: start.id };
+  const rect0 = () => phone.querySelector(`[data-id="${start.id}"]`).getBoundingClientRect();
+  let r = rect0(); const offX = start.x - r.left, offY = start.y - r.top;
+  paint();
+  const move = ev => {
+    if (Math.hypot(ev.clientX - start.x, ev.clientY - start.y) > 6) moved = true;
+    const el = phone.querySelector(`[data-id="${start.id}"]`); if (!el) return;
+    // 找手指底下是哪一張，換位置
+    const others = [...phone.querySelectorAll(v.list ? '.lrow' : '.card:not(.fixed)')].filter(x => x.dataset.id !== start.id);
+    for (const o of others) { const b = o.getBoundingClientRect();
+      if (ev.clientX > b.left && ev.clientX < b.right && ev.clientY > b.top && ev.clientY < b.bottom) {
+        const from = S.cats.findIndex(c => c.id === start.id), to = S.cats.findIndex(c => c.id === o.dataset.id);
+        const before = new Map([...phone.querySelectorAll('[data-id]')].map(n => [n.dataset.id, n.getBoundingClientRect()]));
+        const [it] = S.cats.splice(from, 1); S.cats.splice(to, 0, it); paint();
+        // FLIP：其他卡片從舊位置彈過去
+        phone.querySelectorAll('[data-id]').forEach(n => { if (n.dataset.id === start.id) return; const a = before.get(n.dataset.id), b2 = n.getBoundingClientRect(); if (!a) return;
+          n.style.transition = 'none'; n.style.transform = `translate(${a.left - b2.left}px, ${a.top - b2.top}px)`; requestAnimationFrame(() => { n.style.transition = ''; n.style.transform = ''; }); });
+        break; } }
+    const el2 = phone.querySelector(`[data-id="${start.id}"]`); const nb = el2.getBoundingClientRect();
+    const cur = el2.style.transform.match(/translate\(([-\d.]+)px, ([-\d.]+)px\)/); const cx = cur ? +cur[1] : 0, cy = cur ? +cur[2] : 0;
+    el2.style.transform = `translate(${ev.clientX - offX - (nb.left - cx)}px, ${ev.clientY - offY - (nb.top - cy)}px) scale(1.06)`;
+  };
+  const up = () => {
+    removeEventListener('pointermove', move); removeEventListener('pointerup', up);
+    S.drag = null; S.lift = null;
+    if (!moved && !fromPress && v.tapEdits) S.dlg = { k: 'edit', id: start.id };
+    if (moved) toast(v.noJiggle ? '順序已存' : '放好了');
+    paint();
+  };
+  addEventListener('pointermove', move); addEventListener('pointerup', up);
+}
+phone.addEventListener('click', e => {
+  const el = e.target.closest('[data-a]');
+  if (!el) { if (S.jiggle && !e.target.closest('.card,.lrow,.tbar') && !V[S.v].list) { S.jiggle = false; S.sel.clear(); toast('順序已存（跨裝置同步）'); paint(); } return; }
+  const a = el.dataset.a, id = el.dataset.id;
+  switch (a) {
+    case 'done': S.jiggle = false; S.sel.clear(); toast('順序已存（跨裝置同步）'); break;
+    case 'menu': S.menu = true; break;
+    case 'closeMenu': S.menu = false; break;
+    case 'startJiggle': S.menu = false; if (V[S.v].noJiggle) toast('長按一張就能拖'); else S.jiggle = true; break;
+    case 'edit': S.menu = false; S.dlg = { k: 'edit', id }; break;
+    case 'minus': S.dlg = { k: 'del', id }; break;
+    case 'check': S.sel.has(id) ? S.sel.delete(id) : S.sel.add(id); break;
+    case 'editSel': if (S.sel.size === 1) S.dlg = { k: 'edit', id: [...S.sel][0] }; break;
+    case 'delSel': if (S.sel.size) { S.cats = S.cats.filter(c => !S.sel.has(c.id)); toast(`刪了 ${S.sel.size} 個分類，頻道移到未分類`); S.sel.clear(); } break;
+    case 'add': toast('（示意）新增分類'); break;
+    case 'closeDlg': S.dlg = null; break;
+    case 'pickImg': S.cats.find(c => c.id === S.dlg.id).img = el.dataset.img; break;
+    case 'saveDlg': { const c = S.cats.find(x => x.id === S.dlg.id); const v = phone.querySelector('#nm').value.trim(); if (v) c.n = v; S.dlg = null; toast('已更新'); break; }
+    case 'confirmDel': S.cats = S.cats.filter(c => c.id !== S.dlg.id); S.dlg = null; toast('已刪除，頻道移到未分類'); break;
+  }
+  paint();
+});
+pick(0);
+</script>
+</body>
+</html>
