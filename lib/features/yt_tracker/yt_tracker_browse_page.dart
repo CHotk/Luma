@@ -5,6 +5,7 @@ import 'package:flutter/services.dart' show Clipboard;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../app/app_bottom_nav.dart' show FloatingNavInset;
 import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
@@ -870,6 +871,9 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                           if (preview.isNotEmpty)
                             Expanded(
                               child: ListView.separated(
+                                padding: EdgeInsets.only(
+                                  bottom: FloatingNavInset.of(context),
+                                ),
                                 itemCount: preview.length,
                                 separatorBuilder: (_, _) => const Divider(
                                   height: 1,
@@ -936,6 +940,9 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                       );
                     }
                     return ListView.separated(
+                      padding: EdgeInsets.only(
+                        bottom: FloatingNavInset.of(context),
+                      ),
                       itemCount: videos.length,
                       separatorBuilder: (_, _) =>
                           const Divider(height: 1, color: AppColors.glassEdge),
@@ -2140,6 +2147,10 @@ class _ChannelGridState extends State<_ChannelGrid> {
                   ...sections[i].body,
                 ],
                 const SliverToBoxAdapter(child: SizedBox(height: Gap.lg)),
+                // 底部浮動分頁列擋住的高度（2026-10-14）。
+                SliverToBoxAdapter(
+                  child: SizedBox(height: FloatingNavInset.of(context)),
+                ),
               ],
             ),
           ),

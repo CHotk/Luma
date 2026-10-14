@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../app/app_bottom_nav.dart' show FloatingNavInset;
 import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
@@ -59,7 +60,9 @@ class YtPlaylistsPage extends ConsumerWidget {
                 const SizedBox(height: Gap.md),
                 Expanded(
                   child: GridView.builder(
-                    padding: const EdgeInsets.only(bottom: Gap.lg),
+                    padding: EdgeInsets.only(
+                      bottom: Gap.lg + FloatingNavInset.of(context),
+                    ),
                     gridDelegate:
                         const SliverGridDelegateWithMaxCrossAxisExtent(
                           maxCrossAxisExtent: 260,
@@ -257,8 +260,10 @@ class YtPlaylistPage extends ConsumerWidget {
                                 );
                               },
                             ),
-                            const SliverToBoxAdapter(
-                              child: SizedBox(height: Gap.lg),
+                            SliverToBoxAdapter(
+                              child: SizedBox(
+                                height: Gap.lg + FloatingNavInset.of(context),
+                              ),
                             ),
                           ],
                         ),

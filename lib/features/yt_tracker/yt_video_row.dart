@@ -226,6 +226,7 @@ class YtVideoRow extends ConsumerStatefulWidget {
     this.channelId,
     this.channelName,
     this.playlistId,
+    this.background = AppColors.bg,
   });
 
   /// 這部影片是哪個頻道的（存進播放清單時一起記下來，2026-10-14）。
@@ -234,6 +235,10 @@ class YtVideoRow extends ConsumerStatefulWidget {
 
   /// 在某份播放清單裡顯示時給：⋮ 選單多「移到最上面」「從這個清單移除」。
   final String? playlistId;
+
+  /// 整列的底色（要不透明，才蓋得住往左滑露出來的按鈕）。放在卡片裡
+  /// 時給卡片的顏色，不然會是一塊黑底（2026-10-14 使用者回報頻道紀錄頁）。
+  final Color background;
 
   /// 搜尋關鍵字：標題裡符合的字標黃（2026-10-14 頻道頁搜尋）。
   final String? highlight;
@@ -720,7 +725,7 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
               curve: Curves.easeOutCubic,
               transform: Matrix4.translationValues(_dragOffset, 0, 0),
               child: ColoredBox(
-                color: AppColors.bg,
+                color: widget.background,
                 child: Opacity(
                   // 靠 forceShow 硬顯示出來的隱藏影片，整排淡一點，一眼
                   // 看得出跟正常影片不一樣（2026-09-30 使用者要求的

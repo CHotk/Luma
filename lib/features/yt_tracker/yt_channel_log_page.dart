@@ -450,39 +450,54 @@ class _Row extends StatelessWidget {
     );
   }
 
+  /// 觀看紀錄卡片的底色（不透明，影片列往左滑的按鈕才蓋得住）。
+  static const _cardColor = Color(0xFF17172A);
+
   Widget _content() {
     String two(int n) => n.toString().padLeft(2, '0');
     final channel = item.channel;
     final video = item.video;
     if (video != null) {
       // 觀看紀錄：左邊觀看時間，右邊跟影片清單一樣的影片列（點了照樣能
-      // 開來看、往左滑一樣有按鈕）。
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 12),
-            child: SizedBox(
-              width: 42,
-              child: Text(
-                '${two(item.at.hour)}:${two(item.at.minute)}',
-                style: AppText.note,
+      // 開來看、往左滑一樣有按鈕）。整列包成一張圓角卡片、底色跟卡片一樣
+      // （2026-10-14 使用者回報：原本影片列是一塊黑底，很醜）。
+      return Container(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        decoration: BoxDecoration(
+          color: _cardColor,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.glassEdge),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 14, 0, 0),
+              child: SizedBox(
+                width: 40,
+                child: Text(
+                  '${two(item.at.hour)}:${two(item.at.minute)}',
+                  style: AppText.note.copyWith(fontWeight: FontWeight.w700),
+                ),
               ),
             ),
-          ),
-          Expanded(
-            child: YtVideoRow(
-              key: ValueKey(
-                '${video.videoId}-${item.at.microsecondsSinceEpoch}',
+            Expanded(
+              child: YtVideoRow(
+                background: _cardColor,
+                key: ValueKey(
+                  '${video.videoId}-${item.at.microsecondsSinceEpoch}',
+                ),
+                video: video,
+                subtitle: channel == null
+                    ? ytRelativeTime(video.publishedAt)
+                    : '${channel.name}・${ytRelativeTime(video.publishedAt)}',
+                forceShow: true,
               ),
-              video: video,
-              subtitle: channel == null
-                  ? ytRelativeTime(video.publishedAt)
-                  : '${channel.name}・${ytRelativeTime(video.publishedAt)}',
-              forceShow: true,
             ),
-          ),
-        ],
+            const SizedBox(width: 6),
+          ],
+        ),
       );
     }
     return Padding(

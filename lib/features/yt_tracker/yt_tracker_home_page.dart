@@ -6,6 +6,7 @@ import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../app/app_bottom_nav.dart' show FloatingNavInset;
 import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
@@ -361,14 +362,6 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
                       color: AppColors.ink2,
                       tooltip: '挖掘新頻道',
                     ),
-                    // 播放清單（2026-10-14）：底部分頁列關掉或用全 App 共用
-                    // 時，從這裡進。
-                    IconButton(
-                      onPressed: () => context.push('/yt-playlists'),
-                      icon: const Icon(Icons.video_library_outlined, size: 20),
-                      color: AppColors.ink2,
-                      tooltip: '播放清單',
-                    ),
                     // 全部頻道的紀錄（2026-10-06 使用者要求）。
                     IconButton(
                       onPressed: () => context.push('/yt-tracker/log'),
@@ -611,6 +604,12 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
                                                         ),
                                             );
                                           },
+                                        ),
+                                      ),
+                                      // 底部浮動分頁列擋住的高度（2026-10-14）。
+                                      SliverToBoxAdapter(
+                                        child: SizedBox(
+                                          height: FloatingNavInset.of(context),
                                         ),
                                       ),
                                     ],
@@ -1431,6 +1430,7 @@ class _SearchResults extends StatelessWidget {
       return Center(child: Text('找不到符合的頻道', style: AppText.bodyDim));
     }
     return ListView.separated(
+      padding: EdgeInsets.only(bottom: FloatingNavInset.of(context)),
       itemCount: channels.length,
       separatorBuilder: (_, _) =>
           const Divider(height: 1, color: AppColors.glassEdge),

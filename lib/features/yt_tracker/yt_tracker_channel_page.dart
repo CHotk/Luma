@@ -3,6 +3,7 @@ import 'package:flutter/services.dart' show Clipboard;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../app/app_bottom_nav.dart' show FloatingNavInset;
 import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
@@ -1793,28 +1794,38 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                                     prefs.showScrollbar,
                                     CustomScrollView(
                                       controller: _scroll,
-                                      slivers: _searchOpen
-                                          ? _buildSearch(channel)
-                                          : [
-                                              SliverToBoxAdapter(
-                                                child: _buildChannelBody(
-                                                  channel,
-                                                  categories,
-                                                  categoryLabel,
-                                                ),
-                                              ),
-                                              if (_editing)
-                                                SliverIgnorePointer(
-                                                  sliver: SliverOpacity(
-                                                    opacity: 0.3,
-                                                    sliver: _buildVideos(
-                                                      channel,
-                                                    ),
+                                      slivers: [
+                                        ...(_searchOpen
+                                            ? _buildSearch(channel)
+                                            : [
+                                                SliverToBoxAdapter(
+                                                  child: _buildChannelBody(
+                                                    channel,
+                                                    categories,
+                                                    categoryLabel,
                                                   ),
-                                                )
-                                              else
-                                                _buildVideos(channel),
-                                            ],
+                                                ),
+                                                if (_editing)
+                                                  SliverIgnorePointer(
+                                                    sliver: SliverOpacity(
+                                                      opacity: 0.3,
+                                                      sliver: _buildVideos(
+                                                        channel,
+                                                      ),
+                                                    ),
+                                                  )
+                                                else
+                                                  _buildVideos(channel),
+                                              ]),
+                                        // 底部浮動分頁列擋住的高度（2026-10-14）。
+                                        SliverToBoxAdapter(
+                                          child: SizedBox(
+                                            height: FloatingNavInset.of(
+                                              context,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 ),

@@ -45,8 +45,8 @@ class _NavSpec {
 /// 底部浮動分頁列（2026-10-14 使用者要求，設計稿第 2 版 iOS 26 膠囊）。
 /// 放在 `MaterialApp.router` 的 builder 裡，整個 App 一條：
 ///
-/// - **全 App 共用**（預設）：英文／日文／YT 三格，在各功能首頁（跟 App
-///   首頁）顯示。
+/// - **全 App 共用**（預設）：App 首頁、英文、日文首頁顯示英文／日文／YT
+///   三格；進到 YT 換成 YT 自己的（有自己分頁列的功能用自己的）。
 /// - **各功能自己的**：YT 是頻道／影片（設定選的某個頻道，當快捷）／播放
 ///   清單，YT 裡每一頁都顯示；其他功能還沒有自己的，就不顯示。
 /// - **不顯示**。
@@ -107,10 +107,15 @@ class _AppBottomNavFrameState extends ConsumerState<AppBottomNavFrame> {
       appRouter.routerDelegate.currentConfiguration.uri.path;
 
   _NavSpec? _spec(String path, NavBarMode mode, String videoChannelId) {
+    final isYt =
+        path.startsWith('/yt-tracker') || path.startsWith('/yt-playlists');
     switch (mode) {
       case NavBarMode.off:
         return null;
       case NavBarMode.global:
+        // 有自己分頁列的功能（YT）裡面用它自己的（2026-10-14 使用者糾正：
+        // YT 有自己的底部 bar，不是全 App 那條）。
+        if (isYt) return _ytSpec(path, videoChannelId);
         const roots = ['/start', '/home', '/jp-home', '/yt-tracker'];
         if (!roots.contains(path)) return null;
         final selected = switch (path) {
@@ -134,25 +139,27 @@ class _AppBottomNavFrameState extends ConsumerState<AppBottomNavFrame> {
           }
         });
       case NavBarMode.feature:
-        final isYt =
-            path.startsWith('/yt-tracker') || path.startsWith('/yt-playlists');
-        if (!isYt) return null;
-        final selected = path.startsWith('/yt-playlists')
-            ? 2
-            : (videoChannelId.isNotEmpty &&
-                  path == '/yt-tracker/channel/$videoChannelId')
-            ? 1
-            : 0;
-        return _NavSpec(
-          _ytTabs,
-          selected,
-          (i) => _onYtTab(i, path, videoChannelId),
-          // 長按「影片」換頻道。
-          onLongPress: (i) {
-            if (i == 1) _pickVideoChannel();
-          },
-        );
+        return isYt ? _ytSpec(path, videoChannelId) : null;
     }
+  }
+
+  /// YT 自己的分頁列：頻道／影片（設定選的某個頻道，當快捷）／播放清單。
+  _NavSpec _ytSpec(String path, String videoChannelId) {
+    final selected = path.startsWith('/yt-playlists')
+        ? 2
+        : (videoChannelId.isNotEmpty &&
+              path == '/yt-tracker/channel/$videoChannelId')
+        ? 1
+        : 0;
+    return _NavSpec(
+      _ytTabs,
+      selected,
+      (i) => _onYtTab(i, path, videoChannelId),
+      // 長按「影片」換頻道。
+      onLongPress: (i) {
+        if (i == 1) _pickVideoChannel();
+      },
+    );
   }
 
   Future<void> _pickVideoChannel() async {
@@ -209,26 +216,22 @@ class _AppBottomNavFrameState extends ConsumerState<AppBottomNavFrame> {
         }
         final spec = _spec(path, mode, videoChannelId);
         final mq = MediaQuery.of(context);
-        if (spec == null) return widget.child;
         final keyboard = mq.viewInsets.bottom > 0;
-        final hidden = keyboard || navBarRouteObserver.popups.value > 0;
+        final hidden =
+            spec == null || keyboard || navBarRouteObserver.popups.value > 0;
         final barBottom = math.max(mq.padding.bottom - 6, 12.0);
-        final reserve = barBottom + FloatingTabBar.height + 8;
+        // 浮在頁面上面，不佔一行（2026-10-14 使用者糾正）：頁面照樣排到最底，
+        // 只是清單最後多留這麼高的空白（[FloatingNavInset]），最後一項才
+        // 捲得上來、不被擋住。
+        final reserve = spec == null
+            ? 0.0
+            : barBottom + FloatingTabBar.height + 12 - mq.padding.bottom;
+        // 不管有沒有分頁列，結構都一樣，不然換頁時整個 App 會被重建。
         return Stack(
           children: [
             NotificationListener<ScrollUpdateNotification>(
               onNotification: _onScroll,
-              child: MediaQuery(
-                data: mq.copyWith(
-                  padding: mq.padding.copyWith(
-                    bottom: math.max(mq.padding.bottom, reserve),
-                  ),
-                  viewPadding: mq.viewPadding.copyWith(
-                    bottom: math.max(mq.viewPadding.bottom, reserve),
-                  ),
-                ),
-                child: widget.child,
-              ),
+              child: FloatingNavInset(value: reserve, child: widget.child),
             ),
             Positioned(
               left: 0,
@@ -243,14 +246,22 @@ class _AppBottomNavFrameState extends ConsumerState<AppBottomNavFrame> {
                   child: AnimatedOpacity(
                     opacity: hidden ? 0 : 1,
                     duration: const Duration(milliseconds: 200),
-                    child: Center(
-                      child: FloatingTabBar(
-                        tabs: spec.tabs,
-                        selected: spec.selected,
-                        onTap: spec.onTap,
-                        onLongPress: spec.onLongPress,
-                        collapsed: _collapsed,
-                        onExpand: () => setState(() => _collapsed = false),
+                    // 分頁列畫在整個 App 的 Navigator 外面，沒有 Material，
+                    // 文字會出現黃色雙底線（2026-10-14 使用者回報），補一層。
+                    child: Material(
+                      type: MaterialType.transparency,
+                      child: Center(
+                        child: spec == null
+                            ? const SizedBox.shrink()
+                            : FloatingTabBar(
+                                tabs: spec.tabs,
+                                selected: spec.selected,
+                                onTap: spec.onTap,
+                                onLongPress: spec.onLongPress,
+                                collapsed: _collapsed,
+                                onExpand: () =>
+                                    setState(() => _collapsed = false),
+                              ),
                       ),
                     ),
                   ),
@@ -262,4 +273,23 @@ class _AppBottomNavFrameState extends ConsumerState<AppBottomNavFrame> {
       },
     );
   }
+}
+
+/// 底部浮動分頁列擋住的高度（扣掉本來的安全區）。有分頁列的頁面在清單
+/// 最後加這麼高的空白，最後一項才捲得到分頁列上面；沒有分頁列時是 0。
+class FloatingNavInset extends InheritedWidget {
+  const FloatingNavInset({
+    super.key,
+    required this.value,
+    required super.child,
+  });
+
+  final double value;
+
+  static double of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<FloatingNavInset>()?.value ??
+      0;
+
+  @override
+  bool updateShouldNotify(FloatingNavInset old) => old.value != value;
 }
