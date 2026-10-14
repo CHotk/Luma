@@ -817,8 +817,19 @@ void main() {
     expect(monthCapital([a, b], sep), 25250);
     // 8 月：a 是 8 月開的，也算 8 月。
     expect(monthCapital([a, b], DateTime(2026, 8)), 500);
-    // 10 月沒有單。
-    expect(monthCapital([a, b], DateTime(2026, 10)), isNull);
+    // 10 月：b 還沒平、一直抱著，所以 10 月也算它。
+    expect(
+      monthCapital([a, b], DateTime(2026, 10), now: DateTime(2026, 10, 14)),
+      50001,
+    );
+    // 8 月開、10 月平：整個 9 月都抱著，9 月也算。
+    final c = t('c', 300, DateTime(2026, 8, 20), DateTime(2026, 10, 2));
+    expect(monthCapital([c], sep), 300);
+    // 11 月以後沒有單。
+    expect(
+      monthCapital([a, c], DateTime(2026, 11), now: DateTime(2026, 11, 3)),
+      isNull,
+    );
   });
 
   testWidgets('起始資金自動算、不能填；月報酬跟著出來', (tester) async {

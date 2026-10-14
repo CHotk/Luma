@@ -195,10 +195,6 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
     // 重疊的單用顏色分（2026-10-14 使用者選：1 單一條黃線、2～3 單每單一條
     // 細色條、4 單以上分段色塊＋×N）。顏色照這個月開倉先後輪流給。
     final monthTrades = _monthTrades(data);
-    final colorOf = <String, Color>{
-      for (var i = 0; i < monthTrades.length; i++)
-        monthTrades[i].id: tradeOverlapColors[i % tradeOverlapColors.length],
-    };
     final heldOn = <DateTime, List<TradeEntry>>{};
     for (final t in monthTrades) {
       final days = _daysOf(t);
@@ -211,6 +207,13 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
       for (final t in monthTrades)
         if (_daysOf(t).any((d) => (heldOn[d]?.length ?? 0) > 1)) t,
     ];
+    // 有跟別單重疊過的單才給顏色，而且從開到平每一天都用同一個顏色
+    // （2026-10-14 使用者回報：5 號開 6 號平、6 號又開一單，5 號是黃線、6 號
+    // 變藍，接不起來）。從沒重疊過的單照舊一條黃線。
+    final colorOf = <String, Color>{
+      for (var i = 0; i < overlapped.length; i++)
+        overlapped[i].id: tradeOverlapColors[i % tradeOverlapColors.length],
+    };
     // 每天的開／平事件（照真的時間排），重疊那天標籤換成那單的顏色。
     final events = <DateTime, List<(bool open, String id, DateTime at)>>{};
     for (final t in data.trades) {
@@ -400,7 +403,7 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
     final n = held.length;
     // 兩單以上重疊時，開／平標籤用那單的顏色。
     Widget eventTag((bool, String, DateTime) e) {
-      final c = n >= 2 ? colorOf[e.$2] : null;
+      final c = colorOf[e.$2];
       if (c == null) return _tag(e.$1 ? '開' : '平', open: e.$1);
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 2.5),
@@ -513,7 +516,7 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
                 // 持倉期間：格子最底部、在格子裡面的一條淡黃線（2026-10-08
                 // 使用者挑設計稿版本 3，要求放格子底部、顏色淡一點）。
                 // 只抱 1 單：跟原本一樣一條黃線。
-                if (n == 1)
+                if (n == 1 && !colorOf.containsKey(held.single.id))
                   Positioned(
                     left: 4,
                     right: 4,
@@ -528,7 +531,9 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
                   ),
                 // 2～3 單：每單一條細色條，由下往上疊（開倉、平倉那天兩端
                 // 內縮一點，連續幾天看得出是同一條）。
-                if (n >= 2 && n <= 3)
+                // 只抱 1 單但那單別天有跟人重疊：照樣畫它的顏色，接得起來。
+                if ((n >= 2 && n <= 3) ||
+                    (n == 1 && colorOf.containsKey(held.single.id)))
                   Positioned(
                     left: 0,
                     right: 0,

@@ -130,14 +130,23 @@ List<TradeGroup> bySymbol(List<TradeEntry> closed) {
   return best.count == 0 ? null : best;
 }
 
-/// 某個月的起始資金：這個月平倉的單＋這個月開倉的單（不重複算）的平均
-/// 本金，無條件捨去成整數；沒有單是 null（2026-10-14 使用者要求）。
-double? monthCapital(Iterable<TradeEntry> trades, DateTime month) {
-  bool inMonth(DateTime d) => d.year == month.year && d.month == month.month;
+/// 某個月的起始資金：這個月裡任何時候抱著過的單（這個月開的、這個月平的、
+/// 整個月都抱著的都算，跨月的單每個月都算一次）的平均本金，無條件捨去成
+/// 整數；沒有單是 null（2026-10-14 使用者要求，跨月兩個月都算也確認過）。
+/// 損益照舊只記在平倉那個月。[now] 給還沒平的單當結束時間。
+double? monthCapital(
+  Iterable<TradeEntry> trades,
+  DateTime month, {
+  DateTime? now,
+}) {
+  final start = DateTime(month.year, month.month);
+  final end = DateTime(month.year, month.month + 1);
+  final until = now ?? DateTime.now();
   final list = [
     for (final t in trades)
       if (t.deletedAt == null &&
-          ((t.closedAt != null && inMonth(t.closedAt!)) || inMonth(t.openedAt)))
+          t.openedAt.isBefore(end) &&
+          !(t.closedAt ?? until).isBefore(start))
         t,
   ];
   if (list.isEmpty) return null;
