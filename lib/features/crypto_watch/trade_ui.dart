@@ -844,10 +844,14 @@ class LeverageSlider extends StatelessWidget {
     super.key,
     required this.value,
     required this.onChanged,
+    this.onChangeEnd,
   });
 
   final double value;
   final ValueChanged<double> onChanged;
+
+  /// 拉完放手、或點了刻度（記一筆一題一題問時，拉完直接出下一題）。
+  final ValueChanged<double>? onChangeEnd;
 
   static const _binanceYellow = Color(0xFFF0B90B);
   static const _ticks = [1, 5, 10, 15, 18];
@@ -898,6 +902,7 @@ class LeverageSlider extends StatelessWidget {
             max: _maxLeverage,
             divisions: (_maxLeverage - 1).round(),
             onChanged: (x) => onChanged(x.roundToDouble()),
+            onChangeEnd: (x) => onChangeEnd?.call(x.roundToDouble()),
           ),
         ),
         // 刻度：跟拉桿兩端對齊（拉桿左右各內縮 overlay 半徑 16）。
@@ -916,7 +921,10 @@ class LeverageSlider extends StatelessWidget {
                       width: 36,
                       top: 0,
                       child: InkWell(
-                        onTap: () => onChanged(t.toDouble()),
+                        onTap: () {
+                          onChanged(t.toDouble());
+                          onChangeEnd?.call(t.toDouble());
+                        },
                         borderRadius: BorderRadius.circular(6),
                         child: Text(
                           '${t}x',
@@ -1282,8 +1290,15 @@ class _NewTradeSheetState extends State<_NewTradeSheet> {
             LeverageSlider(
               value: _leverage,
               onChanged: (v) => setState(() => _leverage = v),
+              // 拉過就直接出下一題，不用再按（2026-10-14 使用者要求）；
+              // 預設倍數剛好要用的話，按下面那顆。
+              onChangeEnd: (_) {
+                if (!editing && !_answered(_Step.leverage)) {
+                  _answer(_Step.leverage, () {});
+                }
+              },
             ),
-            _nextButton(_Step.leverage, true, '用 ${fmtLev(_leverage)}，下一題'),
+            _nextButton(_Step.leverage, true, '就用 ${fmtLev(_leverage)}，下一題'),
           ]),
         if (editing)
           SwitchListTile(

@@ -174,13 +174,15 @@ void main() {
     expect(find.text('槓桿'), findsNothing);
     await tapIn(tester, find.text('多 ▲'));
     expect(find.text('槓桿'), findsOneWidget);
-    await tapIn(tester, find.text('用 10x，下一題'));
+    // 拉過（或點刻度）就直接出下一題，不用按按鈕。
+    await tapIn(tester, find.text('15x'));
+    expect(find.text('就用 15x，下一題'), findsNothing);
     // 不是補記：沒有盈虧那題，直接問本金。
     expect(find.text('盈虧 %'), findsNothing);
     expect(find.text('本金（保證金）'), findsOneWidget);
     await tester.enterText(fieldWithHint('例如 400'), '400');
     await tester.pump();
-    expect(find.textContaining('4,000 USDT'), findsOneWidget);
+    expect(find.textContaining('6,000 USDT'), findsOneWidget);
     expect(save().onPressed, isNull);
     await tapIn(tester, find.text('下一題'));
     expect(find.text('開倉時間'), findsOneWidget);
@@ -198,7 +200,7 @@ void main() {
     expect(find.text('補記一單'), findsOneWidget);
     await tapIn(tester, find.text('ETH'));
     await tapIn(tester, find.text('空 ▼'));
-    await tapIn(tester, find.text('用 10x，下一題'));
+    await tapIn(tester, find.text('就用 10x，下一題'));
     expect(find.text('盈虧 %'), findsOneWidget);
     expect(find.text('本金（自動算）'), findsNothing);
 
@@ -256,7 +258,7 @@ void main() {
     await tapIn(tester, find.text('現在開倉'));
     await tapIn(tester, find.text('BTC'));
     await tapIn(tester, find.text('多 ▲'));
-    await tapIn(tester, find.text('用 10x，下一題'));
+    await tapIn(tester, find.text('就用 10x，下一題'));
     await tester.enterText(fieldWithHint('例如 400'), '400');
     await tester.pump();
     await tapIn(tester, find.text('下一題'));
@@ -609,7 +611,7 @@ void main() {
     await tapIn(tester, find.text('補記以前的單'));
     await tapIn(tester, find.text('BTC'));
     await tapIn(tester, find.text('多 ▲'));
-    await tapIn(tester, find.text('用 10x，下一題'));
+    await tapIn(tester, find.text('就用 10x，下一題'));
     TextField field(String hint) =>
         tester.widget<TextField>(fieldWithHint(hint));
 
