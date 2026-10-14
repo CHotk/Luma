@@ -35,7 +35,7 @@
   .cell.sel { outline: 2px solid #fff; z-index: 3; }
   .cell.dim { opacity: .35; }
   .cell .d { position: absolute; left: 4px; top: 2px; font-size: 10px; color: var(--ink3); }
-  .cell .pnl { position: absolute; left: 0; right: 0; bottom: 16px; text-align: center; font-size: 10.5px; font-weight: 800; }
+  .cell .pnl { position: absolute; left: 0; right: 0; bottom: var(--pb, 16px); text-align: center; font-size: 10.5px; font-weight: 800; }
   .tg { display: inline-block; font-size: 8.5px; font-weight: 900; padding: 0 2.5px; border-radius: 3px; line-height: 1.35; }
   .tags { position: absolute; left: 3px; top: 16px; display: flex; gap: 2px; flex-wrap: wrap; right: 2px; }
   .one { position: absolute; bottom: 2px; height: 2.5px; border-radius: 2px; background: #F5C763; }
@@ -56,13 +56,13 @@
 <body>
 <div class="page">
   <h1>交易月曆：重疊倉位・最終版</h1>
-  <p class="lead">照你選的規則：<b>那天只抱 1 單＝跟現在一樣一條黃線</b>（不用特別分）、<b>2～3 單＝版本 1 每單一條細色條</b>、<b>4 單以上＝版本 4 分段色塊＋「×N」</b>。上面切重疊幾單；最後一顆是「5 單重疊＋後半個月另外幾單沒重疊」。點格子看那天有哪幾單。</p>
+  <p class="lead">照你選的規則：<b>不管重疊幾單都是一單一條線</b>（不用色塊），每單固定一層、從開到平都在同一個高度；<b>這個月最多疊幾層，月曆格子就拉長幾層</b>，剛好塞得下不擠。沒跟別單重疊過的是黃線。上面切重疊幾單；最後一顆是「5 單重疊＋後半個月另外幾單沒重疊」。點格子看那天有哪幾單。</p>
   <div class="ntabs" id="ntabs"></div>
   <div class="stage"><div class="phone" id="phone"></div>
     <div class="notes"><h2>規則</h2><table>
-      <tr><td>1 單</td><td>格子底部一條<b>黃線</b>（跟現在一樣），開／平標籤照舊。</td></tr>
-      <tr><td>2～3 單</td><td>每單一條細色條，<b>由下往上疊</b>，同一單的線連續幾天都在同一層；開／平標籤換成那單的顏色。</td></tr>
-      <tr><td>4～5 單</td><td>格子底部一條<b>分段色塊</b>（每段一單的顏色），右上角「×4」寫抱幾單。</td></tr>
+      <tr><td>沒重疊</td><td>格子底部一條<b>黃線</b>，開／平標籤照舊。</td></tr>
+      <tr><td>有重疊</td><td>每單一條細線、各用自己的顏色，<b>每單固定一層</b>（照開倉先後給最低的空層），從開到平每天同一個高度；開／平標籤換成那單的顏色。</td></tr>
+      <tr><td>格子高度</td><td>這個月最多疊幾層，整個月的格子就拉長幾層（每層 4.5px），損益數字跟著往上讓，不擠。</td></tr>
     </table>
     <div class="box"><b style="color:var(--ink)">顏色</b>：照開倉先後輪流用黃、藍、紫、青、粉（避開綠紅＝賺賠）；同一單在月曆、甘特圖、當天頁都是同一個顏色。下面圖例只列這個月有重疊過的單。</div></div>
   </div>
@@ -96,6 +96,8 @@ const overlapped = () => trades().filter(t => { for (let d = t.o[0]; d <= t.end;
 function colOf(t) { const ov = overlapped().map(x => x.i); const k = ov.indexOf(t.i); return k < 0 ? PAL[0] : PAL[k % 5]; }
 // 每單固定一層（同一單每天同一個高度）：照開倉先後給最低的空層。
 function laneOf(t) { const ts = trades().slice().sort((x, y) => x.o[0] - y.o[0] || x.o[1] - y.o[1]), lanes = {}; for (const x of ts) { const used = new Set(); for (let d = x.o[0]; d <= x.end; d++) for (const o of onDay(d)) if (lanes[o.i] != null) used.add(lanes[o.i]); let l = 0; while (used.has(l)) l++; lanes[x.i] = l; } return lanes[t.i]; }
+// 這個月最多疊幾層
+function maxLanes() { let m = 1; for (const x of trades()) m = Math.max(m, laneOf(x) + 1); return m; }
 function cell(d) {
   const held = onDay(d), n = held.length;
   const closes = trades().filter(t => t.c && t.c[0] === d);
@@ -111,9 +113,9 @@ function cell(d) {
   }).join('')}</div>` : '';
   let hold = '';
   // 只抱 1 單：跟重疊時的黃一樣實心、一樣粗，開平那天兩端內縮。
-  if (n >= 1 && n <= 3) hold = held.map(x => `<div class="one" style="left:4px;right:4px;bottom:${2 + laneOf(x) * 4}px;background:${colOf(x)}"></div>`).join('');
-  else if (n >= 4) hold = `<span class="cnt">×${n}</span><div class="seg">${held.map(t => `<i style="background:${colOf(t)}"></i>`).join('')}</div>`;
-  return `<div class="cell ${S.sel === d ? 'sel' : ''} ${d > TODAY ? 'dim' : ''}" style="background:${bg};${d === TODAY ? 'box-shadow:inset 0 0 0 1px var(--ink2)' : ''}" data-d="${d}">
+  if (n >= 1) hold = held.map(x => `<div class="one" style="left:4px;right:4px;bottom:${2 + laneOf(x) * 4.5}px;background:${colOf(x)}"></div>`).join('');
+  const extra = (maxLanes() - 1) * 4.5;
+  return `<div class="cell ${S.sel === d ? 'sel' : ''} ${d > TODAY ? 'dim' : ''}" style="height:${62 + extra}px;--pb:${16 + extra}px;background:${bg};${d === TODAY ? 'box-shadow:inset 0 0 0 1px var(--ink2)' : ''}" data-d="${d}">
     <span class="d">${d}</span>${p != null ? `<span class="pnl" style="color:${p > 0 ? 'var(--up)' : 'var(--down)'}">${fmt(p)}</span>` : ''}${tags}${hold}</div>`;
 }
 function sheet() {

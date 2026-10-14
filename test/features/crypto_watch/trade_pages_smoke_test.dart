@@ -697,7 +697,7 @@ void main() {
     await finish(tester);
   });
 
-  testWidgets('月曆重疊：4 單以上寫 ×4，2～3 單用色條、沒有數字', (tester) async {
+  testWidgets('月曆重疊：不管幾單都一單一條線（不用色塊、沒有 ×N），圖例列出重疊的單', (tester) async {
     final store = _MemoryStore();
     final repo = TradeRepository(store);
     final now = DateTime.now();
@@ -713,7 +713,10 @@ void main() {
       );
     }
     await pumpPage(tester, const CryptoWatchPage(), store);
-    expect(find.text('×4'), findsWidgets);
+    expect(find.textContaining('×'), findsNothing);
+    for (final sym in ['A', 'B', 'C', 'D']) {
+      expect(find.text('${sym}多 5x'), findsOneWidget);
+    }
     await finish(tester);
 
     final store2 = _MemoryStore();

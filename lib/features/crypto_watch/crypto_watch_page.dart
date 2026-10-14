@@ -35,6 +35,9 @@ class CryptoWatchPage extends ConsumerStatefulWidget {
 }
 
 class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
+  /// 月曆持倉線一層的高度（線 2.5＋間距 2）。
+  static const _laneStep = 4.5;
+
   DateTime _month = DateTime(DateTime.now().year, DateTime.now().month);
 
   /// 甘特圖點選的那一單，月曆上那幾天跟著亮起來；再點一次取消。
@@ -192,8 +195,8 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
     final prev = prevRecordMonth(months, _month);
     final next = nextRecordMonth(months, _month);
     final litDays = <DateTime>{};
-    // 重疊的單用顏色分（2026-10-14 使用者選：1 單一條黃線、2～3 單每單一條
-    // 細色條、4 單以上分段色塊＋×N）。顏色照這個月開倉先後輪流給。
+    // 重疊的單用顏色分（2026-10-14 使用者選）：一單一條線、各自固定一層，
+    // 不管重疊幾單都是線（不用色塊），格子跟著拉長。顏色照這個月開倉先後輪流給。
     final monthTrades = _monthTrades(data);
     final heldOn = <DateTime, List<TradeEntry>>{};
     for (final t in monthTrades) {
@@ -227,6 +230,7 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
       }
       laneOf[t.id] = lane;
     }
+    final lanes = laneOf.values.fold(0, (m, l) => l + 1 > m ? l + 1 : m);
     final colorOf = <String, Color>{
       for (var i = 0; i < overlapped.length; i++)
         overlapped[i].id: tradeOverlapColors[i % tradeOverlapColors.length],
@@ -302,30 +306,43 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
             ],
           ),
           const SizedBox(height: 6),
-          GridView.count(
-            crossAxisCount: 7,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: 4,
-            crossAxisSpacing: 4,
-            childAspectRatio: 0.78,
-            children: [
-              for (var i = 0; i < leading; i++) const SizedBox.shrink(),
-              for (var d = 1; d <= daysInMonth; d++)
-                _dayCell(
-                  DateTime(_month.year, _month.month, d),
-                  pnl: sum.dayPnl[DateTime(_month.year, _month.month, d)],
-                  held:
-                      heldOn[DateTime(_month.year, _month.month, d)] ??
-                      const [],
-                  colorOf: colorOf,
-                  laneOf: laneOf,
-                  lit: litDays.contains(DateTime(_month.year, _month.month, d)),
-                  events:
-                      events[DateTime(_month.year, _month.month, d)] ??
-                      const [],
+          // 不管重疊幾單都一單一條線（2026-10-14 使用者要求：不要色塊），
+          // 這個月最多疊幾層，格子就拉長幾層剛好塞得下、不擠。
+          LayoutBuilder(
+            builder: (context, box) {
+              final cellW = (box.maxWidth - 4 * 6) / 7;
+              final extra = (lanes - 1) * _laneStep;
+              return GridView(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 7,
+                  mainAxisSpacing: 4,
+                  crossAxisSpacing: 4,
+                  mainAxisExtent: cellW / 0.78 + extra,
                 ),
-            ],
+                children: [
+                  for (var i = 0; i < leading; i++) const SizedBox.shrink(),
+                  for (var d = 1; d <= daysInMonth; d++)
+                    _dayCell(
+                      DateTime(_month.year, _month.month, d),
+                      pnl: sum.dayPnl[DateTime(_month.year, _month.month, d)],
+                      held:
+                          heldOn[DateTime(_month.year, _month.month, d)] ??
+                          const [],
+                      colorOf: colorOf,
+                      laneOf: laneOf,
+                      lit: litDays.contains(
+                        DateTime(_month.year, _month.month, d),
+                      ),
+                      events:
+                          events[DateTime(_month.year, _month.month, d)] ??
+                          const [],
+                      lanes: lanes,
+                    ),
+                ],
+              );
+            },
           ),
           const SizedBox(height: Gap.sm),
           Wrap(
@@ -417,9 +434,9 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
     required Map<String, Color> colorOf,
     required Map<String, int> laneOf,
     required bool lit,
+    int lanes = 1,
     required List<(bool open, String id, DateTime at)> events,
   }) {
-    final n = held.length;
     // 兩單以上重疊時，開／平標籤用那單的顏色。
     Widget eventTag((bool, String, DateTime) e) {
       final c = colorOf[e.$2];
@@ -481,7 +498,13 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
               children: [
                 Padding(
                   // 底部留位置給持倉黃線，損益數字不壓在線上。
-                  padding: const EdgeInsets.fromLTRB(4, 3, 3, 7),
+                  // 底部留給持倉線（這個月最多幾層就留幾層）。
+                  padding: EdgeInsets.fromLTRB(
+                    4,
+                    3,
+                    3,
+                    7 + (lanes > 1 ? (lanes - 1) * _laneStep : 0),
+                  ),
                   child: Stack(
                     children: [
                       Text(
@@ -535,61 +558,19 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
                 // 持倉期間：格子最底部，1～3 單每單一條細線、由下往上疊，每天
                 // 一樣長、左右留一點空（2026-10-14 使用者要求）。重疊過的單從開到
                 // 平都用它的顏色；從沒重疊過的是黃色，跟重疊時的黃一樣實心。
-                if (n >= 1 && n <= 3)
-                  for (final t in held)
-                    Positioned(
-                      left: 4,
-                      right: 4,
-                      bottom: 2 + (laneOf[t.id] ?? 0) * 4.0,
-                      height: 2.5,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: colorOf[t.id] ?? tradeOverlapColors.first,
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                    ),
-                // 4 單以上：一條分段色塊＋右上角 ×N。
-                if (n >= 4) ...[
+                for (final t in held)
                   Positioned(
-                    left: 3,
-                    right: 3,
-                    bottom: 2,
-                    height: 6,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(3),
-                      child: Row(
-                        children: [
-                          for (var i = 0; i < n; i++) ...[
-                            if (i > 0) const SizedBox(width: 1),
-                            Expanded(
-                              child: ColoredBox(color: colorOf[held[i].id]!),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    right: 3,
-                    top: 2,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                    left: 4,
+                    right: 4,
+                    bottom: 2 + (laneOf[t.id] ?? 0) * _laneStep,
+                    height: 2.5,
+                    child: DecoratedBox(
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.14),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        '×$n',
-                        style: const TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w900,
-                          color: AppColors.ink,
-                        ),
+                        color: colorOf[t.id] ?? tradeOverlapColors.first,
+                        borderRadius: BorderRadius.circular(2),
                       ),
                     ),
                   ),
-                ],
               ],
             ),
           ),
