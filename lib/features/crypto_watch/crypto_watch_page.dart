@@ -13,6 +13,7 @@ import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
 import '../../shared/widgets/glass_card.dart';
 import 'trade_data.dart';
+import 'trade_ticket_widgets.dart';
 import 'trade_ui.dart';
 
 /// 交易&自律（2026-10-08 使用者要求把「看盤記錄」改成這個名字，整合看盤
@@ -88,10 +89,11 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
                             ],
                             if (data.openTrades.isNotEmpty) ...[
                               const SizedBox(height: Gap.lg),
-                              _sectionTitle('持倉中', '點一下去平倉'),
+                              _sectionTitle('持倉中', '點一下去平倉', live: true),
                               for (final t in data.openTrades)
-                                TradeCard(
+                                OpenTradeCard(
                                   trade: t,
+                                  highlighted: t.id == _ganttSel,
                                   onTap: () =>
                                       openTradeFlow(context, ref, t, data),
                                 ),
@@ -165,23 +167,25 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
         ),
       );
 
-  Widget _sectionTitle(String title, String hint) => Padding(
-    padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
-    child: Row(
-      children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            color: AppColors.ink2,
-          ),
+  Widget _sectionTitle(String title, String hint, {bool live = false}) =>
+      Padding(
+        padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+        child: Row(
+          children: [
+            if (live) ...[const BreathingDot(), const SizedBox(width: 8)],
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: live ? AppColors.mid : AppColors.ink2,
+              ),
+            ),
+            const Spacer(),
+            Text(hint, style: AppText.note.copyWith(color: AppColors.ink3)),
+          ],
         ),
-        const Spacer(),
-        Text(hint, style: AppText.note.copyWith(color: AppColors.ink3)),
-      ],
-    ),
-  );
+      );
 
   // ── 月曆：每天損益（設計稿版本 2）──────────────────────────
 
@@ -600,8 +604,20 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
                   children: [
                     SizedBox(
                       width: labelW,
-                      child: Text(
-                        '${t.symbol}${t.isLong ? '多' : '空'} ${fmtLev(t.leverage)}',
+                      child: Text.rich(
+                        TextSpan(
+                          children: [
+                            if (t.isOpen)
+                              const TextSpan(
+                                text: '● ',
+                                style: TextStyle(color: AppColors.mid),
+                              ),
+                            TextSpan(
+                              text:
+                                  '${t.symbol}${t.isLong ? '多' : '空'} ${fmtLev(t.leverage)}',
+                            ),
+                          ],
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: AppText.note.copyWith(fontSize: 10.5),
@@ -621,34 +637,41 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
                                 width: (r - l).clamp(4.0, w),
                                 top: 6,
                                 height: 12,
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    color: AppColors.mid.withValues(
-                                      alpha: t.isOpen ? 0.3 : 0.45,
-                                    ),
-                                    borderRadius: BorderRadius.circular(6),
-                                    border: t.isOpen
-                                        ? Border.all(
-                                            color: AppColors.mid.withValues(
-                                              alpha: 0.6,
-                                            ),
-                                          )
-                                        : null,
-                                  ),
-                                  alignment: Alignment.centerRight,
-                                  child: t.isOpen
-                                      ? null
-                                      : Container(
-                                          width: 5,
-                                          decoration: BoxDecoration(
-                                            color: pnlColor(t.pnl),
-                                            borderRadius:
-                                                const BorderRadius.horizontal(
-                                                  right: Radius.circular(6),
-                                                ),
+                                // 持倉中：一直往右流的黃色斜紋（2026-10-14
+                                // 使用者要第 4 版那個流動效果）。
+                                child: t.isOpen
+                                    ? const FlowingStripes()
+                                    : Container(
+                                        decoration: BoxDecoration(
+                                          color: AppColors.mid.withValues(
+                                            alpha: t.isOpen ? 0.3 : 0.45,
                                           ),
+                                          borderRadius: BorderRadius.circular(
+                                            6,
+                                          ),
+                                          border: t.isOpen
+                                              ? Border.all(
+                                                  color: AppColors.mid
+                                                      .withValues(alpha: 0.6),
+                                                )
+                                              : null,
                                         ),
-                                ),
+                                        alignment: Alignment.centerRight,
+                                        child: t.isOpen
+                                            ? null
+                                            : Container(
+                                                width: 5,
+                                                decoration: BoxDecoration(
+                                                  color: pnlColor(t.pnl),
+                                                  borderRadius:
+                                                      const BorderRadius.horizontal(
+                                                        right: Radius.circular(
+                                                          6,
+                                                        ),
+                                                      ),
+                                                ),
+                                              ),
+                                      ),
                               ),
                             ],
                           );
@@ -659,11 +682,27 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
                 ),
               ),
             ),
-          if (sel != null) ...[
+          // 點到的那一單：已平倉的是長在這裡面的票根；持倉中的指去下面
+          // 「持倉中」那張亮卡（2026-10-14 設計稿第 3 版）。
+          if (sel != null && !sel.isOpen) ...[
             const SizedBox(height: Gap.sm),
-            TradeCard(
+            TradeReceipt(
               trade: sel,
-              onTap: () => openTradeFlow(context, ref, sel, data),
+              onClose: () => setState(() => _ganttSel = null),
+              onEdit: () => editTradeFlow(context, ref, sel),
+              onDelete: () async {
+                await deleteTradeFlow(context, ref, sel);
+                if (mounted) setState(() => _ganttSel = null);
+              },
+            ),
+          ],
+          if (sel != null && sel.isOpen) ...[
+            const SizedBox(height: Gap.sm),
+            Center(
+              child: Text(
+                '這單還抱著 ↓ 在下面「持倉中」',
+                style: AppText.note.copyWith(color: AppColors.mid),
+              ),
             ),
           ],
         ],

@@ -543,6 +543,28 @@ void main() {
     await finish(tester);
   });
 
+  testWidgets('票根：甘特圖點已平倉的單出票根（可收起）；持倉中是亮卡＋平倉鈕', (tester) async {
+    await pumpPage(tester, const CryptoWatchPage(), await seeded());
+    await tester.drag(find.byType(ListView), const Offset(0, -700));
+    await tester.pump();
+    // 持倉中：亮卡上有實心「平倉」。
+    expect(find.widgetWithText(FilledButton, '平倉'), findsOneWidget);
+    expect(find.text('已平倉的紀錄・只是看', findRichText: true), findsNothing);
+    await tester.tap(find.textContaining('BTC空', findRichText: true));
+    await tester.pump();
+    expect(find.textContaining('已平倉的紀錄・只是看'), findsOneWidget);
+    expect(find.text(fmtPnl(-120)), findsWidgets);
+    expect(find.text('想追空，結果被軋'), findsWidgets);
+    await tester.tap(find.byIcon(Icons.close_rounded));
+    await tester.pump();
+    expect(find.textContaining('已平倉的紀錄・只是看'), findsNothing);
+    // 點持倉中的那條：不出票根，指去下面的亮卡。
+    await tester.tap(find.textContaining('ETH多', findRichText: true));
+    await tester.pump();
+    expect(find.textContaining('這單還抱著'), findsOneWidget);
+    await finish(tester);
+  });
+
   test('交易數字最多小數第一位，超過四捨五入', () {
     expect(round1(12.36), 12.4);
     expect(round1(12.34), 12.3);

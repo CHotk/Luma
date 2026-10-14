@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/providers.dart';
 import '../../domain/models/trade_entry.dart';
 import '../../domain/trade_stats.dart';
+import '../../shared/widgets/app_confirm_dialog.dart';
 import '../../shared/widgets/app_notice.dart';
 import 'trade_ui.dart';
 
@@ -122,6 +123,26 @@ Future<void> openTradeFlow(
   if (wantEdit && context.mounted) return editTradeFlow(context, ref, trade);
   if (!deleted) return;
   await repo.delete(trade.id);
+  _bump(ref);
+  if (context.mounted) showAppNotice(context, '已刪除這一單');
+}
+
+/// 刪除一單（甘特圖票根上的「刪除」，先確認）。
+Future<void> deleteTradeFlow(
+  BuildContext context,
+  WidgetRef ref,
+  TradeEntry trade,
+) async {
+  final ok = await showAppConfirmDialog(
+    context,
+    title: '刪除這一單？',
+    message:
+        '${trade.symbol} ${trade.isLong ? '多' : '空'} ${fmtLev(trade.leverage)}'
+        '${trade.pnl == null ? '' : '・${fmtPnl(trade.pnl!)} USDT'}',
+    confirmLabel: '刪除',
+  );
+  if (!ok) return;
+  await ref.read(tradeRepositoryProvider).delete(trade.id);
   _bump(ref);
   if (context.mounted) showAppNotice(context, '已刪除這一單');
 }
