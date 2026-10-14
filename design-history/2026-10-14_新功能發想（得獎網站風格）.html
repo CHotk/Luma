@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lume 新功能發想</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root { --bg: #08080D; --ink: #F5F4FA; --ink2: #A7A6B8; --ink3: #6E6D82; --line: rgba(255,255,255,.09); --c1: #7C5CFF; --c2: #FF5CAA; --c3: #3DE0C8; --c4: #FFC24B; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html { scroll-behavior: smooth; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--ink); font-family: "Inter", "Noto Sans TC", system-ui, sans-serif; overflow-x: hidden; }
+  ::selection { background: var(--c2); color: #fff; }
+  .grain { position: fixed; inset: -50%; pointer-events: none; z-index: 100; opacity: .06;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"); animation: grain 1.2s steps(4) infinite; }
+  @keyframes grain { 25% { transform: translate(-3%, 2%) } 50% { transform: translate(2%, -3%) } 75% { transform: translate(-2%, -1%) } }
+  .glow { position: fixed; width: 520px; height: 520px; border-radius: 50%; pointer-events: none; z-index: 0; background: radial-gradient(circle, rgba(124,92,255,.22), transparent 60%); transform: translate(-50%, -50%); transition: transform .08s linear; }
+  @media (hover: none) { .glow { display: none; } }
+  .prog { position: fixed; top: 0; left: 0; height: 3px; z-index: 101; background: linear-gradient(90deg, var(--c1), var(--c2), var(--c4)); width: 0; }
+  nav.top { position: fixed; top: 0; left: 0; right: 0; z-index: 90; display: flex; align-items: center; padding: 16px clamp(16px, 4vw, 48px); mix-blend-mode: difference; }
+  nav.top b { font-weight: 900; letter-spacing: -.5px; font-size: 18px; }
+  nav.top .sp { flex: 1; }
+  nav.top a { color: #fff; text-decoration: none; font-size: 13px; margin-left: 18px; opacity: .8; }
+  @media (max-width: 640px) { nav.top a { display: none; } }
+
+  /* Hero */
+  .hero { min-height: 100svh; position: relative; display: flex; flex-direction: column; justify-content: flex-end; padding: 0 clamp(16px, 4vw, 48px) 8vh; overflow: hidden; }
+  .mesh { position: absolute; inset: -20%; filter: blur(70px) saturate(1.3); opacity: .85; }
+  .mesh i { position: absolute; border-radius: 50%; animation: drift 14s ease-in-out infinite alternate; }
+  .mesh i:nth-child(1) { width: 46vw; height: 46vw; left: 8%; top: 12%; background: var(--c1); }
+  .mesh i:nth-child(2) { width: 38vw; height: 38vw; right: 6%; top: 22%; background: var(--c2); animation-delay: -4s; }
+  .mesh i:nth-child(3) { width: 34vw; height: 34vw; left: 38%; bottom: 4%; background: var(--c3); animation-delay: -8s; opacity: .7; }
+  @keyframes drift { to { transform: translate(6vw, -5vh) scale(1.15); } }
+  .hero h1 { position: relative; font-size: clamp(54px, 13vw, 190px); line-height: .88; letter-spacing: -.05em; font-weight: 900; margin: 0; }
+  .hero h1 span { display: block; overflow: hidden; }
+  .hero h1 span i { display: inline-block; font-style: normal; transform: translateY(110%); animation: rise 1s cubic-bezier(.2,.9,.2,1) forwards; }
+  .hero h1 span:nth-child(2) i { animation-delay: .12s; background: linear-gradient(90deg, #fff, #FFD1EA 40%, #C9BDFF); -webkit-background-clip: text; color: transparent; }
+  @keyframes rise { to { transform: translateY(0); } }
+  .hero p { position: relative; max-width: 560px; color: #E4E1F3; font-size: clamp(14px, 1.6vw, 17px); line-height: 1.7; margin: 24px 0 0; opacity: 0; animation: fade 1s .6s forwards; }
+  @keyframes fade { to { opacity: 1; } }
+  .scroll-hint { position: relative; margin-top: 30px; font-size: 12px; letter-spacing: .3em; color: #fff; opacity: .7; }
+  .marquee { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); overflow: hidden; white-space: nowrap; padding: 14px 0; position: relative; z-index: 1; background: var(--bg); }
+  .marquee div { display: inline-block; animation: mq 30s linear infinite; font-weight: 800; font-size: clamp(18px, 2.4vw, 28px); letter-spacing: -.02em; }
+  .marquee span { color: var(--ink3); margin: 0 22px; }
+  @keyframes mq { to { transform: translateX(-50%); } }
+
+  /* 概念區 */
+  section.concept { position: relative; z-index: 1; display: grid; grid-template-columns: 1fr minmax(300px, 380px); gap: clamp(24px, 5vw, 80px); align-items: center; padding: 14vh clamp(16px, 4vw, 48px); border-bottom: 1px solid var(--line); }
+  section.concept:nth-of-type(even) { grid-template-columns: minmax(300px, 380px) 1fr; }
+  section.concept:nth-of-type(even) .txt { order: 2; }
+  @media (max-width: 860px) { section.concept, section.concept:nth-of-type(even) { grid-template-columns: 1fr; padding: 10vh 16px; } section.concept:nth-of-type(even) .txt { order: 0; } }
+  section.concept > * { min-width: 0; }
+  .txt h2 { overflow-wrap: anywhere; }
+  .num { font-size: clamp(90px, 16vw, 220px); font-weight: 900; line-height: .8; letter-spacing: -.06em; -webkit-text-stroke: 1.5px rgba(255,255,255,.18); color: transparent; }
+  .txt h2 { font-size: clamp(34px, 5.5vw, 76px); line-height: 1; letter-spacing: -.04em; margin: 14px 0 16px; font-weight: 900; }
+  .txt h2 em { font-style: normal; background: var(--grad); -webkit-background-clip: text; color: transparent; }
+  .txt .lede { font-size: clamp(15px, 1.5vw, 18px); color: #DCD9EC; line-height: 1.75; max-width: 560px; }
+  .why { margin-top: 22px; display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; max-width: 620px; }
+  .why div { border: 1px solid var(--line); border-radius: 16px; padding: 12px 14px; font-size: 13px; color: var(--ink2); background: rgba(255,255,255,.02); }
+  .why b { display: block; color: var(--ink); font-size: 13.5px; margin-bottom: 2px; }
+  .tagrow { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 18px; }
+  .tagrow span { font-size: 11.5px; border: 1px solid var(--line); border-radius: 99px; padding: 4px 11px; color: var(--ink2); }
+  .reveal { opacity: 0; transform: translateY(40px); transition: opacity 1s cubic-bezier(.2,.9,.2,1), transform 1s cubic-bezier(.2,.9,.2,1); }
+  .reveal.in { opacity: 1; transform: none; }
+
+  /* 小手機 */
+  .ph { width: 100%; max-width: 360px; aspect-ratio: 9/18.5; margin: 0 auto; border-radius: 44px; background: #0F0F18; position: relative; overflow: hidden; border: 1px solid rgba(255,255,255,.14);
+    box-shadow: 0 40px 100px -20px var(--shadow, rgba(124,92,255,.45)), inset 0 0 0 7px #000; }
+  .ph .scr { position: absolute; inset: 7px; border-radius: 37px; overflow: hidden; background: #0E0E16; }
+  .ph .island { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); width: 92px; height: 26px; border-radius: 20px; background: #000; z-index: 20; }
+  .hint { text-align: center; font-size: 12px; color: var(--ink3); margin-top: 14px; }
+
+  /* 1 今日一頁 */
+  .story { position: absolute; inset: 0; color: #fff; cursor: pointer; user-select: none; }
+  .story .bars { position: absolute; top: 46px; left: 14px; right: 14px; display: flex; gap: 4px; z-index: 5; }
+  .story .bars i { flex: 1; height: 3px; border-radius: 3px; background: rgba(255,255,255,.3); overflow: hidden; position: relative; }
+  .story .bars i b { position: absolute; inset: 0; background: #fff; transform-origin: left; transform: scaleX(0); }
+  .story .bars i.done b { transform: scaleX(1); }
+  .story .bars i.run b { animation: fill 4s linear forwards; }
+  @keyframes fill { to { transform: scaleX(1); } }
+  .story .pg { position: absolute; inset: 0; padding: 80px 22px 30px; display: flex; flex-direction: column; justify-content: flex-end; }
+  .story .big { font-size: 72px; font-weight: 900; letter-spacing: -.04em; line-height: .9; }
+  .story .lbl { font-size: 13px; opacity: .85; letter-spacing: .08em; }
+  .story .tt { font-size: 26px; font-weight: 900; margin: 8px 0 4px; line-height: 1.15; }
+
+  /* 3 單字卡 */
+  .srs { position: absolute; inset: 0; padding: 56px 18px 18px; display: flex; flex-direction: column; color: var(--ink); }
+  .srs .top { display: flex; justify-content: space-between; font-size: 12px; color: var(--ink2); }
+  .flip { flex: 1; perspective: 1000px; margin: 14px 0; cursor: pointer; }
+  .flip .in { position: relative; width: 100%; height: 100%; transition: transform .7s cubic-bezier(.3,1.2,.4,1); transform-style: preserve-3d; }
+  .flip.on .in { transform: rotateY(180deg); }
+  .flip .f { position: absolute; inset: 0; border-radius: 26px; backface-visibility: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 20px;
+    background: linear-gradient(160deg, #1D1A33, #121020); border: 1px solid rgba(255,255,255,.1); }
+  .flip .f.b { transform: rotateY(180deg); background: linear-gradient(160deg, #2A1A3F, #15102A); }
+  .flip .w { font-size: 46px; font-weight: 900; letter-spacing: -.03em; }
+  .grades { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .grades button { border: 0; border-radius: 16px; padding: 11px 4px; font-family: inherit; font-weight: 800; color: #fff; cursor: pointer; font-size: 14px; }
+  .grades button small { display: block; font-weight: 500; font-size: 11px; opacity: .8; }
+  .curve { height: 60px; margin-top: 10px; }
+
+  /* 4 專注 */
+  .focus { position: absolute; inset: 0; padding: 60px 20px 22px; display: flex; flex-direction: column; align-items: center; color: var(--ink); }
+  .ring { position: relative; width: 240px; height: 240px; margin-top: 18px; }
+  .ring svg { transform: rotate(-90deg); }
+  .ring .t { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; }
+  .ring .t b { font-size: 50px; font-weight: 900; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+  .amb { display: flex; gap: 8px; margin-top: 22px; flex-wrap: wrap; justify-content: center; }
+  .amb span { font-size: 12px; border: 1px solid var(--line); border-radius: 99px; padding: 6px 12px; cursor: pointer; color: var(--ink2); }
+  .amb span.on { background: #fff; color: #111; border-color: #fff; }
+  .go { margin-top: auto; width: 100%; border: 0; border-radius: 20px; padding: 16px; font-family: inherit; font-weight: 900; font-size: 16px; cursor: pointer; background: linear-gradient(90deg, var(--c3), #3D9BFF); color: #04131A; }
+
+  /* 5 心情像素 */
+  .pix { position: absolute; inset: 0; padding: 56px 16px 16px; color: var(--ink); display: flex; flex-direction: column; }
+  .pgrid { display: grid; grid-template-columns: repeat(14, 1fr); gap: 3px; margin-top: 12px; }
+  .pgrid i { aspect-ratio: 1; border-radius: 3px; cursor: pointer; transition: transform .15s; }
+  .pgrid i:hover { transform: scale(1.5); z-index: 2; }
+  .pgrid i.sel { outline: 2px solid #fff; }
+  .moods { display: flex; justify-content: space-between; margin-top: auto; }
+  .moods span { width: 52px; height: 52px; border-radius: 16px; display: grid; place-items: center; font-size: 24px; cursor: pointer; transition: transform .15s; }
+  .moods span:active { transform: scale(.88); }
+  .memo { margin-top: 12px; min-height: 64px; border-radius: 16px; padding: 10px 12px; background: rgba(255,255,255,.05); font-size: 13px; color: var(--ink2); }
+
+  /* 6 圓環 */
+  .rings { position: absolute; inset: 0; padding: 58px 18px 18px; color: var(--ink); }
+  .rwrap { display: grid; place-items: center; margin-top: 10px; }
+  .legend > div { display: flex; align-items: center; gap: 10px; padding: 10px 2px; border-bottom: 1px solid var(--line); cursor: pointer; }
+  .legend .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .legend b { font-size: 15px; }
+
+  /* 2 Wrapped */
+  .wr { position: absolute; inset: 0; color: #fff; overflow: hidden; cursor: pointer; }
+  .wr .pg { position: absolute; inset: 0; padding: 70px 24px 30px; display: flex; flex-direction: column; transition: opacity .5s, transform .6s cubic-bezier(.2,.9,.2,1); }
+  .wr .pg.out { opacity: 0; transform: translateY(-30px); pointer-events: none; }
+  .wr .count { font-size: 96px; font-weight: 900; letter-spacing: -.06em; line-height: .85; font-variant-numeric: tabular-nums; }
+  .shape { position: absolute; border-radius: 50%; mix-blend-mode: screen; filter: blur(2px); }
+
+  footer { position: relative; z-index: 1; padding: 14vh clamp(16px, 4vw, 48px) 10vh; }
+  footer h3 { font-size: clamp(36px, 7vw, 96px); letter-spacing: -.05em; line-height: .95; margin: 0 0 20px; font-weight: 900; }
+  .rank { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-top: 30px; }
+  .rank div { border: 1px solid var(--line); border-radius: 20px; padding: 16px; background: rgba(255,255,255,.02); }
+  .rank b { font-size: 15px; } .rank p { margin: 6px 0 0; font-size: 13px; color: var(--ink2); line-height: 1.6; }
+  .rank .lvl { float: right; font-size: 11px; color: var(--ink3); }
+</style>
+</head>
+<body>
+<div class="grain"></div><div class="glow" id="glow"></div><div class="prog" id="prog"></div>
+<nav class="top"><b>Lume — Next</b><span class="sp"></span><a href="#c1">今日一頁</a><a href="#c2">年度回顧</a><a href="#c3">單字卡</a><a href="#c4">專注</a><a href="#c5">心情</a><a href="#c6">圓環</a></nav>
+
+<header class="hero">
+  <div class="mesh"><i></i><i></i><i></i></div>
+  <h1><span><i>Lume 還可以</i></span><span><i>長出什麼？</i></span></h1>
+  <p>六個新功能發想。每一個都<b>用你已經在記的資料</b>——英文、日文練習、YT、交易、抽菸喝酒、日記——不用多填東西就能動。右邊（手機上是下面）每支小手機都能點。</p>
+  <div class="scroll-hint">SCROLL ↓</div>
+</header>
+<div class="marquee"><div id="mq"></div></div>
+
+<section class="concept" id="c1" style="--grad:linear-gradient(90deg,#FF5CAA,#FFC24B)">
+  <div class="txt reveal"><div class="num">01</div><h2>今日<em>一頁</em></h2>
+    <p class="lede">每天晚上自動生出一則「限時動態」：今天練了幾題、YT 看了什麼、交易結果、有沒有抽菸——一張一張滑過去。不用寫，看完就知道今天過得怎樣。</p>
+    <div class="why"><div><b>資料都已經有</b>各功能今天的紀錄直接拿來排</div><div><b>30 秒看完</b>像 IG 限動，點右邊下一張</div><div><b>可以分享</b>存成一張圖</div></div>
+    <div class="tagrow"><span>跨功能</span><span>每天自動</span><span>不用輸入</span></div></div>
+  <div class="reveal"><div class="ph" style="--shadow:rgba(255,92,170,.45)"><div class="island"></div><div class="scr" id="story"></div></div><div class="hint">點畫面右半邊下一張、左半邊上一張</div></div>
+</section>
+
+<section class="concept" id="c2" style="--grad:linear-gradient(90deg,#7C5CFF,#3DE0C8)">
+  <div class="txt reveal"><div class="num">02</div><h2>年度<em>回顧</em></h2>
+    <p class="lede">像 Spotify Wrapped：年底一鍵看這一年——最常練的假名、最常看的 YT 頻道、交易勝率、少抽了幾根菸。大數字一個一個跳出來，最後一張是「你的年度關鍵字」。</p>
+    <div class="why"><div><b>成就感</b>一年的累積一次看到</div><div><b>每月也能看</b>月底一份小的</div><div><b>全部本機算</b>不用上傳任何東西</div></div>
+    <div class="tagrow"><span>年底限定</span><span>動畫</span><span>可分享</span></div></div>
+  <div class="reveal"><div class="ph" style="--shadow:rgba(61,224,200,.4)"><div class="island"></div><div class="scr" id="wrap"></div></div><div class="hint">點畫面換下一張</div></div>
+</section>
+
+<section class="concept" id="c3" style="--grad:linear-gradient(90deg,#3DE0C8,#7C5CFF)">
+  <div class="txt reveal"><div class="num">03</div><h2>會記得你<em>忘了什麼</em>的單字卡</h2>
+    <p class="lede">間隔重複（Anki 那套）：答「忘了」明天再考、「記得」一週後才出現。每天只出「快忘記」的那幾張，英文單字跟日文假名都能用。</p>
+    <div class="why"><div><b>每天 5 分鐘</b>只複習快忘的</div><div><b>接現有題庫</b>英文單字、五十音、詞彙</div><div><b>看得到曲線</b>每張卡的記憶強度</div></div>
+    <div class="tagrow"><span>英文</span><span>日文</span><span>記憶曲線</span></div></div>
+  <div class="reveal"><div class="ph" style="--shadow:rgba(124,92,255,.45)"><div class="island"></div><div class="scr" id="srs"></div></div><div class="hint">點卡片翻面，選記得的程度</div></div>
+</section>
+
+<section class="concept" id="c4" style="--grad:linear-gradient(90deg,#3DE0C8,#3D9BFF)">
+  <div class="txt reveal"><div class="num">04</div><h2><em>專注</em>計時</h2>
+    <p class="lede">番茄鐘＋背景白噪音（雨聲、咖啡廳、Lo-fi，用 YT 播）。專注的時間自動記到「今天練習」，跟日文連續天數算在一起。</p>
+    <div class="why"><div><b>接 YT</b>白噪音就是 YT 影片</div><div><b>算進連續天數</b>專注 25 分鐘也算練了</div><div><b>不准滑手機</b>切走就暫停（可關）</div></div>
+    <div class="tagrow"><span>番茄鐘</span><span>白噪音</span><span>學習時數</span></div></div>
+  <div class="reveal"><div class="ph" style="--shadow:rgba(61,155,255,.45)"><div class="island"></div><div class="scr" id="focus"></div></div><div class="hint">按開始（示範用 1 秒＝1 分鐘）</div></div>
+</section>
+
+<section class="concept" id="c5" style="--grad:linear-gradient(90deg,#FFC24B,#FF5CAA)">
+  <div class="txt reveal"><div class="num">05</div><h2>一年的<em>心情像素</em></h2>
+    <p class="lede">每天一格，選今天的心情就上色（Year in Pixels）。點一格看那天的日記第一句。跟日記同一把密碼鎖；看得出哪幾個月特別低落。</p>
+    <div class="why"><div><b>一秒記錄</b>點一個表情就好</div><div><b>接日記</b>有寫日記的格子點了直接開</div><div><b>看得到模式</b>交易賠錢那週是不是都藍的</div></div>
+    <div class="tagrow"><span>日記</span><span>心情</span><span>密碼鎖</span></div></div>
+  <div class="reveal"><div class="ph" style="--shadow:rgba(255,194,75,.4)"><div class="island"></div><div class="scr" id="pix"></div></div><div class="hint">點下面表情記今天；點格子看那天</div></div>
+</section>
+
+<section class="concept" id="c6" style="--grad:linear-gradient(90deg,#FF5CAA,#7C5CFF)">
+  <div class="txt reveal"><div class="num">06</div><h2>三個<em>圓環</em></h2>
+    <p class="lede">像 Apple 健身圓環：學習、自律（沒抽菸／沒喝酒）、交易紀律（沒衝動開單）。每天把三個圈補滿，首頁一眼就看到今天還差什麼。</p>
+    <div class="why"><div><b>目標自己定</b>例如每天 20 題</div><div><b>跟首頁儀表板合體</b>打開 App 第一眼</div><div><b>連續補滿有獎章</b>7 天、30 天</div></div>
+    <div class="tagrow"><span>首頁</span><span>每日目標</span><span>獎章</span></div></div>
+  <div class="reveal"><div class="ph" style="--shadow:rgba(255,92,170,.45)"><div class="island"></div><div class="scr" id="rings"></div></div><div class="hint">點下面每一列補一點</div></div>
+</section>
+
+<footer>
+  <h3>我覺得<br>先做哪個？</h3>
+  <p style="color:var(--ink2);max-width:640px;line-height:1.75">照「做起來多快」跟「每天會不會真的用」排。都是發想，挑中的再出五版詳細設計稿。</p>
+  <div class="rank">
+    <div><span class="lvl">工：小</span><b>① 三個圓環</b><p>資料全都有，只是換個方式看；直接放首頁，每天都會看到。</p></div>
+    <div><span class="lvl">工：中</span><b>② 會記得你忘了什麼的單字卡</b><p>你的 backlog 本來就有間隔重複；學習效果最實在。</p></div>
+    <div><span class="lvl">工：小</span><b>③ 心情像素</b><p>一秒記錄；跟日記、交易放一起看很有意思。</p></div>
+    <div><span class="lvl">工：中</span><b>④ 今日一頁</b><p>好看又療癒，但要每個功能都接上才完整。</p></div>
+    <div><span class="lvl">工：中</span><b>⑤ 專注計時</b><p>要處理 iPhone 網頁背景會停的問題（跟音樂一樣）。</p></div>
+    <div><span class="lvl">工：大</span><b>⑥ 年度回顧</b><p>年底才用得到，先累積資料，12 月前做好就好。</p></div>
+  </div>
+</footer>
+
+<script>
+// ── 共用：滑鼠光暈、捲動進度、出現動畫、跑馬燈 ─────────────────
+const glow = document.getElementById('glow');
+addEventListener('pointermove', e => glow.style.transform = `translate(${e.clientX - 260}px, ${e.clientY - 260}px)`);
+addEventListener('scroll', () => { const h = document.documentElement; document.getElementById('prog').style.width = (h.scrollTop / (h.scrollHeight - h.clientHeight) * 100) + '%'; }, { passive: true });
+const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { threshold: .15 });
+document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+const words = ['今日一頁', '年度回顧', '間隔重複單字卡', '專注計時', '心情像素', '三個圓環'];
+document.getElementById('mq').innerHTML = [...words, ...words].map(w => `${w}<span>✦</span>`).join('');
+
+// ── 01 今日一頁 ─────────────────────────────────────
+const ST = [
+  { bg: 'linear-gradient(160deg,#FF5CAA,#7C5CFF)', lbl: '10 月 14 日（二）', big: '晚安', tt: '今天也過得很認真', sub: '往下看看你做了什麼 →' },
+  { bg: 'linear-gradient(160deg,#FF8A5C,#FF5CAA)', lbl: '日文・五十音', big: '23', tt: '題手寫練習', sub: 'か行最常寫錯「き」・連續第 6 天 🔥' },
+  { bg: 'linear-gradient(160deg,#FF3B3B,#8B1E3F)', lbl: 'YT 管理', big: '4', tt: '部影片', sub: '最多：老高與小茉・存了 2 部到稍後觀看' },
+  { bg: 'linear-gradient(160deg,#F5C763,#C77F12)', lbl: '交易&自律', big: '+246', tt: 'USDT・1 單', sub: 'BTC 多 10x，抱了 5 小時・沒有衝動開單 ✓' },
+  { bg: 'linear-gradient(160deg,#3DE0C8,#1B6F8F)', lbl: '自律', big: '0', tt: '根菸', sub: '已經 3 天沒抽了，比上週少 12 根' },
+];
+let si = 0, stimer;
+function story() {
+  const s = ST[si], el = document.getElementById('story');
+  el.innerHTML = `<div class="story" style="background:${s.bg}"><div class="bars">${ST.map((_, i) => `<i class="${i < si ? 'done' : i === si ? 'run' : ''}"><b></b></i>`).join('')}</div>
+    <div style="position:absolute;top:58px;left:14px;display:flex;gap:8px;align-items:center;font-size:12px;font-weight:700;z-index:5"><span style="width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.25);display:grid;place-items:center">L</span>Lume・今日一頁</div>
+    <div class="pg"><div class="lbl">${s.lbl}</div><div class="big">${s.big}</div><div class="tt">${s.tt}</div><div style="font-size:14px;opacity:.9">${s.sub}</div></div></div>`;
+  el.firstChild.onclick = e => { const r = el.getBoundingClientRect(); si = e.clientX - r.left > r.width / 3 ? (si + 1) % ST.length : Math.max(0, si - 1); story(); };
+  clearTimeout(stimer); stimer = setTimeout(() => { si = (si + 1) % ST.length; story(); }, 4000);
+}
+story();
+
+// ── 02 年度回顧 ─────────────────────────────────────
+const WR = [
+  { bg: '#7C5CFF', a: '#3DE0C8', pre: '2026 你一共練了', n: 4812, post: '題日文', note: '比 98% 的日子都還認真的一年' },
+  { bg: '#0F3D3E', a: '#FFC24B', pre: '最常寫錯的字', w: 'き', post: '寫錯 61 次', note: '但 9 月之後就再也沒錯過' },
+  { bg: '#3B0F2E', a: '#FF5CAA', pre: '你最常看的頻道', w: '老高與小茉', post: '214 部影片', note: '平均每天 0.6 部' },
+  { bg: '#1E1B4B', a: '#FFC24B', pre: '交易勝率', n: 58, suf: '%', post: '87 單', note: '10 月以後再也沒有賠錢後馬上開單' },
+  { bg: '#111', a: '#7C5CFF', pre: '你的年度關鍵字', w: '堅持', post: '連續練習最長 41 天', note: '點一下重看' },
+];
+let wi = 0;
+function wrap() {
+  const el = document.getElementById('wrap');
+  el.innerHTML = `<div class="wr" style="background:${WR[wi].bg};transition:background .6s">${WR.map((p, i) => `<div class="pg ${i === wi ? '' : 'out'}">
+      <div class="shape" style="width:260px;height:260px;right:-80px;top:60px;background:${p.a};opacity:.55"></div><div class="shape" style="width:160px;height:160px;left:-40px;bottom:120px;background:${p.a};opacity:.3"></div>
+      <div style="position:relative;font-size:12px;letter-spacing:.2em;opacity:.8">LUME WRAPPED 2026・${i + 1}/${WR.length}</div>
+      <div style="position:relative;margin-top:auto;font-size:18px;font-weight:700">${p.pre}</div>
+      <div class="count" style="position:relative;color:${p.a}" data-n="${p.n ?? ''}">${p.w ?? '0'}${p.suf ?? ''}</div>
+      <div style="position:relative;font-size:22px;font-weight:900;margin-top:6px">${p.post}</div><div style="position:relative;font-size:14px;opacity:.8;margin-top:8px">${p.note}</div></div>`).join('')}</div>`;
+  el.firstChild.onclick = () => { wi = (wi + 1) % WR.length; wrap(); };
+  const c = el.querySelectorAll('.pg')[wi].querySelector('.count'), n = +c.dataset.n;
+  if (n) { const suf = WR[wi].suf ?? '', t0 = performance.now(); const step = t => { const k = Math.min(1, (t - t0) / 1200); c.textContent = Math.round(n * (1 - Math.pow(1 - k, 3))).toLocaleString() + suf; if (k < 1) requestAnimationFrame(step); }; requestAnimationFrame(step); }
+}
+wrap();
+
+// ── 03 單字卡 ───────────────────────────────────────
+const CARDS = [['persist', '堅持；持續', '/pərˈsɪst/', 'She persisted in her studies.'], ['き', 'ki', '平假名・か行', '最後一筆往左下勾'], ['ambiguous', '模稜兩可的', '/æmˈbɪɡjuəs/', 'an ambiguous answer'], ['ぬ', 'nu', '平假名・な行', '跟「め」差在尾巴的圈']];
+let ci = 0, flipped = false, due = 12, streng = [0.3, 0.55, 0.42, 0.8];
+function srs() {
+  const [w, m, p, ex] = CARDS[ci], el = document.getElementById('srs');
+  const pts = Array.from({ length: 30 }, (_, x) => { const y = 50 - 44 * Math.exp(-x / (4 + streng[ci] * 20)); return `${x * 10},${y}`; }).join(' ');
+  el.innerHTML = `<div class="srs"><div class="top"><span>今天要複習 <b style="color:#fff">${due}</b> 張</span><span>${ci + 1}/${CARDS.length}</span></div>
+    <div class="flip ${flipped ? 'on' : ''}" id="fc"><div class="in"><div class="f"><div style="font-size:12px;color:var(--ink3)">${/[a-z]/.test(w) ? '英文' : '日文'}</div><div class="w">${w}</div><div style="font-size:12px;color:var(--ink3);margin-top:20px">點一下看答案</div></div>
+      <div class="f b"><div class="w" style="font-size:34px">${m}</div><div style="color:var(--ink2);margin-top:6px">${p}</div><div style="color:var(--ink3);font-size:13px;margin-top:14px">${ex}</div>
+      <svg class="curve" viewBox="0 0 290 60" preserveAspectRatio="none" style="width:100%"><polyline points="${pts}" fill="none" stroke="#7C5CFF" stroke-width="3"/></svg><div style="font-size:11px;color:var(--ink3)">記憶強度 ${Math.round(streng[ci] * 100)}%</div></div></div></div>
+    <div class="grades" style="opacity:${flipped ? 1 : .35};pointer-events:${flipped ? 'auto' : 'none'}"><button style="background:#E5484D" data-g="0">忘了<small>明天</small></button><button style="background:#F5A524" data-g="1">模糊<small>3 天後</small></button><button style="background:#30A46C" data-g="2">記得<small>${Math.round(4 + streng[ci] * 20)} 天後</small></button></div></div>`;
+  el.querySelector('#fc').onclick = () => { flipped = !flipped; srs(); };
+  el.querySelectorAll('[data-g]').forEach(b => b.onclick = () => { const g = +b.dataset.g; streng[ci] = Math.min(1, Math.max(0.1, streng[ci] + [-0.2, 0.05, 0.2][g])); due = Math.max(0, due - 1); flipped = false; ci = (ci + 1) % CARDS.length; srs(); });
+}
+srs();
+
+// ── 04 專注 ─────────────────────────────────────────
+let left = 25, total = 25, run = null, amb = '雨聲';
+function focus() {
+  const el = document.getElementById('focus'), R = 108, C = 2 * Math.PI * R, k = left / total;
+  el.innerHTML = `<div class="focus"><div style="font-size:12px;color:var(--ink2);letter-spacing:.15em">FOCUS・今天 ${3 - (run ? 0 : 0)} 輪</div>
+    <div class="ring"><svg width="240" height="240"><circle cx="120" cy="120" r="${R}" stroke="rgba(255,255,255,.08)" stroke-width="14" fill="none"/>
+      <circle cx="120" cy="120" r="${R}" stroke="url(#gf)" stroke-width="14" fill="none" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - k)}" style="transition:stroke-dashoffset .9s linear"/>
+      <defs><linearGradient id="gf"><stop offset="0" stop-color="#3DE0C8"/><stop offset="1" stop-color="#3D9BFF"/></linearGradient></defs></svg>
+      <div class="t"><div><b>${String(left).padStart(2, '0')}:00</b><div style="font-size:12px;color:var(--ink2)">${left === 0 ? '完成！記 25 分鐘到今天練習' : run ? '專注中…' : '準備好了嗎'}</div></div></div></div>
+    <div class="amb">${['雨聲', '咖啡廳', 'Lo-fi', '安靜'].map(a => `<span class="${amb === a ? 'on' : ''}" data-amb="${a}">${a === '安靜' ? '🔇' : '▶'} ${a}</span>`).join('')}</div>
+    <div style="font-size:11px;color:var(--ink3);margin-top:8px">${amb === '安靜' ? '' : '背景音是 YouTube 影片（' + amb + ' 10 小時）'}</div>
+    <button class="go" id="go">${left === 0 ? '再一輪' : run ? '暫停' : '開始專注 25 分鐘'}</button></div>`;
+  el.querySelectorAll('[data-amb]').forEach(s => s.onclick = () => { amb = s.dataset.amb; focus(); });
+  el.querySelector('#go').onclick = () => {
+    if (left === 0) { left = total; focus(); return; }
+    if (run) { clearInterval(run); run = null; focus(); return; }
+    run = setInterval(() => { left--; if (left <= 0) { left = 0; clearInterval(run); run = null; } focus(); }, 1000); focus();
+  };
+}
+focus();
+
+// ── 05 心情像素 ─────────────────────────────────────
+const MC = { '😄': '#FFC24B', '🙂': '#3DE0C8', '😐': '#8B8BA7', '😢': '#3D7BFF', '😡': '#FF5C5C' };
+const pixels = Array.from({ length: 98 }, (_, i) => { const r = (Math.sin(i * 12.9898) * 43758.5453) % 1; const v = Math.abs(r); return i > 90 ? null : v < .35 ? '🙂' : v < .6 ? '😄' : v < .78 ? '😐' : v < .93 ? '😢' : '😡'; });
+let psel = 90;
+const memos = { '😄': '「今天告白氣球循環一整天」', '🙂': '「か行終於全對了」', '😐': '「普通的一天，有練 10 題」', '😢': '「ETH 被軋，好氣」', '😡': '「又手癢開單…」' };
+function pix() {
+  const el = document.getElementById('pix'), m = pixels[psel];
+  el.innerHTML = `<div class="pix"><div style="display:flex;justify-content:space-between;align-items:baseline"><b style="font-size:20px">7 月 → 10 月</b><span style="font-size:12px;color:var(--ink2)">${pixels.filter(Boolean).length} 天有記</span></div>
+    <div class="pgrid">${pixels.map((p, i) => `<i data-i="${i}" class="${i === psel ? 'sel' : ''}" style="background:${p ? MC[p] : 'rgba(255,255,255,.06)'};opacity:${p ? .9 : 1}"></i>`).join('')}</div>
+    <div class="memo"><b style="color:#fff">${psel === 91 ? '今天' : '第 ' + (psel + 1) + ' 天'}</b> ${m ? m + ' ' + memos[m] : '還沒記，選下面一個表情 ↓'}</div>
+    <div style="font-size:12px;color:var(--ink2);margin:12px 0 8px">今天的心情？</div>
+    <div class="moods">${Object.entries(MC).map(([e, c]) => `<span data-m="${e}" style="background:${c}22;border:1px solid ${c}66">${e}</span>`).join('')}</div></div>`;
+  el.querySelectorAll('.pgrid i').forEach(c => c.onclick = () => { psel = +c.dataset.i; pix(); });
+  el.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { pixels[91] = b.dataset.m; psel = 91; pix(); });
+}
+pix();
+
+// ── 06 三個圓環 ─────────────────────────────────────
+const RG = [{ n: '學習', c: '#FF5CAA', v: .7, g: '20 題', u: 14 }, { n: '自律', c: '#3DE0C8', v: .9, g: '0 根菸・0 杯', u: 1 }, { n: '交易紀律', c: '#FFC24B', v: .45, g: '不衝動開單', u: 0 }];
+function rings() {
+  const el = document.getElementById('rings');
+  const svg = RG.map((r, i) => { const R = 100 - i * 26, C = 2 * Math.PI * R; return `<circle cx="120" cy="120" r="${R}" stroke="${r.c}33" stroke-width="20" fill="none"/>
+    <circle cx="120" cy="120" r="${R}" stroke="${r.c}" stroke-width="20" fill="none" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - Math.min(r.v, 1))}" style="transition:stroke-dashoffset 1s cubic-bezier(.2,.9,.2,1);filter:drop-shadow(0 0 6px ${r.c})"/>`; }).join('');
+  const all = RG.every(r => r.v >= 1);
+  el.innerHTML = `<div class="rings"><div style="font-size:12px;color:var(--ink2);letter-spacing:.15em">今天・10/14</div><div style="font-size:22px;font-weight:900">${all ? '🎉 三個都補滿了！' : '還差一點點'}</div>
+    <div class="rwrap"><svg width="240" height="240" style="transform:rotate(-90deg)">${svg}</svg></div>
+    <div class="legend">${RG.map((r, i) => `<div data-r="${i}"><span class="dot" style="background:${r.c}"></span><div style="flex:1"><b>${r.n}</b><div style="font-size:12px;color:var(--ink2)">目標 ${r.g}</div></div><b style="color:${r.c}">${Math.round(Math.min(r.v, 1) * 100)}%</b></div>`).join('')}</div>
+    <div style="font-size:11px;color:var(--ink3);margin-top:10px">連續補滿 4 天・再 3 天拿「一週全滿」獎章</div></div>`;
+  el.querySelectorAll('[data-r]').forEach(d => d.onclick = () => { const r = RG[+d.dataset.r]; r.v = Math.min(1, r.v + .2); rings(); });
+}
+rings();
+</script>
+</body>
+</html>
