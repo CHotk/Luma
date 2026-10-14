@@ -109,8 +109,8 @@ function cell(d) {
   }).join('')}</div>` : '';
   let hold = '';
   // 只抱 1 單：跟重疊時的黃一樣實心、一樣粗，開平那天兩端內縮。
-  if (n === 1) { const t0 = held[0]; hold = `<div class="one" style="left:${t0.o[0] === d ? 4 : 0}px;right:${t0.end === d ? 4 : 0}px;background:${colOf(t0)}"></div>`; }
-  else if (n >= 2 && n <= 3) hold = `<div class="lanes">${held.map(t => `<div class="lane"><i style="left:${t.o[0] === d ? 4 : 0}px;right:${t.end === d ? 4 : 0}px;background:${colOf(t)};border-radius:2px"></i></div>`).join('')}</div>`;
+  if (n === 1) { const t0 = held[0]; hold = `<div class="one" style="left:4px;right:4px;background:${colOf(t0)}"></div>`; }
+  else if (n >= 2 && n <= 3) hold = `<div class="lanes">${held.map(t => `<div class="lane"><i style="left:4px;right:4px;background:${colOf(t)};border-radius:2px"></i></div>`).join('')}</div>`;
   else if (n >= 4) hold = `<span class="cnt">×${n}</span><div class="seg">${held.map(t => `<i style="background:${colOf(t)}"></i>`).join('')}</div>`;
   return `<div class="cell ${S.sel === d ? 'sel' : ''} ${d > TODAY ? 'dim' : ''}" style="background:${bg};${d === TODAY ? 'box-shadow:inset 0 0 0 1px var(--ink2)' : ''}" data-d="${d}">
     <span class="d">${d}</span>${p != null ? `<span class="pnl" style="color:${p > 0 ? 'var(--up)' : 'var(--down)'}">${fmt(p)}</span>` : ''}${tags}${hold}</div>`;

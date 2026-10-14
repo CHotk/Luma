@@ -513,13 +513,9 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
                     ],
                   ),
                 ),
-                // 持倉期間：格子最底部、在格子裡面的一條淡黃線（2026-10-08
-                // 使用者挑設計稿版本 3，要求放格子底部、顏色淡一點）。
-                // 2～3 單：每單一條細色條，由下往上疊（開倉、平倉那天兩端
-                // 內縮一點，連續幾天看得出是同一條）。
-                // 只抱 1 單但那單別天有跟人重疊：照樣畫它的顏色，接得起來。
-                // 只抱 1 單也用同一套畫法：沒重疊過的是黃色，跟重疊時的黃一樣
-                // 實心、一樣粗（2026-10-14 使用者回報：沒重疊的黃比較淡）。
+                // 持倉期間：格子最底部，1～3 單每單一條細線、由下往上疊，每天
+                // 一樣長、左右留一點空（2026-10-14 使用者要求）。重疊過的單從開到
+                // 平都用它的顏色；從沒重疊過的是黃色，跟重疊時的黃一樣實心。
                 if (n >= 1 && n <= 3)
                   Positioned(
                     left: 0,
@@ -531,15 +527,9 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
                       children: [
                         for (final t in held)
                           Padding(
-                            padding: EdgeInsets.only(
-                              top: 1.5,
-                              left: dayOf(t.openedAt) == day ? 4 : 0,
-                              right:
-                                  t.closedAt != null &&
-                                      dayOf(t.closedAt!) == day
-                                  ? 4
-                                  : 0,
-                            ),
+                            // 每天一樣長、左右都留一點空（2026-10-14 使用者
+                            // 要求：原本只有開平那天內縮，跨天的長短不一很亂）。
+                            padding: const EdgeInsets.fromLTRB(4, 1.5, 4, 0),
                             child: Container(
                               height: 2.5,
                               decoration: BoxDecoration(
