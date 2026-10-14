@@ -133544,7 +133544,7 @@ q=A.bO(a,f,t.l).w
 p=r==null
 o=p||q.f.d>0||$.bI7().a.a>0
 n=q.r.d
-m=Math.max(n-6,12)
+m=Math.max(n+8,26)
 l=p?0:m+62+12-n
 n=e.a.d
 k=o?B.arm:B.o
