@@ -203,7 +203,7 @@ const freshPls = () => [
 ];
 const S = { v: 0, tab: 'ch', stack: [], pls: freshPls(), menu: null, save: null, act: false, toast: null, mini: false, lastY: 0, newName: null };
 const pl = id => S.pls.find(p => p.id === id);
-const top = () => S.stack[S.stack.length - 1];
+const curPage = () => S.stack[S.stack.length - 1];
 
 // ── 共用內容 ────────────────────────────────────────────
 function thumb(v, w = 118) { return `<div class="thumb" style="width:${w}px;background:linear-gradient(135deg,${v.c[0]},${v.c[1]})" data-a="play" data-id="${v.id}"><b>${v.len}</b></div>`; }
@@ -255,7 +255,7 @@ function plPage(id) {
 }
 const TAB_NAME = { ch: '頻道', vid: '影片', pl: '播放清單' };
 function pageBody() {
-  const t = top();
+  const t = curPage();
   if (t) return t.k === 'cat' ? catPage(t.id) : t.k === 'ch' ? chPage(t.id) : plPage(t.id);
   const body = S.tab === 'ch' ? chTab() : S.tab === 'vid' ? vidTab() : plTab();
   return (V[S.v].noTitle ? '' : navTitle(TAB_NAME[S.tab])) + body;
@@ -308,7 +308,7 @@ const V = [
       <h3>好處</h3><ul><li>最下面完全空出來，影片最多；跟 App 其他頁面一樣都沒有底部列，風格一致。</li></ul><h3>缺點</h3><ul><li>單手要伸到最上面才能換；進到子頁就沒得直接換分頁。</li></ul>`,
     noTitle: true,
     head() {
-      if (top()) return '';
+      if (curPage()) return '';
       const i = TABS.findIndex(([k]) => k === S.tab);
       return `<div class="bar" style="padding-bottom:0"><div class="ib">${IC.menu}</div><div class="t">YT 管理</div>${S.tab === 'pl' ? `<div class="ib" data-a="newPl">${IC.plus}</div>` : `<div class="ib">${IC.gear}</div>`}</div>
         <div class="seg"><div class="in"><div class="knob" style="left:calc(2px + ${i} * (100% - 4px) / 3);width:calc((100% - 4px) / 3)"></div>${TABS.map(([k, n]) => `<button data-a="tab" data-t="${k}">${n}</button>`).join('')}</div></div>`;
