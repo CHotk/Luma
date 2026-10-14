@@ -94,6 +94,8 @@ const lbl = t => `${t.sym}${t.d} ${t.lev}x`;
 const overlapped = () => trades().filter(t => { for (let d = t.o[0]; d <= t.end; d++) if (onDay(d).length > 1) return true; return false; });
 // 有跟別單重疊過的單才給顏色（從開到平每天同一個顏色）；沒重疊過的是黃色。
 function colOf(t) { const ov = overlapped().map(x => x.i); const k = ov.indexOf(t.i); return k < 0 ? PAL[0] : PAL[k % 5]; }
+// 每單固定一層（同一單每天同一個高度）：照開倉先後給最低的空層。
+function laneOf(t) { const ts = trades().slice().sort((x, y) => x.o[0] - y.o[0] || x.o[1] - y.o[1]), lanes = {}; for (const x of ts) { const used = new Set(); for (let d = x.o[0]; d <= x.end; d++) for (const o of onDay(d)) if (lanes[o.i] != null) used.add(lanes[o.i]); let l = 0; while (used.has(l)) l++; lanes[x.i] = l; } return lanes[t.i]; }
 function cell(d) {
   const held = onDay(d), n = held.length;
   const closes = trades().filter(t => t.c && t.c[0] === d);
@@ -109,8 +111,7 @@ function cell(d) {
   }).join('')}</div>` : '';
   let hold = '';
   // 只抱 1 單：跟重疊時的黃一樣實心、一樣粗，開平那天兩端內縮。
-  if (n === 1) { const t0 = held[0]; hold = `<div class="one" style="left:4px;right:4px;background:${colOf(t0)}"></div>`; }
-  else if (n >= 2 && n <= 3) hold = `<div class="lanes">${held.map(t => `<div class="lane"><i style="left:4px;right:4px;background:${colOf(t)};border-radius:2px"></i></div>`).join('')}</div>`;
+  if (n >= 1 && n <= 3) hold = held.map(x => `<div class="one" style="left:4px;right:4px;bottom:${2 + laneOf(x) * 4}px;background:${colOf(x)}"></div>`).join('');
   else if (n >= 4) hold = `<span class="cnt">×${n}</span><div class="seg">${held.map(t => `<i style="background:${colOf(t)}"></i>`).join('')}</div>`;
   return `<div class="cell ${S.sel === d ? 'sel' : ''} ${d > TODAY ? 'dim' : ''}" style="background:${bg};${d === TODAY ? 'box-shadow:inset 0 0 0 1px var(--ink2)' : ''}" data-d="${d}">
     <span class="d">${d}</span>${p != null ? `<span class="pnl" style="color:${p > 0 ? 'var(--up)' : 'var(--down)'}">${fmt(p)}</span>` : ''}${tags}${hold}</div>`;

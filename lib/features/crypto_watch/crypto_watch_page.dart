@@ -210,6 +210,23 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
     // 有跟別單重疊過的單才給顏色，而且從開到平每一天都用同一個顏色
     // （2026-10-14 使用者回報：5 號開 6 號平、6 號又開一單，5 號是黃線、6 號
     // 變藍，接不起來）。從沒重疊過的單照舊一條黃線。
+    // 每單固定一個「層」（2026-10-14 使用者要求：同一單的線每天都在同一個
+    // 高度，不要重疊那天在上面、隔天又掉到底部）。照開倉先後，給它還沒被
+    // 同時抱著的單佔掉的最低那層。
+    final laneOf = <String, int>{};
+    for (final t in monthTrades) {
+      final days = _daysOf(t);
+      final used = <int>{
+        for (final d in days)
+          for (final o in heldOn[d] ?? const <TradeEntry>[])
+            if (laneOf[o.id] != null) laneOf[o.id]!,
+      };
+      var lane = 0;
+      while (used.contains(lane)) {
+        lane++;
+      }
+      laneOf[t.id] = lane;
+    }
     final colorOf = <String, Color>{
       for (var i = 0; i < overlapped.length; i++)
         overlapped[i].id: tradeOverlapColors[i % tradeOverlapColors.length],
@@ -302,6 +319,7 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
                       heldOn[DateTime(_month.year, _month.month, d)] ??
                       const [],
                   colorOf: colorOf,
+                  laneOf: laneOf,
                   lit: litDays.contains(DateTime(_month.year, _month.month, d)),
                   events:
                       events[DateTime(_month.year, _month.month, d)] ??
@@ -397,6 +415,7 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
     required double? pnl,
     required List<TradeEntry> held,
     required Map<String, Color> colorOf,
+    required Map<String, int> laneOf,
     required bool lit,
     required List<(bool open, String id, DateTime at)> events,
   }) {
@@ -517,31 +536,19 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
                 // 一樣長、左右留一點空（2026-10-14 使用者要求）。重疊過的單從開到
                 // 平都用它的顏色；從沒重疊過的是黃色，跟重疊時的黃一樣實心。
                 if (n >= 1 && n <= 3)
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 2,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      verticalDirection: VerticalDirection.up,
-                      children: [
-                        for (final t in held)
-                          Padding(
-                            // 每天一樣長、左右都留一點空（2026-10-14 使用者
-                            // 要求：原本只有開平那天內縮，跨天的長短不一很亂）。
-                            padding: const EdgeInsets.fromLTRB(4, 1.5, 4, 0),
-                            child: Container(
-                              height: 2.5,
-                              decoration: BoxDecoration(
-                                color:
-                                    colorOf[t.id] ?? tradeOverlapColors.first,
-                                borderRadius: BorderRadius.circular(2),
-                              ),
-                            ),
-                          ),
-                      ],
+                  for (final t in held)
+                    Positioned(
+                      left: 4,
+                      right: 4,
+                      bottom: 2 + (laneOf[t.id] ?? 0) * 4.0,
+                      height: 2.5,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: colorOf[t.id] ?? tradeOverlapColors.first,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
                     ),
-                  ),
                 // 4 單以上：一條分段色塊＋右上角 ×N。
                 if (n >= 4) ...[
                   Positioned(
@@ -937,34 +944,54 @@ class _MonthPnlCard extends ConsumerWidget {
             textAlign: TextAlign.center,
             style: AppText.note.copyWith(color: AppColors.ink2),
           ),
-          // 起始資金自動算（這個月的單平均本金），不能點、不用填（2026-10-14）。
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 6),
-              child: Text.rich(
-                TextSpan(
-                  children: [
-                    if (ret != null)
-                      TextSpan(
-                        text: '${fmtPct(ret)}・',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          color: pnlColor(ret),
-                        ),
-                      ),
-                    TextSpan(
-                      text: cap == null
-                          ? '這個月還沒有單'
-                          : '起始資金 ${fmtAmount(cap)} USDT'
-                                '（${fmtTwd(cap, rate)}・這個月的單平均本金）',
-                      style: AppText.note.copyWith(color: AppColors.ink2),
-                    ),
-                  ],
-                ),
+          // 第三行：已實現損益 %（月報酬＝損益 ÷ 起始資金）；起始資金是 0 或
+          // 沒有單就不算（2026-10-14 使用者要求分開放）。
+          if (ret != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                fmtPct(ret),
                 textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                  color: pnlColor(ret),
+                ),
+              ),
+            ),
+          // 第四、五行：起始資金（藍色、大一點）＋台幣換算。自動算，不用填。
+          const SizedBox(height: 8),
+          Center(
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: '起始資金 ',
+                    style: AppText.note.copyWith(color: AppColors.accent),
+                  ),
+                  TextSpan(
+                    text: cap == null ? '—' : fmtAmount(cap),
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.accent,
+                    ),
+                  ),
+                  if (cap != null)
+                    const TextSpan(
+                      text: ' USDT',
+                      style: TextStyle(fontSize: 12, color: AppColors.accent),
+                    ),
+                ],
               ),
             ),
           ),
+          Text(
+            cap == null ? '這個月還沒有單' : '${fmtTwd(cap, rate)}・這個月的單平均本金',
+            textAlign: TextAlign.center,
+            style: AppText.note.copyWith(color: AppColors.ink2),
+          ),
+          const SizedBox(height: 6),
           Text(
             '已平倉 ${sum.closed.length} 單'
             '${sum.winRate == null ? '' : '・勝率 ${sum.winRate!.round()}%'}'
