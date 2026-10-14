@@ -116,6 +116,104 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
 
   void _reload() => setState(() => _future = _load());
 
+  /// ＋ 點下去：新增頻道／挖掘新頻道／新增分類。
+  Future<void> _showAddMenu() async {
+    // 剪貼簿要在使用者剛點的那一下就讀，Safari 才放行（見
+    // showAddYtChannelDialog）；選了「新增頻道」那一下才讀，新增頻道視窗
+    // 打開時有網址就直接帶出貼上按鈕。
+    Future<String?>? clipboard;
+    Widget item(
+      BuildContext sheet,
+      String value,
+      IconData icon,
+      String title,
+      String sub,
+      Color color,
+    ) => ListTile(
+      onTap: () {
+        if (value == 'channel') clipboard = readYtChannelClipboard();
+        Navigator.of(sheet).pop(value);
+      },
+      leading: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.16),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(icon, color: color, size: 21),
+      ),
+      title: Text(
+        title,
+        style: const TextStyle(
+          fontWeight: FontWeight.w700,
+          color: AppColors.ink,
+        ),
+      ),
+      subtitle: Text(sub, style: AppText.note),
+    );
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: const Color(0xFF1C1C29),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+      ),
+      builder: (sheet) => SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(8, 14, 8, 10),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              item(
+                sheet,
+                'channel',
+                Icons.person_add_alt_1_rounded,
+                '新增頻道',
+                '貼上頻道網址，名字頭像自動抓',
+                AppColors.ytAccent,
+              ),
+              item(
+                sheet,
+                'discover',
+                Icons.travel_explore_rounded,
+                '挖掘新頻道',
+                '從你追蹤的頻道找類似的',
+                AppColors.accent,
+              ),
+              item(
+                sheet,
+                'category',
+                Icons.create_new_folder_outlined,
+                '新增分類',
+                '自己開一個分類資料夾',
+                AppColors.mid,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (!mounted || choice == null) return;
+    switch (choice) {
+      case 'channel':
+        final repo = ref.read(ytTrackerRepositoryProvider);
+        final categories = await repo.loadCategories();
+        if (!mounted) return;
+        final added = await showAddYtChannelDialog(
+          context,
+          ref,
+          categories: categories,
+          clipboard: clipboard,
+        );
+        if (added) _reload();
+      case 'discover':
+        await runYtChannelDiscovery(context, ref, onDone: _reload);
+      case 'category':
+        await _showAddCategoryDialog();
+    }
+  }
+
   Future<void> _showAddCategoryDialog() async {
     final controller = TextEditingController();
     final imageController = TextEditingController();
@@ -331,36 +429,13 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
                   // 使用者要求），測試通知整個拿掉（不是這頁該有的功能，
                   // debug 頁還留著）。
                   actions: [
-                    // 直接在分類列表這頁就能新增頻道，不用先點進某個分類
-                    // 才有這顆按鈕（2026-09-29 使用者要求：每次都要進去
-                    // 分類裡面才能新增太麻煩）。沒選特定分類，新增後預設
-                    // 未分類，使用者自己再移到想要的分類。
+                    // 新增頻道、挖掘新頻道、新增分類收進同一顆 ＋（2026-10-14
+                    // 使用者要求），點了先問要做哪個。
                     IconButton(
-                      onPressed: () async {
-                        // 剪貼簿要在 await 之前就讀，Safari 才認得是使用者
-                        // 剛點的（見 showAddYtChannelDialog）。
-                        final clipboard = readYtChannelClipboard();
-                        final repo = ref.read(ytTrackerRepositoryProvider);
-                        final categories = await repo.loadCategories();
-                        if (!context.mounted) return;
-                        final added = await showAddYtChannelDialog(
-                          context,
-                          ref,
-                          categories: categories,
-                          clipboard: clipboard,
-                        );
-                        if (added) _reload();
-                      },
-                      icon: const Icon(Icons.add_circle_outline, size: 20),
+                      onPressed: _showAddMenu,
+                      icon: const Icon(Icons.add_circle_outline, size: 21),
                       color: AppColors.ink2,
-                      tooltip: '新增頻道',
-                    ),
-                    IconButton(
-                      onPressed: () =>
-                          runYtChannelDiscovery(context, ref, onDone: _reload),
-                      icon: const Icon(Icons.travel_explore_rounded, size: 20),
-                      color: AppColors.ink2,
-                      tooltip: '挖掘新頻道',
+                      tooltip: '新增',
                     ),
                     // 全部頻道的紀錄（2026-10-06 使用者要求）。
                     IconButton(
@@ -368,15 +443,6 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
                       icon: const Icon(Icons.history_rounded, size: 20),
                       color: AppColors.ink2,
                       tooltip: '頻道紀錄',
-                    ),
-                    IconButton(
-                      onPressed: _showAddCategoryDialog,
-                      icon: const Icon(
-                        Icons.create_new_folder_outlined,
-                        size: 20,
-                      ),
-                      color: AppColors.ink2,
-                      tooltip: '新增分類',
                     ),
                   ],
                 ),
