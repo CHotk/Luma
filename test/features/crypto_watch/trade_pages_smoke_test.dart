@@ -194,23 +194,30 @@ void main() {
     await finish(tester);
   });
 
-  testWidgets('補記：多一題盈虧，填 % 跟損益自動算本金，時間多平倉', (tester) async {
+  testWidgets('補記：先問損益、再問 %（正負跟著損益），自動算本金，時間多平倉', (tester) async {
     await openNewTrade(tester);
     await tapIn(tester, find.text('補記以前的單'));
     expect(find.text('補記一單'), findsOneWidget);
     await tapIn(tester, find.text('ETH'));
     await tapIn(tester, find.text('空 ▼'));
     await tapIn(tester, find.text('就用 10x，下一題'));
-    expect(find.text('盈虧 %'), findsOneWidget);
+    // 先問已實現損益，% 還沒出來。
+    expect(find.text('已實現損益'), findsOneWidget);
+    expect(find.text('盈虧 %'), findsNothing);
     expect(find.text('本金（自動算）'), findsNothing);
 
-    // 賺賠只有一個 +／− 切換，% 跟損益一起變。
+    // 賺賠只有損益那一個 +／− 切換。
     final sheet = find.byType(BottomSheet);
     expect(find.descendant(of: sheet, matching: find.text('賺')), findsNothing);
     final sign = find.byKey(const ValueKey('pnl-sign'));
     expect(find.descendant(of: sign, matching: find.text('+')), findsOneWidget);
     await tapIn(tester, sign);
     expect(find.descendant(of: sign, matching: find.text('−')), findsOneWidget);
+    await tester.enterText(fieldWithHint('點左邊 + / − 切換賺賠'), '50');
+    await tester.pump();
+    await tapIn(tester, find.text('下一題'));
+    // % 的正負直接跟著損益（剛剛切成 −）。
+    expect(find.text('盈虧 %'), findsOneWidget);
     expect(
       find.descendant(
         of: find.byKey(const ValueKey('pct-sign')),
@@ -219,9 +226,14 @@ void main() {
       findsOneWidget,
     );
     await tapIn(tester, sign);
-
-    await tester.enterText(fieldWithHint('例如 12.5'), '12.5');
-    await tester.enterText(fieldWithHint('點左邊 + / − 切換賺賠'), '50');
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('pct-sign')),
+        matching: find.text('+'),
+      ),
+      findsOneWidget,
+    );
+    await tester.enterText(fieldWithHint('例如 12.5（正負跟著上面的損益）'), '12.5');
     await tester.pump();
     await tapIn(tester, find.text('下一題'));
     expect(find.text('本金（自動算）'), findsOneWidget);
@@ -233,7 +245,7 @@ void main() {
     await tester.enterText(fieldWithHint('填完 % 跟損益就會算出來'), '420');
     await tester.pump();
     expect(find.text('本金（保證金）'), findsOneWidget);
-    await tester.enterText(fieldWithHint('例如 12.5'), '10');
+    await tester.enterText(fieldWithHint('例如 12.5（正負跟著上面的損益）'), '10');
     await tester.pump();
     expect(margin.controller!.text, '420');
     await tapIn(tester, find.textContaining('用 % 重新算'));
@@ -271,6 +283,9 @@ void main() {
     );
     expect(field, findsOneWidget);
     expect(find.byType(CalendarDatePicker), findsNothing);
+    // 打開是空的，沒有「現在」按鈕。
+    expect(tester.widget<TextField>(field).controller!.text, isEmpty);
+    expect(find.text('現在'), findsNothing);
     await tester.enterText(field, '09032105');
     await tester.pump();
     expect(tester.widget<TextField>(field).controller!.text, '09/03 21:05');
@@ -287,6 +302,7 @@ void main() {
       matching: find.byType(TextField),
     );
     expect(fields, findsNWidgets(2));
+    await tester.enterText(fields.first, '09032105');
     await tester.enterText(fields.last, '37');
     await tester.pump();
     await tapIn(tester, find.text('好'));
@@ -615,14 +631,16 @@ void main() {
     TextField field(String hint) =>
         tester.widget<TextField>(fieldWithHint(hint));
 
-    // 盈虧 % 打 12.36 → 變 12.4。
-    await tester.enterText(fieldWithHint('例如 12.5'), '12.36');
-    await tester.pump();
-    expect(field('例如 12.5').controller!.text, '12.4');
-
-    // 損益 50 ÷ 12.4% ＝ 403.2258… → 本金 403.2。
     await tester.enterText(fieldWithHint('點左邊 + / − 切換賺賠'), '50');
     await tester.pump();
+    await tapIn(tester, find.text('下一題'));
+
+    // 盈虧 % 打 12.36 → 變 12.4。
+    await tester.enterText(fieldWithHint('例如 12.5（正負跟著上面的損益）'), '12.36');
+    await tester.pump();
+    expect(field('例如 12.5（正負跟著上面的損益）').controller!.text, '12.4');
+
+    // 損益 50 ÷ 12.4% ＝ 403.2258… → 本金 403.2。
     await tapIn(tester, find.text('下一題'));
     expect(field('填完 % 跟損益就會算出來').controller!.text, '403.2');
     await finish(tester);

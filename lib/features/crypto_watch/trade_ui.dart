@@ -477,7 +477,8 @@ String _numText(double v) {
 Widget _pnlField({
   required TextEditingController controller,
   required bool win,
-  required VoidCallback onToggle,
+  VoidCallback? onToggle,
+  ValueChanged<String>? onSubmitted,
   bool autofocus = false,
   String hint = '點左邊 + / − 切換賺賠',
   String suffix = 'USDT',
@@ -494,6 +495,8 @@ Widget _pnlField({
     controller: controller,
     autofocus: autofocus,
     keyboardType: const TextInputType.numberWithOptions(decimal: true),
+    textInputAction: onSubmitted == null ? null : TextInputAction.next,
+    onSubmitted: onSubmitted,
     inputFormatters: oneDecimalInput,
     style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: c),
     decoration: _input(
@@ -558,7 +561,7 @@ TextSpan _strong(String s, {Color color = AppColors.ink, double? size}) =>
 /// 日期跟時間一起在同一格打（2026-10-14 使用者要求：原本先跳日期、再跳
 /// 時間兩段很麻煩）。只打數字就好，斜線、空白、冒號自動補：
 /// 「10142140」→「10/14 21:40」；要打年份就從 20 開頭
-/// 「202510142140」→「2025/10/14 21:40」。旁邊有「現在」一鍵填。
+/// 「202510142140」→「2025/10/14 21:40」。打開是空的、鍵盤直接出來。
 /// 不能選未來；取消回傳 null。
 ///
 /// 2026-10-10 使用者要求一打開就是直接打字（不用先在月曆、時鐘上點），
@@ -625,7 +628,9 @@ class _DateTimeDialog extends StatefulWidget {
 }
 
 class _DateTimeDialogState extends State<_DateTimeDialog> {
-  late final _ctrl = TextEditingController(text: _dateTimeText(widget.initial))
+  // 打開是空的、直接打（2026-10-14 使用者要求：都補記了，不用預設現在；
+  // 原本的時間寫在下面提示裡）。取消就維持原本的時間。
+  late final _ctrl = TextEditingController()
     ..addListener(() => setState(() {}));
 
   /// 秒數（2026-10-14 使用者要求：同一分鐘開好幾單、又開又平時分不出
@@ -654,16 +659,6 @@ class _DateTimeDialogState extends State<_DateTimeDialog> {
   }
 
   @override
-  void initState() {
-    super.initState();
-    // 打開就全選，直接打新的就蓋掉。
-    _ctrl.selection = TextSelection(
-      baseOffset: 0,
-      extentOffset: _ctrl.text.length,
-    );
-  }
-
-  @override
   void dispose() {
     _ctrl.dispose();
     _secCtrl.dispose();
@@ -678,7 +673,9 @@ class _DateTimeDialogState extends State<_DateTimeDialog> {
     final ok = t != null && !future;
     final String hint;
     if (t == null) {
-      hint = '只打數字就好：月日時分，例如 10142140 → 10/14 21:40';
+      hint =
+          '原本 ${_dateTimeText(widget.initial)}・只打數字：月日時分，'
+          '例如 10142140 → 10/14 21:40';
     } else if (future) {
       hint = '不能是未來';
     } else {
@@ -716,16 +713,7 @@ class _DateTimeDialogState extends State<_DateTimeDialog> {
               letterSpacing: 1,
               fontFeatures: [FontFeature.tabularFigures()],
             ),
-            decoration: _input('月/日 時:分').copyWith(
-              suffixIcon: TextButton(
-                onPressed: () {
-                  final n = DateTime.now();
-                  _ctrl.text = _dateTimeText(n);
-                  if (_showSec) _secCtrl.text = '${n.second}';
-                },
-                child: const Text('現在'),
-              ),
-            ),
+            decoration: _input('月/日 時:分'),
           ),
           const SizedBox(height: 8),
           Text(
@@ -1314,25 +1302,37 @@ class _NewTradeSheetState extends State<_NewTradeSheet> {
               style: TextStyle(fontSize: 13, color: AppColors.ink2),
             ),
           ),
-        if (at(_Step.result) && _closed)
-          _stepBox(_Step.result, [
-            _fieldLabel('盈虧 %', trailing: '本金報酬率，幣安紀錄上那個 %'),
-            _pnlField(
-              controller: _pctCtrl,
-              win: _win,
-              onToggle: () => setState(() => _win = !_win),
-              hint: '例如 12.5',
-              suffix: '%',
-              signKey: 'pct-sign',
-            ),
+        // 先問已實現損益（賺賠在這裡切），再問盈虧 %——% 的正負直接跟著
+        // 損益，不用再切一次（2026-10-14 使用者要求）。打完按鍵盤的
+        // 「下一個」就出下一題。
+        if (at(_Step.pnl) && _closed)
+          _stepBox(_Step.pnl, [
             _fieldLabel('已實現損益', trailing: '記在平倉那天 ${fmtDay(_closedAt)}'),
             _pnlField(
               controller: _pnlCtrl,
               win: _win,
               onToggle: () => setState(() => _win = !_win),
               twdRate: rate,
+              autofocus: !editing,
+              onSubmitted: (_) {
+                if (_pnlAbs != null) _answer(_Step.pnl, () {});
+              },
             ),
-            _nextButton(_Step.result, _pnlAbs != null, '下一題'),
+            _nextButton(_Step.pnl, _pnlAbs != null, '下一題'),
+          ]),
+        if (at(_Step.pct) && _closed)
+          _stepBox(_Step.pct, [
+            _fieldLabel('盈虧 %', trailing: '本金報酬率，幣安紀錄上那個 %'),
+            _pnlField(
+              controller: _pctCtrl,
+              win: _win,
+              hint: '例如 12.5（正負跟著上面的損益）',
+              suffix: '%',
+              signKey: 'pct-sign',
+              autofocus: !editing,
+              onSubmitted: (_) => _answer(_Step.pct, () {}),
+            ),
+            _nextButton(_Step.pct, true, _pct == null ? '不知道 %，自己填本金' : '下一題'),
           ]),
         if (at(_Step.margin))
           _stepBox(_Step.margin, [
@@ -1431,8 +1431,10 @@ class _NewTradeSheetState extends State<_NewTradeSheet> {
   void _answer(_Step s, VoidCallback change) {
     setState(change);
     var next = _Step.values[(s.index + 1).clamp(0, _Step.values.length - 1)];
-    // 不是補記的話，沒有「盈虧」那題。
-    if (next == _Step.result && !_closed) next = _Step.margin;
+    // 不是補記的話，沒有損益、盈虧 % 那兩題。
+    if ((next == _Step.pnl || next == _Step.pct) && !_closed) {
+      next = _Step.margin;
+    }
     if (next.index <= _reached.index) return;
     setState(() => _reached = next);
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1521,7 +1523,17 @@ class _NewTradeSheetState extends State<_NewTradeSheet> {
 }
 
 /// 記一筆的題目順序。
-enum _Step { backfill, symbol, direction, leverage, result, margin, time, note }
+enum _Step {
+  backfill,
+  symbol,
+  direction,
+  leverage,
+  pnl,
+  pct,
+  margin,
+  time,
+  note,
+}
 
 /// 新出現的題目從下面淡進來。
 class _Appear extends StatefulWidget {
