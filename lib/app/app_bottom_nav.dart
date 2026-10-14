@@ -219,7 +219,8 @@ class _AppBottomNavFrameState extends ConsumerState<AppBottomNavFrame> {
         final keyboard = mq.viewInsets.bottom > 0;
         final hidden =
             spec == null || keyboard || navBarRouteObserver.popups.value > 0;
-        final barBottom = math.max(mq.padding.bottom - 6, 12.0);
+        // 離底部的距離（2026-10-14 使用者要求往上一點：原本貼著 Home 指示條）。
+        final barBottom = math.max(mq.padding.bottom + 8, 26.0);
         // 浮在頁面上面，不佔一行（2026-10-14 使用者糾正）：頁面照樣排到最底，
         // 只是清單最後多留這麼高的空白（[FloatingNavInset]），最後一項才
         // 捲得上來、不被擋住。
