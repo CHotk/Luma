@@ -316,7 +316,7 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
             children: [
               _legend(tradeUp.withValues(alpha: 0.4), '賺'),
               _legend(tradeDown.withValues(alpha: 0.4), '賠'),
-              _legend(AppColors.mid.withValues(alpha: 0.45), '底部黃線＝有抱單'),
+              _legend(tradeOverlapColors.first, '底部黃線＝有抱單'),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -515,25 +515,12 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
                 ),
                 // 持倉期間：格子最底部、在格子裡面的一條淡黃線（2026-10-08
                 // 使用者挑設計稿版本 3，要求放格子底部、顏色淡一點）。
-                // 只抱 1 單：跟原本一樣一條黃線。
-                if (n == 1 && !colorOf.containsKey(held.single.id))
-                  Positioned(
-                    left: 4,
-                    right: 4,
-                    bottom: 2,
-                    height: 3,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: AppColors.mid.withValues(alpha: 0.45),
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
                 // 2～3 單：每單一條細色條，由下往上疊（開倉、平倉那天兩端
                 // 內縮一點，連續幾天看得出是同一條）。
                 // 只抱 1 單但那單別天有跟人重疊：照樣畫它的顏色，接得起來。
-                if ((n >= 2 && n <= 3) ||
-                    (n == 1 && colorOf.containsKey(held.single.id)))
+                // 只抱 1 單也用同一套畫法：沒重疊過的是黃色，跟重疊時的黃一樣
+                // 實心、一樣粗（2026-10-14 使用者回報：沒重疊的黃比較淡）。
+                if (n >= 1 && n <= 3)
                   Positioned(
                     left: 0,
                     right: 0,
@@ -556,7 +543,8 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
                             child: Container(
                               height: 2.5,
                               decoration: BoxDecoration(
-                                color: colorOf[t.id],
+                                color:
+                                    colorOf[t.id] ?? tradeOverlapColors.first,
                                 borderRadius: BorderRadius.circular(2),
                               ),
                             ),

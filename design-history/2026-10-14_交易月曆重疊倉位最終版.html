@@ -38,7 +38,7 @@
   .cell .pnl { position: absolute; left: 0; right: 0; bottom: 16px; text-align: center; font-size: 10.5px; font-weight: 800; }
   .tg { display: inline-block; font-size: 8.5px; font-weight: 900; padding: 0 2.5px; border-radius: 3px; line-height: 1.35; }
   .tags { position: absolute; left: 3px; top: 16px; display: flex; gap: 2px; flex-wrap: wrap; right: 2px; }
-  .one { position: absolute; left: 4px; right: 4px; bottom: 2px; height: 3px; border-radius: 2px; background: rgba(245,199,99,.45); }
+  .one { position: absolute; bottom: 2px; height: 2.5px; border-radius: 2px; background: #F5C763; }
   .lanes { position: absolute; left: 0; right: 0; bottom: 2px; display: flex; flex-direction: column-reverse; gap: 1.5px; }
   .lane { height: 2.5px; position: relative; } .lane i { position: absolute; top: 0; bottom: 0; }
   .seg { position: absolute; left: 3px; right: 3px; bottom: 2px; height: 6px; display: flex; gap: 1px; border-radius: 3px; overflow: hidden; } .seg i { flex: 1; }
@@ -92,6 +92,8 @@ const fmt = v => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v);
 const lbl = t => `${t.sym}${t.d} ${t.lev}x`;
 // 有跟別單重疊過的單（圖例只列這些）
 const overlapped = () => trades().filter(t => { for (let d = t.o[0]; d <= t.end; d++) if (onDay(d).length > 1) return true; return false; });
+// 有跟別單重疊過的單才給顏色（從開到平每天同一個顏色）；沒重疊過的是黃色。
+function colOf(t) { const ov = overlapped().map(x => x.i); const k = ov.indexOf(t.i); return k < 0 ? PAL[0] : PAL[k % 5]; }
 function cell(d) {
   const held = onDay(d), n = held.length;
   const closes = trades().filter(t => t.c && t.c[0] === d);
@@ -100,15 +102,16 @@ function cell(d) {
   const ev = [];
   trades().forEach(t => { if (t.o[0] === d) ev.push({ t, k: '開', at: t.o[1] }); if (t.c && t.c[0] === d) ev.push({ t, k: '平', at: t.c[1] }); });
   ev.sort((a, b) => a.at - b.at);
-  const colored = n >= 2;
+  const ovIds = overlapped().map(x => x.i);
   const tags = ev.length ? `<div class="tags">${ev.map(e => {
-    if (!colored) return `<span class="tg" style="background:${e.k === '開' ? 'var(--mid)' : '#2A2A3D'};color:${e.k === '開' ? '#1A1405' : 'var(--ink)'}">${e.k}</span>`;
-    return `<span class="tg" style="background:${e.k === '開' ? e.t.col : 'transparent'};color:${e.k === '開' ? '#111' : e.t.col};box-shadow:inset 0 0 0 1.2px ${e.t.col}">${e.k}</span>`;
+    if (!ovIds.includes(e.t.i)) return `<span class="tg" style="background:${e.k === '開' ? 'var(--mid)' : '#2A2A3D'};color:${e.k === '開' ? '#1A1405' : 'var(--ink)'}">${e.k}</span>`;
+    return `<span class="tg" style="background:${e.k === '開' ? colOf(e.t) : 'transparent'};color:${e.k === '開' ? '#111' : colOf(e.t)};box-shadow:inset 0 0 0 1.2px ${colOf(e.t)}">${e.k}</span>`;
   }).join('')}</div>` : '';
   let hold = '';
-  if (n === 1) hold = '<div class="one"></div>';
-  else if (n >= 2 && n <= 3) hold = `<div class="lanes">${held.map(t => `<div class="lane"><i style="left:${t.o[0] === d ? 4 : 0}px;right:${t.end === d ? 4 : 0}px;background:${t.col};border-radius:2px"></i></div>`).join('')}</div>`;
-  else if (n >= 4) hold = `<span class="cnt">×${n}</span><div class="seg">${held.map(t => `<i style="background:${t.col}"></i>`).join('')}</div>`;
+  // 只抱 1 單：跟重疊時的黃一樣實心、一樣粗，開平那天兩端內縮。
+  if (n === 1) { const t0 = held[0]; hold = `<div class="one" style="left:${t0.o[0] === d ? 4 : 0}px;right:${t0.end === d ? 4 : 0}px;background:${colOf(t0)}"></div>`; }
+  else if (n >= 2 && n <= 3) hold = `<div class="lanes">${held.map(t => `<div class="lane"><i style="left:${t.o[0] === d ? 4 : 0}px;right:${t.end === d ? 4 : 0}px;background:${colOf(t)};border-radius:2px"></i></div>`).join('')}</div>`;
+  else if (n >= 4) hold = `<span class="cnt">×${n}</span><div class="seg">${held.map(t => `<i style="background:${colOf(t)}"></i>`).join('')}</div>`;
   return `<div class="cell ${S.sel === d ? 'sel' : ''} ${d > TODAY ? 'dim' : ''}" style="background:${bg};${d === TODAY ? 'box-shadow:inset 0 0 0 1px var(--ink2)' : ''}" data-d="${d}">
     <span class="d">${d}</span>${p != null ? `<span class="pnl" style="color:${p > 0 ? 'var(--up)' : 'var(--down)'}">${fmt(p)}</span>` : ''}${tags}${hold}</div>`;
 }
@@ -128,7 +131,7 @@ function paint() {
     <div class="row" style="padding:0 2px 12px"><b style="font-size:18px">交易&自律</b></div>
     <div class="glass"><div class="row" style="margin-bottom:8px"><span>‹</span><b class="sp" style="text-align:center">2026 年 10 月</b><span style="opacity:.3">›</span></div>
     <div class="cal">${g}</div>
-    ${ov.length ? `<div class="legend">${ov.map(t => `<div class="lg"><i style="background:${t.col}"></i><b>${lbl(t)}</b>${t.c ? `<span style="color:${t.pnl > 0 ? 'var(--up)' : 'var(--down)'}">${fmt(t.pnl)}</span>` : '<span style="color:var(--mid)">抱著</span>'}</div>`).join('')}</div>` : '<div class="note3" style="margin-top:10px">這個月沒有重疊的單，一條黃線就夠</div>'}
+    ${ov.length ? `<div class="legend">${ov.map(t => `<div class="lg"><i style="background:${colOf(t)}"></i><b>${lbl(t)}</b>${t.c ? `<span style="color:${t.pnl > 0 ? 'var(--up)' : 'var(--down)'}">${fmt(t.pnl)}</span>` : '<span style="color:var(--mid)">抱著</span>'}</div>`).join('')}</div>` : '<div class="note3" style="margin-top:10px">這個月沒有重疊的單，一條黃線就夠</div>'}
     </div></div>${sheet()}`;
 }
 const tabs = [[1, '1 單'], [2, '2 單重疊'], [3, '3 單重疊'], [4, '4 單重疊'], [5, '5 單重疊'], [6, '5 單重疊＋另外沒重疊的']];
