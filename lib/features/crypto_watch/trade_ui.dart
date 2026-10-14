@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -379,7 +381,7 @@ Widget _choice(String label, bool selected, VoidCallback onTap) => ChoiceChip(
 Widget _twoWay({
   required String left,
   required String right,
-  required bool leftSelected,
+  required bool? leftSelected,
   required ValueChanged<bool> onChanged,
 }) {
   Widget side(String label, bool isLeft) {
@@ -553,50 +555,173 @@ TextSpan _strong(String s, {Color color = AppColors.ink, double? size}) =>
       ),
     );
 
-/// 選日期再選時間（補記舊交易用，2026-10-08 使用者要求開倉、平倉時間都能
-/// 自己填）。不能選未來；取消回傳 null。
+/// 日期跟時間一起在同一格打（2026-10-14 使用者要求：原本先跳日期、再跳
+/// 時間兩段很麻煩）。只打數字就好，斜線、空白、冒號自動補：
+/// 「10142140」→「10/14 21:40」；要打年份就從 20 開頭
+/// 「202510142140」→「2025/10/14 21:40」。旁邊有「現在」一鍵填。
+/// 不能選未來；取消回傳 null。
 ///
-/// 2026-10-10 使用者要求一打開就是直接打字輸入（等同按了選擇器右下角的
-/// 鍵盤按鈕），不用先在月曆、時鐘上點；想看月曆／時鐘一樣能按圖示切回去。
-/// 舊版長相存在 `design-history/2026-10-10_交易記一筆表單現況.html`。
-Future<DateTime?> _pickDateTime(BuildContext context, DateTime initial) async {
-  final now = DateTime.now();
-  final date = await showDatePicker(
-    context: context,
-    initialDate: initial.isAfter(now) ? now : initial,
-    firstDate: DateTime(2015),
-    lastDate: now,
-    initialEntryMode: DatePickerEntryMode.input,
-    helpText: '輸入日期',
-    fieldLabelText: '日期',
-    errorFormatText: '日期格式不對',
-    errorInvalidText: '不能是未來，也不能早於 2015 年',
-  );
-  if (date == null || !context.mounted) return null;
-  final time = await showTimePicker(
-    context: context,
-    initialTime: TimeOfDay.fromDateTime(initial),
-    initialEntryMode: TimePickerEntryMode.input,
-    // 24 小時制，跟 App 裡顯示的 21:40 一致；不然繁中預設 12 小時制，
-    // 打 9 還要另外選上午／下午，下午打開會被當成 21 點。
-    builder: (context, child) => MediaQuery(
-      data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
-      child: child!,
-    ),
-    helpText: '輸入時間',
-    hourLabelText: '時',
-    minuteLabelText: '分',
-    errorInvalidText: '時間不對',
-  );
-  if (time == null) return null;
-  final picked = DateTime(
-    date.year,
-    date.month,
-    date.day,
-    time.hour,
-    time.minute,
-  );
-  return picked.isAfter(now) ? now : picked;
+/// 2026-10-10 使用者要求一打開就是直接打字（不用先在月曆、時鐘上點），
+/// 這版維持直接打字。舊版（兩段）長相存在
+/// `design-history/2026-10-10_交易記一筆表單現況.html`。
+Future<DateTime?> _pickDateTime(BuildContext context, DateTime initial) =>
+    showDialog<DateTime>(
+      context: context,
+      builder: (_) => _DateTimeDialog(initial: initial),
+    );
+
+/// 只留數字，照位數補上「/」「 」「:」。20 開頭當成有年份。
+@visibleForTesting
+String formatDateTimeDigits(String input) {
+  final d = input.replaceAll(RegExp(r'\D'), '');
+  final withYear = d.startsWith('20');
+  final digits = d.substring(0, math.min(d.length, withYear ? 12 : 8));
+  final seps = withYear
+      ? {4: '/', 6: '/', 8: ' ', 10: ':'}
+      : {2: '/', 4: ' ', 6: ':'};
+  final out = StringBuffer();
+  for (var i = 0; i < digits.length; i++) {
+    if (seps.containsKey(i)) out.write(seps[i]);
+    out.write(digits[i]);
+  }
+  return out.toString();
+}
+
+/// 「10/14 21:40」或「2025/10/14 21:40」→ 時間；不完整、不存在的日期
+/// （例如 2/30）回 null。沒寫年份的用今年，今年的這天還沒到就當去年。
+@visibleForTesting
+DateTime? parseTradeDateTime(String text, {DateTime? now}) {
+  now ??= DateTime.now();
+  final d = text.replaceAll(RegExp(r'\D'), '');
+  int n(int a, int b) => int.parse(d.substring(a, b));
+  int y, mo, da, h, mi;
+  if (d.startsWith('20') && d.length == 12) {
+    (y, mo, da, h, mi) = (n(0, 4), n(4, 6), n(6, 8), n(8, 10), n(10, 12));
+  } else if (!d.startsWith('20') && d.length == 8) {
+    (y, mo, da, h, mi) = (now.year, n(0, 2), n(2, 4), n(4, 6), n(6, 8));
+  } else {
+    return null;
+  }
+  if (h > 23 || mi > 59) return null;
+  var t = DateTime(y, mo, da, h, mi);
+  if (t.month != mo || t.day != da) return null;
+  final noYear = !d.startsWith('20');
+  if (noYear && t.isAfter(now)) t = DateTime(y - 1, mo, da, h, mi);
+  return t;
+}
+
+String _dateTimeText(DateTime t) =>
+    '${t.year == DateTime.now().year ? '' : '${t.year}/'}'
+    '${t.month.toString().padLeft(2, '0')}/${t.day.toString().padLeft(2, '0')} '
+    '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+
+class _DateTimeDialog extends StatefulWidget {
+  const _DateTimeDialog({required this.initial});
+
+  final DateTime initial;
+
+  @override
+  State<_DateTimeDialog> createState() => _DateTimeDialogState();
+}
+
+class _DateTimeDialogState extends State<_DateTimeDialog> {
+  late final _ctrl = TextEditingController(text: _dateTimeText(widget.initial))
+    ..addListener(() => setState(() {}));
+
+  @override
+  void initState() {
+    super.initState();
+    // 打開就全選，直接打新的就蓋掉。
+    _ctrl.selection = TextSelection(
+      baseOffset: 0,
+      extentOffset: _ctrl.text.length,
+    );
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final t = parseTradeDateTime(_ctrl.text, now: now);
+    final future = t != null && t.isAfter(now);
+    final ok = t != null && !future;
+    final String hint;
+    if (t == null) {
+      hint = '只打數字就好：月日時分，例如 10142140 → 10/14 21:40';
+    } else if (future) {
+      hint = '不能是未來';
+    } else {
+      final ago = now.difference(t);
+      hint =
+          '${t.year == now.year ? '' : '${t.year} 年 '}${fmtDay(t)} ${fmtHm(t)}'
+          '・${ago.inMinutes < 1 ? '剛剛' : '${fmtHold(ago)}前'}';
+    }
+    return AlertDialog(
+      backgroundColor: const Color(0xFF1A1A27),
+      title: const Text('日期和時間'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TextField(
+            controller: _ctrl,
+            autofocus: true,
+            keyboardType: TextInputType.number,
+            inputFormatters: [
+              TextInputFormatter.withFunction((oldValue, newValue) {
+                final text = formatDateTimeDigits(newValue.text);
+                return TextEditingValue(
+                  text: text,
+                  selection: TextSelection.collapsed(offset: text.length),
+                );
+              }),
+            ],
+            onSubmitted: (_) {
+              if (ok) Navigator.pop(context, t);
+            },
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1,
+              fontFeatures: [FontFeature.tabularFigures()],
+            ),
+            decoration: _input('月/日 時:分').copyWith(
+              suffixIcon: TextButton(
+                onPressed: () {
+                  _ctrl.text = _dateTimeText(DateTime.now());
+                },
+                child: const Text('現在'),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            hint,
+            style: AppText.note.copyWith(
+              color: future
+                  ? tradeDown
+                  : (ok ? AppColors.ink2 : AppColors.ink3),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('取消'),
+        ),
+        FilledButton(
+          onPressed: ok ? () => Navigator.pop(context, t) : null,
+          child: const Text('好'),
+        ),
+      ],
+    );
+  }
 }
 
 /// 「開倉時間 10/3（六）21:40 ›」這種點了會跳日期時間選擇器的一列。
@@ -822,6 +947,9 @@ class _NewTradeSheetState extends State<_NewTradeSheet> {
   /// 本金就不再自動蓋掉，按「用 % 重新算」才回到自動。
   bool _marginManual = false;
 
+  /// 問到第幾題（見 [_Step]）。編輯舊單一開始就全部出來。
+  late _Step _reached;
+
   @override
   void initState() {
     super.initState();
@@ -865,6 +993,7 @@ class _NewTradeSheetState extends State<_NewTradeSheet> {
       _marginManual = true;
       _noteCtrl.text = t.note ?? '';
     }
+    _reached = t == null ? _Step.backfill : _Step.note;
     _pnlCtrl.addListener(_autoMargin);
     _pctCtrl.addListener(_autoMargin);
     for (final c in [_symbolCtrl, _marginCtrl, _pnlCtrl, _pctCtrl, _noteCtrl]) {
@@ -973,155 +1102,379 @@ class _NewTradeSheetState extends State<_NewTradeSheet> {
     }
 
     final editing = widget.initial != null;
+    bool at(_Step s) => _shown(s);
+    final title = editing
+        ? '編輯這一單'
+        : !_answered(_Step.backfill)
+        ? '記一筆交易'
+        : (_closed ? '補記一單' : '記一筆開倉');
+    final finished = editing || _reached == _Step.note;
     return _SheetFrame(
-      title: editing ? '編輯這一單' : (_closed ? '補記一單' : '記一筆開倉'),
+      title: title,
       footer: FilledButton(
-        onPressed: _valid ? _save : null,
+        onPressed: finished && _valid ? _save : null,
         style: FilledButton.styleFrom(
           padding: const EdgeInsets.symmetric(vertical: 14),
         ),
         child: Text(
-          editing
+          !finished
+              ? '一題一題填完就能存'
+              : editing
               ? (_closed ? '儲存修改' : '儲存修改（持倉中）')
               : (_closed ? '儲存' : '儲存（持倉中）'),
         ),
       ),
       children: [
-        _fieldLabel('幣種'),
-        Wrap(
-          spacing: 6,
-          runSpacing: 6,
-          children: [
-            for (final s in _symbols)
-              _choice(
-                s,
-                !_customSymbol && _symbol == s,
-                () => setState(() {
-                  _symbol = s;
-                  _customSymbol = false;
-                }),
-              ),
-            _choice(
-              '其他',
-              _customSymbol,
-              () => setState(() => _customSymbol = true),
+        // 第一題：是不是補記以前的單（2026-10-14 使用者要求：先問這個，
+        // 再一題一題往下，不然有些欄位會忘記填）。編輯舊單不問，用下面
+        // 的開關。
+        if (!editing)
+          _stepBox(_Step.backfill, [
+            _fieldLabel('這是…'),
+            Row(
+              children: [
+                Expanded(
+                  child: _bigChoice(
+                    icon: Icons.bolt_rounded,
+                    title: '現在開倉',
+                    sub: '還抱著，之後再平倉',
+                    selected: _answered(_Step.backfill) && !_closed,
+                    onTap: () => _answer(_Step.backfill, () {
+                      _closed = false;
+                    }),
+                  ),
+                ),
+                const SizedBox(width: Gap.sm),
+                Expanded(
+                  child: _bigChoice(
+                    icon: Icons.history_rounded,
+                    title: '補記以前的單',
+                    sub: '已經平倉了',
+                    selected: _answered(_Step.backfill) && _closed,
+                    onTap: () => _answer(_Step.backfill, () {
+                      _closed = true;
+                      _autoMargin();
+                    }),
+                  ),
+                ),
+              ],
             ),
+          ]),
+        if (at(_Step.symbol))
+          _stepBox(_Step.symbol, [
+            _fieldLabel('幣種'),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final s in _symbols)
+                  _choice(
+                    s,
+                    _answered(_Step.symbol) && !_customSymbol && _symbol == s,
+                    () => _answer(_Step.symbol, () {
+                      _symbol = s;
+                      _customSymbol = false;
+                    }),
+                  ),
+                _choice(
+                  '其他',
+                  _customSymbol,
+                  () => setState(() => _customSymbol = true),
+                ),
+              ],
+            ),
+            if (_customSymbol)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: TextField(
+                  controller: _symbolCtrl,
+                  autofocus: !editing,
+                  textCapitalization: TextCapitalization.characters,
+                  onSubmitted: (_) {
+                    if (_sym.isNotEmpty) _answer(_Step.symbol, () {});
+                  },
+                  decoration: _input('幣種代號，例如 DOGE'),
+                ),
+              ),
+            if (_customSymbol)
+              _nextButton(_Step.symbol, _sym.isNotEmpty, '下一題'),
+          ]),
+        if (at(_Step.direction))
+          _stepBox(_Step.direction, [
+            _fieldLabel('方向'),
+            _twoWay(
+              left: '多 ▲',
+              right: '空 ▼',
+              leftSelected: _answered(_Step.direction) ? _isLong : null,
+              onChanged: (v) => _answer(_Step.direction, () => _isLong = v),
+            ),
+          ]),
+        if (at(_Step.leverage))
+          _stepBox(_Step.leverage, [
+            _fieldLabel('槓桿', trailing: '最高 ${_maxLeverage.round()}x'),
+            LeverageSlider(
+              value: _leverage,
+              onChanged: (v) => setState(() => _leverage = v),
+            ),
+            _nextButton(_Step.leverage, true, '用 ${fmtLev(_leverage)}，下一題'),
+          ]),
+        if (editing)
+          SwitchListTile(
+            value: _closed,
+            onChanged: (v) => setState(() {
+              _closed = v;
+              _autoMargin();
+            }),
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            title: const Text(
+              '已經平倉了',
+              style: TextStyle(fontSize: 13, color: AppColors.ink2),
+            ),
+          ),
+        if (at(_Step.result) && _closed)
+          _stepBox(_Step.result, [
+            _fieldLabel('盈虧 %', trailing: '本金報酬率，幣安紀錄上那個 %'),
+            _pnlField(
+              controller: _pctCtrl,
+              win: _win,
+              onToggle: () => setState(() => _win = !_win),
+              hint: '例如 12.5',
+              suffix: '%',
+              signKey: 'pct-sign',
+            ),
+            _fieldLabel('已實現損益', trailing: '記在平倉那天 ${fmtDay(_closedAt)}'),
+            _pnlField(
+              controller: _pnlCtrl,
+              win: _win,
+              onToggle: () => setState(() => _win = !_win),
+              twdRate: rate,
+            ),
+            _nextButton(_Step.result, _pnlAbs != null, '下一題'),
+          ]),
+        if (at(_Step.margin))
+          _stepBox(_Step.margin, [
+            _fieldLabel(
+              _closed && !_marginManual ? '本金（自動算）' : '本金（保證金）',
+              trailing: _closed && !_marginManual ? '＝損益 ÷ 盈虧 %，可以自己改' : null,
+            ),
+            TextField(
+              controller: _marginCtrl,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              inputFormatters: oneDecimalInput,
+              onChanged: (_) => setState(() => _marginManual = true),
+              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+              decoration: _input(
+                _closed && !_marginManual ? '填完 % 跟損益就會算出來' : '例如 400',
+                suffix: m == null ? 'USDT' : 'USDT  ${fmtTwd(m, rate)}',
+              ),
+            ),
+            if (_closed &&
+                _marginManual &&
+                _derivedMargin != null &&
+                _derivedMargin != _margin)
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () => setState(() {
+                    _marginManual = false;
+                    _autoMargin();
+                  }),
+                  child: Text('用 % 重新算（${fmtAmount(_derivedMargin!)}）'),
+                ),
+              ),
+            _calcBox(calc),
+            _nextButton(_Step.margin, m != null && m > 0, '下一題'),
+          ]),
+        if (at(_Step.time))
+          _stepBox(_Step.time, [
+            _fieldLabel('時間', trailing: _closed ? '補記以前的單可以改' : '預設現在'),
+            _timeField('開倉時間', _openedAt, () async {
+              final t = await _pickDateTime(context, _openedAt);
+              if (t == null || !mounted) return;
+              setState(() {
+                _openedAt = t;
+                if (_closedAt.isBefore(t)) _closedAt = t;
+              });
+            }),
+            if (_closed) ...[
+              _timeField('平倉時間', _closedAt, () async {
+                final t = await _pickDateTime(context, _closedAt);
+                if (t != null && mounted) setState(() => _closedAt = t);
+              }),
+              Padding(
+                padding: const EdgeInsets.only(top: 6, left: 4),
+                child: Text(
+                  _closedAt.isBefore(_openedAt)
+                      ? '⚠ 平倉時間比開倉早，改一下'
+                      : '持倉 ${fmtHold(_closedAt.difference(_openedAt))}',
+                  style: AppText.note.copyWith(
+                    color: _closedAt.isBefore(_openedAt)
+                        ? tradeDown
+                        : AppColors.ink3,
+                  ),
+                ),
+              ),
+            ],
+            _nextButton(
+              _Step.time,
+              !_closed || !_closedAt.isBefore(_openedAt),
+              '時間對了，下一題',
+            ),
+          ]),
+        if (at(_Step.note))
+          _stepBox(_Step.note, [
+            _fieldLabel('備註（選填）'),
+            TextField(
+              controller: _noteCtrl,
+              decoration: _input('為什麼開這單？停損設哪？'),
+            ),
+          ]),
+      ],
+    );
+  }
+
+  // ── 一題一題問（2026-10-14 使用者要求）──────────────────────
+
+  final _stepKeys = {for (final s in _Step.values) s: GlobalKey()};
+
+  bool _answered(_Step s) => _reached.index > s.index;
+
+  /// 這題要不要出現：問到了才出現（編輯舊單全部一起出來）。
+  bool _shown(_Step s) => _reached.index >= s.index;
+
+  /// 回答一題：改值，然後跳出下一題（已經問過的就不動）並捲過去。
+  void _answer(_Step s, VoidCallback change) {
+    setState(change);
+    var next = _Step.values[(s.index + 1).clamp(0, _Step.values.length - 1)];
+    // 不是補記的話，沒有「盈虧」那題。
+    if (next == _Step.result && !_closed) next = _Step.margin;
+    if (next.index <= _reached.index) return;
+    setState(() => _reached = next);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctx = _stepKeys[next]?.currentContext;
+      if (ctx != null && ctx.mounted) {
+        Scrollable.ensureVisible(
+          ctx,
+          duration: const Duration(milliseconds: 320),
+          curve: Curves.easeOutCubic,
+          alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
+        );
+      }
+    });
+  }
+
+  /// 一題：剛出現時從下面淡進來。
+  Widget _stepBox(_Step s, List<Widget> children) => _Appear(
+    key: _stepKeys[s],
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: children,
+    ),
+  );
+
+  /// 「下一題」：只有還沒答完的那一題有。
+  Widget _nextButton(_Step s, bool enabled, String label) {
+    if (_answered(s) || widget.initial != null) return const SizedBox.shrink();
+    return Align(
+      alignment: Alignment.centerRight,
+      child: Padding(
+        padding: const EdgeInsets.only(top: 8),
+        child: FilledButton.tonalIcon(
+          onPressed: enabled ? () => _answer(s, () {}) : null,
+          icon: const Icon(Icons.arrow_downward_rounded, size: 16),
+          label: Text(label),
+        ),
+      ),
+    );
+  }
+
+  Widget _bigChoice({
+    required IconData icon,
+    required String title,
+    required String sub,
+    required bool selected,
+    required VoidCallback onTap,
+  }) => Material(
+    color: selected
+        ? AppColors.accentSolid.withValues(alpha: 0.28)
+        : const Color(0xFF161622),
+    borderRadius: BorderRadius.circular(14),
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected ? AppColors.accent : const Color(0xFF2A2A3D),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              icon,
+              size: 22,
+              color: selected ? AppColors.accent : AppColors.ink2,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                color: AppColors.ink,
+              ),
+            ),
+            Text(sub, style: AppText.note),
           ],
         ),
-        if (_customSymbol)
-          Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: TextField(
-              controller: _symbolCtrl,
-              autofocus: widget.initial == null,
-              textCapitalization: TextCapitalization.characters,
-              decoration: _input('幣種代號，例如 DOGE'),
-            ),
-          ),
-        _fieldLabel('方向'),
-        _twoWay(
-          left: '多 ▲',
-          right: '空 ▼',
-          leftSelected: _isLong,
-          onChanged: (v) => setState(() => _isLong = v),
-        ),
-        _fieldLabel('槓桿', trailing: '最高 ${_maxLeverage.round()}x'),
-        LeverageSlider(
-          value: _leverage,
-          onChanged: (v) => setState(() => _leverage = v),
-        ),
-        SwitchListTile(
-          value: _closed,
-          onChanged: (v) => setState(() {
-            _closed = v;
-            _autoMargin();
-          }),
-          contentPadding: EdgeInsets.zero,
-          dense: true,
-          title: Text(
-            widget.initial == null ? '已經平倉了（補記以前的單）' : '已經平倉了',
-            style: const TextStyle(fontSize: 13, color: AppColors.ink2),
-          ),
-        ),
-        if (_closed) ...[
-          _fieldLabel('盈虧 %', trailing: '本金報酬率，幣安紀錄上那個 %'),
-          _pnlField(
-            controller: _pctCtrl,
-            win: _win,
-            onToggle: () => setState(() => _win = !_win),
-            hint: '例如 12.5',
-            suffix: '%',
-            signKey: 'pct-sign',
-          ),
-          _fieldLabel('已實現損益', trailing: '記在平倉那天 ${fmtDay(_closedAt)}'),
-          _pnlField(
-            controller: _pnlCtrl,
-            win: _win,
-            onToggle: () => setState(() => _win = !_win),
-            twdRate: rate,
-          ),
-        ],
-        _fieldLabel(
-          _closed && !_marginManual ? '本金（自動算）' : '本金（保證金）',
-          trailing: _closed && !_marginManual ? '＝損益 ÷ 盈虧 %，可以自己改' : null,
-        ),
-        TextField(
-          controller: _marginCtrl,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          inputFormatters: oneDecimalInput,
-          onChanged: (_) => setState(() => _marginManual = true),
-          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
-          decoration: _input(
-            _closed && !_marginManual ? '填完 % 跟損益就會算出來' : '例如 400',
-            suffix: m == null ? 'USDT' : 'USDT  ${fmtTwd(m, rate)}',
-          ),
-        ),
-        if (_closed &&
-            _marginManual &&
-            _derivedMargin != null &&
-            _derivedMargin != _margin)
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: () => setState(() {
-                _marginManual = false;
-                _autoMargin();
-              }),
-              child: Text('用 % 重新算（${fmtAmount(_derivedMargin!)}）'),
-            ),
-          ),
-        _calcBox(calc),
-        _fieldLabel('時間', trailing: '補記以前的單可以改'),
-        _timeField('開倉時間', _openedAt, () async {
-          final t = await _pickDateTime(context, _openedAt);
-          if (t == null || !mounted) return;
-          setState(() {
-            _openedAt = t;
-            if (_closedAt.isBefore(t)) _closedAt = t;
-          });
-        }),
-        if (_closed) ...[
-          _timeField('平倉時間', _closedAt, () async {
-            final t = await _pickDateTime(context, _closedAt);
-            if (t != null && mounted) setState(() => _closedAt = t);
-          }),
-          Padding(
-            padding: const EdgeInsets.only(top: 6, left: 4),
-            child: Text(
-              _closedAt.isBefore(_openedAt)
-                  ? '⚠ 平倉時間比開倉早，改一下'
-                  : '持倉 ${fmtHold(_closedAt.difference(_openedAt))}',
-              style: AppText.note.copyWith(
-                color: _closedAt.isBefore(_openedAt)
-                    ? tradeDown
-                    : AppColors.ink3,
-              ),
-            ),
-          ),
-        ],
-        _fieldLabel('備註（選填）'),
-        TextField(controller: _noteCtrl, decoration: _input('為什麼開這單？停損設哪？')),
-      ],
+      ),
+    ),
+  );
+}
+
+/// 記一筆的題目順序。
+enum _Step { backfill, symbol, direction, leverage, result, margin, time, note }
+
+/// 新出現的題目從下面淡進來。
+class _Appear extends StatefulWidget {
+  const _Appear({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  State<_Appear> createState() => _AppearState();
+}
+
+class _AppearState extends State<_Appear> with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 280),
+  )..forward();
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final a = CurvedAnimation(parent: _c, curve: Curves.easeOutCubic);
+    return FadeTransition(
+      opacity: a,
+      child: SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0, 0.15),
+          end: Offset.zero,
+        ).animate(a),
+        child: widget.child,
+      ),
     );
   }
 }

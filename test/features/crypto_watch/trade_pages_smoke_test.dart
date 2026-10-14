@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lume/app/providers.dart';
 import 'package:lume/data/repositories/trade_repository.dart';
@@ -128,72 +127,86 @@ void main() {
     });
   }
 
-  testWidgets('記一筆表單填完才能存', (tester) async {
+  // 2026-10-14 使用者要求：記一筆改成一題一題問，第一題先問是不是補記。
+  Future<void> openNewTrade(WidgetTester tester) async {
     await pumpPage(tester, const CryptoWatchPage(), _MemoryStore());
     await tester.drag(find.byType(ListView), const Offset(0, -900));
     await tester.pump();
     await tester.tap(find.text('記一筆交易'));
     await tester.pumpAndSettle();
-    expect(find.text('記一筆開倉'), findsOneWidget);
+  }
+
+  Future<void> tapIn(WidgetTester tester, Finder f) async {
+    await tester.ensureVisible(f);
+    await tester.pumpAndSettle();
+    await tester.tap(f);
+    await tester.pumpAndSettle();
+  }
+
+  Finder fieldWithHint(String hint) => find.byWidgetPredicate(
+    (w) => w is TextField && w.decoration?.hintText == hint,
+  );
+
+  testWidgets('記一筆：一題一題問，答完一題才出下一題，全部答完才能存', (tester) async {
+    await openNewTrade(tester);
+    expect(find.text('記一筆交易'), findsWidgets);
+    expect(find.text('現在開倉'), findsOneWidget);
+    expect(find.text('補記以前的單'), findsOneWidget);
+    expect(find.text('幣種'), findsNothing);
     FilledButton save() => tester.widget<FilledButton>(
-      find.widgetWithText(FilledButton, '儲存（持倉中）'),
+      find
+          .descendant(
+            of: find.byType(BottomSheet),
+            matching: find.byType(FilledButton),
+          )
+          .last,
     );
     expect(save().onPressed, isNull);
-    await tester.enterText(find.byType(TextField).first, '400');
+
+    await tapIn(tester, find.text('現在開倉'));
+    expect(find.text('記一筆開倉'), findsOneWidget);
+    expect(find.text('幣種'), findsOneWidget);
+    expect(find.text('方向'), findsNothing);
+    await tapIn(tester, find.text('BTC'));
+    expect(find.text('方向'), findsOneWidget);
+    expect(find.text('槓桿'), findsNothing);
+    await tapIn(tester, find.text('多 ▲'));
+    expect(find.text('槓桿'), findsOneWidget);
+    await tapIn(tester, find.text('用 10x，下一題'));
+    // 不是補記：沒有盈虧那題，直接問本金。
+    expect(find.text('盈虧 %'), findsNothing);
+    expect(find.text('本金（保證金）'), findsOneWidget);
+    await tester.enterText(fieldWithHint('例如 400'), '400');
     await tester.pump();
     expect(find.textContaining('4,000 USDT'), findsOneWidget);
+    expect(save().onPressed, isNull);
+    await tapIn(tester, find.text('下一題'));
+    expect(find.text('開倉時間'), findsOneWidget);
+    expect(find.text('平倉時間'), findsNothing);
+    await tapIn(tester, find.text('時間對了，下一題'));
+    expect(find.text('備註（選填）'), findsOneWidget);
+    expect(find.text('儲存（持倉中）'), findsOneWidget);
     expect(save().onPressed, isNotNull);
     await finish(tester);
   });
 
-  testWidgets('補記：開倉時間一定有、打開「已經平倉了」多出平倉時間', (tester) async {
-    await pumpPage(tester, const CryptoWatchPage(), _MemoryStore());
-    await tester.drag(find.byType(ListView), const Offset(0, -900));
-    await tester.pump();
-    await tester.tap(find.text('記一筆交易'));
-    await tester.pumpAndSettle();
-    expect(find.text('開倉時間'), findsOneWidget);
-    expect(find.text('平倉時間'), findsNothing);
-    await tester.scrollUntilVisible(
-      find.text('已經平倉了（補記以前的單）'),
-      200,
-      scrollable: find.byType(Scrollable).last,
-    );
-    await tester.tap(find.text('已經平倉了（補記以前的單）'));
-    await tester.pumpAndSettle();
-    expect(find.text('平倉時間'), findsOneWidget);
-    expect(find.textContaining('持倉'), findsWidgets);
-    await finish(tester);
-  });
+  testWidgets('補記：多一題盈虧，填 % 跟損益自動算本金，時間多平倉', (tester) async {
+    await openNewTrade(tester);
+    await tapIn(tester, find.text('補記以前的單'));
+    expect(find.text('補記一單'), findsOneWidget);
+    await tapIn(tester, find.text('ETH'));
+    await tapIn(tester, find.text('空 ▼'));
+    await tapIn(tester, find.text('用 10x，下一題'));
+    expect(find.text('盈虧 %'), findsOneWidget);
+    expect(find.text('本金（自動算）'), findsNothing);
 
-  testWidgets('補記：沒有賺／賠按鈕，點 + 切成 −', (tester) async {
-    await pumpPage(tester, const CryptoWatchPage(), _MemoryStore());
-    await tester.drag(find.byType(ListView), const Offset(0, -900));
-    await tester.pump();
-    await tester.tap(find.text('記一筆交易'));
-    await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(
-      find.text('已經平倉了（補記以前的單）'),
-      200,
-      scrollable: find.byType(Scrollable).last,
-    );
-    await tester.tap(find.text('已經平倉了（補記以前的單）'));
-    await tester.pumpAndSettle();
-    // 背後主畫面月曆圖例也有「賺」「賠」，只看表單裡的。
+    // 賺賠只有一個 +／− 切換，% 跟損益一起變。
     final sheet = find.byType(BottomSheet);
     expect(find.descendant(of: sheet, matching: find.text('賺')), findsNothing);
-    expect(find.descendant(of: sheet, matching: find.text('賠')), findsNothing);
     final sign = find.byKey(const ValueKey('pnl-sign'));
-    await tester.scrollUntilVisible(
-      sign,
-      200,
-      scrollable: find.byType(Scrollable).last,
-    );
     expect(find.descendant(of: sign, matching: find.text('+')), findsOneWidget);
-    await tester.tap(sign);
-    await tester.pump();
+    await tapIn(tester, sign);
     expect(find.descendant(of: sign, matching: find.text('−')), findsOneWidget);
-    // % 那格的符號跟著一起變，賺賠只有一個。
     expect(
       find.descendant(
         of: find.byKey(const ValueKey('pct-sign')),
@@ -201,42 +214,16 @@ void main() {
       ),
       findsOneWidget,
     );
-    await finish(tester);
-  });
+    await tapIn(tester, sign);
 
-  testWidgets('補記：開關緊接在槓桿後面，填 % 跟損益自動算出本金', (tester) async {
-    await pumpPage(tester, const CryptoWatchPage(), _MemoryStore());
-    await tester.drag(find.byType(ListView), const Offset(0, -900));
-    await tester.pump();
-    await tester.tap(find.text('記一筆交易'));
-    await tester.pumpAndSettle();
-    final sheetScroll = find.byType(Scrollable).last;
-    final sw = find.text('已經平倉了（補記以前的單）');
-    await tester.scrollUntilVisible(sw, 200, scrollable: sheetScroll);
-    // 開關在本金輸入框上面。
-    expect(
-      tester.getTopLeft(sw).dy,
-      lessThan(tester.getTopLeft(find.text('本金（保證金）')).dy),
-    );
-    await tester.tap(sw);
-    await tester.pumpAndSettle();
-    expect(find.text('本金（自動算）'), findsOneWidget);
-
-    Finder fieldWithHint(String hint) => find.byWidgetPredicate(
-      (w) => w is TextField && w.decoration?.hintText == hint,
-    );
     await tester.enterText(fieldWithHint('例如 12.5'), '12.5');
     await tester.enterText(fieldWithHint('點左邊 + / − 切換賺賠'), '50');
     await tester.pump();
+    await tapIn(tester, find.text('下一題'));
+    expect(find.text('本金（自動算）'), findsOneWidget);
     final margin = tester.widget<TextField>(fieldWithHint('填完 % 跟損益就會算出來'));
     expect(margin.controller!.text, '400');
     expect(find.textContaining('本金＝50 ÷ 12.5%＝'), findsOneWidget);
-    expect(
-      tester
-          .widget<FilledButton>(find.widgetWithText(FilledButton, '儲存'))
-          .onPressed,
-      isNotNull,
-    );
 
     // 自己改本金之後，再改 % 不會蓋掉，可以按「用 % 重新算」回來。
     await tester.enterText(fieldWithHint('填完 % 跟損益就會算出來'), '420');
@@ -245,74 +232,72 @@ void main() {
     await tester.enterText(fieldWithHint('例如 12.5'), '10');
     await tester.pump();
     expect(margin.controller!.text, '420');
-    await tester.tap(find.textContaining('用 % 重新算'));
-    await tester.pump();
+    await tapIn(tester, find.textContaining('用 % 重新算'));
     expect(margin.controller!.text, '500');
+
+    await tapIn(tester, find.text('下一題'));
+    expect(find.text('開倉時間'), findsOneWidget);
+    expect(find.text('平倉時間'), findsOneWidget);
+    expect(find.textContaining('持倉'), findsWidgets);
+    await tapIn(tester, find.text('時間對了，下一題'));
+    expect(
+      tester
+          .widget<FilledButton>(find.widgetWithText(FilledButton, '儲存'))
+          .onPressed,
+      isNotNull,
+    );
     await finish(tester);
   });
 
-  testWidgets('開倉時間一打開就是直接輸入，打字填日期時間', (tester) async {
-    tester.view.physicalSize = const Size(360 * 3, 780 * 3);
-    tester.view.devicePixelRatio = 3;
-    addTearDown(tester.view.reset);
-    // 跟 App 一樣用繁中，日期輸入格式才會跟實機一樣。
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [keyValueStoreProvider.overrideWithValue(_MemoryStore())],
-        child: const MaterialApp(
-          locale: Locale('zh', 'TW'),
-          supportedLocales: [Locale('zh', 'TW'), Locale('en')],
-          localizationsDelegates: GlobalMaterialLocalizations.delegates,
-          home: CryptoWatchPage(),
-        ),
-      ),
-    );
-    for (var i = 0; i < 6; i++) {
-      await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 50)),
-      );
-      await tester.pump();
-    }
-    await tester.drag(find.byType(ListView), const Offset(0, -900));
+  testWidgets('日期跟時間同一格打：只打數字，自動補斜線冒號', (tester) async {
+    await openNewTrade(tester);
+    await tapIn(tester, find.text('現在開倉'));
+    await tapIn(tester, find.text('BTC'));
+    await tapIn(tester, find.text('多 ▲'));
+    await tapIn(tester, find.text('用 10x，下一題'));
+    await tester.enterText(fieldWithHint('例如 400'), '400');
     await tester.pump();
-    await tester.tap(find.text('記一筆交易'));
-    await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(
-      find.text('開倉時間'),
-      200,
-      scrollable: find.byType(Scrollable).last,
-    );
-    await tester.tap(find.text('開倉時間'));
-    await tester.pumpAndSettle();
+    await tapIn(tester, find.text('下一題'));
+    await tapIn(tester, find.text('開倉時間'));
 
-    // 日期：直接是輸入框，不是月曆。
+    // 只有一個輸入框，不是先日期再時間兩段。
+    final field = find.descendant(
+      of: find.byType(AlertDialog),
+      matching: find.byType(TextField),
+    );
+    expect(field, findsOneWidget);
     expect(find.byType(CalendarDatePicker), findsNothing);
-    final dateField = find.descendant(
-      of: find.byType(Dialog),
-      matching: find.byType(TextField),
-    );
-    expect(dateField, findsOneWidget);
-    await tester.enterText(dateField, '2026/9/3');
-    await tester.tap(find.text('確定'));
-    await tester.pumpAndSettle();
-
-    // 時間：直接是時、分兩個輸入框，不是時鐘。
-    final timeFields = find.descendant(
-      of: find.byType(Dialog),
-      matching: find.byType(TextField),
-    );
-    expect(timeFields, findsNWidgets(2));
-    // 24 小時制：直接打 21 就是晚上九點，不用選上午下午。
-    expect(find.text('上午'), findsNothing);
-    await tester.enterText(timeFields.at(0), '21');
-    await tester.enterText(timeFields.at(1), '05');
-    await tester.tap(find.text('確定'));
-    await tester.pumpAndSettle();
-
+    await tester.enterText(field, '09032105');
+    await tester.pump();
+    expect(tester.widget<TextField>(field).controller!.text, '09/03 21:05');
+    await tapIn(tester, find.text('好'));
     expect(find.textContaining('9/3'), findsWidgets);
     expect(find.textContaining('21:05'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-    await tester.pumpWidget(const SizedBox());
+    await finish(tester);
+  });
+
+  test('日期時間：數字補格式、年份從 20 開頭、不存在的日期不算', () {
+    expect(formatDateTimeDigits('10142140'), '10/14 21:40');
+    expect(formatDateTimeDigits('1014'), '10/14');
+    expect(formatDateTimeDigits('101421409999'), '10/14 21:40');
+    expect(formatDateTimeDigits('202510142140'), '2025/10/14 21:40');
+    final now = DateTime(2026, 10, 14, 22);
+    expect(
+      parseTradeDateTime('10/14 21:40', now: now),
+      DateTime(2026, 10, 14, 21, 40),
+    );
+    expect(
+      parseTradeDateTime('2025/10/14 21:40', now: now),
+      DateTime(2025, 10, 14, 21, 40),
+    );
+    // 沒寫年份、今年還沒到的日子當去年。
+    expect(
+      parseTradeDateTime('12/31 10:00', now: now),
+      DateTime(2025, 12, 31, 10),
+    );
+    expect(parseTradeDateTime('02/30 10:00', now: now), isNull);
+    expect(parseTradeDateTime('10/14 25:00', now: now), isNull);
+    expect(parseTradeDateTime('10/14 21', now: now), isNull);
   });
 
   test('編輯一單：欄位全換，平倉的可以改回持倉中', () async {
@@ -589,19 +574,11 @@ void main() {
   });
 
   testWidgets('輸入框打到小數第二位自動四捨五入；本金自動算也只到第一位', (tester) async {
-    await pumpPage(tester, const CryptoWatchPage(), _MemoryStore());
-    await tester.drag(find.byType(ListView), const Offset(0, -900));
-    await tester.pump();
-    await tester.tap(find.text('記一筆交易'));
-    await tester.pumpAndSettle();
-    final sheetScroll = find.byType(Scrollable).last;
-    final sw = find.text('已經平倉了（補記以前的單）');
-    await tester.scrollUntilVisible(sw, 200, scrollable: sheetScroll);
-    await tester.tap(sw);
-    await tester.pumpAndSettle();
-    Finder fieldWithHint(String hint) => find.byWidgetPredicate(
-      (w) => w is TextField && w.decoration?.hintText == hint,
-    );
+    await openNewTrade(tester);
+    await tapIn(tester, find.text('補記以前的單'));
+    await tapIn(tester, find.text('BTC'));
+    await tapIn(tester, find.text('多 ▲'));
+    await tapIn(tester, find.text('用 10x，下一題'));
     TextField field(String hint) =>
         tester.widget<TextField>(fieldWithHint(hint));
 
@@ -613,16 +590,16 @@ void main() {
     // 損益 50 ÷ 12.4% ＝ 403.2258… → 本金 403.2。
     await tester.enterText(fieldWithHint('點左邊 + / − 切換賺賠'), '50');
     await tester.pump();
+    await tapIn(tester, find.text('下一題'));
     expect(field('填完 % 跟損益就會算出來').controller!.text, '403.2');
     await finish(tester);
   });
 
   testWidgets('槓桿拉桿最高 18x', (tester) async {
-    await pumpPage(tester, const CryptoWatchPage(), _MemoryStore());
-    await tester.drag(find.byType(ListView), const Offset(0, -900));
-    await tester.pump();
-    await tester.tap(find.text('記一筆交易'));
-    await tester.pumpAndSettle();
+    await openNewTrade(tester);
+    await tapIn(tester, find.text('現在開倉'));
+    await tapIn(tester, find.text('BTC'));
+    await tapIn(tester, find.text('多 ▲'));
     expect(find.text('最高 18x'), findsOneWidget);
     expect(tester.widget<Slider>(find.byType(Slider)).max, 18);
     await tester.tap(find.text('18x'));
