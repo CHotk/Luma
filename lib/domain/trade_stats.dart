@@ -130,23 +130,25 @@ List<TradeGroup> bySymbol(List<TradeEntry> closed) {
   return best.count == 0 ? null : best;
 }
 
-/// 某個月的起始資金：這個月裡任何時候抱著過的單（這個月開的、這個月平的、
-/// 整個月都抱著的都算，跨月的單每個月都算一次）的平均本金，無條件捨去成
-/// 整數；沒有單是 null（2026-10-14 使用者要求，跨月兩個月都算也確認過）。
-/// 損益照舊只記在平倉那個月。[now] 給還沒平的單當結束時間。
+/// 某個月的起始資金：平均本金，無條件捨去成整數；沒有單是 null。
+///
+/// 照平倉時間算（2026-10-14 使用者決定）：
+/// - 已平倉的單只算在**平倉那個月**（8 月開、9 月平的只算 9 月）。
+/// - 還抱著的單先算在**現在這個月**；過了這個月還沒平就不算那個月了，
+///   等它平倉那一刻才確定算在平倉那個月。
+/// 不然 8 月只開一單還沒平，8 月就會有起始資金、月報酬卻是 0%。
+/// [now] 決定「現在這個月」。
 double? monthCapital(
   Iterable<TradeEntry> trades,
   DateTime month, {
   DateTime? now,
 }) {
-  final start = DateTime(month.year, month.month);
-  final end = DateTime(month.year, month.month + 1);
-  final until = now ?? DateTime.now();
+  final today = now ?? DateTime.now();
+  bool inMonth(DateTime d) => d.year == month.year && d.month == month.month;
   final list = [
     for (final t in trades)
       if (t.deletedAt == null &&
-          t.openedAt.isBefore(end) &&
-          !(t.closedAt ?? until).isBefore(start))
+          (t.closedAt != null ? inMonth(t.closedAt!) : inMonth(today)))
         t,
   ];
   if (list.isEmpty) return null;

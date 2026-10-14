@@ -796,7 +796,7 @@ void main() {
     expect((await repo.loadAll()).single.closedAt, at);
   });
 
-  test('起始資金＝這個月的單平均本金，捨去小數；上個月開這個月平的也算', () {
+  test('起始資金照平倉時間算：平了的只算平倉那月，還抱著的先算現在這個月', () {
     TradeEntry t(String id, double margin, DateTime open, [DateTime? close]) =>
         TradeEntry(
           id: id,
@@ -808,28 +808,23 @@ void main() {
           closedAt: close,
           pnl: close == null ? null : 10,
         );
-    final sep = DateTime(2026, 9);
-    // 8 月開、9/1 平：算 9 月的第一筆。
+    final aug = DateTime(2026, 8), sep = DateTime(2026, 9);
+    // 8 月開、9/1 平：只算 9 月，8 月不算。
     final a = t('a', 500, DateTime(2026, 8, 30), DateTime(2026, 9, 1));
     expect(monthCapital([a], sep), 500);
-    // 9/5 再開一單 50000：一起平均，捨去小數。
+    expect(monthCapital([a], aug), isNull);
+    // 9/5 再開一單 50001 還沒平，現在是 9 月：一起平均、捨去小數。
     final b = t('b', 50001, DateTime(2026, 9, 5));
-    expect(monthCapital([a, b], sep), 25250);
-    // 8 月：a 是 8 月開的，也算 8 月。
-    expect(monthCapital([a, b], DateTime(2026, 8)), 500);
-    // 10 月：b 還沒平、一直抱著，所以 10 月也算它。
+    expect(monthCapital([a, b], sep, now: DateTime(2026, 9, 20)), 25250);
+    // 到了 10 月 b 還沒平：9 月不再算它，改算 10 月。
+    expect(monthCapital([a, b], sep, now: DateTime(2026, 10, 3)), 500);
     expect(
-      monthCapital([a, b], DateTime(2026, 10), now: DateTime(2026, 10, 14)),
+      monthCapital([a, b], DateTime(2026, 10), now: DateTime(2026, 10, 3)),
       50001,
     );
-    // 8 月開、10 月平：整個 9 月都抱著，9 月也算。
-    final c = t('c', 300, DateTime(2026, 8, 20), DateTime(2026, 10, 2));
-    expect(monthCapital([c], sep), 300);
-    // 11 月以後沒有單。
-    expect(
-      monthCapital([a, c], DateTime(2026, 11), now: DateTime(2026, 11, 3)),
-      isNull,
-    );
+    // 8 月只開一單還沒平、現在 8 月：先用它。
+    final c = t('c', 300, DateTime(2026, 8, 20));
+    expect(monthCapital([c], aug, now: DateTime(2026, 8, 25)), 300);
   });
 
   testWidgets('起始資金自動算、不能填；月報酬跟著出來', (tester) async {
