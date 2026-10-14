@@ -128,12 +128,14 @@ void main() {
   }
 
   // 2026-10-14 使用者要求：記一筆改成一題一題問，第一題先問是不是補記。
-  Future<void> openNewTrade(WidgetTester tester) async {
-    await pumpPage(tester, const CryptoWatchPage(), _MemoryStore());
+  Future<_MemoryStore> openNewTrade(WidgetTester tester) async {
+    final store = _MemoryStore();
+    await pumpPage(tester, const CryptoWatchPage(), store);
     await tester.drag(find.byType(ListView), const Offset(0, -900));
     await tester.pump();
     await tester.tap(find.text('記一筆交易'));
     await tester.pumpAndSettle();
+    return store;
   }
 
   Future<void> tapIn(WidgetTester tester, Finder f) async {
@@ -249,8 +251,8 @@ void main() {
     await finish(tester);
   });
 
-  testWidgets('日期跟時間同一格打：只打數字，自動補斜線冒號', (tester) async {
-    await openNewTrade(tester);
+  testWidgets('日期跟時間同一格打：只打數字，自動補斜線冒號；可以加秒數', (tester) async {
+    final store = await openNewTrade(tester);
     await tapIn(tester, find.text('現在開倉'));
     await tapIn(tester, find.text('BTC'));
     await tapIn(tester, find.text('多 ▲'));
@@ -273,6 +275,35 @@ void main() {
     await tapIn(tester, find.text('好'));
     expect(find.textContaining('9/3'), findsWidgets);
     expect(find.textContaining('21:05'), findsOneWidget);
+
+    // 同一分鐘要分先後：點「加秒數」才出現秒數格，只用來排序、畫面不顯示秒。
+    await tapIn(tester, find.text('開倉時間'));
+    expect(find.text('同一分鐘要分先後？加秒數'), findsOneWidget);
+    await tapIn(tester, find.text('同一分鐘要分先後？加秒數'));
+    final fields = find.descendant(
+      of: find.byType(AlertDialog),
+      matching: find.byType(TextField),
+    );
+    expect(fields, findsNWidgets(2));
+    await tester.enterText(fields.last, '37');
+    await tester.pump();
+    await tapIn(tester, find.text('好'));
+    expect(find.textContaining('21:05'), findsOneWidget);
+    expect(find.textContaining(':37'), findsNothing);
+    await tapIn(tester, find.text('時間對了，下一題'));
+    // 存完主畫面有持倉中的動畫（一直在跑），不能等它停。
+    await tester.ensureVisible(find.text('儲存（持倉中）'));
+    await tester.pump();
+    await tester.tap(find.text('儲存（持倉中）'));
+    for (var i = 0; i < 4; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)),
+      );
+      await tester.pump();
+    }
+    final saved = await tester.runAsync(() => TradeRepository(store).loadAll());
+    expect(saved!.single.openedAt.second, 37);
+    expect(saved.single.openedAt.minute, 5);
     await finish(tester);
   });
 

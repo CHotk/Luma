@@ -628,6 +628,31 @@ class _DateTimeDialogState extends State<_DateTimeDialog> {
   late final _ctrl = TextEditingController(text: _dateTimeText(widget.initial))
     ..addListener(() => setState(() {}));
 
+  /// 秒數（2026-10-14 使用者要求：同一分鐘開好幾單、又開又平時分不出
+  /// 先後）。平常收起來，點「加秒數」才出現；只用來排先後，畫面上不顯示。
+  /// 原本就有秒數的，收起來時照樣保留，點開時先填好。
+  bool _showSec = false;
+  late final _secCtrl = TextEditingController(
+    text: widget.initial.second == 0 ? '' : '${widget.initial.second}',
+  )..addListener(() => setState(() {}));
+
+  /// 打的時間加上秒數：有展開就用填的；沒展開、而且還是原本那一分鐘，
+  /// 保留原本的秒數（不要一編輯就把先後順序弄丟）。
+  DateTime? _withSeconds(DateTime? t) {
+    if (t == null) return null;
+    final i = widget.initial;
+    final sameMinute =
+        t.year == i.year &&
+        t.month == i.month &&
+        t.day == i.day &&
+        t.hour == i.hour &&
+        t.minute == i.minute;
+    final sec = _showSec
+        ? (int.tryParse(_secCtrl.text) ?? 0).clamp(0, 59)
+        : (sameMinute ? i.second : 0);
+    return t.add(Duration(seconds: sec));
+  }
+
   @override
   void initState() {
     super.initState();
@@ -641,13 +666,14 @@ class _DateTimeDialogState extends State<_DateTimeDialog> {
   @override
   void dispose() {
     _ctrl.dispose();
+    _secCtrl.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
-    final t = parseTradeDateTime(_ctrl.text, now: now);
+    final t = _withSeconds(parseTradeDateTime(_ctrl.text, now: now));
     final future = t != null && t.isAfter(now);
     final ok = t != null && !future;
     final String hint;
@@ -693,7 +719,9 @@ class _DateTimeDialogState extends State<_DateTimeDialog> {
             decoration: _input('月/日 時:分').copyWith(
               suffixIcon: TextButton(
                 onPressed: () {
-                  _ctrl.text = _dateTimeText(DateTime.now());
+                  final n = DateTime.now();
+                  _ctrl.text = _dateTimeText(n);
+                  if (_showSec) _secCtrl.text = '${n.second}';
                 },
                 child: const Text('現在'),
               ),
@@ -708,6 +736,45 @@ class _DateTimeDialogState extends State<_DateTimeDialog> {
                   : (ok ? AppColors.ink2 : AppColors.ink3),
             ),
           ),
+          const SizedBox(height: 4),
+          if (!_showSec)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(
+                onPressed: () => setState(() => _showSec = true),
+                style: TextButton.styleFrom(
+                  padding: EdgeInsets.zero,
+                  visualDensity: VisualDensity.compact,
+                  foregroundColor: AppColors.ink3,
+                ),
+                child: const Text('同一分鐘要分先後？加秒數'),
+              ),
+            )
+          else
+            Row(
+              children: [
+                SizedBox(
+                  width: 78,
+                  child: TextField(
+                    controller: _secCtrl,
+                    autofocus: true,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(2),
+                    ],
+                    decoration: _input('0', suffix: '秒'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    '只用來排先後，畫面上不會顯示',
+                    style: AppText.note.copyWith(color: AppColors.ink3),
+                  ),
+                ),
+              ],
+            ),
         ],
       ),
       actions: [
