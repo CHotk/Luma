@@ -17,7 +17,9 @@ import 'trade_ui.dart';
 //   長在甘特圖卡片裡面。
 // - 甘特圖上持倉中的條是一直往右流的黃色斜紋（[FlowingStripes]）。
 
-/// 甘特圖持倉中那條：黃色斜紋一直往右流，一眼看出「還在進行」。
+/// 甘特圖持倉中那條：像水流一樣慢慢往右流（兩層水波＋一道柔光掃過＋
+/// 右端呼吸光點），一眼看出「還在進行」（2026-10-14 使用者要求：更有流動感、
+/// 像水流、精美、緩慢）。
 class FlowingStripes extends StatefulWidget {
   const FlowingStripes({super.key, this.radius = 6});
 
@@ -31,7 +33,7 @@ class _FlowingStripesState extends State<FlowingStripes>
     with SingleTickerProviderStateMixin {
   late final AnimationController _c = AnimationController(
     vsync: this,
-    duration: const Duration(seconds: 1),
+    duration: const Duration(seconds: 6),
   )..repeat();
 
   @override
@@ -57,27 +59,71 @@ class _FlowingStripesState extends State<FlowingStripes>
 class _StripesPainter extends CustomPainter {
   _StripesPainter(this.t) : super(repaint: t);
 
+  /// 0→1 一圈（[FlowingStripes] 6 秒一圈），所有動作都是整數倍，接得無縫。
   final Animation<double> t;
-  static const _period = 12.0;
 
   @override
   void paint(Canvas canvas, Size size) {
+    final w = size.width, h = size.height;
+    final v = t.value;
+    final rect = Offset.zero & size;
+    // 底：左淡右濃，越接近「現在」越亮。
     canvas.drawRect(
-      Offset.zero & size,
-      Paint()..color = AppColors.mid.withValues(alpha: 0.25),
+      rect,
+      Paint()
+        ..shader = LinearGradient(
+          colors: [
+            AppColors.mid.withValues(alpha: 0.24),
+            AppColors.mid.withValues(alpha: 0.42),
+          ],
+        ).createShader(rect),
     );
-    final paint = Paint()..color = AppColors.mid.withValues(alpha: 0.6);
-    final shift = t.value * _period * 2;
-    final h = size.height;
-    for (var x = -h - _period * 2 + shift; x < size.width; x += _period) {
-      final path = Path()
-        ..moveTo(x, h)
-        ..lineTo(x + h, 0)
-        ..lineTo(x + h + _period / 2, 0)
-        ..lineTo(x + _period / 2, h)
+    // 兩層水波往右慢慢流，速度、波長不一樣，疊起來像水面。
+    void wave(double length, double amp, double base, int speed, double a) {
+      final path = Path()..moveTo(0, h);
+      for (var x = 0.0; x <= w + 1; x += 1.5) {
+        final y = base + amp * math.sin(2 * math.pi * (x / length - v * speed));
+        path.lineTo(x, y);
+      }
+      path
+        ..lineTo(w, h)
         ..close();
-      canvas.drawPath(path, paint);
+      canvas.drawPath(
+        path,
+        Paint()..color = AppColors.mid.withValues(alpha: a),
+      );
     }
+
+    wave(46, h * 0.16, h * 0.42, 1, 0.32);
+    wave(29, h * 0.12, h * 0.58, 2, 0.4);
+    // 一道柔光從左往右掃過（一圈掃兩次）。
+    final band = math.max(36.0, w * 0.35);
+    final x = ((v * 2) % 1) * (w + band * 2) - band;
+    canvas.drawRect(
+      rect,
+      Paint()
+        ..shader = LinearGradient(
+          colors: [
+            Colors.white.withValues(alpha: 0),
+            Colors.white.withValues(alpha: 0.28),
+            Colors.white.withValues(alpha: 0),
+          ],
+        ).createShader(Rect.fromLTWH(x - band / 2, 0, band, h)),
+    );
+    // 上緣一條細細的反光。
+    canvas.drawRect(
+      Rect.fromLTWH(0, 0, w, 1),
+      Paint()..color = Colors.white.withValues(alpha: 0.12),
+    );
+    // 右端（今天）一顆會慢慢呼吸的光點。
+    final glow = 0.45 + 0.35 * math.sin(2 * math.pi * v * 3);
+    canvas.drawCircle(
+      Offset(w - h / 2, h / 2),
+      h * 0.32,
+      Paint()
+        ..color = AppColors.mid.withValues(alpha: glow)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.5),
+    );
   }
 
   @override
