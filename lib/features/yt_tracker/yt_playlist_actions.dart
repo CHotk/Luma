@@ -214,7 +214,7 @@ class _SaveSheetState extends ConsumerState<_SaveSheet> {
             Row(
               children: [
                 const Text(
-                  '存到…',
+                  '添加到播放清單',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w800,

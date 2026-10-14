@@ -35,10 +35,7 @@ class SyncProgressBanner extends ConsumerWidget {
 
   /// 現在要不要顯示：有在同步、而且不在同步頁。
   static bool visible(SyncProgress? progress) =>
-      progress != null &&
-      !appRouter.routerDelegate.currentConfiguration.uri.path.startsWith(
-        '/sync',
-      );
+      progress != null && !currentAppPath().startsWith('/sync');
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

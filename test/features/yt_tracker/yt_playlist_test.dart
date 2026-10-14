@@ -61,7 +61,7 @@ void main() {
     expect((await s.load()).mode, NavBarMode.feature);
   });
 
-  testWidgets('影片 ⋮ →「存到稍後觀看」：清單多一部、影片下面標已存在', (tester) async {
+  testWidgets('影片 ⋮ →「添加到播放清單」勾稍後觀看：清單多一部、影片下面標已存在', (tester) async {
     final store = _MemoryStore();
     final container = ProviderContainer(
       overrides: [keyValueStoreProvider.overrideWithValue(store)],
@@ -85,7 +85,12 @@ void main() {
     );
     await tester.tap(find.byTooltip('更多'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('存到稍後觀看'));
+    // 選單：沒有「存到稍後觀看」，有「添加到播放清單」跟「開啟紀錄」。
+    expect(find.text('存到稍後觀看'), findsNothing);
+    expect(find.text('開啟紀錄'), findsOneWidget);
+    await tester.tap(find.text('添加到播放清單'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('稍後觀看'));
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 50)),
     );
@@ -95,6 +100,8 @@ void main() {
         .firstWhere((p) => p.isLater);
     expect(later.items.single.videoId, 'a');
     expect(later.items.single.channelName, '頻道A');
+    await tester.tap(find.text('完成'));
+    await tester.pumpAndSettle();
     expect(find.text('≡ 已存在：稍後觀看'), findsOneWidget);
     // 本機也存了。
     final saved = await tester.runAsync(() => YtPlaylistStore(store).loadAll());

@@ -116,87 +116,15 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
 
   void _reload() => setState(() => _future = _load());
 
-  /// ＋ 點下去：新增頻道／挖掘新頻道／新增分類。
-  Future<void> _showAddMenu() async {
-    // 剪貼簿要在使用者剛點的那一下就讀，Safari 才放行（見
-    // showAddYtChannelDialog）；選了「新增頻道」那一下才讀，新增頻道視窗
-    // 打開時有網址就直接帶出貼上按鈕。
-    Future<String?>? clipboard;
-    Widget item(
-      BuildContext sheet,
-      String value,
-      IconData icon,
-      String title,
-      String sub,
-      Color color,
-    ) => ListTile(
-      onTap: () {
-        if (value == 'channel') clipboard = readYtChannelClipboard();
-        Navigator.of(sheet).pop(value);
-      },
-      leading: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.16),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Icon(icon, color: color, size: 21),
-      ),
-      title: Text(
-        title,
-        style: const TextStyle(
-          fontWeight: FontWeight.w700,
-          color: AppColors.ink,
-        ),
-      ),
-      subtitle: Text(sub, style: AppText.note),
-    );
-    final choice = await showModalBottomSheet<String>(
-      context: context,
-      backgroundColor: const Color(0xFF1C1C29),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
-      ),
-      builder: (sheet) => SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(8, 14, 8, 10),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              item(
-                sheet,
-                'channel',
-                Icons.person_add_alt_1_rounded,
-                '新增頻道',
-                '貼上頻道網址，名字頭像自動抓',
-                AppColors.ytAccent,
-              ),
-              item(
-                sheet,
-                'discover',
-                Icons.travel_explore_rounded,
-                '挖掘新頻道',
-                '從你追蹤的頻道找類似的',
-                AppColors.accent,
-              ),
-              item(
-                sheet,
-                'category',
-                Icons.create_new_folder_outlined,
-                '新增分類',
-                '自己開一個分類資料夾',
-                AppColors.mid,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-    if (!mounted || choice == null) return;
+  /// 選單裡「新增頻道」那一下讀的剪貼簿（Safari 要在使用者點的那一下讀）。
+  Future<String?>? _addClipboard;
+
+  /// ＋ 選了哪一項。
+  Future<void> _onAddChoice(String choice) async {
     switch (choice) {
       case 'channel':
+        final clipboard = _addClipboard;
+        _addClipboard = null;
         final repo = ref.read(ytTrackerRepositoryProvider);
         final categories = await repo.loadCategories();
         if (!mounted) return;
@@ -212,6 +140,93 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
       case 'category':
         await _showAddCategoryDialog();
     }
+  }
+
+  /// ＋ 的下拉選單（2026-10-14 使用者要求：從 ＋ 那裡往下長出來，不要從
+  /// 底部跳出）：深色圓角卡片，每項一塊有顏色的圖示＋標題＋一行說明。
+  Widget _addMenuButton() {
+    PopupMenuItem<String> item(
+      String value,
+      IconData icon,
+      String title,
+      String sub,
+      Color color,
+    ) => PopupMenuItem<String>(
+      value: value,
+      height: 58,
+      // 剪貼簿一定要在點的那一下讀（onTap 是同步呼叫的）。
+      onTap: value == 'channel'
+          ? () => _addClipboard = readYtChannelClipboard()
+          : null,
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(11),
+            ),
+            child: Icon(icon, color: color, size: 19),
+          ),
+          const SizedBox(width: 12),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.ink,
+                ),
+              ),
+              Text(sub, style: AppText.note.copyWith(fontSize: 11)),
+            ],
+          ),
+        ],
+      ),
+    );
+    return PopupMenuButton<String>(
+      tooltip: '新增',
+      icon: const Icon(Icons.add_circle_outline, size: 21),
+      iconColor: AppColors.ink2,
+      position: PopupMenuPosition.under,
+      offset: const Offset(0, 6),
+      color: const Color(0xF21C1C2A),
+      elevation: 12,
+      shadowColor: Colors.black,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: const BorderSide(color: AppColors.glassEdge),
+      ),
+      menuPadding: const EdgeInsets.symmetric(vertical: 6),
+      onSelected: _onAddChoice,
+      itemBuilder: (_) => [
+        item(
+          'channel',
+          Icons.person_add_alt_1_rounded,
+          '新增頻道',
+          '貼上頻道網址，名字頭像自動抓',
+          AppColors.ytAccent,
+        ),
+        item(
+          'discover',
+          Icons.travel_explore_rounded,
+          '挖掘新頻道',
+          '從你追蹤的頻道找類似的',
+          AppColors.accent,
+        ),
+        item(
+          'category',
+          Icons.create_new_folder_outlined,
+          '新增分類',
+          '自己開一個分類資料夾',
+          AppColors.mid,
+        ),
+      ],
+    );
   }
 
   Future<void> _showAddCategoryDialog() async {
@@ -430,13 +445,8 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
                   // debug 頁還留著）。
                   actions: [
                     // 新增頻道、挖掘新頻道、新增分類收進同一顆 ＋（2026-10-14
-                    // 使用者要求），點了先問要做哪個。
-                    IconButton(
-                      onPressed: _showAddMenu,
-                      icon: const Icon(Icons.add_circle_outline, size: 21),
-                      color: AppColors.ink2,
-                      tooltip: '新增',
-                    ),
+                    // 使用者要求），點了從 ＋ 往下長出選單。
+                    _addMenuButton(),
                     // 全部頻道的紀錄（2026-10-06 使用者要求）。
                     IconButton(
                       onPressed: () => context.push('/yt-tracker/log'),

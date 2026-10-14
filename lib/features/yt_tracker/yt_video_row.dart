@@ -519,8 +519,9 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
                     style: AppText.note,
                   ),
                 ),
-                item('later', Icons.watch_later_outlined, '存到稍後觀看'),
-                item('save', Icons.playlist_add_rounded, '存到播放清單…'),
+                // 2026-10-14 使用者要求：拿掉「存到稍後觀看」（添加到播放清單
+                // 裡就能勾），改名「添加到播放清單」、圖示跟 YouTube 一樣。
+                item('save', Icons.playlist_add_rounded, '添加到播放清單'),
                 if (playlist != null) ...[
                   item('top', Icons.vertical_align_top_rounded, '移到最上面'),
                   item(
@@ -529,6 +530,8 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
                     '從「${playlist.name}」移除',
                   ),
                 ],
+                // 往左滑那兩顆（紀錄、隱藏）選單裡也都有（2026-10-14 使用者要求）。
+                item('history', Icons.history_rounded, '開啟紀錄'),
                 _hidden
                     ? item('unhide', Icons.visibility_rounded, '取消隱藏')
                     : item('hide', Icons.visibility_off_rounded, '隱藏這部'),
@@ -541,8 +544,8 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
     );
     if (!mounted || choice == null) return;
     switch (choice) {
-      case 'later':
-        await saveToWatchLater(context, ref, _playlistItem);
+      case 'history':
+        await _showHistory();
       case 'save':
         await showSaveToPlaylistSheet(context, ref, _playlistItem);
       case 'top':

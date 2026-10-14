@@ -58,7 +58,17 @@ import '../features/yt_tracker/yt_trash_page.dart';
 /// `r2_sync_section.dart`）。
 final rootNavigatorKey = GlobalKey<NavigatorState>();
 
+/// 畫面最上面那一頁的路徑。不能用 `currentConfiguration.uri`：用 push 開的
+/// 頁面（設定、頻道頁、練習…）那個 uri 還是底下那頁的，底部分頁列就會以為
+/// 還在 YT／首頁，蓋到設定頁上（2026-10-14 使用者回報設定頁捲到底被擋住）。
+String currentAppPath() {
+  final cfg = appRouter.routerDelegate.currentConfiguration;
+  if (cfg.isEmpty) return cfg.uri.path;
+  return Uri.parse(cfg.last.matchedLocation).path;
+}
+
 /// 全 App 的路徑只在這裡定義，畫面裡不准自己組路徑字串。
+
 final appRouter = GoRouter(
   navigatorKey: rootNavigatorKey,
   initialLocation: '/',

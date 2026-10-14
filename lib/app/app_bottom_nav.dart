@@ -103,8 +103,7 @@ class _AppBottomNavFrameState extends ConsumerState<AppBottomNavFrame> {
     ),
   ];
 
-  static String _path() =>
-      appRouter.routerDelegate.currentConfiguration.uri.path;
+  static String _path() => currentAppPath();
 
   _NavSpec? _spec(String path, NavBarMode mode, String videoChannelId) {
     final isYt =
