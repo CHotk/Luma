@@ -54,11 +54,11 @@ void main() {
     expect(visible.map((p) => p.id), containsAll(['fav', 'new']));
   });
 
-  test('底部分頁列設定：預設全 App 共用，存了記住', () async {
+  test('底部分頁列設定：預設各自功能，存了記住', () async {
     final s = NavBarPrefsStore(_MemoryStore());
-    expect((await s.load()).mode, NavBarMode.global);
-    await s.save(NavBarPrefs.defaults.copyWith(mode: NavBarMode.feature));
     expect((await s.load()).mode, NavBarMode.feature);
+    await s.save(NavBarPrefs.defaults.copyWith(mode: NavBarMode.global));
+    expect((await s.load()).mode, NavBarMode.global);
   });
 
   testWidgets('影片 ⋮ →「添加到播放清單」勾稍後觀看：清單多一部、影片下面標已存在', (tester) async {

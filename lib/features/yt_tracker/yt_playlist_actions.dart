@@ -331,9 +331,10 @@ Future<String?> askPlaylistName(
 /// 當快捷，設定裡也能換，跨裝置同步）。選了就存進 [YtDisplayPrefs]，
 /// 回傳頻道 id；沒選回 null。
 Future<String?> pickVideoTabChannel(BuildContext context, WidgetRef ref) async {
-  final channels = await ref.read(ytTrackerRepositoryProvider).loadChannels();
+  final repo = ref.read(ytTrackerRepositoryProvider);
+  final channels = await repo.loadChannels();
+  final categories = await repo.loadCategories();
   if (!context.mounted) return null;
-  channels.sort((a, b) => a.name.compareTo(b.name));
   final current = ref.read(ytDisplayPrefsProvider).videoTabChannelId;
   final picked = await showModalBottomSheet<YtChannel>(
     context: context,
@@ -342,14 +343,159 @@ Future<String?> pickVideoTabChannel(BuildContext context, WidgetRef ref) async {
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
     ),
-    builder: (context) => SafeArea(
+    builder: (_) => _VideoTabChannelSheet(
+      channels: channels,
+      categories: categories,
+      current: current,
+    ),
+  );
+  if (picked == null) return null;
+  final next = ref
+      .read(ytDisplayPrefsProvider)
+      .copyWith(videoTabChannelId: picked.id);
+  ref.read(ytDisplayPrefsProvider.notifier).state = next;
+  final saved = await YtDisplayPrefsStore(
+    ref.read(keyValueStoreProvider),
+  ).save(next);
+  ref.read(ytDisplayPrefsProvider.notifier).state = saved;
+  return picked.id;
+}
+
+/// 選「影片」那格開哪個頻道（2026-10-14 使用者要求：先選分類、分置頂／
+/// 一般（冷藏、待評鑑不列），還要能搜尋，不然頻道太多找不到）。搜尋時
+/// 不管分類、全部頻道一起找。
+class _VideoTabChannelSheet extends StatefulWidget {
+  const _VideoTabChannelSheet({
+    required this.channels,
+    required this.categories,
+    required this.current,
+  });
+
+  final List<YtChannel> channels;
+  final List<YtCategory> categories;
+  final String current;
+
+  @override
+  State<_VideoTabChannelSheet> createState() => _VideoTabChannelSheetState();
+}
+
+class _VideoTabChannelSheetState extends State<_VideoTabChannelSheet> {
+  final _q = TextEditingController();
+  String? _category;
+
+  @override
+  void initState() {
+    super.initState();
+    // 預設停在目前選的頻道所在的分類。
+    for (final c in widget.channels) {
+      if (c.id == widget.current) _category = c.categoryId ?? ytUncategorizedId;
+    }
+    _category ??= _tabs.isEmpty ? null : _tabs.first.$1;
+    _q.addListener(() => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _q.dispose();
+    super.dispose();
+  }
+
+  /// 分類分頁：有可選頻道（置頂或一般）的分類才列；沒分類的放最後。
+  List<(String, String)> get _tabs {
+    bool usable(YtChannel c) => c.coldAt == null && !c.pendingReview;
+    final out = <(String, String)>[
+      for (final cat in widget.categories)
+        if (cat.id != ytDiscoverCategoryId &&
+            widget.channels.any((c) => c.categoryId == cat.id && usable(c)))
+          (cat.id, cat.name),
+    ];
+    if (widget.channels.any((c) => c.categoryId == null && usable(c))) {
+      out.add((ytUncategorizedId, '未分類'));
+    }
+    return out;
+  }
+
+  Widget _tile(YtChannel c) => ListTile(
+    onTap: () => Navigator.of(context).pop(c),
+    leading: YtChannelAvatar(channel: c, radius: 18),
+    title: Text(c.name, style: const TextStyle(color: AppColors.ink)),
+    trailing: c.id == widget.current
+        ? const Icon(Icons.check_rounded, color: Color(0xFF0A84FF))
+        : null,
+  );
+
+  Widget _section(String title, List<YtChannel> list) => list.isEmpty
+      ? const SizedBox.shrink()
+      : Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 2),
+              child: Text(
+                '$title · ${list.length}',
+                style: AppText.note.copyWith(fontWeight: FontWeight.w700),
+              ),
+            ),
+            for (final c in list) _tile(c),
+          ],
+        );
+
+  @override
+  Widget build(BuildContext context) {
+    final q = _q.text.trim().toLowerCase();
+    final tabs = _tabs;
+    Widget body;
+    if (q.isNotEmpty) {
+      final hits =
+          widget.channels
+              .where((c) => c.name.toLowerCase().contains(q))
+              .toList()
+            ..sort((a, b) => a.name.compareTo(b.name));
+      body = hits.isEmpty
+          ? Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(
+                '找不到「${_q.text.trim()}」',
+                style: AppText.bodyDim,
+                textAlign: TextAlign.center,
+              ),
+            )
+          : Column(children: [for (final c in hits) _tile(c)]);
+    } else {
+      final inCat = widget.channels
+          .where(
+            (c) =>
+                (c.categoryId ?? ytUncategorizedId) == _category &&
+                c.coldAt == null &&
+                !c.pendingReview,
+          )
+          .toList();
+      final pinned = inCat.where((c) => c.pinnedAt != null).toList()
+        ..sort((a, b) => b.pinnedAt!.compareTo(a.pinnedAt!));
+      final normal = inCat.where((c) => c.pinnedAt == null).toList()
+        ..sort((a, b) => a.name.compareTo(b.name));
+      body = Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _section('置頂', pinned),
+          _section('一般', normal),
+          if (pinned.isEmpty && normal.isEmpty)
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(
+                '這個分類沒有置頂或一般的頻道',
+                style: AppText.bodyDim,
+                textAlign: TextAlign.center,
+              ),
+            ),
+        ],
+      );
+    }
+    return SafeArea(
       top: false,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.sizeOf(context).height * 0.75,
-        ),
+      child: SizedBox(
+        height: MediaQuery.sizeOf(context).height * 0.78,
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Padding(
@@ -364,53 +510,57 @@ Future<String?> pickVideoTabChannel(BuildContext context, WidgetRef ref) async {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
               child: Text('之後可以在設定換', style: AppText.note),
             ),
-            if (channels.isEmpty)
-              Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text(
-                  '還沒有頻道，先到「頻道」新增',
-                  style: AppText.bodyDim,
-                  textAlign: TextAlign.center,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: TextField(
+                controller: _q,
+                decoration: InputDecoration(
+                  isDense: true,
+                  hintText: '搜尋頻道名稱',
+                  prefixIcon: const Icon(Icons.search_rounded, size: 19),
+                  suffixIcon: _q.text.isEmpty
+                      ? null
+                      : IconButton(
+                          onPressed: _q.clear,
+                          icon: const Icon(Icons.close_rounded, size: 17),
+                        ),
+                  filled: true,
+                  fillColor: AppColors.glassFill,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide.none,
+                  ),
                 ),
-              ),
-            Flexible(
-              child: ListView(
-                shrinkWrap: true,
-                children: [
-                  for (final c in channels)
-                    ListTile(
-                      onTap: () => Navigator.of(context).pop(c),
-                      leading: YtChannelAvatar(channel: c, radius: 18),
-                      title: Text(
-                        c.name,
-                        style: const TextStyle(color: AppColors.ink),
-                      ),
-                      trailing: c.id == current
-                          ? const Icon(
-                              Icons.check_rounded,
-                              color: Color(0xFF0A84FF),
-                            )
-                          : null,
-                    ),
-                ],
+                style: const TextStyle(color: AppColors.ink),
               ),
             ),
+            if (q.isEmpty && tabs.isNotEmpty)
+              SizedBox(
+                height: 46,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 2),
+                  children: [
+                    for (final (id, name) in tabs)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: ChoiceChip(
+                          label: Text(name),
+                          selected: _category == id,
+                          showCheckmark: false,
+                          onSelected: (_) => setState(() => _category = id),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            Expanded(child: SingleChildScrollView(child: body)),
           ],
         ),
       ),
-    ),
-  );
-  if (picked == null) return null;
-  final next = ref
-      .read(ytDisplayPrefsProvider)
-      .copyWith(videoTabChannelId: picked.id);
-  ref.read(ytDisplayPrefsProvider.notifier).state = next;
-  final saved = await YtDisplayPrefsStore(
-    ref.read(keyValueStoreProvider),
-  ).save(next);
-  ref.read(ytDisplayPrefsProvider.notifier).state = saved;
-  return picked.id;
+    );
+  }
 }

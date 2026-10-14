@@ -850,8 +850,8 @@ class _NavBarModeCard extends ConsumerWidget {
             ),
           ),
           Text(switch (prefs.mode) {
-            NavBarMode.global => 'App 首頁、英文、日文顯示「英文／日文／YT」；進到 YT 換成 YT 自己的',
-            NavBarMode.feature => '只有自己有分頁列的功能顯示（目前是 YT：頻道／影片／播放清單）',
+            NavBarMode.global => 'App 首頁、英文、日文跟 YT 都是同一條「英文／日文／YT」',
+            NavBarMode.feature => '有自己分頁列的功能顯示自己的（YT：頻道／影片／播放清單），其他不顯示',
             NavBarMode.off => '都不顯示',
           }, style: AppText.note),
           const SizedBox(height: Gap.sm),

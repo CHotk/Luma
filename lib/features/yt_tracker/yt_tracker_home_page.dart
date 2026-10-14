@@ -875,33 +875,31 @@ _showDigOptions(BuildContext context, List<YtCategory> categories) {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const _DigSectionHeader(
-                    icon: Icons.folder_outlined,
-                    label: 'App 內的分類',
-                    hint: '不選＝全部',
+                  // 順序（2026-10-14 使用者要求）：自訂關鍵字、要不要參考 App 內頻道放
+                  // 最上面，第三是訂閱人數，再來才是分類、所在地、更多主題。
+                  TextField(
+                    controller: keywordController,
+                    decoration: const InputDecoration(
+                      labelText: '自訂關鍵字（選填）',
+                      hintText: '例如：露營裝備',
+                    ),
+                    style: const TextStyle(color: AppColors.ink),
                   ),
-                  const SizedBox(height: Gap.sm),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: [
-                      for (final c in selectable)
-                        FilterChip(
-                          label: Text(c.name),
-                          selected: picked.contains(c.id),
-                          // 不顯示打勾圖示，避免勾/不勾造成按鈕寬度變化、
-                          // 推著旁邊的選項移動（2026-09-30 使用者回報，見
-                          // `yt_tracker_channel_page.dart` 同一個修法）。
-                          showCheckmark: false,
-                          onSelected: (v) => setDialogState(() {
-                            if (v) {
-                              picked.add(c.id);
-                            } else {
-                              picked.remove(c.id);
-                            }
-                          }),
-                        ),
-                    ],
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                    value: useSeeds,
+                    onChanged: (v) => setDialogState(() => useSeeds = v),
+                    title: const Text(
+                      '參考 App 內頻道的推薦',
+                      style: TextStyle(fontSize: 13, color: AppColors.ink),
+                    ),
+                    subtitle: Text(
+                      useSeeds
+                          ? '從已追蹤頻道的推薦區找，每個約 1 單位，省配額、口味相近'
+                          : '不看 App 內頻道，只用關鍵字搜尋（每次搜尋 100 單位），範圍廣但較雜',
+                      style: AppText.note,
+                    ),
                   ),
                   const _DigSectionDivider(),
                   const _DigSectionHeader(
@@ -960,6 +958,35 @@ _showDigOptions(BuildContext context, List<YtCategory> categories) {
                           : '預設排除，訂閱數看不到就沒辦法判斷符不符合範圍',
                       style: AppText.note,
                     ),
+                  ),
+                  const _DigSectionDivider(),
+                  const _DigSectionHeader(
+                    icon: Icons.folder_outlined,
+                    label: 'App 內的分類',
+                    hint: '不選＝全部',
+                  ),
+                  const SizedBox(height: Gap.sm),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      for (final c in selectable)
+                        FilterChip(
+                          label: Text(c.name),
+                          selected: picked.contains(c.id),
+                          // 不顯示打勾圖示，避免勾/不勾造成按鈕寬度變化、
+                          // 推著旁邊的選項移動（2026-09-30 使用者回報，見
+                          // `yt_tracker_channel_page.dart` 同一個修法）。
+                          showCheckmark: false,
+                          onSelected: (v) => setDialogState(() {
+                            if (v) {
+                              picked.add(c.id);
+                            } else {
+                              picked.remove(c.id);
+                            }
+                          }),
+                        ),
+                    ],
                   ),
                   const _DigSectionDivider(),
                   const _DigSectionHeader(
@@ -1030,32 +1057,6 @@ _showDigOptions(BuildContext context, List<YtCategory> categories) {
                       ],
                     ),
                   ],
-                  const SizedBox(height: Gap.md),
-                  TextField(
-                    controller: keywordController,
-                    decoration: const InputDecoration(
-                      labelText: '自訂關鍵字（選填）',
-                      hintText: '例如：露營裝備',
-                    ),
-                    style: const TextStyle(color: AppColors.ink),
-                  ),
-                  const _DigSectionDivider(),
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    dense: true,
-                    value: useSeeds,
-                    onChanged: (v) => setDialogState(() => useSeeds = v),
-                    title: const Text(
-                      '參考 App 內頻道的推薦',
-                      style: TextStyle(fontSize: 13, color: AppColors.ink),
-                    ),
-                    subtitle: Text(
-                      useSeeds
-                          ? '從已追蹤頻道的推薦區找，每個約 1 單位，省配額、口味相近'
-                          : '不看 App 內頻道，只用關鍵字搜尋（每次搜尋 100 單位），範圍廣但較雜',
-                      style: AppText.note,
-                    ),
-                  ),
                   const SizedBox(height: Gap.sm),
                   Text('一次挖 10 個 App 裡沒有的頻道，已刪除過的不會再出現。', style: AppText.note),
                   const SizedBox(height: Gap.sm),

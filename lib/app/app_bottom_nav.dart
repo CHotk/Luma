@@ -45,9 +45,9 @@ class _NavSpec {
 /// 底部浮動分頁列（2026-10-14 使用者要求，設計稿第 2 版 iOS 26 膠囊）。
 /// 放在 `MaterialApp.router` 的 builder 裡，整個 App 一條：
 ///
-/// - **全 App 共用**（預設）：App 首頁、英文、日文首頁顯示英文／日文／YT
-///   三格；進到 YT 換成 YT 自己的（有自己分頁列的功能用自己的）。
-/// - **各功能自己的**：YT 是頻道／影片（設定選的某個頻道，當快捷）／播放
+/// - **各自功能**（預設）：有自己分頁列的功能（YT）顯示自己的，其他不顯示。
+/// - **全 App 共用**：App 首頁、英文、日文首頁跟 YT 每一頁都是英文／日文／YT。
+/// - **各自功能** 的 YT：YT 是頻道／影片（設定選的某個頻道，當快捷）／播放
 ///   清單，YT 裡每一頁都顯示；其他功能還沒有自己的，就不顯示。
 /// - **不顯示**。
 ///
@@ -112,17 +112,18 @@ class _AppBottomNavFrameState extends ConsumerState<AppBottomNavFrame> {
       case NavBarMode.off:
         return null;
       case NavBarMode.global:
-        // 有自己分頁列的功能（YT）裡面用它自己的（2026-10-14 使用者糾正：
-        // YT 有自己的底部 bar，不是全 App 那條）。
-        if (isYt) return _ytSpec(path, videoChannelId);
-        const roots = ['/start', '/home', '/jp-home', '/yt-tracker'];
-        if (!roots.contains(path)) return null;
-        final selected = switch (path) {
-          '/home' => 0,
-          '/jp-home' => 1,
-          '/yt-tracker' => 2,
-          _ => null,
-        };
+        // 全 App 共用就真的全 App 一條（2026-10-14 使用者回報：選了全局，
+        // YT 裡面還是 YT 自己的）：App 首頁、英文、日文首頁跟 YT 每一頁都是
+        // 英文／日文／YT。
+        const roots = ['/start', '/home', '/jp-home'];
+        if (!roots.contains(path) && !isYt) return null;
+        final selected = isYt
+            ? 2
+            : switch (path) {
+                '/home' => 0,
+                '/jp-home' => 1,
+                _ => null,
+              };
         return _NavSpec(_globalTabs, selected, (i) {
           if (i == selected) return;
           final settings = ref.read(settingsRepositoryProvider);
