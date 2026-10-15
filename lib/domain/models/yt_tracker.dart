@@ -135,6 +135,7 @@ class YtChannel {
     this.coldAt,
     this.purgedAt,
     this.reviewedAt,
+    this.artistAt,
   });
 
   final String id;
@@ -155,6 +156,11 @@ class YtChannel {
   /// 也沒評鑑過的就是待評鑑（[pendingReview]）。按置頂、冷藏時也會蓋上，
   /// 之後取消置頂／移出冷藏就回到一般，不會掉回待評鑑。
   final DateTime? reviewedAt;
+
+  /// 標成「歌手頻道」的時間（2026-10-15 使用者要求：音樂分類裡長按／⋮
+  /// 可以把頻道標成歌手）。null＝不是。跟著頻道一起同步。
+  final DateTime? artistAt;
+  bool get isArtist => artistAt != null;
 
   /// 在「待評鑑」區。
   bool get pendingReview =>
@@ -237,6 +243,7 @@ class YtChannel {
     Object? coldAt = _keep,
     Object? purgedAt = _keep,
     Object? reviewedAt = _keep,
+    Object? artistAt = _keep,
   }) => YtChannel(
     id: id,
     name: name ?? this.name,
@@ -274,6 +281,10 @@ class YtChannel {
     reviewedAt: identical(reviewedAt, _keep)
         ? this.reviewedAt
         : reviewedAt as DateTime?,
+    // 同 pinnedAt：null 是「取消歌手」這個有意義的值。
+    artistAt: identical(artistAt, _keep)
+        ? this.artistAt
+        : artistAt as DateTime?,
   );
 
   YtChannel _copy({
@@ -305,6 +316,7 @@ class YtChannel {
         ? this.purgedAt
         : purgedAt as DateTime?,
     reviewedAt: reviewedAt,
+    artistAt: artistAt,
   );
 
   /// 內容有變時蓋上現在的時間，見 [YtTrackerRepository]。
@@ -391,6 +403,7 @@ class YtChannel {
     'coldAt': coldAt?.toIso8601String(),
     'purgedAt': purgedAt?.toIso8601String(),
     'reviewedAt': reviewedAt?.toIso8601String(),
+    'artistAt': artistAt?.toIso8601String(),
   };
 
   factory YtChannel.fromJson(Map<String, dynamic> json) => YtChannel(
@@ -415,6 +428,7 @@ class YtChannel {
     coldAt: _parseTime(json['coldAt']),
     purgedAt: _parseTime(json['purgedAt']),
     reviewedAt: _parseTime(json['reviewedAt']),
+    artistAt: _parseTime(json['artistAt']),
   );
 }
 

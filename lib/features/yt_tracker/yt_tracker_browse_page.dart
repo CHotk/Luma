@@ -688,6 +688,16 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
     if (mounted) _reload();
   }
 
+  /// 標成／取消歌手頻道（2026-10-15 使用者要求，音樂分類長按／⋮）。
+  Future<void> _toggleArtist(YtChannel c) async {
+    await ref
+        .read(ytTrackerRepositoryProvider)
+        .updateChannel(
+          c.copyWith(artistAt: c.isArtist ? null : DateTime.now()),
+        );
+    if (mounted) _reload();
+  }
+
   /// 放進／移出冷藏區（2026-10-02 使用者要求：不常看、但也還不想刪的
   /// 頻道放到分類頁最下面，見 [YtChannel.coldAt]）。跟置頂互斥。
   Future<void> _toggleCold(YtChannel c) async {
@@ -1276,6 +1286,12 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                                           onMove: (c) =>
                                               _moveChannel(c, categories),
                                           onTogglePin: _togglePin,
+                                          onToggleArtist: _toggleArtist,
+                                          musicCategoryIds: {
+                                            for (final cat in categories)
+                                              if (cat.name.contains('音樂'))
+                                                cat.id,
+                                          },
                                           onToggleCold: _toggleCold,
                                           onSetNormal: _setNormal,
                                           onDelete: _deleteChannel,
@@ -1303,6 +1319,7 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
 }
 
 enum _ChannelMenuAction {
+  artist,
   edit,
   move,
   pin,
@@ -1874,6 +1891,8 @@ class _ChannelGrid extends StatefulWidget {
     required this.onOpen,
     required this.onMove,
     required this.onTogglePin,
+    required this.onToggleArtist,
+    this.musicCategoryIds = const {},
     required this.onToggleCold,
     required this.onSetNormal,
     required this.onDelete,
@@ -1896,6 +1915,12 @@ class _ChannelGrid extends StatefulWidget {
   final void Function(YtChannel) onOpen;
   final void Function(YtChannel) onMove;
   final void Function(YtChannel) onTogglePin;
+
+  /// 標成／取消歌手頻道（2026-10-15）。
+  final void Function(YtChannel) onToggleArtist;
+
+  /// 音樂分類（名字有「音樂」）的 id：這些分類裡的頻道選單才有「標成歌手」。
+  final Set<String> musicCategoryIds;
   final void Function(YtChannel) onToggleCold;
   final void Function(YtChannel) onSetNormal;
   final void Function(YtChannel) onDelete;
@@ -2252,15 +2277,30 @@ class _ChannelGridState extends State<_ChannelGrid> {
                               mainAxisAlignment: MainAxisAlignment.center,
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  c.name,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 12.5,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.ink,
-                                  ),
+                                Row(
+                                  children: [
+                                    // 歌手頻道（2026-10-15）：名字前一支小麥克風。
+                                    if (c.isArtist) ...[
+                                      const Icon(
+                                        Icons.mic_rounded,
+                                        size: 13,
+                                        color: Color(0xFFFF8FB1),
+                                      ),
+                                      const SizedBox(width: 2),
+                                    ],
+                                    Flexible(
+                                      child: Text(
+                                        c.name,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 12.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: AppColors.ink,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                                 if (c.subscriberLabel != null) ...[
                                   const SizedBox(height: 4),
@@ -2366,6 +2406,15 @@ class _ChannelGridState extends State<_ChannelGrid> {
             enabled: !isCold,
           ),
         ],
+        // 歌手頻道（2026-10-15 使用者要求）：音樂分類才有；已經標過的在
+        // 哪個分類都看得到，才取消得掉。
+        if (widget.musicCategoryIds.contains(c.categoryId) || c.isArtist)
+          BubbleMenuItem(
+            value: _ChannelMenuAction.artist,
+            icon: c.isArtist ? Icons.mic_off_rounded : Icons.mic_rounded,
+            label: c.isArtist ? '取消歌手' : '標成歌手',
+            iconColor: const Color(0xFFFF8FB1),
+          ),
         const BubbleMenuItem(
           value: _ChannelMenuAction.move,
           icon: Icons.folder_open_rounded,
@@ -2415,6 +2464,8 @@ class _ChannelGridState extends State<_ChannelGrid> {
         widget.onRestore?.call(c);
       case _ChannelMenuAction.purge:
         widget.onPurge?.call(c);
+      case _ChannelMenuAction.artist:
+        widget.onToggleArtist(c);
       case null:
         break;
     }
