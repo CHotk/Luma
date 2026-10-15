@@ -2416,7 +2416,7 @@ class _BackToTopLayerState extends ConsumerState<_BackToTopLayer>
   Offset? _dragging;
 
   /// 放開後滑去吸邊的動畫（像 iPhone 輔助觸控小圓點，2026-10-12 使用者
-  /// 要求：要絲滑、磁吸四邊）。
+  /// 要求：要絲滑；2026-10-15 改成只吸左右、上下停在放開的地方）。
   late final AnimationController _snap = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 320),
@@ -2447,8 +2447,14 @@ class _BackToTopLayerState extends ConsumerState<_BackToTopLayer>
       builder: (context, c) {
         final maxRight = (c.maxWidth - _size).clamp(0.0, double.infinity);
         final maxBottom = (c.maxHeight - _size).clamp(0.0, double.infinity);
+        // 離底部至少一段距離：浮動分頁列上面再留 24（2026-10-15 使用者
+        // 要求：吸在下面時太靠近底部）。
+        final minBottom = (FloatingNavInset.of(context) + 24).clamp(
+          _margin,
+          maxBottom,
+        );
         Offset clampPos(Offset o) =>
-            Offset(o.dx.clamp(0.0, maxRight), o.dy.clamp(0.0, maxBottom));
+            Offset(o.dx.clamp(0.0, maxRight), o.dy.clamp(minBottom, maxBottom));
         return AnimatedBuilder(
           animation: _snap,
           builder: (context, _) {
@@ -2496,6 +2502,7 @@ class _BackToTopLayerState extends ConsumerState<_BackToTopLayer>
                               maxRight: maxRight,
                               maxBottom: maxBottom,
                               margin: _margin,
+                              minBottom: minBottom,
                             );
                             setState(() {
                               _dragging = null;
@@ -2546,11 +2553,14 @@ class _BackToTopButton extends StatelessWidget {
           duration: const Duration(milliseconds: 180),
           child: Tooltip(
             message: '回到最上面',
+            // 再透一點淡一點（2026-10-15 使用者要求），像 iOS 小圓點。
             child: Material(
-              color: AppColors.ytAccent,
-              shape: const CircleBorder(),
-              elevation: 4,
-              shadowColor: Colors.black54,
+              color: AppColors.ytAccent.withValues(alpha: 0.38),
+              shape: const CircleBorder(
+                side: BorderSide(color: Color(0x33FFFFFF)),
+              ),
+              elevation: 2,
+              shadowColor: Colors.black38,
               child: InkWell(
                 customBorder: const CircleBorder(),
                 onTap: onTap,
@@ -2560,7 +2570,7 @@ class _BackToTopButton extends StatelessWidget {
                   child: Icon(
                     Icons.keyboard_arrow_up_rounded,
                     size: 28,
-                    color: AppColors.ytAccentInk,
+                    color: Colors.white70,
                   ),
                 ),
               ),
