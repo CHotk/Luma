@@ -426,9 +426,7 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
                 await playerStyle.load();
           }
           final statsDays = YtStatsRefreshSettingStore(kv);
-          final daysResult = await service.syncStampedSetting(
-            statsDays.record,
-          );
+          final daysResult = await service.syncStampedSetting(statsDays.record);
           if (daysResult.downloaded > 0) {
             container.read(ytStatsRefreshDaysProvider.notifier).state =
                 await statsDays.load();

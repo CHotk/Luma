@@ -12,47 +12,25 @@ import '../../app/theme/typography.dart';
 import '../../data/repositories/app_logo_store.dart';
 import '../../data/seed/app_logo_loader.dart';
 import '../../domain/rules_config.dart';
-import '../../shared/widgets/ambient_background.dart';
-import '../../shared/widgets/app_side_drawer.dart';
-import '../../shared/widgets/app_top_bar.dart';
 import '../../shared/widgets/glass_card.dart';
+import 'settings_anchor.dart';
 import 'settings_controller.dart';
 
-/// 設定。改完立即生效，不用按確定。
-class SettingsPage extends ConsumerWidget {
-  const SettingsPage({super.key});
+/// 英文學習的設定（設定頁「英文」那段，2026-10-15 全部功能併成一頁）。
+/// 改完立即生效，不用按確定。
+class EnglishSettingsSection extends ConsumerWidget {
+  const EnglishSettingsSection({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(settingsControllerProvider);
-
-    return Scaffold(
-      drawer: const AppSideDrawer(),
-      body: AmbientBackground(
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: Gap.screenSide),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: Gap.sm),
-                // 自己就是設定頁，不用再顯示一顆連去設定的齒輪。
-                const AppTopBar(title: '設定', showSettings: false),
-                Expanded(
-                  child: async.when(
-                    loading: () => const Center(
-                      child: CircularProgressIndicator.adaptive(),
-                    ),
-                    error: (e, _) =>
-                        Center(child: Text('讀不到設定：$e', style: AppText.bodyDim)),
-                    data: (rules) => _Body(rules: rules),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
+    return async.when(
+      loading: () => const Padding(
+        padding: EdgeInsets.all(Gap.lg),
+        child: Center(child: CircularProgressIndicator.adaptive()),
       ),
+      error: (e, _) => Text('讀不到設定：$e', style: AppText.bodyDim),
+      data: (rules) => _Body(rules: rules),
     );
   }
 }
@@ -67,53 +45,55 @@ class _Body extends ConsumerWidget {
     void save(RulesConfig next) =>
         ref.read(settingsControllerProvider.notifier).apply(next);
 
-    return ListView(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const _SectionLabel('首頁'),
-        GlassCard(
-          child: Row(
-            children: [
-              const Icon(
-                Icons.reorder_rounded,
-                size: 18,
-                color: AppColors.ink2,
-              ),
-              const SizedBox(width: Gap.sm),
-              const Expanded(
-                child: Text(
-                  '首頁卡片順序',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.ink,
+        SettingAnchor(
+          id: 'en.order',
+          child: GlassCard(
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.reorder_rounded,
+                  size: 18,
+                  color: AppColors.ink2,
+                ),
+                const SizedBox(width: Gap.sm),
+                const Expanded(
+                  child: Text(
+                    '首頁卡片順序',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.ink,
+                    ),
                   ),
                 ),
-              ),
-              TextButton(
-                onPressed: () => context.push('/home-card-order/en'),
-                child: const Text('調整'),
-              ),
-            ],
+                TextButton(
+                  onPressed: () => context.push('/home-card-order/en'),
+                  child: const Text('調整'),
+                ),
+              ],
+            ),
           ),
         ),
         const SizedBox(height: Gap.md),
 
-        const _SectionLabel('App Logo'),
-        const GlassCard(child: _AppLogoSection()),
-        const SizedBox(height: Gap.md),
-
         const _SectionLabel('題型'),
-        GlassCard(
-          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 4),
-          child: Column(
-            children: [
-              for (final style in QuizStyle.values)
-                _StyleRow(
-                  style: style,
-                  selected: rules.quizStyle == style,
-                  onTap: () => save(rules.copyWith(quizStyle: style)),
-                ),
-            ],
+        SettingAnchor(
+          id: 'en.style',
+          child: GlassCard(
+            padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 4),
+            child: Column(
+              children: [
+                for (final style in QuizStyle.values)
+                  _StyleRow(
+                    style: style,
+                    selected: rules.quizStyle == style,
+                    onTap: () => save(rules.copyWith(quizStyle: style)),
+                  ),
+              ],
+            ),
           ),
         ),
 
@@ -140,195 +120,212 @@ class _Body extends ConsumerWidget {
 
         const SizedBox(height: Gap.lg),
         const _SectionLabel('每天的份量'),
-        GlassCard(
-          child: Column(
-            children: [
-              _Stepper(
-                title: '每天最多幾輪',
-                note: '做滿就擋住',
-                value: '${rules.roundsPerDay} 輪',
-                onMinus: rules.roundsPerDay > 1
-                    ? () => save(
-                        rules.copyWith(roundsPerDay: rules.roundsPerDay - 1),
-                      )
-                    : null,
-                onPlus: rules.roundsPerDay < 20
-                    ? () => save(
-                        rules.copyWith(roundsPerDay: rules.roundsPerDay + 1),
-                      )
-                    : null,
-              ),
-              const _Hair(),
-              _Stepper(
-                title: '每天目標幾分鐘',
-                note: '只是首頁的參考數字，不會因為超過就擋住',
-                value: '${rules.minutesPerDay} 分',
-                onMinus: rules.minutesPerDay > 5
-                    ? () => save(
-                        rules.copyWith(minutesPerDay: rules.minutesPerDay - 5),
-                      )
-                    : null,
-                onPlus: rules.minutesPerDay < 120
-                    ? () => save(
-                        rules.copyWith(minutesPerDay: rules.minutesPerDay + 5),
-                      )
-                    : null,
-              ),
-            ],
+        SettingAnchor(
+          id: 'en.daily',
+          child: GlassCard(
+            child: Column(
+              children: [
+                _Stepper(
+                  title: '每天最多幾輪',
+                  note: '做滿就擋住',
+                  value: '${rules.roundsPerDay} 輪',
+                  onMinus: rules.roundsPerDay > 1
+                      ? () => save(
+                          rules.copyWith(roundsPerDay: rules.roundsPerDay - 1),
+                        )
+                      : null,
+                  onPlus: rules.roundsPerDay < 20
+                      ? () => save(
+                          rules.copyWith(roundsPerDay: rules.roundsPerDay + 1),
+                        )
+                      : null,
+                ),
+                const _Hair(),
+                _Stepper(
+                  title: '每天目標幾分鐘',
+                  note: '只是首頁的參考數字，不會因為超過就擋住',
+                  value: '${rules.minutesPerDay} 分',
+                  onMinus: rules.minutesPerDay > 5
+                      ? () => save(
+                          rules.copyWith(
+                            minutesPerDay: rules.minutesPerDay - 5,
+                          ),
+                        )
+                      : null,
+                  onPlus: rules.minutesPerDay < 120
+                      ? () => save(
+                          rules.copyWith(
+                            minutesPerDay: rules.minutesPerDay + 5,
+                          ),
+                        )
+                      : null,
+                ),
+              ],
+            ),
           ),
         ),
 
         const SizedBox(height: Gap.lg),
         const _SectionLabel('判定'),
-        GlassCard(
-          child: Column(
-            children: [
-              _Stepper(
-                title: '沒錯過的字要答對幾次算掌握',
-                note: '從頭到尾沒錯過才走這條',
-                value: '${rules.confirmRight} 次',
-                onMinus: rules.confirmRight > 1
-                    ? () => save(
-                        rules.copyWith(confirmRight: rules.confirmRight - 1),
-                      )
-                    : null,
-                onPlus: rules.confirmRight < 5
-                    ? () => save(
-                        rules.copyWith(confirmRight: rules.confirmRight + 1),
-                      )
-                    : null,
-              ),
-              const _Hair(),
-              _Stepper(
-                title: '錯過的字要答對幾倍才算掌握',
-                note:
-                    '錯 1 次要答對 ${rules.recoveryRatio} 次，'
-                    '錯 5 次就要 ${rules.recoveryRatio * 5} 次',
-                value: '${rules.recoveryRatio} 倍',
-                onMinus: rules.recoveryRatio > 1
-                    ? () => save(
-                        rules.copyWith(recoveryRatio: rules.recoveryRatio - 1),
-                      )
-                    : null,
-                onPlus: rules.recoveryRatio < 30
-                    ? () => save(
-                        rules.copyWith(recoveryRatio: rules.recoveryRatio + 1),
-                      )
-                    : null,
-              ),
-              const _Hair(),
-              _Stepper(
-                title: '每輪答錯過的字',
-                note: '從出題數裡挪出來，錯最多次的先回來',
-                value: '${rules.pendingPerRound} 題',
-                onMinus: rules.pendingPerRound > 0
-                    ? () => save(
-                        rules.copyWith(
-                          pendingPerRound: rules.pendingPerRound - 1,
-                        ),
-                      )
-                    : null,
-                onPlus:
-                    rules.pendingPerRound +
-                            rules.masteredPerRound +
-                            rules.sentencePerRound <
-                        rules.roundSize
-                    ? () => save(
-                        rules.copyWith(
-                          pendingPerRound: rules.pendingPerRound + 1,
-                        ),
-                      )
-                    : null,
-              ),
-              const _Hair(),
-              _Stepper(
-                title: '待複習候選池大小',
-                note: '從離掌握最遠的這麼多個字裡隨機抽，不是死拿最前面幾個',
-                value: '${rules.pendingCandidatePoolSize} 個',
-                onMinus: rules.pendingCandidatePoolSize > rules.pendingPerRound
-                    ? () => save(
-                        rules.copyWith(
-                          pendingCandidatePoolSize: math.max(
-                            rules.pendingCandidatePoolSize - 5,
-                            rules.pendingPerRound,
+        SettingAnchor(
+          id: 'en.judge',
+          child: GlassCard(
+            child: Column(
+              children: [
+                _Stepper(
+                  title: '沒錯過的字要答對幾次算掌握',
+                  note: '從頭到尾沒錯過才走這條',
+                  value: '${rules.confirmRight} 次',
+                  onMinus: rules.confirmRight > 1
+                      ? () => save(
+                          rules.copyWith(confirmRight: rules.confirmRight - 1),
+                        )
+                      : null,
+                  onPlus: rules.confirmRight < 5
+                      ? () => save(
+                          rules.copyWith(confirmRight: rules.confirmRight + 1),
+                        )
+                      : null,
+                ),
+                const _Hair(),
+                _Stepper(
+                  title: '錯過的字要答對幾倍才算掌握',
+                  note:
+                      '錯 1 次要答對 ${rules.recoveryRatio} 次，'
+                      '錯 5 次就要 ${rules.recoveryRatio * 5} 次',
+                  value: '${rules.recoveryRatio} 倍',
+                  onMinus: rules.recoveryRatio > 1
+                      ? () => save(
+                          rules.copyWith(
+                            recoveryRatio: rules.recoveryRatio - 1,
                           ),
-                        ),
-                      )
-                    : null,
-                onPlus: rules.pendingCandidatePoolSize < 100
-                    ? () => save(
-                        rules.copyWith(
-                          pendingCandidatePoolSize:
-                              rules.pendingCandidatePoolSize + 5,
-                        ),
-                      )
-                    : null,
-              ),
-              const _Hair(),
-              _Stepper(
-                title: '每輪回頭考已掌握的字',
-                note: '掌握不代表永遠不會忘，隔一陣子碰一次比較安心',
-                value: '${rules.masteredPerRound} 題',
-                onMinus: rules.masteredPerRound > 0
-                    ? () => save(
-                        rules.copyWith(
-                          masteredPerRound: rules.masteredPerRound - 1,
-                        ),
-                      )
-                    : null,
-                onPlus:
-                    rules.masteredPerRound +
-                            rules.pendingPerRound +
-                            rules.sentencePerRound <
-                        rules.roundSize
-                    ? () => save(
-                        rules.copyWith(
-                          masteredPerRound: rules.masteredPerRound + 1,
-                        ),
-                      )
-                    : null,
-              ),
-              const _Hair(),
-              _Stepper(
-                title: '每輪幾題句型',
-                note: '從新字的配額挪過來，不是額外加題數',
-                value: '${rules.sentencePerRound} 題',
-                onMinus: rules.sentencePerRound > 0
-                    ? () => save(
-                        rules.copyWith(
-                          sentencePerRound: rules.sentencePerRound - 1,
-                        ),
-                      )
-                    : null,
-                onPlus:
-                    rules.sentencePerRound +
-                            rules.pendingPerRound +
-                            rules.masteredPerRound <
-                        rules.roundSize
-                    ? () => save(
-                        rules.copyWith(
-                          sentencePerRound: rules.sentencePerRound + 1,
-                        ),
-                      )
-                    : null,
-              ),
-              const _Hair(),
-              _Stepper(
-                title: '每輪出題數',
+                        )
+                      : null,
+                  onPlus: rules.recoveryRatio < 30
+                      ? () => save(
+                          rules.copyWith(
+                            recoveryRatio: rules.recoveryRatio + 1,
+                          ),
+                        )
+                      : null,
+                ),
+                const _Hair(),
+                _Stepper(
+                  title: '每輪答錯過的字',
+                  note: '從出題數裡挪出來，錯最多次的先回來',
+                  value: '${rules.pendingPerRound} 題',
+                  onMinus: rules.pendingPerRound > 0
+                      ? () => save(
+                          rules.copyWith(
+                            pendingPerRound: rules.pendingPerRound - 1,
+                          ),
+                        )
+                      : null,
+                  onPlus:
+                      rules.pendingPerRound +
+                              rules.masteredPerRound +
+                              rules.sentencePerRound <
+                          rules.roundSize
+                      ? () => save(
+                          rules.copyWith(
+                            pendingPerRound: rules.pendingPerRound + 1,
+                          ),
+                        )
+                      : null,
+                ),
+                const _Hair(),
+                _Stepper(
+                  title: '待複習候選池大小',
+                  note: '從離掌握最遠的這麼多個字裡隨機抽，不是死拿最前面幾個',
+                  value: '${rules.pendingCandidatePoolSize} 個',
+                  onMinus:
+                      rules.pendingCandidatePoolSize > rules.pendingPerRound
+                      ? () => save(
+                          rules.copyWith(
+                            pendingCandidatePoolSize: math.max(
+                              rules.pendingCandidatePoolSize - 5,
+                              rules.pendingPerRound,
+                            ),
+                          ),
+                        )
+                      : null,
+                  onPlus: rules.pendingCandidatePoolSize < 100
+                      ? () => save(
+                          rules.copyWith(
+                            pendingCandidatePoolSize:
+                                rules.pendingCandidatePoolSize + 5,
+                          ),
+                        )
+                      : null,
+                ),
+                const _Hair(),
+                _Stepper(
+                  title: '每輪回頭考已掌握的字',
+                  note: '掌握不代表永遠不會忘，隔一陣子碰一次比較安心',
+                  value: '${rules.masteredPerRound} 題',
+                  onMinus: rules.masteredPerRound > 0
+                      ? () => save(
+                          rules.copyWith(
+                            masteredPerRound: rules.masteredPerRound - 1,
+                          ),
+                        )
+                      : null,
+                  onPlus:
+                      rules.masteredPerRound +
+                              rules.pendingPerRound +
+                              rules.sentencePerRound <
+                          rules.roundSize
+                      ? () => save(
+                          rules.copyWith(
+                            masteredPerRound: rules.masteredPerRound + 1,
+                          ),
+                        )
+                      : null,
+                ),
+                const _Hair(),
+                _Stepper(
+                  title: '每輪幾題句型',
+                  note: '從新字的配額挪過來，不是額外加題數',
+                  value: '${rules.sentencePerRound} 題',
+                  onMinus: rules.sentencePerRound > 0
+                      ? () => save(
+                          rules.copyWith(
+                            sentencePerRound: rules.sentencePerRound - 1,
+                          ),
+                        )
+                      : null,
+                  onPlus:
+                      rules.sentencePerRound +
+                              rules.pendingPerRound +
+                              rules.masteredPerRound <
+                          rules.roundSize
+                      ? () => save(
+                          rules.copyWith(
+                            sentencePerRound: rules.sentencePerRound + 1,
+                          ),
+                        )
+                      : null,
+                ),
+                const _Hair(),
+                _Stepper(
+                  title: '每輪出題數',
 
-                note:
-                    '待複習 ${rules.pendingPerRound}、句型 ${rules.sentencePerRound}、'
-                    '新字 ${rules.freshPerRound}、已掌握 ${rules.masteredPerRound}',
+                  note:
+                      '待複習 ${rules.pendingPerRound}、句型 ${rules.sentencePerRound}、'
+                      '新字 ${rules.freshPerRound}、已掌握 ${rules.masteredPerRound}',
 
-                value: '${rules.roundSize} 題',
-                onMinus: rules.roundSize > 3
-                    ? () => save(rules.copyWith(roundSize: rules.roundSize - 1))
-                    : null,
-                onPlus: rules.roundSize < 20
-                    ? () => save(rules.copyWith(roundSize: rules.roundSize + 1))
-                    : null,
-              ),
-            ],
+                  value: '${rules.roundSize} 題',
+                  onMinus: rules.roundSize > 3
+                      ? () =>
+                            save(rules.copyWith(roundSize: rules.roundSize - 1))
+                      : null,
+                  onPlus: rules.roundSize < 20
+                      ? () =>
+                            save(rules.copyWith(roundSize: rules.roundSize + 1))
+                      : null,
+                ),
+              ],
+            ),
           ),
         ),
 
@@ -339,10 +336,6 @@ class _Body extends ConsumerWidget {
           textAlign: TextAlign.center,
           style: AppText.note,
         ),
-
-        const SizedBox(height: Gap.lg),
-        const _VersionFooter(),
-        const SizedBox(height: Gap.xl),
       ],
     );
   }
@@ -351,8 +344,8 @@ class _Body extends ConsumerWidget {
 /// App 版本號，跟 `pubspec.yaml` 的 `version` 對得上——出問題時使用者
 /// 回報「幾版」比較好對，不用自己手動同步一份常數
 /// （2026-09-18 使用者要求）。
-class _VersionFooter extends StatelessWidget {
-  const _VersionFooter();
+class VersionFooter extends StatelessWidget {
+  const VersionFooter({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -417,6 +410,30 @@ class _AppLogoSection extends ConsumerWidget {
       },
     );
   }
+}
+
+/// 「一般」那段的 App Logo 卡片（原本在英文學習的設定裡）。
+class AppLogoSettingsCard extends StatelessWidget {
+  const AppLogoSettingsCard({super.key});
+
+  @override
+  Widget build(BuildContext context) => const GlassCard(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'App Logo',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            color: AppColors.ink,
+          ),
+        ),
+        SizedBox(height: Gap.xs),
+        _AppLogoSection(),
+      ],
+    ),
+  );
 }
 
 class _LogoThumb extends StatelessWidget {

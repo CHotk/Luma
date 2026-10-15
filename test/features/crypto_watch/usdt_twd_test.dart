@@ -11,6 +11,7 @@ import 'package:lume/data/cloud/r2_sync_service.dart';
 import 'package:lume/data/repositories/usdt_twd_rate_store.dart';
 import 'package:lume/data/storage/key_value_store.dart';
 import 'package:lume/features/crypto_watch/trade_ui.dart';
+import 'package:lume/features/settings/all_settings_page.dart';
 import 'package:lume/features/settings/other_settings_page.dart';
 import 'package:lume/shared/widgets/open_settings.dart';
 
@@ -116,11 +117,10 @@ void main() {
             ),
           ),
         ),
-        GoRoute(path: '/settings', builder: (_, _) => const Text('英文學習設定')),
         GoRoute(
-          path: '/settings/other',
+          path: '/settings',
           builder: (_, state) =>
-              OtherSettingsPage(fromLocation: state.extra as String?),
+              AllSettingsPage(fromLocation: state.extra as String?),
         ),
       ],
     );
@@ -136,16 +136,26 @@ void main() {
     expect(find.text('USDT 換台幣匯率'), findsOneWidget);
     expect(find.text('31'), findsOneWidget);
 
-    await tester.enterText(find.byType(TextField), '32.5');
+    // 設定頁上面還有搜尋框，找交易那段裡的輸入框。
+    final rateField = find.descendant(
+      of: find.byType(TradeSettingsSection),
+      matching: find.byType(TextField),
+    );
+    await tester.enterText(rateField, '32.5');
     await tester.pump();
-    await tester.tap(find.widgetWithText(FilledButton, '儲存'));
+    await tester.tap(
+      find.descendant(
+        of: find.byType(TradeSettingsSection),
+        matching: find.widgetWithText(FilledButton, '儲存'),
+      ),
+    );
     await tester.pump();
     expect(await UsdtTwdRateStore(store).load(), 32.5);
     // 匯率也最多小數第一位：打 31.25 → 31.3。
-    await tester.enterText(find.byType(TextField), '31.25');
+    await tester.enterText(rateField, '31.25');
     await tester.pump();
     expect(
-      tester.widget<TextField>(find.byType(TextField)).controller!.text,
+      tester.widget<TextField>(rateField).controller!.text,
       '31.3',
     );
     final container = ProviderScope.containerOf(

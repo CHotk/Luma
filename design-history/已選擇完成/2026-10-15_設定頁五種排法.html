@@ -55,6 +55,13 @@
   .search input { flex: 1; background: none; border: 0; color: var(--ink); font: inherit; outline: none; }
   .search .x { color: var(--ink3); cursor: pointer; }
   mark { background: rgba(10,132,255,.35); color: #fff; border-radius: 3px; }
+  .vtabs button.final { border-color: #FFD60A; color: #FFD60A; } .vtabs button.final.on { background: rgba(255,214,10,.18); color: #fff; }
+  .from { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .from button { border: 1px solid var(--line); background: var(--card2); color: var(--ink); border-radius: 99px; padding: 5px 11px; font-size: 12px; cursor: pointer; }
+  .from button.on { border-color: var(--ios); background: rgba(10,132,255,.2); }
+  .row.flash { animation: flash 1.4s ease-out; }
+  @keyframes flash { 0%, 40% { box-shadow: inset 0 0 0 2px var(--ios); background: rgba(10,132,255,.22); } 100% { box-shadow: none; } }
+  .sticky6 { position: sticky; top: -44px; z-index: 30; background: #000; padding-top: 52px; margin-top: -44px; }
   /* 卡片 */
   .fcard { margin: 0 14px 12px; border-radius: 20px; padding: 14px; border: 1px solid var(--line); background: linear-gradient(160deg, var(--c1), var(--card) 60%); }
   .fcard .fh { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
@@ -84,7 +91,7 @@
 </head>
 <body>
 <div class="page">
-  <h1>設定頁：五種排法</h1>
+  <h1>設定頁：五種排法＋最終版</h1>
   <p class="lead">設定越加越多（光 YT 就十幾項），現在是一路往下排。這份比<b>分組、分頁、搜尋、兩層</b>這幾種排法。<br>
     裡面的設定項目都是 App 裡真的有的。每版都能點：開關會切、選項會跳選單、有箭頭的點了會進下一層。</p>
   <div class="vtabs" id="vtabs"></div>
@@ -220,10 +227,31 @@ V.push({ name: '5 上方分頁籤', title: '版本 5：上方一排分頁籤（�
       + G.map(g => `<div id="sec-${g.id}" data-sec="${g.id}"><div class="gh" style="font-size:15px;color:var(--ink);font-weight:800;padding-left:20px">${g.icon} ${g.name}</div>${groupsOf(g).map(([h, items]) => `${h ? `<div class="gh" style="padding-top:6px">${h}</div>` : ''}<div class="group">${items.map(i => iosRow({ ...i, g }, false)).join('')}</div>`).join('')}</div>`).join('');
   } });
 
+const FROM = [['app', 'App 首頁'], ['yt', 'YT 頻道'], ['jp', '日文'], ['trade', '交易'], ['lock', '日記'], ['sync', '同步頁']];
+V.push({ name: '6 最終版', final: true, title: '最終版：第 5 版＋從哪個功能進來就先跳到那段＋最上面搜尋框', tag: '你選的・2026-10-15',
+  desc: `<h3>規則</h3><ul><li>所有功能的設定都在<b>同一頁</b>，用區塊分開（一般／英文／日文／YT／交易&自律／日記／負債／雲端同步）。</li>
+    <li><b>在哪個功能點齒輪，就自動跳到那段</b>、分頁籤亮那格（例如在 YT 點齒輪 → 直接看到 YT 那段）。往上滑就看得到其他功能。</li>
+    <li>上方分頁籤：點了捲到那段；自己往下滑，分頁籤也會跟著亮到目前那段。</li>
+    <li><b>最上面搜尋框</b>：打「冷藏」「播放」「密碼」→ 列出符合的設定（寫在哪一段），點一下跳過去、那一列閃一下。</li>
+    <li>日記／負債密碼：不是從日記或負債進來的，改密碼前要先輸入舊密碼。</li></ul>
+    <h3>模擬從哪裡點齒輪</h3><div class="from">${FROM.map(([id, n]) => `<button class="${S.from === id ? 'on' : ''}" data-from="${id}">從 ${n}</button>`).join('')}</div>`,
+  home() {
+    const tabs = `<div class="tabs" style="position:static;padding:6px 0 10px;background:none">${G.map(g => `<span class="${S.tab === g.id ? 'on' : ''}" data-tab="${g.id}">${g.name.replace('YT 頻道追蹤', 'YT').replace('日記／負債', '日記／負債')}</span>`).join('')}</div>`;
+    const head = `<div class="big" style="padding-bottom:0">設定</div><div class="sticky6"><div class="search">⌕ <input placeholder="搜尋設定，例如：播放、同步、冷藏" data-q value="${S.q}">${S.q ? '<span class="x" data-clear>✕</span>' : ''}</div>${S.q ? '' : `<div style="padding:0 16px">${tabs}</div>`}</div>`;
+    if (S.q) {
+      const hits = ALL.filter(i => i.label.includes(S.q) || i.g.name.includes(S.q));
+      return head + (hits.length ? `<div class="gh">找到 ${hits.length} 項，點了跳過去</div><div class="group">${hits.map(i => `<div class="row" data-goto="${i.k}"><span class="icon" style="background:${i.g.color}">${i.g.icon}</span><span class="lb">${hl(i.label)}<span class="small">${i.g.name}</span></span><span class="chev">›</span></div>`).join('')}</div>` : `<div class="gh">找不到「${S.q}」相關的設定</div>`);
+    }
+    return head + G.map(g => `<div id="sec-${g.id}" data-sec="${g.id}"><div class="gh" style="font-size:15px;color:var(--ink);font-weight:800;padding-left:20px">${g.icon} ${g.name}</div>${groupsOf(g).map(([h, items]) => `${h ? `<div class="gh" style="padding-top:6px">${h}</div>` : ''}<div class="group">${items.map(i => iosRow({ ...i, g }, false).replace('class="row', `id="row-${i.k}" class="row`)).join('')}</div>`).join('')}</div>`).join('') + '<div style="height:520px"></div>';
+  } });
+S.from = 'yt';
+// 跳到某段／某列
+function scrollToSec(id, smooth) { const sc = phone.querySelector('.screen'); const el = sc.querySelector('#sec-' + id); if (el) sc.scrollTo({ top: el.offsetTop - 140, behavior: smooth ? 'smooth' : 'auto' }); }
+function scrollToRow(k) { const sc = phone.querySelector('.screen'); const el = sc.querySelector('#row-' + k); if (!el) return; sc.scrollTo({ top: el.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop - 240, behavior: 'smooth' }); el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); }
 const phone = document.getElementById('phone');
 function render(keepScroll = true) {
   const v = V[S.v];
-  document.getElementById('vtabs').innerHTML = V.map((x, i) => `<button class="${i === S.v ? 'on' : ''}" data-v="${i}">${x.name}</button>`).join('');
+  document.getElementById('vtabs').innerHTML = V.map((x, i) => `<button class="${i === S.v ? 'on' : ''} ${x.final ? 'final' : ''}" data-v="${i}">${x.name}</button>`).join('');
   document.getElementById('notes').innerHTML = `<span class="tag">${v.tag}</span><h2>${v.title}</h2>${v.desc}<div class="try">試試：切「依影片顯示也抓冷藏」、改「點影片時」、搜尋「同步」、進 YT 那組看分組。</div>`;
   const top = S.stack[S.stack.length - 1];
   const st = keepScroll ? phone.querySelector('.screen')?.scrollTop || 0 : 0;
@@ -233,14 +261,17 @@ function render(keepScroll = true) {
   phone.innerHTML = `<div class="status"><span>21:30</span><span>5G ▮</span></div><div class="screen ${keepScroll ? '' : S.back ? 'back' : ''}" style="${keepScroll ? 'animation:none' : ''}">${content}</div>${menu}${S.toast ? `<div class="toast">${S.toast}</div>` : ''}`;
   const sc = phone.querySelector('.screen'); sc.scrollTop = st;
   const q = phone.querySelector('[data-q]'); if (q && S.focusQ) { q.focus(); q.setSelectionRange(q.value.length, q.value.length); }
-  if (S.v === 4 && !top) sc.onscroll = () => { const secs = [...sc.querySelectorAll('[data-sec]')]; let cur = secs[0].dataset.sec; for (const s of secs) if (s.offsetTop - 120 <= sc.scrollTop) cur = s.dataset.sec; if (cur !== S.tab) { S.tab = cur; sc.querySelectorAll('.tabs span').forEach(x => x.classList.toggle('on', x.dataset.tab === cur)); } };
+  if ((S.v === 4 || S.v === 5) && !top && !S.q) sc.onscroll = () => { const secs = [...sc.querySelectorAll('[data-sec]')]; let cur = secs[0].dataset.sec; for (const s of secs) if (s.offsetTop - (S.v === 5 ? 160 : 120) <= sc.scrollTop) cur = s.dataset.sec; if (cur !== S.tab) { S.tab = cur; sc.querySelectorAll('.tabs span').forEach(x => x.classList.toggle('on', x.dataset.tab === cur)); } };
 }
 let tt;
 function toast(t) { S.toast = t; clearTimeout(tt); tt = setTimeout(() => { S.toast = null; render(); }, 1700); }
 document.addEventListener('click', e => {
-  const el = e.target.closest('[data-v],[data-k],[data-set],[data-close],[data-back],[data-feat],[data-clear],[data-tab],[data-pick]');
+  const el = e.target.closest('[data-v],[data-k],[data-set],[data-close],[data-back],[data-feat],[data-clear],[data-tab],[data-pick],[data-from],[data-goto]');
   if (!el) return; const d = el.dataset; let keep = true;
-  if (d.v) { S.v = +d.v; S.stack = []; S.q = ''; S.menu = null; keep = false; S.back = false; }
+  if (d.from) { S.from = d.from; S.v = 5; S.stack = []; S.q = ''; S.tab = d.from; render(false); scrollToSec(d.from, false); toast('從' + FROM.find(f => f[0] === d.from)[1] + '點齒輪 → 直接跳到這段'); return; }
+  if (d.goto) { const i = find(d.goto); S.q = ''; S.tab = i.g.id; render(); scrollToRow(d.goto); if (i.g.id === 'lock') toast('改密碼前要先輸入舊密碼'); return; }
+  if (d.k && d.k === 'pw' && S.v === 5 && S.from !== 'lock') { toast('先輸入目前的密碼（不是從日記／負債進來）'); return; }
+  if (d.v) { S.v = +d.v; S.stack = []; S.q = ''; S.menu = null; keep = false; S.back = false; if (S.v === 5) { S.tab = S.from; render(false); scrollToSec(S.from, false); return; } }
   else if (d.set) { S.vals[d.set] = d.val; S.menu = null; toast(`${find(d.set).label}：${d.val}（已同步）`); }
   else if (d.k) { const before = S.stack.length; tap(d.k, el); if (S.stack.length !== before) keep = false; }
   else if (d.close !== undefined) S.menu = null;
@@ -253,8 +284,11 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('compositionend', e => { if (e.target.matches('[data-q]')) { S.q = e.target.value.trim(); S.focusQ = true; render(); S.focusQ = false; } });
 document.addEventListener('input', e => { if (e.target.matches('[data-q]') && !e.isComposing) { S.q = e.target.value.trim(); S.focusQ = true; render(); S.focusQ = false; } });
-if (/^#[1-5]$/.test(location.hash)) S.v = +location.hash[1] - 1;
+if (/^#[1-6]$/.test(location.hash)) S.v = +location.hash[1] - 1;
+else S.v = 5; // 打開先看最終版
+if (S.v === 5) S.tab = S.from;
 render();
+if (S.v === 5) scrollToSec(S.from, false);
 </script>
 </body>
 </html>

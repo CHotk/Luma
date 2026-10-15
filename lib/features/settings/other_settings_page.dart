@@ -15,12 +15,10 @@ import '../../data/repositories/yt_stats_refresh_setting_store.dart';
 import '../../data/repositories/nav_bar_prefs_store.dart';
 import '../../data/repositories/yt_display_prefs_store.dart';
 import '../../data/repositories/yt_video_open_mode_store.dart';
-import '../../shared/widgets/ambient_background.dart';
-import '../../shared/widgets/app_confirm_dialog.dart';
 import '../../shared/widgets/app_notice.dart';
-import '../../shared/widgets/app_side_drawer.dart';
-import '../../shared/widgets/app_top_bar.dart';
 import '../../shared/widgets/glass_card.dart';
+import 'settings_page.dart' show AppLogoSettingsCard;
+import 'settings_anchor.dart';
 import '../crypto_watch/trade_ui.dart' show oneDecimalInput, round1;
 import '../yt_tracker/yt_api_key_dialog.dart';
 import '../yt_tracker/yt_playlist_actions.dart';
@@ -29,178 +27,103 @@ import '../yt_tracker/yt_tracker_browse_page.dart'
 import '../yt_tracker/yt_tracker_home_page.dart' show showYtExportDialog;
 import '../yt_tracker/yt_type_backfill.dart';
 
-/// 英文學習以外的功能（日記、健身、YT、日文…）點齒輪來到的設定頁。
-/// [fromLocation] 是點齒輪那一刻所在的路徑（見 `open_settings.dart`），
-/// 用來決定要顯示哪個功能專屬的設定項目——目前只有 YT 頻道追蹤有
-/// （API 金鑰、匯出分類／頻道，2026-09-29 使用者要求從頂部列的按鈕
-/// 移進齒輪，原本那排按鈕太擠），其他功能還沒有設定項目就照舊留白。
-class OtherSettingsPage extends ConsumerWidget {
-  const OtherSettingsPage({super.key, this.fromLocation});
-
-  final String? fromLocation;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final isYtTracker =
-        (fromLocation?.startsWith('/yt-tracker') ?? false) ||
-        (fromLocation?.startsWith('/yt-playlists') ?? false);
-    final isDiary = fromLocation?.startsWith('/diary') ?? false;
-    // 負債管理的齒輪也能改密碼，跟日記同一組（2026-10-08 使用者要求：
-    // 在負債改了，日記也跟著改），所以直接用同一個設定區塊。
-    final isDebt = fromLocation?.startsWith('/debt') ?? false;
-    final isAppHome = fromLocation == '/start';
-    final isTrade = fromLocation?.startsWith('/crypto-watch') ?? false;
-    final isJp = const [
-      '/jp',
-      '/kana',
-    ].any((p) => fromLocation?.startsWith(p) ?? false);
-    // 訂閱人數更新頻率調了但還沒按儲存，按上一頁要提醒（2026-09-29
-    // 使用者要求），不然改動白調了。只有在 YT 設定頁才需要看這個旗標。
-    final hasUnsaved = isYtTracker && ref.watch(ytStatsRefreshDirtyProvider);
-    return PopScope(
-      canPop: !hasUnsaved,
-      onPopInvokedWithResult: (didPop, result) async {
-        if (didPop) return;
-        final leave = await showAppConfirmDialog(
-          context,
-          title: '還沒儲存',
-          message: '訂閱人數更新頻率調整了但還沒按儲存，確定要離開嗎？',
-          confirmLabel: '不儲存，離開',
-          cancelLabel: '留下繼續調',
-        );
-        if (leave && context.mounted) {
-          ref.read(ytStatsRefreshDirtyProvider.notifier).state = false;
-          Navigator.of(context).pop();
-        }
-      },
-      child: Scaffold(
-        drawer: const AppSideDrawer(),
-        body: AmbientBackground(
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: Gap.screenSide),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const SizedBox(height: Gap.sm),
-                  const AppTopBar(title: '設定', showSettings: false),
-                  const SizedBox(height: Gap.md),
-                  Expanded(
-                    child: isYtTracker
-                        ? const _YtTrackerSettings()
-                        : isDiary
-                        ? const _DiarySettings(title: '日記')
-                        : isDebt
-                        ? const _DiarySettings(title: '負債管理')
-                        : isJp
-                        ? const _JpSettings()
-                        : isAppHome
-                        ? const _AppHomeSettings()
-                        : isTrade
-                        ? const _TradeSettings()
-                        : Center(
-                            child: Text('這個功能還沒有設定項目', style: AppText.bodyDim),
-                          ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 /// App 首頁的設定：首頁樣式（2026-10-05 使用者要求：今日儀表板當預設，
 /// 這裡可以切回原本的圖示格）。
-class _AppHomeSettings extends ConsumerWidget {
-  const _AppHomeSettings();
+class AppHomeSettingsSection extends ConsumerWidget {
+  const AppHomeSettingsSection({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final style = ref.watch(appHomeStyleProvider);
-    return ListView(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('首頁', style: AppText.note),
-        const SizedBox(height: Gap.sm),
-        GlassCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                '首頁樣式',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.ink,
-                ),
-              ),
-              Text(
-                style == AppHomeStyle.dashboard
-                    ? '打開就看到各功能今天的狀態，點卡片進去'
-                    : '像手機桌面，每個功能一格圖示',
-                style: AppText.note,
-              ),
-              const SizedBox(height: Gap.sm),
-              SegmentedButton<AppHomeStyle>(
-                // 順序：圖示格在前（預設）、儀表板在後（2026-10-06 使用者要求）。
-                segments: const [
-                  ButtonSegment(value: AppHomeStyle.grid, label: Text('圖示格')),
-                  ButtonSegment(
-                    value: AppHomeStyle.dashboard,
-                    label: Text('今日儀表板'),
+        SettingAnchor(
+          id: 'app.home',
+          child: GlassCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '首頁樣式',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.ink,
                   ),
-                ],
-                selected: {style},
-                showSelectedIcon: false,
-                onSelectionChanged: (s) async {
-                  ref.read(appHomeStyleProvider.notifier).state = s.first;
-                  await AppHomeStyleStore(
-                    ref.read(keyValueStoreProvider),
-                  ).save(s.first);
-                },
-              ),
-            ],
+                ),
+                Text(
+                  style == AppHomeStyle.dashboard
+                      ? '打開就看到各功能今天的狀態，點卡片進去'
+                      : '像手機桌面，每個功能一格圖示',
+                  style: AppText.note,
+                ),
+                const SizedBox(height: Gap.sm),
+                SegmentedButton<AppHomeStyle>(
+                  // 順序：圖示格在前（預設）、儀表板在後（2026-10-06 使用者要求）。
+                  segments: const [
+                    ButtonSegment(value: AppHomeStyle.grid, label: Text('圖示格')),
+                    ButtonSegment(
+                      value: AppHomeStyle.dashboard,
+                      label: Text('今日儀表板'),
+                    ),
+                  ],
+                  selected: {style},
+                  showSelectedIcon: false,
+                  onSelectionChanged: (s) async {
+                    ref.read(appHomeStyleProvider.notifier).state = s.first;
+                    await AppHomeStyleStore(
+                      ref.read(keyValueStoreProvider),
+                    ).save(s.first);
+                  },
+                ),
+              ],
+            ),
           ),
         ),
         const SizedBox(height: Gap.sm),
-        const _NavBarModeCard(),
+        const SettingAnchor(id: 'app.bar', child: _NavBarModeCard()),
         const SizedBox(height: Gap.sm),
         // 圖示格的功能順序（2026-10-06 使用者要求：像 YT 分類順序那樣，
         // 在設定裡拖曳調整）。
-        GlassCard(
-          child: Row(
-            children: [
-              const Icon(
-                Icons.reorder_rounded,
-                size: 18,
-                color: AppColors.ink2,
-              ),
-              const SizedBox(width: Gap.sm),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      '功能順序',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.ink,
-                      ),
-                    ),
-                    Text('圖示格裡每個功能的先後', style: AppText.note),
-                  ],
+        SettingAnchor(
+          id: 'app.order',
+          child: GlassCard(
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.reorder_rounded,
+                  size: 18,
+                  color: AppColors.ink2,
                 ),
-              ),
-              TextButton(
-                onPressed: () => context.push('/home-card-order/app'),
-                child: const Text('調整'),
-              ),
-            ],
+                const SizedBox(width: Gap.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        '功能順序',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.ink,
+                        ),
+                      ),
+                      Text('圖示格裡每個功能的先後', style: AppText.note),
+                    ],
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => context.push('/home-card-order/app'),
+                  child: const Text('調整'),
+                ),
+              ],
+            ),
           ),
         ),
+        // App Logo 原本在英文學習的設定裡，它是整個 App 的，搬到一般。
+        const SizedBox(height: Gap.sm),
+        const SettingAnchor(id: 'app.logo', child: AppLogoSettingsCard()),
       ],
     );
   }
@@ -208,14 +131,15 @@ class _AppHomeSettings extends ConsumerWidget {
 
 /// 交易&自律的設定（2026-10-10 使用者要求）：USDT 換台幣的匯率，預設 31。
 /// 改完各頁的「≈ NT$」馬上跟著變，按同步會帶到其他裝置。
-class _TradeSettings extends ConsumerStatefulWidget {
-  const _TradeSettings();
+class TradeSettingsSection extends ConsumerStatefulWidget {
+  const TradeSettingsSection({super.key});
 
   @override
-  ConsumerState<_TradeSettings> createState() => _TradeSettingsState();
+  ConsumerState<TradeSettingsSection> createState() =>
+      _TradeSettingsSectionState();
 }
 
-class _TradeSettingsState extends ConsumerState<_TradeSettings> {
+class _TradeSettingsSectionState extends ConsumerState<TradeSettingsSection> {
   late final _ctrl = TextEditingController(
     text: _fmt(ref.read(usdtTwdRateProvider)),
   )..addListener(() => setState(() {}));
@@ -248,152 +172,154 @@ class _TradeSettingsState extends ConsumerState<_TradeSettings> {
   Widget build(BuildContext context) {
     final saved = ref.watch(usdtTwdRateProvider);
     final v = _value;
-    return ListView(
-      children: [
-        Text('交易&自律', style: AppText.note),
-        const SizedBox(height: Gap.sm),
-        GlassCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'USDT 換台幣匯率',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.ink,
+    return SettingAnchor(
+      id: 'trade.rate',
+      child: GlassCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'USDT 換台幣匯率',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: AppColors.ink,
+              ),
+            ),
+            Text(
+              'USDT 金額後面會加上「≈ NT\$」換算，預設 '
+              '${_fmt(UsdtTwdRateStore.defaultRate)}・同步時會帶到其他裝置',
+              style: AppText.note,
+            ),
+            const SizedBox(height: Gap.sm),
+            Row(
+              children: [
+                const Text(
+                  '1 USDT ＝',
+                  style: TextStyle(fontSize: 14, color: AppColors.ink2),
                 ),
-              ),
-              Text(
-                'USDT 金額後面會加上「≈ NT\$」換算，預設 '
-                '${_fmt(UsdtTwdRateStore.defaultRate)}・同步時會帶到其他裝置',
-                style: AppText.note,
-              ),
-              const SizedBox(height: Gap.sm),
-              Row(
-                children: [
-                  const Text(
-                    '1 USDT ＝',
-                    style: TextStyle(fontSize: 14, color: AppColors.ink2),
-                  ),
-                  const SizedBox(width: Gap.sm),
-                  Expanded(
-                    child: TextField(
-                      controller: _ctrl,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      // 跟交易功能其他數字一樣最多小數第一位。
-                      inputFormatters: oneDecimalInput,
-                      decoration: InputDecoration(
-                        suffixText: '台幣',
-                        isDense: true,
-                        errorText: _ctrl.text.trim().isNotEmpty && v == null
-                            ? '要大於 0 的數字'
-                            : null,
-                      ),
-                      onSubmitted: (_) {
-                        if (v != null) _save(v);
-                      },
+                const SizedBox(width: Gap.sm),
+                Expanded(
+                  child: TextField(
+                    controller: _ctrl,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
                     ),
+                    // 跟交易功能其他數字一樣最多小數第一位。
+                    inputFormatters: oneDecimalInput,
+                    decoration: InputDecoration(
+                      suffixText: '台幣',
+                      isDense: true,
+                      errorText: _ctrl.text.trim().isNotEmpty && v == null
+                          ? '要大於 0 的數字'
+                          : null,
+                    ),
+                    onSubmitted: (_) {
+                      if (v != null) _save(v);
+                    },
                   ),
-                  const SizedBox(width: Gap.sm),
-                  FilledButton(
-                    onPressed: v == null || v == saved ? null : () => _save(v),
-                    child: const Text('儲存'),
-                  ),
-                ],
-              ),
-              if (saved != UsdtTwdRateStore.defaultRate)
-                TextButton(
-                  onPressed: () {
-                    _ctrl.text = _fmt(UsdtTwdRateStore.defaultRate);
-                    _save(UsdtTwdRateStore.defaultRate);
-                  },
-                  child: Text('改回預設 ${_fmt(UsdtTwdRateStore.defaultRate)}'),
                 ),
-            ],
-          ),
+                const SizedBox(width: Gap.sm),
+                FilledButton(
+                  onPressed: v == null || v == saved ? null : () => _save(v),
+                  child: const Text('儲存'),
+                ),
+              ],
+            ),
+            if (saved != UsdtTwdRateStore.defaultRate)
+              TextButton(
+                onPressed: () {
+                  _ctrl.text = _fmt(UsdtTwdRateStore.defaultRate);
+                  _save(UsdtTwdRateStore.defaultRate);
+                },
+                child: Text('改回預設 ${_fmt(UsdtTwdRateStore.defaultRate)}'),
+              ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
 
 /// 日文的設定（2026-10-05 使用者要求：首頁「今天進度」那一圈預設隱藏，
 /// 在這裡打開）。
-class _JpSettings extends ConsumerWidget {
-  const _JpSettings();
+class JpSettingsSection extends ConsumerWidget {
+  const JpSettingsSection({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final showRing = ref.watch(jpShowProgressRingProvider);
-    return ListView(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('日文', style: AppText.note),
-        const SizedBox(height: Gap.sm),
-        GlassCard(
-          child: Row(
-            children: [
-              const Icon(
-                Icons.donut_large_rounded,
-                size: 18,
-                color: AppColors.ink2,
-              ),
-              const SizedBox(width: Gap.sm),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      '首頁顯示今天進度圈',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.ink,
-                      ),
-                    ),
-                    Text('今天練了幾題／幾分鐘的那一圈', style: AppText.note),
-                  ],
+        SettingAnchor(
+          id: 'jp.ring',
+          child: GlassCard(
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.donut_large_rounded,
+                  size: 18,
+                  color: AppColors.ink2,
                 ),
-              ),
-              Switch(
-                value: showRing,
-                onChanged: (v) async {
-                  ref.read(jpShowProgressRingProvider.notifier).state = v;
-                  await JpHomeRingStore(
-                    ref.read(keyValueStoreProvider),
-                  ).save(v);
-                },
-              ),
-            ],
+                const SizedBox(width: Gap.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        '首頁顯示今天進度圈',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.ink,
+                        ),
+                      ),
+                      Text('今天練了幾題／幾分鐘的那一圈', style: AppText.note),
+                    ],
+                  ),
+                ),
+                Switch(
+                  value: showRing,
+                  onChanged: (v) async {
+                    ref.read(jpShowProgressRingProvider.notifier).state = v;
+                    await JpHomeRingStore(
+                      ref.read(keyValueStoreProvider),
+                    ).save(v);
+                  },
+                ),
+              ],
+            ),
           ),
         ),
         const SizedBox(height: Gap.sm),
-        GlassCard(
-          child: Row(
-            children: [
-              const Icon(
-                Icons.reorder_rounded,
-                size: 18,
-                color: AppColors.ink2,
-              ),
-              const SizedBox(width: Gap.sm),
-              const Expanded(
-                child: Text(
-                  '首頁卡片順序',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.ink,
+        SettingAnchor(
+          id: 'jp.order',
+          child: GlassCard(
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.reorder_rounded,
+                  size: 18,
+                  color: AppColors.ink2,
+                ),
+                const SizedBox(width: Gap.sm),
+                const Expanded(
+                  child: Text(
+                    '首頁卡片順序',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.ink,
+                    ),
                   ),
                 ),
-              ),
-              TextButton(
-                onPressed: () => context.push('/home-card-order/jp'),
-                child: const Text('調整'),
-              ),
-            ],
+                TextButton(
+                  onPressed: () => context.push('/home-card-order/jp'),
+                  child: const Text('調整'),
+                ),
+              ],
+            ),
           ),
         ),
       ],
@@ -401,25 +327,27 @@ class _JpSettings extends ConsumerWidget {
   }
 }
 
-class _YtTrackerSettings extends ConsumerWidget {
-  const _YtTrackerSettings();
+class YtSettingsSection extends ConsumerWidget {
+  const YtSettingsSection({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final hasKey = (ref.watch(ytApiKeyProvider) ?? '').isNotEmpty;
-    return ListView(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('YT 頻道追蹤', style: AppText.note),
-        const SizedBox(height: Gap.sm),
         // 底部分頁列放最上面（2026-10-14 使用者回報：在 YT 設定找不到
-        // 「影片」要開哪個頻道）。顯示方式跟首頁設定那張是同一份。
-        const _NavBarModeCard(),
+        // 「影片」要開哪個頻道）。顯示方式跟「一般」那張是同一份。
+        const SettingAnchor(id: 'yt.bar', child: _NavBarModeCard()),
         const SizedBox(height: Gap.sm),
-        GlassCard(
-          child: Consumer(
-            builder: (context, ref, _) => _VideoTabChannelRow(
-              channelId: ref.watch(
-                ytDisplayPrefsProvider.select((p) => p.videoTabChannelId),
+        SettingAnchor(
+          id: 'yt.videoTab',
+          child: GlassCard(
+            child: Consumer(
+              builder: (context, ref, _) => _VideoTabChannelRow(
+                channelId: ref.watch(
+                  ytDisplayPrefsProvider.select((p) => p.videoTabChannelId),
+                ),
               ),
             ),
           ),
@@ -429,121 +357,140 @@ class _YtTrackerSettings extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Icon(
-                    hasKey ? Icons.vpn_key : Icons.vpn_key_outlined,
-                    size: 18,
-                    color: hasKey ? AppColors.ok : AppColors.ink2,
-                  ),
-                  const SizedBox(width: Gap.sm),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'YouTube API 金鑰',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.ink,
+              SettingAnchor(
+                id: 'yt.key',
+                child: Row(
+                  children: [
+                    Icon(
+                      hasKey ? Icons.vpn_key : Icons.vpn_key_outlined,
+                      size: 18,
+                      color: hasKey ? AppColors.ok : AppColors.ink2,
+                    ),
+                    const SizedBox(width: Gap.sm),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'YouTube API 金鑰',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.ink,
+                            ),
                           ),
+                          Text(hasKey ? '已儲存' : '還沒設定', style: AppText.note),
+                        ],
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => showYtApiKeyDialog(context, ref),
+                      child: const Text('設定'),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: Gap.lg, color: AppColors.glassEdge),
+              SettingAnchor(
+                id: 'yt.export',
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.ios_share_rounded,
+                      size: 18,
+                      color: AppColors.ink2,
+                    ),
+                    const SizedBox(width: Gap.sm),
+                    const Expanded(
+                      child: Text(
+                        '匯出分類／頻道',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.ink,
                         ),
-                        Text(hasKey ? '已儲存' : '還沒設定', style: AppText.note),
-                      ],
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () => showYtApiKeyDialog(context, ref),
-                    child: const Text('設定'),
-                  ),
-                ],
-              ),
-              const Divider(height: Gap.lg, color: AppColors.glassEdge),
-              Row(
-                children: [
-                  const Icon(
-                    Icons.ios_share_rounded,
-                    size: 18,
-                    color: AppColors.ink2,
-                  ),
-                  const SizedBox(width: Gap.sm),
-                  const Expanded(
-                    child: Text(
-                      '匯出分類／頻道',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.ink,
                       ),
                     ),
-                  ),
-                  TextButton(
-                    onPressed: () => showYtExportDialog(context, ref),
-                    child: const Text('匯出'),
-                  ),
-                ],
+                    TextButton(
+                      onPressed: () => showYtExportDialog(context, ref),
+                      child: const Text('匯出'),
+                    ),
+                  ],
+                ),
               ),
               const Divider(height: Gap.lg, color: AppColors.glassEdge),
-              Row(
-                children: [
-                  const Icon(
-                    Icons.reorder_rounded,
-                    size: 18,
-                    color: AppColors.ink2,
-                  ),
-                  const SizedBox(width: Gap.sm),
-                  const Expanded(
-                    child: Text(
-                      '分類顯示順序',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.ink,
+              SettingAnchor(
+                id: 'yt.catOrder',
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.reorder_rounded,
+                      size: 18,
+                      color: AppColors.ink2,
+                    ),
+                    const SizedBox(width: Gap.sm),
+                    const Expanded(
+                      child: Text(
+                        '分類顯示順序',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.ink,
+                        ),
                       ),
                     ),
-                  ),
-                  TextButton(
-                    onPressed: () => context.push('/yt-tracker/category-order'),
-                    child: const Text('調整'),
-                  ),
-                ],
+                    TextButton(
+                      onPressed: () =>
+                          context.push('/yt-tracker/category-order'),
+                      child: const Text('調整'),
+                    ),
+                  ],
+                ),
               ),
               const Divider(height: Gap.lg, color: AppColors.glassEdge),
-              const YtTypeBackfillRow(),
+              const SettingAnchor(
+                id: 'yt.backfill',
+                child: YtTypeBackfillRow(),
+              ),
               const Divider(height: Gap.lg, color: AppColors.glassEdge),
-              const _StatsRefreshRow(),
+              const SettingAnchor(id: 'yt.stats', child: _StatsRefreshRow()),
               const Divider(height: Gap.lg, color: AppColors.glassEdge),
-              const _VideoOpenModeRow(),
-              const _EmbedPlayerStyleRow(),
+              const SettingAnchor(id: 'yt.open', child: _VideoOpenModeRow()),
+              const SettingAnchor(
+                id: 'yt.player',
+                child: _EmbedPlayerStyleRow(),
+              ),
               const Divider(height: Gap.lg, color: AppColors.glassEdge),
               const _YtDisplayPrefsRows(),
               const Divider(height: Gap.lg, color: AppColors.glassEdge),
               // 永久刪除的頻道清單（2026-10-06 使用者要求：放設定裡，想看
               // 刪了哪些可以點開；放最下面）。
-              Row(
-                children: [
-                  const Icon(
-                    Icons.delete_forever_outlined,
-                    size: 18,
-                    color: AppColors.ink2,
-                  ),
-                  const SizedBox(width: Gap.sm),
-                  const Expanded(
-                    child: Text(
-                      '永久刪除的頻道',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.ink,
+              SettingAnchor(
+                id: 'yt.purged',
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.delete_forever_outlined,
+                      size: 18,
+                      color: AppColors.ink2,
+                    ),
+                    const SizedBox(width: Gap.sm),
+                    const Expanded(
+                      child: Text(
+                        '永久刪除的頻道',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.ink,
+                        ),
                       ),
                     ),
-                  ),
-                  TextButton(
-                    onPressed: () => context.push('/yt-tracker/purged'),
-                    child: const Text('查看'),
-                  ),
-                ],
+                    TextButton(
+                      onPressed: () => context.push('/yt-tracker/purged'),
+                      child: const Text('查看'),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -558,17 +505,56 @@ class _YtTrackerSettings extends ConsumerWidget {
 /// （見 `r2_sync_section.dart` 把 `syncDiaryPassword` 併進「日記」那個
 /// 同步任務）。這頁本身要先過日記的密碼鎖才進得來（齒輪在日記解鎖後的
 /// 頂部列），不用在這裡再驗證一次目前密碼。
-class _DiarySettings extends ConsumerWidget {
-  const _DiarySettings({required this.title});
+class LockSettingsSection extends ConsumerWidget {
+  const LockSettingsSection({super.key, this.askCurrent = false});
 
-  /// 區塊標題：從日記進來寫「日記」、從負債管理進來寫「負債管理」，
-  /// 改的都是同一組密碼。
-  final String title;
+  /// 設定全部在同一頁以後（2026-10-15），不是從日記／負債（已經過密碼
+  /// 鎖）點齒輪進來的，改密碼前要先輸入目前的密碼，不然誰都改得掉。
+  final bool askCurrent;
+
+  Future<bool> _checkCurrent(BuildContext context, WidgetRef ref) async {
+    final controller = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A24),
+        title: const Text('先輸入目前的密碼', style: TextStyle(color: AppColors.ink)),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          obscureText: true,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(labelText: '目前的密碼'),
+          style: const TextStyle(color: AppColors.ink),
+          onSubmitted: (_) => Navigator.pop(dialogContext, true),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('下一步'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return false;
+    final current = await DiaryPasswordStore(
+      ref.read(keyValueStoreProvider),
+    ).loadPassword();
+    if (controller.text.trim() == current) return true;
+    if (context.mounted) showAppNotice(context, '密碼不對', isError: true);
+    return false;
+  }
 
   Future<void> _showChangePasswordDialog(
     BuildContext context,
     WidgetRef ref,
   ) async {
+    if (askCurrent && !await _checkCurrent(context, ref)) return;
+    if (!context.mounted) return;
     final controller = TextEditingController();
     final saved = await showDialog<bool>(
       context: context,
@@ -609,39 +595,79 @@ class _DiarySettings extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return ListView(
-      children: [
-        Text(title, style: AppText.note),
-        const SizedBox(height: Gap.sm),
-        GlassCard(
-          child: Row(
-            children: [
-              const Icon(
-                Icons.lock_outline_rounded,
-                size: 18,
-                color: AppColors.ink2,
+    return SettingAnchor(
+      id: 'lock.pw',
+      child: GlassCard(
+        child: Row(
+          children: [
+            const Icon(
+              Icons.lock_outline_rounded,
+              size: 18,
+              color: AppColors.ink2,
+            ),
+            const SizedBox(width: Gap.sm),
+            const Expanded(
+              child: Text(
+                '日記／負債密碼',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.ink,
+                ),
               ),
-              const SizedBox(width: Gap.sm),
-              const Expanded(
-                child: Text(
-                  '日記／負債密碼',
+            ),
+            TextButton(
+              onPressed: () => _showChangePasswordDialog(context, ref),
+              child: const Text('變更'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 雲端同步那段：同步本身（R2 帳號、立即同步、同步紀錄）在同步頁，這裡
+/// 放一列連過去，搜尋「同步」也找得到。
+class SyncSettingsSection extends StatelessWidget {
+  const SyncSettingsSection({super.key});
+
+  @override
+  Widget build(BuildContext context) => SettingAnchor(
+    id: 'sync.page',
+    child: GlassCard(
+      child: Row(
+        children: [
+          const Icon(
+            Icons.cloud_sync_outlined,
+            size: 18,
+            color: AppColors.ink2,
+          ),
+          const SizedBox(width: Gap.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '多裝置同步',
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
                     color: AppColors.ink,
                   ),
                 ),
-              ),
-              TextButton(
-                onPressed: () => _showChangePasswordDialog(context, ref),
-                child: const Text('變更'),
-              ),
-            ],
+                Text('R2 帳號、立即同步、同步紀錄', style: AppText.note),
+              ],
+            ),
           ),
-        ),
-      ],
-    );
-  }
+          TextButton(
+            onPressed: () => context.push('/sync'),
+            child: const Text('開啟'),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 /// 訂閱人數多久重新問一次 API，這裡調（2026-09-29 使用者要求：原本寫死
@@ -899,30 +925,33 @@ class _YtDisplayPrefsRows extends ConsumerWidget {
       String note,
       bool value,
       ValueChanged<bool> onChanged,
-    ) => Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: AppColors.ink2),
-          const SizedBox(width: Gap.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.ink,
+    ) => SettingAnchor(
+      id: 'yt:$title',
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: AppColors.ink2),
+            const SizedBox(width: Gap.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.ink,
+                    ),
                   ),
-                ),
-                Text(note, style: AppText.note),
-              ],
+                  Text(note, style: AppText.note),
+                ],
+              ),
             ),
-          ),
-          Switch(value: value, onChanged: onChanged),
-        ],
+            Switch(value: value, onChanged: onChanged),
+          ],
+        ),
       ),
     );
 
@@ -979,70 +1008,73 @@ class _YtDisplayPrefsRows extends ConsumerWidget {
           (v) => update(prefs.copyWith(searchShowAll: v)),
         ),
         // 影片下架檢查多久一次（2026-10-12 使用者要求：設定可調、跨裝置同步）。
-        Padding(
-          padding: const EdgeInsets.only(top: 6),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Padding(
-                padding: EdgeInsets.only(top: 2),
-                child: Icon(
-                  Icons.playlist_remove_rounded,
-                  size: 18,
-                  color: AppColors.ink2,
+        SettingAnchor(
+          id: 'yt.removed',
+          child: Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.only(top: 2),
+                  child: Icon(
+                    Icons.playlist_remove_rounded,
+                    size: 18,
+                    color: AppColors.ink2,
+                  ),
                 ),
-              ),
-              const SizedBox(width: Gap.sm),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      '影片下架檢查',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.ink,
+                const SizedBox(width: Gap.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        '影片下架檢查',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.ink,
+                        ),
                       ),
-                    ),
-                    Text(
-                      prefs.removedCheckDays <= 0
-                          ? '不檢查，已下架的影片不會被標出來'
-                          : '打開頻道時，超過這麼久沒查就問 YouTube 哪些影片被刪或改私人',
-                      style: AppText.note,
-                    ),
-                    const SizedBox(height: Gap.xs),
-                    SegmentedButton<int>(
-                      segments: [
-                        for (final d in YtDisplayPrefs.removedCheckChoices)
-                          ButtonSegment(
-                            value: d,
-                            label: Text(switch (d) {
-                              0 => '不檢查',
-                              7 => '一週',
-                              14 => '兩週',
-                              30 => '一個月',
-                              _ => '$d 天',
-                            }),
-                          ),
-                      ],
-                      selected: {prefs.removedCheckDays},
-                      showSelectedIcon: false,
-                      onSelectionChanged: (s) =>
-                          update(prefs.copyWith(removedCheckDays: s.first)),
-                      style: SegmentedButton.styleFrom(
-                        backgroundColor: AppColors.glassFill,
-                        foregroundColor: AppColors.ink2,
-                        selectedBackgroundColor: AppColors.accentSolid
-                            .withValues(alpha: 0.28),
-                        selectedForegroundColor: AppColors.ink,
-                        visualDensity: VisualDensity.compact,
+                      Text(
+                        prefs.removedCheckDays <= 0
+                            ? '不檢查，已下架的影片不會被標出來'
+                            : '打開頻道時，超過這麼久沒查就問 YouTube 哪些影片被刪或改私人',
+                        style: AppText.note,
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: Gap.xs),
+                      SegmentedButton<int>(
+                        segments: [
+                          for (final d in YtDisplayPrefs.removedCheckChoices)
+                            ButtonSegment(
+                              value: d,
+                              label: Text(switch (d) {
+                                0 => '不檢查',
+                                7 => '一週',
+                                14 => '兩週',
+                                30 => '一個月',
+                                _ => '$d 天',
+                              }),
+                            ),
+                        ],
+                        selected: {prefs.removedCheckDays},
+                        showSelectedIcon: false,
+                        onSelectionChanged: (s) =>
+                            update(prefs.copyWith(removedCheckDays: s.first)),
+                        style: SegmentedButton.styleFrom(
+                          backgroundColor: AppColors.glassFill,
+                          foregroundColor: AppColors.ink2,
+                          selectedBackgroundColor: AppColors.accentSolid
+                              .withValues(alpha: 0.28),
+                          selectedForegroundColor: AppColors.ink,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ],

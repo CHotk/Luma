@@ -39,8 +39,7 @@ import '../features/quiz/quiz_page.dart';
 import '../features/result/result_page.dart';
 import '../features/settings/debug_log_page.dart';
 import '../features/settings/home_card_order_page.dart';
-import '../features/settings/other_settings_page.dart';
-import '../features/settings/settings_page.dart';
+import '../features/settings/all_settings_page.dart';
 import '../features/splash/splash_page.dart';
 import '../features/sync/sync_log_page.dart';
 import '../features/sync/sync_page.dart';
@@ -235,11 +234,17 @@ final appRouter = GoRouter(
     ),
     GoRoute(path: '/mastered', builder: (_, _) => const MasteredPage()),
     GoRoute(path: '/notes', builder: (_, _) => const NotesPage()),
-    GoRoute(path: '/settings', builder: (_, _) => const SettingsPage()),
+    // 全部功能的設定在同一頁（2026-10-15）：帶著點齒輪那頁的路徑，先跳到那段。
+    GoRoute(
+      path: '/settings',
+      builder: (_, state) =>
+          AllSettingsPage(fromLocation: state.extra as String?),
+    ),
+    // 舊路徑，留著當別名。
     GoRoute(
       path: '/settings/other',
       builder: (_, state) =>
-          OtherSettingsPage(fromLocation: state.extra as String?),
+          AllSettingsPage(fromLocation: state.extra as String?),
     ),
     // 英文／日文首頁卡片順序（2026-10-05 使用者要求）。
     GoRoute(

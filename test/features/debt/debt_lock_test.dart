@@ -5,7 +5,7 @@ import 'package:lume/app/providers.dart';
 import 'package:lume/data/repositories/diary_password_store.dart';
 import 'package:lume/data/storage/key_value_store.dart';
 import 'package:lume/features/debt/debt_lock.dart';
-import 'package:lume/features/settings/other_settings_page.dart';
+import 'package:lume/features/settings/all_settings_page.dart';
 
 /// 負債管理要密碼才能開，密碼跟日記同一組（改日記密碼，負債也跟著變）。
 void main() {
@@ -60,17 +60,21 @@ void main() {
       ProviderScope(
         overrides: [keyValueStoreProvider.overrideWithValue(store)],
         child: const MaterialApp(
-          home: OtherSettingsPage(fromLocation: '/debt'),
+          home: AllSettingsPage(fromLocation: '/debt'),
         ),
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('負債管理'), findsOneWidget);
+    expect(find.text('日記／負債'), findsWidgets);
     expect(find.text('日記／負債密碼'), findsOneWidget);
     await tester.tap(find.text('變更'));
     await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField), '1357');
-    await tester.tap(find.text('儲存'));
+    final dialog = find.byType(AlertDialog);
+    await tester.enterText(
+      find.descendant(of: dialog, matching: find.byType(TextField)),
+      '1357',
+    );
+    await tester.tap(find.descendant(of: dialog, matching: find.text('儲存')));
     await tester.pumpAndSettle();
     expect(await DiaryPasswordStore(store).loadPassword(), '1357');
   });
