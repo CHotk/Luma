@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>日文點亮進度</title>
+<style>
+  :root { --bg: #0C0C13; --card: #151520; --card2: #1C1C2A; --sheet: #1C1C29; --line: #2A2A3D; --ink: #F3F2F8; --ink2: #A3A2B2; --ink3: #74738A; --sakura: #FF8FB1; --sakura2: #FF2D55; --gold: #FFD36B; --ios: #0A84FF; --green: #30D158; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--ink); min-height: 100vh; font: 14px/1.5 -apple-system, "SF Pro Text", system-ui, "Segoe UI", "Microsoft JhengHei", sans-serif; }
+  .page { max-width: 1140px; margin: 0 auto; padding: 24px 16px 60px; }
+  h1 { font-size: 20px; margin: 0 0 6px; }
+  .lead { color: var(--ink2); font-size: 13px; margin: 0 0 14px; } .lead b { color: var(--ink); }
+  .vtabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+  .vtabs button { border: 1px solid var(--line); background: var(--card); color: var(--ink2); padding: 8px 14px; border-radius: 99px; cursor: pointer; font-size: 13px; }
+  .vtabs button.on { border-color: var(--sakura); color: #fff; background: rgba(255,45,85,.25); }
+  .stage { display: flex; gap: 28px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
+  .notes { flex: 1 1 320px; max-width: 470px; background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 18px 20px; font-size: 13.5px; color: var(--ink2); }
+  .notes h2 { color: var(--ink); font-size: 17px; margin: 0 0 4px; }
+  .notes .tag { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 99px; background: rgba(255,143,177,.15); color: var(--sakura); margin-bottom: 8px; }
+  .notes h3 { color: var(--ink); font-size: 13.5px; margin: 14px 0 4px; }
+  .notes ul { margin: 0; padding-left: 18px; } .notes li { margin: 3px 0; }
+  .notes .try { margin-top: 14px; padding: 10px 12px; border-radius: 12px; background: rgba(255,143,177,.08); border: 1px solid rgba(255,143,177,.25); color: var(--ink); font-size: 12.5px; }
+  .phone { width: 390px; max-width: 100%; height: 820px; flex-shrink: 0; border-radius: 44px; border: 1px solid var(--line); background: #0e0e17; position: relative; overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,.5); user-select: none; }
+  .screen { position: absolute; inset: 0; overflow-y: auto; padding: 44px 0 40px; scrollbar-width: none; }
+  .screen::-webkit-scrollbar { display: none; }
+  .status { position: absolute; top: 0; left: 0; right: 0; height: 40px; display: flex; align-items: center; justify-content: space-between; padding: 0 30px; font-size: 13px; font-weight: 700; z-index: 70; pointer-events: none; }
+  .top { display: flex; align-items: center; gap: 8px; padding: 6px 14px 10px; }
+  .top b { font-size: 18px; flex: 1; }
+  .ib { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; color: var(--ink2); cursor: pointer; font-size: 17px; }
+  .pad { padding: 0 14px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 14px; }
+  .muted { color: var(--ink2); font-size: 12.5px; } .small { color: var(--ink3); font-size: 11.5px; }
+  .seg { display: flex; background: rgba(255,255,255,.07); border-radius: 10px; padding: 2px; }
+  .seg button { flex: 1; border: 0; background: none; color: var(--ink2); padding: 6px 0; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; }
+  .seg button.on { background: #3a3a50; color: #fff; }
+  .bar { height: 8px; border-radius: 99px; background: rgba(255,255,255,.08); overflow: hidden; }
+  .bar i { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--sakura2), var(--gold)); }
+  .btn { display: block; width: 100%; border: 0; border-radius: 14px; padding: 12px; background: var(--sakura2); color: #fff; font-weight: 800; font-size: 15px; cursor: pointer; }
+  .btn.ghost { background: rgba(255,255,255,.08); color: var(--ink); }
+  .sheet-bg { position: absolute; inset: 0; z-index: 80; background: rgba(0,0,0,.5); animation: fade .2s; }
+  .sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 81; background: var(--sheet); border-radius: 24px 24px 0 0; padding: 10px 18px 26px; animation: up .25s cubic-bezier(.2,.9,.3,1); max-height: 86%; overflow-y: auto; }
+  .grab { width: 38px; height: 5px; border-radius: 99px; background: #4a4a5c; margin: 0 auto 12px; }
+  @keyframes up { from { transform: translateY(100%) } } @keyframes fade { from { opacity: 0 } }
+  @keyframes glow { 0%,100% { box-shadow: 0 0 14px rgba(255,211,107,.55) } 50% { box-shadow: 0 0 26px rgba(255,211,107,.9) } }
+  @keyframes pop { 0% { transform: scale(.6); opacity: 0 } 70% { transform: scale(1.15) } 100% { transform: scale(1) } }
+  .kv { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0; }
+  .kv div { background: var(--card2); border-radius: 12px; padding: 9px 10px; } .kv b { display: block; font-size: 16px; }
+  .kchips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+  .kchip { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; font-size: 17px; font-weight: 700; background: var(--card2); border: 1px solid var(--line); }
+  .kchip.bad { border-color: #FF6B6B; color: #FF9A9A; }
+  .toast { position: absolute; left: 50%; top: 70px; transform: translateX(-50%); z-index: 95; background: rgba(30,30,44,.96); border: 1px solid rgba(255,211,107,.6); border-radius: 14px; padding: 10px 16px; font-size: 13.5px; font-weight: 700; animation: pop .35s; white-space: nowrap; }
+  /* 1 主流：關卡路徑 */
+  .path { position: relative; padding: 10px 0 20px; }
+  .node { width: 66px; height: 66px; border-radius: 50%; display: grid; place-items: center; font-size: 24px; font-weight: 900; margin: 0 auto 18px; cursor: pointer; position: relative; background: #2a2a3a; color: var(--ink3); border: 4px solid #3a3a4c; }
+  .node.lit { background: radial-gradient(circle at 35% 30%, #FFE7A8, var(--gold) 60%, #E5A93A); color: #5a3a00; border-color: #FFF0C2; animation: glow 2.4s infinite; }
+  .node.next { background: #3a2333; color: var(--sakura); border-color: var(--sakura2); }
+  .node .lbl { position: absolute; top: 72px; font-size: 11px; color: var(--ink2); font-weight: 700; white-space: nowrap; }
+  /* 2 五十音表點亮 */
+  .gtable { display: grid; grid-template-columns: 34px repeat(5, 1fr); gap: 5px; }
+  .gtable .rl { font-size: 11px; color: var(--ink3); display: grid; place-items: center; cursor: pointer; }
+  .cell { aspect-ratio: 1; border-radius: 10px; display: grid; place-items: center; font-size: 19px; font-weight: 700; background: #1a1a26; color: #4a4a5e; border: 1px solid var(--line); cursor: pointer; transition: .3s; }
+  .cell.lit { background: linear-gradient(160deg, #FFE7A8, var(--gold)); color: #4a2c00; border-color: #FFF0C2; box-shadow: 0 0 12px rgba(255,211,107,.45); }
+  .cell.empty { visibility: hidden; }
+  .rowsel { outline: 2px solid var(--sakura2); outline-offset: 2px; border-radius: 12px; }
+  /* 3 夜空 */
+  .sky { position: relative; height: 470px; margin: 0 14px; border-radius: 22px; overflow: hidden; background: radial-gradient(ellipse at 50% 120%, #2a1f4a, #0b0b1a 70%); border: 1px solid var(--line); }
+  .star { position: absolute; width: 46px; height: 46px; margin: -23px; border-radius: 50%; display: grid; place-items: center; font-weight: 900; font-size: 17px; cursor: pointer; color: #6a6a8a; background: rgba(255,255,255,.04); border: 1px dashed #3a3a5a; }
+  .star.lit { color: #fff; background: radial-gradient(circle, rgba(255,240,190,.95), rgba(255,211,107,.35) 60%, transparent 72%); border: 0; text-shadow: 0 0 8px #fff; }
+  .twinkle { position: absolute; width: 2px; height: 2px; background: #fff; border-radius: 50%; opacity: .5; }
+  /* 4 櫻花樹 */
+  .tree { position: relative; height: 470px; margin: 0 14px; border-radius: 22px; overflow: hidden; background: linear-gradient(#1a1222, #0f0f18); border: 1px solid var(--line); }
+  .bloom { position: absolute; width: 54px; height: 54px; margin: -27px; display: grid; place-items: center; cursor: pointer; font-size: 13px; font-weight: 900; transition: .3s; }
+  .bloom .f { position: absolute; inset: 0; border-radius: 50%; background: #2c2333; border: 2px dashed #4a3a50; }
+  .bloom.lit .f { background: radial-gradient(circle, #fff 0 12%, #FFC2D4 13% 55%, #FF8FB1 56%); border: 0; box-shadow: 0 0 16px rgba(255,143,177,.6); animation: pop .5s; }
+  .bloom span { position: relative; color: #7a6a80; } .bloom.lit span { color: #6a1030; }
+  /* 5 成就牆 */
+  .badges { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .badge { border-radius: 18px; padding: 12px; background: var(--card); border: 1px solid var(--line); cursor: pointer; position: relative; overflow: hidden; }
+  .badge.lit { background: linear-gradient(150deg, rgba(255,211,107,.22), rgba(255,45,85,.12)); border-color: rgba(255,211,107,.55); }
+  .badge .k { font-size: 26px; font-weight: 900; } .badge.lit .k { color: var(--gold); }
+  .badge .st { position: absolute; right: 10px; top: 10px; font-size: 16px; }
+  /* 考試選範圍 */
+  .modes { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .mode { border-radius: 14px; padding: 10px 8px; text-align: center; background: var(--card); border: 1px solid var(--line); cursor: pointer; font-size: 13px; font-weight: 700; color: var(--ink2); }
+  .mode.on { border-color: var(--sakura2); color: #fff; background: rgba(255,45,85,.2); }
+  .mode .s { display: block; font-size: 10.5px; font-weight: 500; color: var(--ink3); margin-top: 2px; }
+  .rpick { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 14px; background: var(--card); border: 1px solid var(--line); margin-bottom: 7px; cursor: pointer; }
+  .rpick .box { width: 22px; height: 22px; border-radius: 7px; border: 2px solid #4a4a5e; display: grid; place-items: center; font-size: 13px; flex-shrink: 0; }
+  .rpick.radio .box { border-radius: 50%; }
+  .rpick.on { border-color: var(--sakura2); } .rpick.on .box { background: var(--sakura2); border-color: var(--sakura2); color: #fff; }
+  .rpick .ks { flex: 1; font-size: 15px; letter-spacing: 2px; }
+  .rpick .lit { font-size: 11px; color: var(--gold); font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>日文學習：點亮進度・五種設計</h1>
+  <p class="lead">規則：考試選<b>「點亮」模式</b>（範圍改成<b>單選</b>，一次只考一行），那一行<b>全部答對（100%）</b>就點亮。點亮的單位是「行」：平假名 あ～わ 10 行＋片假名 10 行，共 20 盞。每一行看得到：點亮日期、從第一次練到點亮花了幾天、手寫練了幾次／多久、考過幾次、最好成績、還錯哪幾個字。<br>每一版都能點某一行看明細、按「去點亮」走到考試選範圍；右上「模擬全對」可以直接看點亮的樣子。</p>
+  <div class="vtabs" id="vtabs"></div>
+  <div class="stage"><div class="phone" id="phone"></div><div class="notes" id="notes"></div></div>
+</div>
+<script>
+const ROWS_H = [['あ', 'あいうえお'], ['か', 'かきくけこ'], ['さ', 'さしすせそ'], ['た', 'たちつてと'], ['な', 'なにぬねの'], ['は', 'はひふへほ'], ['ま', 'まみむめも'], ['や', 'や ゆ よ'], ['ら', 'らりるれろ'], ['わ', 'わ を ん']];
+const ROWS_K = [['ア', 'アイウエオ'], ['カ', 'カキクケコ'], ['サ', 'サシスセソ'], ['タ', 'タチツテト'], ['ナ', 'ナニヌネノ'], ['ハ', 'ハヒフヘホ'], ['マ', 'マミムメモ'], ['ヤ', 'ヤ ユ ヨ'], ['ラ', 'ラリルレロ'], ['ワ', 'ワ ヲ ン']];
+// 假資料：點亮日期、第一次練、練幾次、寫幾分鐘、考幾次、最好、錯的字
+const SEED = {
+  h: [['9/18', '9/12', 34, 41, 3, 100, ''], ['9/24', '9/15', 28, 36, 4, 100, ''], ['10/02', '9/20', 41, 52, 5, 100, ''], ['10/09', '9/26', 30, 44, 6, 100, ''],
+      [null, '10/01', 22, 27, 3, 80, 'ぬ'], [null, '10/05', 15, 19, 2, 60, 'ひふ'], [null, '10/10', 6, 8, 1, 40, 'むめも'], [null, null, 0, 0, 0, 0, ''], [null, null, 0, 0, 0, 0, ''], [null, null, 0, 0, 0, 0, '']],
+  k: [['10/11', '10/03', 19, 25, 2, 100, ''], [null, '10/08', 12, 16, 2, 80, 'ケ'], [null, '10/12', 5, 7, 1, 60, 'シツ'], [null, null, 0, 0, 0, 0, ''], [null, null, 0, 0, 0, 0, ''], [null, null, 0, 0, 0, 0, ''], [null, null, 0, 0, 0, 0, ''], [null, null, 0, 0, 0, 0, ''], [null, null, 0, 0, 0, 0, ''], [null, null, 0, 0, 0, 0, '']],
+};
+const fresh = () => ({ h: SEED.h.map(r => [...r]), k: SEED.k.map(r => [...r]) });
+const S = { v: 0, script: 'h', data: fresh(), sheet: null, screen: 'home', mode: 'light', pick: [], toast: null };
+const rows = () => S.script === 'h' ? ROWS_H : ROWS_K;
+const rec = i => { const r = S.data[S.script][i]; return { lit: r[0], first: r[1], n: r[2], min: r[3], exams: r[4], best: r[5], bad: r[6] }; };
+const litCount = sc => S.data[sc].filter(r => r[0]).length;
+const totalMin = () => ['h', 'k'].reduce((s, sc) => s + S.data[sc].reduce((a, r) => a + r[3], 0), 0);
+const days = (a, b) => { const p = x => new Date('2026/' + x); return Math.max(1, Math.round((p(b) - p(a)) / 864e5)); };
+const nextIdx = () => S.data[S.script].findIndex(r => !r[0]);
+const fmtMin = m => m >= 60 ? `${Math.floor(m / 60)} 小時 ${m % 60} 分` : `${m} 分`;
+const scriptSeg = () => `<div class="seg" style="margin:0 14px 12px"><button class="${S.script === 'h' ? 'on' : ''}" data-script="h">平假名 ${litCount('h')}/10</button><button class="${S.script === 'k' ? 'on' : ''}" data-script="k">片假名 ${litCount('k')}/10</button></div>`;
+const summary = () => { const n = litCount('h') + litCount('k'); return `<div class="pad"><div class="card" style="margin-bottom:12px"><div style="display:flex;align-items:baseline;gap:8px"><b style="font-size:28px;color:var(--gold)">${n}</b><span class="muted">/ 20 行點亮</span><span class="small" style="margin-left:auto">總共練了 ${fmtMin(totalMin())}</span></div><div class="bar" style="margin-top:8px"><i style="width:${n / 20 * 100}%"></i></div></div></div>`; };
+
+// 一行的明細（每版共用）
+function detail(i) {
+  const [lead, ks] = rows()[i], r = rec(i);
+  const name = `${lead}行`;
+  const status = r.lit ? `<div style="font-size:15px;font-weight:800;color:var(--gold)">✦ ${r.lit} 點亮</div><div class="muted">從第一次練（${r.first}）到點亮，花了 <b style="color:var(--ink)">${days(r.first, r.lit)} 天</b></div>`
+    : r.first ? `<div style="font-size:15px;font-weight:800">還沒點亮</div><div class="muted">從 ${r.first} 開始練，已經 ${days(r.first, '10/15')} 天；最好成績 ${r.best}%</div>` : `<div style="font-size:15px;font-weight:800">還沒開始</div><div class="muted">先手寫練幾次，再用「點亮」模式考一次</div>`;
+  return `<div style="display:flex;align-items:center;gap:10px"><div style="font-size:34px;font-weight:900;${r.lit ? 'color:var(--gold)' : ''}">${lead}</div><div><b style="font-size:17px">${name}</b><div class="small" style="letter-spacing:3px">${ks}</div></div></div>
+    <div style="margin-top:10px">${status}</div>
+    <div class="kv"><div><span class="small">手寫練習</span><b>${r.n} 次</b></div><div><span class="small">寫了多久</span><b>${fmtMin(r.min)}</b></div><div><span class="small">點亮考試</span><b>${r.exams} 次</b></div><div><span class="small">最好成績</span><b>${r.exams ? r.best + '%' : '—'}</b></div></div>
+    ${r.bad ? `<div class="small">上次還錯的字</div><div class="kchips">${[...r.bad].map(k => `<span class="kchip bad">${k}</span>`).join('')}</div>` : ''}
+    <div style="display:flex;gap:8px;margin-top:16px"><button class="btn ${r.lit ? 'ghost' : ''}" data-go="${i}">${r.lit ? '再考一次（維持手感）' : `去點亮 ${name}`}</button><button class="btn ghost" style="width:120px" data-sim="${i}">模擬全對</button></div>`;
+}
+
+// 考試選範圍：多一個「點亮」模式，範圍變單選（每版共用）
+function examScreen() {
+  const light = S.mode === 'light';
+  const pick = light ? S.pick.slice(0, 1) : S.pick;
+  return `<div class="top"><span class="ib" data-back>‹</span><b>選考試範圍</b></div>
+    <div class="pad"><div class="modes"><div class="mode ${S.mode === 'kana' ? 'on' : ''}" data-mode="kana">五十音<span class="s">複選行</span></div><div class="mode ${S.mode === 'vocab' ? 'on' : ''}" data-mode="vocab">詞彙<span class="s">複選行</span></div><div class="mode ${light ? 'on' : ''}" data-mode="light">✦ 點亮<span class="s">單選一行・全對點亮</span></div></div>
+    ${light ? '<div class="card" style="margin:12px 0;padding:10px 12px;border-color:rgba(255,211,107,.4);font-size:12.5px;color:var(--ink2)">點亮模式一次只考一行，<b style="color:var(--gold)">全部答對（100%）</b>這一行就點亮。錯一個也沒關係，下次再來。</div>' : '<div style="height:12px"></div>'}
+    ${scriptSeg().replace('margin:0 14px 12px', 'margin:0 0 10px')}
+    ${rows().map(([lead, ks], i) => { const on = pick.includes(i), r = rec(i); return `<div class="rpick ${light ? 'radio' : ''} ${on ? 'on' : ''}" data-pick="${i}"><span class="box">${on ? (light ? '●' : '✓') : ''}</span><span class="ks">${ks}</span>${r.lit ? '<span class="lit">✦ 已點亮</span>' : r.exams ? `<span class="small">最好 ${r.best}%</span>` : ''}</div>`; }).join('')}
+    <button class="btn" style="margin-top:10px" data-start ${pick.length ? '' : 'disabled style="margin-top:10px;opacity:.4"'}>${light ? (pick.length ? `開始點亮 ${rows()[pick[0]][0]}行（${rows()[pick[0]][1].replace(/ /g, '').length} 題）` : '選一行開始') : `開始考試（${pick.length} 行）`}</button></div>`;
+}
+
+const V = [];
+// 1 主流：關卡路徑（多鄰國那種）
+V.push({ name: '1 關卡路徑（主流）', tag: '主流・最熟悉', title: '版本 1：一行一個關卡圓圈，由上往下一路點亮（像多鄰國）',
+  desc: `<h3>怎麼看</h3><ul><li>一行一個圓圈，左右交錯往下排，<b>點亮的變金色會發光</b>，下一個要挑戰的是粉紅框。</li><li>最上面總進度：幾行／20、總共練多久。</li><li>點圓圈出明細：點亮日期、花了幾天、練幾次、寫多久、最好成績、還錯哪幾個字，按「去點亮」直接到考試、自動選好那一行。</li></ul>`,
+  render() {
+    const nx = nextIdx();
+    return `<div class="top"><span class="ib">☰</span><b>點亮五十音</b><span class="ib" data-sim="${nx}" title="模擬下一行全對">✦</span></div>${summary()}${scriptSeg()}
+      <div class="path">${rows().map(([lead], i) => { const r = rec(i); return `<div style="transform:translateX(${[0, 60, 0, -60][i % 4]}px)"><div class="node ${r.lit ? 'lit' : i === nx ? 'next' : ''}" data-row="${i}">${r.lit ? lead : i === nx ? lead : '🔒'}<span class="lbl">${lead}行${r.lit ? `・${r.lit}` : ''}</span></div></div>`; }).join('')}</div>`;
+  } });
+// 2 五十音表
+V.push({ name: '2 五十音表點亮', tag: '一眼看全部', title: '版本 2：就是五十音表，點亮的那一行整排亮起來',
+  desc: `<h3>怎麼看</h3><ul><li>畫面就是熟悉的五十音表（5 欄），<b>點亮的行整排變金色</b>，沒點亮的是暗的。</li><li>左邊行名點了出那一行明細；點任一格也是。</li><li>上面平／片切換，各自顯示幾行亮了。</li><li>表下面一行字：「下一個：な行・差 ぬ」直接告訴你最接近的那行差哪個字。</li></ul>`,
+  render() {
+    const nx = nextIdx(), nr = nx >= 0 ? rec(nx) : null;
+    return `<div class="top"><span class="ib">☰</span><b>五十音點亮表</b><span class="ib" data-sim="${nx}">✦</span></div>${summary()}${scriptSeg()}
+      <div class="pad"><div class="gtable">${rows().map(([lead, ks], i) => { const r = rec(i); return `<span class="rl" data-row="${i}">${lead}行</span>` + [...ks].map(k => `<span class="cell ${k === ' ' ? 'empty' : ''} ${r.lit ? 'lit' : ''}" data-row="${i}">${k}</span>`).join(''); }).join('')}</div>
+      ${nr ? `<div class="card" style="margin-top:12px;display:flex;align-items:center;gap:10px" data-row="${nx}"><div style="flex:1"><b>下一個：${rows()[nx][0]}行</b><div class="small">${nr.exams ? `最好 ${nr.best}%${nr.bad ? `・還錯 ${nr.bad}` : ''}` : '還沒考過'}</div></div><span style="color:var(--sakura)">去點亮 ›</span></div>` : ''}</div>`;
+  } });
+// 3 夜空
+V.push({ name: '3 星座夜空', tag: '最有成就感', title: '版本 3：每一行是一顆星，點亮的星星連成星座',
+  desc: `<h3>怎麼看</h3><ul><li>夜空裡 10 顆星（平／片各一片天空），<b>點亮的星發光，相鄰兩顆都亮就連一條線</b>，全部點完是一個完整星座。</li><li>點星星出明細。</li><li>夜空下面一排小字：最近點亮的是哪一行、花了幾天。</li></ul>`,
+  render() {
+    const P = [[60, 70], [150, 50], [250, 80], [320, 150], [270, 230], [180, 200], [90, 260], [70, 360], [170, 400], [280, 360]];
+    const lit = i => !!S.data[S.script][i][0];
+    let lines = '';
+    for (let i = 0; i < 9; i++) if (lit(i) && lit(i + 1)) lines += `<line x1="${P[i][0]}" y1="${P[i][1]}" x2="${P[i + 1][0]}" y2="${P[i + 1][1]}" stroke="rgba(255,230,170,.7)" stroke-width="1.5"/>`;
+    const tw = Array.from({ length: 40 }, (_, k) => `<span class="twinkle" style="left:${(k * 37) % 360}px;top:${(k * 53) % 470}px;opacity:${.2 + (k % 5) / 10}"></span>`).join('');
+    const lastI = S.data[S.script].map((r, i) => [r[0], i]).filter(x => x[0]).pop();
+    return `<div class="top"><span class="ib">☰</span><b>五十音星空</b><span class="ib" data-sim="${nextIdx()}">✦</span></div>${summary()}${scriptSeg()}
+      <div class="sky">${tw}<svg width="100%" height="100%" style="position:absolute;inset:0">${lines}</svg>${rows().map(([lead], i) => `<span class="star ${lit(i) ? 'lit' : ''}" style="left:${P[i][0]}px;top:${P[i][1]}px" data-row="${i}">${lead}</span>`).join('')}</div>
+      ${lastI ? `<div class="pad small" style="margin-top:10px">最近點亮：${rows()[lastI[1]][0]}行（${lastI[0]}），花了 ${days(rec(lastI[1]).first, lastI[0])} 天</div>` : ''}`;
+  } });
+// 4 櫻花樹
+V.push({ name: '4 櫻花樹開花', tag: '跟日文首頁同風格', title: '版本 4：一棵櫻花樹，每點亮一行開一朵花',
+  desc: `<h3>怎麼看</h3><ul><li>跟日文首頁的櫻花一樣的風格：樹枝上 10 個花苞，<b>點亮一行就開一朵</b>（有開花的小動畫）。</li><li>點花（或花苞）出明細。</li><li>樹下面列出還沒開的花苞裡「最接近的三朵」：最好成績、差哪幾個字。</li></ul>`,
+  render() {
+    const P = [[190, 60], [120, 110], [260, 115], [70, 180], [180, 170], [300, 195], [120, 250], [240, 260], [80, 330], [290, 330]];
+    const close = S.data[S.script].map((r, i) => [r, i]).filter(([r]) => !r[0] && r[4]).sort((a, b) => b[0][5] - a[0][5]).slice(0, 3);
+    return `<div class="top"><span class="ib">☰</span><b>五十音櫻花樹</b><span class="ib" data-sim="${nextIdx()}">✦</span></div>${summary()}${scriptSeg()}
+      <div class="tree"><svg width="100%" height="100%" style="position:absolute;inset:0"><path d="M190 470 C185 400 195 340 190 290 M190 300 C150 270 110 260 80 330 M190 300 C240 280 270 290 290 330 M190 250 C150 220 120 190 70 180 M190 240 C230 220 280 210 300 195 M190 200 C170 160 150 130 120 110 M190 190 C220 150 240 130 260 115 M190 200 L190 60 M190 230 C210 250 230 255 240 260 M190 240 C160 245 140 248 120 250" stroke="#5a3a2a" stroke-width="7" fill="none" stroke-linecap="round"/></svg>
+      ${rows().map(([lead], i) => `<span class="bloom ${rec(i).lit ? 'lit' : ''}" style="left:${P[i][0]}px;top:${P[i][1]}px" data-row="${i}"><i class="f"></i><span>${lead}</span></span>`).join('')}</div>
+      ${close.length ? `<div class="pad" style="margin-top:12px"><div class="small" style="margin-bottom:6px">快開花了</div>${close.map(([r, i]) => `<div class="card" style="padding:10px 12px;margin-bottom:6px;display:flex;gap:10px;align-items:center" data-row="${i}"><b style="font-size:20px">${rows()[i][0]}</b><div style="flex:1"><div class="bar"><i style="width:${r[5]}%"></i></div><div class="small" style="margin-top:3px">最好 ${r[5]}%${r[6] ? `・還錯 ${r[6]}` : ''}</div></div><span style="color:var(--sakura)">›</span></div>`).join('')}</div>` : ''}`;
+  } });
+// 5 成就牆
+V.push({ name: '5 徽章成就牆', tag: '數字最清楚', title: '版本 5：一行一張徽章卡，卡片上直接寫點亮日期跟花了多久',
+  desc: `<h3>怎麼看</h3><ul><li>兩欄卡片，一行一張。<b>點亮的卡片金色</b>，卡上直接寫：點亮日期、花了幾天、寫了多久。</li><li>沒點亮的卡寫最好成績＋一條小進度條；還沒開始的是灰的。</li><li>不用點進去就看得到大部分數字，點卡片看完整明細。</li></ul>`,
+  render() {
+    return `<div class="top"><span class="ib">☰</span><b>點亮成就</b><span class="ib" data-sim="${nextIdx()}">✦</span></div>${summary()}${scriptSeg()}
+      <div class="pad"><div class="badges">${rows().map(([lead, ks], i) => { const r = rec(i); return `<div class="badge ${r.lit ? 'lit' : ''}" data-row="${i}" style="${!r.first ? 'opacity:.5' : ''}"><span class="st">${r.lit ? '✦' : r.first ? '' : '🔒'}</span><div class="k">${lead}<span style="font-size:13px;font-weight:700">行</span></div>
+        ${r.lit ? `<div class="small" style="color:var(--gold)">${r.lit} 點亮</div><div class="small">花 ${days(r.first, r.lit)} 天・寫 ${fmtMin(r.min)}</div>` : r.first ? `<div class="small">最好 ${r.best}%・練 ${r.n} 次</div><div class="bar" style="margin-top:6px;height:5px"><i style="width:${r.best}%"></i></div>` : '<div class="small">還沒開始</div>'}</div>`; }).join('')}</div></div>`;
+  } });
+
+const phone = document.getElementById('phone');
+function render() {
+  const v = V[S.v];
+  document.getElementById('vtabs').innerHTML = V.map((x, i) => `<button class="${i === S.v ? 'on' : ''}" data-v="${i}">${x.name}</button>`).join('');
+  document.getElementById('notes').innerHTML = `<span class="tag">${v.tag}</span><h2>${v.title}</h2>${v.desc}<h3>每版都一樣的</h3><ul><li><b>考試選範圍多一個「✦ 點亮」模式</b>：選了範圍就變<b>單選</b>（圓圈），一次只考一行；五十音、詞彙兩個模式照舊複選。</li><li>只有點亮模式、而且 100% 全對才點亮；已點亮的行在選範圍那頁標「✦ 已點亮」，沒點亮的標最好成績。</li><li>花多久：從第一次手寫練那一行，到點亮那天；另外列手寫練了幾次、寫了多久（筆畫時間加總）。</li></ul><div class="try">試試：點某一行看明細 → 「去點亮」到考試選範圍（自動選好那一行，點亮模式是單選）→ 回來按「模擬全對」看點亮的樣子；切平／片假名。</div>`;
+  const st = phone.querySelector('.screen')?.scrollTop || 0;
+  const body = S.screen === 'exam' ? examScreen() : v.render();
+  phone.innerHTML = `<div class="status"><span>21:30</span><span>5G ▮</span></div><div class="screen">${body}</div>
+    ${S.sheet !== null ? `<div class="sheet-bg" data-close></div><div class="sheet"><div class="grab"></div>${detail(S.sheet)}</div>` : ''}${S.toast ? `<div class="toast">${S.toast}</div>` : ''}`;
+  phone.querySelector('.screen').scrollTop = st;
+}
+let tt;
+function toast(t) { S.toast = t; clearTimeout(tt); tt = setTimeout(() => { S.toast = null; render(); }, 1800); }
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-v],[data-row],[data-close],[data-go],[data-sim],[data-script],[data-back],[data-mode],[data-pick],[data-start]');
+  if (!el) return; const d = el.dataset;
+  if (d.v) { S.v = +d.v; S.sheet = null; S.screen = 'home'; }
+  else if (d.sim !== undefined) { const i = +d.sim; if (i < 0) { toast('這邊全部都點亮了！'); } else { const r = S.data[S.script][i]; r[0] = '10/15'; r[1] = r[1] || '10/13'; r[4]++; r[5] = 100; r[6] = ''; S.sheet = null; toast(`✦ ${rows()[i][0]}行 點亮了！`); } }
+  else if (d.row !== undefined) S.sheet = +d.row;
+  else if (d.close !== undefined) S.sheet = null;
+  else if (d.go !== undefined) { S.screen = 'exam'; S.mode = 'light'; S.pick = [+d.go]; S.sheet = null; }
+  else if (d.script) S.script = d.script;
+  else if (d.back !== undefined) S.screen = 'home';
+  else if (d.mode) { S.mode = d.mode; if (d.mode === 'light') S.pick = S.pick.slice(0, 1); }
+  else if (d.pick !== undefined) { const i = +d.pick; if (S.mode === 'light') S.pick = [i]; else S.pick = S.pick.includes(i) ? S.pick.filter(x => x !== i) : [...S.pick, i]; }
+  else if (d.start !== undefined) { if (!S.pick.length) return; toast(S.mode === 'light' ? `開始點亮 ${rows()[S.pick[0]][0]}行…（考完全對就點亮）` : '開始考試…'); }
+  render();
+});
+if (/^#[1-5]$/.test(location.hash)) S.v = +location.hash[1] - 1;
+render();
+</script>
+</body>
+</html>
