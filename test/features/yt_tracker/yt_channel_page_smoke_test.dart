@@ -44,7 +44,7 @@ void main() {
     expect(find.text('還沒有設定 API 金鑰'), findsOneWidget);
     expect(find.text('全部'), findsOneWidget);
     // 右側捲動條、回到最上面預設都開（2026-10-12）：捲動條在。
-    expect(find.byType(Scrollbar), findsWidgets);
+    expect(find.byType(RawScrollbar), findsWidgets);
 
     // 分頁（2026-10-15 設計稿第 1 版）：全部／Shorts／直播／簡介／觀看紀錄。
     final xs = [

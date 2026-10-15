@@ -430,11 +430,18 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
 
   /// 設定開著才包一層可拖的捲動條（2026-10-12 使用者要求；2026-10-15 改成滑的時候才出現）。
   Widget _withScrollbar(bool show, Widget child) => show
-      ? Scrollbar(
+      ? RawScrollbar(
           controller: _scroll,
           // 平常不顯示，滑的時候才出來、停下來淡掉（2026-10-15 使用者要求）。
+          // 停了 0.25 秒就開始淡、0.15 秒淡完（使用者嫌預設的 0.6＋0.3 秒太慢；
+          // Material 的 Scrollbar 調不了這兩個，所以用 RawScrollbar）。
           thumbVisibility: false,
           interactive: true,
+          timeToFade: const Duration(milliseconds: 250),
+          fadeDuration: const Duration(milliseconds: 150),
+          thickness: 4,
+          radius: const Radius.circular(4),
+          thumbColor: Colors.white.withValues(alpha: 0.35),
           child: child,
         )
       : child;
