@@ -1,9 +1,11 @@
 import 'dart:convert';
 
 import '../storage/key_value_store.dart';
+import 'stamped_setting_store.dart';
 
 /// 頻道頁搜尋的「最近搜尋」（2026-10-14，設計稿第 1 版）。所有頻道共用
-/// 一份，最新的在前面，最多留 [max] 筆；只存本機（是搜尋紀錄，不是設定）。
+/// 一份，最新的在前面，最多留 [max] 筆。2026-10-15 使用者要求跨裝置同步：
+/// 整份清單一筆，後改的贏（刪掉的也跟著同步）。
 class YtSearchRecentsStore {
   YtSearchRecentsStore(this._store);
 
@@ -12,8 +14,15 @@ class YtSearchRecentsStore {
   static const _key = 'yt_tracker.search_recents.v1';
   static const max = 8;
 
+  /// 雲端上的檔名。
+  static const cloudKey = 'yt_search_recents.json';
+
+  /// 跨裝置同步（2026-10-15 使用者要求），見 [StampedSettingStore]。
+  StampedSettingStore get record =>
+      StampedSettingStore(_store, key: _key, cloudKey: cloudKey);
+
   Future<List<String>> load() async {
-    final raw = await _store.read(_key);
+    final raw = await record.loadValue();
     if (raw == null) return const [];
     try {
       final decoded = jsonDecode(raw);
@@ -31,7 +40,7 @@ class YtSearchRecentsStore {
       for (final r in await load())
         if (r != q) r,
     ].take(max).toList();
-    await _store.write(_key, jsonEncode(next));
+    await record.saveValue(jsonEncode(next));
     return next;
   }
 
@@ -40,7 +49,7 @@ class YtSearchRecentsStore {
       for (final r in await load())
         if (r != query) r,
     ];
-    await _store.write(_key, jsonEncode(next));
+    await record.saveValue(jsonEncode(next));
     return next;
   }
 }

@@ -37,6 +37,7 @@ import '../repositories/kana_practice_repository.dart';
 import '../repositories/sync_log_repository.dart';
 import '../repositories/usdt_twd_rate_store.dart';
 import '../repositories/nav_bar_prefs_store.dart';
+import '../repositories/stamped_setting_store.dart';
 import '../repositories/yt_display_prefs_store.dart';
 import '../repositories/yt_playlist_store.dart';
 import '../storage/key_value_store.dart';
@@ -818,6 +819,46 @@ class R2SyncService {
     final cloud = NavBarPrefs.fromJson(
       jsonDecode(utf8.decode(fetched.bytes!)) as Map<String, dynamic>,
     );
+    if (local == null || cloud.updatedAt.isAfter(local.updatedAt)) {
+      await store.saveRecord(cloud);
+      final body = utf8.encode(jsonEncode(cloud.toJson()));
+      await _writeMeta(key, body, fetched.etag);
+      return (downloaded: 1, uploaded: 0);
+    }
+    if (local.updatedAt.isAfter(cloud.updatedAt)) {
+      final body = utf8.encode(jsonEncode(local.toJson()));
+      final etag = await _client.putObject(key, Uint8List.fromList(body));
+      await _writeMeta(key, body, etag);
+      return (downloaded: 0, uploaded: 1);
+    }
+    final body = utf8.encode(jsonEncode(local.toJson()));
+    await _writeMeta(key, body, fetched.etag);
+    return (downloaded: 0, uploaded: 0);
+  }
+
+  /// 只有一個值的設定（2026-10-15 使用者要求舊的本機設定也要同步：點影片
+  /// 時、播放器樣式、訂閱人數更新頻率、日文進度圈、首頁樣式、最近搜尋）。
+  /// 跟 [syncYtDisplayPrefs] 同一套：比改的時間，後改的贏；兩邊都沒設定過
+  /// 就什麼都不做。
+  Future<({int downloaded, int uploaded})> syncStampedSetting(
+    StampedSettingStore store,
+  ) async {
+    final key = store.cloudKey;
+    final local = await store.loadRecord();
+    final beforeBytes = utf8.encode(jsonEncode(local?.toJson()));
+    if (await _canSkip(key, beforeBytes)) return (downloaded: 0, uploaded: 0);
+
+    final fetched = await _client.getObjectWithEtag(key);
+    final cloud = fetched.bytes == null
+        ? null
+        : StampedSetting.fromJson(jsonDecode(utf8.decode(fetched.bytes!)));
+    if (cloud == null) {
+      if (local == null) return (downloaded: 0, uploaded: 0);
+      final body = utf8.encode(jsonEncode(local.toJson()));
+      final etag = await _client.putObject(key, Uint8List.fromList(body));
+      await _writeMeta(key, body, etag);
+      return (downloaded: 0, uploaded: 1);
+    }
     if (local == null || cloud.updatedAt.isAfter(local.updatedAt)) {
       await store.saveRecord(cloud);
       final body = utf8.encode(jsonEncode(cloud.toJson()));

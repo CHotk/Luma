@@ -1,4 +1,5 @@
 import '../storage/key_value_store.dart';
+import 'stamped_setting_store.dart';
 
 /// 內嵌播放器要用哪種外層呈現方式（2026-09-30 使用者要求：一開始是
 /// 正中央的 Dialog，改成下滑收合式，後來又想要可拖曳／可收合成小泡泡
@@ -30,11 +31,18 @@ class YtEmbedPlayerStyleStore {
   static const _key = 'yt_tracker.embed_player_style.v1';
   static const defaultStyle = YtEmbedPlayerStyle.floating;
 
+  /// 雲端上的檔名。
+  static const cloudKey = 'yt_embed_player_style.json';
+
+  /// 跨裝置同步（2026-10-15 使用者要求），見 [StampedSettingStore]。
+  StampedSettingStore get record =>
+      StampedSettingStore(_store, key: _key, cloudKey: cloudKey);
+
   Future<YtEmbedPlayerStyle> load() async {
-    final raw = await _store.read(_key);
+    final raw = await record.loadValue();
     if (raw == null) return defaultStyle;
     return YtEmbedPlayerStyle.fromName(raw);
   }
 
-  Future<void> save(YtEmbedPlayerStyle style) => _store.write(_key, style.name);
+  Future<void> save(YtEmbedPlayerStyle style) => record.saveValue(style.name);
 }

@@ -9,6 +9,12 @@ import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
 import '../../data/repositories/usdt_twd_rate_store.dart';
 import '../../data/repositories/nav_bar_prefs_store.dart';
+import '../../data/repositories/app_home_style_store.dart';
+import '../../data/repositories/jp_home_ring_store.dart';
+import '../../data/repositories/yt_embed_player_style_store.dart';
+import '../../data/repositories/yt_search_recents_store.dart';
+import '../../data/repositories/yt_stats_refresh_setting_store.dart';
+import '../../data/repositories/yt_video_open_mode_store.dart';
 import '../../data/repositories/yt_display_prefs_store.dart';
 import '../../data/repositories/yt_playlist_store.dart';
 import '../../data/cloud/r2_client.dart';
@@ -402,6 +408,35 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
             container.read(ytPlaylistsProvider.notifier).state =
                 await playlistStore.loadAll();
           }
+          // 原本只存本機的 YT 設定跟最近搜尋（2026-10-15 使用者要求也要
+          // 同步）：點影片時、播放器樣式、訂閱人數更新頻率、最近搜尋。
+          final kv = container.read(keyValueStoreProvider);
+          final openMode = YtVideoOpenModeStore(kv);
+          final openResult = await service.syncStampedSetting(openMode.record);
+          if (openResult.downloaded > 0) {
+            container.read(ytVideoOpenModeProvider.notifier).state =
+                await openMode.load();
+          }
+          final playerStyle = YtEmbedPlayerStyleStore(kv);
+          final styleResult = await service.syncStampedSetting(
+            playerStyle.record,
+          );
+          if (styleResult.downloaded > 0) {
+            container.read(ytEmbedPlayerStyleProvider.notifier).state =
+                await playerStyle.load();
+          }
+          final statsDays = YtStatsRefreshSettingStore(kv);
+          final daysResult = await service.syncStampedSetting(
+            statsDays.record,
+          );
+          if (daysResult.downloaded > 0) {
+            container.read(ytStatsRefreshDaysProvider.notifier).state =
+                await statsDays.load();
+          }
+          final recentsResult = await service.syncStampedSetting(
+            YtSearchRecentsStore(kv).record,
+          );
+          final extras = [openResult, styleResult, daysResult, recentsResult];
           return (
             downloaded:
                 ytResult.downloaded +
@@ -410,7 +445,8 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
                 orderResult.downloaded +
                 logResult.downloaded +
                 prefsResult.downloaded +
-                playlistResult.downloaded,
+                playlistResult.downloaded +
+                extras.fold<int>(0, (n, r) => n + r.downloaded),
             uploaded:
                 ytResult.uploaded +
                 ytVideoResult.uploaded +
@@ -418,7 +454,8 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
                 orderResult.uploaded +
                 logResult.uploaded +
                 prefsResult.uploaded +
-                playlistResult.uploaded,
+                playlistResult.uploaded +
+                extras.fold<int>(0, (n, r) => n + r.uploaded),
           );
         }),
         run('五十音練習', (p) => _kanaPracticePhase = p, (onPhase) async {
@@ -431,9 +468,18 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
           final order = await service.syncHomeCardOrder(
             HomeCardOrderStore(container.read(keyValueStoreProvider), 'jp'),
           );
+          // 日文首頁進度圈開關（2026-10-15 使用者要求同步）。
+          final ringStore = JpHomeRingStore(
+            container.read(keyValueStoreProvider),
+          );
+          final ring = await service.syncStampedSetting(ringStore.record);
+          if (ring.downloaded > 0) {
+            container.read(jpShowProgressRingProvider.notifier).state =
+                await ringStore.load();
+          }
           return (
-            downloaded: r.downloaded + order.downloaded,
-            uploaded: r.uploaded + order.uploaded,
+            downloaded: r.downloaded + order.downloaded + ring.downloaded,
+            uploaded: r.uploaded + order.uploaded + ring.uploaded,
           );
         }),
         run(
@@ -475,9 +521,18 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
             container.read(navBarPrefsProvider.notifier).state = await navStore
                 .load();
           }
+          // 首頁樣式（2026-10-15 使用者要求同步）。
+          final homeStyle = AppHomeStyleStore(
+            container.read(keyValueStoreProvider),
+          );
+          final style = await service.syncStampedSetting(homeStyle.record);
+          if (style.downloaded > 0) {
+            container.read(appHomeStyleProvider.notifier).state =
+                await homeStyle.load();
+          }
           return (
-            downloaded: order.downloaded + nav.downloaded,
-            uploaded: order.uploaded + nav.uploaded,
+            downloaded: order.downloaded + nav.downloaded + style.downloaded,
+            uploaded: order.uploaded + nav.uploaded + style.uploaded,
           );
         }),
         run('交易紀錄', (p) => _habitPhases['trade'] = p, (onPhase) async {

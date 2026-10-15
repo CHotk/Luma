@@ -1,4 +1,5 @@
 import '../storage/key_value_store.dart';
+import 'stamped_setting_store.dart';
 
 /// App 首頁（`/start`）用哪種樣子（2026-10-05 使用者要求：多做一種
 /// `design-history/已選擇完成/首頁設計/02_今日儀表板`，設定裡可以切換）。
@@ -22,8 +23,15 @@ class AppHomeStyleStore {
   static const _key = 'app_home.style.v1';
   static const defaultStyle = AppHomeStyle.grid;
 
-  Future<AppHomeStyle> load() async =>
-      AppHomeStyle.fromName(await _store.read(_key));
+  /// 雲端上的檔名。
+  static const cloudKey = 'app_home_style.json';
 
-  Future<void> save(AppHomeStyle style) => _store.write(_key, style.name);
+  /// 跨裝置同步（2026-10-15 使用者要求），見 [StampedSettingStore]。
+  StampedSettingStore get record =>
+      StampedSettingStore(_store, key: _key, cloudKey: cloudKey);
+
+  Future<AppHomeStyle> load() async =>
+      AppHomeStyle.fromName(await record.loadValue());
+
+  Future<void> save(AppHomeStyle style) => record.saveValue(style.name);
 }
