@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YT 影片列狀態</title>
+<style>
+  :root { --bg: #0C0C13; --card: #151520; --card2: #1A1A27; --sheet: #1C1C29; --line: #2A2A3D; --ink: #F3F2F8; --ink2: #A3A2B2; --ink3: #74738A; --accent: #7EA6FF; --ios: #0A84FF; --yt: #FF4E45; --green: #30D158; --amber: #FFB340; --purple: #BF5AF2; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--ink); min-height: 100vh; font: 14px/1.5 -apple-system, "SF Pro Text", system-ui, "Segoe UI", "Microsoft JhengHei", sans-serif; }
+  .page { max-width: 1140px; margin: 0 auto; padding: 24px 16px 60px; }
+  h1 { font-size: 20px; margin: 0 0 6px; }
+  .lead { color: var(--ink2); font-size: 13px; margin: 0 0 14px; } .lead b { color: var(--ink); }
+  .vtabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+  .vtabs button { border: 1px solid var(--line); background: var(--card); color: var(--ink2); padding: 8px 14px; border-radius: 99px; cursor: pointer; font-size: 13px; }
+  .vtabs button.on { border-color: var(--accent); color: #fff; background: rgba(46,107,255,.35); }
+  .stage { display: flex; gap: 28px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
+  .notes { flex: 1 1 320px; max-width: 470px; background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 18px 20px; font-size: 13.5px; color: var(--ink2); }
+  .notes h2 { color: var(--ink); font-size: 17px; margin: 0 0 4px; }
+  .notes .tag { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 99px; background: rgba(126,166,255,.15); color: var(--accent); margin-bottom: 8px; }
+  .notes h3 { color: var(--ink); font-size: 13.5px; margin: 14px 0 4px; }
+  .notes ul { margin: 0; padding-left: 18px; } .notes li { margin: 3px 0; }
+  .notes .try { margin-top: 14px; padding: 10px 12px; border-radius: 12px; background: rgba(126,166,255,.08); border: 1px solid rgba(126,166,255,.25); color: var(--ink); font-size: 12.5px; }
+  .phone { width: 390px; max-width: 100%; height: 820px; flex-shrink: 0; border-radius: 44px; border: 1px solid var(--line); background: #0e0e17; position: relative; overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,.5); user-select: none; }
+  .screen { position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden; padding: 44px 0 110px; scrollbar-width: none; }
+  .screen::-webkit-scrollbar { display: none; }
+  .status { position: absolute; top: 0; left: 0; right: 0; height: 40px; display: flex; align-items: center; justify-content: space-between; padding: 0 30px; font-size: 13px; font-weight: 700; z-index: 70; pointer-events: none; }
+  .top { display: flex; align-items: center; gap: 6px; padding: 0 14px 8px; }
+  .top b { flex: 1; font-size: 17px; }
+  .legend-btn { font-size: 12px; color: var(--accent); cursor: pointer; border: 1px solid rgba(126,166,255,.3); padding: 3px 10px; border-radius: 99px; }
+  .legend { margin: 0 14px 10px; padding: 10px 12px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; font-size: 12px; color: var(--ink2); display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; animation: pop .2s; }
+  .legend span { display: flex; align-items: center; gap: 6px; }
+  @keyframes pop { from { transform: scale(.95); opacity: 0 } }
+  .small { font-size: 11.5px; color: var(--ink3); }
+  /* 可滑的列 */
+  .swipe { position: relative; overflow: hidden; }
+  .acts { position: absolute; right: 0; top: 0; bottom: 0; display: flex; }
+  .acts button { width: 76px; border: 0; color: #fff; font-weight: 800; font-size: 12px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+  .acts .a1 { background: #3a7bff; } .acts .a2 { background: #6b6b80; }
+  .acts button i { font-style: normal; font-size: 18px; }
+  .rowin { position: relative; background: #0e0e17; transition: transform .22s cubic-bezier(.2,.9,.3,1); touch-action: pan-y; }
+  .rowin.drag { transition: none; }
+  .vrow { display: flex; gap: 10px; padding: 7px 14px; cursor: pointer; position: relative; align-items: flex-start; }
+  .th { position: relative; width: 150px; height: 84px; border-radius: 10px; overflow: hidden; flex-shrink: 0; background: #222; }
+  .th img { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+  .dur { position: absolute; right: 4px; bottom: 4px; background: rgba(0,0,0,.8); font-size: 11px; font-weight: 700; padding: 0 5px; border-radius: 4px; }
+  .prog { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--yt); }
+  .vi { flex: 1; min-width: 0; }
+  .vt { font-size: 13.5px; font-weight: 600; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .more { color: var(--ink3); font-size: 18px; padding: 0 2px; cursor: pointer; line-height: 1; }
+  .pill { display: inline-flex; align-items: center; gap: 3px; font-size: 10.5px; font-weight: 700; padding: 0 6px; border-radius: 6px; margin: 3px 4px 0 0; }
+  .p-w { background: rgba(255,255,255,.1); color: var(--ink2); } .p-h { background: rgba(255,255,255,.06); color: var(--ink3); border: 1px dashed #4a4a5c; }
+  .p-c { background: rgba(255,179,64,.15); color: var(--amber); } .p-n { background: rgba(10,132,255,.2); color: #66b2ff; } .p-l { background: rgba(191,90,242,.18); color: #d48cf7; }
+  .corner { position: absolute; top: 4px; display: flex; gap: 3px; }
+  .corner span { width: 20px; height: 20px; border-radius: 6px; display: grid; place-items: center; font-size: 11px; font-weight: 900; background: rgba(0,0,0,.72); backdrop-filter: blur(4px); }
+  .bar { position: absolute; left: 0; top: 10px; bottom: 10px; width: 4px; border-radius: 0 4px 4px 0; }
+  .menu { position: absolute; z-index: 90; right: 18px; background: rgba(30,30,44,.97); border: 1px solid rgba(255,255,255,.12); border-radius: 16px; padding: 6px; box-shadow: 0 16px 40px rgba(0,0,0,.6); animation: pop .18s; min-width: 210px; }
+  .menu .mi { padding: 8px 10px; border-radius: 10px; cursor: pointer; display: flex; gap: 10px; align-items: center; font-size: 13.5px; }
+  .menu .mi:hover { background: rgba(255,255,255,.07); }
+  .scrim { position: absolute; inset: 0; z-index: 85; }
+  .toast { position: absolute; left: 50%; top: 50px; transform: translateX(-50%); z-index: 99; background: rgba(40,40,58,.96); border: 1px solid rgba(255,255,255,.12); border-radius: 14px; padding: 8px 14px; font-size: 12.5px; white-space: nowrap; animation: pop .2s; }
+  .hidden-fold { margin: 6px 14px; padding: 9px 12px; border-radius: 12px; background: rgba(255,255,255,.04); border: 1px dashed #3a3a4c; color: var(--ink2); font-size: 12.5px; cursor: pointer; display: flex; justify-content: space-between; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 0 12px; }
+  .gcard { position: relative; cursor: pointer; }
+  .gcard .th { width: 100%; height: auto; aspect-ratio: 16/9; }
+  .gcard .vt { font-size: 12.5px; margin-top: 5px; }
+  .ring { position: absolute; inset: 0; border-radius: 10px; }
+  .navbar { position: absolute; left: 50%; bottom: 26px; transform: translateX(-50%); z-index: 60; display: flex; gap: 4px; padding: 6px; border-radius: 99px; background: rgba(30,30,44,.72); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,.14); }
+  .navbar span { padding: 7px 16px; border-radius: 99px; font-size: 12px; font-weight: 700; color: var(--ink2); }
+  .navbar span.on { background: rgba(255,255,255,.14); color: #fff; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>YT 影片列：狀態標示五種設計</h1>
+  <p class="lead">影片列現在有：縮圖、時長、左上「已看過」紅標、右上快取小點、往左滑兩顆按鈕，加上新片、Shorts、存在播放清單裡……<b>標記越來越多、看起來很雜</b>。這份比較「已看過／已隱藏／快取來的／新片／在播放清單」這幾種狀態怎麼表示。<br>
+    每版都能玩：<b>按住影片往左拖</b>出現「已看過／隱藏」兩顆按鈕，點了狀態會變；⋮ 有選單；右上「說明」看每個標記代表什麼。</p>
+  <div class="vtabs" id="vtabs"></div>
+  <div class="stage"><div class="phone" id="phone"></div><div class="notes" id="notes"></div></div>
+</div>
+<script>
+const T = id => `https://i.ytimg.com/vi/${id}/mqdefault.jpg`;
+// 狀態：w 已看過、h 已隱藏、c 快取來的、n 新片（上次打開之後才出的）、l 在播放清單、type
+const START = [
+  { id: '1emA1EFsPMM', t: '周杰倫 Jay Chou【最偉大的作品 Greatest Works of Art】Official MV', s: 245, d: '1 天前', v: '1.2 億', n: 1 },
+  { id: 'HK7SPnGSxLM', t: '周杰倫 Jay Chou x 五月天阿信【說好不哭 Won\'t Cry】Official MV', s: 322, d: '6 天前', v: '1.6 億', w: 1, l: '開車必聽' },
+  { id: 'kfXdP7nZIiE', t: '周杰倫 Jay Chou【等你下課 Waiting For You】Official MV', s: 270, d: '1 週前', v: '2.3 億', c: 1, p: 0.45 },
+  { id: 'bu7nU9Mhpyo', t: '周杰倫【告白氣球】#shorts 床邊故事幕後', s: 42, d: '1 週前', v: '820 萬', type: 'Shorts' },
+  { id: 'DYptgVvkVLQ', t: '周杰倫 Jay Chou【晴天 Sunny Day】Official MV', s: 269, d: '2 週前', v: '3.1 億', w: 1, c: 1, l: '稍後觀看' },
+  { id: 'Bbp9ZaJD_eA', t: '周杰倫 Jay Chou【七里香 Orange Jasmine】Official MV', s: 299, d: '1 個月前', v: '2.8 億', h: 1, c: 1 },
+  { id: 'sHD_z90ZKV0', t: '周杰倫 Jay Chou【稻香 Rice Field】Official MV', s: 223, d: '1 個月前', v: '2.5 億', c: 1 },
+  { id: '9q7JOQfcJQM', t: '嘉年華世界巡迴演唱會 直播回放【以父之名】', s: 3920, d: '1 個月前', v: '540 萬', type: '直播', c: 1 },
+  { id: 'Z8Mqw0b9ADs', t: '周杰倫 Jay Chou【青花瓷 Blue and White Porcelain】Official MV', s: 239, d: '2 個月前', v: '1.9 億', w: 1, c: 1 },
+  { id: '_B8RaLCNUZw', t: '周杰倫 Jay Chou【聽媽媽的話 Listen to Mom】Official MV', s: 266, d: '4 個月前', v: '8700 萬', h: 1, c: 1 },
+];
+const S = { v: 0, vids: START.map(x => ({ ...x })), open: null, menu: null, legend: false, toast: null, showHidden: false };
+const fmt = s => s >= 3600 ? `${Math.floor(s / 3600)}:${String(Math.floor(s % 3600 / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}` : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+const meta = x => `<div class="small" style="margin-top:3px">${x.v} 次・${x.d}</div>`;
+const thumb = (x, extra = '') => `<div class="th"><img src="${T(x.id)}" loading="lazy" style="${extra}"><span class="dur">${x.type === 'Shorts' ? 'Shorts' : fmt(x.s)}</span>`;
+
+const V = [];
+V.push({ name: '1 YouTube 式（主流）', title: '版本 1：跟 YouTube 一樣——看過的縮圖底下一條紅色進度條', tag: '主流・最熟悉',
+  desc: `<h3>每種狀態</h3><ul><li><b>已看過</b>：縮圖底部整條紅線（看一半就紅一半），跟 YouTube 一樣，不再另外貼「已看過」紅標。</li>
+    <li><b>新片</b>：標題前一顆藍點。</li><li><b>已隱藏</b>：不列出來，清單最下面一行「已隱藏 2 部・顯示」。</li>
+    <li><b>快取來的</b>、<b>在播放清單</b>：平常不顯示，按 ⋮ 才看得到（「已存到：開車必聽」「來自快取，3 天前抓的」）。</li>
+    <li>往左滑：已看過／隱藏。</li></ul>
+    <h3>好處</h3><ul><li>最乾淨，只看得到「看過了沒」跟「新的」這兩個最常需要的。</li></ul>`,
+  row(x) {
+    return `<div class="vrow">${thumb(x, x.w ? 'filter:brightness(.7)' : '')}${x.w || x.p ? `<span class="prog" style="width:${x.w ? 100 : x.p * 100}%"></span>` : ''}</div>
+      <div class="vi"><div class="vt">${x.n ? '<span style="color:var(--ios)">● </span>' : ''}${x.t}</div>${meta(x)}</div><span class="more" data-menu="${x.id}">⋮</span></div>`;
+  }, hideHidden: true,
+  legend: `<span><i style="width:24px;height:3px;background:var(--yt)"></i>紅線＝看過（多長看多少）</span><span><b style="color:var(--ios)">●</b>新片</span><span>已隱藏的收在最下面</span><span>快取／清單在 ⋮ 裡</span>` });
+V.push({ name: '2 縮圖角落小圖示', title: '版本 2：狀態全變成縮圖右上角的小方塊圖示，固定順序', tag: '一眼掃完',
+  desc: `<h3>每種狀態</h3><ul><li>縮圖右上角一排小方塊，<b>固定順序</b>：✓ 已看過、⊘ 已隱藏、☁ 快取來的、★ 在播放清單。</li>
+    <li>新片：縮圖左上一個藍色「NEW」。</li><li>標題底下不再放任何標籤，乾乾淨淨。</li>
+    <li>位置固定：看久了不用讀字，看位置就知道。</li></ul>`,
+  row(x) {
+    const ic = [x.w && '<span style="color:#fff">✓</span>', x.h && '<span style="color:var(--ink2)">⊘</span>', x.c && '<span style="color:var(--amber)">☁</span>', x.l && '<span style="color:#ffd60a">★</span>'].filter(Boolean).join('');
+    return `<div class="vrow" style="${x.h ? 'opacity:.55' : ''}">${thumb(x)}${ic ? `<div class="corner" style="right:4px">${ic}</div>` : ''}${x.n ? '<span style="position:absolute;left:4px;top:4px;background:var(--ios);font-size:9.5px;font-weight:900;padding:1px 5px;border-radius:5px">NEW</span>' : ''}</div>
+      <div class="vi"><div class="vt">${x.t}</div>${meta(x)}</div><span class="more" data-menu="${x.id}">⋮</span></div>`;
+  },
+  legend: `<span><b>✓</b>已看過</span><span><b style="color:var(--ink2)">⊘</b>已隱藏（整列變淡）</span><span><b style="color:var(--amber)">☁</b>快取來的</span><span><b style="color:#ffd60a">★</b>在播放清單</span><span><b style="color:var(--ios)">NEW</b> 新片</span>` });
+V.push({ name: '3 看過變淡、隱藏縮小', title: '版本 3：沒看過的最亮；看過的整列淡掉，隱藏的縮成一行', tag: '重點突出',
+  desc: `<h3>每種狀態</h3><ul><li><b>沒看過</b>：正常亮度，最顯眼——一眼就找到還沒看的。</li>
+    <li><b>已看過</b>：整列淡 50%，縮圖左上一顆綠色 ✓。</li>
+    <li><b>已隱藏</b>：縮成一行小字（只有標題），點了才展開。</li>
+    <li>快取、播放清單、新片：標題下面一行小字說明（「快取・在 開車必聽」）。</li></ul>`,
+  row(x) {
+    if (x.h) return `<div class="vrow" style="padding:6px 14px;opacity:.6"><span class="small" style="flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">⊘ 已隱藏・${x.t}</span><span class="more" data-menu="${x.id}">⋮</span></div>`;
+    const sub = [x.n && '<span style="color:var(--ios)">新片</span>', x.c && '快取', x.l && `在「${x.l}」`].filter(Boolean).join('・');
+    return `<div class="vrow" style="${x.w ? 'opacity:.45' : ''}">${thumb(x)}${x.w ? '<span style="position:absolute;left:5px;top:5px;width:22px;height:22px;border-radius:50%;background:var(--green);display:grid;place-items:center;font-weight:900;font-size:12px;color:#000">✓</span>' : ''}</div>
+      <div class="vi"><div class="vt">${x.t}</div>${meta(x)}${sub ? `<div class="small" style="margin-top:1px">${sub}</div>` : ''}</div><span class="more" data-menu="${x.id}">⋮</span></div>`;
+  },
+  legend: `<span>亮的＝還沒看</span><span>淡＋綠 ✓＝看過</span><span>一行小字＝已隱藏</span><span>小字寫快取／清單</span>` });
+V.push({ name: '4 左邊一條色條', title: '版本 4：每列最左邊一條細色條代表狀態，不碰縮圖', tag: '縮圖最乾淨',
+  desc: `<h3>每種狀態</h3><ul><li>列的最左邊一條 4px 色條：<b>藍＝新片</b>、<b>灰＝看過</b>、<b>虛線＝已隱藏</b>、沒有條＝一般沒看過。</li>
+    <li>縮圖完全不貼東西，只有時長。</li><li>快取、播放清單：時長旁邊兩個小字「快取」「★」。</li>
+    <li>上方「說明」可以隨時打開對照。</li></ul>`,
+  row(x) {
+    const bar = x.n ? 'background:var(--ios)' : x.h ? 'border-left:2px dashed #6b6b80;width:2px' : x.w ? 'background:#6b6b80' : '';
+    return `<div class="vrow">${bar ? `<span class="bar" style="${bar}"></span>` : ''}${thumb(x, x.h ? 'filter:grayscale(1) brightness(.6)' : '')}</div>
+      <div class="vi"><div class="vt" style="${x.h ? 'color:var(--ink3)' : ''}">${x.t}</div>${meta(x)}<div>${x.c ? '<span class="pill p-c">快取</span>' : ''}${x.l ? '<span class="pill p-l">★ 清單</span>' : ''}</div></div><span class="more" data-menu="${x.id}">⋮</span></div>`;
+  },
+  legend: `<span><i style="width:4px;height:14px;background:var(--ios);border-radius:2px"></i>新片</span><span><i style="width:4px;height:14px;background:#6b6b80;border-radius:2px"></i>看過</span><span><i style="width:0;height:14px;border-left:2px dashed #6b6b80"></i>已隱藏</span><span>沒有條＝還沒看</span>` });
+V.push({ name: '5 兩欄卡片', title: '版本 5：兩欄大縮圖卡片，狀態用外框跟角標', tag: '縮圖最大',
+  desc: `<h3>每種狀態</h3><ul><li>一排兩張，縮圖大、好認；標題兩行。</li>
+    <li><b>新片</b>：藍色外框。<b>看過</b>：縮圖蓋一層半透明＋中間大 ✓。<b>已隱藏</b>：灰階＋「已隱藏」。</li>
+    <li>快取、播放清單：卡片右下兩顆小圖示。</li><li>長按卡片（或 ⋮）出選單；往左滑在這版改成長按。</li></ul>`,
+  grid: true,
+  card(x) {
+    return `<div class="gcard" data-menu="${x.id}"><div class="th"><img src="${T(x.id)}" loading="lazy" style="${x.h ? 'filter:grayscale(1) brightness(.5)' : ''}"><span class="dur">${x.type === 'Shorts' ? 'Shorts' : fmt(x.s)}</span>
+      ${x.w ? '<div style="position:absolute;inset:0;background:rgba(0,0,0,.5);display:grid;place-items:center;font-size:28px;font-weight:900">✓</div>' : ''}${x.h ? '<div style="position:absolute;inset:0;display:grid;place-items:center;font-size:12px;font-weight:800;color:var(--ink2)">已隱藏</div>' : ''}
+      ${x.n ? '<span class="ring" style="box-shadow:inset 0 0 0 2.5px var(--ios)"></span>' : ''}</div>
+      <div class="vt">${x.t}</div><div class="small" style="display:flex;gap:6px">${x.d}<span style="margin-left:auto">${x.c ? '<span style="color:var(--amber)">☁</span>' : ''}${x.l ? ' <span style="color:#ffd60a">★</span>' : ''}</span></div></div>`;
+  },
+  legend: `<span>藍框＝新片</span><span>大 ✓＝看過</span><span>灰階＝已隱藏</span><span><b style="color:var(--amber)">☁</b>快取 <b style="color:#ffd60a">★</b>清單</span>` });
+
+const phone = document.getElementById('phone');
+function render() {
+  const v = V[S.v];
+  document.getElementById('vtabs').innerHTML = V.map((x, i) => `<button class="${i === S.v ? 'on' : ''}" data-v="${i}">${x.name}</button>`).join('');
+  document.getElementById('notes').innerHTML = `<span class="tag">${v.tag}</span><h2>${v.title}</h2>${v.desc}<div class="try">試試：${v.grid ? '點卡片出選單，' : '按住影片往左拖出兩顆按鈕，'}把《稻香》標成看過、把《七里香》取消隱藏，看樣子怎麼變。</div>`;
+  const st = phone.querySelector('.screen')?.scrollTop || 0;
+  let items = S.vids;
+  const hidden = items.filter(x => x.h);
+  if (v.hideHidden && !S.showHidden) items = items.filter(x => !x.h);
+  let body;
+  if (v.grid) body = `<div class="grid2">${items.map(x => v.card(x)).join('')}</div>`;
+  else body = items.map(x => `<div class="swipe"><div class="acts"><button class="a1" data-act="w" data-id="${x.id}"><i>${x.w ? '↺' : '✓'}</i>${x.w ? '未看' : '已看過'}</button><button class="a2" data-act="h" data-id="${x.id}"><i>⊘</i>${x.h ? '取消隱藏' : '隱藏'}</button></div>
+      <div class="rowin" data-row="${x.id}" style="transform:translateX(${S.open === x.id ? -152 : 0}px)">${v.row(x)}</div></div>`).join('')
+    + (v.hideHidden && hidden.length ? `<div class="hidden-fold" data-fold><span>⊘ 已隱藏 ${hidden.length} 部</span><span style="color:var(--accent)">${S.showHidden ? '收起' : '顯示'}</span></div>` : '');
+  let menu = '';
+  if (S.menu) {
+    const x = S.vids.find(y => y.id === S.menu);
+    menu = `<div class="scrim" data-close></div><div class="menu" style="top:${Math.min(S.menuY, 560)}px"><div class="small" style="padding:4px 10px 6px">${x.c ? '☁ 來自快取・3 天前抓的' : '剛從 YouTube 抓的'}${x.l ? `<br>★ 已存到：${x.l}` : ''}</div>
+      <div class="mi" data-act="w" data-id="${x.id}">✓ ${x.w ? '標成沒看過' : '標成已看過'}</div><div class="mi" data-act="h" data-id="${x.id}">⊘ ${x.h ? '取消隱藏' : '隱藏'}</div>
+      <div class="mi" data-act="l" data-id="${x.id}">≡＋ 添加到播放清單</div><div class="mi">🕘 開啟紀錄</div><div class="mi">↗ 在 YouTube 開啟</div></div>`;
+  }
+  phone.innerHTML = `<div class="status"><span>21:30</span><span>5G ▮</span></div><div class="screen"><div class="top"><b>周杰倫 Jay Chou</b><span class="legend-btn" data-legend>${S.legend ? '收起說明' : '說明'}</span></div>
+    ${S.legend ? `<div class="legend">${v.legend}</div>` : ''}${body}</div>
+    <div class="navbar"><span>頻道</span><span class="on">影片</span><span>播放清單</span></div>${menu}${S.toast ? `<div class="toast">${S.toast}</div>` : ''}`;
+  phone.querySelector('.screen').scrollTop = st;
+}
+let toastT;
+function toast(t) { S.toast = t; clearTimeout(toastT); toastT = setTimeout(() => { S.toast = null; render(); }, 1600); }
+document.addEventListener('click', e => {
+  if (dragMoved) { dragMoved = false; return; }
+  const el = e.target.closest('[data-v],[data-act],[data-menu],[data-close],[data-legend],[data-fold],[data-row]');
+  if (!el) return; const d = el.dataset;
+  if (d.v) { S.v = +d.v; S.open = null; S.menu = null; }
+  else if (d.act) {
+    const x = S.vids.find(y => y.id === d.id);
+    if (d.act === 'w') { x.w = !x.w; x.n = 0; toast(x.w ? '標成已看過' : '標成沒看過'); }
+    if (d.act === 'h') { x.h = !x.h; toast(x.h ? '已隱藏' : '取消隱藏'); }
+    if (d.act === 'l') { x.l = x.l || '開車必聽'; toast('已存到「開車必聽」'); }
+    S.open = null; S.menu = null;
+  }
+  else if (d.menu) { S.menu = d.menu; S.menuY = el.getBoundingClientRect().top - phone.getBoundingClientRect().top + 20; }
+  else if (d.close !== undefined) S.menu = null;
+  else if (d.legend !== undefined) S.legend = !S.legend;
+  else if (d.fold !== undefined) S.showHidden = !S.showHidden;
+  else if (d.row) { if (S.open) S.open = null; else { toast('播放中…'); } }
+  render();
+});
+// 往左拖
+let drag = null, dragMoved = false;
+phone.addEventListener('pointerdown', e => { const r = e.target.closest('[data-row]'); if (!r || e.target.closest('.more')) return; drag = { el: r, x: e.clientX, base: S.open === r.dataset.row ? -152 : 0, dx: 0 }; });
+window.addEventListener('pointermove', e => { if (!drag) return; drag.dx = e.clientX - drag.x; if (Math.abs(drag.dx) > 5) { dragMoved = true; drag.el.classList.add('drag'); drag.el.style.transform = `translateX(${Math.min(0, Math.max(-180, drag.base + drag.dx))}px)`; } });
+window.addEventListener('pointerup', () => { if (!drag) return; if (dragMoved) { const pos = drag.base + drag.dx; S.open = pos < -60 ? drag.el.dataset.row : null; render(); setTimeout(() => dragMoved = false, 0); } drag = null; });
+if (/^#[1-5]$/.test(location.hash)) S.v = +location.hash[1] - 1;
+render();
+</script>
+</body>
+</html>

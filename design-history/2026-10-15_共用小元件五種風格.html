@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>共用小元件風格</title>
+<style>
+  :root { --bg: #0C0C13; --card: #151520; --line: #2A2A3D; --ink: #F3F2F8; --ink2: #A3A2B2; --ink3: #74738A; --accent: #7EA6FF; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--ink); min-height: 100vh; font: 14px/1.5 -apple-system, "SF Pro Text", system-ui, "Segoe UI", "Microsoft JhengHei", sans-serif; }
+  .page { max-width: 1140px; margin: 0 auto; padding: 24px 16px 60px; }
+  h1 { font-size: 20px; margin: 0 0 6px; }
+  .lead { color: var(--ink2); font-size: 13px; margin: 0 0 14px; } .lead b { color: var(--ink); }
+  .vtabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+  .vtabs button { border: 1px solid var(--line); background: var(--card); color: var(--ink2); padding: 8px 14px; border-radius: 99px; cursor: pointer; font-size: 13px; }
+  .vtabs button.on { border-color: var(--accent); color: #fff; background: rgba(46,107,255,.35); }
+  .stage { display: flex; gap: 28px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
+  .notes { flex: 1 1 320px; max-width: 470px; background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 18px 20px; font-size: 13.5px; color: var(--ink2); }
+  .notes h2 { color: var(--ink); font-size: 17px; margin: 0 0 4px; }
+  .notes .tag { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 99px; background: rgba(126,166,255,.15); color: var(--accent); margin-bottom: 8px; }
+  .notes h3 { color: var(--ink); font-size: 13.5px; margin: 14px 0 4px; }
+  .notes ul { margin: 0; padding-left: 18px; } .notes li { margin: 3px 0; }
+  .notes .try { margin-top: 14px; padding: 10px 12px; border-radius: 12px; background: rgba(126,166,255,.08); border: 1px solid rgba(126,166,255,.25); color: var(--ink); font-size: 12.5px; }
+  .phone { width: 390px; max-width: 100%; height: 820px; flex-shrink: 0; border-radius: 44px; border: 1px solid var(--line); position: relative; overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,.5); user-select: none; background: var(--pbg); color: var(--pink); }
+  .screen { position: absolute; inset: 0; overflow-y: auto; padding: 46px 16px 40px; scrollbar-width: none; }
+  .screen::-webkit-scrollbar { display: none; }
+  .status { position: absolute; top: 0; left: 0; right: 0; height: 40px; display: flex; align-items: center; justify-content: space-between; padding: 0 30px; font-size: 13px; font-weight: 700; z-index: 70; pointer-events: none; }
+  .ptabs { display: flex; gap: 6px; margin-bottom: 14px; }
+  .ptabs span { flex: 1; text-align: center; padding: 7px 0; font-size: 13px; font-weight: 700; cursor: pointer; border-radius: var(--r-s); color: var(--pink2); background: var(--surface); border: var(--bd); }
+  .ptabs span.on { background: var(--pri); color: var(--onpri); border-color: transparent; }
+  .lbl { font-size: 11.5px; color: var(--pink3); font-weight: 700; letter-spacing: .5px; margin: 16px 2px 8px; }
+  .rowx { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  /* ── 元件（各風格用變數＋覆寫） ── */
+  .btn { border: 0; cursor: pointer; font: inherit; font-weight: 700; font-size: 14px; padding: 10px 18px; border-radius: var(--r-btn); transition: transform .12s, filter .15s, box-shadow .15s; }
+  .btn:active { transform: scale(.96); }
+  .btn.p { background: var(--pri); color: var(--onpri); box-shadow: var(--sh-pri); }
+  .btn.s { background: var(--sec); color: var(--onsec); }
+  .btn.g { background: transparent; color: var(--pri-ink); border: var(--bd-ghost); }
+  .btn.d { background: var(--danger-bg); color: var(--danger); }
+  .btn.busy { filter: saturate(.6); pointer-events: none; }
+  .btn.busy::after { content: ""; display: inline-block; width: 12px; height: 12px; margin-left: 8px; border-radius: 50%; border: 2px solid currentColor; border-top-color: transparent; animation: rot .7s linear infinite; vertical-align: -1px; }
+  @keyframes rot { to { transform: rotate(360deg) } }
+  .chip { cursor: pointer; font-size: 13px; padding: 6px 13px; border-radius: var(--r-chip); background: var(--chip); color: var(--pink); border: var(--bd-chip); transition: .15s; display: inline-flex; align-items: center; gap: 5px; }
+  .chip.on { background: var(--chip-on); color: var(--onchip); border-color: transparent; font-weight: 700; }
+  .chip .ck { display: var(--chip-ck, none); }
+  .sw { width: var(--sw-w); height: var(--sw-h); border-radius: 99px; background: var(--sw-off); position: relative; cursor: pointer; transition: .2s; flex-shrink: 0; border: var(--sw-bd, 0); }
+  .sw::after { content: var(--sw-icon-off, ""); position: absolute; top: 50%; transform: translateY(-50%); left: var(--sw-pad); width: var(--sw-k); height: var(--sw-k); border-radius: var(--sw-kr, 50%); background: var(--sw-knob-off, #fff); transition: .2s; box-shadow: 0 2px 4px rgba(0,0,0,.25); display: grid; place-items: center; font-size: 10px; color: var(--sw-off); font-weight: 900; }
+  .sw.on { background: var(--sw-on); border-color: transparent; }
+  .sw.on::after { left: calc(var(--sw-w) - var(--sw-k) - var(--sw-pad)); background: var(--sw-knob-on, #fff); content: var(--sw-icon-on, ""); color: var(--sw-on); }
+  .seg { display: flex; padding: 3px; border-radius: var(--r-seg); background: var(--seg-bg); border: var(--seg-bd, 0); }
+  .seg button { flex: 1; border: 0; background: none; color: var(--pink2); padding: 7px 0; border-radius: calc(var(--r-seg) - 3px); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; transition: .2s; }
+  .seg button.on { background: var(--seg-on); color: var(--seg-on-ink); box-shadow: var(--seg-sh, none); }
+  .card { border-radius: var(--r-card); background: var(--surface); border: var(--bd); padding: 14px; box-shadow: var(--sh-card); backdrop-filter: var(--blur); }
+  .badge { font-size: 11px; font-weight: 800; padding: 1px 8px; border-radius: var(--r-badge); display: inline-block; }
+  .b1 { background: var(--b1-bg); color: var(--b1); } .b2 { background: var(--b2-bg); color: var(--b2); } .b3 { background: var(--b3-bg); color: var(--b3); }
+  .dotn { min-width: 18px; height: 18px; border-radius: 99px; background: var(--danger); color: #fff; font-size: 10.5px; font-weight: 900; display: inline-grid; place-items: center; padding: 0 5px; }
+  .inp { width: 100%; font: inherit; color: var(--pink); background: var(--inp-bg); border: var(--inp-bd); border-radius: var(--r-inp); padding: 10px 12px; outline: none; transition: .15s; }
+  .inp:focus { border-color: var(--pri); box-shadow: 0 0 0 3px var(--focus); }
+  .rng { width: 100%; accent-color: var(--pri); }
+  .li { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: var(--li-bd); }
+  .li:last-child { border-bottom: 0; }
+  .ic { width: 34px; height: 34px; border-radius: var(--r-ic); display: grid; place-items: center; font-size: 16px; background: var(--ic-bg); flex-shrink: 0; }
+  .toast { position: absolute; left: 50%; top: 52px; transform: translateX(-50%); z-index: 99; background: var(--toast); color: var(--toast-ink); border-radius: var(--r-card); padding: 9px 16px; font-size: 13px; white-space: nowrap; animation: pop .2s; box-shadow: 0 10px 30px rgba(0,0,0,.4); backdrop-filter: blur(20px); border: var(--bd); }
+  @keyframes pop { from { transform: translate(-50%, -6px); opacity: 0 } }
+  .dlg-bg { position: absolute; inset: 0; z-index: 90; background: rgba(0,0,0,.5); display: grid; place-items: center; animation: fade .2s; }
+  @keyframes fade { from { opacity: 0 } }
+  .dlg { width: 290px; border-radius: var(--r-dlg); background: var(--dlg); padding: 20px; text-align: center; border: var(--bd); backdrop-filter: blur(24px); }
+  .dlg .btns { display: flex; gap: 8px; margin-top: 16px; } .dlg .btns .btn { flex: 1; }
+  .prog { height: 8px; border-radius: 99px; background: var(--seg-bg); overflow: hidden; }
+  .prog i { display: block; height: 100%; background: var(--pri); border-radius: 99px; transition: width .4s; }
+
+  /* 1 iOS */
+  .t1 { --pbg: #000; --pink: #fff; --pink2: #ebebf599; --pink3: #8e8e93; --pri: #0A84FF; --pri-ink: #0A84FF; --onpri: #fff; --sec: #2c2c2e; --onsec: #0A84FF; --bd-ghost: 0; --danger: #FF453A; --danger-bg: #2c2c2e; --surface: #1c1c1e; --bd: 0 solid transparent; --sh-card: none; --sh-pri: none; --blur: none;
+    --r-btn: 12px; --r-chip: 8px; --r-card: 12px; --r-seg: 9px; --r-badge: 6px; --r-inp: 10px; --r-ic: 8px; --r-dlg: 14px; --r-s: 9px;
+    --chip: #2c2c2e; --bd-chip: 0 solid transparent; --chip-on: #fff; --onchip: #000;
+    --sw-w: 51px; --sw-h: 31px; --sw-k: 27px; --sw-pad: 2px; --sw-off: #39393d; --sw-on: #30D158;
+    --seg-bg: #1c1c1e; --seg-on: #636366; --seg-on-ink: #fff;
+    --b1: #30D158; --b1-bg: rgba(48,209,88,.15); --b2: #FF9F0A; --b2-bg: rgba(255,159,10,.15); --b3: #8e8e93; --b3-bg: #2c2c2e;
+    --inp-bg: #1c1c1e; --inp-bd: 1px solid transparent; --focus: rgba(10,132,255,.25); --li-bd: .5px solid #38383a; --ic-bg: #2c2c2e; --toast: rgba(44,44,46,.96); --toast-ink: #fff; --dlg: rgba(44,44,46,.97); }
+  .t1 .dlg { padding: 0; overflow: hidden; } .t1 .dlg .in { padding: 18px 16px 14px; } .t1 .dlg .btns { gap: 0; margin: 0; border-top: .5px solid #48484a; } .t1 .dlg .btns .btn { border-radius: 0; background: none; color: #0A84FF; padding: 12px; font-weight: 400; } .t1 .dlg .btns .btn.d { color: #FF453A; font-weight: 700; border-left: .5px solid #48484a; }
+  /* 2 Material 3 */
+  .t2 { --pbg: #141218; --pink: #E6E0E9; --pink2: #CAC4D0; --pink3: #938F99; --pri: #D0BCFF; --pri-ink: #D0BCFF; --onpri: #381E72; --sec: #4A4458; --onsec: #E8DEF8; --bd-ghost: 1px solid #938F99; --danger: #FFB4AB; --danger-bg: #93000A; --surface: #211F26; --bd: 0 solid transparent; --sh-card: none; --sh-pri: none; --blur: none;
+    --r-btn: 99px; --r-chip: 8px; --r-card: 16px; --r-seg: 99px; --r-badge: 99px; --r-inp: 4px; --r-ic: 99px; --r-dlg: 28px; --r-s: 99px;
+    --chip: transparent; --bd-chip: 1px solid #938F99; --chip-on: #4A4458; --onchip: #E8DEF8; --chip-ck: inline;
+    --sw-w: 52px; --sw-h: 32px; --sw-k: 16px; --sw-pad: 6px; --sw-off: #36343B; --sw-on: #D0BCFF; --sw-bd: 2px solid #938F99; --sw-knob-off: #938F99; --sw-knob-on: #381E72; --sw-icon-on: "✓";
+    --seg-bg: transparent; --seg-bd: 1px solid #938F99; --seg-on: #4A4458; --seg-on-ink: #E8DEF8;
+    --b1: #381E72; --b1-bg: #D0BCFF; --b2: #E8DEF8; --b2-bg: #4A4458; --b3: #CAC4D0; --b3-bg: #36343B;
+    --inp-bg: #36343B; --inp-bd: 0 solid transparent; --focus: transparent; --li-bd: 0; --ic-bg: #4A4458; --toast: #E6E0E9; --toast-ink: #322F35; --dlg: #2B2930; }
+  .t2 .inp { border-bottom: 2px solid #938F99; } .t2 .inp:focus { border-bottom-color: #D0BCFF; box-shadow: none; }
+  .t2 .sw.on::after { width: 24px; height: 24px; left: calc(52px - 24px - 6px); font-size: 13px; color: #D0BCFF; }
+  .t2 .sw.on::after { color: #381E72; } .t2 .sw::after { box-shadow: none; }
+  /* 3 毛玻璃（現在的整理版） */
+  .t3 { --pbg: radial-gradient(120% 60% at 15% 0%, #2a1a3a 0%, #0e0e17 55%), #0e0e17; --pink: #F3F2F8; --pink2: #A3A2B2; --pink3: #74738A; --pri: linear-gradient(180deg, rgba(46,107,255,.85), rgba(46,107,255,.55)); --pri-ink: #7EA6FF; --onpri: #fff; --sec: rgba(255,255,255,.08); --onsec: #F3F2F8; --bd-ghost: 1px solid rgba(126,166,255,.45); --danger: #FF938B; --danger-bg: rgba(255,90,80,.14); --surface: rgba(255,255,255,.06); --bd: 1px solid rgba(255,255,255,.12); --sh-card: inset 0 1px 0 rgba(255,255,255,.08); --sh-pri: inset 0 1px 0 rgba(255,255,255,.3), 0 6px 18px rgba(46,107,255,.35); --blur: blur(18px);
+    --r-btn: 14px; --r-chip: 99px; --r-card: 20px; --r-seg: 14px; --r-badge: 99px; --r-inp: 14px; --r-ic: 11px; --r-dlg: 24px; --r-s: 99px;
+    --chip: rgba(255,255,255,.06); --bd-chip: 1px solid rgba(255,255,255,.12); --chip-on: linear-gradient(180deg, rgba(46,107,255,.75), rgba(46,107,255,.45)); --onchip: #fff;
+    --sw-w: 46px; --sw-h: 28px; --sw-k: 22px; --sw-pad: 3px; --sw-off: rgba(255,255,255,.12); --sw-on: linear-gradient(90deg, #2E6BFF, #7EA6FF);
+    --seg-bg: rgba(255,255,255,.06); --seg-bd: 1px solid rgba(255,255,255,.1); --seg-on: rgba(255,255,255,.16); --seg-on-ink: #fff; --seg-sh: inset 0 1px 0 rgba(255,255,255,.15);
+    --b1: #5FE08D; --b1-bg: rgba(95,224,141,.14); --b2: #F5C763; --b2-bg: rgba(245,199,99,.14); --b3: #A3A2B2; --b3-bg: rgba(255,255,255,.08);
+    --inp-bg: rgba(255,255,255,.05); --inp-bd: 1px solid rgba(255,255,255,.12); --focus: rgba(126,166,255,.25); --li-bd: 1px solid rgba(255,255,255,.06); --ic-bg: rgba(126,166,255,.14); --toast: rgba(40,40,58,.8); --toast-ink: #fff; --dlg: rgba(30,30,46,.85); }
+  .t3 .ptabs span.on, .t3 .prog i { background: linear-gradient(90deg, #2E6BFF, #7EA6FF); }
+  /* 4 高對比 */
+  .t4 { --pbg: #0a0a0a; --pink: #fff; --pink2: #cfcfcf; --pink3: #8a8a8a; --pri: #D7FF3A; --pri-ink: #D7FF3A; --onpri: #000; --sec: #000; --onsec: #fff; --bd-ghost: 2px solid #D7FF3A; --danger: #FF3B5C; --danger-bg: #000; --surface: #111; --bd: 2px solid #fff; --sh-card: 4px 4px 0 #D7FF3A; --sh-pri: 3px 3px 0 #fff; --blur: none;
+    --r-btn: 4px; --r-chip: 4px; --r-card: 6px; --r-seg: 6px; --r-badge: 3px; --r-inp: 4px; --r-ic: 4px; --r-dlg: 6px; --r-s: 4px;
+    --chip: #000; --bd-chip: 2px solid #fff; --chip-on: #fff; --onchip: #000;
+    --sw-w: 50px; --sw-h: 28px; --sw-k: 20px; --sw-pad: 2px; --sw-off: #000; --sw-on: #D7FF3A; --sw-bd: 2px solid #fff; --sw-kr: 3px; --sw-knob-off: #fff; --sw-knob-on: #000;
+    --seg-bg: #000; --seg-bd: 2px solid #fff; --seg-on: #fff; --seg-on-ink: #000;
+    --b1: #000; --b1-bg: #D7FF3A; --b2: #000; --b2-bg: #FF9EDB; --b3: #fff; --b3-bg: #333;
+    --inp-bg: #000; --inp-bd: 2px solid #fff; --focus: rgba(215,255,58,.4); --li-bd: 2px solid #222; --ic-bg: #D7FF3A; --toast: #D7FF3A; --toast-ink: #000; --dlg: #111; }
+  .t4 .sw { border-radius: 4px; } .t4 .btn.s { border: 2px solid #fff; } .t4 .btn.d { border: 2px solid #FF3B5C; } .t4 .ic { color: #000; }
+  .t4 .ptabs span { border: 2px solid #fff; } .t4 .lbl { text-transform: uppercase; letter-spacing: 2px; color: #D7FF3A; }
+  .t4 .btn:active { transform: translate(3px, 3px); box-shadow: none; }
+  /* 5 柔和糖果 */
+  .t5 { --pbg: linear-gradient(180deg, #1d1830, #15131f); --pink: #FFF6FB; --pink2: #D9CFE6; --pink3: #9C92B0; --pri: linear-gradient(135deg, #FF8FB8, #B794FF); --pri-ink: #FFB3CF; --onpri: #fff; --sec: #2E2944; --onsec: #FFD6E7; --bd-ghost: 2px dashed #6E6290; --danger: #FF8A9A; --danger-bg: rgba(255,138,154,.15); --surface: #252038; --bd: 0 solid transparent; --sh-card: 0 8px 24px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.05); --sh-pri: 0 8px 20px rgba(255,143,184,.35); --blur: none;
+    --r-btn: 20px; --r-chip: 16px; --r-card: 26px; --r-seg: 18px; --r-badge: 10px; --r-inp: 18px; --r-ic: 14px; --r-dlg: 30px; --r-s: 16px;
+    --chip: #2E2944; --bd-chip: 0 solid transparent; --chip-on: linear-gradient(135deg, #FF8FB8, #B794FF); --onchip: #fff;
+    --sw-w: 52px; --sw-h: 30px; --sw-k: 24px; --sw-pad: 3px; --sw-off: #3A3355; --sw-on: linear-gradient(135deg, #FF8FB8, #B794FF);
+    --seg-bg: #2E2944; --seg-on: #FFF6FB; --seg-on-ink: #2a1f40;
+    --b1: #7BE3B5; --b1-bg: rgba(123,227,181,.15); --b2: #FFD27A; --b2-bg: rgba(255,210,122,.15); --b3: #C9B8FF; --b3-bg: rgba(201,184,255,.15);
+    --inp-bg: #2E2944; --inp-bd: 2px solid transparent; --focus: rgba(255,143,184,.25); --li-bd: 0; --ic-bg: #3A3355; --toast: #FFF6FB; --toast-ink: #2a1f40; --dlg: #252038; }
+  .t5 .ptabs span.on, .t5 .prog i { background: linear-gradient(135deg, #FF8FB8, #B794FF); }
+  .t5 .li { background: #2E2944; border-radius: 18px; padding: 10px 12px; margin-bottom: 6px; }
+  .t5 .btn:active { transform: scale(.92) rotate(-1deg); }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>共用小元件：五種風格</h1>
+  <p class="lead">按鈕、篩選標籤、開關、分段切換、卡片、徽章、輸入框、提示……這些到處都在用的<b>小元件本身長什麼樣</b>。挑一種，全 App 一起換（之前選過的「確認框」「空狀態」也會跟著這套）。<br>
+    手機框上方切兩頁：<b>元件總覽</b>（一個一個看）、<b>實際畫面</b>（同一套元件拼成 App 裡會看到的頁面）。全部都能點。</p>
+  <div class="vtabs" id="vtabs"></div>
+  <div class="stage"><div class="phone" id="phone"></div><div class="notes" id="notes"></div></div>
+</div>
+<script>
+const V = [
+  { name: '1 iOS 原生（主流）', cls: 't1', tag: '主流・最熟悉', title: '版本 1：iOS 原生——藍色主色、綠色開關、灰色分組底',
+    desc: `<ul><li>按鈕：實心藍、灰底藍字、純文字。圓角 12。</li><li>標籤：灰底，選中變白底黑字（iOS 篩選的樣子）。</li><li>開關：iPhone 一模一樣的綠色大開關。</li>
+      <li>確認框：iOS 系統那種，按鈕上下用細線隔開，危險動作紅字。</li><li>好處：跟手機本身的設定、相簿一致，不用學。</li></ul>` },
+  { name: '2 Material 3', cls: 't2', tag: 'Android 風', title: '版本 2：Google Material 3——淡紫色調、膠囊按鈕、開關裡有 ✓',
+    desc: `<ul><li>按鈕全膠囊形；次要按鈕是「色調」底（淡紫灰）。</li><li>標籤選中前面多一個 ✓（Material 篩選晶片的規則）。</li>
+      <li>開關選中時圓點變大、裡面打勾。</li><li>輸入框是底線式；提示從下面黑白反色出現。</li><li>Google 自家 App（Gmail、日曆）都長這樣。</li></ul>` },
+  { name: '3 毛玻璃（現在的整理版）', cls: 't3', tag: '最接近現在', title: '版本 3：現在 App 的毛玻璃風，把各頁不一致的地方統一',
+    desc: `<ul><li>保留現在的：半透明玻璃卡、藍色漸層主按鈕、細白邊。</li><li>統一的：標籤全部膠囊形、開關全部藍色漸層（現在有綠有藍）、卡片圓角全部 20。</li>
+      <li>主按鈕多一點光澤跟藍色光暈，跟底部浮動膠囊同一套。</li><li>換的最少，看起來最像「同一個 App」。</li></ul>` },
+  { name: '4 高對比粗線', cls: 't4', tag: '最有個性', title: '版本 4：黑白＋螢光黃，粗邊框、方角、硬陰影（Neo-brutalism）',
+    desc: `<ul><li>全部 2px 白色粗框、小圓角；卡片右下一塊螢光黃實心陰影。</li><li>主按鈕螢光黃黑字，按下去會「壓進去」（陰影消失）。</li>
+      <li>開關、輸入框都是方的。字很清楚，在太陽底下也好看。</li><li>近幾年設計獎網站很常見的風格。</li></ul>` },
+  { name: '5 柔和糖果', cls: 't5', tag: '可愛', title: '版本 5：粉紫漸層、大圓角、軟陰影，像日系可愛 App',
+    desc: `<ul><li>主色是粉→紫漸層；圓角很大（按鈕 20、卡片 26）。</li><li>清單每列各自一顆圓角塊，不是用分隔線。</li>
+      <li>徽章用薄荷綠、奶油黃、薰衣草紫。</li><li>按下按鈕會輕輕歪一下。跟日文學習的櫻花主頁最搭。</li></ul>` },
+];
+const S = { v: 0, tab: '總覽', chips: new Set(['影片']), sw: { a: true, b: false, c: true }, seg: '頻道', busy: false, dlg: false, toast: null, rng: 60, q: '', prog: 40 };
+const sw = k => `<span class="sw ${S.sw[k] ? 'on' : ''}" data-sw="${k}"></span>`;
+const chips = list => list.map(c => `<span class="chip ${S.chips.has(c) ? 'on' : ''}" data-chip="${c}"><span class="ck">${S.chips.has(c) ? '✓' : ''}</span>${c}</span>`).join('');
+function gallery() {
+  return `<div class="lbl">按鈕</div><div class="rowx"><button class="btn p ${S.busy ? 'busy' : ''}" data-busy>${S.busy ? '儲存中' : '儲存'}</button><button class="btn s" data-toast="已加入">加入</button><button class="btn g" data-toast="已取消">取消</button><button class="btn d" data-dlg>刪除</button></div>
+    <div class="lbl">篩選標籤（可以多選）</div><div class="rowx">${chips(['全部', '影片', 'Shorts', '直播', '2–6 分'])}</div>
+    <div class="lbl">開關</div><div class="card" style="padding:4px 14px">${[['a', '進頻道自動抓全部影片'], ['b', '依影片顯示也抓冷藏'], ['c', '回到最上面按鈕']].map(([k, t]) => `<div class="li"><span style="flex:1">${t}</span>${sw(k)}</div>`).join('')}</div>
+    <div class="lbl">分段切換</div><div class="seg">${['頻道', '影片', '播放清單'].map(x => `<button class="${S.seg === x ? 'on' : ''}" data-seg="${x}">${x}</button>`).join('')}</div>
+    <div class="lbl">徽章</div><div class="rowx"><span class="badge b1">已平倉</span><span class="badge b2">還抱著</span><span class="badge b3">已看過</span><span class="dotn">3</span><span class="dotn">12</span></div>
+    <div class="lbl">輸入框</div><input class="inp" placeholder="搜尋頻道或貼上網址" data-q value="${S.q}">
+    <div class="lbl">滑桿＋進度</div><input type="range" class="rng" min="1" max="125" value="${S.rng}" data-rng><div class="rowx" style="justify-content:space-between;font-size:12px;color:var(--pink2);margin:2px 0 10px"><span>槓桿</span><b style="color:var(--pink)">${S.rng}x</b></div><div class="prog"><i style="width:${S.prog}%"></i></div>
+    <div class="lbl">卡片</div><div class="card"><div style="display:flex;gap:10px;align-items:center"><span class="ic">📈</span><div style="flex:1"><b>BTC 多單 20x</b><div style="font-size:12px;color:var(--pink2)">10/14 21:30 開倉・保證金 500</div></div><span class="badge b2">還抱著</span></div></div>`;
+}
+function screen() {
+  return `<div style="font-size:26px;font-weight:900;margin:2px 2px 10px">YT 頻道追蹤</div><input class="inp" placeholder="⌕ 搜尋頻道" data-q value="${S.q}">
+    <div style="margin:12px 0 10px" class="seg">${['頻道', '影片', '播放清單'].map(x => `<button class="${S.seg === x ? 'on' : ''}" data-seg="${x}">${x}</button>`).join('')}</div>
+    <div class="rowx" style="flex-wrap:nowrap;overflow:hidden">${chips(['全部', '影片', 'Shorts', '直播'])}</div>
+    <div class="card" style="margin-top:12px;padding:4px 14px">${[['🎵', '周杰倫 Jay Chou', '2,140 萬訂閱', '<span class="dotn">2</span>'], ['🎸', '五月天 Mayday', '1,080 萬訂閱', '<span class="dotn">1</span>'], ['🎤', '鄧紫棋 G.E.M.', '1,890 萬訂閱', '<span class="badge b3">已看完</span>'], ['🎹', '林俊傑 JJ Lin', '1,730 萬訂閱', '<span class="badge b1">新</span>']].map(([i, n, s, r]) => `<div class="li"><span class="ic">${i}</span><div style="flex:1"><b style="font-size:14px">${n}</b><div style="font-size:12px;color:var(--pink3)">${s}</div></div>${r}</div>`).join('')}</div>
+    <div class="card" style="margin-top:12px"><div style="display:flex;align-items:center;gap:10px"><div style="flex:1"><b>背景抓完整頻道</b><div style="font-size:12px;color:var(--pink2)">周杰倫・已抓 ${Math.round(S.prog * 3.2)} / 320 部</div></div>${sw('a')}</div><div class="prog" style="margin-top:10px"><i style="width:${S.prog}%"></i></div></div>
+    <div class="rowx" style="margin-top:14px"><button class="btn p ${S.busy ? 'busy' : ''}" style="flex:1" data-busy>${S.busy ? '同步中' : '立即同步'}</button><button class="btn s" data-toast="已開啟挖掘">挖掘</button><button class="btn d" data-dlg>🗑</button></div>`;
+}
+const phone = document.getElementById('phone');
+function render() {
+  const v = V[S.v];
+  document.getElementById('vtabs').innerHTML = V.map((x, i) => `<button class="${i === S.v ? 'on' : ''}" data-v="${i}">${x.name}</button>`).join('');
+  document.getElementById('notes').innerHTML = `<span class="tag">${v.tag}</span><h2>${v.title}</h2>${v.desc}<div class="try">試試：按「儲存」（會轉圈）、按「刪除」（確認框）、切開關、選標籤、拖滑桿，再切到「實際畫面」。</div>`;
+  const st = phone.querySelector('.screen')?.scrollTop || 0;
+  phone.className = 'phone ' + v.cls;
+  phone.innerHTML = `<div class="status"><span>21:30</span><span>5G ▮</span></div><div class="screen"><div class="ptabs">${['總覽', '實際畫面'].map(t => `<span class="${S.tab === t ? 'on' : ''}" data-tab="${t}">${t === '總覽' ? '元件總覽' : t}</span>`).join('')}</div>${S.tab === '總覽' ? gallery() : screen()}</div>
+    ${S.dlg ? `<div class="dlg-bg" data-close><div class="dlg" onclick="event.stopPropagation()"><div class="in"><b style="font-size:16px">刪除這個頻道？</b><div style="font-size:13px;color:var(--pink2);margin-top:6px">會移到垃圾桶，30 天內可以還原。</div></div><div class="btns"><button class="btn s" data-close>取消</button><button class="btn d" data-del>刪除</button></div></div></div>` : ''}
+    ${S.toast ? `<div class="toast">${S.toast}</div>` : ''}`;
+  phone.querySelector('.screen').scrollTop = st;
+}
+let tt;
+function toast(t) { S.toast = t; clearTimeout(tt); tt = setTimeout(() => { S.toast = null; render(); }, 1600); }
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-v],[data-tab],[data-chip],[data-sw],[data-seg],[data-busy],[data-dlg],[data-close],[data-del],[data-toast]');
+  if (!el) return; const d = el.dataset;
+  if (d.v) S.v = +d.v;
+  else if (d.tab) S.tab = d.tab;
+  else if (d.chip) { if (d.chip === '全部') S.chips.clear(); else { S.chips.delete('全部'); S.chips.has(d.chip) ? S.chips.delete(d.chip) : S.chips.add(d.chip); } if (!S.chips.size) S.chips.add('全部'); }
+  else if (d.sw) S.sw[d.sw] = !S.sw[d.sw];
+  else if (d.seg) S.seg = d.seg;
+  else if (d.busy !== undefined) { S.busy = true; setTimeout(() => { S.busy = false; S.prog = Math.min(100, S.prog + 25); toast('已儲存'); render(); }, 1200); }
+  else if (d.dlg !== undefined) S.dlg = true;
+  else if (d.close !== undefined) S.dlg = false;
+  else if (d.del !== undefined) { S.dlg = false; toast('已移到垃圾桶'); }
+  else if (d.toast) toast(d.toast);
+  render();
+});
+document.addEventListener('input', e => { if (e.target.matches('[data-rng]')) { S.rng = +e.target.value; const b = e.target.nextElementSibling.querySelector('b'); b.textContent = S.rng + 'x'; } if (e.target.matches('[data-q]')) S.q = e.target.value; });
+if (/^#[1-5]$/.test(location.hash)) S.v = +location.hash[1] - 1;
+render();
+</script>
+</body>
+</html>

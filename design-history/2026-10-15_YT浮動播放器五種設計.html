@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YT 浮動播放器</title>
+<style>
+  :root { --bg: #0C0C13; --card: #151520; --card2: #1A1A27; --sheet: #1C1C29; --line: #2A2A3D; --ink: #F3F2F8; --ink2: #A3A2B2; --ink3: #74738A; --accent: #7EA6FF; --ios: #0A84FF; --yt: #FF4E45; --green: #30D158; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--ink); min-height: 100vh; font: 14px/1.5 -apple-system, "SF Pro Text", system-ui, "Segoe UI", "Microsoft JhengHei", sans-serif; }
+  .page { max-width: 1140px; margin: 0 auto; padding: 24px 16px 60px; }
+  h1 { font-size: 20px; margin: 0 0 6px; }
+  .lead { color: var(--ink2); font-size: 13px; margin: 0 0 14px; } .lead b { color: var(--ink); }
+  .vtabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+  .vtabs button { border: 1px solid var(--line); background: var(--card); color: var(--ink2); padding: 8px 14px; border-radius: 99px; cursor: pointer; font-size: 13px; }
+  .vtabs button.on { border-color: var(--accent); color: #fff; background: rgba(46,107,255,.35); }
+  .stage { display: flex; gap: 28px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
+  .notes { flex: 1 1 320px; max-width: 470px; background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 18px 20px; font-size: 13.5px; color: var(--ink2); }
+  .notes h2 { color: var(--ink); font-size: 17px; margin: 0 0 4px; }
+  .notes .tag { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 99px; background: rgba(126,166,255,.15); color: var(--accent); margin-bottom: 8px; }
+  .notes h3 { color: var(--ink); font-size: 13.5px; margin: 14px 0 4px; }
+  .notes ul { margin: 0; padding-left: 18px; } .notes li { margin: 3px 0; }
+  .notes .try { margin-top: 14px; padding: 10px 12px; border-radius: 12px; background: rgba(126,166,255,.08); border: 1px solid rgba(126,166,255,.25); color: var(--ink); font-size: 12.5px; }
+  .phone { width: 390px; max-width: 100%; height: 820px; flex-shrink: 0; border-radius: 44px; border: 1px solid var(--line); background: #0e0e17; position: relative; overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,.5); user-select: none; touch-action: none; }
+  .screen { position: absolute; inset: 0; overflow-y: auto; padding: 44px 0 110px; scrollbar-width: none; }
+  .screen::-webkit-scrollbar { display: none; }
+  .status { position: absolute; top: 0; left: 0; right: 0; height: 40px; display: flex; align-items: center; justify-content: space-between; padding: 0 30px; font-size: 13px; font-weight: 700; z-index: 95; pointer-events: none; }
+  .small { font-size: 11.5px; color: var(--ink3); }
+  .vrow { display: flex; gap: 10px; padding: 7px 14px; cursor: pointer; }
+  .vrow:hover { background: rgba(255,255,255,.03); }
+  .th { position: relative; width: 140px; height: 79px; border-radius: 10px; overflow: hidden; flex-shrink: 0; background: #222; }
+  .th img { width: 100%; height: 100%; object-fit: cover; }
+  .vt { font-size: 13.5px; font-weight: 600; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .vrow.now .vt { color: var(--yt); }
+  .navbar { position: absolute; left: 50%; bottom: 26px; transform: translateX(-50%); z-index: 50; display: flex; gap: 4px; padding: 6px; border-radius: 99px; background: rgba(30,30,44,.72); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,.14); }
+  .navbar span { padding: 7px 16px; border-radius: 99px; font-size: 12px; font-weight: 700; color: var(--ink2); }
+  .navbar span.on { background: rgba(255,255,255,.14); color: #fff; }
+  /* 播放畫面（假的：縮圖＋會走的進度） */
+  .vid { position: relative; background: #000; overflow: hidden; }
+  .vid img { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
+  .vid .pp { position: absolute; inset: 0; display: grid; place-items: center; font-size: 34px; opacity: 0; transition: .2s; background: rgba(0,0,0,.25); cursor: pointer; }
+  .vid:hover .pp, .vid.paused .pp { opacity: 1; }
+  .vid .pg { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: rgba(255,255,255,.25); }
+  .vid .pg i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--yt); }
+  .float { position: absolute; z-index: 80; border-radius: 14px; overflow: hidden; box-shadow: 0 14px 34px rgba(0,0,0,.6); background: #000; transition: left .28s cubic-bezier(.2,.9,.3,1), top .28s cubic-bezier(.2,.9,.3,1), width .25s, height .25s, border-radius .25s; }
+  .float.drag { transition: none; }
+  .tb { display: flex; align-items: center; gap: 4px; padding: 4px 6px; background: rgba(28,28,40,.95); font-size: 11.5px; cursor: grab; }
+  .tb .tt { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--ink2); }
+  .tb .x { width: 24px; height: 24px; border-radius: 8px; display: grid; place-items: center; cursor: pointer; color: var(--ink2); }
+  .tb .x:hover { background: rgba(255,255,255,.1); }
+  .full { position: absolute; inset: 0; z-index: 85; background: #0b0b12; animation: up .3s cubic-bezier(.2,.9,.3,1); display: flex; flex-direction: column; }
+  @keyframes up { from { transform: translateY(100%) } }
+  @keyframes pop { from { transform: scale(.85); opacity: 0 } }
+  .full .hd { display: flex; align-items: center; padding: 46px 10px 8px; gap: 6px; }
+  .ib { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; cursor: pointer; font-size: 18px; color: var(--ink); }
+  .ib:hover { background: rgba(255,255,255,.08); }
+  .mini { position: absolute; left: 10px; right: 10px; bottom: 84px; z-index: 80; height: 58px; border-radius: 16px; background: rgba(32,32,46,.92); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,.12); display: flex; align-items: center; gap: 10px; padding: 0 6px 0 0; overflow: hidden; animation: pop .25s; cursor: pointer; }
+  .mini img { height: 58px; width: 103px; object-fit: cover; }
+  .mini .pg { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; } .mini .pg i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--yt); }
+  .bubble { position: absolute; z-index: 80; width: 66px; height: 66px; border-radius: 50%; cursor: grab; transition: left .3s cubic-bezier(.2,.9,.3,1), top .3s cubic-bezier(.2,.9,.3,1); animation: pop .25s; }
+  .bubble.drag { transition: none; transform: scale(1.08); }
+  .bubble img { position: absolute; inset: 5px; width: 56px; height: 56px; border-radius: 50%; object-fit: cover; pointer-events: none; }
+  .bubble svg { position: absolute; inset: 0; transform: rotate(-90deg); }
+  .killzone { position: absolute; left: 50%; bottom: 40px; transform: translateX(-50%); z-index: 79; width: 64px; height: 64px; border-radius: 50%; border: 2px solid rgba(255,255,255,.5); display: grid; place-items: center; font-size: 22px; background: rgba(0,0,0,.4); animation: pop .2s; }
+  .killzone.hot { background: var(--yt); border-color: var(--yt); transform: translateX(-50%) scale(1.2); }
+  .island { position: absolute; left: 50%; top: 8px; transform: translateX(-50%); z-index: 96; height: 34px; border-radius: 99px; background: #000; display: flex; align-items: center; gap: 8px; padding: 0 6px; cursor: pointer; animation: pop .3s; transition: width .3s; box-shadow: 0 0 0 1px rgba(255,255,255,.08); }
+  .island img { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; }
+  .island .mq { width: 84px; overflow: hidden; white-space: nowrap; font-size: 11.5px; font-weight: 600; }
+  .island .mq span { display: inline-block; animation: mq 9s linear infinite; padding-left: 100%; }
+  @keyframes mq { to { transform: translateX(-100%) } }
+  .eq { display: flex; gap: 2px; align-items: flex-end; height: 14px; }
+  .eq i { width: 3px; background: var(--green); border-radius: 2px; animation: eq .8s ease-in-out infinite alternate; }
+  .eq i:nth-child(2) { animation-delay: -.3s } .eq i:nth-child(3) { animation-delay: -.55s }
+  @keyframes eq { from { height: 3px } to { height: 14px } }
+  .paused .eq i { animation-play-state: paused; }
+  .tuck { position: absolute; z-index: 80; width: 26px; height: 74px; display: grid; place-items: center; background: rgba(32,32,46,.95); border: 1px solid rgba(255,255,255,.14); cursor: pointer; font-size: 16px; animation: pop .2s; }
+  .ctl { display: flex; justify-content: center; gap: 22px; padding: 14px; font-size: 24px; }
+  .ctl span { cursor: pointer; }
+  .hint { position: absolute; left: 50%; top: 50px; transform: translateX(-50%); z-index: 99; background: rgba(40,40,58,.96); border: 1px solid rgba(255,255,255,.12); border-radius: 14px; padding: 7px 13px; font-size: 12px; white-space: nowrap; animation: pop .2s; pointer-events: none; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>YT 浮動播放器：五種設計</h1>
+  <p class="lead">目前的浮動視窗是直接做出來的，沒給你比較過。這份比：<b>標題列長什麼樣、收起來的小東西是什麼形狀（圓形／膠囊／縮圖／迷你列）、要不要能停靠到邊緣</b>。<br>
+    每版都能玩：點任一部影片開始播（這裡是假播放：縮圖＋會走的進度條），照右邊說明拖、收、展開。</p>
+  <div class="vtabs" id="vtabs"></div>
+  <div class="stage"><div class="phone" id="phone"></div><div class="notes" id="notes"></div></div>
+</div>
+<script>
+const T = id => `https://i.ytimg.com/vi/${id}/mqdefault.jpg`;
+const VIDS = [
+  ['1emA1EFsPMM', '周杰倫 Jay Chou【最偉大的作品 Greatest Works of Art】Official MV', 245],
+  ['HK7SPnGSxLM', '周杰倫 Jay Chou x 五月天阿信【說好不哭】Official MV', 322],
+  ['kfXdP7nZIiE', '周杰倫 Jay Chou【等你下課 Waiting For You】Official MV', 270],
+  ['DYptgVvkVLQ', '周杰倫 Jay Chou【晴天 Sunny Day】Official MV', 269],
+  ['sHD_z90ZKV0', '周杰倫 Jay Chou【稻香 Rice Field】Official MV', 223],
+  ['Z8Mqw0b9ADs', '周杰倫 Jay Chou【青花瓷】Official MV', 239],
+  ['Bbp9ZaJD_eA', '周杰倫 Jay Chou【七里香 Orange Jasmine】Official MV', 299],
+  ['Y4xCVlyCvX4', '周杰倫 Jay Chou【簡單愛 Simple Love】Official MV', 270],
+  ['uIWypArI73w', '周杰倫 Jay Chou【不能說的祕密 Secret】Official MV', 296],
+].map(([id, t, s]) => ({ id, t, s }));
+const W = 390, H = 820;
+const S = { v: 0, now: null, mode: null, x: 0, y: 0, pos: 0, paused: false, kill: false, side: 'right', hint: null };
+const fmt = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+const cur = () => VIDS.find(v => v.id === S.now);
+const pct = () => cur() ? S.pos / cur().s * 100 : 0;
+const vid = (h, extra = '') => `<div class="vid ${S.paused ? 'paused' : ''}" style="height:${h}px;${extra}"><img src="${T(S.now)}"><div class="pp" data-pp>${S.paused ? '▶' : '❚❚'}</div><div class="pg"><i style="width:${pct()}%"></i></div></div>`;
+const fullView = (down = '⌄', extra = '') => `<div class="full"><div class="hd"><span class="ib" data-mode="mini">${down}</span><span style="flex:1"></span><span class="ib">↗</span><span class="ib" data-close>✕</span></div>
+  ${vid(219)}<div style="padding:12px 14px"><div style="font-weight:800;font-size:16px">${cur().t}</div><div class="small" style="margin-top:4px">周杰倫 Jay Chou・${fmt(S.pos)} / ${fmt(cur().s)}</div></div>
+  <div class="ctl"><span data-skip="-1">⏮</span><span data-pp>${S.paused ? '▶' : '❚❚'}</span><span data-skip="1">⏭</span></div>${extra}
+  <div class="small" style="padding:0 14px 6px">接下來</div>${VIDS.filter(v => v.id !== S.now).slice(0, 3).map(v => `<div class="vrow" data-play="${v.id}"><div class="th" style="width:110px;height:62px"><img src="${T(v.id)}"></div><div class="vt" style="font-size:12.5px">${v.t}</div></div>`).join('')}</div>`;
+// 吸到最近的角落／邊
+function snapCorner(w, h) { const left = S.x + w / 2 < W / 2; S.x = left ? 12 : W - w - 12; S.y = Math.max(50, Math.min(H - h - 90, S.y)); S.y = S.y + h / 2 < H / 2 ? 54 : H - h - 96; }
+
+const V = [];
+V.push({ name: '1 YouTube 迷你列（主流）', title: '版本 1：YouTube 那種——全螢幕播放，往下收成底部迷你列', tag: '主流・最熟悉',
+  desc: `<h3>怎麼用</h3><ul><li>點影片：從下面整頁滑上來播放（大畫面＋標題＋接下來）。</li>
+    <li>左上 ⌄（或往下滑）：收成<b>底部迷你列</b>，貼在分頁列上面，左邊小縮圖、中間標題、右邊 ❚❚ 跟 ✕；底部一條紅色進度。</li>
+    <li>點迷你列：再展開回整頁。</li><li>收起來時影片照樣繼續播，可以繼續滑清單、點別部。</li></ul>
+    <h3>取捨</h3><ul><li>不能自由拖位置；但最不會擋到東西，最多人習慣。</li></ul>`,
+  start() { S.mode = 'full'; },
+  render() {
+    if (S.mode === 'full') return fullView();
+    if (S.mode === 'mini') return `<div class="mini ${S.paused ? 'paused' : ''}" data-mode="full"><img src="${T(S.now)}"><div style="flex:1;min-width:0"><div class="vt" style="font-size:12.5px;-webkit-line-clamp:1">${cur().t}</div><div class="small">${fmt(S.pos)} / ${fmt(cur().s)}</div></div>
+      <span class="ib" data-pp>${S.paused ? '▶' : '❚❚'}</span><span class="ib" data-close>✕</span><div class="pg"><i style="width:${pct()}%"></i></div></div>`;
+    return '';
+  } });
+V.push({ name: '2 iOS 子母畫面', title: '版本 2：iPhone 子母畫面——小視窗吸在四個角，可以塞到邊邊藏起來', tag: '像 iOS 原生',
+  desc: `<h3>怎麼用</h3><ul><li>點影片：直接出一個<b>小視窗</b>（不蓋住整頁），沒有標題列，只有畫面。</li>
+    <li>拖著走，放手會<b>吸到最近的角落</b>（跟 iPhone 子母畫面一樣）。</li>
+    <li>往左右邊緣用力甩出去：視窗<b>藏到邊邊</b>，只留一個「‹」小把手，聲音繼續；點把手拉回來。</li>
+    <li>點一下畫面：出現 ✕、⤢（放大）、❚❚。⤢ 切成全螢幕。</li></ul>`,
+  start() { S.mode = 'pip'; S.x = W - 212; S.y = H - 216; },
+  render() {
+    if (S.mode === 'full') return fullView('⤡');
+    if (S.mode === 'tuck') return `<div class="tuck" data-mode="pip" style="${S.side === 'right' ? 'right:0;border-radius:12px 0 0 12px' : 'left:0;border-radius:0 12px 12px 0'};top:${S.y + 20}px">${S.side === 'right' ? '‹' : '›'}</div>`;
+    if (S.mode === 'pip') return `<div class="float" data-drag="pip" style="left:${S.x}px;top:${S.y}px;width:200px;height:113px;border-radius:12px">${vid(113)}
+      <div style="position:absolute;top:4px;left:4px;right:4px;display:flex;justify-content:space-between"><span class="ib" style="width:28px;height:28px;font-size:13px;background:rgba(0,0,0,.5)" data-close>✕</span><span class="ib" style="width:28px;height:28px;font-size:13px;background:rgba(0,0,0,.5)" data-mode="full">⤢</span></div></div>`;
+    return '';
+  },
+  drop(w) { if (S.x < -60 || S.x > W - w + 60) { S.side = S.x < 0 ? 'left' : 'right'; S.mode = 'tuck'; return; } snapCorner(w, 113); } });
+V.push({ name: '3 圓形泡泡', title: '版本 3：收合成圓形泡泡（像 Messenger 聊天泡泡），外圈是進度', tag: '最不擋畫面',
+  desc: `<h3>怎麼用</h3><ul><li>點影片：出浮動視窗（細標題列：標題、—、✕），可以拖。</li>
+    <li>按「—」：縮成<b>圓形泡泡</b>，裡面是縮圖、外圈一圈紅色＝播到哪。聲音繼續。</li>
+    <li>泡泡可以拖，放手<b>吸到左邊或右邊</b>。</li>
+    <li>拖泡泡時下面出現 ✕ 圈，拖進去就關掉（Messenger 那種）。</li><li>點泡泡：展開回視窗。</li></ul>`,
+  start() { S.mode = 'win'; S.x = 20; S.y = 300; },
+  render() {
+    if (S.mode === 'win') return `<div class="float" data-drag="win" style="left:${S.x}px;top:${S.y}px;width:350px"><div class="tb"><span class="tt">${cur().t}</span><span class="x" data-mode="bubble">—</span><span class="x" data-close>✕</span></div>${vid(197)}</div>`;
+    if (S.mode === 'bubble') { const r = 30, c = 2 * Math.PI * r;
+      return `${S.dragging ? `<div class="killzone ${S.kill ? 'hot' : ''}">✕</div>` : ''}<div class="bubble ${S.dragging ? 'drag' : ''}" data-drag="bubble" style="left:${S.x}px;top:${S.y}px"><svg width="66" height="66"><circle cx="33" cy="33" r="${r}" fill="#000" stroke="rgba(255,255,255,.2)" stroke-width="4"/><circle cx="33" cy="33" r="${r}" fill="none" stroke="#FF4E45" stroke-width="4" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${c * (1 - pct() / 100)}"/></svg><img src="${T(S.now)}">${S.paused ? '<span style="position:absolute;inset:0;display:grid;place-items:center;font-size:18px;text-shadow:0 1px 4px #000">❚❚</span>' : ''}</div>`; }
+    return '';
+  },
+  drop(w) { if (S.mode === 'bubble') { if (S.kill) { S.now = null; S.mode = null; return; } S.x = S.x + 33 < W / 2 ? 8 : W - 74; S.y = Math.max(60, Math.min(H - 170, S.y)); } else { S.x = Math.max(4, Math.min(W - 354, S.x)); S.y = Math.max(44, Math.min(H - 300, S.y)); } } });
+V.push({ name: '4 動態島膠囊', title: '版本 4：收起來變成最上面的黑色膠囊（像 iPhone 動態島）', tag: '最酷',
+  desc: `<h3>怎麼用</h3><ul><li>點影片：中間跳出浮動視窗（標題列：⌃ 收起、✕）。</li>
+    <li>按 ⌃：視窗<b>往上縮進最頂端的黑色膠囊</b>，膠囊裡小圓縮圖＋跑馬燈標題＋綠色跳動音量條（暫停時停住）。</li>
+    <li>點膠囊：展開回視窗。長按膠囊（這裡用 ❚❚ 那顆）暫停。</li><li>完全不擋清單，任何頁面最上面都看得到在播什麼。</li></ul>`,
+  start() { S.mode = 'win'; S.x = 20; S.y = 250; },
+  render() {
+    if (S.mode === 'win') return `<div class="float" data-drag="win" style="left:${S.x}px;top:${S.y}px;width:350px;border-radius:18px"><div class="tb" style="padding:6px 8px"><span class="tt">${cur().t}</span><span class="x" data-mode="island">⌃</span><span class="x" data-close>✕</span></div>${vid(197)}</div>`;
+    if (S.mode === 'island') return `<div class="island ${S.paused ? 'paused' : ''}" data-mode="win"><img src="${T(S.now)}"><div class="mq"><span>${cur().t}</span></div><div class="eq"><i></i><i></i><i></i></div><span data-pp style="font-size:12px;padding:0 6px">${S.paused ? '▶' : '❚❚'}</span></div>`;
+    return '';
+  },
+  drop() { S.x = Math.max(4, Math.min(W - 354, S.x)); S.y = Math.max(44, Math.min(H - 300, S.y)); } });
+V.push({ name: '5 停靠邊緣的縮圖', title: '版本 5：浮動視窗可以拖到左右邊緣「停靠」，變成半露的縮圖', tag: '最接近現在',
+  desc: `<h3>怎麼用</h3><ul><li>點影片：出浮動視窗，標題列只有一條<b>灰色拖拉把手</b>＋右邊 ✕（比現在更細）。</li>
+    <li>拖到<b>左邊或右邊邊緣</b>放手：停靠成一張<b>半露在外的小縮圖</b>（露 60%），像把便利貼塞在螢幕邊。</li>
+    <li>點停靠的縮圖：滑出來恢復成視窗、回到原本的位置。</li><li>拖到其他地方放手：就停在那，不吸角落。</li></ul>`,
+  start() { S.mode = 'win'; S.x = 20; S.y = 280; },
+  render() {
+    if (S.mode === 'win') return `<div class="float" data-drag="win" style="left:${S.x}px;top:${S.y}px;width:350px;border-radius:16px"><div class="tb" style="justify-content:center;position:relative;padding:6px"><span style="width:44px;height:5px;border-radius:99px;background:#5a5a6e"></span><span class="x" style="position:absolute;right:4px" data-close>✕</span></div>${vid(197)}</div>`;
+    if (S.mode === 'dock') return `<div class="float" data-mode="win" style="${S.side === 'right' ? `left:${W - 84}px` : 'left:-56px'};top:${S.y}px;width:140px;height:79px;cursor:pointer;border-radius:12px">${vid(79)}<span style="position:absolute;${S.side === 'right' ? 'left:6px' : 'right:6px'};top:50%;transform:translateY(-50%);font-size:18px;text-shadow:0 1px 4px #000">${S.side === 'right' ? '‹' : '›'}</span></div>`;
+    return '';
+  },
+  drop() { if (S.x < -40 || S.x > W - 310) { S.side = S.x < 0 ? 'left' : 'right'; S.mode = 'dock'; S.y = Math.max(60, Math.min(H - 180, S.y)); return; } S.y = Math.max(44, Math.min(H - 300, S.y)); } });
+
+const phone = document.getElementById('phone');
+function render() {
+  const v = V[S.v];
+  document.getElementById('vtabs').innerHTML = V.map((x, i) => `<button class="${i === S.v ? 'on' : ''}" data-v="${i}">${x.name}</button>`).join('');
+  document.getElementById('notes').innerHTML = `<span class="tag">${v.tag}</span><h2>${v.title}</h2>${v.desc}<div class="try">試試：點一部影片 → 收起來 → 拖一拖 → 再點別部影片（播放器換片、不重開）。</div>`;
+  const st = phone.querySelector('.screen')?.scrollTop || 0;
+  phone.innerHTML = `<div class="status"><span>21:30</span><span>5G ▮</span></div><div class="screen"><div style="padding:0 14px 8px;font-weight:800;font-size:17px">周杰倫 Jay Chou</div>
+    ${VIDS.map(x => `<div class="vrow ${x.id === S.now ? 'now' : ''}" data-play="${x.id}"><div class="th"><img src="${T(x.id)}" loading="lazy"></div><div><div class="vt">${x.t}</div><div class="small" style="margin-top:3px">${x.id === S.now ? '▶ 正在播放' : fmt(x.s)}</div></div></div>`).join('')}</div>
+    <div class="navbar"><span class="on">頻道</span><span>影片</span><span>播放清單</span></div>${S.now ? v.render() : ''}${S.hint ? `<div class="hint">${S.hint}</div>` : ''}`;
+  phone.querySelector('.screen').scrollTop = st;
+}
+// 假播放：每秒走一點，只更新進度，不整頁重畫
+setInterval(() => {
+  if (!S.now || S.paused) return; S.pos = Math.min(cur().s, S.pos + 1);
+  phone.querySelectorAll('.pg i').forEach(i => i.style.width = pct() + '%');
+  const ring = phone.querySelector('.bubble svg circle:last-child'); if (ring) { const c = 2 * Math.PI * 30; ring.setAttribute('stroke-dashoffset', c * (1 - pct() / 100)); }
+}, 1000);
+let suppress = false;
+document.addEventListener('click', e => {
+  if (suppress) { suppress = false; return; }
+  const el = e.target.closest('[data-v],[data-play],[data-mode],[data-close],[data-pp],[data-skip]');
+  if (!el) return; const d = el.dataset; e.stopPropagation();
+  if (d.v) { S.v = +d.v; S.now = null; S.mode = null; }
+  else if (d.play) { const fresh = !S.now; S.now = d.play; S.pos = 0; S.paused = false; if (fresh || !S.mode) V[S.v].start(); }
+  else if (d.pp !== undefined) S.paused = !S.paused;
+  else if (d.skip) { const i = VIDS.findIndex(v => v.id === S.now); S.now = VIDS[(i + +d.skip + VIDS.length) % VIDS.length].id; S.pos = 0; }
+  else if (d.close !== undefined) { S.now = null; S.mode = null; }
+  else if (d.mode) { S.mode = d.mode; if (d.mode === 'pip' && S.x < 0 || d.mode === 'pip' && S.x > W - 200) snapCorner(200, 113); if (d.mode === 'win' && (S.x < 0 || S.x > W - 350)) S.x = 20; if (d.mode === 'bubble') { S.x = W - 74; S.y = 420; } }
+  render();
+}, true);
+// 拖
+let drag = null;
+phone.addEventListener('pointerdown', e => {
+  const el = e.target.closest('[data-drag]'); if (!el || e.target.closest('[data-close],[data-mode],[data-pp]')) return;
+  drag = { kind: el.dataset.drag, el, sx: e.clientX, sy: e.clientY, x0: S.x, y0: S.y, moved: false };
+});
+window.addEventListener('pointermove', e => {
+  if (!drag) return; const dx = e.clientX - drag.sx, dy = e.clientY - drag.sy;
+  if (!drag.moved && Math.hypot(dx, dy) < 5) return;
+  if (!drag.moved) { drag.moved = true; if (drag.kind === 'bubble') { S.dragging = true; render(); drag.el = phone.querySelector('[data-drag]'); } drag.el.classList.add('drag'); }
+  S.x = drag.x0 + dx; S.y = drag.y0 + dy; drag.el.style.left = S.x + 'px'; drag.el.style.top = S.y + 'px';
+  if (drag.kind === 'bubble') { const kz = phone.querySelector('.killzone'); S.kill = Math.hypot(S.x + 33 - W / 2, S.y + 33 - (H - 72)) < 60; kz && kz.classList.toggle('hot', S.kill); }
+});
+window.addEventListener('pointerup', () => {
+  if (!drag) return; const moved = drag.moved; const w = drag.el.offsetWidth; drag = null;
+  if (!moved) { if (S.mode === 'bubble') { S.mode = 'win'; S.x = 20; S.y = 300; render(); suppress = true; } return; }
+  suppress = true; setTimeout(() => suppress = false, 50);
+  S.dragging = false; V[S.v].drop?.(w); S.kill = false; render();
+});
+if (/^#[1-5]/.test(location.hash)) S.v = +location.hash[1] - 1;
+// #3p＝直接播第一部，#3m＝播了再收起來（截圖用）
+if (/^#[1-5][pm]$/.test(location.hash)) { S.now = VIDS[0].id; S.pos = 96; V[S.v].start(); if (location.hash[2] === 'm') { S.mode = ['mini', 'tuck', 'bubble', 'island', 'dock'][S.v]; S.x = W - 74; S.y = 420; S.side = 'right'; } }
+render();
+</script>
+</body>
+</html>

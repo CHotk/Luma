@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>設定頁排法</title>
+<style>
+  :root { --bg: #0C0C13; --card: #151520; --card2: #1A1A27; --sheet: #1C1C29; --line: #2A2A3D; --ink: #F3F2F8; --ink2: #A3A2B2; --ink3: #74738A; --accent: #7EA6FF; --ios: #0A84FF; --green: #30D158; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--ink); min-height: 100vh; font: 14px/1.5 -apple-system, "SF Pro Text", system-ui, "Segoe UI", "Microsoft JhengHei", sans-serif; }
+  .page { max-width: 1140px; margin: 0 auto; padding: 24px 16px 60px; }
+  h1 { font-size: 20px; margin: 0 0 6px; }
+  .lead { color: var(--ink2); font-size: 13px; margin: 0 0 14px; } .lead b { color: var(--ink); }
+  .vtabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+  .vtabs button { border: 1px solid var(--line); background: var(--card); color: var(--ink2); padding: 8px 14px; border-radius: 99px; cursor: pointer; font-size: 13px; }
+  .vtabs button.on { border-color: var(--accent); color: #fff; background: rgba(46,107,255,.35); }
+  .stage { display: flex; gap: 28px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
+  .notes { flex: 1 1 320px; max-width: 470px; background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 18px 20px; font-size: 13.5px; color: var(--ink2); }
+  .notes h2 { color: var(--ink); font-size: 17px; margin: 0 0 4px; }
+  .notes .tag { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 99px; background: rgba(126,166,255,.15); color: var(--accent); margin-bottom: 8px; }
+  .notes h3 { color: var(--ink); font-size: 13.5px; margin: 14px 0 4px; }
+  .notes ul { margin: 0; padding-left: 18px; } .notes li { margin: 3px 0; }
+  .notes .try { margin-top: 14px; padding: 10px 12px; border-radius: 12px; background: rgba(126,166,255,.08); border: 1px solid rgba(126,166,255,.25); color: var(--ink); font-size: 12.5px; }
+  .phone { width: 390px; max-width: 100%; height: 820px; flex-shrink: 0; border-radius: 44px; border: 1px solid var(--line); background: #000; position: relative; overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,.5); user-select: none; }
+  .screen { position: absolute; inset: 0; overflow-y: auto; padding: 44px 0 60px; scrollbar-width: none; animation: slide .25s cubic-bezier(.2,.9,.3,1); }
+  .screen.back { animation: slideb .25s cubic-bezier(.2,.9,.3,1); }
+  @keyframes slide { from { transform: translateX(40px); opacity: .4 } } @keyframes slideb { from { transform: translateX(-40px); opacity: .4 } }
+  .screen::-webkit-scrollbar { display: none; }
+  .status { position: absolute; top: 0; left: 0; right: 0; height: 40px; display: flex; align-items: center; justify-content: space-between; padding: 0 30px; font-size: 13px; font-weight: 700; z-index: 70; pointer-events: none; }
+  .nav { display: flex; align-items: center; padding: 0 8px 4px; min-height: 40px; }
+  .nav .bk { color: var(--ios); cursor: pointer; padding: 6px 8px; font-size: 15px; }
+  .nav .t { flex: 1; text-align: center; font-weight: 700; margin-right: 50px; }
+  .big { font-size: 32px; font-weight: 900; padding: 0 18px 8px; }
+  .small { font-size: 11.5px; color: var(--ink3); } .muted { color: var(--ink2); font-size: 12.5px; }
+  /* iOS 分組清單 */
+  .gh { font-size: 12.5px; color: var(--ink3); padding: 14px 32px 6px; text-transform: none; }
+  .gf { font-size: 11.5px; color: var(--ink3); padding: 6px 32px 0; }
+  .group { margin: 0 16px; background: #1c1c1e; border-radius: 12px; overflow: hidden; }
+  .row { display: flex; align-items: center; gap: 12px; padding: 0 14px; min-height: 46px; cursor: pointer; position: relative; }
+  .row:not(:last-child)::after { content: ""; position: absolute; left: 56px; right: 0; bottom: 0; height: .5px; background: #38383a; }
+  .row.noicon:not(:last-child)::after { left: 14px; }
+  .row:active { background: #2c2c2e; }
+  .icon { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; font-size: 16px; flex-shrink: 0; }
+  .row .lb { flex: 1; padding: 11px 0; }
+  .row .lb .small { display: block; }
+  .row .val { color: var(--ink3); font-size: 14px; white-space: nowrap; }
+  .row .chev { color: #5a5a5e; font-size: 16px; }
+  .row .chk { color: var(--ios); font-weight: 900; }
+  .sw { width: 50px; height: 30px; border-radius: 99px; background: #39393d; position: relative; transition: .2s; flex-shrink: 0; }
+  .sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 26px; height: 26px; border-radius: 50%; background: #fff; transition: .2s; box-shadow: 0 2px 4px rgba(0,0,0,.3); }
+  .sw.on { background: var(--green); } .sw.on::after { left: 22px; }
+  .sw.s { width: 38px; height: 22px; } .sw.s::after { width: 18px; height: 18px; } .sw.s.on::after { left: 18px; }
+  .search { display: flex; align-items: center; gap: 8px; margin: 0 16px 6px; padding: 8px 12px; border-radius: 11px; background: #1c1c1e; }
+  .search input { flex: 1; background: none; border: 0; color: var(--ink); font: inherit; outline: none; }
+  .search .x { color: var(--ink3); cursor: pointer; }
+  mark { background: rgba(10,132,255,.35); color: #fff; border-radius: 3px; }
+  /* 卡片 */
+  .fcard { margin: 0 14px 12px; border-radius: 20px; padding: 14px; border: 1px solid var(--line); background: linear-gradient(160deg, var(--c1), var(--card) 60%); }
+  .fcard .fh { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .fcard .fh b { font-size: 16px; flex: 1; }
+  .fcard .ln { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid rgba(255,255,255,.06); cursor: pointer; }
+  .fcard .ln .lb { flex: 1; font-size: 13.5px; }
+  .fcard .more { text-align: center; color: var(--accent); font-size: 12.5px; padding-top: 8px; cursor: pointer; border-top: 1px solid rgba(255,255,255,.06); }
+  .tabs { position: sticky; top: 0; z-index: 30; background: rgba(0,0,0,.85); backdrop-filter: blur(18px); display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 6px 14px 10px; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tabs span { flex-shrink: 0; padding: 6px 13px; border-radius: 99px; background: #1c1c1e; color: var(--ink2); font-size: 13px; font-weight: 600; cursor: pointer; }
+  .tabs span.on { background: var(--ios); color: #fff; }
+  .seg { display: flex; background: #1c1c1e; border-radius: 9px; padding: 2px; }
+  .seg button { flex: 1; border: 0; background: none; color: var(--ink2); padding: 5px 8px; border-radius: 7px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+  .seg button.on { background: #636366; color: #fff; }
+  .menu { position: absolute; z-index: 90; right: 18px; background: rgba(44,44,46,.97); backdrop-filter: blur(20px); border-radius: 14px; padding: 4px; box-shadow: 0 16px 40px rgba(0,0,0,.6); animation: pop .18s; min-width: 210px; transform-origin: top right; }
+  .menu .mi { padding: 10px 12px; border-radius: 10px; cursor: pointer; display: flex; gap: 10px; align-items: center; font-size: 14px; }
+  .menu .mi:hover { background: rgba(255,255,255,.07); }
+  .menu .mi.on::after { content: "✓"; margin-left: auto; color: var(--ios); font-weight: 900; }
+  .scrim { position: absolute; inset: 0; z-index: 85; }
+  @keyframes pop { from { transform: scale(.9); opacity: 0 } }
+  .toast { position: absolute; left: 50%; top: 50px; transform: translateX(-50%); z-index: 99; background: rgba(44,44,46,.97); border-radius: 14px; padding: 8px 14px; font-size: 12.5px; white-space: nowrap; animation: pop .2s; }
+  .feat { display: flex; align-items: center; gap: 12px; margin: 0 16px 10px; padding: 14px; border-radius: 16px; background: #1c1c1e; cursor: pointer; }
+  .feat .icon { width: 44px; height: 44px; border-radius: 12px; font-size: 22px; }
+  .feat b { font-size: 16px; } .feat .chev { margin-left: auto; color: #5a5a5e; font-size: 18px; }
+  .sync { display: inline-block; font-size: 10px; color: var(--green); border: 1px solid rgba(48,209,88,.4); border-radius: 5px; padding: 0 4px; margin-left: 6px; vertical-align: 1px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>設定頁：五種排法</h1>
+  <p class="lead">設定越加越多（光 YT 就十幾項），現在是一路往下排。這份比<b>分組、分頁、搜尋、兩層</b>這幾種排法。<br>
+    裡面的設定項目都是 App 裡真的有的。每版都能點：開關會切、選項會跳選單、有箭頭的點了會進下一層。</p>
+  <div class="vtabs" id="vtabs"></div>
+  <div class="stage"><div class="phone" id="phone"></div><div class="notes" id="notes"></div></div>
+</div>
+<script>
+// 真的設定項目（2026-10-15 的 App）
+const G = [
+  { id: 'app', name: '一般', icon: '⚙︎', color: '#8e8e93', items: [
+    { k: 'home', label: '首頁樣式', type: 'choice', options: ['圖示格', '今日儀表板'], v: '圖示格' },
+    { k: 'order', label: '首頁卡片順序', type: 'nav', v: '' },
+    { k: 'bar', label: '底部分頁列', type: 'choice', options: ['各自功能', '全 App 共用', '不顯示'], v: '各自功能' },
+    { k: 'logo', label: 'App Logo', type: 'nav', v: '預設' },
+  ] },
+  { id: 'yt', name: 'YT 頻道追蹤', icon: '▶', color: '#FF3B30', items: [
+    { k: 'key', label: 'YouTube API 金鑰', type: 'nav', v: '已設定', nosync: 1 },
+    { k: 'open', label: '點影片時', type: 'choice', options: ['開新分頁', '內嵌播放'], v: '開新分頁' },
+    { k: 'player', label: '內嵌播放器樣式', type: 'choice', options: ['浮動視窗', '下滑收合', '正中彈窗'], v: '浮動視窗' },
+    { k: 'tab', label: '「影片」分頁的頻道', type: 'nav', v: '周杰倫' },
+    { k: 'cold', label: '依影片顯示也抓冷藏頻道', type: 'toggle', v: false },
+    { k: 'pending', label: '依影片顯示也抓待評鑑', type: 'toggle', v: false },
+    { k: 'fill', label: '進頻道自動抓全部影片', type: 'toggle', v: true },
+    { k: 'search', label: '頻道頁搜尋', type: 'choice', options: ['快取＋YouTube', '只搜快取'], v: '快取＋YouTube' },
+    { k: 'showall', label: '搜尋結果列出已看過／已隱藏', type: 'toggle', v: true },
+    { k: 'subs', label: '訂閱人數更新頻率', type: 'choice', options: ['每 1 天', '每 7 天', '每 30 天'], v: '每 7 天' },
+    { k: 'removed', label: '影片下架檢查', type: 'choice', options: ['一週', '兩週', '一個月', '不檢查'], v: '兩週' },
+    { k: 'scroll', label: '頻道頁右側捲動條', type: 'toggle', v: true },
+    { k: 'top', label: '回到最上面按鈕', type: 'toggle', v: true },
+    { k: 'catorder', label: '分類顯示順序', type: 'nav', v: '' },
+    { k: 'export', label: '匯出分類／頻道', type: 'nav', v: '' },
+    { k: 'purged', label: '永久刪除的頻道', type: 'nav', v: '3' },
+  ] },
+  { id: 'jp', name: '日文', icon: 'あ', color: '#FF2D55', items: [
+    { k: 'ring', label: '首頁「今天進度」那一圈', type: 'toggle', v: false },
+    { k: 'jporder', label: '日文首頁卡片順序', type: 'nav', v: '' },
+  ] },
+  { id: 'trade', name: '交易&自律', icon: '₮', color: '#30B0C7', items: [
+    { k: 'rate', label: 'USDT 換台幣匯率', type: 'nav', v: '32.5' },
+  ] },
+  { id: 'lock', name: '日記／負債', icon: '🔒', color: '#5E5CE6', items: [
+    { k: 'pw', label: '變更日記／負債密碼', type: 'nav', v: '' },
+  ] },
+  { id: 'sync', name: '雲端同步', icon: '☁', color: '#0A84FF', items: [
+    { k: 'r2', label: 'R2 帳號', type: 'nav', v: '已連線', nosync: 1 },
+    { k: 'now', label: '立即同步', type: 'action', v: '3 分鐘前' },
+    { k: 'log', label: '同步紀錄', type: 'nav', v: '' },
+  ] },
+];
+const ALL = G.flatMap(g => g.items.map(i => ({ ...i, g })));
+const S = { v: 0, vals: Object.fromEntries(ALL.map(i => [i.k, i.v])), stack: [], q: '', menu: null, tab: 'app', toast: null, back: false, open: {} };
+const find = k => ALL.find(i => i.k === k);
+const sw = (k, small) => `<span class="sw ${small ? 's' : ''} ${S.vals[k] ? 'on' : ''}"></span>`;
+const hl = t => S.q ? t.replace(new RegExp(S.q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), m => `<mark>${m}</mark>`) : t;
+function iosRow(i, icon = true) {
+  const right = i.type === 'toggle' ? sw(i.k) : i.type === 'action' ? `<span class="val" style="color:var(--ios)">${S.vals[i.k]}</span>` : `<span class="val">${S.vals[i.k] || ''}</span><span class="chev">›</span>`;
+  return `<div class="row ${icon ? '' : 'noicon'}" data-k="${i.k}">${icon ? `<span class="icon" style="background:${i.g.color}">${i.g.icon}</span>` : ''}<span class="lb">${hl(i.label)}${S.q ? `<span class="small">${i.g.name}</span>` : ''}</span>${right}</div>`;
+}
+// 點了一項
+function tap(k, el) {
+  const i = find(k);
+  if (i.type === 'toggle') { S.vals[k] = !S.vals[k]; toast(`${i.label}：${S.vals[k] ? '開' : '關'}（已同步）`); }
+  else if (i.type === 'choice') { S.menu = { k, y: el.getBoundingClientRect().top - document.getElementById('phone').getBoundingClientRect().top + 40 }; }
+  else if (i.type === 'action') { S.vals[k] = '剛剛'; toast('同步完成：下載 2 筆、上傳 1 筆'); }
+  else { S.stack.push({ detail: k }); S.back = false; }
+}
+function detailPage(k) {
+  const i = find(k);
+  const body = {
+    order: ['英文', '日文', 'YT 頻道追蹤', '日記', '交易&自律', '負債管理'].map(n => `<div class="row noicon"><span class="lb">${n}</span><span class="chev">≡</span></div>`).join(''),
+    tab: ['周杰倫 Jay Chou', '五月天 Mayday', '林俊傑 JJ Lin', '鄧紫棋 G.E.M.'].map(n => `<div class="row noicon" data-pick="${n.split(' ')[0]}"><span class="lb">${n}</span>${S.vals.tab === n.split(' ')[0] ? '<span class="chk">✓</span>' : ''}</div>`).join(''),
+    rate: `<div class="row noicon"><span class="lb">1 USDT ＝</span><span class="val" style="color:var(--ink)">32.5 台幣</span></div>`,
+    log: ['今天 21:12・手機・下載 2 上傳 1・成功', '今天 09:40・電腦・下載 0 上傳 4・成功', '昨天 23:05・手機・失敗（沒網路）'].map(n => `<div class="row noicon"><span class="lb" style="font-size:13px">${n}</span></div>`).join(''),
+  }[k] || `<div class="row noicon"><span class="lb muted">（${i.label} 的內容，跟現在一樣）</span></div>`;
+  return `<div class="nav"><span class="bk" data-back>‹ 返回</span><span class="t">${i.label}</span></div><div style="height:12px"></div><div class="group">${body}</div>`;
+}
+function featPage(gid) {
+  const g = G.find(x => x.id === gid);
+  return `<div class="nav"><span class="bk" data-back>‹ 設定</span><span class="t">${g.name}</span></div><div style="height:10px"></div>` + groupsOf(g).map(([h, items]) => `${h ? `<div class="gh">${h}</div>` : ''}<div class="group">${items.map(i => iosRow({ ...i, g }, false)).join('')}</div>`).join('');
+}
+// YT 那組太長，再細分小標題
+function groupsOf(g) {
+  if (g.id !== 'yt') return [['', g.items]];
+  const by = ks => g.items.filter(i => ks.includes(i.k));
+  return [['帳號', by(['key'])], ['播放', by(['open', 'player', 'tab'])], ['依影片顯示', by(['cold', 'pending'])], ['頻道頁', by(['fill', 'search', 'showall', 'scroll', 'top'])], ['背景更新', by(['subs', 'removed'])], ['管理', by(['catorder', 'export', 'purged'])]];
+}
+
+const V = [];
+V.push({ name: '1 iOS 設定（主流）', title: '版本 1：跟 iPhone「設定」一樣——彩色小圖示＋分組清單', tag: '主流・最熟悉',
+  desc: `<h3>怎麼排</h3><ul><li>最上面大標題「設定」＋搜尋框。</li><li>每個功能一組（圓角灰底），每列左邊彩色小圖示、右邊目前的值＋ ›。</li>
+    <li>開關直接在列上切；有選項的點了跳選單；有 › 的進下一層。</li><li>YT 那組太長：只放最常用的 4 項，其餘「更多 YT 設定 ›」進下一層（下一層再用小標題分：播放／頻道頁／背景更新…）。</li></ul>`,
+  home() {
+    const yt = G.find(g => g.id === 'yt');
+    return `<div class="big">設定</div><div class="search">⌕ <input placeholder="搜尋" data-q value="${S.q}">${S.q ? '<span class="x" data-clear>✕</span>' : ''}</div>` +
+      (S.q ? searchResults() : G.map(g => `<div class="gh">${g.name}</div><div class="group">${(g.id === 'yt' ? g.items.slice(1, 4) : g.items).map(i => iosRow({ ...i, g })).join('')}${g.id === 'yt' ? `<div class="row" data-feat="yt"><span class="icon" style="background:${yt.color}">⋯</span><span class="lb">更多 YT 設定</span><span class="val">${yt.items.length - 3} 項</span><span class="chev">›</span></div>` : ''}</div>`).join(''))
+      + '<div class="gf">設定都會跨裝置同步（API 金鑰、R2 帳號這類帳密除外）。</div>';
+  } });
+V.push({ name: '2 功能卡片', title: '版本 2：每個功能一張大卡片，常用開關直接在卡片上', tag: '一眼看到全部功能',
+  desc: `<h3>怎麼排</h3><ul><li>每個功能一張卡（卡片顏色跟那個功能的主色一樣）。</li><li>卡片上直接放 2～3 個最常改的，點「全部 N 項 ›」進那個功能完整的設定。</li>
+    <li>開關用小號的，選項用分段按鈕直接點，不用跳選單。</li><li>整頁看起來像儀表板，不是一長條清單。</li></ul>`,
+  home() {
+    const quick = { app: ['home', 'bar'], yt: ['open', 'fill', 'cold'], jp: ['ring'], trade: ['rate'], lock: ['pw'], sync: ['now'] };
+    return `<div class="big">設定</div>` + G.map(g => `<div class="fcard" style="--c1:${g.color}33"><div class="fh"><span class="icon" style="background:${g.color}">${g.icon}</span><b>${g.name}</b></div>
+      ${quick[g.id].map(k => { const i = find(k); return `<div class="ln" ${i.type === 'choice' ? '' : `data-k="${k}"`}><span class="lb">${i.label}</span>${i.type === 'toggle' ? sw(k, 1) : i.type === 'choice' ? `<div class="seg">${i.options.slice(0, 3).map(o => `<button class="${S.vals[k] === o ? 'on' : ''}" data-set="${k}" data-val="${o}">${o}</button>`).join('')}</div>` : `<span class="small">${S.vals[k]} ›</span>`}</div>`; }).join('')}
+      ${g.items.length > quick[g.id].length ? `<div class="more" data-feat="${g.id}">全部 ${g.items.length} 項 ›</div>` : ''}</div>`).join('');
+  } });
+function searchResults() {
+  const hits = ALL.filter(i => i.label.includes(S.q) || i.g.name.includes(S.q));
+  return hits.length ? `<div class="gh">找到 ${hits.length} 項</div><div class="group">${hits.map(i => iosRow(i)).join('')}</div>` : `<div class="gh">找不到「${S.q}」</div>`;
+}
+V.push({ name: '3 搜尋＋最近改過', title: '版本 3：一打開就是搜尋框，下面先列「最近改過」跟「常用」', tag: '找設定最快',
+  desc: `<h3>怎麼排</h3><ul><li>最上面一個大搜尋框：打「播放」「同步」「冷藏」就跳出那幾項，<b>直接在結果裡切</b>，不用進下一層。</li>
+    <li>沒打字時先列「最近改過」（最近動過的 4 項）跟「常用」。</li><li>最下面才是「全部設定」依功能分組。</li>
+    <li>試著打「影片」或「同步」。</li></ul>`,
+  home() {
+    const recent = ['open', 'cold', 'bar', 'rate'].map(find);
+    return `<div class="big">設定</div><div class="search" style="padding:11px 14px;font-size:15px">⌕ <input placeholder="想改什麼？例如：播放、同步、冷藏" data-q value="${S.q}">${S.q ? '<span class="x" data-clear>✕</span>' : ''}</div>`
+      + (S.q ? searchResults() : `<div class="gh">最近改過</div><div class="group">${recent.map(i => iosRow(i)).join('')}</div>
+        <div class="gh">全部設定</div><div class="group">${G.map(g => `<div class="row" data-feat="${g.id}"><span class="icon" style="background:${g.color}">${g.icon}</span><span class="lb">${g.name}</span><span class="val">${g.items.length} 項</span><span class="chev">›</span></div>`).join('')}</div>`);
+  } });
+V.push({ name: '4 兩層：先選功能', title: '版本 4：第一層只有功能清單（大格），點進去才是那個功能的設定', tag: '每頁最短',
+  desc: `<h3>怎麼排</h3><ul><li>第一層：每個功能一個大格，寫「幾項設定」跟一句摘要（例如 YT：「開新分頁・浮動視窗・7 天」）。</li>
+    <li>點進去：那個功能的設定，用小標題分組（YT 分成帳號／播放／依影片顯示／頻道頁／背景更新／管理）。</li>
+    <li>從某個功能點齒輪進來時，<b>直接進那個功能那頁</b>（現在就是這樣），返回才看到第一層。</li></ul>`,
+  home() {
+    const sum = { app: `${S.vals.home}・${S.vals.bar}`, yt: `${S.vals.open}・${S.vals.player}・${S.vals.subs}`, jp: S.vals.ring ? '進度圈 開' : '進度圈 關', trade: `1 USDT ＝ ${S.vals.rate}`, lock: '密碼', sync: `上次 ${S.vals.now}` };
+    return `<div class="big">設定</div>` + G.map(g => `<div class="feat" data-feat="${g.id}"><span class="icon" style="background:${g.color}">${g.icon}</span><div><b>${g.name}</b><div class="small">${g.items.length} 項・${sum[g.id]}</div></div><span class="chev">›</span></div>`).join('');
+  } });
+V.push({ name: '5 上方分頁籤', title: '版本 5：上方一排分頁籤（一般｜YT｜日文｜交易｜同步），點了跳到那段', tag: '不用進出',
+  desc: `<h3>怎麼排</h3><ul><li>大標題下面一排會黏在最上面的分頁籤。</li><li>點分頁籤：整頁<b>捲到那一段</b>（不是換頁），往下滑時分頁籤也會跟著亮到目前那段。</li>
+    <li>每段有小標題分組；一頁全部看得到，不用一直進出。</li></ul>`,
+  home() {
+    return `<div class="big">設定</div><div class="tabs">${G.map(g => `<span class="${S.tab === g.id ? 'on' : ''}" data-tab="${g.id}">${g.name.replace('YT 頻道追蹤', 'YT').replace('日記／負債', '密碼')}</span>`).join('')}</div>`
+      + G.map(g => `<div id="sec-${g.id}" data-sec="${g.id}"><div class="gh" style="font-size:15px;color:var(--ink);font-weight:800;padding-left:20px">${g.icon} ${g.name}</div>${groupsOf(g).map(([h, items]) => `${h ? `<div class="gh" style="padding-top:6px">${h}</div>` : ''}<div class="group">${items.map(i => iosRow({ ...i, g }, false)).join('')}</div>`).join('')}</div>`).join('');
+  } });
+
+const phone = document.getElementById('phone');
+function render(keepScroll = true) {
+  const v = V[S.v];
+  document.getElementById('vtabs').innerHTML = V.map((x, i) => `<button class="${i === S.v ? 'on' : ''}" data-v="${i}">${x.name}</button>`).join('');
+  document.getElementById('notes').innerHTML = `<span class="tag">${v.tag}</span><h2>${v.title}</h2>${v.desc}<div class="try">試試：切「依影片顯示也抓冷藏」、改「點影片時」、搜尋「同步」、進 YT 那組看分組。</div>`;
+  const top = S.stack[S.stack.length - 1];
+  const st = keepScroll ? phone.querySelector('.screen')?.scrollTop || 0 : 0;
+  const content = !top ? v.home() : top.detail ? detailPage(top.detail) : featPage(top.feat);
+  let menu = '';
+  if (S.menu) { const i = find(S.menu.k); menu = `<div class="scrim" data-close></div><div class="menu" style="top:${Math.min(S.menu.y, 600)}px">${i.options.map(o => `<div class="mi ${S.vals[i.k] === o ? 'on' : ''}" data-set="${i.k}" data-val="${o}">${o}</div>`).join('')}</div>`; }
+  phone.innerHTML = `<div class="status"><span>21:30</span><span>5G ▮</span></div><div class="screen ${keepScroll ? '' : S.back ? 'back' : ''}" style="${keepScroll ? 'animation:none' : ''}">${content}</div>${menu}${S.toast ? `<div class="toast">${S.toast}</div>` : ''}`;
+  const sc = phone.querySelector('.screen'); sc.scrollTop = st;
+  const q = phone.querySelector('[data-q]'); if (q && S.focusQ) { q.focus(); q.setSelectionRange(q.value.length, q.value.length); }
+  if (S.v === 4 && !top) sc.onscroll = () => { const secs = [...sc.querySelectorAll('[data-sec]')]; let cur = secs[0].dataset.sec; for (const s of secs) if (s.offsetTop - 120 <= sc.scrollTop) cur = s.dataset.sec; if (cur !== S.tab) { S.tab = cur; sc.querySelectorAll('.tabs span').forEach(x => x.classList.toggle('on', x.dataset.tab === cur)); } };
+}
+let tt;
+function toast(t) { S.toast = t; clearTimeout(tt); tt = setTimeout(() => { S.toast = null; render(); }, 1700); }
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-v],[data-k],[data-set],[data-close],[data-back],[data-feat],[data-clear],[data-tab],[data-pick]');
+  if (!el) return; const d = el.dataset; let keep = true;
+  if (d.v) { S.v = +d.v; S.stack = []; S.q = ''; S.menu = null; keep = false; S.back = false; }
+  else if (d.set) { S.vals[d.set] = d.val; S.menu = null; toast(`${find(d.set).label}：${d.val}（已同步）`); }
+  else if (d.k) { const before = S.stack.length; tap(d.k, el); if (S.stack.length !== before) keep = false; }
+  else if (d.close !== undefined) S.menu = null;
+  else if (d.back !== undefined) { S.stack.pop(); S.back = true; keep = false; }
+  else if (d.feat) { S.stack.push({ feat: d.feat }); S.back = false; keep = false; }
+  else if (d.clear !== undefined) { S.q = ''; }
+  else if (d.pick) { S.vals.tab = d.pick; toast(`影片分頁改成 ${d.pick}`); }
+  else if (d.tab) { S.tab = d.tab; const sc = phone.querySelector('.screen'); const sec = sc.querySelector('#sec-' + d.tab); sc.scrollTo({ top: sec.offsetTop - 100, behavior: 'smooth' }); return; }
+  render(keep);
+});
+document.addEventListener('compositionend', e => { if (e.target.matches('[data-q]')) { S.q = e.target.value.trim(); S.focusQ = true; render(); S.focusQ = false; } });
+document.addEventListener('input', e => { if (e.target.matches('[data-q]') && !e.isComposing) { S.q = e.target.value.trim(); S.focusQ = true; render(); S.focusQ = false; } });
+if (/^#[1-5]$/.test(location.hash)) S.v = +location.hash[1] - 1;
+render();
+</script>
+</body>
+</html>

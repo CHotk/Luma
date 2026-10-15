@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YT 冷藏區</title>
+<style>
+  :root { --bg: #0C0C13; --card: #151520; --card2: #1A1A27; --sheet: #1C1C29; --line: #2A2A3D; --ink: #F3F2F8; --ink2: #A3A2B2; --ink3: #74738A; --accent: #7EA6FF; --ios: #0A84FF; --ice: #64D2FF; --red: #FF453A; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--ink); min-height: 100vh; font: 14px/1.5 -apple-system, "SF Pro Text", system-ui, "Segoe UI", "Microsoft JhengHei", sans-serif; }
+  .page { max-width: 1140px; margin: 0 auto; padding: 24px 16px 60px; }
+  h1 { font-size: 20px; margin: 0 0 6px; }
+  .lead { color: var(--ink2); font-size: 13px; margin: 0 0 14px; } .lead b { color: var(--ink); }
+  .vtabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+  .vtabs button { border: 1px solid var(--line); background: var(--card); color: var(--ink2); padding: 8px 14px; border-radius: 99px; cursor: pointer; font-size: 13px; }
+  .vtabs button.on { border-color: var(--accent); color: #fff; background: rgba(46,107,255,.35); }
+  .stage { display: flex; gap: 28px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
+  .notes { flex: 1 1 320px; max-width: 470px; background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 18px 20px; font-size: 13.5px; color: var(--ink2); }
+  .notes h2 { color: var(--ink); font-size: 17px; margin: 0 0 4px; }
+  .notes .tag { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 99px; background: rgba(126,166,255,.15); color: var(--accent); margin-bottom: 8px; }
+  .notes h3 { color: var(--ink); font-size: 13.5px; margin: 14px 0 4px; }
+  .notes ul { margin: 0; padding-left: 18px; } .notes li { margin: 3px 0; }
+  .notes .try { margin-top: 14px; padding: 10px 12px; border-radius: 12px; background: rgba(126,166,255,.08); border: 1px solid rgba(126,166,255,.25); color: var(--ink); font-size: 12.5px; }
+  .phone { width: 390px; max-width: 100%; height: 820px; flex-shrink: 0; border-radius: 44px; border: 1px solid var(--line); background: radial-gradient(120% 55% at 20% 0%, #2a1520 0%, #0e0e17 60%); position: relative; overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,.5); user-select: none; }
+  .screen { position: absolute; inset: 0; overflow-y: auto; padding: 46px 14px 110px; scrollbar-width: none; animation: slide .22s cubic-bezier(.2,.9,.3,1); }
+  .screen.still { animation: none; }
+  @keyframes slide { from { transform: translateX(30px); opacity: .5 } }
+  .screen::-webkit-scrollbar { display: none; }
+  .status { position: absolute; top: 0; left: 0; right: 0; height: 40px; display: flex; align-items: center; justify-content: space-between; padding: 0 30px; font-size: 13px; font-weight: 700; z-index: 70; pointer-events: none; }
+  .bar { display: flex; align-items: center; gap: 4px; padding: 0 0 10px; min-height: 44px; }
+  .bar .t { flex: 1; font-weight: 800; font-size: 18px; }
+  .ib { width: 36px; height: 36px; border-radius: 11px; display: grid; place-items: center; color: var(--ink2); cursor: pointer; font-size: 17px; }
+  .ib:hover { background: rgba(255,255,255,.06); }
+  .small { font-size: 11.5px; color: var(--ink3); } .muted { color: var(--ink2); font-size: 12.5px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .card { position: relative; height: 88px; border-radius: 18px; overflow: hidden; cursor: pointer; background: #222; }
+  .card.wide { grid-column: span 2; height: 80px; }
+  .card img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .card::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(0,0,0,.65), rgba(0,0,0,.05)); }
+  .card .nm { position: absolute; left: 12px; bottom: 9px; z-index: 2; font-weight: 800; font-size: 15px; text-shadow: 0 1px 4px rgba(0,0,0,.6); }
+  .card .ct { position: absolute; right: 10px; top: 8px; z-index: 2; font-size: 11px; background: rgba(0,0,0,.45); padding: 1px 7px; border-radius: 99px; }
+  .card.ice { background: linear-gradient(135deg, #10324a, #0b1a2a); border: 1px solid rgba(100,210,255,.35); }
+  .card.ice::after { background: none; }
+  .crow { display: flex; align-items: center; gap: 12px; padding: 9px 4px; cursor: pointer; border-radius: 12px; position: relative; }
+  .crow:hover { background: rgba(255,255,255,.03); }
+  .crow img { width: 46px; height: 46px; border-radius: 50%; object-fit: cover; }
+  .crow.cold img { filter: grayscale(.85) brightness(.7); }
+  .crow .nm { font-weight: 700; } .crow .act { margin-left: auto; font-size: 12px; font-weight: 700; padding: 5px 11px; border-radius: 99px; border: 1px solid var(--line); color: var(--ink); cursor: pointer; white-space: nowrap; }
+  .crow .act.thaw { border-color: rgba(100,210,255,.5); color: var(--ice); }
+  .sect { font-size: 12.5px; font-weight: 800; color: var(--ink2); margin: 16px 2px 6px; display: flex; align-items: center; gap: 6px; }
+  .arch { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 16px; background: rgba(100,210,255,.07); border: 1px solid rgba(100,210,255,.2); cursor: pointer; margin-bottom: 12px; }
+  .arch .ic { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #64D2FF, #0A84FF); display: grid; place-items: center; font-size: 20px; }
+  .seg { display: flex; background: rgba(255,255,255,.07); border-radius: 10px; padding: 2px; margin-bottom: 12px; }
+  .seg button { flex: 1; border: 0; background: none; color: var(--ink2); padding: 6px 0; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .seg button.on { background: #3a3a50; color: #fff; }
+  .strip { display: flex; gap: 10px; overflow-x: auto; scrollbar-width: none; padding: 4px 2px 6px; }
+  .strip::-webkit-scrollbar { display: none; }
+  .strip .a { flex-shrink: 0; width: 56px; text-align: center; cursor: pointer; }
+  .strip .a img { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; filter: grayscale(.85) brightness(.75); border: 2px solid rgba(100,210,255,.4); }
+  .strip .a span { display: block; font-size: 10.5px; color: var(--ink3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .flake { position: absolute; font-size: 12px; right: -2px; bottom: -2px; background: #0b1a2a; border-radius: 50%; width: 18px; height: 18px; display: grid; place-items: center; border: 1px solid rgba(100,210,255,.5); }
+  .tgl { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink2); cursor: pointer; }
+  .sw { width: 34px; height: 20px; border-radius: 99px; background: #3a3a4c; position: relative; transition: .2s; }
+  .sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: .2s; }
+  .sw.on { background: var(--ice); } .sw.on::after { left: 16px; }
+  .sheet-bg { position: absolute; inset: 0; z-index: 80; background: rgba(0,0,0,.5); animation: fade .2s; }
+  .sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 81; background: var(--sheet); border-radius: 24px 24px 0 0; padding: 10px 16px 30px; animation: up .25s cubic-bezier(.2,.9,.3,1); }
+  .sheet .grab { width: 38px; height: 5px; border-radius: 99px; background: #4a4a5c; margin: 0 auto 12px; }
+  .sheet .opt { padding: 12px; border-radius: 12px; cursor: pointer; font-size: 15px; }
+  .sheet .opt:hover { background: rgba(255,255,255,.06); }
+  @keyframes up { from { transform: translateY(100%) } } @keyframes fade { from { opacity: 0 } } @keyframes pop { from { transform: scale(.9); opacity: 0 } }
+  .toast { position: absolute; left: 50%; top: 50px; transform: translateX(-50%); z-index: 99; background: rgba(40,40,58,.96); border: 1px solid rgba(255,255,255,.12); border-radius: 14px; padding: 8px 14px; font-size: 12.5px; white-space: nowrap; animation: pop .2s; }
+  .navbar { position: absolute; left: 50%; bottom: 26px; transform: translateX(-50%); z-index: 60; display: flex; gap: 4px; padding: 6px; border-radius: 99px; background: rgba(30,30,44,.72); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,.14); }
+  .navbar span { padding: 7px 16px; border-radius: 99px; font-size: 12px; font-weight: 700; color: var(--ink2); }
+  .navbar span.on { background: rgba(255,255,255,.14); color: #fff; }
+  .explain { font-size: 12px; color: var(--ink2); background: rgba(100,210,255,.06); border: 1px solid rgba(100,210,255,.18); border-radius: 12px; padding: 9px 11px; margin-bottom: 10px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>YT 冷藏區：五種呈現方式</h1>
+  <p class="lead">冷藏＝<b>先不追、但不想刪</b>的頻道：不抓新影片、「依影片顯示」預設不列。現在冷藏區收合在 YT 首頁最下面，不太會注意到、要用時又要滑到底。<br>
+    每版都能點：進冷藏區、把頻道<b>解凍</b>（回到原本分類）、從分類裡把頻道<b>冷藏</b>，數字會跟著變。</p>
+  <div class="vtabs" id="vtabs"></div>
+  <div class="stage"><div class="phone" id="phone"></div><div class="notes" id="notes"></div></div>
+</div>
+<script>
+const IMG = n => `../assets/images/yt_tracker/${n}.png`;
+const T = id => `https://i.ytimg.com/vi/${id}/mqdefault.jpg`;
+const CATS = [['音樂', 'music'], ['遊戲', 'games'], ['學習', 'study'], ['美食', 'food'], ['知識', 'knowledge'], ['旅遊', 'travel']];
+const START = [
+  { n: '周杰倫 Jay Chou', img: 'DYptgVvkVLQ', cat: '音樂' }, { n: '五月天 Mayday', img: 'R2s-H_crYkc', cat: '音樂' },
+  { n: '林俊傑 JJ Lin', img: 'G97_rOdHcnY', cat: '音樂', cold: '2026/9/02' }, { n: '鄧紫棋 G.E.M.', img: 'T4SimnaiktU', cat: '音樂' },
+  { n: '告五人 Accusefive', img: 'mGeiABBB5f8', cat: '音樂', cold: '2026/8/20' }, { n: '茄子蛋 EggPlantEgg', img: 'GtDRcXtDg-4', cat: '音樂', cold: '2026/7/11' },
+  { n: '老高與小茉', img: 'Z8Mqw0b9ADs', cat: '知識', cold: '2026/6/30' }, { n: '啾啾鞋', img: 'Bbp9ZaJD_eA', cat: '知識' },
+  { n: '阿滴英文', img: 'kfXdP7nZIiE', cat: '學習', cold: '2026/9/28' }, { n: '千千進食中', img: 'sHD_z90ZKV0', cat: '美食' },
+  { n: '超粒方', img: 'Y4xCVlyCvX4', cat: '遊戲', cold: '2026/5/03' }, { n: 'Joeman', img: 'uIWypArI73w', cat: '遊戲' },
+];
+const S = { v: 0, ch: START.map(c => ({ ...c })), page: null, sheet: null, toast: null, seg: '分類', showCold: false, anim: false };
+const cold = () => S.ch.filter(c => c.cold), warm = () => S.ch.filter(c => !c.cold);
+const countIn = cat => warm().filter(c => c.cat === cat).length;
+const head = (t, back) => `<div class="bar">${back ? '<span class="ib" data-back>‹</span>' : ''}<span class="t">${t}</span>${back ? '' : '<span class="ib">⌕</span><span class="ib">＋</span><span class="ib">⚙</span>'}</div>`;
+const catGrid = (extra = '') => `<div class="grid"><div class="card wide" data-cat="全部"><img src="${IMG('all')}"><span class="nm">全部</span><span class="ct">${warm().length}</span></div>${CATS.map(([n, i]) => `<div class="card" data-cat="${n}"><img src="${IMG(i)}"><span class="nm">${n}</span><span class="ct">${countIn(n)}</span></div>`).join('')}${extra}</div>`;
+const coldRow = c => `<div class="crow cold"><span style="position:relative"><img src="${T(c.img)}"><span class="flake">❄</span></span><div><div class="nm">${c.n}</div><div class="small">原本在「${c.cat}」・${c.cold} 冷藏</div></div><span class="act thaw" data-thaw="${c.n}">解凍</span></div>`;
+const warmRow = c => `<div class="crow"><img src="${T(c.img)}"><div><div class="nm">${c.n}</div><div class="small">${c.cat}</div></div><span class="act" data-freeze="${c.n}">❄ 冷藏</span></div>`;
+const coldPage = (title = '冷藏區') => `${head(title, true)}<div class="explain">❄ 冷藏的頻道不會抓新影片，「依影片顯示」也不列（設定可以改）。按「解凍」回到原本的分類。</div>${cold().length ? cold().map(coldRow).join('') : '<div class="small" style="text-align:center;padding:30px">冷藏區是空的</div>'}`;
+const catPage = cat => `${head(cat, true)}${(cat === '全部' ? warm() : warm().filter(c => c.cat === cat)).map(warmRow).join('') || '<div class="small" style="text-align:center;padding:30px">這個分類沒有頻道</div>'}`;
+const trashRows = [['TVBS 新聞', 'HK7SPnGSxLM', '10/10 刪除'], ['某遊戲實況', '9q7JOQfcJQM', '9/30 刪除']];
+
+const V = [];
+V.push({ name: '1 置頂一列「冷藏」（主流）', title: '版本 1：像 Telegram／LINE「封存」——最上面一列，點進去才看', tag: '主流・最熟悉',
+  desc: `<h3>怎麼放</h3><ul><li>YT 首頁最上面一列淡藍色：<b>「❄ 冷藏 6 個頻道」</b>＋三個小頭像，點了進冷藏區那頁。</li>
+    <li>Telegram 的「已封存」、LINE 的「隱藏聊天」、Gmail 的「封存」都是這種：存在但不打擾。</li>
+    <li>冷藏區那頁：每個頻道一列，寫原本在哪個分類、什麼時候冷藏的，右邊「解凍」。</li>
+    <li>分類裡的頻道右邊「❄ 冷藏」（實際 App 是長按選單裡）。</li></ul>`,
+  home() { const c = cold(); return `${head('YT 頻道追蹤')}${c.length ? `<div class="arch" data-page="cold"><span class="ic">❄</span><div style="flex:1"><b>冷藏</b><div class="small">${c.length} 個頻道・不抓新影片</div></div><div style="display:flex">${c.slice(0, 3).map((x, i) => `<img src="${T(x.img)}" style="width:26px;height:26px;border-radius:50%;object-fit:cover;filter:grayscale(.8);margin-left:${i ? -8 : 0}px;border:2px solid #10324a">`).join('')}</div><span style="color:var(--ink3);margin-left:4px">›</span></div>` : ''}${catGrid()}`; } });
+V.push({ name: '2 獨立分頁', title: '版本 2：YT 首頁頂端分段「分類｜冷藏｜垃圾桶」', tag: '跟分類同等',
+  desc: `<h3>怎麼放</h3><ul><li>首頁標題下面一個分段控制：<b>分類 ｜ 冷藏 6 ｜ 垃圾桶 2</b>。</li>
+    <li>切到「冷藏」直接在同一頁列出來，不用進出。</li><li>垃圾桶也從角落搬到這裡，三個「頻道放哪」的地方並排。</li></ul>`,
+  home() {
+    const seg = `<div class="seg">${[['分類', ''], ['冷藏', cold().length], ['垃圾桶', 2]].map(([n, c]) => `<button class="${S.seg === n ? 'on' : ''}" data-seg="${n}">${n}${c !== '' ? ` ${c}` : ''}</button>`).join('')}</div>`;
+    const body = S.seg === '分類' ? catGrid() : S.seg === '冷藏' ? `<div class="explain">❄ 不抓新影片、「依影片顯示」不列。按「解凍」回原本的分類。</div>${cold().map(coldRow).join('')}` : trashRows.map(([n, i, d]) => `<div class="crow cold"><img src="${T(i)}"><div><div class="nm">${n}</div><div class="small">${d}・30 天後永久刪除</div></div><span class="act">還原</span></div>`).join('');
+    return `${head('YT 頻道追蹤')}${seg}${body}`;
+  } });
+V.push({ name: '3 跟垃圾桶放一起', title: '版本 3：分類格子最後一張「收納」，裡面上半冷藏、下半垃圾桶', tag: '不常用的放一起',
+  desc: `<h3>怎麼放</h3><ul><li>分類格子最後一張淡藍色卡「<b>收納</b>」，寫「冷藏 6・垃圾桶 2」。</li>
+    <li>點進去：上半「❄ 冷藏」（可以解凍）、下半「🗑 垃圾桶」（可以還原）。</li>
+    <li>邏輯：都是「暫時不看」的頻道，差別只在要不要留。首頁只多一張卡、不多一列。</li></ul>`,
+  home() { return `${head('YT 頻道追蹤')}${catGrid(`<div class="card ice wide" data-page="box"><span class="nm" style="font-size:16px">📦 收納</span><span class="ct" style="background:rgba(100,210,255,.15);color:var(--ice)">冷藏 ${cold().length}・垃圾桶 2</span><span style="position:absolute;left:12px;top:10px;z-index:2;font-size:11.5px;color:var(--ink2)">暫時不看的頻道</span></div>`)}`; },
+  pages: { box: () => `${head('收納', true)}<div class="sect">❄ 冷藏 <span class="small">${cold().length}</span></div>${cold().map(coldRow).join('')}<div class="sect">🗑 垃圾桶 <span class="small">2・30 天後永久刪除</span></div>${trashRows.map(([n, i, d]) => `<div class="crow cold"><img src="${T(i)}"><div><div class="nm">${n}</div><div class="small">${d}</div></div><span class="act">還原</span></div>`).join('')}` } });
+V.push({ name: '4 一排灰頭像', title: '版本 4：首頁分類下面一排灰色小頭像，點頭像直接解凍', tag: '最輕',
+  desc: `<h3>怎麼放</h3><ul><li>分類格子下面一小段「❄ 冷藏」，<b>只放一排灰色小頭像</b>（可以左右滑），不佔幾行。</li>
+    <li>點頭像：從下面跳出選單「解凍（回到音樂）／看頻道／移到垃圾桶」。</li>
+    <li>最後一顆「全部 ›」進完整列表。看得到誰在冷藏，但不搶版面。</li></ul>`,
+  home() { return `${head('YT 頻道追蹤')}${catGrid()}<div class="sect" style="margin-top:18px">❄ 冷藏 <span class="small">${cold().length} 個・點頭像解凍</span></div><div class="strip">${cold().map(c => `<div class="a" data-sheet="${c.n}"><img src="${T(c.img)}"><span>${c.n.split(' ')[0]}</span></div>`).join('')}<div class="a" data-page="cold"><div style="width:48px;height:48px;border-radius:50%;border:2px dashed #3a3a4c;display:grid;place-items:center;margin:0 auto;color:var(--ink2)">›</div><span>全部</span></div></div>`; } });
+V.push({ name: '5 留在原分類、變淡', title: '版本 5：冷藏的頻道留在原本分類裡，只是變灰＋❄，可以切顯示', tag: '不用找',
+  desc: `<h3>怎麼放</h3><ul><li><b>沒有冷藏區了</b>：冷藏的頻道還在原本分類裡，排在最後面、頭像變灰、右下角 ❄。</li>
+    <li>分類頁右上一個開關「顯示冷藏」，關掉就整個藏起來（預設關）。分類卡的數字只算沒冷藏的，旁邊小字「+2 ❄」。</li>
+    <li>好處：知道某個頻道在哪個分類，不用記它被冷藏了。</li></ul>`,
+  home() { return `${head('YT 頻道追蹤')}<div class="grid"><div class="card wide" data-cat="全部"><img src="${IMG('all')}"><span class="nm">全部</span><span class="ct">${warm().length}${cold().length ? `<span style="color:var(--ice)"> +${cold().length} ❄</span>` : ''}</span></div>${CATS.map(([n, i]) => { const k = cold().filter(c => c.cat === n).length; return `<div class="card" data-cat="${n}"><img src="${IMG(i)}"><span class="nm">${n}</span><span class="ct">${countIn(n)}${k ? `<span style="color:var(--ice)"> +${k} ❄</span>` : ''}</span></div>`; }).join('')}</div>`; },
+  catPage(cat) {
+    const list = cat === '全部' ? S.ch : S.ch.filter(c => c.cat === cat);
+    const w = list.filter(c => !c.cold), k = list.filter(c => c.cold);
+    return `<div class="bar"><span class="ib" data-back>‹</span><span class="t">${cat}</span><span class="tgl" data-show>${k.length ? `<span class="sw ${S.showCold ? 'on' : ''}"></span>顯示冷藏 ${k.length}` : ''}</span></div>${w.map(warmRow).join('')}${S.showCold && k.length ? `<div class="sect">❄ 冷藏中</div>${k.map(coldRow).join('')}` : ''}`;
+  } });
+
+const phone = document.getElementById('phone');
+function render() {
+  const v = V[S.v];
+  document.getElementById('vtabs').innerHTML = V.map((x, i) => `<button class="${i === S.v ? 'on' : ''}" data-v="${i}">${x.name}</button>`).join('');
+  document.getElementById('notes').innerHTML = `<span class="tag">${v.tag}</span><h2>${v.title}</h2>${v.desc}<div class="try">試試：進冷藏把「林俊傑」解凍，再進「音樂」把「周杰倫」冷藏，看首頁數字怎麼變。</div>`;
+  let content;
+  if (!S.page) content = v.home();
+  else if (S.page === 'cold') content = coldPage();
+  else if (S.page.startsWith('cat:')) content = v.catPage ? v.catPage(S.page.slice(4)) : catPage(S.page.slice(4));
+  else content = v.pages[S.page]();
+  const st = phone.querySelector('.screen')?.scrollTop || 0;
+  let sheet = '';
+  if (S.sheet) { const c = S.ch.find(x => x.n === S.sheet); sheet = `<div class="sheet-bg" data-close></div><div class="sheet"><div class="grab"></div><div style="display:flex;gap:12px;align-items:center;margin-bottom:8px"><img src="${T(c.img)}" style="width:44px;height:44px;border-radius:50%;object-fit:cover"><div><b>${c.n}</b><div class="small">${c.cold} 冷藏・原本在「${c.cat}」</div></div></div>
+    <div class="opt" data-thaw="${c.n}" style="color:var(--ice)">☀ 解凍（回到${c.cat}）</div><div class="opt" data-close>▶ 看頻道</div><div class="opt" data-close style="color:var(--red)">🗑 移到垃圾桶</div></div>`; }
+  phone.innerHTML = `<div class="status"><span>21:30</span><span>5G ▮</span></div><div class="screen ${S.anim ? '' : 'still'}">${content}</div><div class="navbar"><span class="on">頻道</span><span>影片</span><span>播放清單</span></div>${sheet}${S.toast ? `<div class="toast">${S.toast}</div>` : ''}`;
+  if (!S.anim) phone.querySelector('.screen').scrollTop = st;
+  S.anim = false;
+}
+let tt;
+function toast(t) { S.toast = t; clearTimeout(tt); tt = setTimeout(() => { S.toast = null; render(); }, 1600); }
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-v],[data-page],[data-back],[data-cat],[data-thaw],[data-freeze],[data-seg],[data-sheet],[data-close],[data-show]');
+  if (!el) return; const d = el.dataset;
+  if (d.v) { S.v = +d.v; S.page = null; S.sheet = null; S.anim = true; }
+  else if (d.page) { S.page = d.page; S.anim = true; }
+  else if (d.back !== undefined) { S.page = null; S.anim = true; }
+  else if (d.cat) { S.page = 'cat:' + d.cat; S.anim = true; }
+  else if (d.thaw) { const c = S.ch.find(x => x.n === d.thaw); c.cold = null; S.sheet = null; toast(`已解凍，${c.n.split(' ')[0]} 回到「${c.cat}」`); }
+  else if (d.freeze) { const c = S.ch.find(x => x.n === d.freeze); c.cold = '2026/10/15'; toast(`❄ 已冷藏 ${c.n.split(' ')[0]}`); }
+  else if (d.seg) S.seg = d.seg;
+  else if (d.sheet) S.sheet = d.sheet;
+  else if (d.close !== undefined) S.sheet = null;
+  else if (d.show !== undefined) S.showCold = !S.showCold;
+  render();
+});
+if (/^#[1-5]$/.test(location.hash)) S.v = +location.hash[1] - 1;
+render();
+</script>
+</body>
+</html>

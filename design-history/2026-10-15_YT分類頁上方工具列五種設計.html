@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YT 分類頁工具列</title>
+<style>
+  :root { --bg: #0C0C13; --card: #151520; --card2: #1A1A27; --sheet: #1C1C29; --line: #2A2A3D; --ink: #F3F2F8; --ink2: #A3A2B2; --ink3: #74738A; --accent: #7EA6FF; --ios: #0A84FF; --yt: #FF4E45; --green: #30D158; --amber: #FFB340; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--ink); min-height: 100vh; font: 14px/1.5 -apple-system, "SF Pro Text", system-ui, "Segoe UI", "Microsoft JhengHei", sans-serif; }
+  .page { max-width: 1140px; margin: 0 auto; padding: 24px 16px 60px; }
+  h1 { font-size: 20px; margin: 0 0 6px; }
+  .lead { color: var(--ink2); font-size: 13px; margin: 0 0 14px; } .lead b { color: var(--ink); }
+  .vtabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+  .vtabs button { border: 1px solid var(--line); background: var(--card); color: var(--ink2); padding: 8px 14px; border-radius: 99px; cursor: pointer; font-size: 13px; }
+  .vtabs button.on { border-color: var(--accent); color: #fff; background: rgba(46,107,255,.35); }
+  .stage { display: flex; gap: 28px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
+  .notes { flex: 1 1 320px; max-width: 470px; background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 18px 20px; font-size: 13.5px; color: var(--ink2); }
+  .notes h2 { color: var(--ink); font-size: 17px; margin: 0 0 4px; }
+  .notes .tag { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 99px; background: rgba(126,166,255,.15); color: var(--accent); margin-bottom: 8px; }
+  .notes h3 { color: var(--ink); font-size: 13.5px; margin: 14px 0 4px; }
+  .notes ul { margin: 0; padding-left: 18px; } .notes li { margin: 3px 0; }
+  .notes .try { margin-top: 14px; padding: 10px 12px; border-radius: 12px; background: rgba(126,166,255,.08); border: 1px solid rgba(126,166,255,.25); color: var(--ink); font-size: 12.5px; }
+  .phone { width: 390px; max-width: 100%; height: 820px; flex-shrink: 0; border-radius: 44px; border: 1px solid var(--line); background: #0e0e17; position: relative; overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,.5); user-select: none; }
+  .screen { position: absolute; inset: 0; overflow-y: auto; padding: 0 0 120px; scrollbar-width: none; }
+  .screen::-webkit-scrollbar { display: none; }
+  .status { position: absolute; top: 0; left: 0; right: 0; height: 40px; display: flex; align-items: center; justify-content: space-between; padding: 0 30px; font-size: 13px; font-weight: 700; z-index: 70; pointer-events: none; }
+  .pad { padding: 0 14px; }
+  .small { font-size: 11.5px; color: var(--ink3); } .muted { color: var(--ink2); font-size: 12.5px; }
+  .hdr { position: sticky; top: 0; z-index: 40; background: rgba(14,14,23,.88); backdrop-filter: blur(18px); padding-top: 44px; transition: transform .25s; }
+  .hdr.hide { transform: translateY(calc(-100% + 44px)); }
+  .nav { display: flex; align-items: center; gap: 2px; padding: 0 6px 6px; min-height: 42px; }
+  .nav .t { flex: 1; font-weight: 800; font-size: 16px; text-align: center; transition: opacity .2s; }
+  .ib { width: 36px; height: 36px; border-radius: 11px; display: grid; place-items: center; color: var(--ink); cursor: pointer; font-size: 17px; position: relative; flex-shrink: 0; }
+  .ib:hover { background: rgba(255,255,255,.07); }
+  .ib.blue { color: var(--ios); }
+  .ib .dot { position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; border-radius: 50%; background: var(--ios); }
+  .big { font-size: 30px; font-weight: 900; padding: 0 16px 6px; letter-spacing: .5px; }
+  .chips { display: flex; gap: 7px; overflow-x: auto; scrollbar-width: none; padding: 2px 14px 8px; }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip { flex-shrink: 0; border: 1px solid var(--line); background: rgba(255,255,255,.05); color: var(--ink); border-radius: 99px; padding: 5px 12px; font-size: 12.5px; cursor: pointer; white-space: nowrap; }
+  .chip.on { background: var(--ios); border-color: var(--ios); color: #fff; font-weight: 700; }
+  .seg { display: flex; background: rgba(255,255,255,.08); border-radius: 10px; padding: 2px; }
+  .seg button { flex: 1; border: 0; background: none; color: var(--ink2); padding: 6px 12px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+  .seg button.on { background: #3a3a50; color: #fff; }
+  .drop { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--line); background: rgba(255,255,255,.05); border-radius: 10px; padding: 6px 10px; font-size: 12.5px; cursor: pointer; white-space: nowrap; }
+  .drop.on { border-color: var(--ios); color: #66b2ff; }
+  .crow { display: flex; align-items: center; gap: 12px; padding: 9px 14px; cursor: pointer; }
+  .crow img { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; }
+  .crow .nm { font-weight: 700; } .crow .new { margin-left: auto; background: var(--yt); color: #fff; font-size: 11px; font-weight: 800; border-radius: 99px; padding: 0 7px; }
+  .sect { font-size: 12px; color: var(--ink3); font-weight: 700; padding: 10px 16px 2px; }
+  .vrow { display: flex; gap: 10px; padding: 7px 14px; }
+  .th { position: relative; width: 140px; height: 79px; border-radius: 10px; overflow: hidden; flex-shrink: 0; background: #222; }
+  .th img { width: 100%; height: 100%; object-fit: cover; }
+  .dur { position: absolute; right: 4px; bottom: 4px; background: rgba(0,0,0,.8); font-size: 11px; font-weight: 700; padding: 0 5px; border-radius: 4px; }
+  .vt { font-size: 13px; font-weight: 600; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .menu { position: absolute; z-index: 90; background: rgba(30,30,44,.97); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,.12); border-radius: 16px; padding: 6px; box-shadow: 0 16px 40px rgba(0,0,0,.6); animation: pop .18s; min-width: 200px; transform-origin: top right; }
+  .menu .mh { font-size: 11px; color: var(--ink3); padding: 6px 10px 2px; }
+  .menu .mi { padding: 8px 10px; border-radius: 10px; cursor: pointer; display: flex; gap: 10px; align-items: center; font-size: 13.5px; }
+  .menu .mi:hover { background: rgba(255,255,255,.07); }
+  .menu .mi.on::after { content: "✓"; margin-left: auto; color: var(--ios); font-weight: 900; }
+  .menu .mi.red { color: #ff6961; }
+  .menu .sep { height: 1px; background: rgba(255,255,255,.08); margin: 4px 8px; }
+  .scrim { position: absolute; inset: 0; z-index: 85; }
+  @keyframes pop { from { transform: scale(.9); opacity: 0 } }
+  @keyframes up { from { transform: translateY(100%) } } @keyframes fade { from { opacity: 0 } }
+  .sheet-bg { position: absolute; inset: 0; z-index: 86; background: rgba(0,0,0,.5); animation: fade .2s; }
+  .sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 87; background: var(--sheet); border-radius: 24px 24px 0 0; padding: 10px 16px 30px; animation: up .25s cubic-bezier(.2,.9,.3,1); }
+  .sheet .grab { width: 38px; height: 5px; border-radius: 99px; background: #4a4a5c; margin: 0 auto 10px; }
+  .sheet h4 { margin: 14px 0 7px; font-size: 13px; color: var(--ink2); font-weight: 600; }
+  .sheet .chips { padding: 0; flex-wrap: wrap; }
+  .sheet .apply { width: 100%; margin-top: 18px; border: 0; border-radius: 14px; padding: 12px; background: var(--ios); color: #fff; font-weight: 800; font-size: 15px; cursor: pointer; }
+  .search { display: flex; align-items: center; gap: 8px; margin: 0 14px 8px; padding: 8px 12px; border-radius: 12px; background: rgba(255,255,255,.08); color: var(--ink3); font-size: 14px; }
+  .fbar { position: absolute; left: 50%; bottom: 84px; transform: translateX(-50%); z-index: 55; display: flex; align-items: center; gap: 2px; padding: 5px; border-radius: 99px; background: rgba(30,30,44,.8); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,.14); box-shadow: 0 10px 30px rgba(0,0,0,.5); }
+  .fbar .seg { background: rgba(255,255,255,.06); border-radius: 99px; } .fbar .seg button { border-radius: 99px; padding: 6px 14px; }
+  .navbar { position: absolute; left: 50%; bottom: 26px; transform: translateX(-50%); z-index: 60; display: flex; gap: 4px; padding: 6px; border-radius: 99px; background: rgba(30,30,44,.72); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,.14); }
+  .navbar span { padding: 7px 16px; border-radius: 99px; font-size: 12px; font-weight: 700; color: var(--ink2); }
+  .navbar span.on { background: rgba(255,255,255,.14); color: #fff; }
+  .spin { display: flex; justify-content: center; padding: 10px 0 2px; font-size: 12px; color: var(--ink2); gap: 8px; align-items: center; }
+  .spin i { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--ink3); border-top-color: var(--ios); animation: rot .7s linear infinite; }
+  @keyframes rot { to { transform: rotate(360deg) } }
+  .toast { position: absolute; left: 50%; top: 50px; transform: translateX(-50%); z-index: 99; background: rgba(40,40,58,.96); border: 1px solid rgba(255,255,255,.12); border-radius: 14px; padding: 8px 14px; font-size: 12.5px; white-space: nowrap; animation: pop .2s; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>YT 分類頁：上方工具列五種排法</h1>
+  <p class="lead">從首頁點分類進來的那一頁，頂端現在擠了：返回、分類名、挖掘新頻道、新增頻道、頻道紀錄、刪除分類、一排分類篩選、依頻道／依影片切換、排序、類型篩選、重新整理。<br>
+    <b>功能都一樣，只比怎麼擺</b>。每版都能點：切頻道／影片、換排序、選分類、按重新整理、打開選單，往下滑看工具列怎麼收。</p>
+  <div class="vtabs" id="vtabs"></div>
+  <div class="stage"><div class="phone" id="phone"></div><div class="notes" id="notes"></div></div>
+</div>
+<script>
+const T = id => `https://i.ytimg.com/vi/${id}/mqdefault.jpg`;
+const CH = [
+  { n: '周杰倫 Jay Chou', img: 'DYptgVvkVLQ', subs: 2140, cat: '華語', pin: 1, nw: 2 },
+  { n: '五月天 Mayday', img: 'R2s-H_crYkc', subs: 1080, cat: '華語', pin: 1, nw: 1 },
+  { n: '林俊傑 JJ Lin', img: 'G97_rOdHcnY', subs: 1730, cat: '華語', nw: 0 },
+  { n: '鄧紫棋 G.E.M.', img: 'T4SimnaiktU', subs: 1890, cat: '華語', nw: 3 },
+  { n: '告五人 Accusefive', img: 'mGeiABBB5f8', subs: 96, cat: '樂團', nw: 0 },
+  { n: '茄子蛋 EggPlantEgg', img: 'GtDRcXtDg-4', subs: 52, cat: '樂團', nw: 1 },
+  { n: 'YOASOBI', img: 'LWV-f6dMN3Q', subs: 870, cat: '日文', nw: 0 },
+  { n: 'Aimer Official', img: 'kfXdP7nZIiE', subs: 310, cat: '日文', nw: 0 },
+];
+const VIDS = [
+  ['1emA1EFsPMM', '周杰倫 Jay Chou【最偉大的作品】Official MV', '周杰倫 Jay Chou', '4:05', 1, '一般影片'],
+  ['T4SimnaiktU', 'G.E.M.【光年之外 LIGHT YEARS AWAY】MV', '鄧紫棋 G.E.M.', '3:55', 2, '一般影片'],
+  ['bu7nU9Mhpyo', '周杰倫【告白氣球】#shorts', '周杰倫 Jay Chou', '0:42', 3, 'Shorts'],
+  ['R2s-H_crYkc', '五月天 MAYDAY【倔強】Official Live', '五月天 Mayday', '4:20', 4, '直播'],
+  ['GtDRcXtDg-4', '茄子蛋【浪流連】MV', '茄子蛋 EggPlantEgg', '4:25', 5, '一般影片'],
+  ['mGeiABBB5f8', 'G.E.M.【泡沫 BUBBLE】MV', '鄧紫棋 G.E.M.', '4:19', 6, '一般影片'],
+  ['HK7SPnGSxLM', '周杰倫 x 阿信【說好不哭】Official MV', '周杰倫 Jay Chou', '5:22', 8, '一般影片'],
+  ['LWV-f6dMN3Q', 'YOASOBI「アイドル」Official Music Video', 'YOASOBI', '3:46', 9, '一般影片'],
+].map(([id, t, ch, d, days, type]) => ({ id, t, ch, d, days, type }));
+const CATS = ['華語', '樂團', '日文', '未分類'];
+const SORTS = ['預設排序', '訂閱人數 多→少', '訂閱人數 少→多'];
+const TYPES = ['全部', '一般影片', 'Shorts', '直播'];
+const S = { v: 0, view: '頻道', sort: '預設排序', type: '全部', cats: new Set(), menu: null, sheet: false, refreshing: false, toast: null, scrolled: false, hidden: false };
+function channels() {
+  let a = CH.filter(c => !S.cats.size || S.cats.has(c.cat));
+  if (S.sort === '訂閱人數 多→少') a = [...a].sort((x, y) => y.subs - x.subs);
+  if (S.sort === '訂閱人數 少→多') a = [...a].sort((x, y) => x.subs - y.subs);
+  return a;
+}
+function videos() { const names = new Set(channels().map(c => c.n)); return VIDS.filter(v => names.has(v.ch) && (S.type === '全部' || v.type === S.type)); }
+const subs = n => n >= 100 ? `${(n / 1).toLocaleString()} 萬` : `${n} 萬`;
+function body() {
+  const sp = S.refreshing ? '<div class="spin"><i></i>正在檢查新影片…</div>' : '';
+  if (S.view === '頻道') {
+    const a = channels(); const pin = S.sort === '預設排序' ? a.filter(c => c.pin) : [], rest = S.sort === '預設排序' ? a.filter(c => !c.pin) : a;
+    const row = c => `<div class="crow"><img src="${T(c.img)}"><div><div class="nm">${c.n}</div><div class="small">${subs(c.subs)}訂閱・${c.cat}</div></div>${c.nw ? `<span class="new">${c.nw}</span>` : ''}</div>`;
+    return sp + (pin.length ? `<div class="sect">📌 置頂</div>${pin.map(row).join('')}<div class="sect">一般</div>` : '') + rest.map(row).join('');
+  }
+  return sp + videos().map(v => `<div class="vrow"><div class="th"><img src="${T(v.id)}" loading="lazy"><span class="dur">${v.d}</span></div><div><div class="vt">${v.t}</div><div class="small" style="margin-top:3px">${v.ch}・${v.days} 天前</div></div></div>`).join('') || '<div class="small" style="text-align:center;padding:30px">沒有符合的影片</div>';
+}
+const catChips = () => `<span class="chip ${!S.cats.size ? 'on' : ''}" data-cat="">全部</span>` + CATS.map(c => `<span class="chip ${S.cats.has(c) ? 'on' : ''}" data-cat="${c}">${c}</span>`).join('');
+const viewSeg = () => `<div class="seg">${['頻道', '影片'].map(x => `<button class="${S.view === x ? 'on' : ''}" data-view="${x}">依${x}</button>`).join('')}</div>`;
+const sortMenu = (top, right = 14) => `<div class="scrim" data-close></div><div class="menu" style="top:${top}px;right:${right}px"><div class="mh">${S.view === '頻道' ? '排序' : '類型'}</div>${S.view === '頻道' ? SORTS.map(s => `<div class="mi ${S.sort === s ? 'on' : ''}" data-sort="${s}">${s}</div>`).join('') : TYPES.map(t => `<div class="mi ${S.type === t ? 'on' : ''}" data-type="${t}">${t}</div>`).join('')}</div>`;
+const moreItems = (withSort = false) => `${withSort ? `<div class="mh">${S.view === '頻道' ? '排序' : '類型'}</div>${S.view === '頻道' ? SORTS.map(s => `<div class="mi ${S.sort === s ? 'on' : ''}" data-sort="${s}">${s}</div>`).join('') : TYPES.map(t => `<div class="mi ${S.type === t ? 'on' : ''}" data-type="${t}">${t}</div>`).join('')}<div class="sep"></div>` : ''}
+  <div class="mi" data-toast="開啟挖掘新頻道">🔭 挖掘新頻道</div><div class="mi" data-toast="開啟新增頻道">＋ 新增頻道</div><div class="mi" data-toast="開啟頻道紀錄">🕘 頻道紀錄</div><div class="sep"></div><div class="mi red" data-toast="問：確定刪除「音樂」？">🗑 刪除分類</div>`;
+const filtered = () => S.cats.size || S.sort !== '預設排序' || S.type !== '全部';
+
+const V = [];
+V.push({ name: '1 iOS 大標題（主流）', title: '版本 1：iOS 大標題＋分段控制，其他收進 ＋ 跟 ⋯', tag: '主流・像 iPhone 內建 App',
+  desc: `<h3>怎麼擺</h3><ul><li>最上面左「‹」、右兩顆：<b>＋</b>（新增頻道／挖掘新頻道）、<b>⋯</b>（排序或類型、頻道紀錄、刪除分類）。</li>
+    <li>下面大大的「音樂」標題，往下滑縮成中間小標題（iOS 內建 App 都這樣）。</li>
+    <li>一個分段控制：依頻道｜依影片。再下面一排分類晶片。</li>
+    <li><b>重新整理改成往下拉</b>（這裡點大標題右邊的 ⟳ 模擬下拉）。</li></ul>`,
+  hdr() {
+    return `<div class="nav"><span class="ib blue">‹</span><span class="t" style="opacity:${S.scrolled ? 1 : 0}">音樂</span><span class="ib blue" data-menu="add">＋</span><span class="ib blue" data-menu="more">⋯${filtered() ? '<span class="dot"></span>' : ''}</span></div>
+      ${S.scrolled ? '' : `<div class="big" style="display:flex;align-items:center">音樂<span class="ib" data-refresh style="margin-left:auto;font-size:15px;color:var(--ink3)" title="模擬下拉更新">⟳</span></div>`}
+      <div class="pad" style="padding-bottom:8px">${viewSeg()}</div><div class="chips">${catChips()}</div>`;
+  },
+  menus: { add: () => `<div class="scrim" data-close></div><div class="menu" style="top:84px;right:52px"><div class="mi" data-toast="開啟新增頻道">＋ 新增頻道</div><div class="mi" data-toast="開啟挖掘新頻道">🔭 挖掘新頻道</div></div>`,
+    more: () => `<div class="scrim" data-close></div><div class="menu" style="top:84px;right:14px">${moreItems(true).replace(/<div class="mi" data-toast="開啟挖掘新頻道">.*?<\/div><div class="mi" data-toast="開啟新增頻道">.*?<\/div>/, '')}</div>` } });
+V.push({ name: '2 一行全圖示', title: '版本 2：一行搞定——分類 ▾、頻道/影片圖示切換、排序 ▾、⟳、⋯', tag: '最省高度',
+  desc: `<h3>怎麼擺</h3><ul><li>標題列：‹ 音樂　＋　⋯</li>
+    <li>下面<b>只有一行</b>：「分類 ▾」（勾選多個）、「☰／▦」切依頻道／依影片、「排序 ▾」、「⟳」。改過的那顆變藍色。</li>
+    <li>分類晶片不再常駐一整排，收進「分類 ▾」。</li><li>整個頂端只佔兩行，影片最早露出來。</li></ul>`,
+  hdr() {
+    return `<div class="nav"><span class="ib">‹</span><span style="flex:1;font-weight:800;font-size:17px;padding-left:2px">音樂</span><span class="ib" data-menu="add">＋</span><span class="ib" data-menu="more">⋯</span></div>
+      <div class="pad" style="display:flex;gap:6px;padding-bottom:8px;align-items:center"><span class="drop ${S.cats.size ? 'on' : ''}" data-menu="cats">${S.cats.size ? [...S.cats].join('、') : '全部分類'} ▾</span>
+      <span class="seg" style="flex-shrink:0">${['頻道', '影片'].map(x => `<button class="${S.view === x ? 'on' : ''}" data-view="${x}" style="padding:5px 10px">${x === '頻道' ? '☰' : '▦'}</button>`).join('')}</span>
+      <span class="drop ${S.sort !== '預設排序' || S.type !== '全部' ? 'on' : ''}" data-menu="sort">⇅ ${S.view === '頻道' ? S.sort.replace('訂閱人數 ', '') : S.type} ▾</span><span class="ib" data-refresh style="margin-left:auto">⟳</span></div>`;
+  },
+  menus: { add: () => `<div class="scrim" data-close></div><div class="menu" style="top:84px;right:52px"><div class="mi" data-toast="開啟新增頻道">＋ 新增頻道</div><div class="mi" data-toast="開啟挖掘新頻道">🔭 挖掘新頻道</div></div>`,
+    more: () => `<div class="scrim" data-close></div><div class="menu" style="top:84px;right:14px"><div class="mi" data-toast="開啟頻道紀錄">🕘 頻道紀錄</div><div class="sep"></div><div class="mi red" data-toast="問：確定刪除「音樂」？">🗑 刪除分類</div></div>`,
+    cats: () => `<div class="scrim" data-close></div><div class="menu" style="top:130px;left:14px;transform-origin:top left"><div class="mh">可以選多個</div><div class="mi ${!S.cats.size ? 'on' : ''}" data-cat="">全部</div>${CATS.map(c => `<div class="mi ${S.cats.has(c) ? 'on' : ''}" data-cat="${c}">${c}</div>`).join('')}</div>`,
+    sort: () => sortMenu(130, 60) } });
+V.push({ name: '3 搜尋框＋篩選面板', title: '版本 3：頂端一個搜尋框，篩選全部進底部面板', tag: '最乾淨',
+  desc: `<h3>怎麼擺</h3><ul><li>標題列：‹ 音樂　⋯（新增、挖掘、紀錄、刪除）。</li>
+    <li>下面一個<b>搜尋框</b>（找這個分類裡的頻道／影片），右邊一顆<b>篩選</b>（有改過顯示藍點）。</li>
+    <li>篩選面板：依頻道／依影片、分類、排序、類型，一次調完按「套用」。</li>
+    <li>重新整理：往下拉（這裡點搜尋框旁 ⟳ 模擬）。</li></ul>`,
+  hdr() {
+    return `<div class="nav"><span class="ib">‹</span><span style="flex:1;font-weight:800;font-size:17px">音樂 <span class="small">${S.view === '頻道' ? `${channels().length} 個頻道` : `${videos().length} 部影片`}</span></span><span class="ib" data-menu="more">⋯</span></div>
+      <div style="display:flex;align-items:center;padding-right:10px"><div class="search" style="flex:1;margin-right:6px">⌕ 在「音樂」裡搜尋</div><span class="ib" data-sheet>⚙${filtered() || S.view === '影片' ? '<span class="dot"></span>' : ''}</span><span class="ib" data-refresh>⟳</span></div>`;
+  },
+  menus: { more: () => `<div class="scrim" data-close></div><div class="menu" style="top:84px;right:14px">${moreItems()}</div>` },
+  sheet: () => `<b style="font-size:16px">顯示方式</b><div style="margin-top:10px">${viewSeg()}</div><h4>分類（可以選多個）</h4><div class="chips">${catChips()}</div>
+    ${S.view === '頻道' ? `<h4>排序</h4><div class="chips">${SORTS.map(s => `<span class="chip ${S.sort === s ? 'on' : ''}" data-sort="${s}">${s}</span>`).join('')}</div>` : `<h4>類型</h4><div class="chips">${TYPES.map(t => `<span class="chip ${S.type === t ? 'on' : ''}" data-type="${t}">${t}</span>`).join('')}</div>`}
+    <button class="apply" data-close>套用</button>` });
+V.push({ name: '4 底部浮動工具列', title: '版本 4：頂端只剩標題，常用的搬到拇指按得到的底部膠囊', tag: '單手好按',
+  desc: `<h3>怎麼擺</h3><ul><li>頂端：‹ 音樂　＋　⋯，下面一排分類晶片。</li>
+    <li>分頁列上方浮一個小膠囊：<b>依頻道｜依影片</b>、⇅ 排序、⟳ 重新整理。手機單手拇指就按得到。</li>
+    <li>往下滑時膠囊縮小，只剩切換。</li></ul>`,
+  hdr() {
+    return `<div class="nav"><span class="ib">‹</span><span style="flex:1;font-weight:800;font-size:17px">音樂</span><span class="ib" data-menu="add">＋</span><span class="ib" data-menu="more">⋯</span></div><div class="chips">${catChips()}</div>`;
+  },
+  extra() { return `<div class="fbar"><div class="seg">${['頻道', '影片'].map(x => `<button class="${S.view === x ? 'on' : ''}" data-view="${x}">${x}</button>`).join('')}</div>${S.scrolled ? '' : `<span class="ib ${S.sort !== '預設排序' || S.type !== '全部' ? 'blue' : ''}" data-menu="sort">⇅</span><span class="ib" data-refresh>⟳</span>`}</div>`; },
+  menus: { add: () => `<div class="scrim" data-close></div><div class="menu" style="top:84px;right:52px"><div class="mi" data-toast="開啟新增頻道">＋ 新增頻道</div><div class="mi" data-toast="開啟挖掘新頻道">🔭 挖掘新頻道</div></div>`,
+    more: () => `<div class="scrim" data-close></div><div class="menu" style="top:84px;right:14px"><div class="mi" data-toast="開啟頻道紀錄">🕘 頻道紀錄</div><div class="sep"></div><div class="mi red" data-toast="問：確定刪除「音樂」？">🗑 刪除分類</div></div>`,
+    sort: () => `<div class="scrim" data-close></div><div class="menu" style="bottom:140px;left:50%;margin-left:-100px;transform-origin:bottom center"><div class="mh">${S.view === '頻道' ? '排序' : '類型'}</div>${S.view === '頻道' ? SORTS.map(s => `<div class="mi ${S.sort === s ? 'on' : ''}" data-sort="${s}">${s}</div>`).join('') : TYPES.map(t => `<div class="mi ${S.type === t ? 'on' : ''}" data-type="${t}">${t}</div>`).join('')}</div>` } });
+V.push({ name: '5 往下滑整排藏起來', title: '版本 5：工具列照現在全部擺出來，但往下滑就整排藏起來', tag: '改動最小',
+  desc: `<h3>怎麼擺</h3><ul><li>跟現在差不多：標題列（‹ 音樂、🔭、＋、🕘、🗑），下面「依頻道｜依影片」＋排序＋⟳，再下面分類晶片。</li>
+    <li><b>往下滑：整個工具列往上藏起來</b>，只剩狀態列；<b>往回滑一點：馬上出現</b>（Safari、YouTube 都這樣）。</li>
+    <li>東西都看得到不用找；滑清單時又不佔空間。</li></ul>`,
+  hdr() {
+    return `<div class="nav"><span class="ib">‹</span><span style="flex:1;font-weight:800;font-size:17px">音樂</span><span class="ib" data-toast="開啟挖掘新頻道">🔭</span><span class="ib" data-toast="開啟新增頻道">＋</span><span class="ib" data-toast="開啟頻道紀錄">🕘</span><span class="ib" data-toast="問：確定刪除「音樂」？">🗑</span></div>
+      <div class="pad" style="display:flex;gap:6px;padding-bottom:8px;align-items:center">${viewSeg()}<span class="drop ${S.sort !== '預設排序' || S.type !== '全部' ? 'on' : ''}" data-menu="sort">⇅ ▾</span><span class="ib" data-refresh>⟳</span></div><div class="chips">${catChips()}</div>`;
+  },
+  autoHide: true,
+  menus: { sort: () => sortMenu(130) } });
+
+const phone = document.getElementById('phone');
+let lastY = 0;
+function render() {
+  const v = V[S.v];
+  document.getElementById('vtabs').innerHTML = V.map((x, i) => `<button class="${i === S.v ? 'on' : ''}" data-v="${i}">${x.name}</button>`).join('');
+  document.getElementById('notes').innerHTML = `<span class="tag">${v.tag}</span><h2>${v.title}</h2>${v.desc}<div class="try">試試：切「依影片」、選「華語」、改排序、按 ⟳，再往下滑看頂端怎麼變。</div>`;
+  const st = phone.querySelector('.screen')?.scrollTop || 0;
+  const menu = S.menu && v.menus?.[S.menu] ? v.menus[S.menu]() : '';
+  phone.innerHTML = `<div class="status"><span>21:30</span><span>5G ▮</span></div><div class="screen"><div class="hdr ${S.hidden ? 'hide' : ''}">${v.hdr()}</div>${body()}</div>
+    ${v.extra ? v.extra() : ''}<div class="navbar"><span class="on">頻道</span><span>影片</span><span>播放清單</span></div>${menu}
+    ${S.sheet && v.sheet ? `<div class="sheet-bg" data-close></div><div class="sheet"><div class="grab"></div>${v.sheet()}</div>` : ''}${S.toast ? `<div class="toast">${S.toast}</div>` : ''}`;
+  const sc = phone.querySelector('.screen'); sc.scrollTop = st; lastY = st;
+  sc.onscroll = () => {
+    const y = sc.scrollTop; let changed = false;
+    const s = y > 40; if (s !== S.scrolled && !V[S.v].autoHide) { S.scrolled = s; changed = true; }
+    if (V[S.v].autoHide) { const h = y > 80 && y > lastY; const show = y < lastY - 4 || y < 80; if (h && !S.hidden) { S.hidden = true; sc.querySelector('.hdr').classList.add('hide'); } else if (show && S.hidden) { S.hidden = false; sc.querySelector('.hdr').classList.remove('hide'); } }
+    lastY = y; if (changed) render();
+  };
+}
+let tt;
+function toast(t) { S.toast = t; clearTimeout(tt); tt = setTimeout(() => { S.toast = null; render(); }, 1700); }
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-v],[data-view],[data-cat],[data-sort],[data-type],[data-menu],[data-close],[data-sheet],[data-refresh],[data-toast]');
+  if (!el) return; const d = el.dataset;
+  if (d.v) { Object.assign(S, { v: +d.v, menu: null, sheet: false, scrolled: false, hidden: false }); const sc = phone.querySelector('.screen'); if (sc) sc.scrollTop = 0; }
+  else if (d.view) S.view = d.view;
+  else if (d.cat !== undefined) { if (!d.cat) S.cats.clear(); else S.cats.has(d.cat) ? S.cats.delete(d.cat) : S.cats.add(d.cat); }
+  else if (d.sort) { S.sort = d.sort; if (!S.sheet) S.menu = null; }
+  else if (d.type) { S.type = d.type; if (!S.sheet) S.menu = null; }
+  else if (d.menu) S.menu = d.menu;
+  else if (d.close !== undefined) { S.menu = null; S.sheet = false; }
+  else if (d.sheet !== undefined) S.sheet = true;
+  else if (d.refresh !== undefined) { S.refreshing = true; phone.querySelector('.screen').scrollTop = 0; setTimeout(() => { S.refreshing = false; toast('更新完成：3 部新影片'); render(); }, 1400); }
+  else if (d.toast) { S.menu = null; toast(d.toast); }
+  render();
+});
+if (/^#[1-5]$/.test(location.hash)) S.v = +location.hash[1] - 1;
+render();
+</script>
+</body>
+</html>

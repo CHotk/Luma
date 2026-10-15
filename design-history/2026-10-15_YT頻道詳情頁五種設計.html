@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YT 頻道詳情頁</title>
+<style>
+  :root { --bg: #0C0C13; --card: #151520; --card2: #1A1A27; --sheet: #1C1C29; --line: #2A2A3D; --ink: #F3F2F8; --ink2: #A3A2B2; --ink3: #74738A; --accent: #7EA6FF; --ios: #0A84FF; --yt: #FF4E45; --green: #30D158; --amber: #FFB340; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--ink); min-height: 100vh; font: 14px/1.5 -apple-system, "SF Pro Text", system-ui, "Segoe UI", "Microsoft JhengHei", sans-serif; }
+  .page { max-width: 1140px; margin: 0 auto; padding: 24px 16px 60px; }
+  h1 { font-size: 20px; margin: 0 0 6px; }
+  .lead { color: var(--ink2); font-size: 13px; margin: 0 0 14px; } .lead b { color: var(--ink); }
+  .vtabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+  .vtabs button { border: 1px solid var(--line); background: var(--card); color: var(--ink2); padding: 8px 14px; border-radius: 99px; cursor: pointer; font-size: 13px; }
+  .vtabs button.on { border-color: var(--accent); color: #fff; background: rgba(46,107,255,.35); }
+  .stage { display: flex; gap: 28px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
+  .notes { flex: 1 1 320px; max-width: 470px; background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 18px 20px; font-size: 13.5px; color: var(--ink2); }
+  .notes h2 { color: var(--ink); font-size: 17px; margin: 0 0 4px; }
+  .notes .tag { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 99px; background: rgba(126,166,255,.15); color: var(--accent); margin-bottom: 8px; }
+  .notes h3 { color: var(--ink); font-size: 13.5px; margin: 14px 0 4px; }
+  .notes ul { margin: 0; padding-left: 18px; } .notes li { margin: 3px 0; }
+  .notes .try { margin-top: 14px; padding: 10px 12px; border-radius: 12px; background: rgba(126,166,255,.08); border: 1px solid rgba(126,166,255,.25); color: var(--ink); font-size: 12.5px; }
+  .phone { width: 390px; max-width: 100%; height: 820px; flex-shrink: 0; border-radius: 44px; border: 1px solid var(--line); background: #0e0e17; position: relative; overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,.5); user-select: none; }
+  .screen { position: absolute; inset: 0; overflow-y: auto; padding: 0 0 110px; scrollbar-width: none; }
+  .screen::-webkit-scrollbar { display: none; }
+  .status { position: absolute; top: 0; left: 0; right: 0; height: 40px; display: flex; align-items: center; justify-content: space-between; padding: 0 30px; font-size: 13px; font-weight: 700; z-index: 70; pointer-events: none; }
+  .pad { padding: 0 14px; }
+  .top { position: sticky; top: 0; z-index: 40; display: flex; align-items: center; gap: 4px; padding: 44px 8px 8px; background: linear-gradient(#0e0e17 70%, rgba(14,14,23,0)); }
+  .top .t { flex: 1; font-weight: 800; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: opacity .2s; }
+  .ib { width: 36px; height: 36px; border-radius: 11px; display: grid; place-items: center; color: var(--ink2); cursor: pointer; font-size: 17px; position: relative; flex-shrink: 0; }
+  .ib:hover { background: rgba(255,255,255,.06); }
+  .ib .dot { position: absolute; top: 5px; right: 5px; min-width: 15px; height: 15px; border-radius: 99px; background: var(--ios); color: #fff; font-size: 9.5px; font-weight: 800; display: grid; place-items: center; padding: 0 3px; }
+  .av { border-radius: 50%; object-fit: cover; background: #333; flex-shrink: 0; }
+  .muted { color: var(--ink2); font-size: 12.5px; } .small { font-size: 11.5px; color: var(--ink3); }
+  .chips { display: flex; gap: 7px; overflow-x: auto; scrollbar-width: none; padding: 2px 0; }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip { flex-shrink: 0; border: 1px solid var(--line); background: rgba(255,255,255,.05); color: var(--ink); border-radius: 9px; padding: 5px 11px; font-size: 12.5px; cursor: pointer; white-space: nowrap; }
+  .chip.on { background: var(--ink); color: #111; border-color: var(--ink); font-weight: 700; }
+  .chip.blue.on { background: var(--ios); color: #fff; border-color: var(--ios); }
+  .tgl { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink2); cursor: pointer; }
+  .sw { width: 34px; height: 20px; border-radius: 99px; background: #3a3a4c; position: relative; transition: .2s; flex-shrink: 0; }
+  .sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: .2s; }
+  .sw.on { background: var(--green); } .sw.on::after { left: 16px; }
+  /* 影片列 */
+  .vrow { display: flex; gap: 10px; padding: 7px 14px; cursor: pointer; position: relative; }
+  .vrow:hover { background: rgba(255,255,255,.03); }
+  .th { position: relative; width: 150px; height: 84px; border-radius: 10px; overflow: hidden; flex-shrink: 0; background: #222; }
+  .th img { width: 100%; height: 100%; object-fit: cover; }
+  .th .dur { position: absolute; right: 4px; bottom: 4px; background: rgba(0,0,0,.8); font-size: 11px; font-weight: 700; padding: 0 5px; border-radius: 4px; }
+  .th .prog { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--yt); }
+  .vrow.watched .th img { filter: brightness(.55); }
+  .vi { flex: 1; min-width: 0; }
+  .vi .vt { font-size: 13.5px; font-weight: 600; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .badge { display: inline-block; font-size: 10px; font-weight: 800; padding: 0 6px; border-radius: 5px; margin-right: 4px; vertical-align: 1px; }
+  .b-w { background: rgba(255,78,69,.18); color: #ff8a83; } .b-h { background: rgba(255,255,255,.1); color: var(--ink2); } .b-s { background: rgba(255,179,64,.18); color: var(--amber); }
+  .sec { font-weight: 800; font-size: 15px; margin: 14px 14px 8px; display: flex; align-items: center; gap: 8px; }
+  .sec .muted { font-weight: 500; }
+  /* 上傳頻率圖 */
+  .bars { display: flex; align-items: flex-end; gap: 3px; height: 60px; }
+  .bars i { flex: 1; background: linear-gradient(var(--accent), rgba(126,166,255,.3)); border-radius: 3px 3px 1px 1px; min-height: 2px; }
+  .blbl { display: flex; justify-content: space-between; font-size: 10px; color: var(--ink3); margin-top: 3px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 12px 14px; }
+  .sheet-bg { position: absolute; inset: 0; z-index: 80; background: rgba(0,0,0,.5); animation: fade .2s; }
+  .sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 81; background: var(--sheet); border-radius: 24px 24px 0 0; padding: 10px 16px 30px; animation: up .25s cubic-bezier(.2,.9,.3,1); max-height: 80%; overflow-y: auto; }
+  .sheet .grab { width: 38px; height: 5px; border-radius: 99px; background: #4a4a5c; margin: 0 auto 12px; }
+  .sheet h4 { margin: 14px 0 7px; font-size: 13px; color: var(--ink2); font-weight: 600; }
+  .sheet .apply { width: 100%; margin-top: 18px; border: 0; border-radius: 14px; padding: 12px; background: var(--ios); color: #fff; font-weight: 800; font-size: 15px; cursor: pointer; }
+  @keyframes up { from { transform: translateY(100%) } } @keyframes fade { from { opacity: 0 } }
+  @keyframes pop { from { transform: scale(.9); opacity: 0 } }
+  .seg { display: flex; background: rgba(255,255,255,.07); border-radius: 10px; padding: 2px; }
+  .seg button { flex: 1; border: 0; background: none; color: var(--ink2); padding: 6px 0; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .seg button.on { background: #3a3a50; color: #fff; }
+  .ytabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; }
+  .ytabs button { background: none; border: 0; color: var(--ink2); padding: 10px 12px; font-size: 14px; font-weight: 700; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; }
+  .ytabs button.on { color: var(--ink); border-color: var(--ink); }
+  .navbar { position: absolute; left: 50%; bottom: 26px; transform: translateX(-50%); z-index: 60; display: flex; gap: 4px; padding: 6px; border-radius: 99px; background: rgba(30,30,44,.72); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,.14); }
+  .navbar span { padding: 7px 16px; border-radius: 99px; font-size: 12px; font-weight: 700; color: var(--ink2); }
+  .navbar span.on { background: rgba(255,255,255,.14); color: #fff; }
+  .menu { position: absolute; z-index: 90; background: rgba(30,30,44,.97); border: 1px solid rgba(255,255,255,.12); border-radius: 16px; padding: 6px; box-shadow: 0 16px 40px rgba(0,0,0,.6); animation: pop .18s; min-width: 190px; }
+  .menu .mi { padding: 8px 10px; border-radius: 10px; cursor: pointer; display: flex; gap: 8px; align-items: center; font-size: 13.5px; }
+  .menu .mi:hover { background: rgba(255,255,255,.07); }
+  .menu .mi.on::after { content: "✓"; margin-left: auto; color: var(--ios); font-weight: 900; }
+  .scrim { position: absolute; inset: 0; z-index: 85; }
+  .empty { text-align: center; color: var(--ink3); padding: 30px 0; font-size: 13px; }
+  .stat { flex: 1; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 9px 10px; cursor: pointer; }
+  .stat b { display: block; font-size: 19px; } .stat.on { border-color: var(--ios); background: rgba(10,132,255,.12); }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>YT 頻道詳情頁：五種版面</h1>
+  <p class="lead">現在的頻道頁從上到下是：頭像名稱 → 簡介 → 上傳頻率圖 → 全部影片 (N) → 類型篩選 → 時長 ▾ → 隱藏已看過／顯示已隱藏兩個開關 → 影片清單，<b>越長越擠，要滑很久才看到影片</b>。五版都能點：篩選、開關真的會篩下面的影片，往下滑看頭部怎麼收。<br>影片圖是真的 YouTube 縮圖（周杰倫 MV）。</p>
+  <div class="vtabs" id="vtabs"></div>
+  <div class="stage"><div class="phone" id="phone"></div><div class="notes" id="notes"></div></div>
+</div>
+<script>
+const T = id => `https://i.ytimg.com/vi/${id}/mqdefault.jpg`;
+const AV = T('DYptgVvkVLQ');
+// [id, 標題, 秒數, 幾天前, 觀看, 類型, 已看過, 已隱藏, 快取來的]
+const RAW = [
+  ['1emA1EFsPMM', '周杰倫 Jay Chou【最偉大的作品 Greatest Works of Art】Official MV', 245, 1, '1.2 億', '影片', 0, 0, 0],
+  ['HK7SPnGSxLM', '周杰倫 Jay Chou x 五月天阿信【說好不哭 Won\'t Cry】Official MV', 322, 6, '1.6 億', '影片', 1, 0, 0],
+  ['kfXdP7nZIiE', '周杰倫 Jay Chou【等你下課 Waiting For You】Official MV', 270, 9, '2.3 億', '影片', 0, 0, 1],
+  ['bu7nU9Mhpyo', '周杰倫【告白氣球】#shorts 床邊故事幕後', 42, 12, '820 萬', 'Shorts', 0, 0, 0],
+  ['DYptgVvkVLQ', '周杰倫 Jay Chou【晴天 Sunny Day】Official MV', 269, 20, '3.1 億', '影片', 1, 0, 1],
+  ['sHD_z90ZKV0', '周杰倫 Jay Chou【稻香 Rice Field】Official MV', 223, 27, '2.5 億', '影片', 0, 0, 1],
+  ['9q7JOQfcJQM', '嘉年華世界巡迴演唱會 直播回放【以父之名】', 3920, 33, '540 萬', '直播', 0, 0, 1],
+  ['Z8Mqw0b9ADs', '周杰倫 Jay Chou【青花瓷 Blue and White Porcelain】Official MV', 239, 41, '1.9 億', '影片', 1, 0, 1],
+  ['Bbp9ZaJD_eA', '周杰倫 Jay Chou【七里香 Orange Jasmine】Official MV', 299, 55, '2.8 億', '影片', 0, 1, 1],
+  ['6Q0Pd53mojY', '周杰倫【夜曲】#shorts 十一月的蕭邦', 55, 60, '310 萬', 'Shorts', 0, 0, 1],
+  ['Y4xCVlyCvX4', '周杰倫 Jay Chou【簡單愛 Simple Love】Official MV', 270, 74, '1.4 億', '影片', 0, 0, 1],
+  ['uIWypArI73w', '周杰倫 Jay Chou【不能說的祕密 Secret】Official MV', 296, 90, '1.7 億', '影片', 1, 0, 1],
+  ['YJfHuATJYsQ', '周杰倫 Jay Chou【擱淺 Step Aside】Official MV', 235, 110, '9800 萬', '影片', 0, 0, 1],
+  ['_B8RaLCNUZw', '周杰倫 Jay Chou【聽媽媽的話 Listen to Mom】Official MV', 266, 140, '8700 萬', '影片', 0, 1, 1],
+  ['VitJnr3IySc', '周杰倫 Jay Chou【蒲公英的約定】Official MV', 247, 170, '7600 萬', '影片', 0, 0, 1],
+  ['1hI-7vj2FhE', '周杰倫 Jay Chou【安靜 Silence】Official MV', 334, 200, '1.1 億', '影片', 1, 0, 1],
+];
+const VIDS = RAW.map(r => ({ id: r[0], t: r[1], s: r[2], d: r[3], views: r[4], type: r[5], w: !!r[6], h: !!r[7], c: !!r[8] }));
+const UPLOADS = [3, 5, 2, 4, 6, 3, 1, 4, 7, 5, 3, 6];
+const MONTHS = ['11月', '12月', '1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月'];
+const DURS = ['不限', '2 分內', '2–6 分', '6–20 分', '自訂'];
+const S = { v: 0, type: '全部', dur: '不限', hideW: true, showH: false, sort: '最新', sheet: null, menu: null, tab: '影片', scrolled: false, info: false, stat: null };
+const fmt = s => s >= 3600 ? `${Math.floor(s / 3600)}:${String(Math.floor(s % 3600 / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}` : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+const ago = d => d < 7 ? `${d} 天前` : d < 30 ? `${Math.floor(d / 7)} 週前` : d < 365 ? `${Math.floor(d / 30)} 個月前` : `${Math.floor(d / 365)} 年前`;
+function list() {
+  let a = VIDS.filter(v => (S.type === '全部' || v.type === S.type)
+    && (!S.hideW || !v.w) && (S.showH || !v.h)
+    && (S.dur === '不限' || (S.dur === '2 分內' && v.s <= 120) || (S.dur === '2–6 分' && v.s > 120 && v.s <= 360) || (S.dur === '6–20 分' && v.s > 360 && v.s <= 1200) || S.dur === '自訂'));
+  if (S.stat === 'unseen') a = a.filter(v => !v.w);
+  if (S.sort === '最舊') a = [...a].reverse();
+  if (S.sort === '熱門') a = [...a].sort((x, y) => parseFloat(y.views) * (y.views.includes('億') ? 1e4 : 1) - parseFloat(x.views) * (x.views.includes('億') ? 1e4 : 1));
+  return a;
+}
+const filterCount = () => (S.type !== '全部') + (S.dur !== '不限') + (!S.hideW) + S.showH + (S.sort !== '最新');
+const row = v => `<div class="vrow ${v.w ? 'watched' : ''}"><div class="th"><img src="${T(v.id)}" loading="lazy"><span class="dur">${fmt(v.s)}</span>${v.w ? '<span class="prog" style="width:100%"></span>' : ''}</div>
+  <div class="vi"><div class="vt">${v.t}</div><div class="small" style="margin-top:3px">${v.views} 次・${ago(v.d)}</div>
+  <div style="margin-top:3px">${v.w ? '<span class="badge b-w">已看過</span>' : ''}${v.h ? '<span class="badge b-h">已隱藏</span>' : ''}${v.type !== '影片' ? `<span class="badge b-s">${v.type}</span>` : ''}</div></div></div>`;
+const listHtml = () => { const a = list(); return a.length ? a.map(row).join('') : '<div class="empty">沒有符合的影片<br><span class="small">把篩選放寬一點看看</span></div>'; };
+const typeChips = (cls = '') => ['全部', '影片', 'Shorts', '直播'].map(t => `<span class="chip ${cls} ${S.type === t ? 'on' : ''}" data-type="${t}">${t}${t !== '全部' ? ` ${VIDS.filter(v => v.type === t).length}` : ''}</span>`).join('');
+const durChips = () => DURS.map(d => `<span class="chip blue ${S.dur === d ? 'on' : ''}" data-dur="${d}">${d}</span>`).join('');
+const toggles = () => `<span class="tgl" data-t="hideW"><span class="sw ${S.hideW ? 'on' : ''}"></span>隱藏已看過</span><span class="tgl" data-t="showH"><span class="sw ${S.showH ? 'on' : ''}"></span>顯示已隱藏</span>`;
+const chart = () => `<div class="bars">${UPLOADS.map(n => `<i style="height:${n / 7 * 100}%" title="${n} 部"></i>`).join('')}</div><div class="blbl"><span>${MONTHS[0]}</span><span>${MONTHS[5]}</span><span>${MONTHS[11]}</span></div>`;
+const intro = '周杰倫官方 YouTube 頻道。華語流行樂天王，作品橫跨 R&B、中國風、嘻哈。新歌 MV、演唱會、幕後花絮都在這裡。';
+const NAV = `<div class="navbar"><span class="on">頻道</span><span>影片</span><span>播放清單</span></div>`;
+const topbar = (title, right = '') => `<div class="top"><span class="ib">‹</span><span class="t" id="tt">${title}</span>${right}<span class="ib" title="搜尋">⌕</span><span class="ib" title="編輯">✎</span></div>`;
+
+const V = [];
+// 1 YouTube 式（主流）
+V.push({ name: '1 YouTube 式分頁（主流）', title: '版本 1：跟 YouTube App 一樣——頭部＋分頁（影片／Shorts／直播／簡介）', tag: '主流・最熟悉',
+  desc: `<h3>怎麼排</h3><ul><li>頭部只留頭像、名字、訂閱數、影片數一行，<b>簡介跟上傳頻率圖搬到「簡介」分頁</b>。</li>
+    <li>類型直接變成分頁：影片／Shorts／直播（跟 YouTube 一模一樣），不用再一排類型篩選。</li>
+    <li>分頁下一排小晶片：最新／熱門／最舊；時長跟兩個開關收進右邊「⚙ 篩選」，有改過顯示藍點數字。</li>
+    <li>往下滑：頭部捲走，分頁列黏在最上面。</li></ul>`,
+  render() {
+    const tabs = ['影片', 'Shorts', '直播', '簡介'];
+    let body;
+    if (S.tab === '簡介') body = `<div class="pad" style="padding-top:12px"><div class="card"><b>簡介</b><p class="muted" style="margin:6px 0 0">${intro}</p></div>
+      <div class="card" style="margin-top:10px"><b>上傳頻率</b> <span class="small">近 12 個月・平均每月 4 部</span><div style="margin-top:8px">${chart()}</div></div>
+      <div class="card" style="margin-top:10px"><div class="muted">加入日期 2011/9/12・總觀看 92 億次・追蹤自 2026/9/20</div></div></div>`;
+    else {
+      S.type = S.tab;
+      body = `<div class="pad" style="display:flex;gap:7px;align-items:center;margin:10px 0 4px"><div class="chips" style="flex:1">${['最新', '熱門', '最舊'].map(s => `<span class="chip ${S.sort === s ? 'on' : ''}" data-sort="${s}">${s}</span>`).join('')}</div>
+        <span class="ib" data-open="filter" style="border:1px solid var(--line)">⚙${(S.dur !== '不限') + (!S.hideW) + S.showH ? `<span class="dot">${(S.dur !== '不限') + (!S.hideW) + S.showH}</span>` : ''}</span></div>${listHtml()}`;
+    }
+    return `${topbar(S.scrolled ? '周杰倫 Jay Chou' : '')}
+      <div class="pad" style="display:flex;gap:12px;align-items:center;padding-bottom:10px"><img class="av" src="${AV}" style="width:64px;height:64px">
+        <div><div style="font-weight:800;font-size:18px">周杰倫 Jay Chou</div><div class="muted">@jaychou・2,140 萬訂閱・共 ${VIDS.length} 部影片</div></div></div>
+      <div class="ytabs" style="position:sticky;top:88px;z-index:30;background:#0e0e17;padding:0 6px">${tabs.map(t => `<button class="${S.tab === t ? 'on' : ''}" data-tab="${t}">${t}</button>`).join('')}</div>${body}`;
+  },
+  sheet: () => `<b style="font-size:16px">篩選</b><h4>時長</h4><div class="chips" style="flex-wrap:wrap">${durChips()}</div><h4>顯示</h4><div style="display:flex;flex-direction:column;gap:10px">${toggles()}</div><button class="apply" data-close>看 ${list().length} 部影片</button>`,
+});
+// 2 收合頭部
+V.push({ name: '2 頻道資訊收成一張卡', title: '版本 2：簡介＋頻率圖收成一張「頻道資訊 ▾」卡，篩選兩排縮成一排', tag: '改動最小',
+  desc: `<h3>怎麼排</h3><ul><li>跟現在順序一樣，只是<b>簡介、上傳頻率圖預設收起來</b>，變成一張卡：一行「平均每月 4 部・最近 1 天前」＋迷你長條，點了才展開。</li>
+    <li>類型、時長放<b>同一排</b>可以左右滑（類型白色、時長藍色分得出來）。</li>
+    <li>兩個開關縮成小字放在「全部影片 (N)」那行右邊。</li>
+    <li>一進來不用滑就看得到第一部影片。</li></ul>`,
+  render() {
+    return `${topbar(S.scrolled ? '周杰倫 Jay Chou' : '')}
+      <div class="pad"><div style="display:flex;gap:12px;align-items:center"><img class="av" src="${AV}" style="width:58px;height:58px">
+        <div><div style="font-weight:800;font-size:17px">周杰倫 Jay Chou</div><div class="muted">2,140 萬訂閱</div></div></div>
+      <div class="card" style="margin-top:10px;cursor:pointer" data-info><div style="display:flex;align-items:center;gap:10px"><div style="flex:1"><b style="font-size:13px">頻道資訊</b><div class="small">平均每月 4 部・最近 1 天前上傳</div></div>
+        <div class="bars" style="height:22px;width:80px">${UPLOADS.map(n => `<i style="height:${n / 7 * 100}%"></i>`).join('')}</div><span style="color:var(--ink3);transition:.2s;transform:rotate(${S.info ? 180 : 0}deg)">▾</span></div>
+        ${S.info ? `<p class="muted" style="margin:10px 0 8px">${intro}</p>${chart()}` : ''}</div></div>
+      <div class="sec">全部影片 <span class="muted">(${VIDS.length})</span><span style="margin-left:auto;display:flex;gap:10px;font-size:11.5px">${toggles().replace(/隱藏已看過/, '藏看過').replace(/顯示已隱藏/, '顯示隱藏')}</span></div>
+      <div class="pad" style="margin-bottom:6px"><div class="chips">${typeChips()}<span style="width:1px;background:var(--line);flex-shrink:0"></span>${durChips()}</div></div>${listHtml()}`;
+  } });
+// 3 一顆篩選
+V.push({ name: '3 篩選收進一顆按鈕', title: '版本 3：所有篩選收進「篩選」按鈕，底部面板一次調完', tag: '最乾淨',
+  desc: `<h3>怎麼排</h3><ul><li>「全部影片 (N)」那行右邊一顆<b>「篩選 ②」</b>，數字是改了幾項；排序也在旁邊一顆。</li>
+    <li>點開從下面長出面板：類型、時長、隱藏已看過、顯示已隱藏都在裡面，最下面按鈕直接寫「看 N 部影片」。</li>
+    <li>有篩選時清單上方一排小標籤（例如「2–6 分 ×」），點 × 單獨拿掉。</li>
+    <li>簡介跟頻率圖放在頭部右邊一顆 ⓘ，點了才看。</li></ul>`,
+  render() {
+    const pills = [S.type !== '全部' && ['type', S.type], S.dur !== '不限' && ['dur', S.dur], !S.hideW && ['hideW', '含已看過'], S.showH && ['showH', '含已隱藏']].filter(Boolean);
+    return `${topbar(S.scrolled ? '周杰倫 Jay Chou' : '', '<span class="ib" data-open="info">ⓘ</span>')}
+      <div class="pad" style="display:flex;gap:12px;align-items:center"><img class="av" src="${AV}" style="width:58px;height:58px"><div><div style="font-weight:800;font-size:17px">周杰倫 Jay Chou</div><div class="muted">2,140 萬訂閱・最近 1 天前上傳</div></div></div>
+      <div class="sec" style="position:sticky;top:88px;z-index:30;background:#0e0e17;margin:10px 0 0;padding:6px 14px">全部影片 <span class="muted">(${list().length}/${VIDS.length})</span>
+        <span style="margin-left:auto;display:flex;gap:6px"><span class="chip" data-menu="sort">⇅ ${S.sort}</span><span class="chip ${filterCount() - (S.sort !== '最新') ? 'blue on' : ''}" data-open="filter">篩選${filterCount() - (S.sort !== '最新') ? ` ${filterCount() - (S.sort !== '最新')}` : ''}</span></span></div>
+      ${pills.length ? `<div class="pad chips" style="margin-bottom:6px">${pills.map(([k, l]) => `<span class="chip blue on" data-clear="${k}">${l} ×</span>`).join('')}</div>` : ''}${listHtml()}`;
+  },
+  sheet: k => k === 'info' ? `<b style="font-size:16px">頻道資訊</b><p class="muted">${intro}</p><b style="font-size:13px">上傳頻率</b> <span class="small">近 12 個月</span><div style="margin-top:8px">${chart()}</div>`
+    : `<b style="font-size:16px">篩選影片</b><h4>類型</h4><div class="chips" style="flex-wrap:wrap">${typeChips()}</div><h4>時長</h4><div class="chips" style="flex-wrap:wrap">${durChips()}</div><h4>顯示</h4><div style="display:flex;flex-direction:column;gap:10px">${toggles()}</div><button class="apply" data-close>看 ${list().length} 部影片</button>`,
+});
+// 4 儀表板
+V.push({ name: '4 數字儀表板', title: '版本 4：頭部三格數字（未看／全部／本月），點數字就篩', tag: '一眼看狀態',
+  desc: `<h3>怎麼排</h3><ul><li>頭部下面三格：<b>還沒看 N</b>、全部 N、這個月上傳 N。點「還沒看」就只列沒看過的（藍框表示正在篩）。</li>
+    <li>上傳頻率變成頭部背後淡淡的長條圖，不另外佔空間。</li>
+    <li>類型＋時長一排晶片；兩個開關收進右上 ⋯。</li></ul>`,
+  render() {
+    const unseen = VIDS.filter(v => !v.w).length;
+    return `<div style="position:relative">${`<div class="bars" style="position:absolute;left:0;right:0;top:40px;height:110px;opacity:.09;padding:0 10px">${UPLOADS.map(n => `<i style="height:${n / 7 * 100}%"></i>`).join('')}</div>`}
+      ${topbar(S.scrolled ? '周杰倫 Jay Chou' : '', '<span class="ib" data-menu="more">⋯</span>')}
+      <div class="pad" style="text-align:center;position:relative"><img class="av" src="${AV}" style="width:66px;height:66px;border:2px solid rgba(255,255,255,.2)"><div style="font-weight:800;font-size:18px;margin-top:4px">周杰倫 Jay Chou</div><div class="muted">2,140 萬訂閱・平均每月 4 部</div></div></div>
+      <div class="pad" style="display:flex;gap:8px;margin:12px 0 10px"><div class="stat ${S.stat === 'unseen' ? 'on' : ''}" data-stat="unseen"><b style="color:var(--ios)">${unseen}</b><span class="small">還沒看</span></div>
+        <div class="stat ${!S.stat ? 'on' : ''}" data-stat=""><b>${VIDS.length}</b><span class="small">全部影片</span></div><div class="stat"><b>${UPLOADS[11]}</b><span class="small">這個月上傳</span></div></div>
+      <div class="pad chips" style="margin-bottom:6px">${typeChips()}<span style="width:1px;background:var(--line);flex-shrink:0"></span>${durChips()}</div>${listHtml()}`;
+  } });
+// 5 分段
+V.push({ name: '5 影片｜資訊｜紀錄 分段', title: '版本 5：頂部 iOS 分段控制切三頁，影片頁只剩影片', tag: '分得最清楚',
+  desc: `<h3>怎麼排</h3><ul><li>頭部下面一個分段控制：<b>影片／資訊／紀錄</b>。</li>
+    <li>「影片」頁：一排類型晶片，右邊一顆時長 ▾，兩個開關收進 ▾ 選單下面——最上面就是影片。</li>
+    <li>「資訊」頁：簡介、上傳頻率、加入日期。</li>
+    <li>「紀錄」頁：這個頻道的開啟／看過紀錄（原本在別頁的頻道紀錄搬進來）。</li></ul>`,
+  render() {
+    const seg = `<div class="pad" style="position:sticky;top:88px;z-index:30;background:#0e0e17;padding-bottom:8px"><div class="seg">${['影片', '資訊', '紀錄'].map(t => `<button class="${(S.tab5 || '影片') === t ? 'on' : ''}" data-tab5="${t}">${t}</button>`).join('')}</div></div>`;
+    let body;
+    const t5 = S.tab5 || '影片';
+    if (t5 === '資訊') body = `<div class="pad"><div class="card"><b>簡介</b><p class="muted" style="margin:6px 0 0">${intro}</p></div><div class="card" style="margin-top:10px"><b>上傳頻率</b><div style="margin-top:8px">${chart()}</div></div></div>`;
+    else if (t5 === '紀錄') body = `<div class="pad">${[['今天 21:14', '看完《最偉大的作品》'], ['昨天 23:02', '開啟頻道'], ['10/12 20:40', '看完《晴天》'], ['10/10 19:11', '把《七里香》隱藏'], ['10/08 22:30', '開啟頻道']].map(([a, b]) => `<div class="card" style="margin-bottom:8px;display:flex;gap:10px"><span class="small" style="width:80px">${a}</span><span>${b}</span></div>`).join('')}</div>`;
+    else body = `<div class="pad" style="display:flex;gap:7px;margin-bottom:6px"><div class="chips" style="flex:1">${typeChips()}</div><span class="chip ${S.dur !== '不限' || !S.hideW || S.showH ? 'blue on' : ''}" data-menu="dur">${S.dur === '不限' ? '時長' : S.dur} ▾</span></div>${listHtml()}`;
+    return `${topbar(S.scrolled ? '周杰倫 Jay Chou' : '')}
+      <div class="pad" style="display:flex;gap:12px;align-items:center;padding-bottom:12px"><img class="av" src="${AV}" style="width:54px;height:54px"><div><div style="font-weight:800;font-size:17px">周杰倫 Jay Chou</div><div class="muted">2,140 萬訂閱・${VIDS.length} 部</div></div></div>${seg}${body}`;
+  } });
+
+const phone = document.getElementById('phone');
+function render() {
+  const v = V[S.v];
+  document.getElementById('vtabs').innerHTML = V.map((x, i) => `<button class="${i === S.v ? 'on' : ''}" data-v="${i}">${x.name}</button>`).join('');
+  document.getElementById('notes').innerHTML = `<span class="tag">${v.tag}</span><h2>${v.title}</h2>${v.desc}<div class="try">試試：改篩選看清單變化、往下滑看頭部、點 ⓘ／⚙／▾。</div>`;
+  const st = phone.querySelector('.screen')?.scrollTop || 0;
+  let menu = '';
+  if (S.menu === 'sort') menu = `<div class="scrim" data-close></div><div class="menu" style="right:14px;top:180px">${['最新', '熱門', '最舊'].map(s => `<div class="mi ${S.sort === s ? 'on' : ''}" data-sort="${s}">${s}</div>`).join('')}</div>`;
+  if (S.menu === 'more') menu = `<div class="scrim" data-close></div><div class="menu" style="right:14px;top:84px"><div class="mi" data-t="hideW">${S.hideW ? '✓ ' : ''}隱藏已看過</div><div class="mi" data-t="showH">${S.showH ? '✓ ' : ''}顯示已隱藏</div><div class="mi">⇅ 排序：${S.sort}</div></div>`;
+  if (S.menu === 'dur') menu = `<div class="scrim" data-close></div><div class="menu" style="right:14px;top:220px">${DURS.map(d => `<div class="mi ${S.dur === d ? 'on' : ''}" data-dur="${d}">${d}</div>`).join('')}<div style="height:1px;background:var(--line);margin:4px"></div><div class="mi" data-t="hideW">${S.hideW ? '✓ ' : ''}隱藏已看過</div><div class="mi" data-t="showH">${S.showH ? '✓ ' : ''}顯示已隱藏</div></div>`;
+  phone.innerHTML = `<div class="status"><span>21:30</span><span>5G ▮</span></div><div class="screen">${v.render()}</div>${NAV}
+    ${S.sheet && v.sheet ? `<div class="sheet-bg" data-close></div><div class="sheet"><div class="grab"></div>${v.sheet(S.sheet)}</div>` : ''}${menu}`;
+  const sc = phone.querySelector('.screen'); sc.scrollTop = st;
+  sc.onscroll = () => { const s = sc.scrollTop > 70; if (s !== S.scrolled) { S.scrolled = s; const tt = phone.querySelector('#tt'); if (tt) tt.textContent = s ? '周杰倫 Jay Chou' : ''; } };
+}
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-v],[data-type],[data-dur],[data-t],[data-sort],[data-open],[data-close],[data-tab],[data-tab5],[data-info],[data-clear],[data-menu],[data-stat]');
+  if (!el) return; const d = el.dataset;
+  if (d.v) { Object.assign(S, { v: +d.v, sheet: null, menu: null, tab: '影片', type: '全部', scrolled: false }); phone.querySelector('.screen') && (phone.querySelector('.screen').scrollTop = 0); }
+  else if (d.type) S.type = d.type;
+  else if (d.dur) { S.dur = d.dur; if (S.menu === 'dur') S.menu = null; }
+  else if (d.t) S[d.t] = !S[d.t];
+  else if (d.sort) { S.sort = d.sort; S.menu = null; }
+  else if (d.open) S.sheet = d.open;
+  else if (d.close !== undefined) { S.sheet = null; S.menu = null; }
+  else if (d.tab) { S.tab = d.tab; if (d.tab !== '簡介') S.type = d.tab === '影片' ? '影片' : d.tab; }
+  else if (d.tab5) S.tab5 = d.tab5;
+  else if (d.info !== undefined) S.info = !S.info;
+  else if (d.clear) { if (d.clear === 'type') S.type = '全部'; if (d.clear === 'dur') S.dur = '不限'; if (d.clear === 'hideW') S.hideW = true; if (d.clear === 'showH') S.showH = false; }
+  else if (d.menu) S.menu = d.menu;
+  else if (d.stat !== undefined) S.stat = d.stat || null;
+  render();
+});
+if (/^#[1-5]$/.test(location.hash)) S.v = +location.hash[1] - 1;
+render();
+</script>
+</body>
+</html>
