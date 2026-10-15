@@ -25,7 +25,12 @@ class YoutubeChannelInfo {
     this.subscriberCount,
     this.subscribersHidden = false,
     this.videoCount,
+    this.description = '',
   });
+
+  /// 頻道簡介（YouTube 頻道「簡介」那段文字；2026-10-15 使用者回報新增
+  /// 頻道沒自動抓簡介）。同一次 `channels.list` 的 snippet 就有。
+  final String description;
 
   /// 訂閱人數（概略值，隱藏時是 null）。跟頻道資料同一次 `channels.list`
   /// 請求順便拿到，不用另外花額度。
@@ -308,6 +313,7 @@ class YoutubeApiService {
       uploadsPlaylistId: uploads,
       title: snippet['title'] as String,
       avatarUrl: avatar['url'] as String,
+      description: (snippet['description'] as String? ?? '').trim(),
     );
   }
 

@@ -1875,6 +1875,10 @@ Future<bool> showAddYtChannelDialog(
               info = result;
               fetching = false;
               if (!nameTouched) nameController.text = result.title;
+              // 簡介也順便帶進來（2026-10-15 使用者要求），自己打過就不蓋。
+              if (descriptionController.text.trim().isEmpty) {
+                descriptionController.text = result.description;
+              }
               avatarController.text = result.avatarUrl.replaceFirst(
                 RegExp(r'=s\d+.*$'),
                 '=s160-c-k-c0x00ffffff-no-rj',
