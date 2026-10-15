@@ -148,8 +148,15 @@ void main() {
     await settle();
     // 點了鍵盤就跳出來（搜尋框拿到焦點）。
     expect(tester.testTextInput.isVisible, isTrue);
-    // 注音還沒選字不搜。
-    await tester.enterText(find.byType(TextField), 'ㄏㄟ');
+    // 注音還沒選字（組字中、有底線）不搜。
+    await tester.showKeyboard(find.byType(TextField));
+    tester.testTextInput.updateEditingValue(
+      const TextEditingValue(
+        text: 'ㄏㄟ',
+        selection: TextSelection.collapsed(offset: 2),
+        composing: TextRange(start: 0, end: 2),
+      ),
+    );
     await settle();
     expect(find.textContaining('搜抓過的'), findsNothing);
     // 打字就搜，不用按 Enter。
