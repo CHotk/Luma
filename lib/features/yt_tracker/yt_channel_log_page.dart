@@ -406,21 +406,7 @@ class _YtChannelLogPageState extends ConsumerState<YtChannelLogPage> {
         child: InlineEmptyCard(title: '還沒有紀錄', message: '換個篩選看看'),
       );
     }
-    final rows = <Widget>[];
-    String? lastDay;
-    for (final i in items) {
-      final day = '${i.at.year}/${i.at.month}/${i.at.day}';
-      if (day != lastDay) {
-        lastDay = day;
-        rows.add(
-          Padding(
-            padding: const EdgeInsets.fromLTRB(2, Gap.md, 0, Gap.xs),
-            child: Text(day, style: AppText.note),
-          ),
-        );
-      }
-      rows.add(_Row(item: i));
-    }
+    final rows = ytLogTimelineRows(items);
     // 全部頻道的紀錄可能很長（每支看過的影片每次點開都一列），用
     // builder 只畫看得到的那幾列，不一次全部建出來。
     return GlassCard(
@@ -432,6 +418,27 @@ class _YtChannelLogPageState extends ConsumerState<YtChannelLogPage> {
       ),
     );
   }
+}
+
+/// 一串紀錄照天分組（每天一個日期標題）的每一列。頻道詳情頁的「觀看
+/// 紀錄」分頁（2026-10-15）也用這個，長得跟這頁一樣。
+List<Widget> ytLogTimelineRows(List<YtChannelLogItem> items) {
+  final rows = <Widget>[];
+  String? lastDay;
+  for (final i in items) {
+    final day = '${i.at.year}/${i.at.month}/${i.at.day}';
+    if (day != lastDay) {
+      lastDay = day;
+      rows.add(
+        Padding(
+          padding: const EdgeInsets.fromLTRB(2, Gap.md, 0, Gap.xs),
+          child: Text(day, style: AppText.note),
+        ),
+      );
+    }
+    rows.add(_Row(item: i));
+  }
+  return rows;
 }
 
 class _Row extends StatelessWidget {

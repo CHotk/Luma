@@ -15,6 +15,7 @@ import '../../data/repositories/yt_display_prefs_store.dart';
 import '../../data/repositories/yt_search_recents_store.dart';
 import '../../data/repositories/yt_video_cache_store.dart';
 import '../../data/repositories/yt_video_hidden_store.dart';
+import '../../data/repositories/yt_video_views.dart';
 import '../../data/repositories/yt_video_watch_store.dart';
 import '../../data/services/youtube_api_service.dart';
 import '../../data/services/yt_channel_filler.dart';
@@ -37,6 +38,7 @@ import 'upload_frequency_chart.dart';
 import 'yt_api_key_dialog.dart';
 import 'yt_channel_avatar.dart';
 import 'yt_channel_edit_header.dart';
+import 'yt_channel_log_page.dart';
 import 'yt_duration_filter.dart';
 import 'yt_video_row.dart';
 
@@ -47,6 +49,31 @@ import 'yt_video_row.dart';
 /// [removed]＝「已下架」（2026-10-12 使用者要求）：下架檢查查到有影片
 /// 被刪除或改成私人才出現這顆，列出快取裡標了下架的那些，不打 API。
 enum _TypeFilter { all, regular, shorts, live, removed }
+
+/// 頻道詳情頁的分頁（2026-10-15 使用者選設計稿
+/// `design-history/2026-10-15_YT頻道詳情頁五種設計.html` 第 1 版「YouTube
+/// 式分頁」，順序照使用者指定：全部／Shorts／直播／簡介／觀看紀錄）。
+enum _ChannelTab {
+  all('全部'),
+  shorts('Shorts'),
+  live('直播'),
+  about('簡介'),
+  watch('觀看紀錄');
+
+  const _ChannelTab(this.label);
+  final String label;
+}
+
+/// 影片排序（同一份設計稿第 1 版：分頁下面一排最新／熱門／最舊）。
+/// 熱門看觀看次數（見 [YoutubeVideo.viewCount]）。
+enum _Sort {
+  newest('最新'),
+  popular('熱門'),
+  oldest('最舊');
+
+  const _Sort(this.label);
+  final String label;
+}
 
 /// 頻道詳情。基本資料（名稱、分類、網址、簡介）可以編輯（刪除在分類頁長按），網址點
 /// 下去會開新分頁；「影片」清單真的接了 YouTube Data API（2026-09-22，
@@ -139,6 +166,8 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
   // `_moreVideos`／「全部」的 resume 共用，兩邊翻頁位置是對應不同清單，
   // 混在一起會對不上。
   _TypeFilter _typeFilter = _TypeFilter.all;
+  _ChannelTab _tab = _ChannelTab.all;
+  _Sort _sort = _Sort.newest;
 
   /// 時長篩選（2026-10-06，見 [YtDurationFilter]）。只是把已載入的影片
   /// 篩一遍，不另外打 API；離開頁面就回到「不限」。
@@ -364,6 +393,7 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     final showTop = pos.pixels > _backToTopAfter;
     if (showTop != _showBackToTop) setState(() => _showBackToTop = showTop);
     if (_searchOpen) return;
+    if (!_isVideoTab || _sort != _Sort.newest) return;
     if (pos.pixels < pos.maxScrollExtent - 300) return;
     // 選了特定類型就是翻那個類型自己的清單，跟「全部」是兩份分開的
     // 分頁狀態，見 `_loadTypedVideos` 的說明。
@@ -1456,7 +1486,24 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
         // 要不要收起已看過的。類型本身不用在這裡再篩一次——`videos` 這個
         // 來源本身就已經是正確類型了（`isTyped` 時直接來自對應的特殊
         // 清單，`all` 時本來就是全部）。
-        final visibleVideos = videos.where(_passesFilters).toList();
+        final sorted = _sort != _Sort.newest;
+        final views = YtVideoViews.notifier.value;
+        int viewsOf(YoutubeVideo v) => v.viewCount ?? views[v.videoId] ?? -1;
+        final visibleVideos = sorted
+            ? ({
+                for (final v in [
+                  ..._cachedChannelVideos.where(
+                    (v) => _isOfType(v, _typeFilter),
+                  ),
+                  ...videos,
+                ])
+                  v.videoId: v,
+              }.values.where(_passesFilters).toList()..sort(
+                (a, b) => _sort == _Sort.popular
+                    ? viewsOf(b).compareTo(viewsOf(a))
+                    : a.publishedAt.compareTo(b.publishedAt),
+              ))
+            : videos.where(_passesFilters).toList();
         // 「隱藏已看過」預設開著，一個頻道看過越多，篩選完剩下的影片就
         // 越少——少到畫面塞不滿、捲不動的話，往下滑觸發載入更多影片的
         // `_onScroll` 永遠不會被觸發（沒東西可滑，滑動事件根本不會發生），
@@ -1479,7 +1526,8 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
         // 抓過的都存進本機快取，第二次開同一個頻道多半直接從快取秒出、
         // 不用再打 API（見 `_loadMoreVideos` 「先查本機快取」那段），
         // 使用者決定這個代價無所謂（2026-09-30）。
-        if (visibleVideos.length < _loadMoreBatch &&
+        if (!sorted &&
+            visibleVideos.length < _loadMoreBatch &&
             !reachedEnd &&
             !loading &&
             error == null) {
@@ -1501,7 +1549,15 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                child: loading
+                child: sorted
+                    ? Center(
+                        child: Text(
+                          '依抓過的 ${visibleVideos.length} 部排序'
+                          '${YtChannelFiller.of(channel.id).complete ? '' : '（整個頻道還在背景抓）'}',
+                          style: AppText.note,
+                        ),
+                      )
+                    : loading
                     ? const Center(child: CircularProgressIndicator.adaptive())
                     : error != null
                     ? Center(
@@ -1740,10 +1796,6 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     }
   }
 
-  Widget _dimWhileEditing(Widget child) => _editing
-      ? IgnorePointer(child: Opacity(opacity: 0.3, child: child))
-      : child;
-
   @override
   Widget build(BuildContext context) {
     // 編輯中按返回：先取消編輯（有改過先問），不離開頁面。
@@ -1909,17 +1961,26 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                                                     categoryLabel,
                                                   ),
                                                 ),
+                                                // 分頁列往上滑會黏在最上面。
+                                                SliverPersistentHeader(
+                                                  pinned: true,
+                                                  delegate: _TabBarDelegate(
+                                                    selected: _tab,
+                                                    onTap: _selectTab,
+                                                    dim: _editing,
+                                                  ),
+                                                ),
                                                 if (_editing)
                                                   SliverIgnorePointer(
                                                     sliver: SliverOpacity(
                                                       opacity: 0.3,
-                                                      sliver: _buildVideos(
+                                                      sliver: _buildTabBody(
                                                         channel,
                                                       ),
                                                     ),
                                                   )
                                                 else
-                                                  _buildVideos(channel),
+                                                  _buildTabBody(channel),
                                               ]),
                                         // 底部浮動分頁列擋住的高度（2026-10-14）。
                                         SliverToBoxAdapter(
@@ -2162,77 +2223,148 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
               ),
             ],
           ),
-          if (channel.description.isNotEmpty) ...[
-            const SizedBox(height: Gap.md),
-            const PanelLabel('簡介'),
-            const SizedBox(height: Gap.xs),
-            Text(channel.description, style: AppText.bodyDim),
-          ],
         ],
-        // 編輯中改不到的區塊淡掉、點不到，一看就知道哪些能改。
-        _dimWhileEditing(
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: Gap.md),
-              const PanelLabel('上傳頻率（近半年）'),
-              const SizedBox(height: Gap.xs),
-              _buildHistoryChart(channel),
-              const SizedBox(height: Gap.md),
-              Row(
-                children: [
-                  Text(
-                    // 2026-09-30 使用者指出：叫「最近影片」不準確，往下滑其實
-                    // 能一路翻到頻道最早的影片，不是只有「最近」這一小段；括號
-                    // 裡的總數是 `channels.list` 的 `videoCount`（全部類型合計，
-                    // 不分一般影片／Shorts／直播——API 沒有分類型的統計，見
-                    // `YoutubeChannelInfo.videoCount` 的說明），還沒問到就先不
-                    // 顯示數字，不要顯示假的 0。
-                    channel.videoCount == null
-                        ? '全部影片'
-                        : '全部影片 (${channel.videoCount})',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.ink,
-                    ),
-                  ),
-                  const Spacer(),
-                  TextButton.icon(
-                    onPressed: () => _refresh(channel),
-                    icon: const Icon(Icons.refresh, size: 15),
-                    label: const Text('重新整理'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppColors.ink2,
-                      padding: EdgeInsets.zero,
-                      minimumSize: const Size(0, 0),
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: Gap.sm),
-              _buildVideoFilterRow(),
-              const SizedBox(height: Gap.sm),
-            ],
-          ),
-        ),
+        const SizedBox(height: Gap.sm),
       ],
     );
   }
 
-  /// 類型篩選（全部／一般影片／Shorts／直播，2026-09-30 使用者要求）＋
-  /// 「隱藏已看過」／「顯示已隱藏」兩個開關，加一顆「隱藏所有看過的」
-  /// 一次性動作。類型篩選跟另外兩個開關概念不一樣（互斥單選 vs 各自
-  /// 獨立開關），用 [_Pick]（這個檔案裡挑分類對話框同一顆元件）而不是
-  /// `FilterChip`，單選視覺才對。
-  Widget _buildVideoFilterRow() {
-    // 開關旁邊顯示有幾部可以處理（2026-10-05 使用者要求）：看過幾部、被
-    // 隱藏幾部，兩個各算各的——隱藏的影片如果也看過，兩邊都算（使用者
-    // 要求一起算）。0 就不顯示數字。「全部」算這個
-    // 頻道整份本機快取＋這次新抓的（依影片 ID 去重）。選了特定類型時，
-    // 快取裡翻類型清單時標過類型的影片也一起算（[YoutubeVideo.isShort]／
-    // [YoutubeVideo.isLive]），還沒標過類型的分不出來，只能等之後翻到。
+  bool get _isVideoTab =>
+      _tab == _ChannelTab.all ||
+      _tab == _ChannelTab.shorts ||
+      _tab == _ChannelTab.live;
+
+  void _selectTab(_ChannelTab tab) {
+    if (tab == _tab && _typeFilter != _TypeFilter.removed) return;
+    setState(() => _tab = tab);
+    switch (tab) {
+      case _ChannelTab.all:
+        _switchTypeFilter(_TypeFilter.all);
+      case _ChannelTab.shorts:
+        _switchTypeFilter(_TypeFilter.shorts);
+      case _ChannelTab.live:
+        _switchTypeFilter(_TypeFilter.live);
+      case _ChannelTab.watch:
+        // 剛看過的也要出現。
+        _loadVideoFilters();
+      case _ChannelTab.about:
+        break;
+    }
+  }
+
+  /// 熱門／最舊要看整個頻道，不是只看往下捲載入的那幾頁：先重讀一次
+  /// 快取（背景一直在抓全部影片）。
+  Future<void> _setSort(_Sort sort) async {
+    setState(() => _sort = sort);
+    if (sort == _Sort.newest) return;
+    final id = _loadMoreChannelId;
+    if (id == null) return;
+    final cached = await YtVideoCacheStore(
+      ref.read(keyValueStoreProvider),
+    ).load(id);
+    if (mounted && _loadMoreChannelId == id) {
+      setState(() => _cachedChannelVideos = cached);
+    }
+  }
+
+  /// 分頁內容。
+  Widget _buildTabBody(YtChannel channel) => switch (_tab) {
+    _ChannelTab.about => SliverToBoxAdapter(child: _buildAbout(channel)),
+    _ChannelTab.watch => _buildWatchTab(channel),
+    _ => SliverMainAxisGroup(
+      slivers: [
+        SliverToBoxAdapter(child: _buildVideoFilterRow(channel)),
+        _buildVideos(channel),
+      ],
+    ),
+  };
+
+  /// 「簡介」分頁：簡介、上傳頻率圖、追蹤資訊（原本都在頭部，越來越擠）。
+  Widget _buildAbout(YtChannel channel) {
+    String two(int n) => n.toString().padLeft(2, '0');
+    final added = channel.addedAt;
+    return Padding(
+      padding: const EdgeInsets.only(top: Gap.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          GlassCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const PanelLabel('簡介'),
+                const SizedBox(height: Gap.xs),
+                Text(
+                  channel.description.isEmpty
+                      ? '沒有簡介（右上角編輯可以補）'
+                      : channel.description,
+                  style: AppText.bodyDim,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: Gap.sm),
+          GlassCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const PanelLabel('上傳頻率（近半年）'),
+                const SizedBox(height: Gap.xs),
+                _buildHistoryChart(channel),
+              ],
+            ),
+          ),
+          const SizedBox(height: Gap.sm),
+          GlassCard(
+            child: Text(
+              [
+                if (channel.subscriberLabel != null) channel.subscriberLabel!,
+                if (channel.videoCount != null)
+                  'YouTube 上共 ${channel.videoCount} 部',
+                '追蹤自 ${added.year}/${two(added.month)}/${two(added.day)}',
+              ].join('・'),
+              style: AppText.note,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 「觀看紀錄」分頁：這個頻道看過的影片，照看的時間、每天一組，跟
+  /// 頻道紀錄頁的觀看紀錄長得一樣（2026-10-15 使用者要求加這個分頁）。
+  Widget _buildWatchTab(YtChannel channel) {
+    final watched = [
+      for (final v in _cachedChannelVideos)
+        if (_watchedRecords[v.videoId] case final r?)
+          (video: v, openedAt: r.openedAt),
+    ];
+    final items = buildYtChannelLog(
+      channel: channel,
+      events: const [],
+      watched: watched,
+    ).where((i) => i.isWatch).toList()..sort((a, b) => b.at.compareTo(a.at));
+    if (items.isEmpty) {
+      return const SliverToBoxAdapter(
+        child: Padding(
+          padding: EdgeInsets.only(top: Gap.md),
+          child: InlineEmptyCard(title: '還沒看過這個頻道的影片', message: '點影片看過之後會記在這裡'),
+        ),
+      );
+    }
+    final rows = ytLogTimelineRows(items);
+    return SliverList.builder(
+      itemCount: rows.length,
+      itemBuilder: (_, i) => rows[i],
+    );
+  }
+
+  /// 影片分頁上面那兩排（2026-10-15 改成設計稿第 1 版的位置）：
+  /// - 第一排：最新／熱門／最舊，右邊時長篩選（圖示跟跳出來的選單照舊，
+  ///   使用者要求）＋重新整理。
+  /// - 第二排：「隱藏已看過」「顯示已隱藏」兩個開關（旁邊數字＝有幾部），
+  ///   有查到下架的影片才多一顆「已下架」。
+  Widget _buildVideoFilterRow(YtChannel channel) {
     bool ofType(YoutubeVideo v) => _isOfType(v, _typeFilter);
     final removedCount = _cachedChannelVideos
         .where((v) => v.removedAt != null)
@@ -2255,115 +2387,106 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
         .where((v) => _watchedVideoIds.contains(v.videoId))
         .length;
     String withCount(String label, int n) => n > 0 ? '$label ($n)' : label;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Wrap(
-          spacing: 6,
-          runSpacing: 6,
-          children: [
-            _Pick(
-              label: '全部',
-              color: AppColors.accentSolid,
-              selected: _typeFilter == _TypeFilter.all,
-              onTap: () => _switchTypeFilter(_TypeFilter.all),
-            ),
-            _Pick(
-              label: '一般影片',
-              color: AppColors.accentSolid,
-              selected: _typeFilter == _TypeFilter.regular,
-              onTap: () => _switchTypeFilter(_TypeFilter.regular),
-            ),
-            _Pick(
-              label: 'Shorts',
-              color: AppColors.accentSolid,
-              selected: _typeFilter == _TypeFilter.shorts,
-              onTap: () => _switchTypeFilter(_TypeFilter.shorts),
-            ),
-            _Pick(
-              label: '直播',
-              color: AppColors.accentSolid,
-              selected: _typeFilter == _TypeFilter.live,
-              onTap: () => _switchTypeFilter(_TypeFilter.live),
-            ),
-            // 「已下架」：有查到下架的影片才出現（2026-10-12 使用者要求）。
-            if (removedCount > 0 || _typeFilter == _TypeFilter.removed)
-              _Pick(
-                label: '已下架 ($removedCount)',
-                color: AppColors.ink3,
-                selected: _typeFilter == _TypeFilter.removed,
-                onTap: () => _switchTypeFilter(_TypeFilter.removed),
+    return Padding(
+      padding: const EdgeInsets.only(top: Gap.sm, bottom: Gap.sm),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              for (final s in _Sort.values) ...[
+                _Pick(
+                  label: s.label,
+                  color: AppColors.accentSolid,
+                  selected: _sort == s,
+                  onTap: () => _setSort(s),
+                ),
+                const SizedBox(width: 6),
+              ],
+              const Spacer(),
+              YtDurationChip(
+                filter: _durationFilter,
+                countOf: (f) => loaded
+                    .where((v) => _passesBaseFilters(v) && f.matches(v))
+                    .length,
+                onChanged: (f) => setState(() => _durationFilter = f),
               ),
-            // 時長篩選接在類型後面（2026-10-06 使用者挑設計稿第 03 版）。
-            // 小選單裡每個選項旁的數字＝目前已載入、過了已看過／已隱藏
-            // 兩個開關的影片裡，符合那個時長的有幾部。
-            YtDurationChip(
-              filter: _durationFilter,
-              countOf: (f) => loaded
-                  .where((v) => _passesBaseFilters(v) && f.matches(v))
-                  .length,
-              onChanged: (f) => setState(() => _durationFilter = f),
-            ),
-          ],
-        ),
-        const SizedBox(height: Gap.xs),
-        Wrap(
-          spacing: 6,
-          runSpacing: 6,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            // 選中用一般藍色主色，不用 ytAccent 的紅——這兩個是普通篩選開關，
-            // 不是危險動作，紅色太搶眼也不合適（2026-09-30 使用者要求，跟
-            // 設定頁「儲存」按鈕那次同一個理由）。
-            FilterChip(
-              label: Text(withCount('隱藏已看過', watchedCount)),
-              selected: _hideWatched,
-              // 不顯示打勾圖示（2026-09-30 使用者回報：切開/關會多/少那個勾勾
-              // 圖示，導致按鈕本身寬度跟著變、旁邊的「顯示已隱藏」也被推著
-              // 移動——選中/沒選中已經有底色跟外框顏色可以分辨，不需要再靠
-              // 圖示，維持固定寬度比較重要）。
-              showCheckmark: false,
-              // 點這顆（不管切成開還是關）都重新讀一次「已看過」清單
-              // （2026-09-30 使用者要求：看了好幾部之後，這個開關本來
-              // 讀進來的清單是舊的，不會包含這個 session 剛看過的，導致
-              // 篩選結果很怪；不用跳出頻道頁再回來才更新，點這顆本身
-              // 就順便刷新）。
-              onSelected: (v) {
-                setState(() => _hideWatched = v);
-                _loadVideoFilters();
-              },
-              backgroundColor: AppColors.glassFill,
-              selectedColor: AppColors.accentSolid.withValues(alpha: 0.28),
-              labelStyle: TextStyle(
-                fontSize: 12.5,
-                color: _hideWatched ? AppColors.ink : AppColors.ink2,
+              IconButton(
+                onPressed: () => _refresh(channel),
+                icon: const Icon(Icons.refresh, size: 18),
+                color: AppColors.ink2,
+                tooltip: '重新整理',
+                visualDensity: VisualDensity.compact,
               ),
-              side: BorderSide(
-                color: _hideWatched
-                    ? AppColors.accentSolid
-                    : AppColors.glassEdge,
+            ],
+          ),
+          const SizedBox(height: Gap.xs),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              FilterChip(
+                label: Text(withCount('隱藏已看過', watchedCount)),
+                selected: _hideWatched,
+                // 不顯示打勾圖示（2026-09-30 使用者回報：切開/關會多/少那個勾勾
+                // 圖示，導致按鈕本身寬度跟著變、旁邊的「顯示已隱藏」也被推著
+                // 移動——選中/沒選中已經有底色跟外框顏色可以分辨，不需要再靠
+                // 圖示，維持固定寬度比較重要）。
+                showCheckmark: false,
+                // 點這顆（不管切成開還是關）都重新讀一次「已看過」清單
+                // （2026-09-30 使用者要求：看了好幾部之後，這個開關本來
+                // 讀進來的清單是舊的，不會包含這個 session 剛看過的，導致
+                // 篩選結果很怪；不用跳出頻道頁再回來才更新，點這顆本身
+                // 就順便刷新）。
+                onSelected: (v) {
+                  setState(() => _hideWatched = v);
+                  _loadVideoFilters();
+                },
+                backgroundColor: AppColors.glassFill,
+                selectedColor: AppColors.accentSolid.withValues(alpha: 0.28),
+                labelStyle: TextStyle(
+                  fontSize: 12.5,
+                  color: _hideWatched ? AppColors.ink : AppColors.ink2,
+                ),
+                side: BorderSide(
+                  color: _hideWatched
+                      ? AppColors.accentSolid
+                      : AppColors.glassEdge,
+                ),
               ),
-            ),
-            FilterChip(
-              label: Text(withCount('顯示已隱藏', hiddenCount)),
-              selected: _showHiddenVideos,
-              showCheckmark: false,
-              onSelected: (v) => setState(() => _showHiddenVideos = v),
-              backgroundColor: AppColors.glassFill,
-              selectedColor: AppColors.accentSolid.withValues(alpha: 0.28),
-              labelStyle: TextStyle(
-                fontSize: 12.5,
-                color: _showHiddenVideos ? AppColors.ink : AppColors.ink2,
+              FilterChip(
+                label: Text(withCount('顯示已隱藏', hiddenCount)),
+                selected: _showHiddenVideos,
+                showCheckmark: false,
+                onSelected: (v) => setState(() => _showHiddenVideos = v),
+                backgroundColor: AppColors.glassFill,
+                selectedColor: AppColors.accentSolid.withValues(alpha: 0.28),
+                labelStyle: TextStyle(
+                  fontSize: 12.5,
+                  color: _showHiddenVideos ? AppColors.ink : AppColors.ink2,
+                ),
+                side: BorderSide(
+                  color: _showHiddenVideos
+                      ? AppColors.accentSolid
+                      : AppColors.glassEdge,
+                ),
               ),
-              side: BorderSide(
-                color: _showHiddenVideos
-                    ? AppColors.accentSolid
-                    : AppColors.glassEdge,
-              ),
-            ),
-          ],
-        ),
-      ],
+              // 「已下架」：有查到下架的影片才出現（2026-10-12 使用者要求），
+              // 再點一次回到這個分頁的類型。
+              if (removedCount > 0 || _typeFilter == _TypeFilter.removed)
+                _Pick(
+                  label: '已下架 ($removedCount)',
+                  color: AppColors.ink3,
+                  selected: _typeFilter == _TypeFilter.removed,
+                  onTap: () => _typeFilter == _TypeFilter.removed
+                      ? _selectTab(_tab)
+                      : _switchTypeFilter(_TypeFilter.removed),
+                ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
@@ -3069,3 +3192,84 @@ class _SearchStatus extends StatelessWidget {
 /// 1,240 這種千分位。
 String _fmtCount(int n) =>
     n.toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => ',');
+
+/// 頻道詳情頁黏在上面的分頁列（設計稿第 1 版：粗字、選中的下面一條線）。
+class _TabBarDelegate extends SliverPersistentHeaderDelegate {
+  _TabBarDelegate({
+    required this.selected,
+    required this.onTap,
+    required this.dim,
+  });
+
+  final _ChannelTab selected;
+  final ValueChanged<_ChannelTab> onTap;
+  final bool dim;
+
+  static const _height = 44.0;
+
+  @override
+  double get minExtent => _height;
+
+  @override
+  double get maxExtent => _height;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlaps) {
+    return IgnorePointer(
+      ignoring: dim,
+      child: Opacity(
+        opacity: dim ? 0.3 : 1,
+        child: Container(
+          color: AppColors.bg,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      for (final t in _ChannelTab.values)
+                        InkWell(
+                          onTap: () => onTap(t),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              border: Border(
+                                bottom: BorderSide(
+                                  width: 2,
+                                  color: t == selected
+                                      ? AppColors.ink
+                                      : Colors.transparent,
+                                ),
+                              ),
+                            ),
+                            child: Text(
+                              t.label,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: t == selected
+                                    ? AppColors.ink
+                                    : AppColors.ink2,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              const Divider(height: 1, color: AppColors.glassEdge),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(_TabBarDelegate old) =>
+      old.selected != selected || old.dim != dim;
+}

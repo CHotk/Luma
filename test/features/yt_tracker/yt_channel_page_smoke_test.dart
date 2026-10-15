@@ -45,6 +45,22 @@ void main() {
     expect(find.text('全部'), findsOneWidget);
     // 右側捲動條、回到最上面預設都開（2026-10-12）：捲動條在。
     expect(find.byType(Scrollbar), findsWidgets);
+
+    // 分頁（2026-10-15 設計稿第 1 版）：全部／Shorts／直播／簡介／觀看紀錄。
+    final xs = [
+      for (final t in ['全部', 'Shorts', '直播', '簡介', '觀看紀錄'])
+        tester.getTopLeft(find.text(t).first).dx,
+    ];
+    expect(xs, [...xs]..sort());
+    expect(find.text('最新'), findsOneWidget);
+    await tester.tap(find.text('簡介'));
+    await tester.pump();
+    expect(find.text('上傳頻率（近半年）'), findsOneWidget);
+    expect(find.text('最新'), findsNothing);
+    await tester.tap(find.text('觀看紀錄'));
+    await tester.pump();
+    expect(find.text('還沒看過這個頻道的影片'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('編輯頻道：改過名的，名稱右邊顯示原本的名字，點了改回來', (tester) async {

@@ -86,6 +86,20 @@
   .empty { text-align: center; color: var(--ink3); padding: 30px 0; font-size: 13px; }
   .stat { flex: 1; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 9px 10px; cursor: pointer; }
   .stat b { display: block; font-size: 19px; } .stat.on { border-color: var(--ios); background: rgba(10,132,255,.12); }
+  .vtabs button.final { border-color: #FFB340; color: #FFB340; } .vtabs button.final.on { background: rgba(255,179,64,.25); color: #fff; }
+  /* 最終版：跟 App 現在一樣的時長膠囊＋小選單 */
+  .pill { display: inline-flex; align-items: center; gap: 4px; border-radius: 99px; padding: 6px 10px; font-size: 11.5px; font-weight: 600; color: var(--ink2); background: rgba(255,255,255,.05); border: 1px solid var(--line); cursor: pointer; white-space: nowrap; }
+  .pill.on { color: var(--ink); background: rgba(46,107,255,.22); border-color: #2E6BFF; }
+  .fchip { display: inline-block; border-radius: 9px; padding: 5px 11px; font-size: 12.5px; color: var(--ink2); background: rgba(255,255,255,.05); border: 1px solid var(--line); cursor: pointer; }
+  .fchip.on { color: var(--ink); background: rgba(46,107,255,.28); border-color: #2E6BFF; }
+  .dmenu { position: absolute; z-index: 90; width: 248px; right: 14px; background: rgba(28,28,43,.95); border: 1px solid var(--line); border-radius: 14px; padding: 6px; box-shadow: 0 16px 40px rgba(0,0,0,.6); animation: fade .14s; }
+  .dmenu .mi { display: flex; align-items: center; gap: 6px; padding: 9px 10px; border-radius: 9px; font-size: 13px; cursor: pointer; }
+  .dmenu .mi.on { background: rgba(46,107,255,.2); font-weight: 700; }
+  .dmenu .mi .n { margin-left: auto; font-size: 11.5px; color: var(--ink3); }
+  .dmenu .mi.on::after { content: "✓"; color: #2E6BFF; font-weight: 900; }
+  .day { font-size: 11.5px; color: var(--ink3); margin: 14px 2px 4px; }
+  .wcard { display: flex; gap: 0; background: #17172A; border: 1px solid var(--line); border-radius: 14px; margin: 4px 0; overflow: hidden; }
+  .wcard .tm { width: 48px; padding: 14px 0 0 10px; font-size: 11.5px; font-weight: 700; color: var(--ink2); flex-shrink: 0; }
 </style>
 </head>
 <body>
@@ -235,27 +249,68 @@ V.push({ name: '5 影片｜資訊｜紀錄 分段', title: '版本 5：頂部 iO
       <div class="pad" style="display:flex;gap:12px;align-items:center;padding-bottom:12px"><img class="av" src="${AV}" style="width:54px;height:54px"><div><div style="font-weight:800;font-size:17px">周杰倫 Jay Chou</div><div class="muted">2,140 萬訂閱・${VIDS.length} 部</div></div></div>${seg}${body}`;
   } });
 
+// 6 最終版（使用者選第 1 版，再加觀看紀錄、改分頁順序、篩選照 App 現在的樣子）
+const WATCH_LOG = [['今天', '21:14', 0], ['今天', '20:02', 4], ['昨天', '23:40', 1], ['10/12', '22:10', 7], ['10/12', '21:55', 11], ['10/09', '19:30', 15]];
+V.push({ name: '6 最終版', final: true, title: '最終版：第 1 版的分頁＋觀看紀錄，篩選照 App 現在的樣子', tag: '你選的・2026-10-15',
+  desc: `<h3>跟第 1 版一樣</h3><ul><li>頭部只留頭像、名字、訂閱數、影片數；簡介跟上傳頻率圖搬到「簡介」分頁。</li><li>往下滑頭部捲走，分頁列黏在最上面。</li><li>分頁下面一排<b>最新／熱門／最舊</b>（熱門看觀看次數）。</li></ul>
+    <h3>這版改的</h3><ul><li>分頁順序：<b>全部／Shorts／直播／簡介／觀看紀錄</b>，第一個還是「全部」。</li>
+    <li>多一個<b>「觀看紀錄」分頁</b>：這個頻道看過的影片，照看的時間、每天一組（跟紀錄頁的觀看紀錄一樣）。</li>
+    <li>篩選放第 1 版 ⚙ 的位置（排序那排最右邊），但<b>還是現在的「⏱ 時長 ▾」膠囊</b>，點了跳出來的也是現在那個小選單（每項旁邊有部數）。</li>
+    <li>「隱藏已看過」「顯示已隱藏」照現在的樣子放第二排，旁邊數字是有幾部；有查到下架的影片才多一顆「已下架」。</li>
+    <li>影片列多了觀看次數：「3.2 萬次・2 天前」。</li></ul>`,
+  render() {
+    const tabs = ['全部', 'Shorts', '直播', '簡介', '觀看紀錄'];
+    const tab = S.tab6 || '全部';
+    let body;
+    if (tab === '簡介') body = `<div class="pad" style="padding-top:12px"><div class="card"><b>簡介</b><p class="muted" style="margin:6px 0 0">${intro}</p></div>
+      <div class="card" style="margin-top:10px"><b>上傳頻率（近半年）</b><div style="margin-top:8px">${chart()}</div></div>
+      <div class="card" style="margin-top:10px"><div class="muted">2,140 萬訂閱・YouTube 上共 ${VIDS.length} 部・追蹤自 2026/09/20</div></div></div>`;
+    else if (tab === '觀看紀錄') {
+      let last = '';
+      body = '<div class="pad">' + WATCH_LOG.map(([d, t, i]) => { const v = VIDS[i]; const head = d !== last ? `<div class="day">${d}</div>` : ''; last = d;
+        return head + `<div class="wcard"><span class="tm">${t}</span><div class="vrow" style="padding:8px 8px 8px 0;flex:1"><div class="th" style="width:120px;height:68px"><img src="${T(v.id)}"><span class="dur">${fmt(v.s)}</span></div><div class="vi"><div class="vt" style="font-size:12.5px">${v.t}</div><div class="small" style="margin-top:3px">${v.views} 次・${ago(v.d)}</div></div></div></div>`; }).join('') + '</div>';
+    } else {
+      S.type = tab;
+      const w = VIDS.filter(v => S.type === '全部' || v.type === S.type);
+      const nW = w.filter(v => v.w).length, nH = w.filter(v => v.h).length;
+      const durOn = S.dur !== '不限';
+      body = `<div class="pad" style="display:flex;gap:6px;align-items:center;margin:10px 0 6px">${['最新', '熱門', '最舊'].map(x => `<span class="chip ${S.sort === x ? 'on' : ''}" data-sort="${x}">${x}</span>`).join('')}
+          <span style="flex:1"></span><span class="pill ${durOn ? 'on' : ''}" data-menu="dur6">⏱ ${durOn ? S.dur : '時長'} ▾</span><span class="ib" style="width:30px;height:30px;font-size:15px" title="重新整理">↻</span></div>
+        <div class="pad" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px"><span class="fchip ${S.hideW ? 'on' : ''}" data-t="hideW">隱藏已看過${nW ? ` (${nW})` : ''}</span><span class="fchip ${S.showH ? 'on' : ''}" data-t="showH">顯示已隱藏${nH ? ` (${nH})` : ''}</span></div>${listHtml()}`;
+    }
+    return `${topbar(S.scrolled ? '周杰倫 Jay Chou' : '')}
+      <div class="pad" style="display:flex;gap:12px;align-items:center;padding-bottom:10px"><img class="av" src="${AV}" style="width:58px;height:58px">
+        <div><div style="font-weight:800;font-size:17px">周杰倫 Jay Chou</div><div class="muted">音樂・2,140 萬訂閱</div><div class="muted">共 ${VIDS.length} 部影片</div><div class="small" style="color:var(--accent);text-decoration:underline">youtube.com/@jaychou</div></div></div>
+      <div class="ytabs" style="position:sticky;top:88px;z-index:30;background:#0e0e17;padding:0 6px">${tabs.map(t => `<button class="${tab === t ? 'on' : ''}" data-tab6="${t}">${t}</button>`).join('')}</div>${body}`;
+  },
+});
+
 const phone = document.getElementById('phone');
 function render() {
   const v = V[S.v];
-  document.getElementById('vtabs').innerHTML = V.map((x, i) => `<button class="${i === S.v ? 'on' : ''}" data-v="${i}">${x.name}</button>`).join('');
+  document.getElementById('vtabs').innerHTML = V.map((x, i) => `<button class="${i === S.v ? 'on' : ''} ${x.final ? 'final' : ''}" data-v="${i}">${x.name}</button>`).join('');
   document.getElementById('notes').innerHTML = `<span class="tag">${v.tag}</span><h2>${v.title}</h2>${v.desc}<div class="try">試試：改篩選看清單變化、往下滑看頭部、點 ⓘ／⚙／▾。</div>`;
   const st = phone.querySelector('.screen')?.scrollTop || 0;
   let menu = '';
   if (S.menu === 'sort') menu = `<div class="scrim" data-close></div><div class="menu" style="right:14px;top:180px">${['最新', '熱門', '最舊'].map(s => `<div class="mi ${S.sort === s ? 'on' : ''}" data-sort="${s}">${s}</div>`).join('')}</div>`;
   if (S.menu === 'more') menu = `<div class="scrim" data-close></div><div class="menu" style="right:14px;top:84px"><div class="mi" data-t="hideW">${S.hideW ? '✓ ' : ''}隱藏已看過</div><div class="mi" data-t="showH">${S.showH ? '✓ ' : ''}顯示已隱藏</div><div class="mi">⇅ 排序：${S.sort}</div></div>`;
   if (S.menu === 'dur') menu = `<div class="scrim" data-close></div><div class="menu" style="right:14px;top:220px">${DURS.map(d => `<div class="mi ${S.dur === d ? 'on' : ''}" data-dur="${d}">${d}</div>`).join('')}<div style="height:1px;background:var(--line);margin:4px"></div><div class="mi" data-t="hideW">${S.hideW ? '✓ ' : ''}隱藏已看過</div><div class="mi" data-t="showH">${S.showH ? '✓ ' : ''}顯示已隱藏</div></div>`;
+  if (S.menu === 'dur6') {
+    const base = VIDS.filter(v => (S.type === '全部' || v.type === S.type) && (!S.hideW || !v.w) && (S.showH || !v.h));
+    const cnt = d => base.filter(v => d === '不限' || (d === '2 分內' && v.s <= 120) || (d === '2–6 分' && v.s > 120 && v.s <= 360) || (d === '6–20 分' && v.s > 360 && v.s <= 1200)).length;
+    menu = `<div class="scrim" data-close style="background:rgba(0,0,0,.26)"></div><div class="dmenu" style="top:${S.menuTop || 260}px">${DURS.map(d => `<div class="mi ${S.dur === d ? 'on' : ''}" data-dur="${d}">${d}${d !== '自訂' ? `<span class="n">${cnt(d)}</span>` : '<span class="n"></span>'}</div>`).join('')}</div>`;
+  }
   phone.innerHTML = `<div class="status"><span>21:30</span><span>5G ▮</span></div><div class="screen">${v.render()}</div>${NAV}
     ${S.sheet && v.sheet ? `<div class="sheet-bg" data-close></div><div class="sheet"><div class="grab"></div>${v.sheet(S.sheet)}</div>` : ''}${menu}`;
   const sc = phone.querySelector('.screen'); sc.scrollTop = st;
   sc.onscroll = () => { const s = sc.scrollTop > 70; if (s !== S.scrolled) { S.scrolled = s; const tt = phone.querySelector('#tt'); if (tt) tt.textContent = s ? '周杰倫 Jay Chou' : ''; } };
 }
 document.addEventListener('click', e => {
-  const el = e.target.closest('[data-v],[data-type],[data-dur],[data-t],[data-sort],[data-open],[data-close],[data-tab],[data-tab5],[data-info],[data-clear],[data-menu],[data-stat]');
+  const el = e.target.closest('[data-tab6],[data-v],[data-type],[data-dur],[data-t],[data-sort],[data-open],[data-close],[data-tab],[data-tab5],[data-info],[data-clear],[data-menu],[data-stat]');
   if (!el) return; const d = el.dataset;
   if (d.v) { Object.assign(S, { v: +d.v, sheet: null, menu: null, tab: '影片', type: '全部', scrolled: false }); phone.querySelector('.screen') && (phone.querySelector('.screen').scrollTop = 0); }
   else if (d.type) S.type = d.type;
-  else if (d.dur) { S.dur = d.dur; if (S.menu === 'dur') S.menu = null; }
+  else if (d.dur) { S.dur = d.dur; if (S.menu === 'dur' || S.menu === 'dur6') S.menu = null; }
   else if (d.t) S[d.t] = !S[d.t];
   else if (d.sort) { S.sort = d.sort; S.menu = null; }
   else if (d.open) S.sheet = d.open;
@@ -264,11 +319,13 @@ document.addEventListener('click', e => {
   else if (d.tab5) S.tab5 = d.tab5;
   else if (d.info !== undefined) S.info = !S.info;
   else if (d.clear) { if (d.clear === 'type') S.type = '全部'; if (d.clear === 'dur') S.dur = '不限'; if (d.clear === 'hideW') S.hideW = true; if (d.clear === 'showH') S.showH = false; }
-  else if (d.menu) S.menu = d.menu;
+  else if (d.menu) { S.menu = d.menu; const r = el.getBoundingClientRect(), pr = phone.getBoundingClientRect(); S.menuTop = r.bottom - pr.top + 6; }
+  else if (d.tab6) { S.tab6 = d.tab6; S.type = ['全部', 'Shorts', '直播'].includes(d.tab6) ? d.tab6 : S.type; }
   else if (d.stat !== undefined) S.stat = d.stat || null;
   render();
 });
-if (/^#[1-5]$/.test(location.hash)) S.v = +location.hash[1] - 1;
+// 沒指定就開最終版。
+S.v = /^#[1-6]$/.test(location.hash) ? +location.hash[1] - 1 : V.length - 1;
 render();
 </script>
 </body>
