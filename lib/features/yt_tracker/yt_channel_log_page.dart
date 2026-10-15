@@ -245,8 +245,8 @@ class _YtChannelLogPageState extends ConsumerState<YtChannelLogPage> {
   bool get _global => widget.channelId == null;
 
   /// 看過的影片直接用看過紀錄裡存的影片資料（2026-10-15 使用者回報點下去
-  /// 要等一兩秒：原本要翻每個頻道的整份影片快取才知道標題）。舊紀錄沒有
-  /// 影片資料的不列，到設定按「補齊看過紀錄」補（使用者要求）。
+  /// 要等一兩秒：原本要翻每個頻道的整份影片快取才知道標題）。沒有影片資料
+  /// 的紀錄不列（舊紀錄 2026-10-15 已經一次補完）。
   Stream<_LogData> _load() async* {
     final kv = ref.read(keyValueStoreProvider);
     final repo = ref.read(ytTrackerRepositoryProvider);

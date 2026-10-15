@@ -104,14 +104,9 @@ class _AppBottomNavFrameState extends ConsumerState<AppBottomNavFrame> {
     ),
   ];
 
-  /// 日文自己的分頁列（2026-10-15 使用者選：首頁／手寫／考試；英日切換
-  /// 標題旁的膠囊就有，不重複放）。
+  /// 日文自己的分頁列（2026-10-15 使用者改成：手寫／考試／點亮；英日切換
+  /// 標題旁的膠囊就有，不重複放）。日文首頁也顯示，只是三格都不亮。
   static const _jpTabs = [
-    FloatingTab(
-      icon: Icons.home_outlined,
-      selectedIcon: Icons.home_rounded,
-      label: '首頁',
-    ),
     FloatingTab(
       icon: Icons.draw_outlined,
       selectedIcon: Icons.draw_rounded,
@@ -121,6 +116,11 @@ class _AppBottomNavFrameState extends ConsumerState<AppBottomNavFrame> {
       icon: Icons.edit_note_outlined,
       selectedIcon: Icons.edit_note_rounded,
       label: '考試',
+    ),
+    FloatingTab(
+      icon: Icons.local_florist_outlined,
+      selectedIcon: Icons.local_florist_rounded,
+      label: '點亮',
     ),
   ];
 
@@ -133,13 +133,19 @@ class _AppBottomNavFrameState extends ConsumerState<AppBottomNavFrame> {
     // 正在作答時不擋手寫格子（多鄰國上課時也不顯示分頁列）。
     if (path == '/kana-exam/start') return null;
     final selected = path.startsWith('/kana-practice')
-        ? 1
+        ? 0
         : path.startsWith('/kana-exam')
+        ? 1
+        : path.startsWith('/jp-light')
         ? 2
-        : 0;
+        : null;
     return _NavSpec(_jpTabs, selected, (i) {
-      const targets = ['/jp-home', '/kana-practice', '/kana-exam'];
-      if (path != targets[i]) appRouter.go(targets[i]);
+      const targets = ['/kana-practice', '/kana-exam', '/jp-light'];
+      if (path == targets[i]) return;
+      // 疊在日文首頁上面：那幾頁左上角是返回鍵，按了回日文首頁（用換頁的
+      // 話返回鍵會沒作用）。
+      appRouter.go('/jp-home');
+      appRouter.push(targets[i]);
     });
   }
 

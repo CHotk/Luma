@@ -96,25 +96,4 @@ class YtVideoWatchStore {
     if (changed > 0) await _writeAll(local);
     return changed;
   }
-
-  /// 設定裡「補齊看過紀錄」（2026-10-15）：還沒存影片資料的紀錄，從
-  /// [found]（影片 id → 影片＋頻道）補上。回傳補了幾筆、還有幾筆找不到。
-  Future<({int filled, int missing})> backfill(
-    Map<String, ({YoutubeVideo video, String channelId})> found,
-  ) async {
-    final all = await loadAll();
-    var filled = 0, missing = 0;
-    for (final e in all.entries.toList()) {
-      if (e.value.video != null) continue;
-      final f = found[e.key];
-      if (f == null) {
-        missing++;
-        continue;
-      }
-      all[e.key] = e.value.withSnapshot(f.video, f.channelId);
-      filled++;
-    }
-    if (filled > 0) await _writeAll(all);
-    return (filled: filled, missing: missing);
-  }
 }

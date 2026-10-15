@@ -113,6 +113,134 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
   bool _hideWatched = true;
   bool _showHidden = false;
 
+  /// 分類頁搜尋（2026-10-15）：只搜快取裡這些頻道的全部影片標題，打字就搜。
+  bool _searchOpen = false;
+  final _searchCtrl = TextEditingController();
+  final _searchFocus = FocusNode();
+  String _query = '';
+
+  /// 搜尋用的快取（打開搜尋讀一次，打字時不重讀、不閃轉圈）。
+  Future<List<List<YoutubeVideo>>>? _searchData;
+
+  /// 注音還沒選字就先不搜（跟頻道頁一樣）。
+  static final _bopomofo = RegExp(r'[\u3100-\u312F\u31A0-\u31BF˙ˊˇˋ]');
+
+  void _openSearch() {
+    _searchFocus.requestFocus();
+    setState(() => _searchOpen = true);
+  }
+
+  void _closeSearch() {
+    _searchFocus.unfocus();
+    _searchCtrl.clear();
+    setState(() {
+      _searchOpen = false;
+      _query = '';
+      _searchData = null;
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    _searchFocus.dispose();
+    super.dispose();
+  }
+
+  Widget _searchField() => Row(
+    children: [
+      IconButton(
+        onPressed: _closeSearch,
+        icon: const Icon(Icons.arrow_back_rounded),
+        color: AppColors.ink2,
+        tooltip: '收起搜尋',
+      ),
+      Expanded(
+        child: TextField(
+          controller: _searchCtrl,
+          focusNode: _searchFocus,
+          textInputAction: TextInputAction.search,
+          onChanged: (t) {
+            if (_bopomofo.hasMatch(t)) return;
+            setState(() => _query = t.trim());
+          },
+          style: const TextStyle(fontSize: 14, color: AppColors.ink),
+          decoration: const InputDecoration(
+            isDense: true,
+            hintText: '搜尋這些頻道的影片（只搜抓過的）',
+            prefixIcon: Icon(Icons.search_rounded, size: 19),
+            contentPadding: EdgeInsets.symmetric(vertical: 10),
+          ),
+        ),
+      ),
+    ],
+  );
+
+  Widget _searchResults(List<YtChannel> channels) {
+    final q = _query.toLowerCase();
+    if (q.isEmpty) {
+      return Center(child: Text('打字就會搜這些頻道抓過的全部影片', style: AppText.note));
+    }
+    return FutureBuilder<List<List<YoutubeVideo>>>(
+      future: _searchData ??= Future.wait(
+        channels.map(
+          (c) => YtVideoCacheStore(ref.read(keyValueStoreProvider)).load(c.id),
+        ),
+      ),
+      builder: (context, snap) {
+        final lists = snap.data;
+        if (lists == null) {
+          return const Center(child: CircularProgressIndicator.adaptive());
+        }
+        final hits = [
+          for (var i = 0; i < channels.length; i++)
+            for (final v in lists[i])
+              if (v.title.toLowerCase().contains(q))
+                _ChannelVideo(video: v, channel: channels[i]),
+        ]..sort((a, b) => b.video.publishedAt.compareTo(a.video.publishedAt));
+        if (hits.isEmpty) {
+          return Center(child: Text('抓過的影片裡找不到「$_query」', style: AppText.note));
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Text(
+                '找到 ${hits.length} 部（${channels.length} 個頻道）',
+                style: AppText.note,
+              ),
+            ),
+            Expanded(
+              child: ListView.separated(
+                padding: EdgeInsets.only(bottom: FloatingNavInset.of(context)),
+                itemCount: hits.length,
+                separatorBuilder: (_, _) =>
+                    const Divider(height: 1, color: AppColors.glassEdge),
+                itemBuilder: (_, i) {
+                  final item = hits[i];
+                  return YtVideoRow(
+                    key: ValueKey(item.video.videoId),
+                    video: item.video,
+                    channelId: item.channel.id,
+                    channelName: item.channel.name,
+                    subtitle:
+                        '${item.channel.name}・${ytRelativeTime(item.video.publishedAt)}',
+                    highlight: _query,
+                    known: _knownFor(item.video.videoId),
+                    forceShow: true,
+                    onWatchedChanged: (r) => _onWatched(item.video.videoId, r),
+                    onHiddenChanged: _loadVideoMarks,
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   /// 範圍（2026-10-15 使用者要求）：每個頻道最新 20 部（打 API），或是
   /// 這些頻道抓過的全部影片（只讀快取、不打 API）——要照觀看次數排整個
   /// 頻道時用後者。
@@ -1209,245 +1337,288 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          AppTopBar(
-                            title: _title(categories),
-                            // 單看一個分類：標題前面放那個分類的底圖，縮成
-                            // 跟功能標題圖示一樣小（2026-10-06 使用者要求）；
-                            // 其他情況放 YT 的紅色圖示。
-                            titleIcon: widget.trash
-                                ? Icons.delete_outline_rounded
-                                : Icons.subscriptions_rounded,
-                            titleIconColor: AppColors.ytAccent,
-                            titleLeading: _titleImage(categories),
-                            actions: [
-                              // 垃圾桶模式不給新增頻道、挖掘、刪除分類。
-                              if (!widget.trash) ...[
-                                // 「挖掘新頻道」是特別的分類，只是用來放挖到的頻道，
-                                // 不是使用者自己手動整理的地方，所以不給「新增頻道」
-                                // （2026-09-29 使用者要求），改給「挖掘新頻道」按鈕
-                                // ——本來只有 YT 首頁有，進了這個分類頁還要回首頁
-                                // 才能再挖一次太繞（2026-09-29 使用者要求）。
-                                if (_selected.length == 1 &&
-                                    _selected.single == ytDiscoverCategoryId)
-                                  IconButton(
-                                    onPressed: () => runYtChannelDiscovery(
-                                      context,
-                                      ref,
-                                      onDone: _reload,
+                          // 搜尋（2026-10-15 使用者要求：分類頁也能搜這些頻道底下
+                          // 全部影片，只搜快取）：搜尋框一直放著、沒開時看不見，
+                          // 點 🔍 的當下就要到焦點，iPhone 才會跳鍵盤。
+                          Stack(
+                            children: [
+                              Visibility(
+                                visible: !_searchOpen,
+                                maintainState: true,
+                                maintainAnimation: true,
+                                maintainSize: true,
+                                child: AppTopBar(
+                                  title: _title(categories),
+                                  // 單看一個分類：標題前面放那個分類的底圖，縮成
+                                  // 跟功能標題圖示一樣小（2026-10-06 使用者要求）；
+                                  // 其他情況放 YT 的紅色圖示。
+                                  titleIcon: widget.trash
+                                      ? Icons.delete_outline_rounded
+                                      : Icons.subscriptions_rounded,
+                                  titleIconColor: AppColors.ytAccent,
+                                  titleLeading: _titleImage(categories),
+                                  actions: [
+                                    IconButton(
+                                      onPressed: _openSearch,
+                                      icon: const Icon(
+                                        Icons.search_rounded,
+                                        size: 21,
+                                      ),
+                                      color: AppColors.ink2,
+                                      tooltip: '搜尋這些頻道的影片',
                                     ),
-                                    icon: const Icon(
-                                      Icons.travel_explore_rounded,
-                                      size: 20,
+                                    // 垃圾桶模式不給新增頻道、挖掘、刪除分類。
+                                    if (!widget.trash) ...[
+                                      // 「挖掘新頻道」是特別的分類，只是用來放挖到的頻道，
+                                      // 不是使用者自己手動整理的地方，所以不給「新增頻道」
+                                      // （2026-09-29 使用者要求），改給「挖掘新頻道」按鈕
+                                      // ——本來只有 YT 首頁有，進了這個分類頁還要回首頁
+                                      // 才能再挖一次太繞（2026-09-29 使用者要求）。
+                                      if (_selected.length == 1 &&
+                                          _selected.single ==
+                                              ytDiscoverCategoryId)
+                                        IconButton(
+                                          onPressed: () =>
+                                              runYtChannelDiscovery(
+                                                context,
+                                                ref,
+                                                onDone: _reload,
+                                              ),
+                                          icon: const Icon(
+                                            Icons.travel_explore_rounded,
+                                            size: 20,
+                                          ),
+                                          color: AppColors.ink2,
+                                          tooltip: '挖掘新頻道',
+                                        )
+                                      else
+                                        IconButton(
+                                          onPressed: () =>
+                                              _showAddChannelDialog(categories),
+                                          icon: const Icon(
+                                            Icons.add_circle_outline,
+                                            size: 20,
+                                          ),
+                                          color: AppColors.ink2,
+                                          tooltip: '新增頻道',
+                                        ),
+                                    ],
+                                    // 這個分類（或選的幾個分類）的頻道紀錄（2026-10-06
+                                    // 使用者要求：分類頁也要有；放在新增頻道右邊、
+                                    // 刪除分類左邊）。
+                                    IconButton(
+                                      onPressed: () => context.push(
+                                        '/yt-tracker/log',
+                                        extra: {..._selected},
+                                      ),
+                                      icon: const Icon(
+                                        Icons.history_rounded,
+                                        size: 20,
+                                      ),
+                                      color: AppColors.ink2,
+                                      tooltip: '頻道紀錄',
                                     ),
-                                    color: AppColors.ink2,
-                                    tooltip: '挖掘新頻道',
-                                  )
-                                else
-                                  IconButton(
-                                    onPressed: () =>
-                                        _showAddChannelDialog(categories),
-                                    icon: const Icon(
-                                      Icons.add_circle_outline,
-                                      size: 20,
-                                    ),
-                                    color: AppColors.ink2,
-                                    tooltip: '新增頻道',
-                                  ),
-                              ],
-                              // 這個分類（或選的幾個分類）的頻道紀錄（2026-10-06
-                              // 使用者要求：分類頁也要有；放在新增頻道右邊、
-                              // 刪除分類左邊）。
-                              IconButton(
-                                onPressed: () => context.push(
-                                  '/yt-tracker/log',
-                                  extra: {..._selected},
+                                    if (!widget.trash) ...[
+                                      if (selectedCategory != null)
+                                        IconButton(
+                                          onPressed: () async {
+                                            final deleted =
+                                                await deleteYtCategory(
+                                                  context,
+                                                  ref,
+                                                  selectedCategory!,
+                                                );
+                                            // 分類本身沒了，留在這頁沒意義，刪完
+                                            // 直接退回分類格子那頁。
+                                            if (deleted && context.mounted) {
+                                              Navigator.of(context).pop();
+                                            }
+                                          },
+                                          icon: const Icon(
+                                            Icons.delete_outline_rounded,
+                                            size: 20,
+                                          ),
+                                          color: AppColors.ink2,
+                                          tooltip: '刪除分類',
+                                        ),
+                                    ],
+                                  ],
                                 ),
-                                icon: const Icon(
-                                  Icons.history_rounded,
-                                  size: 20,
-                                ),
-                                color: AppColors.ink2,
-                                tooltip: '頻道紀錄',
                               ),
-                              if (!widget.trash) ...[
-                                if (selectedCategory != null)
-                                  IconButton(
-                                    onPressed: () async {
-                                      final deleted = await deleteYtCategory(
-                                        context,
-                                        ref,
-                                        selectedCategory!,
-                                      );
-                                      // 分類本身沒了，留在這頁沒意義，刪完
-                                      // 直接退回分類格子那頁。
-                                      if (deleted && context.mounted) {
-                                        Navigator.of(context).pop();
-                                      }
-                                    },
-                                    icon: const Icon(
-                                      Icons.delete_outline_rounded,
-                                      size: 20,
-                                    ),
-                                    color: AppColors.ink2,
-                                    tooltip: '刪除分類',
-                                  ),
-                              ],
+                              Positioned.fill(
+                                child: Visibility(
+                                  visible: _searchOpen,
+                                  maintainState: true,
+                                  maintainAnimation: true,
+                                  maintainSize: true,
+                                  maintainFocusability: true,
+                                  child: Center(child: _searchField()),
+                                ),
+                              ),
                             ],
                           ),
-                          const SizedBox(height: Gap.sm),
-                          if (categories.isNotEmpty || hasUnassigned)
-                            SizedBox(
-                              height: 34,
-                              child: ListView.separated(
-                                scrollDirection: Axis.horizontal,
-                                itemCount:
-                                    categories.length + (hasUnassigned ? 1 : 0),
-                                separatorBuilder: (_, _) =>
-                                    const SizedBox(width: 6),
-                                itemBuilder: (_, i) {
-                                  if (i == categories.length) {
-                                    final on = _selected.contains(
-                                      ytUncategorizedId,
-                                    );
+                          if (_searchOpen)
+                            Expanded(child: _searchResults(channels))
+                          else ...[
+                            const SizedBox(height: Gap.sm),
+                            if (categories.isNotEmpty || hasUnassigned)
+                              SizedBox(
+                                height: 34,
+                                child: ListView.separated(
+                                  scrollDirection: Axis.horizontal,
+                                  itemCount:
+                                      categories.length +
+                                      (hasUnassigned ? 1 : 0),
+                                  separatorBuilder: (_, _) =>
+                                      const SizedBox(width: 6),
+                                  itemBuilder: (_, i) {
+                                    if (i == categories.length) {
+                                      final on = _selected.contains(
+                                        ytUncategorizedId,
+                                      );
+                                      return _CategoryPickChip(
+                                        label: '未分類',
+                                        color: AppColors.ink3,
+                                        selected: on,
+                                        onTap: () => setState(() {
+                                          if (on) {
+                                            _selected.remove(ytUncategorizedId);
+                                          } else {
+                                            _selected.add(ytUncategorizedId);
+                                          }
+                                        }),
+                                      );
+                                    }
+                                    final cat = categories[i];
+                                    final on = _selected.contains(cat.id);
                                     return _CategoryPickChip(
-                                      label: '未分類',
-                                      color: AppColors.ink3,
+                                      label: cat.name,
+                                      color: cat.color,
                                       selected: on,
                                       onTap: () => setState(() {
                                         if (on) {
-                                          _selected.remove(ytUncategorizedId);
+                                          _selected.remove(cat.id);
                                         } else {
-                                          _selected.add(ytUncategorizedId);
+                                          _selected.add(cat.id);
                                         }
                                       }),
                                     );
-                                  }
-                                  final cat = categories[i];
-                                  final on = _selected.contains(cat.id);
-                                  return _CategoryPickChip(
-                                    label: cat.name,
-                                    color: cat.color,
-                                    selected: on,
-                                    onTap: () => setState(() {
-                                      if (on) {
-                                        _selected.remove(cat.id);
-                                      } else {
-                                        _selected.add(cat.id);
-                                      }
-                                    }),
-                                  );
-                                },
+                                  },
+                                ),
+                              ),
+                            const SizedBox(height: Gap.sm),
+                            SegmentedButton<_ViewMode>(
+                              segments: const [
+                                ButtonSegment(
+                                  value: _ViewMode.channel,
+                                  label: Text('依頻道顯示'),
+                                ),
+                                ButtonSegment(
+                                  value: _ViewMode.video,
+                                  label: Text('依影片顯示'),
+                                ),
+                              ],
+                              selected: {_mode},
+                              onSelectionChanged: (s) =>
+                                  setState(() => _mode = s.first),
+                              style: SegmentedButton.styleFrom(
+                                backgroundColor: AppColors.glassFill,
+                                foregroundColor: AppColors.ink2,
+                                selectedBackgroundColor: AppColors.ytAccent
+                                    .withValues(alpha: 0.28),
+                                selectedForegroundColor: AppColors.ink,
+                                side: const BorderSide(
+                                  color: AppColors.glassEdge,
+                                ),
                               ),
                             ),
-                          const SizedBox(height: Gap.sm),
-                          SegmentedButton<_ViewMode>(
-                            segments: const [
-                              ButtonSegment(
-                                value: _ViewMode.channel,
-                                label: Text('依頻道顯示'),
-                              ),
-                              ButtonSegment(
-                                value: _ViewMode.video,
-                                label: Text('依影片顯示'),
-                              ),
-                            ],
-                            selected: {_mode},
-                            onSelectionChanged: (s) =>
-                                setState(() => _mode = s.first),
-                            style: SegmentedButton.styleFrom(
-                              backgroundColor: AppColors.glassFill,
-                              foregroundColor: AppColors.ink2,
-                              selectedBackgroundColor: AppColors.ytAccent
-                                  .withValues(alpha: 0.28),
-                              selectedForegroundColor: AppColors.ink,
-                              side: const BorderSide(
-                                color: AppColors.glassEdge,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: Gap.sm),
-                          Expanded(
-                            child: _mode == _ViewMode.channel
-                                ? Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.stretch,
-                                    children: [
-                                      Wrap(
-                                        spacing: 6,
-                                        children: [
-                                          _TypeChip(
-                                            label: '預設排序',
-                                            selected:
-                                                _sort == _ChannelSort.normal,
-                                            onTap: () => setState(
-                                              () => _sort = _ChannelSort.normal,
+                            const SizedBox(height: Gap.sm),
+                            Expanded(
+                              child: _mode == _ViewMode.channel
+                                  ? Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
+                                      children: [
+                                        Wrap(
+                                          spacing: 6,
+                                          children: [
+                                            _TypeChip(
+                                              label: '預設排序',
+                                              selected:
+                                                  _sort == _ChannelSort.normal,
+                                              onTap: () => setState(
+                                                () =>
+                                                    _sort = _ChannelSort.normal,
+                                              ),
                                             ),
-                                          ),
-                                          _TypeChip(
-                                            label: '訂閱人數 多→少',
-                                            selected:
-                                                _sort == _ChannelSort.subsDesc,
-                                            onTap: () => setState(
-                                              () =>
-                                                  _sort = _ChannelSort.subsDesc,
+                                            _TypeChip(
+                                              label: '訂閱人數 多→少',
+                                              selected:
+                                                  _sort ==
+                                                  _ChannelSort.subsDesc,
+                                              onTap: () => setState(
+                                                () => _sort =
+                                                    _ChannelSort.subsDesc,
+                                              ),
                                             ),
-                                          ),
-                                          _TypeChip(
-                                            label: '訂閱人數 少→多',
-                                            selected:
-                                                _sort == _ChannelSort.subsAsc,
-                                            onTap: () => setState(
-                                              () =>
-                                                  _sort = _ChannelSort.subsAsc,
+                                            _TypeChip(
+                                              label: '訂閱人數 少→多',
+                                              selected:
+                                                  _sort == _ChannelSort.subsAsc,
+                                              onTap: () => setState(
+                                                () => _sort =
+                                                    _ChannelSort.subsAsc,
+                                              ),
                                             ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: Gap.sm),
-                                      Expanded(
-                                        child: _ChannelGrid(
-                                          channels: _sortedChannels(channels),
-                                          // 只有單獨看「挖掘新頻道」分類時才秀來源標籤
-                                          // （2026-09-29 使用者要求：僅在挖掘分類才顯示）。
-                                          showDiscoveredBadge:
-                                              _selected.length == 1 &&
-                                              _selected.single ==
-                                                  ytDiscoverCategoryId,
-                                          lastOpenedId: _lastOpenedChannelId,
-                                          onTouched: (c) => setState(
-                                            () => _lastOpenedChannelId = c.id,
-                                          ),
-                                          onOpen: (c) {
-                                            setState(
-                                              () => _lastOpenedChannelId = c.id,
-                                            );
-                                            context
-                                                .push(
-                                                  '/yt-tracker/channel/${c.id}',
-                                                )
-                                                .then((_) => _reload());
-                                          },
-                                          onMove: (c) =>
-                                              _moveChannel(c, categories),
-                                          onTogglePin: _togglePin,
-                                          onToggleArtist: _toggleArtist,
-                                          musicCategoryIds: {
-                                            for (final cat in categories)
-                                              if (cat.name.contains('音樂'))
-                                                cat.id,
-                                          },
-                                          onToggleCold: _toggleCold,
-                                          onSetNormal: _setNormal,
-                                          onDelete: _deleteChannel,
-                                          trash: widget.trash,
-                                          onRestore: _restoreChannel,
-                                          onPurge: _purgeChannel,
+                                          ],
                                         ),
-                                      ),
-                                    ],
-                                  )
-                                : _buildVideoPanel(channels),
-                          ),
+                                        const SizedBox(height: Gap.sm),
+                                        Expanded(
+                                          child: _ChannelGrid(
+                                            channels: _sortedChannels(channels),
+                                            // 只有單獨看「挖掘新頻道」分類時才秀來源標籤
+                                            // （2026-09-29 使用者要求：僅在挖掘分類才顯示）。
+                                            showDiscoveredBadge:
+                                                _selected.length == 1 &&
+                                                _selected.single ==
+                                                    ytDiscoverCategoryId,
+                                            lastOpenedId: _lastOpenedChannelId,
+                                            onTouched: (c) => setState(
+                                              () => _lastOpenedChannelId = c.id,
+                                            ),
+                                            onOpen: (c) {
+                                              setState(
+                                                () =>
+                                                    _lastOpenedChannelId = c.id,
+                                              );
+                                              context
+                                                  .push(
+                                                    '/yt-tracker/channel/${c.id}',
+                                                  )
+                                                  .then((_) => _reload());
+                                            },
+                                            onMove: (c) =>
+                                                _moveChannel(c, categories),
+                                            onTogglePin: _togglePin,
+                                            onToggleArtist: _toggleArtist,
+                                            musicCategoryIds: {
+                                              for (final cat in categories)
+                                                if (cat.name.contains('音樂'))
+                                                  cat.id,
+                                            },
+                                            onToggleCold: _toggleCold,
+                                            onSetNormal: _setNormal,
+                                            onDelete: _deleteChannel,
+                                            trash: widget.trash,
+                                            onRestore: _restoreChannel,
+                                            onPurge: _purgeChannel,
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                  : _buildVideoPanel(channels),
+                            ),
+                          ],
                         ],
                       );
                     },

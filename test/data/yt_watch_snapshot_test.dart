@@ -34,15 +34,6 @@ void main() {
     expect(n, 1);
     expect((await s.loadAll())['v1']!.channelId, 'UC');
   });
-
-  test('補齊：沒資料的從快取補，找不到的算 missing', () async {
-    final s = YtVideoWatchStore(_MemoryStore());
-    await s.markOpened('v1');
-    await s.markOpened('v2');
-    final r = await s.backfill({'v1': (video: v, channelId: 'UC')});
-    expect((r.filled, r.missing), (1, 1));
-    expect((await s.loadAll())['v1']!.video?.title, '晴天');
-  });
 }
 
 class _MemoryStore implements KeyValueStore {
