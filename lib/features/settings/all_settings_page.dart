@@ -17,17 +17,20 @@ import 'settings_page.dart';
 
 /// 設定頁的各段（2026-10-15 使用者選設計稿第 5 版「上方分頁籤」）。
 enum SettingsSection {
-  app('一般', Icons.tune_rounded),
-  english('英文', Icons.translate_rounded),
-  jp('日文', Icons.spa_outlined),
-  yt('YT', Icons.smart_display_outlined),
-  trade('交易&自律', Icons.candlestick_chart_outlined),
-  lock('日記／負債', Icons.lock_outline_rounded),
-  sync('雲端同步', Icons.cloud_sync_outlined);
+  app('一般', Icons.tune_rounded, Color(0xFF8E8E93)),
+  english('英文', Icons.translate_rounded, Color(0xFFFF9F0A)),
+  jp('日文', Icons.spa_outlined, Color(0xFFFF2D55)),
+  yt('YT', Icons.smart_display_outlined, Color(0xFFFF3B30)),
+  trade('交易&自律', Icons.candlestick_chart_outlined, Color(0xFF30B0C7)),
+  lock('日記／負債', Icons.lock_outline_rounded, Color(0xFF5E5CE6)),
+  sync('雲端同步', Icons.cloud_sync_outlined, Color(0xFF0A84FF));
 
-  const SettingsSection(this.label, this.icon);
+  const SettingsSection(this.label, this.icon, this.color);
   final String label;
   final IconData icon;
+
+  /// 這段的顏色：區塊裡每列左邊小方塊圖示的底色（iOS 設定那樣）。
+  final Color color;
 }
 
 /// 從哪一頁點齒輪，就先跳到哪一段（2026-10-15 使用者要求：在哪個功能
@@ -484,21 +487,16 @@ class _SectionHeader extends StatelessWidget {
   final SettingsSection section;
 
   @override
+  // iOS 設定那樣：區塊上面一行灰色小字（2026-10-15 最終版 2）。
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(left: 4, top: Gap.xs, bottom: Gap.sm),
-    child: Row(
-      children: [
-        Icon(section.icon, size: 18, color: AppColors.accent),
-        const SizedBox(width: 6),
-        Text(
-          section.label,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w800,
-            color: AppColors.ink,
-          ),
-        ),
-      ],
+    padding: const EdgeInsets.only(left: 16, top: Gap.xs, bottom: 6),
+    child: Text(
+      section.label,
+      style: const TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+        color: AppColors.ink3,
+      ),
     ),
   );
 }

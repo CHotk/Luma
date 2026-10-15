@@ -16,8 +16,8 @@ import '../../data/repositories/nav_bar_prefs_store.dart';
 import '../../data/repositories/yt_display_prefs_store.dart';
 import '../../data/repositories/yt_video_open_mode_store.dart';
 import '../../shared/widgets/app_notice.dart';
-import '../../shared/widgets/glass_card.dart';
 import 'settings_page.dart' show AppLogoSettingsCard;
+import 'all_settings_page.dart' show SettingsSection;
 import 'settings_anchor.dart';
 import '../crypto_watch/trade_ui.dart' show oneDecimalInput, round1;
 import '../yt_tracker/yt_api_key_dialog.dart';
@@ -35,12 +35,12 @@ class AppHomeSettingsSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final style = ref.watch(appHomeStyleProvider);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return SettingsBlock(
+      color: SettingsSection.app.color,
       children: [
         SettingAnchor(
           id: 'app.home',
-          child: GlassCard(
+          child: SettingsRowCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -88,14 +88,10 @@ class AppHomeSettingsSection extends ConsumerWidget {
         // 在設定裡拖曳調整）。
         SettingAnchor(
           id: 'app.order',
-          child: GlassCard(
+          child: SettingsRowCard(
             child: Row(
               children: [
-                const Icon(
-                  Icons.reorder_rounded,
-                  size: 18,
-                  color: AppColors.ink2,
-                ),
+                const SettingIcon(Icons.reorder_rounded),
                 const SizedBox(width: Gap.sm),
                 Expanded(
                   child: Column(
@@ -172,71 +168,78 @@ class _TradeSettingsSectionState extends ConsumerState<TradeSettingsSection> {
   Widget build(BuildContext context) {
     final saved = ref.watch(usdtTwdRateProvider);
     final v = _value;
-    return SettingAnchor(
-      id: 'trade.rate',
-      child: GlassCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'USDT 換台幣匯率',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: AppColors.ink,
-              ),
-            ),
-            Text(
-              'USDT 金額後面會加上「≈ NT\$」換算，預設 '
-              '${_fmt(UsdtTwdRateStore.defaultRate)}・同步時會帶到其他裝置',
-              style: AppText.note,
-            ),
-            const SizedBox(height: Gap.sm),
-            Row(
+    return SettingsBlock(
+      color: SettingsSection.trade.color,
+      children: [
+        SettingAnchor(
+          id: 'trade.rate',
+          child: SettingsRowCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  '1 USDT ＝',
-                  style: TextStyle(fontSize: 14, color: AppColors.ink2),
-                ),
-                const SizedBox(width: Gap.sm),
-                Expanded(
-                  child: TextField(
-                    controller: _ctrl,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    // 跟交易功能其他數字一樣最多小數第一位。
-                    inputFormatters: oneDecimalInput,
-                    decoration: InputDecoration(
-                      suffixText: '台幣',
-                      isDense: true,
-                      errorText: _ctrl.text.trim().isNotEmpty && v == null
-                          ? '要大於 0 的數字'
-                          : null,
-                    ),
-                    onSubmitted: (_) {
-                      if (v != null) _save(v);
-                    },
+                  'USDT 換台幣匯率',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.ink,
                   ),
                 ),
-                const SizedBox(width: Gap.sm),
-                FilledButton(
-                  onPressed: v == null || v == saved ? null : () => _save(v),
-                  child: const Text('儲存'),
+                Text(
+                  'USDT 金額後面會加上「≈ NT\$」換算，預設 '
+                  '${_fmt(UsdtTwdRateStore.defaultRate)}・同步時會帶到其他裝置',
+                  style: AppText.note,
                 ),
+                const SizedBox(height: Gap.sm),
+                Row(
+                  children: [
+                    const Text(
+                      '1 USDT ＝',
+                      style: TextStyle(fontSize: 14, color: AppColors.ink2),
+                    ),
+                    const SizedBox(width: Gap.sm),
+                    Expanded(
+                      child: TextField(
+                        controller: _ctrl,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        // 跟交易功能其他數字一樣最多小數第一位。
+                        inputFormatters: oneDecimalInput,
+                        decoration: InputDecoration(
+                          suffixText: '台幣',
+                          isDense: true,
+                          errorText: _ctrl.text.trim().isNotEmpty && v == null
+                              ? '要大於 0 的數字'
+                              : null,
+                        ),
+                        onSubmitted: (_) {
+                          if (v != null) _save(v);
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: Gap.sm),
+                    FilledButton(
+                      onPressed: v == null || v == saved
+                          ? null
+                          : () => _save(v),
+                      child: const Text('儲存'),
+                    ),
+                  ],
+                ),
+                if (saved != UsdtTwdRateStore.defaultRate)
+                  TextButton(
+                    onPressed: () {
+                      _ctrl.text = _fmt(UsdtTwdRateStore.defaultRate);
+                      _save(UsdtTwdRateStore.defaultRate);
+                    },
+                    child: Text('改回預設 ${_fmt(UsdtTwdRateStore.defaultRate)}'),
+                  ),
               ],
             ),
-            if (saved != UsdtTwdRateStore.defaultRate)
-              TextButton(
-                onPressed: () {
-                  _ctrl.text = _fmt(UsdtTwdRateStore.defaultRate);
-                  _save(UsdtTwdRateStore.defaultRate);
-                },
-                child: Text('改回預設 ${_fmt(UsdtTwdRateStore.defaultRate)}'),
-              ),
-          ],
+          ),
         ),
-      ),
+      ],
     );
   }
 }
@@ -249,19 +252,15 @@ class JpSettingsSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final showRing = ref.watch(jpShowProgressRingProvider);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return SettingsBlock(
+      color: SettingsSection.jp.color,
       children: [
         SettingAnchor(
           id: 'jp.ring',
-          child: GlassCard(
+          child: SettingsRowCard(
             child: Row(
               children: [
-                const Icon(
-                  Icons.donut_large_rounded,
-                  size: 18,
-                  color: AppColors.ink2,
-                ),
+                const SettingIcon(Icons.donut_large_rounded),
                 const SizedBox(width: Gap.sm),
                 Expanded(
                   child: Column(
@@ -295,14 +294,10 @@ class JpSettingsSection extends ConsumerWidget {
         const SizedBox(height: Gap.sm),
         SettingAnchor(
           id: 'jp.order',
-          child: GlassCard(
+          child: SettingsRowCard(
             child: Row(
               children: [
-                const Icon(
-                  Icons.reorder_rounded,
-                  size: 18,
-                  color: AppColors.ink2,
-                ),
+                const SettingIcon(Icons.reorder_rounded),
                 const SizedBox(width: Gap.sm),
                 const Expanded(
                   child: Text(
@@ -333,8 +328,8 @@ class YtSettingsSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final hasKey = (ref.watch(ytApiKeyProvider) ?? '').isNotEmpty;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return SettingsBlock(
+      color: SettingsSection.yt.color,
       children: [
         // 底部分頁列放最上面（2026-10-14 使用者回報：在 YT 設定找不到
         // 「影片」要開哪個頻道）。顯示方式跟「一般」那張是同一份。
@@ -342,7 +337,7 @@ class YtSettingsSection extends ConsumerWidget {
         const SizedBox(height: Gap.sm),
         SettingAnchor(
           id: 'yt.videoTab',
-          child: GlassCard(
+          child: SettingsRowCard(
             child: Consumer(
               builder: (context, ref, _) => _VideoTabChannelRow(
                 channelId: ref.watch(
@@ -353,7 +348,7 @@ class YtSettingsSection extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: Gap.sm),
-        GlassCard(
+        SettingsRowCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -395,11 +390,7 @@ class YtSettingsSection extends ConsumerWidget {
                 id: 'yt.export',
                 child: Row(
                   children: [
-                    const Icon(
-                      Icons.ios_share_rounded,
-                      size: 18,
-                      color: AppColors.ink2,
-                    ),
+                    const SettingIcon(Icons.ios_share_rounded),
                     const SizedBox(width: Gap.sm),
                     const Expanded(
                       child: Text(
@@ -423,11 +414,7 @@ class YtSettingsSection extends ConsumerWidget {
                 id: 'yt.catOrder',
                 child: Row(
                   children: [
-                    const Icon(
-                      Icons.reorder_rounded,
-                      size: 18,
-                      color: AppColors.ink2,
-                    ),
+                    const SettingIcon(Icons.reorder_rounded),
                     const SizedBox(width: Gap.sm),
                     const Expanded(
                       child: Text(
@@ -469,11 +456,7 @@ class YtSettingsSection extends ConsumerWidget {
                 id: 'yt.purged',
                 child: Row(
                   children: [
-                    const Icon(
-                      Icons.delete_forever_outlined,
-                      size: 18,
-                      color: AppColors.ink2,
-                    ),
+                    const SettingIcon(Icons.delete_forever_outlined),
                     const SizedBox(width: Gap.sm),
                     const Expanded(
                       child: Text(
@@ -595,34 +578,35 @@ class LockSettingsSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return SettingAnchor(
-      id: 'lock.pw',
-      child: GlassCard(
-        child: Row(
-          children: [
-            const Icon(
-              Icons.lock_outline_rounded,
-              size: 18,
-              color: AppColors.ink2,
-            ),
-            const SizedBox(width: Gap.sm),
-            const Expanded(
-              child: Text(
-                '日記／負債密碼',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.ink,
+    return SettingsBlock(
+      color: SettingsSection.lock.color,
+      children: [
+        SettingAnchor(
+          id: 'lock.pw',
+          child: SettingsRowCard(
+            child: Row(
+              children: [
+                const SettingIcon(Icons.lock_outline_rounded),
+                const SizedBox(width: Gap.sm),
+                const Expanded(
+                  child: Text(
+                    '日記／負債密碼',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.ink,
+                    ),
+                  ),
                 ),
-              ),
+                TextButton(
+                  onPressed: () => _showChangePasswordDialog(context, ref),
+                  child: const Text('變更'),
+                ),
+              ],
             ),
-            TextButton(
-              onPressed: () => _showChangePasswordDialog(context, ref),
-              child: const Text('變更'),
-            ),
-          ],
+          ),
         ),
-      ),
+      ],
     );
   }
 }
@@ -633,40 +617,41 @@ class SyncSettingsSection extends StatelessWidget {
   const SyncSettingsSection({super.key});
 
   @override
-  Widget build(BuildContext context) => SettingAnchor(
-    id: 'sync.page',
-    child: GlassCard(
-      child: Row(
-        children: [
-          const Icon(
-            Icons.cloud_sync_outlined,
-            size: 18,
-            color: AppColors.ink2,
-          ),
-          const SizedBox(width: Gap.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  '多裝置同步',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.ink,
-                  ),
+  Widget build(BuildContext context) => SettingsBlock(
+    color: SettingsSection.sync.color,
+    children: [
+      SettingAnchor(
+        id: 'sync.page',
+        child: SettingsRowCard(
+          child: Row(
+            children: [
+              const SettingIcon(Icons.cloud_sync_outlined),
+              const SizedBox(width: Gap.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '多裝置同步',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.ink,
+                      ),
+                    ),
+                    Text('R2 帳號、立即同步、同步紀錄', style: AppText.note),
+                  ],
                 ),
-                Text('R2 帳號、立即同步、同步紀錄', style: AppText.note),
-              ],
-            ),
+              ),
+              TextButton(
+                onPressed: () => context.push('/sync'),
+                child: const Text('開啟'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => context.push('/sync'),
-            child: const Text('開啟'),
-          ),
-        ],
+        ),
       ),
-    ),
+    ],
   );
 }
 
@@ -742,7 +727,7 @@ class _StatsRefreshRowState extends ConsumerState<_StatsRefreshRow> {
       children: [
         const Padding(
           padding: EdgeInsets.only(top: 2),
-          child: Icon(Icons.groups_outlined, size: 18, color: AppColors.ink2),
+          child: const SettingIcon(Icons.groups_outlined),
         ),
         const SizedBox(width: Gap.sm),
         Expanded(
@@ -863,7 +848,7 @@ class _NavBarModeCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final prefs = ref.watch(navBarPrefsProvider);
-    return GlassCard(
+    return SettingsRowCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1017,11 +1002,7 @@ class _YtDisplayPrefsRows extends ConsumerWidget {
               children: [
                 const Padding(
                   padding: EdgeInsets.only(top: 2),
-                  child: Icon(
-                    Icons.playlist_remove_rounded,
-                    size: 18,
-                    color: AppColors.ink2,
-                  ),
+                  child: const SettingIcon(Icons.playlist_remove_rounded),
                 ),
                 const SizedBox(width: Gap.sm),
                 Expanded(
@@ -1101,11 +1082,7 @@ class _VideoOpenModeRow extends ConsumerWidget {
       children: [
         const Padding(
           padding: EdgeInsets.only(top: 2),
-          child: Icon(
-            Icons.smart_display_outlined,
-            size: 18,
-            color: AppColors.ink2,
-          ),
+          child: const SettingIcon(Icons.smart_display_outlined),
         ),
         const SizedBox(width: Gap.sm),
         Expanded(
@@ -1187,11 +1164,7 @@ class _EmbedPlayerStyleRow extends ConsumerWidget {
         children: [
           const Padding(
             padding: EdgeInsets.only(top: 2),
-            child: Icon(
-              Icons.picture_in_picture_alt_outlined,
-              size: 18,
-              color: AppColors.ink2,
-            ),
+            child: const SettingIcon(Icons.picture_in_picture_alt_outlined),
           ),
           const SizedBox(width: Gap.sm),
           Expanded(
@@ -1295,11 +1268,7 @@ class _VideoTabChannelRow extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(vertical: 2),
         child: Row(
           children: [
-            const Icon(
-              Icons.smart_display_outlined,
-              size: 18,
-              color: AppColors.ink2,
-            ),
+            const SettingIcon(Icons.smart_display_outlined),
             const SizedBox(width: Gap.sm),
             Expanded(
               child: Column(

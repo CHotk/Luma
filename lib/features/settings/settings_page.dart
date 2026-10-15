@@ -12,7 +12,7 @@ import '../../app/theme/typography.dart';
 import '../../data/repositories/app_logo_store.dart';
 import '../../data/seed/app_logo_loader.dart';
 import '../../domain/rules_config.dart';
-import '../../shared/widgets/glass_card.dart';
+import 'all_settings_page.dart' show SettingsSection;
 import 'settings_anchor.dart';
 import 'settings_controller.dart';
 
@@ -45,19 +45,15 @@ class _Body extends ConsumerWidget {
     void save(RulesConfig next) =>
         ref.read(settingsControllerProvider.notifier).apply(next);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return SettingsBlock(
+      color: SettingsSection.english.color,
       children: [
         SettingAnchor(
           id: 'en.order',
-          child: GlassCard(
+          child: SettingsRowCard(
             child: Row(
               children: [
-                const Icon(
-                  Icons.reorder_rounded,
-                  size: 18,
-                  color: AppColors.ink2,
-                ),
+                const SettingIcon(Icons.reorder_rounded),
                 const SizedBox(width: Gap.sm),
                 const Expanded(
                   child: Text(
@@ -79,13 +75,17 @@ class _Body extends ConsumerWidget {
         ),
         const SizedBox(height: Gap.md),
 
-        const _SectionLabel('題型'),
         SettingAnchor(
           id: 'en.style',
-          child: GlassCard(
+          child: SettingsRowCard(
             padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 4),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text('題型', style: AppText.label),
+                ),
                 for (final style in QuizStyle.values)
                   _StyleRow(
                     style: style,
@@ -99,7 +99,7 @@ class _Body extends ConsumerWidget {
 
         if (rules.quizStyle == QuizStyle.mixed) ...[
           const SizedBox(height: Gap.sm),
-          GlassCard(
+          SettingsRowCard(
             child: _Stepper(
               title: '一輪幾題要打字',
               note: '其餘都是點選題',
@@ -119,10 +119,9 @@ class _Body extends ConsumerWidget {
         ],
 
         const SizedBox(height: Gap.lg),
-        const _SectionLabel('每天的份量'),
         SettingAnchor(
           id: 'en.daily',
-          child: GlassCard(
+          child: SettingsRowCard(
             child: Column(
               children: [
                 _Stepper(
@@ -166,10 +165,9 @@ class _Body extends ConsumerWidget {
         ),
 
         const SizedBox(height: Gap.lg),
-        const _SectionLabel('判定'),
         SettingAnchor(
           id: 'en.judge',
-          child: GlassCard(
+          child: SettingsRowCard(
             child: Column(
               children: [
                 _Stepper(
@@ -417,7 +415,7 @@ class AppLogoSettingsCard extends StatelessWidget {
   const AppLogoSettingsCard({super.key});
 
   @override
-  Widget build(BuildContext context) => const GlassCard(
+  Widget build(BuildContext context) => const SettingsRowCard(
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -468,18 +466,6 @@ class _LogoThumb extends StatelessWidget {
       ),
     );
   }
-}
-
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(left: 4, bottom: Gap.sm),
-    child: Text(text, style: AppText.label),
-  );
 }
 
 /// 題型選項。整列都可以點，不要只有小圓點能點。

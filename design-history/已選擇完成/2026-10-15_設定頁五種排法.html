@@ -244,6 +244,20 @@ V.push({ name: '6 最終版', final: true, title: '最終版：第 5 版＋從�
     }
     return head + G.map(g => `<div id="sec-${g.id}" data-sec="${g.id}"><div class="gh" style="font-size:15px;color:var(--ink);font-weight:800;padding-left:20px">${g.icon} ${g.name}</div>${groupsOf(g).map(([h, items]) => `${h ? `<div class="gh" style="padding-top:6px">${h}</div>` : ''}<div class="group">${items.map(i => iosRow({ ...i, g }, false).replace('class="row', `id="row-${i.k}" class="row`)).join('')}</div>`).join('')}</div>`).join('') + '<div style="height:520px"></div>';
   } });
+V.push({ name: '7 最終版 2', final: true, title: '最終版 2：第 1 版的 iOS 區塊樣子＋上方分頁籤快速導覽', tag: '你選的・最新・2026-10-15',
+  desc: `<h3>這版再改的</h3><ul><li><b>樣子照第 1 版</b>：一個功能一個區塊（圓角灰底），每列左邊彩色小圖示、右邊目前的值或開關。一個功能就是一塊，不再拆小標題。</li>
+    <li>上方分頁籤保留，點了快速跳到那個功能的區塊；自己往下滑，分頁籤也跟著亮。</li></ul>
+    <h3>沿用第 6 版</h3><ul><li>從哪個功能點齒輪就先跳到那段。</li><li>最上面搜尋框：列出符合的設定，點一下跳過去、那一列閃一下。</li><li>不是從日記／負債進來的，改密碼前要先輸入舊密碼。</li></ul>
+    <h3>模擬從哪裡點齒輪</h3><div class="from">${FROM.map(([id, n]) => `<button class="${S.from === id ? 'on' : ''}" data-from="${id}">從 ${n}</button>`).join('')}</div>`,
+  home() {
+    const tabs = `<div class="tabs" style="position:static;padding:6px 0 10px;background:none">${G.map(g => `<span class="${S.tab === g.id ? 'on' : ''}" data-tab="${g.id}">${g.name.replace('YT 頻道追蹤', 'YT')}</span>`).join('')}</div>`;
+    const head = `<div class="big" style="padding-bottom:0">設定</div><div class="sticky6"><div class="search">⌕ <input placeholder="搜尋設定，例如：播放、同步、冷藏" data-q value="${S.q}">${S.q ? '<span class="x" data-clear>✕</span>' : ''}</div>${S.q ? '' : `<div style="padding:0 16px">${tabs}</div>`}</div>`;
+    if (S.q) {
+      const hits = ALL.filter(i => i.label.includes(S.q) || i.g.name.includes(S.q));
+      return head + (hits.length ? `<div class="gh">找到 ${hits.length} 項，點了跳過去</div><div class="group">${hits.map(i => `<div class="row" data-goto="${i.k}"><span class="icon" style="background:${i.g.color}">${i.g.icon}</span><span class="lb">${hl(i.label)}<span class="small">${i.g.name}</span></span><span class="chev">›</span></div>`).join('')}</div>` : `<div class="gh">找不到「${S.q}」相關的設定</div>`);
+    }
+    return head + G.map(g => `<div id="sec-${g.id}" data-sec="${g.id}"><div class="gh">${g.name}</div><div class="group">${g.items.map(i => iosRow({ ...i, g }).replace('class="row', `id="row-${i.k}" class="row`)).join('')}</div></div>`).join('') + '<div class="gf">設定都會跨裝置同步（API 金鑰、R2 帳號這類帳密除外）。</div><div style="height:520px"></div>';
+  } });
 S.from = 'yt';
 // 跳到某段／某列
 function scrollToSec(id, smooth) { const sc = phone.querySelector('.screen'); const el = sc.querySelector('#sec-' + id); if (el) sc.scrollTo({ top: el.offsetTop - 140, behavior: smooth ? 'smooth' : 'auto' }); }
@@ -261,17 +275,17 @@ function render(keepScroll = true) {
   phone.innerHTML = `<div class="status"><span>21:30</span><span>5G ▮</span></div><div class="screen ${keepScroll ? '' : S.back ? 'back' : ''}" style="${keepScroll ? 'animation:none' : ''}">${content}</div>${menu}${S.toast ? `<div class="toast">${S.toast}</div>` : ''}`;
   const sc = phone.querySelector('.screen'); sc.scrollTop = st;
   const q = phone.querySelector('[data-q]'); if (q && S.focusQ) { q.focus(); q.setSelectionRange(q.value.length, q.value.length); }
-  if ((S.v === 4 || S.v === 5) && !top && !S.q) sc.onscroll = () => { const secs = [...sc.querySelectorAll('[data-sec]')]; let cur = secs[0].dataset.sec; for (const s of secs) if (s.offsetTop - (S.v === 5 ? 160 : 120) <= sc.scrollTop) cur = s.dataset.sec; if (cur !== S.tab) { S.tab = cur; sc.querySelectorAll('.tabs span').forEach(x => x.classList.toggle('on', x.dataset.tab === cur)); } };
+  if ((S.v >= 4) && !top && !S.q) sc.onscroll = () => { const secs = [...sc.querySelectorAll('[data-sec]')]; let cur = secs[0].dataset.sec; for (const s of secs) if (s.offsetTop - (S.v >= 5 ? 160 : 120) <= sc.scrollTop) cur = s.dataset.sec; if (cur !== S.tab) { S.tab = cur; sc.querySelectorAll('.tabs span').forEach(x => x.classList.toggle('on', x.dataset.tab === cur)); } };
 }
 let tt;
 function toast(t) { S.toast = t; clearTimeout(tt); tt = setTimeout(() => { S.toast = null; render(); }, 1700); }
 document.addEventListener('click', e => {
   const el = e.target.closest('[data-v],[data-k],[data-set],[data-close],[data-back],[data-feat],[data-clear],[data-tab],[data-pick],[data-from],[data-goto]');
   if (!el) return; const d = el.dataset; let keep = true;
-  if (d.from) { S.from = d.from; S.v = 5; S.stack = []; S.q = ''; S.tab = d.from; render(false); scrollToSec(d.from, false); toast('從' + FROM.find(f => f[0] === d.from)[1] + '點齒輪 → 直接跳到這段'); return; }
+  if (d.from) { S.from = d.from; S.v = Math.max(S.v, 5); S.stack = []; S.q = ''; S.tab = d.from; render(false); scrollToSec(d.from, false); toast('從' + FROM.find(f => f[0] === d.from)[1] + '點齒輪 → 直接跳到這段'); return; }
   if (d.goto) { const i = find(d.goto); S.q = ''; S.tab = i.g.id; render(); scrollToRow(d.goto); if (i.g.id === 'lock') toast('改密碼前要先輸入舊密碼'); return; }
-  if (d.k && d.k === 'pw' && S.v === 5 && S.from !== 'lock') { toast('先輸入目前的密碼（不是從日記／負債進來）'); return; }
-  if (d.v) { S.v = +d.v; S.stack = []; S.q = ''; S.menu = null; keep = false; S.back = false; if (S.v === 5) { S.tab = S.from; render(false); scrollToSec(S.from, false); return; } }
+  if (d.k && d.k === 'pw' && S.v >= 5 && S.from !== 'lock') { toast('先輸入目前的密碼（不是從日記／負債進來）'); return; }
+  if (d.v) { S.v = +d.v; S.stack = []; S.q = ''; S.menu = null; keep = false; S.back = false; if (S.v >= 5) { S.tab = S.from; render(false); scrollToSec(S.from, false); return; } }
   else if (d.set) { S.vals[d.set] = d.val; S.menu = null; toast(`${find(d.set).label}：${d.val}（已同步）`); }
   else if (d.k) { const before = S.stack.length; tap(d.k, el); if (S.stack.length !== before) keep = false; }
   else if (d.close !== undefined) S.menu = null;
@@ -284,11 +298,11 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('compositionend', e => { if (e.target.matches('[data-q]')) { S.q = e.target.value.trim(); S.focusQ = true; render(); S.focusQ = false; } });
 document.addEventListener('input', e => { if (e.target.matches('[data-q]') && !e.isComposing) { S.q = e.target.value.trim(); S.focusQ = true; render(); S.focusQ = false; } });
-if (/^#[1-6]$/.test(location.hash)) S.v = +location.hash[1] - 1;
-else S.v = 5; // 打開先看最終版
-if (S.v === 5) S.tab = S.from;
+if (/^#[1-7]$/.test(location.hash)) S.v = +location.hash[1] - 1;
+else S.v = 6; // 打開先看最終版
+if (S.v >= 5) S.tab = S.from;
 render();
-if (S.v === 5) scrollToSec(S.from, false);
+if (S.v >= 5) scrollToSec(S.from, false);
 </script>
 </body>
 </html>
