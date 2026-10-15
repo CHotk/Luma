@@ -372,88 +372,74 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
             container.read(ytTrackerRepositoryProvider),
             onPhase: onPhase,
           );
-          final ytVideoResult = await service.syncYtVideoCache(
-            YtVideoCacheStore(container.read(keyValueStoreProvider)),
-            await container.read(ytTrackerRepositoryProvider).loadChannels(),
-          );
-          // 影片「看過了」記錄也算 YT 這個功能範疇內的資料（2026-09-29
-          // 使用者要求），跟分類／頻道／影片快取一起同步，不另開一個
-          // 平行任務。分類顯示順序也是（2026-09-30 使用者回報：原本這個
-          // 設定只存本機，從沒接進同步，A 裝置調完順序 B 裝置看不到）。
-          final watchResult = await service.syncYtVideoWatch(
-            YtVideoWatchStore(container.read(keyValueStoreProvider)),
-          );
-          final orderResult = await service.syncYtCategoryOrder(
-            YtCategoryOrderStore(container.read(keyValueStoreProvider)),
-          );
-          // 頻道紀錄（2026-10-06）也是 YT 範疇內的資料，一起同步。
-          final logResult = await service.syncYtChannelLog(
-            YtChannelLogStore(container.read(keyValueStoreProvider)),
-          );
-          // YT 顯示設定（2026-10-12）也一起；別台改過就套用到畫面。
-          final prefsStore = YtDisplayPrefsStore(
-            container.read(keyValueStoreProvider),
-          );
-          final prefsResult = await service.syncYtDisplayPrefs(prefsStore);
-          if (prefsResult.downloaded > 0) {
-            container.read(ytDisplayPrefsProvider.notifier).state =
-                await prefsStore.load();
-          }
-          // 播放清單（2026-10-14）也是 YT 的資料。
-          final playlistStore = YtPlaylistStore(
-            container.read(keyValueStoreProvider),
-          );
-          final playlistResult = await service.syncYtPlaylists(playlistStore);
-          if (playlistResult.downloaded > 0) {
-            container.read(ytPlaylistsProvider.notifier).state =
-                await playlistStore.loadAll();
-          }
-          // 原本只存本機的 YT 設定跟最近搜尋（2026-10-15 使用者要求也要
-          // 同步）：點影片時、播放器樣式、訂閱人數更新頻率、最近搜尋。
+          // 分類／頻道同步完之後，下面這些彼此不相關，同時跑（2026-10-15
+          // 使用者要求 YT 同步加速；原本一項等一項）。各自是什麼：
+          // - 影片快取：要用剛同步完的頻道清單。
+          // - 影片「看過了」記錄（2026-09-29）、分類顯示順序（2026-09-30：
+          //   原本只存本機）、頻道紀錄（2026-10-06）、YT 顯示設定（2026-10-12，
+          //   別台改過就套用到畫面）、播放清單（2026-10-14）。
+          // - 原本只存本機的 YT 設定跟最近搜尋（2026-10-15）：點影片時、
+          //   播放器樣式、訂閱人數更新頻率、最近搜尋。
           final kv = container.read(keyValueStoreProvider);
+          final channels = await container
+              .read(ytTrackerRepositoryProvider)
+              .loadChannels();
+          final prefsStore = YtDisplayPrefsStore(kv);
+          final playlistStore = YtPlaylistStore(kv);
           final openMode = YtVideoOpenModeStore(kv);
-          final openResult = await service.syncStampedSetting(openMode.record);
-          if (openResult.downloaded > 0) {
-            container.read(ytVideoOpenModeProvider.notifier).state =
-                await openMode.load();
-          }
           final playerStyle = YtEmbedPlayerStyleStore(kv);
-          final styleResult = await service.syncStampedSetting(
-            playerStyle.record,
-          );
-          if (styleResult.downloaded > 0) {
-            container.read(ytEmbedPlayerStyleProvider.notifier).state =
-                await playerStyle.load();
-          }
           final statsDays = YtStatsRefreshSettingStore(kv);
-          final daysResult = await service.syncStampedSetting(statsDays.record);
-          if (daysResult.downloaded > 0) {
-            container.read(ytStatsRefreshDaysProvider.notifier).state =
-                await statsDays.load();
-          }
-          final recentsResult = await service.syncStampedSetting(
-            YtSearchRecentsStore(kv).record,
-          );
-          final extras = [openResult, styleResult, daysResult, recentsResult];
+          final results = await Future.wait([
+            service.syncYtVideoCache(YtVideoCacheStore(kv), channels),
+            service.syncYtVideoWatch(YtVideoWatchStore(kv)),
+            service.syncYtCategoryOrder(YtCategoryOrderStore(kv)),
+            service.syncYtChannelLog(YtChannelLogStore(kv)),
+            service.syncYtDisplayPrefs(prefsStore).then((r) async {
+              if (r.downloaded > 0) {
+                container.read(ytDisplayPrefsProvider.notifier).state =
+                    await prefsStore.load();
+              }
+              return r;
+            }),
+            service.syncYtPlaylists(playlistStore).then((r) async {
+              if (r.downloaded > 0) {
+                container.read(ytPlaylistsProvider.notifier).state =
+                    await playlistStore.loadAll();
+              }
+              return r;
+            }),
+            service.syncStampedSetting(openMode.record).then((r) async {
+              if (r.downloaded > 0) {
+                container.read(ytVideoOpenModeProvider.notifier).state =
+                    await openMode.load();
+              }
+              return r;
+            }),
+            service.syncStampedSetting(playerStyle.record).then((r) async {
+              if (r.downloaded > 0) {
+                container.read(ytEmbedPlayerStyleProvider.notifier).state =
+                    await playerStyle.load();
+              }
+              return r;
+            }),
+            service.syncStampedSetting(statsDays.record).then((r) async {
+              if (r.downloaded > 0) {
+                container.read(ytStatsRefreshDaysProvider.notifier).state =
+                    await statsDays.load();
+              }
+              return r;
+            }),
+            service.syncStampedSetting(YtSearchRecentsStore(kv).record),
+          ]);
           return (
-            downloaded:
-                ytResult.downloaded +
-                ytVideoResult.downloaded +
-                watchResult.downloaded +
-                orderResult.downloaded +
-                logResult.downloaded +
-                prefsResult.downloaded +
-                playlistResult.downloaded +
-                extras.fold<int>(0, (n, r) => n + r.downloaded),
-            uploaded:
-                ytResult.uploaded +
-                ytVideoResult.uploaded +
-                watchResult.uploaded +
-                orderResult.uploaded +
-                logResult.uploaded +
-                prefsResult.uploaded +
-                playlistResult.uploaded +
-                extras.fold<int>(0, (n, r) => n + r.uploaded),
+            downloaded: results.fold<int>(
+              ytResult.downloaded,
+              (n, r) => n + r.downloaded,
+            ),
+            uploaded: results.fold<int>(
+              ytResult.uploaded,
+              (n, r) => n + r.uploaded,
+            ),
           );
         }),
         run('五十音練習', (p) => _kanaPracticePhase = p, (onPhase) async {

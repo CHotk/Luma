@@ -77,7 +77,9 @@ class R2SyncService {
     return hash.toRadixString(16);
   }
 
-  Future<({String localHash, String etag})?> _readMeta(String key) async {
+  Future<({String localHash, String etag, String? rev})?> _readMeta(
+    String key,
+  ) async {
     final store = _metaStore;
     if (store == null) return null;
     final raw = await store.read('r2_sync.meta.$key');
@@ -86,17 +88,28 @@ class R2SyncService {
     final hash = map['localHash'] as String?;
     final etag = map['etag'] as String?;
     if (hash == null || etag == null) return null;
-    return (localHash: hash, etag: etag);
+    return (localHash: hash, etag: etag, rev: map['rev'] as String?);
   }
 
-  Future<void> _writeMeta(String key, List<int> bodyBytes, String? etag) async {
+  /// [rev] 選填：本機那份資料自己的版本記號（目前只有 YT 影片快取有，見
+  /// [YtVideoCacheStore.revision]），有記就不用每次重算指紋。
+  Future<void> _writeMeta(
+    String key,
+    List<int> bodyBytes,
+    String? etag, {
+    String? rev,
+  }) async {
     final store = _metaStore;
     // 拿不到 ETag（少數伺服器行為差異）就不記，下次退回照樣整包做一輪，
     // 不能拿 null 去跟下次的 null 誤判成「一樣」。
     if (store == null || etag == null) return;
     await store.write(
       'r2_sync.meta.$key',
-      jsonEncode({'localHash': _fingerprint(bodyBytes), 'etag': etag}),
+      jsonEncode({
+        'localHash': _fingerprint(bodyBytes),
+        'etag': etag,
+        'rev': ?rev,
+      }),
     );
   }
 
@@ -424,7 +437,15 @@ class R2SyncService {
   /// 要求加速）——[_channelSyncConcurrency] 限制同時處理幾個頻道，不是
   /// 全部一次丟出去：瀏覽器對同網域的併發連線本來就有上限（通常 6），
   /// 開太多批次反而互相排隊，一樣沒有變快。
-  static const _channelSyncConcurrency = 6;
+  ///
+  /// 2026-10-15 再加速（使用者要求）：
+  /// - 雲端：先列一次 `yt_video_cache/` 底下全部檔案的 ETag
+  ///   （[R2Client.listEtags]），不再每個頻道各問一次 HEAD。列不到就退回
+  ///   一個一個問。
+  /// - 本機：看 [YtVideoCacheStore.revision]，跟上次同步完一樣就是沒動過，
+  ///   不用把整份影片讀出來算指紋。
+  /// - 同時處理的頻道 6 → 12（R2 走 HTTP/2，一條連線就能同時跑很多個）。
+  static const _channelSyncConcurrency = 12;
 
   Future<({int downloaded, int uploaded})> syncYtVideoCache(
     YtVideoCacheStore cache,
@@ -432,10 +453,18 @@ class R2SyncService {
   ) async {
     var downloaded = 0;
     var uploaded = 0;
+    Map<String, String>? cloudEtags;
+    try {
+      cloudEtags = await _client.listEtags('yt_video_cache/');
+    } catch (_) {
+      // 列不到就一個一個問，慢一點但結果一樣。
+    }
     for (var i = 0; i < channels.length; i += _channelSyncConcurrency) {
       final batch = channels.skip(i).take(_channelSyncConcurrency);
       final results = await Future.wait(
-        batch.map((c) => _syncOneChannelVideoCache(cache, c)),
+        batch.map(
+          (c) => _syncOneChannelVideoCache(cache, c, cloudEtags: cloudEtags),
+        ),
       );
       for (final r in results) {
         downloaded += r.downloaded;
@@ -445,22 +474,58 @@ class R2SyncService {
     return (downloaded: downloaded, uploaded: uploaded);
   }
 
-  Future<({int downloaded, int uploaded})> _syncOneChannelVideoCache(
+  /// 這份影片快取的內容（上傳、算指紋都用這個格式）。
+  Future<List<int>> _videoCacheBytes(
     YtVideoCacheStore cache,
-    YtChannel channel,
+    String channelId,
   ) async {
-    final key = 'yt_video_cache/${channel.id}.json';
-    final local0 = await cache.load(channel.id);
-    final localAt0 = await cache.lastFetchedAt(channel.id);
-    final localResume0 = await cache.loadResume(channel.id);
-    final beforeBytes = utf8.encode(
+    final videos = await cache.load(channelId);
+    final at = await cache.lastFetchedAt(channelId);
+    final resume = await cache.loadResume(channelId);
+    return utf8.encode(
       jsonEncode({
-        'fetchedAt': localAt0?.toIso8601String(),
-        'resume': localResume0?.toJson(),
-        'videos': [for (final v in local0) v.toJson()],
+        'fetchedAt': at?.toIso8601String(),
+        'resume': resume?.toJson(),
+        'videos': [for (final v in videos) v.toJson()],
       }),
     );
-    if (await _canSkip(key, beforeBytes)) {
+  }
+
+  /// 兩邊都沒動過，可以整個跳過嗎？[cloudEtags] 是先列好的雲端清單
+  /// （null＝沒列到，改成問一次 HEAD）。
+  Future<bool> _canSkipVideoCache(
+    YtVideoCacheStore cache,
+    String channelId,
+    String key,
+    Map<String, String>? cloudEtags,
+  ) async {
+    final meta = await _readMeta(key);
+    if (meta == null) return false;
+    final rev = await cache.revision(channelId);
+    var localSame = meta.rev == rev;
+    if (!localSame && meta.rev == null) {
+      // 加速之前記的（還沒有版本記號）：照舊算一次指紋，對得上就補記號，
+      // 下次起就不用再算。
+      final bytes = await _videoCacheBytes(cache, channelId);
+      localSame = meta.localHash == _fingerprint(bytes);
+      if (localSame && await cache.revision(channelId) == rev) {
+        await _writeMeta(key, bytes, meta.etag, rev: rev);
+      }
+    }
+    if (!localSame) return false;
+    final remote = cloudEtags != null
+        ? cloudEtags[key]
+        : await _client.headObject(key);
+    return remote != null && remote == meta.etag;
+  }
+
+  Future<({int downloaded, int uploaded})> _syncOneChannelVideoCache(
+    YtVideoCacheStore cache,
+    YtChannel channel, {
+    Map<String, String>? cloudEtags,
+  }) async {
+    final key = 'yt_video_cache/${channel.id}.json';
+    if (await _canSkipVideoCache(cache, channel.id, key, cloudEtags)) {
       return (downloaded: 0, uploaded: 0);
     }
 
@@ -491,6 +556,9 @@ class R2SyncService {
       );
     }
 
+    // 先記版本記號再讀內容：讀完之後才有人改（背景還在抓影片），記號
+    // 就會跟這次記的不一樣，下次照樣會同步到。
+    final rev = await cache.revision(channel.id);
     final local = await cache.load(channel.id);
     if (local.isEmpty) return (downloaded: downloaded, uploaded: 0);
     final localAt = await cache.lastFetchedAt(channel.id);
@@ -510,7 +578,7 @@ class R2SyncService {
     if (!needsUpload) {
       // 沒有要上傳，代表本地跟雲端這次抓下來的內容一致——把這份記下來，
       // 下次同一台裝置再同步、雲端 ETag 沒變的話就能直接跳過。
-      await _writeMeta(key, bytes, fetched.etag);
+      await _writeMeta(key, bytes, fetched.etag, rev: rev);
       return (downloaded: downloaded, uploaded: 0);
     }
     final body = utf8.encode(
@@ -521,7 +589,7 @@ class R2SyncService {
       }),
     );
     final etag = await _client.putObject(key, Uint8List.fromList(body));
-    await _writeMeta(key, body, etag);
+    await _writeMeta(key, body, etag, rev: rev);
     return (downloaded: downloaded, uploaded: diff.length);
   }
 

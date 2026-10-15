@@ -47,6 +47,9 @@ dependencies:
   # YT 頻道追蹤「依影片顯示」用的：直接呼叫 YouTube Data API v3 抓頻道
   # 最新影片，純前端打 Google API 走 HTTP，不用整包 googleapis SDK。
   http: ^1.2.2
+  # 網頁版跟 R2 講話時直接用瀏覽器 fetch、指定不走 HTTP 快取（見
+  # data/cloud/r2_http_client_web.dart）。本來就是 Flutter 帶進來的套件。
+  web: ^1.1.1
   # 多裝置同步用的：R2 的 S3 相容 API 要求 AWS SigV4 簽章，簽章要用
   # HMAC-SHA256／SHA256，Dart 沒有內建，這個是官方維護的標準套件。
   crypto: ^3.0.6

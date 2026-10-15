@@ -61,13 +61,37 @@ class YtVideoCacheStore {
     return list;
   }
 
-  Future<void> _writeVideos(String channelId, Iterable<YoutubeVideo> videos) {
+  Future<void> _writeVideos(
+    String channelId,
+    Iterable<YoutubeVideo> videos,
+  ) async {
     final list = videos.toList();
     YtVideoTags.publish(list);
-    return _store.write(
+    await _store.write(
       _keyFor(channelId),
       jsonEncode([for (final v in list) v.toJson()]),
     );
+    await _bump(channelId);
+  }
+
+  static String _revKeyFor(String channelId) =>
+      'yt_tracker.video_cache_rev.$channelId.v1';
+  static var _revSeq = 0;
+
+  /// 本機這個頻道「會同步的內容」（影片、上次對過 YouTube 的時間、翻到
+  /// 哪裡）一改就換一個新記號（2026-10-15 使用者要求 YT 同步加速）：同步時
+  /// 記號跟上次同步完一樣，就知道本機沒動過，不用把整份影片讀出來算指紋。
+  Future<void> _bump(String channelId) => _store.write(
+    _revKeyFor(channelId),
+    '${DateTime.now().microsecondsSinceEpoch}-${_revSeq++}',
+  );
+
+  /// 目前的版本記號；還沒有就先建一個。
+  Future<String> revision(String channelId) async {
+    final raw = await _store.read(_revKeyFor(channelId));
+    if (raw != null) return raw;
+    await _bump(channelId);
+    return (await _store.read(_revKeyFor(channelId)))!;
   }
 
   /// 同一個頻道的快取「讀出來→改→寫回去」一次只跑一個（2026-10-08
@@ -130,6 +154,8 @@ class YtVideoCacheStore {
       _resumeKeyFor(channelId, kind),
       jsonEncode(next.toJson()),
     );
+    // 類型那幾份不同步，不用換記號。
+    if (kind == null) await _bump(channelId);
   }
 
   /// 把新抓到的影片併進快取（不動「上次對過 YouTube 的時間」）。已經有
@@ -194,6 +220,7 @@ class YtVideoCacheStore {
     if (changed > 0) await _writeVideos(channelId, byId.values);
     if (newest != null && newest != localAt) {
       await _store.write(_stampKeyFor(channelId), newest.toIso8601String());
+      await _bump(channelId);
     }
     return changed;
   }
@@ -274,6 +301,7 @@ class YtVideoCacheStore {
           _stampKeyFor(channelId),
           DateTime.now().toIso8601String(),
         );
+        await _bump(channelId);
       });
 }
 

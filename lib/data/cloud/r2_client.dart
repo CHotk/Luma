@@ -3,6 +3,8 @@ import 'dart:typed_data';
 import 'package:aws_common/aws_common.dart';
 import 'package:aws_signature_v4/aws_signature_v4.dart';
 import 'package:http/http.dart' as http;
+
+import 'r2_http_client.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 
 /// R2 連線用的憑證。三個欄位對應設定頁輸入卡片的三個欄位（見
@@ -59,7 +61,7 @@ class R2Client {
     required this.credentials,
     required this.bucket,
     http.Client? httpClient,
-  }) : _http = httpClient ?? http.Client(),
+  }) : _http = httpClient ?? createR2HttpClient(),
        _signer = AWSSigV4Signer(
          credentialsProvider: AWSCredentialsProvider(
            AWSCredentials(credentials.accessKeyId, credentials.secretAccessKey),
@@ -181,6 +183,49 @@ class R2Client {
       if (token == null) break;
     }
     return keys;
+  }
+
+  /// 列出 [prefix] 底下每個檔案的 ETag（key → ETag，跟 [headObject] 拿到的
+  /// 一樣、去掉引號）。一次請求最多 1000 個檔案（2026-10-15 使用者要求 YT
+  /// 同步加速：原本每個頻道的影片快取各問一次 HEAD，頻道一多就要排好幾輪，
+  /// 改成列一次清單就全部知道）。
+  Future<Map<String, String>> listEtags(String prefix) async {
+    final out = <String, String>{};
+    String? token;
+    final itemRe = RegExp(r'<Contents>(.*?)</Contents>', dotAll: true);
+    final keyRe = RegExp(r'<Key>(.*?)</Key>', dotAll: true);
+    final etagRe = RegExp(r'<ETag>(.*?)</ETag>', dotAll: true);
+    final tokenRe = RegExp(
+      r'<NextContinuationToken>(.*?)</NextContinuationToken>',
+      dotAll: true,
+    );
+    for (var page = 0; page < 1000; page++) {
+      final uri = Uri.parse(credentials.endpoint).replace(
+        pathSegments: [bucket],
+        queryParameters: {
+          'list-type': '2',
+          'prefix': prefix,
+          'continuation-token': ?token,
+        },
+      );
+      final res = await _send(AWSHttpRequest.get(uri));
+      if (res.statusCode >= 300) {
+        throw R2Exception(_errorMessage(res));
+      }
+      final body = res.body;
+      for (final m in itemRe.allMatches(body)) {
+        final item = m[1]!;
+        final key = keyRe.firstMatch(item)?.group(1);
+        final etag = etagRe.firstMatch(item)?.group(1);
+        if (key == null || etag == null) continue;
+        out[_unescapeXml(key)] = _unescapeXml(etag).replaceAll('"', '');
+      }
+      token = body.contains('<IsTruncated>true</IsTruncated>')
+          ? tokenRe.firstMatch(body)?.group(1)
+          : null;
+      if (token == null) break;
+    }
+    return out;
   }
 
   static String _unescapeXml(String s) => s
