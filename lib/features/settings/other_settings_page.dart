@@ -983,6 +983,71 @@ class _YtDisplayPrefsRows extends ConsumerWidget {
         ),
         // 影片下架檢查多久一次（2026-10-12 使用者要求：設定可調、跨裝置同步）。
         SettingAnchor(
+          id: 'yt.views',
+          child: Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.only(top: 2),
+                  child: SettingIcon(),
+                ),
+                const SizedBox(width: Gap.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        '觀看次數更新',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.ink,
+                        ),
+                      ),
+                      Text(
+                        prefs.viewsRefreshDays <= 0
+                            ? '不更新，只有新抓到的影片會帶觀看次數'
+                            : '打開頻道時在背景重抓：一個月內的影片每次都抓，其他超過這麼久沒更新的才抓（50 部 1 點配額）',
+                        style: AppText.note,
+                      ),
+                      const SizedBox(height: Gap.xs),
+                      SegmentedButton<int>(
+                        segments: [
+                          for (final d in YtDisplayPrefs.viewsRefreshChoices)
+                            ButtonSegment(
+                              value: d,
+                              label: Text(switch (d) {
+                                0 => '不更新',
+                                7 => '一週',
+                                14 => '兩週',
+                                30 => '一個月',
+                                _ => '$d 天',
+                              }),
+                            ),
+                        ],
+                        selected: {prefs.viewsRefreshDays},
+                        showSelectedIcon: false,
+                        onSelectionChanged: (s) =>
+                            update(prefs.copyWith(viewsRefreshDays: s.first)),
+                        style: SegmentedButton.styleFrom(
+                          backgroundColor: AppColors.glassFill,
+                          foregroundColor: AppColors.ink2,
+                          selectedBackgroundColor: AppColors.accentSolid
+                              .withValues(alpha: 0.28),
+                          selectedForegroundColor: AppColors.ink,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        SettingAnchor(
           id: 'yt.removed',
           child: Padding(
             padding: const EdgeInsets.only(top: 6),

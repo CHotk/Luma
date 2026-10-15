@@ -13,6 +13,7 @@ import '../../data/repositories/yt_playlist_store.dart';
 import '../../data/repositories/yt_video_hidden_store.dart';
 import '../../data/repositories/yt_video_open_mode_store.dart';
 import '../../data/repositories/yt_video_tags.dart';
+import '../../data/repositories/yt_video_views.dart';
 import '../../data/repositories/yt_video_watch_store.dart';
 import '../../data/services/youtube_api_service.dart';
 import '../../domain/models/yt_video_watch.dart';
@@ -937,7 +938,18 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
                                   ),
                                 ),
                                 const SizedBox(height: 4),
-                                Text(widget.subtitle, style: AppText.note),
+                                // 觀看次數（2026-10-15）：影片本身沒帶就從共用
+                                // 的 [YtVideoViews] 補，背景更新完會自己重畫。
+                                ValueListenableBuilder(
+                                  valueListenable: YtVideoViews.notifier,
+                                  builder: (context, views, _) => Text(
+                                    withViewsText(
+                                      widget.subtitle,
+                                      video.viewCount ?? views[video.videoId],
+                                    ),
+                                    style: AppText.note,
+                                  ),
+                                ),
                                 _SavedIn(videoId: video.videoId),
                               ],
                             ),
@@ -1043,6 +1055,34 @@ class _SwipeActionButton extends StatelessWidget {
       ),
     );
   }
+}
+
+/// 觀看次數寫法，跟 YouTube 中文版一樣：一萬以下照寫、萬／億一位小數。
+String formatViewCount(int n) {
+  String unit(double v, String u) {
+    final t = v < 10 ? v.toStringAsFixed(1) : v.floor().toString();
+    return '${t.endsWith('.0') ? t.substring(0, t.length - 2) : t} $u';
+  }
+
+  if (n >= 100000000) return unit(n / 100000000, '億次');
+  if (n >= 10000) return unit(n / 10000, '萬次');
+  final s = n.toString();
+  final b = StringBuffer();
+  for (var i = 0; i < s.length; i++) {
+    if (i > 0 && (s.length - i) % 3 == 0) b.write(',');
+    b.write(s[i]);
+  }
+  return '$b 次';
+}
+
+/// 把觀看次數插進副標題：放在「幾天前」那段前面（YouTube 的順序），
+/// 沒有那段就接在最後。[views] 是 null 就原樣。
+String withViewsText(String subtitle, int? views) {
+  if (views == null) return subtitle;
+  final parts = subtitle.split('・');
+  final i = parts.lastIndexWhere((p) => p.endsWith('前'));
+  parts.insert(i < 0 ? parts.length : i, formatViewCount(views));
+  return parts.where((p) => p.isNotEmpty).join('・');
 }
 
 String ytRelativeTime(DateTime t) {

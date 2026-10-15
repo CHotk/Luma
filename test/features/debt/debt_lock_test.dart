@@ -59,9 +59,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [keyValueStoreProvider.overrideWithValue(store)],
-        child: const MaterialApp(
-          home: AllSettingsPage(fromLocation: '/debt'),
-        ),
+        child: const MaterialApp(home: AllSettingsPage(fromLocation: '/debt')),
       ),
     );
     await tester.pumpAndSettle();

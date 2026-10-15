@@ -20,6 +20,7 @@ import '../../data/services/youtube_api_service.dart';
 import '../../data/services/yt_channel_filler.dart';
 import '../../data/services/yt_channel_search.dart';
 import '../../data/services/yt_removed_video_checker.dart';
+import '../../data/services/yt_view_count_refresher.dart';
 import '../../data/services/yt_video_type_scanner.dart';
 import '../../domain/models/yt_tracker.dart';
 import '../../domain/models/yt_video_watch.dart';
@@ -810,6 +811,27 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
   /// 馬上退出也會跑完、寫回快取。還在這頁的話，查完把畫面上的影片換成
   /// 標好的那份，有新下架的提示一下。
   String? _removedCheckStartedFor;
+
+  /// 觀看次數（2026-10-15 使用者要求）：進頻道才觸發，超過設定天數沒更新
+  /// 的影片在背景重抓，不綁頁面（跟下架檢查一樣）。抓到的寫回快取、發布
+  /// 到 [YtVideoViews]，畫面上的影片列自己會更新。
+  String? _viewsStartedFor;
+
+  void _refreshViewCounts(YtChannel channel) {
+    if (_viewsStartedFor == channel.id) return;
+    _viewsStartedFor = channel.id;
+    final apiKey = ref.read(ytApiKeyProvider);
+    if (apiKey == null || apiKey.isEmpty) return;
+    final days = ref.read(ytDisplayPrefsProvider).viewsRefreshDays;
+    if (days <= 0) return;
+    YtViewCountRefresher(
+      ref.read(keyValueStoreProvider),
+      YoutubeApiService(apiKey),
+    ).refreshIfDue(channel.id, every: Duration(days: days)).catchError((_) {
+      // 配額用完、沒網路：下次進來再說。
+      return 0;
+    });
+  }
 
   Future<void> _checkRemovedVideos(YtChannel channel) async {
     if (_removedCheckStartedFor == channel.id) return;
@@ -1797,6 +1819,7 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                         _ensureHistoryLoaded(channel);
                         _scanVideoTypes();
                         _checkRemovedVideos(channel);
+                        _refreshViewCounts(channel);
                       });
 
                       return Column(

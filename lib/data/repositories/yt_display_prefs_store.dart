@@ -16,6 +16,7 @@ class YtDisplayPrefs {
     this.showScrollbar = true,
     this.showBackToTop = true,
     this.removedCheckDays = defaultRemovedCheckDays,
+    this.viewsRefreshDays = defaultViewsRefreshDays,
     this.backToTopRight = defaultBackToTopRight,
     this.backToTopBottom = defaultBackToTopBottom,
     required this.updatedAt,
@@ -56,6 +57,12 @@ class YtDisplayPrefs {
 
   static const defaultRemovedCheckDays = 14;
 
+  /// 觀看次數多久更新一次（2026-10-15 使用者要求：預設一週、進頻道才
+  /// 觸發、背景慢慢更新、設定可調）。0＝不更新（新抓到的影片照樣有）。
+  final int viewsRefreshDays;
+  static const defaultViewsRefreshDays = 7;
+  static const viewsRefreshChoices = [3, 7, 14, 30, 0];
+
   /// 「回到最上面」按鈕離右邊、下面多遠（2026-10-12 使用者要求：起始
   /// 位置靠上一點、可以拖；拖完記住，跟著同步）。
   final double backToTopRight;
@@ -82,6 +89,7 @@ class YtDisplayPrefs {
     bool? showScrollbar,
     bool? showBackToTop,
     int? removedCheckDays,
+    int? viewsRefreshDays,
     double? backToTopRight,
     double? backToTopBottom,
     DateTime? updatedAt,
@@ -95,6 +103,7 @@ class YtDisplayPrefs {
     showScrollbar: showScrollbar ?? this.showScrollbar,
     showBackToTop: showBackToTop ?? this.showBackToTop,
     removedCheckDays: removedCheckDays ?? this.removedCheckDays,
+    viewsRefreshDays: viewsRefreshDays ?? this.viewsRefreshDays,
     backToTopRight: backToTopRight ?? this.backToTopRight,
     backToTopBottom: backToTopBottom ?? this.backToTopBottom,
     updatedAt: updatedAt ?? this.updatedAt,
@@ -110,6 +119,7 @@ class YtDisplayPrefs {
     'showScrollbar': showScrollbar,
     'showBackToTop': showBackToTop,
     'removedCheckDays': removedCheckDays,
+    'viewsRefreshDays': viewsRefreshDays,
     'backToTopRight': backToTopRight,
     'backToTopBottom': backToTopBottom,
     'updatedAt': updatedAt.toIso8601String(),
@@ -127,6 +137,8 @@ class YtDisplayPrefs {
     showBackToTop: j['showBackToTop'] as bool? ?? true,
     removedCheckDays:
         (j['removedCheckDays'] as num?)?.toInt() ?? defaultRemovedCheckDays,
+    viewsRefreshDays:
+        (j['viewsRefreshDays'] as num?)?.toInt() ?? defaultViewsRefreshDays,
     backToTopRight:
         (j['backToTopRight'] as num?)?.toDouble() ?? defaultBackToTopRight,
     backToTopBottom:

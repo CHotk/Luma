@@ -65,9 +65,8 @@ ThemeData buildAppTheme() {
               : fill,
         ),
         foregroundColor: WidgetStateProperty.resolveWith(
-          (s) => s.contains(WidgetState.selected)
-              ? AppColors.ink
-              : AppColors.ink2,
+          (s) =>
+              s.contains(WidgetState.selected) ? AppColors.ink : AppColors.ink2,
         ),
       ),
     ),

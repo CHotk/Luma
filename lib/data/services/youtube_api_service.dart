@@ -58,6 +58,8 @@ class YoutubeVideo {
     this.isShort,
     this.isLive,
     this.removedAt,
+    this.viewCount,
+    this.viewsAt,
   });
 
   final String videoId;
@@ -90,6 +92,12 @@ class YoutubeVideo {
   /// 就是下架了。快取不刪，標記起來，「已下架」分類看得到是哪幾部。
   final DateTime? removedAt;
 
+  /// 觀看次數跟抓到的時間（2026-10-15 使用者要求）。數字會一直變，存的是
+  /// [viewsAt] 那一刻的；打開頻道時超過設定的天數就背景重抓（見
+  /// [YtViewCountRefresher]）。還沒抓過是 null。
+  final int? viewCount;
+  final DateTime? viewsAt;
+
   String get watchUrl => 'https://www.youtube.com/watch?v=$videoId';
 
   /// Shorts／一般影片的分辨啟發式判斷。YouTube Data API **沒有**任何
@@ -115,6 +123,8 @@ class YoutubeVideo {
     isShort: isShort,
     isLive: isLive,
     removedAt: removedAt,
+    viewCount: viewCount,
+    viewsAt: viewsAt,
   );
 
   YoutubeVideo withShort(bool value) => YoutubeVideo(
@@ -126,6 +136,8 @@ class YoutubeVideo {
     isShort: value,
     isLive: isLive,
     removedAt: removedAt,
+    viewCount: viewCount,
+    viewsAt: viewsAt,
   );
 
   YoutubeVideo withLive(bool value) => YoutubeVideo(
@@ -137,6 +149,8 @@ class YoutubeVideo {
     isShort: isShort,
     isLive: value,
     removedAt: removedAt,
+    viewCount: viewCount,
+    viewsAt: viewsAt,
   );
 
   /// [at] 是 null＝又查到了（重新公開），拿掉下架標記。
@@ -149,6 +163,21 @@ class YoutubeVideo {
     isShort: isShort,
     isLive: isLive,
     removedAt: at,
+    viewCount: viewCount,
+    viewsAt: viewsAt,
+  );
+
+  YoutubeVideo withViews(int count, DateTime at) => YoutubeVideo(
+    videoId: videoId,
+    title: title,
+    publishedAt: publishedAt,
+    thumbnailUrl: thumbnailUrl,
+    duration: duration,
+    isShort: isShort,
+    isLive: isLive,
+    removedAt: removedAt,
+    viewCount: count,
+    viewsAt: at,
   );
 
   /// 給 `yt_video_cache_store.dart` 落地快取用——只有歷史影片（上傳
@@ -162,6 +191,8 @@ class YoutubeVideo {
     'isShort': isShort,
     'isLive': isLive,
     if (removedAt != null) 'removedAt': removedAt!.toIso8601String(),
+    if (viewCount != null) 'views': viewCount,
+    if (viewsAt != null) 'viewsAt': viewsAt!.toIso8601String(),
   };
 
   factory YoutubeVideo.fromJson(Map<String, dynamic> json) => YoutubeVideo(
@@ -175,6 +206,8 @@ class YoutubeVideo {
     isShort: json['isShort'] as bool?,
     isLive: json['isLive'] as bool?,
     removedAt: DateTime.tryParse(json['removedAt'] as String? ?? ''),
+    viewCount: (json['views'] as num?)?.toInt(),
+    viewsAt: DateTime.tryParse(json['viewsAt'] as String? ?? ''),
   );
 }
 
@@ -483,6 +516,70 @@ class YoutubeApiService {
       }
     }
     return result;
+  }
+
+  /// 時長＋觀看次數一起抓（2026-10-15）：跟 [fetchDurations] 同一支 API、
+  /// 同樣 50 部 1 單位，多要 `statistics` 不多花配額。
+  Future<Map<String, ({Duration duration, int? views})>> fetchDetails(
+    List<String> videoIds,
+  ) async {
+    final result = <String, ({Duration duration, int? views})>{};
+    for (var i = 0; i < videoIds.length; i += 50) {
+      final batch = videoIds.sublist(
+        i,
+        i + 50 > videoIds.length ? videoIds.length : i + 50,
+      );
+      final items = await _videosList('contentDetails,statistics', batch);
+      for (final item in items) {
+        result[item['id'] as String] = (
+          duration: parseIso8601Duration(
+            (item['contentDetails'] as Map<String, dynamic>)['duration']
+                as String,
+          ),
+          views: _viewsOf(item),
+        );
+      }
+    }
+    return result;
+  }
+
+  /// 只抓觀看次數（2026-10-15 背景更新用，見 [YtViewCountRefresher]）。
+  /// 50 部 1 單位；下架的不會回來，就不在結果裡。
+  Future<Map<String, int>> fetchViewCounts(List<String> videoIds) async {
+    final result = <String, int>{};
+    for (var i = 0; i < videoIds.length; i += 50) {
+      final batch = videoIds.sublist(
+        i,
+        i + 50 > videoIds.length ? videoIds.length : i + 50,
+      );
+      for (final item in await _videosList('statistics', batch)) {
+        final v = _viewsOf(item);
+        if (v != null) result[item['id'] as String] = v;
+      }
+    }
+    return result;
+  }
+
+  static int? _viewsOf(Map<String, dynamic> item) => int.tryParse(
+    '${(item['statistics'] as Map<String, dynamic>?)?['viewCount'] ?? ''}',
+  );
+
+  Future<List<Map<String, dynamic>>> _videosList(
+    String part,
+    List<String> ids,
+  ) async {
+    final uri = Uri.parse('$_base/videos').replace(
+      queryParameters: {'part': part, 'id': ids.join(','), 'key': apiKey},
+    );
+    final res = await _get(uri);
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    if (res.statusCode != 200) {
+      throw YoutubeApiException(
+        _errorMessage(res.statusCode, body),
+        status: res.statusCode,
+      );
+    }
+    return ((body['items'] as List?) ?? const []).cast<Map<String, dynamic>>();
   }
 
   /// [videoIds] 裡還看得到的那些（2026-10-12 下架檢查用）。一次問 50 部、

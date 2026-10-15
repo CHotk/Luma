@@ -4,6 +4,7 @@ import 'dart:convert';
 import '../services/youtube_api_service.dart';
 import '../storage/key_value_store.dart';
 import 'yt_video_tags.dart';
+import 'yt_video_views.dart';
 
 /// 頻道詳情頁「上傳頻率」圖表用的歷史影片本機快取，一個頻道一份，
 /// key 帶頻道 id（2026-09-23 使用者要求：抓過的影片存起來，下次不用
@@ -58,6 +59,7 @@ class YtVideoCacheStore {
         .map(YoutubeVideo.fromJson)
         .toList();
     YtVideoTags.publish(list);
+    YtVideoViews.publish(list);
     return list;
   }
 
@@ -67,6 +69,7 @@ class YtVideoCacheStore {
   ) async {
     final list = videos.toList();
     YtVideoTags.publish(list);
+    YtVideoViews.publish(list);
     await _store.write(
       _keyFor(channelId),
       jsonEncode([for (final v in list) v.toJson()]),
@@ -244,6 +247,28 @@ class YtVideoCacheStore {
     return changed;
   });
 
+  /// 觀看次數寫回快取（2026-10-15，見 [YtViewCountRefresher]）。回傳改了
+  /// 幾部。
+  Future<int> applyViews(
+    String channelId,
+    Map<String, int> views,
+    DateTime at,
+  ) => _serial(channelId, () async {
+    var changed = 0;
+    final next = <YoutubeVideo>[];
+    for (final v in await load(channelId)) {
+      final n = views[v.videoId];
+      if (n == null) {
+        next.add(v);
+      } else {
+        next.add(v.withViews(n, at));
+        changed++;
+      }
+    }
+    if (changed > 0) await _writeVideos(channelId, next);
+    return changed;
+  });
+
   static String _aliveKeyFor(String channelId) =>
       'yt_tracker.video_alive_checked_at.$channelId.v1';
 
@@ -325,6 +350,13 @@ YoutubeVideo _fillGaps(YoutubeVideo existing, YoutubeVideo incoming) {
   // 下架標記（2026-10-12）：別台查到下架了，這台也標上。
   if (v.removedAt == null && incoming.removedAt != null) {
     v = v.withRemoved(incoming.removedAt);
+  }
+  // 觀看次數（2026-10-15）：會變的數字，留比較新抓到的那份。
+  final inAt = incoming.viewsAt;
+  if (incoming.viewCount != null &&
+      inAt != null &&
+      (v.viewsAt == null || inAt.isAfter(v.viewsAt!))) {
+    v = v.withViews(incoming.viewCount!, inAt);
   }
   return v;
 }

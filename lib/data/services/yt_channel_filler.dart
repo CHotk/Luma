@@ -106,17 +106,22 @@ class YtChannelFiller extends ChangeNotifier {
         ];
         if (fresh.isNotEmpty) {
           try {
-            final durations = await api.fetchDurations([
+            // 時長＋觀看次數同一次抓（2026-10-15），不多花配額。
+            final details = await api.fetchDetails([
               for (final v in fresh) v.videoId,
             ]);
+            final at = DateTime.now();
             fresh = [
               for (final v in fresh)
-                durations.containsKey(v.videoId)
-                    ? v.withDuration(durations[v.videoId]!)
-                    : v,
+                if (details[v.videoId] case final d?)
+                  d.views == null
+                      ? v.withDuration(d.duration)
+                      : v.withDuration(d.duration).withViews(d.views!, at)
+                else
+                  v,
             ];
           } catch (_) {
-            // 時長抓不到就算了，影片照樣存。
+            // 抓不到就算了，影片照樣存。
           }
           await cache.upsertVideos(channelId, fresh);
         }

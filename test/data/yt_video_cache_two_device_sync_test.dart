@@ -59,12 +59,7 @@ void main() {
     final phone = device();
     final pc = device();
     await phone.repo.addChannel(
-      YtChannel(
-        id: 'UC1',
-        name: '頻道',
-        categoryId: '',
-        addedAt: DateTime(2026),
-      ),
+      YtChannel(id: 'UC1', name: '頻道', categoryId: '', addedAt: DateTime(2026)),
     );
     // 兩台先各同步過一次（手機那時只抓了 10 部，電腦也看過那 10 部）。
     await phone.cache.save('UC1', [for (var i = 0; i < 10; i++) v(i)]);
