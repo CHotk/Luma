@@ -113,6 +113,36 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
   bool _hideWatched = true;
   bool _showHidden = false;
 
+  /// 範圍（2026-10-15 使用者要求）：每個頻道最新 20 部（打 API），或是
+  /// 這些頻道抓過的全部影片（只讀快取、不打 API）——要照觀看次數排整個
+  /// 頻道時用後者。
+  bool _allCached = false;
+
+  /// 同一組頻道＋類型 30 分鐘內不重抓（2026-10-15 使用者要求；原本每次
+  /// 進來都重抓）。按「重新整理」照樣馬上抓。跨頁面留著，所以是 static。
+  static final _recent =
+      <String, ({DateTime at, List<_ChannelVideo> videos})>{};
+  static const _reuseFor = Duration(minutes: 30);
+
+  /// 只讀快取：這些頻道抓過的全部影片（下架的不算），照類型篩。
+  Future<List<_ChannelVideo>> _allFromCache(List<YtChannel> channels) async {
+    final cache = YtVideoCacheStore(ref.read(keyValueStoreProvider));
+    final type = _typeFilter;
+    final lists = await Future.wait(channels.map((c) => cache.load(c.id)));
+    return [
+      for (var i = 0; i < channels.length; i++)
+        for (final v in lists[i])
+          if (v.removedAt == null &&
+              switch (type) {
+                _TypeFilter.all => true,
+                _TypeFilter.regular => v.isShort == false && v.isLive == false,
+                _TypeFilter.shorts => v.isShort == true,
+                _TypeFilter.live => v.isLive == true,
+              })
+            _ChannelVideo(video: v, channel: channels[i]),
+    ]..sort((a, b) => b.video.publishedAt.compareTo(a.video.publishedAt));
+  }
+
   bool _passesMarks(_ChannelVideo c) {
     final id = c.video.videoId;
     if (_hiddenIds.contains(id)) return _showHidden;
@@ -137,6 +167,7 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
 
   Future<List<_ChannelVideo>>? _videosFuture;
   List<String>? _videosLoadedFor;
+  bool _videosLoadedAll = false;
   _TypeFilter? _videosLoadedType;
 
   /// 依影片顯示：每個頻道抓最近幾部，湊在一起依時間排序。不支援往下滑
@@ -228,15 +259,43 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
         _videosLoadedFor != null &&
         _listEquals(_videosLoadedFor!, ids) &&
         _videosLoadedType == _typeFilter;
-    if (!force && sameSelection) return;
+    if (!force && sameSelection && _videosLoadedAll == _allCached) return;
     _videosLoadedFor = ids;
     _videosLoadedType = _typeFilter;
+    _videosLoadedAll = _allCached;
     final gen = ++_videosGen;
+    if (_allCached) {
+      setState(() {
+        _liveVideos = const [];
+        _liveDoneChannels = const {};
+        _liveTotal = 0;
+        _videosFuture = _allFromCache(channels);
+        _videoPreview = const [];
+      });
+      return;
+    }
+    final key = '${_typeFilter.name}|${ids.join(',')}';
+    final hit = _recent[key];
+    if (!force &&
+        hit != null &&
+        DateTime.now().difference(hit.at) < _reuseFor) {
+      setState(() {
+        _liveVideos = const [];
+        _liveDoneChannels = const {};
+        _liveTotal = 0;
+        _videosFuture = Future.value(hit.videos);
+        _videoPreview = const [];
+      });
+      return;
+    }
     setState(() {
       _liveVideos = const [];
       _liveDoneChannels = const {};
       _liveTotal = channels.length;
-      _videosFuture = _fetchVideos(channels, apiKey, gen);
+      _videosFuture = _fetchVideos(channels, apiKey, gen).then((v) {
+        _recent[key] = (at: DateTime.now(), videos: v);
+        return v;
+      });
       _videoPreview = const [];
     });
     _loadVideoPreview(channels, ids);
@@ -913,6 +972,14 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                 label: '顯示已隱藏',
                 selected: _showHidden,
                 onTap: () => setState(() => _showHidden = !_showHidden),
+              ),
+              _TypeChip(
+                label: _allCached ? '範圍：全部快取' : '範圍：每頻道最新 20 部',
+                selected: _allCached,
+                onTap: () {
+                  setState(() => _allCached = !_allCached);
+                  _ensureVideosLoaded(channels);
+                },
               ),
             ],
           ),
