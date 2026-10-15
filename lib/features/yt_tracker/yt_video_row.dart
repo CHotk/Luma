@@ -749,22 +749,22 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
                                 borderRadius: BorderRadius.circular(10),
                                 child: Image.network(
                                   video.thumbnailUrl,
-                                  width: 96,
-                                  height: 54,
+                                  width: 128,
+                                  height: 72,
                                   fit: BoxFit.cover,
                                   // 照顯示大小解碼：YouTube 給的縮圖最大到
                                   // 480×360，原尺寸解碼每張都很佔記憶體，清單
                                   // 一長手機就吃緊（2026-10-06 效能檢查）。
                                   cacheWidth:
-                                      (96 *
+                                      (128 *
                                               MediaQuery.devicePixelRatioOf(
                                                 context,
                                               ))
                                           .round(),
                                   errorBuilder: (context, error, stack) =>
                                       Container(
-                                        width: 96,
-                                        height: 54,
+                                        width: 128,
+                                        height: 72,
                                         color: AppColors.glassFill,
                                         alignment: Alignment.center,
                                         child: const Icon(

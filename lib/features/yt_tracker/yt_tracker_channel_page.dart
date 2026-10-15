@@ -2314,68 +2314,67 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
       lastWatchedOf: (id) => _watchedRecords[id]?.lastOpenedAt,
     );
     final filler = YtChannelFiller.of(channel.id);
-    Widget card(String label, Widget child) => Padding(
-      padding: const EdgeInsets.only(bottom: Gap.sm),
-      child: GlassCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            PanelLabel(label),
-            const SizedBox(height: Gap.xs),
-            child,
-          ],
-        ),
-      ),
-    );
     final wd = stats.busiestWeekday, slot = stats.busiestSlot;
+    // 排版（2026-10-15 使用者回報太擠、沒美感）：區塊之間拉開、每塊一個
+    // 大標題＋灰色小字說明，數字用兩欄小方塊、長條圖拉高。
     return Padding(
       padding: const EdgeInsets.only(top: Gap.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // 最上面三格：訂閱、YouTube 上幾部、追蹤多久。
-          Padding(
-            padding: const EdgeInsets.only(bottom: Gap.sm),
-            child: Row(
-              children: [
-                _AboutStat(
-                  value: switch (channel.subscriberLabel) {
-                    null => '—',
-                    '訂閱數未公開' => '未公開',
-                    final l =>
-                      l.replaceAll('約 ', '').replaceAll('位訂閱', '').trim(),
-                  },
-                  label: '訂閱',
-                ),
-                const SizedBox(width: Gap.sm),
-                _AboutStat(
-                  value: channel.videoCount == null
-                      ? '—'
-                      : _fmtCount(channel.videoCount!),
-                  label: 'YouTube 上的影片',
-                ),
-                const SizedBox(width: Gap.sm),
-                _AboutStat(value: ymd(channel.addedAt), label: '開始追蹤'),
-              ],
-            ),
+          Row(
+            children: [
+              _AboutStat(
+                icon: Icons.people_alt_rounded,
+                value: switch (channel.subscriberLabel) {
+                  null => '—',
+                  '訂閱數未公開' => '未公開',
+                  final l =>
+                    l.replaceAll('約 ', '').replaceAll('位訂閱', '').trim(),
+                },
+                label: '訂閱',
+              ),
+              const SizedBox(width: Gap.sm),
+              _AboutStat(
+                icon: Icons.video_library_rounded,
+                value: channel.videoCount == null
+                    ? '—'
+                    : _fmtCount(channel.videoCount!),
+                label: 'YouTube 上的影片',
+              ),
+              const SizedBox(width: Gap.sm),
+              _AboutStat(
+                icon: Icons.event_available_rounded,
+                value: ymd(channel.addedAt),
+                label: '開始追蹤',
+              ),
+            ],
           ),
-          card(
-            '簡介',
-            Text(
+          _AboutSection(
+            title: '簡介',
+            child: Text(
               channel.description.isEmpty
                   ? '沒有簡介（右上角編輯可以補）'
                   : channel.description,
-              style: AppText.bodyDim,
+              style: AppText.bodyDim.copyWith(height: 1.6),
             ),
           ),
-          card('上傳頻率（近半年）', _buildHistoryChart(channel)),
+          _AboutSection(
+            title: '上傳頻率',
+            subtitle: '近半年',
+            child: _buildHistoryChart(channel),
+          ),
           // 平均每月、最早一部、最熱門這些要看整個頻道，抓完全部影片才顯示，
           // 還在抓就轉圈（2026-10-15 使用者要求：只抓到一部分算出來的不準）。
           ListenableBuilder(
             listenable: filler,
             builder: (context, _) {
               if (!filler.complete) {
-                return card('這個頻道', _fillPending(channel, filler));
+                return _AboutSection(
+                  title: '這個頻道',
+                  child: _fillPending(channel, filler),
+                );
               }
               // 剛抓完：重讀一次快取，數字才是整個頻道的。
               if (_aboutFullFor != channel.id) {
@@ -2384,63 +2383,88 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                   if (mounted) _reloadCache();
                 });
               }
+              final tiles = <Widget>[
+                _AboutTile(
+                  icon: Icons.calendar_month_rounded,
+                  value: stats.perMonth == null
+                      ? '—'
+                      : '${stats.perMonth!.toStringAsFixed(stats.perMonth! < 10 ? 1 : 0)} 部',
+                  label: '平均每月',
+                ),
+                _AboutTile(
+                  icon: Icons.schedule_rounded,
+                  value: stats.avgDuration == null
+                      ? '—'
+                      : formatVideoDuration(stats.avgDuration!),
+                  label: '平均長度',
+                ),
+                _AboutTile(
+                  icon: Icons.fiber_new_rounded,
+                  value: stats.latest == null
+                      ? '—'
+                      : ytRelativeTime(stats.latest!),
+                  label: '最近上傳',
+                ),
+                _AboutTile(
+                  icon: Icons.history_rounded,
+                  value: stats.first == null ? '—' : ymd(stats.first!),
+                  label: '最早一部',
+                ),
+                _AboutTile(
+                  icon: Icons.visibility_rounded,
+                  value: stats.totalViews == null
+                      ? '—'
+                      : formatViewCount(stats.totalViews!),
+                  label: '觀看次數合計',
+                ),
+                _AboutTile(
+                  icon: Icons.movie_rounded,
+                  value: '${stats.total} 部',
+                  label:
+                      '一般 ${stats.regular}・Shorts ${stats.shorts}・直播 ${stats.live}',
+                ),
+              ];
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   if (stats.total > 0) ...[
-                    card(
-                      '這個頻道',
-                      Wrap(
-                        spacing: Gap.sm,
-                        runSpacing: Gap.sm,
+                    _AboutSection(
+                      title: '這個頻道',
+                      subtitle: '從抓過的全部影片算',
+                      child: Column(
                         children: [
-                          _AboutFact(
-                            '影片類型',
-                            '一般 ${stats.regular}・Shorts ${stats.shorts}・直播 ${stats.live}',
-                          ),
-                          if (stats.avgDuration != null)
-                            _AboutFact(
-                              '平均長度',
-                              formatVideoDuration(stats.avgDuration!),
+                          for (var i = 0; i < tiles.length; i += 2) ...[
+                            if (i > 0) const SizedBox(height: Gap.sm),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(child: tiles[i]),
+                                const SizedBox(width: Gap.sm),
+                                Expanded(child: tiles[i + 1]),
+                              ],
                             ),
-                          if (stats.perMonth != null)
-                            _AboutFact(
-                              '平均每月',
-                              '${stats.perMonth!.toStringAsFixed(stats.perMonth! < 10 ? 1 : 0)} 部',
-                            ),
-                          if (stats.latest != null)
-                            _AboutFact('最近上傳', ytRelativeTime(stats.latest!)),
-                          if (stats.first != null)
-                            _AboutFact('最早一部', ymd(stats.first!)),
-                          if (stats.totalViews != null)
-                            _AboutFact(
-                              '觀看次數合計',
-                              formatViewCount(stats.totalViews!),
-                            ),
+                          ],
                         ],
                       ),
                     ),
-                    card(
-                      '什麼時候發片',
-                      Column(
+                    _AboutSection(
+                      title: '什麼時候發片',
+                      subtitle: wd == null
+                          ? null
+                          : '最常在星期${YtChannelStats.weekdayLabels[wd]}'
+                                '${slot == null ? '' : '・${YtChannelStats.slotLabels[slot]}'}',
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          if (wd != null)
-                            Text(
-                              '最常在星期${YtChannelStats.weekdayLabels[wd]}'
-                              '${slot == null ? '' : '・${YtChannelStats.slotLabels[slot]}'}',
-                              style: const TextStyle(
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.ink,
-                              ),
-                            ),
-                          const SizedBox(height: Gap.sm),
+                          Text('星期', style: AppText.note),
+                          const SizedBox(height: 6),
                           _AboutBars(
                             labels: YtChannelStats.weekdayLabels,
                             counts: stats.weekdays,
                           ),
-                          const SizedBox(height: Gap.sm),
+                          const SizedBox(height: Gap.md),
+                          Text('時段', style: AppText.note),
+                          const SizedBox(height: 6),
                           _AboutBars(
                             labels: YtChannelStats.slotLabels,
                             counts: stats.slots,
@@ -2450,39 +2474,71 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                     ),
                   ],
                   if (stats.top.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: Gap.sm),
-                      child: GlassCard(
-                        padding: const EdgeInsets.fromLTRB(0, 12, 0, 4),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            const Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 14),
-                              child: PanelLabel('最熱門'),
-                            ),
-                            for (final v in stats.top) _videoRow(channel, v),
-                          ],
-                        ),
+                    _AboutSection(
+                      title: '最熱門',
+                      subtitle: '觀看次數最多的 ${stats.top.length} 部',
+                      flush: true,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          for (final v in stats.top) _videoRow(channel, v),
+                        ],
                       ),
                     ),
                 ],
               );
             },
           ),
-          card(
-            '你看過',
-            Text(
-              stats.watched == 0
-                  ? '還沒看過這個頻道的影片'
-                  : [
-                      '看過 ${stats.watched} 部'
-                          '${stats.total == 0 || !filler.complete ? '' : '（${(stats.watched * 100 / stats.total).round()}%）'}',
-                      if (stats.lastWatched != null)
-                        '最近一次 ${ytRelativeTime(stats.lastWatched!)}',
-                    ].join('・'),
-              style: AppText.bodyDim,
-            ),
+          _AboutSection(
+            title: '你看過',
+            child: stats.watched == 0
+                ? Text('還沒看過這個頻道的影片', style: AppText.bodyDim)
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            '${stats.watched}',
+                            style: const TextStyle(
+                              fontSize: 26,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.ink,
+                              height: 1,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Text('部', style: AppText.note),
+                          const Spacer(),
+                          if (stats.lastWatched != null)
+                            Text(
+                              '最近一次 ${ytRelativeTime(stats.lastWatched!)}',
+                              style: AppText.note,
+                            ),
+                        ],
+                      ),
+                      if (filler.complete && stats.total > 0) ...[
+                        const SizedBox(height: Gap.sm),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(99),
+                          child: LinearProgressIndicator(
+                            value: stats.watched / stats.total,
+                            minHeight: 6,
+                            backgroundColor: Colors.white.withValues(
+                              alpha: 0.08,
+                            ),
+                            color: AppColors.ytAccent,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          '整個頻道的 ${(stats.watched * 100 / stats.total).round()}%',
+                          style: AppText.note,
+                        ),
+                      ],
+                    ],
+                  ),
           ),
         ],
       ),
@@ -3405,7 +3461,10 @@ class _SearchStatus extends StatelessWidget {
 String _fmtCount(int n) =>
     n.toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => ',');
 
-/// 頻道詳情頁黏在上面的分頁列（設計稿第 1 版：粗字、選中的下面一條線）。
+/// 頻道詳情頁黏在上面的分頁（2026-10-15）：一顆毛玻璃大膠囊切成五等份，
+/// 選中的那格亮起來——跟底部分頁列、英日切換同一種樣子。膠囊外面完全
+/// 透明，黏在上面時就是浮著的一顆膠囊，不會有一整條底（使用者回報原本
+/// 整條黑底、半透明黑底都跟漸層背景接不起來，提議改成膠囊）。
 class _TabBarDelegate extends SliverPersistentHeaderDelegate {
   _TabBarDelegate({
     required this.selected,
@@ -3417,7 +3476,7 @@ class _TabBarDelegate extends SliverPersistentHeaderDelegate {
   final ValueChanged<_ChannelTab> onTap;
   final bool dim;
 
-  static const _height = 44.0;
+  static const _height = 48.0;
 
   @override
   double get minExtent => _height;
@@ -3431,58 +3490,55 @@ class _TabBarDelegate extends SliverPersistentHeaderDelegate {
       ignoring: dim,
       child: Opacity(
         opacity: dim ? 0.3 : 1,
-        // 毛玻璃底：原本實心黑底，跟頁面的漸層背景接不起來很突兀
-        // （2026-10-15 使用者回報）；改成半透明＋模糊，黏在上面時底下的
-        // 影片糊掉看不清楚，不會干擾分頁字。
-        child: ClipRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-            child: Container(
-              color: AppColors.bg.withValues(alpha: 0.5),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          for (final t in _ChannelTab.values)
-                            InkWell(
-                              onTap: () => onTap(t),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                ),
-                                alignment: Alignment.center,
-                                decoration: BoxDecoration(
-                                  border: Border(
-                                    bottom: BorderSide(
-                                      width: 2,
-                                      color: t == selected
-                                          ? AppColors.ink
-                                          : Colors.transparent,
-                                    ),
-                                  ),
-                                ),
-                                child: Text(
-                                  t.label,
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w700,
-                                    color: t == selected
-                                        ? AppColors.ink
-                                        : AppColors.ink2,
-                                  ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 5),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+              child: Container(
+                padding: const EdgeInsets.all(3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E1E2C).withValues(alpha: 0.72),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.14),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    for (final t in _ChannelTab.values)
+                      Expanded(
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => onTap(t),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 180),
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: t == selected
+                                  ? Colors.white.withValues(alpha: 0.16)
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                t.label,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: t == selected
+                                      ? AppColors.ink
+                                      : AppColors.ink2,
                                 ),
                               ),
                             ),
-                        ],
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                  const Divider(height: 1, color: AppColors.glassEdge),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -3496,61 +3552,154 @@ class _TabBarDelegate extends SliverPersistentHeaderDelegate {
       old.selected != selected || old.dim != dim;
 }
 
+/// 簡介分頁的一塊：大標題＋灰色小字說明，跟下一塊之間拉開距離。
+/// [flush]＝內容貼齊卡片左右（影片列自己有留邊）。
+class _AboutSection extends StatelessWidget {
+  const _AboutSection({
+    required this.title,
+    required this.child,
+    this.subtitle,
+    this.flush = false,
+  });
+
+  final String title;
+  final String? subtitle;
+  final Widget child;
+  final bool flush;
+
+  @override
+  Widget build(BuildContext context) {
+    final head = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w800,
+            color: AppColors.ink,
+          ),
+        ),
+        if (subtitle != null) ...[
+          const SizedBox(height: 2),
+          Text(subtitle!, style: AppText.note),
+        ],
+      ],
+    );
+    return Padding(
+      padding: const EdgeInsets.only(top: Gap.md),
+      child: GlassCard(
+        padding: flush
+            ? const EdgeInsets.fromLTRB(0, 16, 0, 6)
+            : const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            flush
+                ? Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: head,
+                  )
+                : head,
+            const SizedBox(height: Gap.md),
+            child,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// 簡介分頁最上面的一格數字。
 class _AboutStat extends StatelessWidget {
-  const _AboutStat({required this.value, required this.label});
+  const _AboutStat({
+    required this.icon,
+    required this.value,
+    required this.label,
+  });
 
+  final IconData icon;
   final String value;
   final String label;
 
   @override
   Widget build(BuildContext context) => Expanded(
     child: GlassCard(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      padding: const EdgeInsets.fromLTRB(12, 12, 10, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Icon(icon, size: 17, color: AppColors.ytAccent),
+          const SizedBox(height: 8),
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
             child: Text(
               value,
               style: const TextStyle(
-                fontSize: 16,
+                fontSize: 17,
                 fontWeight: FontWeight.w800,
                 color: AppColors.ink,
               ),
             ),
           ),
           const SizedBox(height: 2),
-          Text(label, style: AppText.note),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppText.note,
+          ),
         ],
       ),
     ),
   );
 }
 
-/// 「這個頻道」卡片裡的一小格：上面灰色標題、下面數字。
-class _AboutFact extends StatelessWidget {
-  const _AboutFact(this.label, this.value);
+/// 「這個頻道」裡的一個小方塊：圖示、大數字、灰色小標。
+class _AboutTile extends StatelessWidget {
+  const _AboutTile({
+    required this.icon,
+    required this.value,
+    required this.label,
+  });
 
-  final String label;
+  final IconData icon;
   final String value;
+  final String label;
 
   @override
-  Widget build(BuildContext context) => ConstrainedBox(
-    constraints: const BoxConstraints(minWidth: 96),
-    child: Column(
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: Colors.white.withValues(alpha: 0.04),
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(color: AppColors.glassEdge),
+    ),
+    child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
       children: [
-        Text(label, style: AppText.note),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 13.5,
-            fontWeight: FontWeight.w700,
-            color: AppColors.ink,
+        Icon(icon, size: 18, color: AppColors.accent),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.ink,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(label, style: AppText.note),
+            ],
           ),
         ),
       ],
@@ -3569,35 +3718,35 @@ class _AboutBars extends StatelessWidget {
   Widget build(BuildContext context) {
     final most = counts.fold(0, (m, c) => c > m ? c : m);
     return SizedBox(
-      height: 58,
+      height: 92,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           for (var i = 0; i < labels.length; i++)
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 4),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     Text(
                       '${counts[i]}',
                       style: const TextStyle(
-                        fontSize: 10,
+                        fontSize: 10.5,
                         color: AppColors.ink3,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 4),
                     Container(
-                      height: most == 0 ? 2 : 2 + 26 * counts[i] / most,
+                      height: most == 0 ? 3 : 3 + 44 * counts[i] / most,
                       decoration: BoxDecoration(
                         color: AppColors.accent.withValues(
-                          alpha: counts[i] == most && most > 0 ? 0.95 : 0.4,
+                          alpha: counts[i] == most && most > 0 ? 0.95 : 0.35,
                         ),
-                        borderRadius: BorderRadius.circular(3),
+                        borderRadius: BorderRadius.circular(5),
                       ),
                     ),
-                    const SizedBox(height: 3),
+                    const SizedBox(height: 6),
                     Text(labels[i], style: AppText.note),
                   ],
                 ),

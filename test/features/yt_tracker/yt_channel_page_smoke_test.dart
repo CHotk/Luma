@@ -55,7 +55,7 @@ void main() {
     expect(find.text('最新'), findsOneWidget);
     await tester.tap(find.text('簡介'));
     await tester.pump();
-    expect(find.text('上傳頻率（近半年）'), findsOneWidget);
+    expect(find.text('上傳頻率'), findsOneWidget);
     expect(find.text('最新'), findsNothing);
     await tester.tap(find.text('觀看紀錄'));
     await tester.pump();
