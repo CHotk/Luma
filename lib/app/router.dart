@@ -22,6 +22,8 @@ import '../features/history/round_detail_page.dart';
 import '../features/home/home_page.dart';
 import '../features/jp_home/jp_home_page.dart';
 import '../features/jp_home/jp_stats_page.dart';
+import '../features/jp_light/jp_light_page.dart';
+import '../features/kana_exam/kana_exam_light_select_page.dart';
 import '../features/kana_exam/kana_exam_history_page.dart';
 import '../features/local_storage/local_storage_page.dart';
 import '../features/kana_exam/kana_exam_mode_select_page.dart';
@@ -118,6 +120,7 @@ final appRouter = GoRouter(
     GoRoute(path: '/home', builder: (_, _) => const HomePage()),
     GoRoute(path: '/jp-home', builder: (_, _) => const JpHomePage()),
     GoRoute(path: '/jp-stats', builder: (_, _) => const JpStatsPage()),
+    GoRoute(path: '/jp-light', builder: (_, _) => const JpLightPage()),
     GoRoute(path: '/quiz', builder: (_, _) => const QuizPage()),
     GoRoute(path: '/result', builder: (_, _) => const ResultPage()),
     GoRoute(path: '/history', builder: (_, _) => const HistoryPage()),
@@ -153,6 +156,10 @@ final appRouter = GoRouter(
       routes: [
         GoRoute(path: 'rows', builder: (_, _) => const KanaExamRowSelectPage()),
         GoRoute(
+          path: 'light',
+          builder: (_, _) => const KanaExamLightSelectPage(),
+        ),
+        GoRoute(
           path: 'history',
           builder: (_, _) => const KanaExamHistoryPage(),
         ),
@@ -167,6 +174,10 @@ final appRouter = GoRouter(
             final extra = state.extra;
             if (extra is ExamMode) {
               return KanaExamPage(mode: extra);
+            }
+            // 點亮模式：帶的是那一行（あ、か…）。
+            if (extra is String) {
+              return KanaExamPage(mode: ExamMode.kana, lightRow: extra);
             }
             if (extra is (ExamMode, Set<String>)) {
               return KanaExamPage(mode: extra.$1, selectedRows: extra.$2);

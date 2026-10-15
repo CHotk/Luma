@@ -17,7 +17,12 @@ class KanaExamEntry {
     this.imageBase64,
     this.updatedAt,
     this.deletedAt,
+    this.lightRow,
   });
+
+  /// 見 `jp_light_data.dart`）。一般考試是 null。
+  /// 見 ）。一般考試是 null。
+  final String? lightRow;
 
   /// 多裝置同步用（2026-09-24），同 `KanaPracticeEntry.updatedAt`。
   final DateTime? updatedAt;
@@ -39,6 +44,7 @@ class KanaExamEntry {
       imageBase64: imageBase64,
       updatedAt: now,
       deletedAt: deleted ? now : deletedAt,
+      lightRow: lightRow,
     );
   }
 
@@ -89,6 +95,7 @@ class KanaExamEntry {
     'imageBase64': imageBase64,
     'updatedAt': updatedAt?.toIso8601String(),
     'deletedAt': deletedAt?.toIso8601String(),
+    if (lightRow != null) 'lightRow': lightRow,
     'strokes': [
       for (final stroke in strokes)
         [
@@ -114,6 +121,7 @@ class KanaExamEntry {
     deletedAt: json['deletedAt'] == null
         ? null
         : DateTime.parse(json['deletedAt'] as String),
+    lightRow: json['lightRow'] as String?,
     strokes: [
       for (final stroke in (json['strokes'] as List? ?? const []))
         [

@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
@@ -27,7 +28,16 @@ enum ExamMode { kana, vocab }
 /// 進來，[mode] 進來之後不會再變——考卷中途換模式沒有意義，要換模式
 /// 就是返回重選（2026-09-21 使用者要求：50 音跟詞彙先各自獨立開發）。
 class KanaExamPage extends ConsumerStatefulWidget {
-  const KanaExamPage({super.key, required this.mode, this.selectedRows});
+  const KanaExamPage({
+    super.key,
+    required this.mode,
+    this.selectedRows,
+    this.lightRow,
+  });
+
+  /// 「點亮」模式（2026-10-15）：只考這一行，全對就開花（見
+  /// `jp_light_data.dart`）。每一題都記上這一行。
+  final String? lightRow;
 
   final ExamMode mode;
 
@@ -57,9 +67,12 @@ class _KanaExamPageState extends ConsumerState<KanaExamPage> {
   int? _activePointer;
 
   // 題目列表
-  late final List<ExamQuestion> _kanaQuestions = widget.selectedRows != null
-      ? _questionsFromRows(widget.selectedRows!)
+  late final List<ExamQuestion> _kanaQuestions = _rows != null
+      ? _questionsFromRows(_rows!)
       : ExamQuestionData.getShuffledKanaQuestions();
+
+  Set<String>? get _rows =>
+      widget.lightRow != null ? {widget.lightRow!} : widget.selectedRows;
   late final List<ExamQuestion> _vocabQuestions =
       ExamQuestionData.getShuffledVocabQuestions();
 
@@ -161,6 +174,7 @@ class _KanaExamPageState extends ConsumerState<KanaExamPage> {
       isCorrect: isCorrect,
       examType: _mode == ExamMode.kana ? 'kana' : 'vocab',
       savedAt: now,
+      lightRow: widget.lightRow,
       strokes: [
         for (var i = 0; i < _strokes.length; i++)
           [
@@ -464,8 +478,8 @@ class _KanaExamPageState extends ConsumerState<KanaExamPage> {
         _kanaQuestions
           ..clear()
           ..addAll(
-            widget.selectedRows != null
-                ? _questionsFromRows(widget.selectedRows!)
+            _rows != null
+                ? _questionsFromRows(_rows!)
                 : ExamQuestionData.getShuffledKanaQuestions(),
           );
       } else {
@@ -502,7 +516,13 @@ class _KanaExamPageState extends ConsumerState<KanaExamPage> {
                 ),
                 const Spacer(),
                 Text(
-                  _mode == ExamMode.kana ? '🌸 50 音考試完成！' : '🌸 詞彙考試完成！',
+                  widget.lightRow != null
+                      ? (_correctCount == total
+                            ? '🌸 ${widget.lightRow}行 開花了！'
+                            : '${widget.lightRow}行 還差一點')
+                      : _mode == ExamMode.kana
+                      ? '🌸 50 音考試完成！'
+                      : '🌸 詞彙考試完成！',
                   style: AppText.title,
                   textAlign: TextAlign.center,
                 ),
@@ -565,7 +585,13 @@ class _KanaExamPageState extends ConsumerState<KanaExamPage> {
                 ),
                 const SizedBox(height: Gap.sm),
                 Text(
-                  accuracy >= 80 ? '寫得很扎實，繼續保持' : '多練幾次，肌肉記憶會自己長出來',
+                  widget.lightRow != null
+                      ? (_correctCount == total
+                            ? '這一行全對，櫻花樹上開了一朵'
+                            : '全部答對才會開花，再試一次')
+                      : accuracy >= 80
+                      ? '寫得很扎實，繼續保持'
+                      : '多練幾次，肌肉記憶會自己長出來',
                   style: TextStyle(fontSize: 14, color: AppColors.ink2),
                   textAlign: TextAlign.center,
                 ),
@@ -591,6 +617,23 @@ class _KanaExamPageState extends ConsumerState<KanaExamPage> {
                     ),
                   ),
                 ),
+                if (widget.lightRow != null) ...[
+                  const SizedBox(height: Gap.sm),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: () => context.go('/jp-light'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.jpAccent,
+                        side: BorderSide(
+                          color: AppColors.jpAccent.withValues(alpha: 0.5),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                      ),
+                      child: const Text('🌸 看櫻花樹'),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: Gap.sm),
                 SizedBox(
                   width: double.infinity,
@@ -600,7 +643,7 @@ class _KanaExamPageState extends ConsumerState<KanaExamPage> {
                       foregroundColor: AppColors.ink2,
                       padding: const EdgeInsets.symmetric(vertical: 15),
                     ),
-                    child: const Text('返回模式選擇'),
+                    child: Text(widget.lightRow != null ? '返回' : '返回模式選擇'),
                   ),
                 ),
                 const Spacer(),

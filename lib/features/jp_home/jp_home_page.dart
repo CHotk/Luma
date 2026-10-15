@@ -18,6 +18,7 @@ import '../../shared/widgets/ring_progress.dart';
 import '../../shared/widgets/settings_icon.dart';
 import '../../shared/widgets/stats_icon.dart';
 import '../../shared/widgets/track_switcher.dart';
+import '../jp_light/jp_light_data.dart';
 import '../kana_practice/gojuon_data.dart';
 import '../settings/home_card_order_page.dart';
 import '../kana_practice/kana_practice_page.dart';
@@ -77,6 +78,7 @@ const jpHomeCards = <HomeCard>[
   (id: 'ring', label: '今天進度圈（設定裡打開才顯示）'),
   (id: 'kana', label: '五十音預覽'),
   (id: 'exam', label: '考試入口'),
+  (id: 'light', label: '五十音櫻花樹（點亮進度）'),
   (id: 'next', label: '下一輪'),
 ];
 
@@ -119,6 +121,7 @@ class _Body extends ConsumerWidget {
         ),
       'kana': const GlassCard(child: _KanaPreview()),
       'exam': const GlassCard(child: _ExamEntryCard()),
+      'light': const _LightCard(),
       'next': GlassCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1129,4 +1132,67 @@ class _MonthlyCalendarCardState extends State<_MonthlyCalendarCard>
       ],
     ),
   );
+}
+
+/// 日文首頁的櫻花樹小卡（2026-10-15）：開了幾朵、10 個小圓點，點了進
+/// 櫻花樹頁（`jp_light_page.dart`）。
+class _LightCard extends ConsumerWidget {
+  const _LightCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final lights = ref.watch(jpLightProvider).valueOrNull ?? const [];
+    final lit = lights.where((l) => l.lit).length;
+    return GlassCard(
+      padding: EdgeInsets.zero,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(Radii.card),
+        onTap: () => context.push('/jp-light'),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              const Text('🌸', style: TextStyle(fontSize: 26)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '五十音櫻花樹・開了 $lit / ${gojuonRows.length} 朵',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.ink,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        for (final row in gojuonRows.keys)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 4),
+                            child: Container(
+                              width: 18,
+                              height: 18,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: lights.any((l) => l.row == row && l.lit)
+                                    ? AppColors.jpAccent
+                                    : Colors.white.withValues(alpha: 0.07),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right_rounded, color: AppColors.ink3),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

@@ -67,6 +67,15 @@ class KanaExamModeSelectPage extends StatelessWidget {
                   onTap: () =>
                       context.push('/kana-exam/start', extra: ExamMode.vocab),
                 ),
+                const SizedBox(height: Gap.md),
+                // 點亮（2026-10-15 使用者要求）：選一行（單選），全對就開花。
+                _ModeCard(
+                  emoji: '🌸',
+                  title: '點亮',
+                  desc: '一次只考一行，全部答對就點亮那一行的櫻花',
+                  accentText: 'あ行 ✦',
+                  onTap: () => context.push('/kana-exam/light'),
+                ),
                 const Spacer(),
                 const SizedBox(height: Gap.lg),
               ],

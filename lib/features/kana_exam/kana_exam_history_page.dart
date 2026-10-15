@@ -531,6 +531,7 @@ KanaExamEntry _copyWith(KanaExamEntry entry, {required bool isCorrect}) =>
       savedAt: entry.savedAt,
       imageBase64: entry.imageBase64,
       strokes: entry.strokes,
+      lightRow: entry.lightRow,
     );
 
 class _EntryCard extends StatelessWidget {

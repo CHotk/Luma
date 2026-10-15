@@ -2318,15 +2318,6 @@ class _ChannelGridState extends State<_ChannelGrid> {
                               children: [
                                 Row(
                                   children: [
-                                    // 歌手頻道（2026-10-15）：名字前一支小麥克風。
-                                    if (c.isArtist) ...[
-                                      const Icon(
-                                        Icons.mic_rounded,
-                                        size: 13,
-                                        color: Color(0xFFFF8FB1),
-                                      ),
-                                      const SizedBox(width: 2),
-                                    ],
                                     Flexible(
                                       child: Text(
                                         c.name,
@@ -2368,6 +2359,27 @@ class _ChannelGridState extends State<_ChannelGrid> {
                       ],
                     ),
                   ),
+                  // 歌手頻道（2026-10-15 使用者要求：放卡片右上角比較明顯，
+                  // 像標籤一樣有小底色）。
+                  if (c.isArtist)
+                    Positioned(
+                      top: 0,
+                      right: 0,
+                      child: Container(
+                        padding: const EdgeInsets.fromLTRB(7, 2, 8, 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFF8FB1).withValues(alpha: 0.9),
+                          borderRadius: const BorderRadius.only(
+                            bottomLeft: Radius.circular(9),
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.mic_rounded,
+                          size: 12,
+                          color: Color(0xFF3A0A1C),
+                        ),
+                      ),
+                    ),
                   if (widget.showDiscoveredBadge && c.discoveredVia.isNotEmpty)
                     Positioned(
                       top: 4,

@@ -403,7 +403,10 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
   }
 
   Widget _maskUnderTabs(Widget child) {
-    if (!_tabsPinned || _searchOpen) return child;
+    // ShaderMask 一定要一直包著，只換漸層：釘住／沒釘住換成「有包／沒包」
+    // 的話，捲動區會被整個重建、捲動位置歸零，跳回最上面又變成沒釘住，
+    // 一直來回（2026-10-15 使用者回報往下滑一直自己跳回上面）。
+    final on = _tabsPinned && !_searchOpen;
     const solid = _ChannelTabBar.height;
     const fade = 14.0;
     return ShaderMask(
@@ -411,23 +414,26 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
       shaderCallback: (rect) => LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: const [
-          Colors.transparent,
-          Colors.transparent,
-          Colors.white,
-          Colors.white,
-        ],
+        colors: on
+            ? const [
+                Colors.transparent,
+                Colors.transparent,
+                Colors.white,
+                Colors.white,
+              ]
+            : const [Colors.white, Colors.white, Colors.white, Colors.white],
         stops: [0, solid / rect.height, (solid + fade) / rect.height, 1],
       ).createShader(rect),
       child: child,
     );
   }
 
-  /// 設定開著才包一層一直顯示、可拖的捲動條（2026-10-12 使用者要求）。
+  /// 設定開著才包一層可拖的捲動條（2026-10-12 使用者要求；2026-10-15 改成滑的時候才出現）。
   Widget _withScrollbar(bool show, Widget child) => show
       ? Scrollbar(
           controller: _scroll,
-          thumbVisibility: true,
+          // 平常不顯示，滑的時候才出來、停下來淡掉（2026-10-15 使用者要求）。
+          thumbVisibility: false,
           interactive: true,
           child: child,
         )
@@ -2065,6 +2071,9 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                                 ),
                                 if (_tabsPinned && !_searchOpen)
                                   Positioned(
+                                    // 有 key：插進來／拿掉時不會讓後面的
+                                    // 回到最上面小球被重建。
+                                    key: const ValueKey('pinned-tabs'),
                                     left: 0,
                                     right: 0,
                                     top: 0,
@@ -2401,12 +2410,16 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                 label: '訂閱',
               ),
               const SizedBox(width: Gap.sm),
+              // YouTube 頻道資料裡的影片數（一般＋Shorts＋直播全部算）；還沒
+              // 問到（2026-10-15 使用者回報顯示「—」）就用抓完整個頻道的快取數。
               _AboutStat(
                 icon: Icons.video_library_rounded,
-                value: channel.videoCount == null
-                    ? '—'
-                    : _fmtCount(channel.videoCount!),
-                label: 'YouTube 上的影片',
+                value: channel.videoCount != null
+                    ? _fmtCount(channel.videoCount!)
+                    : filler.complete
+                    ? _fmtCount(filler.cached)
+                    : '—',
+                label: '全部影片',
               ),
               const SizedBox(width: Gap.sm),
               _AboutStat(
@@ -2483,10 +2496,11 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                   label: '觀看次數合計',
                 ),
                 _AboutTile(
-                  icon: Icons.movie_rounded,
-                  value: '${stats.total} 部',
-                  label:
-                      '一般 ${stats.regular}・Shorts ${stats.shorts}・直播 ${stats.live}',
+                  icon: Icons.trending_up_rounded,
+                  value: stats.totalViews == null || stats.total == 0
+                      ? '—'
+                      : formatViewCount(stats.totalViews! ~/ stats.total),
+                  label: '平均每部觀看',
                 ),
               ];
               return Column(
@@ -2498,6 +2512,53 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                       subtitle: '從抓過的全部影片算',
                       child: Column(
                         children: [
+                          // 影片／Shorts／直播各幾部（2026-10-15 使用者要求
+                          // 分開統計）。
+                          Row(
+                            children: [
+                              for (final (label, n, color) in [
+                                ('影片', stats.regular, AppColors.accent),
+                                (
+                                  'Shorts',
+                                  stats.shorts,
+                                  const Color(0xFFFF6D00),
+                                ),
+                                ('直播', stats.live, const Color(0xFFE53935)),
+                              ]) ...[
+                                if (label != '影片')
+                                  const SizedBox(width: Gap.sm),
+                                Expanded(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 12,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: color.withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(
+                                        color: color.withValues(alpha: 0.35),
+                                      ),
+                                    ),
+                                    child: Column(
+                                      children: [
+                                        Text(
+                                          _fmtCount(n),
+                                          style: const TextStyle(
+                                            fontSize: 19,
+                                            fontWeight: FontWeight.w800,
+                                            color: AppColors.ink,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(label, style: AppText.note),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          const SizedBox(height: Gap.sm),
                           for (var i = 0; i < tiles.length; i += 2) ...[
                             if (i > 0) const SizedBox(height: Gap.sm),
                             Row(

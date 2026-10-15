@@ -104,6 +104,45 @@ class _AppBottomNavFrameState extends ConsumerState<AppBottomNavFrame> {
     ),
   ];
 
+  /// 日文自己的分頁列（2026-10-15 使用者選：首頁／手寫／考試；英日切換
+  /// 標題旁的膠囊就有，不重複放）。
+  static const _jpTabs = [
+    FloatingTab(
+      icon: Icons.home_outlined,
+      selectedIcon: Icons.home_rounded,
+      label: '首頁',
+    ),
+    FloatingTab(
+      icon: Icons.draw_outlined,
+      selectedIcon: Icons.draw_rounded,
+      label: '手寫',
+    ),
+    FloatingTab(
+      icon: Icons.edit_note_outlined,
+      selectedIcon: Icons.edit_note_rounded,
+      label: '考試',
+    ),
+  ];
+
+  static bool _isJp(String path) =>
+      path.startsWith('/jp-') ||
+      path.startsWith('/kana-practice') ||
+      path.startsWith('/kana-exam');
+
+  _NavSpec? _jpSpec(String path) {
+    // 正在作答時不擋手寫格子（多鄰國上課時也不顯示分頁列）。
+    if (path == '/kana-exam/start') return null;
+    final selected = path.startsWith('/kana-practice')
+        ? 1
+        : path.startsWith('/kana-exam')
+        ? 2
+        : 0;
+    return _NavSpec(_jpTabs, selected, (i) {
+      const targets = ['/jp-home', '/kana-practice', '/kana-exam'];
+      if (path != targets[i]) appRouter.go(targets[i]);
+    });
+  }
+
   static String _path() => currentAppPath();
 
   _NavSpec? _spec(String path, NavBarMode mode, String videoChannelId) {
@@ -140,7 +179,8 @@ class _AppBottomNavFrameState extends ConsumerState<AppBottomNavFrame> {
           }
         });
       case NavBarMode.feature:
-        return isYt ? _ytSpec(path, videoChannelId) : null;
+        if (isYt) return _ytSpec(path, videoChannelId);
+        return _isJp(path) ? _jpSpec(path) : null;
     }
   }
 
