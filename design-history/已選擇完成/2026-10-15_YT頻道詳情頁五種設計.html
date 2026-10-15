@@ -99,6 +99,11 @@
   .dmenu .mi.on::after { content: "✓"; color: #2E6BFF; font-weight: 900; }
   .day { font-size: 11.5px; color: var(--ink3); margin: 14px 2px 4px; }
   .wcard { display: flex; gap: 0; background: #17172A; border: 1px solid var(--line); border-radius: 14px; margin: 4px 0; overflow: hidden; }
+  .btt { position: absolute; right: 14px; bottom: 96px; z-index: 65; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: rgba(255,78,69,.38); border: 1px solid rgba(255,255,255,.25); color: rgba(255,255,255,.8); font-size: 20px; cursor: pointer; backdrop-filter: blur(6px); }
+  .astat { flex: 1; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 9px 10px; } .astat b { display: block; font-size: 16px; }
+  .facts { display: flex; flex-wrap: wrap; gap: 10px 18px; margin-top: 6px; } .facts div { min-width: 96px; } .facts b { display: block; font-size: 13.5px; }
+  .mbars { display: flex; align-items: flex-end; gap: 6px; height: 58px; margin-top: 8px; } .mbars div { flex: 1; text-align: center; font-size: 10px; color: var(--ink3); }
+  .mbars i { display: block; border-radius: 3px; background: rgba(126,166,255,.4); margin: 2px 0 3px; } .mbars i.hi { background: rgba(126,166,255,.95); }
   .wcard .tm { width: 48px; padding: 14px 0 0 10px; font-size: 11.5px; font-weight: 700; color: var(--ink2); flex-shrink: 0; }
 </style>
 </head>
@@ -257,14 +262,26 @@ V.push({ name: '6 最終版', final: true, title: '最終版：第 1 版的分�
     <li>多一個<b>「觀看紀錄」分頁</b>：這個頻道看過的影片，照看的時間、每天一組（跟紀錄頁的觀看紀錄一樣）。</li>
     <li>篩選放第 1 版 ⚙ 的位置（排序那排最右邊），但<b>還是現在的「⏱ 時長 ▾」膠囊</b>，點了跳出來的也是現在那個小選單（每項旁邊有部數）。</li>
     <li>「隱藏已看過」「顯示已隱藏」照現在的樣子放第二排，旁邊數字是有幾部；有查到下架的影片才多一顆「已下架」。</li>
-    <li>影片列多了觀看次數：「3.2 萬次・2 天前」。</li></ul>`,
+    <li>影片列多了觀看次數：「3.2 萬次・2 天前」。</li>
+    <li><b>簡介分頁</b>豐富一點：最上面三格（訂閱／YouTube 上的影片／開始追蹤），再來簡介、這個頻道（類型、平均長度、平均每月、最近上傳、最早一部、觀看合計）、什麼時候發片（星期／時段長條）、上傳頻率、最熱門 3 部、你看過幾部。都用抓過的影片算，不多花配額。</li>
+    <li>頂部列整條不透明，往下滑分頁列接在下面不會透出影片；右下紅色「回到最上面」小球照舊（設定可關、跨裝置同步）。</li></ul>`,
   render() {
     const tabs = ['全部', 'Shorts', '直播', '簡介', '觀看紀錄'];
     const tab = S.tab6 || '全部';
     let body;
-    if (tab === '簡介') body = `<div class="pad" style="padding-top:12px"><div class="card"><b>簡介</b><p class="muted" style="margin:6px 0 0">${intro}</p></div>
-      <div class="card" style="margin-top:10px"><b>上傳頻率（近半年）</b><div style="margin-top:8px">${chart()}</div></div>
-      <div class="card" style="margin-top:10px"><div class="muted">2,140 萬訂閱・YouTube 上共 ${VIDS.length} 部・追蹤自 2026/09/20</div></div></div>`;
+    if (tab === '簡介') {
+      const bars = (labels, counts) => { const m = Math.max(...counts); return `<div class="mbars">${labels.map((l, i) => `<div>${counts[i]}<i class="${counts[i] === m ? 'hi' : ''}" style="height:${2 + 26 * counts[i] / m}px"></i>${l}</div>`).join('')}</div>`; };
+      const top = [...VIDS].sort((a, b) => parseFloat(b.views) * (b.views.includes('億') ? 1e4 : 1) - parseFloat(a.views) * (a.views.includes('億') ? 1e4 : 1)).slice(0, 3);
+      const nType = t => VIDS.filter(v => v.type === t).length;
+      body = `<div class="pad" style="padding-top:12px">
+        <div style="display:flex;gap:8px;margin-bottom:10px"><div class="astat"><b>2140 萬</b><span class="small">訂閱</span></div><div class="astat"><b>${VIDS.length}</b><span class="small">YouTube 上的影片</span></div><div class="astat"><b>2026/09/20</b><span class="small">開始追蹤</span></div></div>
+        <div class="card"><b>簡介</b><p class="muted" style="margin:6px 0 0">${intro}</p></div>
+        <div class="card" style="margin-top:10px"><b>這個頻道</b><div class="facts"><div><span class="small">影片類型</span><b>一般 ${nType('影片')}・Shorts ${nType('Shorts')}・直播 ${nType('直播')}</b></div><div><span class="small">平均長度</span><b>8:42</b></div><div><span class="small">平均每月</span><b>2.4 部</b></div><div><span class="small">最近上傳</span><b>1 天前</b></div><div><span class="small">最早一部</span><b>2026/03/29</b></div><div><span class="small">觀看次數合計</span><b>23 億次</b></div></div></div>
+        <div class="card" style="margin-top:10px"><b>什麼時候發片</b><div style="font-weight:700;margin-top:4px">最常在星期五・晚上</div>${bars(['一', '二', '三', '四', '五', '六', '日'], [1, 2, 1, 3, 5, 2, 2])}${bars(['凌晨', '早上', '下午', '晚上'], [1, 3, 4, 8])}</div>
+        <div class="card" style="margin-top:10px"><b>上傳頻率（近半年）</b><div style="margin-top:8px">${chart()}</div></div>
+        <div class="card" style="margin-top:10px;padding:12px 0 4px"><b style="padding:0 14px">最熱門</b>${top.map(row).join('')}</div>
+        <div class="card" style="margin-top:10px"><b>你看過</b><p class="muted" style="margin:6px 0 0">看過 ${VIDS.filter(v => v.w).length} 部（${Math.round(VIDS.filter(v => v.w).length * 100 / VIDS.length)}%）・最近一次 今天</p></div></div>`;
+    }
     else if (tab === '觀看紀錄') {
       let last = '';
       body = '<div class="pad">' + WATCH_LOG.map(([d, t, i]) => { const v = VIDS[i]; const head = d !== last ? `<div class="day">${d}</div>` : ''; last = d;
@@ -278,7 +295,9 @@ V.push({ name: '6 最終版', final: true, title: '最終版：第 1 版的分�
           <span style="flex:1"></span><span class="pill ${durOn ? 'on' : ''}" data-menu="dur6">⏱ ${durOn ? S.dur : '時長'} ▾</span><span class="ib" style="width:30px;height:30px;font-size:15px" title="重新整理">↻</span></div>
         <div class="pad" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px"><span class="fchip ${S.hideW ? 'on' : ''}" data-t="hideW">隱藏已看過${nW ? ` (${nW})` : ''}</span><span class="fchip ${S.showH ? 'on' : ''}" data-t="showH">顯示已隱藏${nH ? ` (${nH})` : ''}</span></div>${listHtml()}`;
     }
-    return `${topbar(S.scrolled ? '周杰倫 Jay Chou' : '')}
+    // 頂部列整條不透明：原本漸層下半截透明，往下滑時頻道名字那條跟分頁列中間
+    // 會透出下面的影片（2026-10-15 使用者回報）。
+    return `${topbar(S.scrolled ? '周杰倫 Jay Chou' : '').replace('class="top"', 'class="top" style="background:#0e0e17"')}
       <div class="pad" style="display:flex;gap:12px;align-items:center;padding-bottom:10px"><img class="av" src="${AV}" style="width:58px;height:58px">
         <div><div style="font-weight:800;font-size:17px">周杰倫 Jay Chou</div><div class="muted">音樂・2,140 萬訂閱</div><div class="muted">共 ${VIDS.length} 部影片</div><div class="small" style="color:var(--accent);text-decoration:underline">youtube.com/@jaychou</div></div></div>
       <div class="ytabs" style="position:sticky;top:88px;z-index:30;background:#0e0e17;padding:0 6px">${tabs.map(t => `<button class="${tab === t ? 'on' : ''}" data-tab6="${t}">${t}</button>`).join('')}</div>${body}`;
@@ -300,12 +319,13 @@ function render() {
     const cnt = d => base.filter(v => d === '不限' || (d === '2 分內' && v.s <= 120) || (d === '2–6 分' && v.s > 120 && v.s <= 360) || (d === '6–20 分' && v.s > 360 && v.s <= 1200)).length;
     menu = `<div class="scrim" data-close style="background:rgba(0,0,0,.26)"></div><div class="dmenu" style="top:${S.menuTop || 260}px">${DURS.map(d => `<div class="mi ${S.dur === d ? 'on' : ''}" data-dur="${d}">${d}${d !== '自訂' ? `<span class="n">${cnt(d)}</span>` : '<span class="n"></span>'}</div>`).join('')}</div>`;
   }
-  phone.innerHTML = `<div class="status"><span>21:30</span><span>5G ▮</span></div><div class="screen">${v.render()}</div>${NAV}
+  phone.innerHTML = `<div class="status"><span>21:30</span><span>5G ▮</span></div><div class="screen">${v.render()}</div>${NAV}${v.final ? `<div class="btt" id="btt" data-top style="display:${st > 300 ? 'grid' : 'none'}">↑</div>` : ''}
     ${S.sheet && v.sheet ? `<div class="sheet-bg" data-close></div><div class="sheet"><div class="grab"></div>${v.sheet(S.sheet)}</div>` : ''}${menu}`;
   const sc = phone.querySelector('.screen'); sc.scrollTop = st;
-  sc.onscroll = () => { const s = sc.scrollTop > 70; if (s !== S.scrolled) { S.scrolled = s; const tt = phone.querySelector('#tt'); if (tt) tt.textContent = s ? '周杰倫 Jay Chou' : ''; } };
+  sc.onscroll = () => { const b = phone.querySelector('#btt'); if (b) b.style.display = sc.scrollTop > 300 ? 'grid' : 'none'; const s = sc.scrollTop > 70; if (s !== S.scrolled) { S.scrolled = s; const tt = phone.querySelector('#tt'); if (tt) tt.textContent = s ? '周杰倫 Jay Chou' : ''; } };
 }
 document.addEventListener('click', e => {
+  if (e.target.closest('[data-top]')) { phone.querySelector('.screen').scrollTo({ top: 0, behavior: 'smooth' }); return; }
   const el = e.target.closest('[data-tab6],[data-v],[data-type],[data-dur],[data-t],[data-sort],[data-open],[data-close],[data-tab],[data-tab5],[data-info],[data-clear],[data-menu],[data-stat]');
   if (!el) return; const d = el.dataset;
   if (d.v) { Object.assign(S, { v: +d.v, sheet: null, menu: null, tab: '影片', type: '全部', scrolled: false }); phone.querySelector('.screen') && (phone.querySelector('.screen').scrollTop = 0); }

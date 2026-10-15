@@ -39,6 +39,7 @@ import 'yt_api_key_dialog.dart';
 import 'yt_channel_avatar.dart';
 import 'yt_channel_edit_header.dart';
 import 'yt_channel_log_page.dart';
+import 'yt_channel_stats.dart';
 import 'yt_duration_filter.dart';
 import 'yt_video_row.dart';
 
@@ -762,32 +763,48 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     itemCount: list.length,
     separatorBuilder: (_, _) =>
         const Divider(height: 1, color: AppColors.glassEdge),
-    itemBuilder: (_, i) => YtVideoRow(
-      // 一定要給明確的 key，理由跟 yt_tracker_browse_page.dart
-      // 那邊一樣：篩選開關一切換，清單位置就會洗牌，沒有 key
-      // 的話 Flutter 照位置重用 State，「已看過」狀態會錯配到
-      // 別支影片上（2026-09-30 使用者回報抓到）。
-      key: ValueKey(list[i].videoId),
-      video: list[i],
-      channelId: channel.id,
-      channelName: channel.name,
-      subtitle: justFetched.contains(list[i].videoId)
-          ? '${ytRelativeTime(list[i].publishedAt)}・剛從 YouTube 抓到'
-          : ytRelativeTime(list[i].publishedAt),
+    itemBuilder: (_, i) => _videoRow(
+      channel,
+      list[i],
+      allFromCache: allFromCache,
       highlight: highlight,
-      forceShow: forceShowHidden || _hiddenVideoIds.contains(list[i].videoId),
-      known: (
-        watched: _watchedRecords[list[i].videoId],
-        hidden: _hiddenVideoIds.contains(list[i].videoId),
-      ),
-      // 點開影片：只更新這一筆，不用整份重讀。
-      onWatchedChanged: (record) => setState(() {
-        _watchedRecords = {..._watchedRecords, list[i].videoId: record};
-        _watchedVideoIds = {..._watchedVideoIds, list[i].videoId};
-      }),
-      onHiddenChanged: _loadVideoFilters,
-      fromCache: allFromCache || _cachedVideoIds.contains(list[i].videoId),
+      justFetched: justFetched,
+      forceShowHidden: forceShowHidden,
     ),
+  );
+
+  Widget _videoRow(
+    YtChannel channel,
+    YoutubeVideo v, {
+    bool allFromCache = false,
+    String? highlight,
+    Set<String> justFetched = const {},
+    bool forceShowHidden = false,
+  }) => YtVideoRow(
+    // 一定要給明確的 key，理由跟 yt_tracker_browse_page.dart
+    // 那邊一樣：篩選開關一切換，清單位置就會洗牌，沒有 key
+    // 的話 Flutter 照位置重用 State，「已看過」狀態會錯配到
+    // 別支影片上（2026-09-30 使用者回報抓到）。
+    key: ValueKey(v.videoId),
+    video: v,
+    channelId: channel.id,
+    channelName: channel.name,
+    subtitle: justFetched.contains(v.videoId)
+        ? '${ytRelativeTime(v.publishedAt)}・剛從 YouTube 抓到'
+        : ytRelativeTime(v.publishedAt),
+    highlight: highlight,
+    forceShow: forceShowHidden || _hiddenVideoIds.contains(v.videoId),
+    known: (
+      watched: _watchedRecords[v.videoId],
+      hidden: _hiddenVideoIds.contains(v.videoId),
+    ),
+    // 點開影片：只更新這一筆，不用整份重讀。
+    onWatchedChanged: (record) => setState(() {
+      _watchedRecords = {..._watchedRecords, v.videoId: record};
+      _watchedVideoIds = {..._watchedVideoIds, v.videoId};
+    }),
+    onHiddenChanged: _loadVideoFilters,
+    fromCache: allFromCache || _cachedVideoIds.contains(v.videoId),
   );
 
   // 切類型篩選（2026-09-30 使用者要求）。原本的做法是抓全部上傳清單，
@@ -2248,7 +2265,7 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
         // 剛看過的也要出現。
         _loadVideoFilters();
       case _ChannelTab.about:
-        break;
+        _reloadCache();
     }
   }
 
@@ -2257,6 +2274,10 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
   Future<void> _setSort(_Sort sort) async {
     setState(() => _sort = sort);
     if (sort == _Sort.newest) return;
+    await _reloadCache();
+  }
+
+  Future<void> _reloadCache() async {
     final id = _loadMoreChannelId;
     if (id == null) return;
     final cached = await YtVideoCacheStore(
@@ -2279,51 +2300,159 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     ),
   };
 
-  /// 「簡介」分頁：簡介、上傳頻率圖、追蹤資訊（原本都在頭部，越來越擠）。
+  /// 「簡介」分頁（2026-10-15）：原本頭部的簡介、上傳頻率圖搬過來，再加
+  /// 使用者要的「豐富一點」——全部從本機影片快取算（見 [YtChannelStats]），
+  /// 不多打 API。訂閱、影片數、追蹤日期放最上面（使用者要求）。
   Widget _buildAbout(YtChannel channel) {
     String two(int n) => n.toString().padLeft(2, '0');
-    final added = channel.addedAt;
+    String ymd(DateTime d) => '${d.year}/${two(d.month)}/${two(d.day)}';
+    final views = YtVideoViews.notifier.value;
+    final stats = YtChannelStats.from(
+      _cachedChannelVideos,
+      viewsOf: (v) => v.viewCount ?? views[v.videoId],
+      lastWatchedOf: (id) => _watchedRecords[id]?.lastOpenedAt,
+    );
+    final filler = YtChannelFiller.of(channel.id);
+    Widget card(String label, Widget child) => Padding(
+      padding: const EdgeInsets.only(bottom: Gap.sm),
+      child: GlassCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            PanelLabel(label),
+            const SizedBox(height: Gap.xs),
+            child,
+          ],
+        ),
+      ),
+    );
+    final wd = stats.busiestWeekday, slot = stats.busiestSlot;
     return Padding(
       padding: const EdgeInsets.only(top: Gap.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          GlassCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          // 最上面三格：訂閱、YouTube 上幾部、追蹤多久。
+          Padding(
+            padding: const EdgeInsets.only(bottom: Gap.sm),
+            child: Row(
               children: [
-                const PanelLabel('簡介'),
-                const SizedBox(height: Gap.xs),
-                Text(
-                  channel.description.isEmpty
-                      ? '沒有簡介（右上角編輯可以補）'
-                      : channel.description,
-                  style: AppText.bodyDim,
+                _AboutStat(
+                  value: switch (channel.subscriberLabel) {
+                    null => '—',
+                    '訂閱數未公開' => '未公開',
+                    final l =>
+                      l.replaceAll('約 ', '').replaceAll('位訂閱', '').trim(),
+                  },
+                  label: '訂閱',
                 ),
+                const SizedBox(width: Gap.sm),
+                _AboutStat(
+                  value: channel.videoCount == null
+                      ? '—'
+                      : _fmtCount(channel.videoCount!),
+                  label: 'YouTube 上的影片',
+                ),
+                const SizedBox(width: Gap.sm),
+                _AboutStat(value: ymd(channel.addedAt), label: '開始追蹤'),
               ],
             ),
           ),
-          const SizedBox(height: Gap.sm),
-          GlassCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const PanelLabel('上傳頻率（近半年）'),
-                const SizedBox(height: Gap.xs),
-                _buildHistoryChart(channel),
-              ],
+          card(
+            '簡介',
+            Text(
+              channel.description.isEmpty
+                  ? '沒有簡介（右上角編輯可以補）'
+                  : channel.description,
+              style: AppText.bodyDim,
             ),
           ),
-          const SizedBox(height: Gap.sm),
-          GlassCard(
-            child: Text(
-              [
-                if (channel.subscriberLabel != null) channel.subscriberLabel!,
-                if (channel.videoCount != null)
-                  'YouTube 上共 ${channel.videoCount} 部',
-                '追蹤自 ${added.year}/${two(added.month)}/${two(added.day)}',
-              ].join('・'),
-              style: AppText.note,
+          if (stats.total > 0) ...[
+            card(
+              filler.complete ? '這個頻道' : '這個頻道（目前抓到的 ${stats.total} 部）',
+              Wrap(
+                spacing: Gap.sm,
+                runSpacing: Gap.sm,
+                children: [
+                  _AboutFact(
+                    '影片類型',
+                    '一般 ${stats.regular}・Shorts ${stats.shorts}・直播 ${stats.live}',
+                  ),
+                  if (stats.avgDuration != null)
+                    _AboutFact('平均長度', formatVideoDuration(stats.avgDuration!)),
+                  if (stats.perMonth != null)
+                    _AboutFact(
+                      '平均每月',
+                      '${stats.perMonth!.toStringAsFixed(stats.perMonth! < 10 ? 1 : 0)} 部',
+                    ),
+                  if (stats.latest != null)
+                    _AboutFact('最近上傳', ytRelativeTime(stats.latest!)),
+                  if (stats.first != null)
+                    _AboutFact('最早一部', ymd(stats.first!)),
+                  if (stats.totalViews != null)
+                    _AboutFact('觀看次數合計', formatViewCount(stats.totalViews!)),
+                ],
+              ),
+            ),
+            card(
+              '什麼時候發片',
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (wd != null)
+                    Text(
+                      '最常在星期${YtChannelStats.weekdayLabels[wd]}'
+                      '${slot == null ? '' : '・${YtChannelStats.slotLabels[slot]}'}',
+                      style: const TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.ink,
+                      ),
+                    ),
+                  const SizedBox(height: Gap.sm),
+                  _AboutBars(
+                    labels: YtChannelStats.weekdayLabels,
+                    counts: stats.weekdays,
+                  ),
+                  const SizedBox(height: Gap.sm),
+                  _AboutBars(
+                    labels: YtChannelStats.slotLabels,
+                    counts: stats.slots,
+                  ),
+                ],
+              ),
+            ),
+          ],
+          card('上傳頻率（近半年）', _buildHistoryChart(channel)),
+          if (stats.top.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: Gap.sm),
+              child: GlassCard(
+                padding: const EdgeInsets.fromLTRB(0, 12, 0, 4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 14),
+                      child: PanelLabel('最熱門'),
+                    ),
+                    for (final v in stats.top) _videoRow(channel, v),
+                  ],
+                ),
+              ),
+            ),
+          card(
+            '你看過',
+            Text(
+              stats.watched == 0
+                  ? '還沒看過這個頻道的影片'
+                  : [
+                      '看過 ${stats.watched} 部'
+                          '${stats.total == 0 ? '' : '（${(stats.watched * 100 / stats.total).round()}%）'}',
+                      if (stats.lastWatched != null)
+                        '最近一次 ${ytRelativeTime(stats.lastWatched!)}',
+                    ].join('・'),
+              style: AppText.bodyDim,
             ),
           ),
         ],
@@ -3272,4 +3401,117 @@ class _TabBarDelegate extends SliverPersistentHeaderDelegate {
   @override
   bool shouldRebuild(_TabBarDelegate old) =>
       old.selected != selected || old.dim != dim;
+}
+
+/// 簡介分頁最上面的一格數字。
+class _AboutStat extends StatelessWidget {
+  const _AboutStat({required this.value, required this.label});
+
+  final String value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Expanded(
+    child: GlassCard(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: AppColors.ink,
+              ),
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(label, style: AppText.note),
+        ],
+      ),
+    ),
+  );
+}
+
+/// 「這個頻道」卡片裡的一小格：上面灰色標題、下面數字。
+class _AboutFact extends StatelessWidget {
+  const _AboutFact(this.label, this.value);
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => ConstrainedBox(
+    constraints: const BoxConstraints(minWidth: 96),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(label, style: AppText.note),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 13.5,
+            fontWeight: FontWeight.w700,
+            color: AppColors.ink,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+/// 一排小長條：每個標籤一條，最多的那條最高、顏色最亮。
+class _AboutBars extends StatelessWidget {
+  const _AboutBars({required this.labels, required this.counts});
+
+  final List<String> labels;
+  final List<int> counts;
+
+  @override
+  Widget build(BuildContext context) {
+    final most = counts.fold(0, (m, c) => c > m ? c : m);
+    return SizedBox(
+      height: 58,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          for (var i = 0; i < labels.length; i++)
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 3),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Text(
+                      '${counts[i]}',
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: AppColors.ink3,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Container(
+                      height: most == 0 ? 2 : 2 + 26 * counts[i] / most,
+                      decoration: BoxDecoration(
+                        color: AppColors.accent.withValues(
+                          alpha: counts[i] == most && most > 0 ? 0.95 : 0.4,
+                        ),
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(labels[i], style: AppText.note),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 }
