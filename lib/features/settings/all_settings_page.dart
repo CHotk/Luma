@@ -16,18 +16,26 @@ import 'settings_anchor.dart';
 import 'settings_page.dart';
 
 /// 設定頁的各段（2026-10-15 使用者選設計稿第 5 版「上方分頁籤」）。
+///
+/// 每段一個固定圖示（2026-10-15 使用者要求，照設計稿
+/// `design-history/已選擇完成/2026-10-15_設定頁五種排法.html`）：一看就知道
+/// 是哪個功能——日文是「あ」、YT 是播放鍵、交易是「₮」。這段裡每一列
+/// 左邊都是同一個，不會一列一個樣子。
 enum SettingsSection {
-  app('一般', Icons.tune_rounded, Color(0xFF8E8E93)),
-  english('英文', Icons.translate_rounded, Color(0xFFFF9F0A)),
-  jp('日文', Icons.spa_outlined, Color(0xFFFF2D55)),
-  yt('YT', Icons.smart_display_outlined, Color(0xFFFF3B30)),
-  trade('交易&自律', Icons.candlestick_chart_outlined, Color(0xFF30B0C7)),
-  lock('日記／負債', Icons.lock_outline_rounded, Color(0xFF5E5CE6)),
-  sync('雲端同步', Icons.cloud_sync_outlined, Color(0xFF0A84FF));
+  app('一般', Color(0xFF8E8E93), icon: Icons.settings_rounded),
+  english('英文', Color(0xFFFF9F0A), text: 'A'),
+  jp('日文', Color(0xFFFF2D55), text: 'あ'),
+  yt('YT', Color(0xFFFF3B30), icon: Icons.play_arrow_rounded),
+  trade('交易&自律', Color(0xFF30B0C7), text: '₮'),
+  lock('日記／負債', Color(0xFF5E5CE6), icon: Icons.lock_rounded),
+  sync('雲端同步', Color(0xFF0A84FF), icon: Icons.cloud_rounded);
 
-  const SettingsSection(this.label, this.icon, this.color);
+  const SettingsSection(this.label, this.color, {this.icon, this.text});
   final String label;
-  final IconData icon;
+
+  /// 圖示用 Material 的 [icon]，或直接一個字 [text]（あ、₮ 這種）。
+  final IconData? icon;
+  final String? text;
 
   /// 這段的顏色：區塊裡每列左邊小方塊圖示的底色（iOS 設定那樣）。
   final Color color;
@@ -98,7 +106,6 @@ const settingIndex = [
   ),
   SettingEntry(SettingsSection.jp, 'jp.ring', '首頁顯示今天進度圈', '日文'),
   SettingEntry(SettingsSection.jp, 'jp.order', '日文首頁卡片順序', '排序'),
-  SettingEntry(SettingsSection.yt, 'yt.bar', '底部分頁列（YT）', '頻道 影片 播放清單'),
   SettingEntry(SettingsSection.yt, 'yt.videoTab', '底部分頁列「影片」開的頻道', '快捷'),
   SettingEntry(SettingsSection.yt, 'yt.key', 'YouTube API 金鑰', 'key 配額'),
   SettingEntry(SettingsSection.yt, 'yt.export', '匯出分類／頻道', '備份'),
@@ -112,7 +119,6 @@ const settingIndex = [
   SettingEntry(SettingsSection.yt, 'yt:頻道頁右側捲動條', '頻道頁右側捲動條'),
   SettingEntry(SettingsSection.yt, 'yt:頻道頁「回到最上面」按鈕', '頻道頁「回到最上面」按鈕'),
   SettingEntry(SettingsSection.yt, 'yt:進頻道自動抓完全部影片', '進頻道自動抓完全部影片', '背景 快取'),
-  SettingEntry(SettingsSection.yt, 'yt:頻道搜尋也問 YouTube', '頻道搜尋也問 YouTube', '快取'),
   SettingEntry(SettingsSection.yt, 'yt:搜尋時列出已看過、已隱藏', '搜尋時列出已看過、已隱藏'),
   SettingEntry(SettingsSection.yt, 'yt.removed', '影片下架檢查', '刪除 私人'),
   SettingEntry(SettingsSection.yt, 'yt.purged', '永久刪除的頻道'),
@@ -538,7 +544,7 @@ class _SearchResults extends StatelessWidget {
               for (final e in results)
                 ListTile(
                   dense: true,
-                  leading: Icon(e.section.icon, color: AppColors.accent),
+                  leading: SettingIcon(section: e.section),
                   title: Text(
                     e.title,
                     style: const TextStyle(

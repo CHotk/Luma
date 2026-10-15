@@ -82,7 +82,7 @@ void main() {
     // 2026-10-12 編輯改成頻道頁直接點著改：按 ✏️ 進編輯，點名稱變輸入框。
     await tester.tap(find.byTooltip('編輯頻道'));
     await settle();
-    expect(find.textContaining('編輯中'), findsOneWidget);
+    expect(find.text('完成'), findsOneWidget);
     await tester.tap(find.text('我取的名字').last);
     await settle();
     expect(find.text('（原本：頻道A）'), findsOneWidget);
@@ -97,14 +97,14 @@ void main() {
     expect(find.text('已改 1 項'), findsOneWidget);
     await tester.tap(find.text('儲存'));
     await settle();
-    expect(find.textContaining('編輯中'), findsNothing);
+    expect(find.text('完成'), findsNothing);
     final saved = await tester.runAsync(
       () => YtTrackerRepository(store).loadChannels(),
     );
     expect(saved!.single.name, '頻道A');
   });
 
-  testWidgets('頻道頁搜尋（設計稿第 1 版）：點放大鏡、按 Enter 出結果，返回收起', (tester) async {
+  testWidgets('頻道頁搜尋（設計稿第 1 版）：點放大鏡鍵盤就跳出、打字就出結果，返回收起', (tester) async {
     tester.view.physicalSize = const Size(400, 800);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -146,20 +146,21 @@ void main() {
     await settle();
     await tester.tap(find.byTooltip('搜尋這個頻道的影片'));
     await settle();
-    expect(find.byType(TextField), findsOneWidget);
+    // 點了鍵盤就跳出來（搜尋框拿到焦點）。
+    expect(tester.testTextInput.isVisible, isTrue);
+    // 打字就搜，不用按 Enter。
     await tester.enterText(find.byType(TextField), '黑洞');
-    await tester.testTextInput.receiveAction(TextInputAction.search);
     await settle();
     expect(tester.takeException(), isNull);
     // 沒金鑰：只搜快取。
-    expect(find.textContaining('只搜快取（3 部）'), findsOneWidget);
+    expect(find.textContaining('搜抓過的 3 部'), findsOneWidget);
     expect(find.textContaining('黑洞的祕密', findRichText: true), findsOneWidget);
     expect(find.textContaining('又是黑洞', findRichText: true), findsOneWidget);
     expect(find.textContaining('宇宙盡頭', findRichText: true), findsNothing);
 
     await tester.tap(find.byTooltip('收起搜尋'));
     await settle();
-    expect(find.byType(TextField), findsNothing);
+    expect(find.byTooltip('收起搜尋').hitTestable(), findsNothing);
     expect(find.text('全部'), findsOneWidget);
   });
 }

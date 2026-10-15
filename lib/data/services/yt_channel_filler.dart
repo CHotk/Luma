@@ -63,6 +63,9 @@ class YtChannelFiller extends ChangeNotifier {
     _notify();
   }
 
+  /// 正在跑的那一次（沒在跑是 null）。搜尋只接上它、不自己開始。
+  Future<void>? get current => _run;
+
   /// 開始（或接上正在跑的那一次）；全部抓完或出錯才 complete。
   Future<void> start({
     required YtVideoCacheStore cache,

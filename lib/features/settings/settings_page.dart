@@ -46,14 +46,14 @@ class _Body extends ConsumerWidget {
         ref.read(settingsControllerProvider.notifier).apply(next);
 
     return SettingsBlock(
-      color: SettingsSection.english.color,
+      section: SettingsSection.english,
       children: [
         SettingAnchor(
           id: 'en.order',
           child: SettingsRowCard(
             child: Row(
               children: [
-                const SettingIcon(Icons.reorder_rounded),
+                const SettingIcon(),
                 const SizedBox(width: Gap.sm),
                 const Expanded(
                   child: Text(

@@ -36,7 +36,7 @@ class AppHomeSettingsSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final style = ref.watch(appHomeStyleProvider);
     return SettingsBlock(
-      color: SettingsSection.app.color,
+      section: SettingsSection.app,
       children: [
         SettingAnchor(
           id: 'app.home',
@@ -91,7 +91,7 @@ class AppHomeSettingsSection extends ConsumerWidget {
           child: SettingsRowCard(
             child: Row(
               children: [
-                const SettingIcon(Icons.reorder_rounded),
+                const SettingIcon(),
                 const SizedBox(width: Gap.sm),
                 Expanded(
                   child: Column(
@@ -169,7 +169,7 @@ class _TradeSettingsSectionState extends ConsumerState<TradeSettingsSection> {
     final saved = ref.watch(usdtTwdRateProvider);
     final v = _value;
     return SettingsBlock(
-      color: SettingsSection.trade.color,
+      section: SettingsSection.trade,
       children: [
         SettingAnchor(
           id: 'trade.rate',
@@ -253,14 +253,14 @@ class JpSettingsSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final showRing = ref.watch(jpShowProgressRingProvider);
     return SettingsBlock(
-      color: SettingsSection.jp.color,
+      section: SettingsSection.jp,
       children: [
         SettingAnchor(
           id: 'jp.ring',
           child: SettingsRowCard(
             child: Row(
               children: [
-                const SettingIcon(Icons.donut_large_rounded),
+                const SettingIcon(),
                 const SizedBox(width: Gap.sm),
                 Expanded(
                   child: Column(
@@ -297,7 +297,7 @@ class JpSettingsSection extends ConsumerWidget {
           child: SettingsRowCard(
             child: Row(
               children: [
-                const SettingIcon(Icons.reorder_rounded),
+                const SettingIcon(),
                 const SizedBox(width: Gap.sm),
                 const Expanded(
                   child: Text(
@@ -329,12 +329,11 @@ class YtSettingsSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final hasKey = (ref.watch(ytApiKeyProvider) ?? '').isNotEmpty;
     return SettingsBlock(
-      color: SettingsSection.yt.color,
+      section: SettingsSection.yt,
       children: [
-        // 底部分頁列放最上面（2026-10-14 使用者回報：在 YT 設定找不到
-        // 「影片」要開哪個頻道）。顯示方式跟「一般」那張是同一份。
-        const SettingAnchor(id: 'yt.bar', child: _NavBarModeCard()),
-        const SizedBox(height: Gap.sm),
+        // 底部分頁列的顯示方式只放「一般」（2026-10-15 使用者要求：YT 這裡
+        // 不用重複一份）。「影片」要開哪個頻道還是放最上面（2026-10-14
+        // 使用者回報在 YT 設定找不到）。
         SettingAnchor(
           id: 'yt.videoTab',
           child: SettingsRowCard(
@@ -356,11 +355,7 @@ class YtSettingsSection extends ConsumerWidget {
                 id: 'yt.key',
                 child: Row(
                   children: [
-                    Icon(
-                      hasKey ? Icons.vpn_key : Icons.vpn_key_outlined,
-                      size: 18,
-                      color: hasKey ? AppColors.ok : AppColors.ink2,
-                    ),
+                    const SettingIcon(),
                     const SizedBox(width: Gap.sm),
                     Expanded(
                       child: Column(
@@ -390,7 +385,7 @@ class YtSettingsSection extends ConsumerWidget {
                 id: 'yt.export',
                 child: Row(
                   children: [
-                    const SettingIcon(Icons.ios_share_rounded),
+                    const SettingIcon(),
                     const SizedBox(width: Gap.sm),
                     const Expanded(
                       child: Text(
@@ -414,7 +409,7 @@ class YtSettingsSection extends ConsumerWidget {
                 id: 'yt.catOrder',
                 child: Row(
                   children: [
-                    const SettingIcon(Icons.reorder_rounded),
+                    const SettingIcon(),
                     const SizedBox(width: Gap.sm),
                     const Expanded(
                       child: Text(
@@ -456,7 +451,7 @@ class YtSettingsSection extends ConsumerWidget {
                 id: 'yt.purged',
                 child: Row(
                   children: [
-                    const SettingIcon(Icons.delete_forever_outlined),
+                    const SettingIcon(),
                     const SizedBox(width: Gap.sm),
                     const Expanded(
                       child: Text(
@@ -579,14 +574,14 @@ class LockSettingsSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return SettingsBlock(
-      color: SettingsSection.lock.color,
+      section: SettingsSection.lock,
       children: [
         SettingAnchor(
           id: 'lock.pw',
           child: SettingsRowCard(
             child: Row(
               children: [
-                const SettingIcon(Icons.lock_outline_rounded),
+                const SettingIcon(),
                 const SizedBox(width: Gap.sm),
                 const Expanded(
                   child: Text(
@@ -618,14 +613,14 @@ class SyncSettingsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SettingsBlock(
-    color: SettingsSection.sync.color,
+    section: SettingsSection.sync,
     children: [
       SettingAnchor(
         id: 'sync.page',
         child: SettingsRowCard(
           child: Row(
             children: [
-              const SettingIcon(Icons.cloud_sync_outlined),
+              const SettingIcon(),
               const SizedBox(width: Gap.sm),
               Expanded(
                 child: Column(
@@ -727,7 +722,7 @@ class _StatsRefreshRowState extends ConsumerState<_StatsRefreshRow> {
       children: [
         const Padding(
           padding: EdgeInsets.only(top: 2),
-          child: const SettingIcon(Icons.groups_outlined),
+          child: const SettingIcon(),
         ),
         const SizedBox(width: Gap.sm),
         Expanded(
@@ -977,14 +972,8 @@ class _YtDisplayPrefsRows extends ConsumerWidget {
           prefs.autoFillChannel,
           (v) => update(prefs.copyWith(autoFillChannel: v)),
         ),
-        // 頻道頁搜尋（2026-10-14）：範圍、要不要照篩選。
-        row(
-          Icons.travel_explore_rounded,
-          '頻道搜尋也問 YouTube',
-          prefs.searchUseApi ? '快取找完再把整個頻道影片抓完，抓過的不重抓' : '只搜抓過的影片，不花配額',
-          prefs.searchUseApi,
-          (v) => update(prefs.copyWith(searchUseApi: v)),
-        ),
+        // 頻道頁搜尋（2026-10-14）：要不要照篩選。「也問 YouTube」那個開關
+        // 2026-10-15 拿掉：搜尋一律只搜快取（使用者要求）。
         row(
           Icons.visibility_outlined,
           '搜尋時列出已看過、已隱藏',
@@ -1002,7 +991,7 @@ class _YtDisplayPrefsRows extends ConsumerWidget {
               children: [
                 const Padding(
                   padding: EdgeInsets.only(top: 2),
-                  child: const SettingIcon(Icons.playlist_remove_rounded),
+                  child: const SettingIcon(),
                 ),
                 const SizedBox(width: Gap.sm),
                 Expanded(
@@ -1082,7 +1071,7 @@ class _VideoOpenModeRow extends ConsumerWidget {
       children: [
         const Padding(
           padding: EdgeInsets.only(top: 2),
-          child: const SettingIcon(Icons.smart_display_outlined),
+          child: const SettingIcon(),
         ),
         const SizedBox(width: Gap.sm),
         Expanded(
@@ -1164,7 +1153,7 @@ class _EmbedPlayerStyleRow extends ConsumerWidget {
         children: [
           const Padding(
             padding: EdgeInsets.only(top: 2),
-            child: const SettingIcon(Icons.picture_in_picture_alt_outlined),
+            child: const SettingIcon(),
           ),
           const SizedBox(width: Gap.sm),
           Expanded(
@@ -1268,7 +1257,7 @@ class _VideoTabChannelRow extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(vertical: 2),
         child: Row(
           children: [
-            const SettingIcon(Icons.smart_display_outlined),
+            const SettingIcon(),
             const SizedBox(width: Gap.sm),
             Expanded(
               child: Column(

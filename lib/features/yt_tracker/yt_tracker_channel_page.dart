@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -165,8 +167,13 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
   /// YouTube App 頻道頁就是這樣）：點右上角 🔍，整條頂部列變成搜尋框，
   /// 按 Enter 後下面整頁換成結果；← 收起回到原本的頁面、原本的位置。
   /// 怎麼找見 [YtChannelSearch]。
+  ///
+  /// 2026-10-15 使用者要求：點 🔍 鍵盤就跳出來；打一個字就搜一次（不用按
+  /// Enter）；只搜快取，不自己打 API（見 [YtChannelSearch]）。
   bool _searchOpen = false;
   final _searchCtrl = TextEditingController();
+  final _searchFocus = FocusNode();
+  Timer? _typeDebounce;
   YtChannelSearch? _search;
   List<String> _recents = const [];
   double _scrollBeforeSearch = 0;
@@ -196,11 +203,16 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     _search?.cancel();
     _search?.dispose();
     _searchCtrl.dispose();
+    _searchFocus.dispose();
+    _typeDebounce?.cancel();
     _scroll.dispose();
     super.dispose();
   }
 
   Future<void> _openSearch() async {
+    // 一定要在點下去的當下要焦點，iPhone 才會跳鍵盤（晚一點才要，Safari
+    // 會擋）；搜尋框平常就在（看不見），所以這時要得到。
+    _searchFocus.requestFocus();
     _scrollBeforeSearch = _scroll.hasClients ? _scroll.offset : 0;
     setState(() => _searchOpen = true);
     if (_scroll.hasClients) _scroll.jumpTo(0);
@@ -216,7 +228,70 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     _search = null;
   }
 
+  Widget _topBar(YtChannel channel) {
+    return AppTopBar(
+      title: _draft?.name ?? channel.name,
+      // 名字太長走馬燈（2026-10-12 使用者要求）。
+      marqueeTitle: true,
+      showSettings: !_editing,
+      // 順序：編輯、紀錄（2026-10-06 使用者要求紀錄放
+      // 編輯右邊）。刪除鈕 2026-10-12 拿掉：分類頁長按
+      // 就能刪（使用者要求）。
+      actions: _editing
+          ? [
+              TextButton(
+                onPressed: _cancelEdit,
+                style: TextButton.styleFrom(foregroundColor: AppColors.ink2),
+                child: const Text('取消'),
+              ),
+              FilledButton(
+                onPressed: _doneEdit,
+                style: FilledButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                ),
+                child: const Text(
+                  '完成',
+                  style: TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ),
+            ]
+          : [
+              IconButton(
+                onPressed: _openSearch,
+                icon: const Icon(Icons.search_rounded, size: 21),
+                color: AppColors.ink2,
+                tooltip: '搜尋這個頻道的影片',
+              ),
+              IconButton(
+                onPressed: () => _startEdit(channel),
+                icon: const Icon(Icons.edit_outlined, size: 20),
+                color: AppColors.ink2,
+                tooltip: '編輯頻道',
+              ),
+              // 頻道紀錄（2026-10-06）：看影片、換分類、刪除還原…
+              IconButton(
+                onPressed: () =>
+                    context.push('/yt-tracker/channel/${channel.id}/log'),
+                icon: const Icon(Icons.history_rounded, size: 20),
+                color: AppColors.ink2,
+                tooltip: '紀錄',
+              ),
+            ],
+    );
+  }
+
+  void _onSearchTyped(YtChannel channel, String text) {
+    _typeDebounce?.cancel();
+    _typeDebounce = Timer(const Duration(milliseconds: 250), () {
+      if (!mounted || !_searchOpen) return;
+      _submitSearch(channel, text, typing: true);
+    });
+  }
+
   void _closeSearch() {
+    _typeDebounce?.cancel();
+    _searchFocus.unfocus();
     _stopSearch();
     _searchCtrl.clear();
     setState(() => _searchOpen = false);
@@ -235,37 +310,27 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     setState(() {});
   }
 
-  Future<void> _submitSearch(YtChannel channel, String query) async {
+  /// [typing]＝邊打邊搜：不收鍵盤、不記進最近搜尋（按 Enter 才記）。
+  Future<void> _submitSearch(
+    YtChannel channel,
+    String query, {
+    bool typing = false,
+  }) async {
+    _typeDebounce?.cancel();
     final q = query.trim();
     if (q.isEmpty) return _clearSearch();
-    if (_searchCtrl.text != q) _searchCtrl.text = q;
+    if (!typing && _searchCtrl.text != q) _searchCtrl.text = q;
     _stopSearch();
     final store = ref.read(keyValueStoreProvider);
-    final prefs = ref.read(ytDisplayPrefsProvider);
-    final apiKey = ref.read(ytApiKeyProvider);
-    final service = prefs.searchUseApi && apiKey != null && apiKey.isNotEmpty
-        ? YoutubeApiService(apiKey)
-        : null;
     final search = YtChannelSearch(
       channelId: channel.id,
       query: q,
       cache: YtVideoCacheStore(store),
-      api: service,
       totalOnYoutube: channel.videoCount,
-      uploadsId: () async {
-        if (_uploadsId == null && _videosFuture != null) {
-          // 第一頁還在抓（裡面會順便查出上傳清單 id）。
-          try {
-            await _videosFuture;
-          } catch (_) {}
-        }
-        return _uploadsId ??
-            (channel.uploadsPlaylistId.isEmpty
-                ? null
-                : channel.uploadsPlaylistId);
-      },
+      fill: () => YtChannelFiller.of(channel.id).current,
     )..addListener(_onSearchChanged);
     setState(() => _search = search);
+    if (typing) return search.run();
     FocusManager.instance.primaryFocus?.unfocus();
     final recents = await YtSearchRecentsStore(store).add(q);
     if (mounted) setState(() => _recents = recents);
@@ -1731,85 +1796,43 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          if (_searchOpen)
-                            _SearchBar(
-                              controller: _searchCtrl,
-                              onBack: _closeSearch,
-                              onClear: _clearSearch,
-                              onSubmit: (q) => _submitSearch(channel, q),
-                            )
-                          else
-                            AppTopBar(
-                              title: _draft?.name ?? channel.name,
-                              // 名字太長走馬燈（2026-10-12 使用者要求）。
-                              marqueeTitle: true,
-                              showSettings: !_editing,
-                              // 順序：編輯、紀錄（2026-10-06 使用者要求紀錄放
-                              // 編輯右邊）。刪除鈕 2026-10-12 拿掉：分類頁長按
-                              // 就能刪（使用者要求）。
-                              actions: _editing
-                                  ? [
-                                      TextButton(
-                                        onPressed: _cancelEdit,
-                                        style: TextButton.styleFrom(
-                                          foregroundColor: AppColors.ink2,
-                                        ),
-                                        child: const Text('取消'),
-                                      ),
-                                      FilledButton(
-                                        onPressed: _doneEdit,
-                                        style: FilledButton.styleFrom(
-                                          visualDensity: VisualDensity.compact,
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 16,
-                                          ),
-                                        ),
-                                        child: const Text(
-                                          '完成',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.w800,
-                                          ),
-                                        ),
-                                      ),
-                                    ]
-                                  : [
-                                      IconButton(
-                                        onPressed: _openSearch,
-                                        icon: const Icon(
-                                          Icons.search_rounded,
-                                          size: 21,
-                                        ),
-                                        color: AppColors.ink2,
-                                        tooltip: '搜尋這個頻道的影片',
-                                      ),
-                                      IconButton(
-                                        onPressed: () => _startEdit(channel),
-                                        icon: const Icon(
-                                          Icons.edit_outlined,
-                                          size: 20,
-                                        ),
-                                        color: AppColors.ink2,
-                                        tooltip: '編輯頻道',
-                                      ),
-                                      // 頻道紀錄（2026-10-06）：看影片、換分類、刪除還原…
-                                      IconButton(
-                                        onPressed: () => context.push(
-                                          '/yt-tracker/channel/${channel.id}/log',
-                                        ),
-                                        icon: const Icon(
-                                          Icons.history_rounded,
-                                          size: 20,
-                                        ),
-                                        color: AppColors.ink2,
-                                        tooltip: '紀錄',
-                                      ),
-                                    ],
-                            ),
+                          // 搜尋框一直放著、沒開時看不見：點 🔍 的當下就能
+                          // 要到焦點，iPhone 才會跳鍵盤。
+                          Stack(
+                            children: [
+                              Visibility(
+                                visible: !_searchOpen,
+                                maintainState: true,
+                                maintainAnimation: true,
+                                maintainSize: true,
+                                child: _topBar(channel),
+                              ),
+                              Positioned.fill(
+                                child: Visibility(
+                                  visible: _searchOpen,
+                                  maintainState: true,
+                                  maintainAnimation: true,
+                                  maintainSize: true,
+                                  maintainFocusability: true,
+                                  child: Center(
+                                    child: _SearchBar(
+                                      controller: _searchCtrl,
+                                      focusNode: _searchFocus,
+                                      onBack: _closeSearch,
+                                      onClear: _clearSearch,
+                                      onChanged: (q) =>
+                                          _onSearchTyped(channel, q),
+                                      onSubmit: (q) =>
+                                          _submitSearch(channel, q),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                           const SizedBox(height: Gap.md),
-                          if (_editing) ...[
-                            const _EditingBanner(),
-                            const SizedBox(height: Gap.sm),
-                          ],
+                          // 編輯中最上面原本有一行「點有虛線的地方直接改」，
+                          // 2026-10-15 使用者要求拿掉（虛線本身就看得懂）。
                           // 從垃圾桶點進來的頻道：最上面提示一下，旁邊就能還原。
                           if (channel.deletedAt != null &&
                               channel.purgedAt == null) ...[
@@ -1995,9 +2018,9 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
             padding: const EdgeInsets.symmetric(vertical: 30),
             child: Center(
               child: Text(
-                search.usesApi
+                YtChannelFiller.of(channel.id).complete
                     ? '「${search.query}」整個頻道都找不到'
-                    : '快取裡找不到「${search.query}」',
+                    : '抓過的影片裡找不到「${search.query}」',
                 style: AppText.note,
               ),
             ),
@@ -2582,27 +2605,6 @@ class _BackToTopButton extends StatelessWidget {
   }
 }
 
-/// 編輯中最上面那行藍色提示。
-class _EditingBanner extends StatelessWidget {
-  const _EditingBanner();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
-      decoration: BoxDecoration(
-        color: AppColors.accent.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
-      ),
-      child: const Text(
-        '✏️ 編輯中・點有虛線的地方直接改',
-        style: TextStyle(fontSize: 12, color: AppColors.ink),
-      ),
-    );
-  }
-}
-
 /// 編輯中有改東西時浮在底部的「已改 N 項・還原・儲存」。
 class _EditSaveBar extends StatelessWidget {
   const _EditSaveBar({
@@ -2850,16 +2852,21 @@ class _AvatarSheetState extends State<_AvatarSheet> {
   }
 }
 
-/// 搜尋時取代頂部列的搜尋框（設計稿第 1 版）：左邊 ← 收起，鍵盤直接跳出。
+/// 搜尋時取代頂部列的搜尋框（設計稿第 1 版）：左邊 ← 收起，鍵盤直接跳出，
+/// 打字就搜。
 class _SearchBar extends StatelessWidget {
   const _SearchBar({
     required this.controller,
+    required this.focusNode,
     required this.onBack,
     required this.onClear,
+    required this.onChanged,
     required this.onSubmit,
   });
 
   final TextEditingController controller;
+  final FocusNode focusNode;
+  final ValueChanged<String> onChanged;
   final VoidCallback onBack;
   final VoidCallback onClear;
   final ValueChanged<String> onSubmit;
@@ -2879,8 +2886,9 @@ class _SearchBar extends StatelessWidget {
             listenable: controller,
             builder: (context, _) => TextField(
               controller: controller,
-              autofocus: true,
+              focusNode: focusNode,
               textInputAction: TextInputAction.search,
+              onChanged: onChanged,
               onSubmitted: onSubmit,
               style: const TextStyle(fontSize: 14, color: AppColors.ink),
               decoration: InputDecoration(
@@ -2960,13 +2968,9 @@ class _SearchStatus extends StatelessWidget {
       ];
     } else if (!s.usesApi) {
       text = [
-        TextSpan(text: '只搜快取（${s.cachedCount} 部）・找到 '),
+        TextSpan(text: '搜抓過的 ${s.cachedCount} 部・找到 '),
         found,
-        TextSpan(
-          text: shown == 0 && filteredOut == 0
-              ? ' 部・設定打開「頻道搜尋也問 YouTube」可以搜整個頻道'
-              : ' 部$hiddenNote',
-        ),
+        TextSpan(text: ' 部$hiddenNote'),
       ];
     } else if (!s.done) {
       final total = s.totalOnYoutube;
@@ -2977,8 +2981,8 @@ class _SearchStatus extends StatelessWidget {
       text = [
         TextSpan(
           text: s.scanned == s.cachedCount
-              ? '快取找完，正在向 YouTube 抓這個頻道其他影片…'
-              : '正在向 YouTube 抓這個頻道其他影片… ${s.scanned}'
+              ? '快取找完，這個頻道其他影片還在背景抓…'
+              : '這個頻道其他影片還在背景抓… ${s.scanned}'
                     '${total == null ? '' : '／$total'} 部',
         ),
         const TextSpan(text: '・目前找到 '),
