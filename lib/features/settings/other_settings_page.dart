@@ -14,7 +14,10 @@ import '../../data/repositories/yt_embed_player_style_store.dart';
 import '../../data/repositories/yt_stats_refresh_setting_store.dart';
 import '../../data/repositories/nav_bar_prefs_store.dart';
 import '../../data/repositories/yt_display_prefs_store.dart';
+import '../../data/repositories/yt_video_cache_store.dart';
 import '../../data/repositories/yt_video_open_mode_store.dart';
+import '../../data/repositories/yt_video_watch_store.dart';
+import '../../data/services/youtube_api_service.dart';
 import '../../shared/widgets/app_notice.dart';
 import 'settings_page.dart' show AppLogoSettingsCard;
 import 'all_settings_page.dart' show SettingsSection;
@@ -444,6 +447,11 @@ class YtSettingsSection extends ConsumerWidget {
               ),
               const Divider(height: Gap.lg, color: AppColors.glassEdge),
               const _YtDisplayPrefsRows(),
+              const Divider(height: Gap.lg, color: AppColors.glassEdge),
+              const SettingAnchor(
+                id: 'yt.watchBackfill',
+                child: _WatchBackfillRow(),
+              ),
               const Divider(height: Gap.lg, color: AppColors.glassEdge),
               // 永久刪除的頻道清單（2026-10-06 使用者要求：放設定裡，想看
               // 刪了哪些可以點開；放最下面）。
@@ -1354,4 +1362,90 @@ class _VideoTabChannelRow extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// 補齊看過紀錄（2026-10-15 使用者要求）：看過紀錄從今天起會順便存影片
+/// 資料（標題、縮圖、頻道），紀錄頁直接讀、不用翻每個頻道的快取。之前的
+/// 舊紀錄沒有，按一次從各頻道的影片快取補完——不在程式裡兼容舊資料。
+class _WatchBackfillRow extends ConsumerStatefulWidget {
+  const _WatchBackfillRow();
+
+  @override
+  ConsumerState<_WatchBackfillRow> createState() => _WatchBackfillRowState();
+}
+
+class _WatchBackfillRowState extends ConsumerState<_WatchBackfillRow> {
+  bool _running = false;
+
+  Future<void> _run() async {
+    setState(() => _running = true);
+    try {
+      final kv = ref.read(keyValueStoreProvider);
+      final store = YtVideoWatchStore(kv);
+      final need = {
+        for (final e in (await store.loadAll()).entries)
+          if (e.value.video == null) e.key,
+      };
+      final found = <String, ({YoutubeVideo video, String channelId})>{};
+      if (need.isNotEmpty) {
+        final channels = await ref
+            .read(ytTrackerRepositoryProvider)
+            .channelsForUpload();
+        final cache = YtVideoCacheStore(kv);
+        final lists = await Future.wait(channels.map((c) => cache.load(c.id)));
+        for (var i = 0; i < channels.length; i++) {
+          for (final v in lists[i]) {
+            if (need.contains(v.videoId)) {
+              found[v.videoId] = (video: v, channelId: channels[i].id);
+            }
+          }
+        }
+      }
+      final r = await store.backfill(found);
+      if (!mounted) return;
+      showAppNotice(
+        context,
+        need.isEmpty ? '看過紀錄都已經有影片資料了' : '補好 ${r.filled} 筆',
+        detail: r.missing > 0 ? '還有 ${r.missing} 筆找不到影片（頻道刪了或快取裡沒有）' : null,
+      );
+    } catch (e) {
+      if (mounted) showAppNotice(context, '補不起來：$e', isError: true);
+    } finally {
+      if (mounted) setState(() => _running = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      const SettingIcon(),
+      const SizedBox(width: Gap.sm),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '補齊看過紀錄',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: AppColors.ink,
+              ),
+            ),
+            Text('舊的看過紀錄補上影片資料，紀錄頁才列得出來', style: AppText.note),
+          ],
+        ),
+      ),
+      _running
+          ? const Padding(
+              padding: EdgeInsets.all(10),
+              child: SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            )
+          : TextButton(onPressed: _run, child: const Text('補齊')),
+    ],
+  );
 }

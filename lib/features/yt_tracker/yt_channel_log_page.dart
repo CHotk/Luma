@@ -8,7 +8,6 @@ import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
 import '../../data/repositories/yt_channel_log_store.dart';
-import '../../data/repositories/yt_video_cache_store.dart';
 import '../../data/repositories/yt_video_watch_store.dart';
 import '../../data/services/youtube_api_service.dart';
 import '../../domain/models/yt_tracker.dart';
@@ -245,18 +244,24 @@ class _YtChannelLogPageState extends ConsumerState<YtChannelLogPage> {
 
   bool get _global => widget.channelId == null;
 
-  /// 先秀、再補（2026-10-15 使用者回報：點下去要等一兩秒才有反應）。
-  /// 頻道異動（加入、換分類…）資料很小，先畫出來；看過的影片要讀每個
-  /// 頻道的影片快取才知道標題，6 個頻道一批同時讀，讀完一批就補上一批。
+  /// 看過的影片直接用看過紀錄裡存的影片資料（2026-10-15 使用者回報點下去
+  /// 要等一兩秒：原本要翻每個頻道的整份影片快取才知道標題）。舊紀錄沒有
+  /// 影片資料的不列，到設定按「補齊看過紀錄」補（使用者要求）。
   Stream<_LogData> _load() async* {
     final kv = ref.read(keyValueStoreProvider);
     final repo = ref.read(ytTrackerRepositoryProvider);
     final channels = await repo.channelsForUpload();
     final categories = await repo.loadCategories();
+    final watchRecords = await YtVideoWatchStore(kv).loadAll();
+    List<({YoutubeVideo video, List<DateTime> openedAt})> watchedOf(
+      String id,
+    ) => [
+      for (final r in watchRecords.values)
+        if (r.channelId == id && r.video != null)
+          (video: r.video!, openedAt: r.openedAt),
+    ];
     if (_global) {
       final events = await YtChannelLogStore(kv).loadAll();
-      final watchRecords = await YtVideoWatchStore(kv).loadAll();
-      final cache = YtVideoCacheStore(kv);
       final items = <YtChannelLogItem>[
         for (final c in channels)
           ...buildYtChannelLog(
@@ -265,35 +270,10 @@ class _YtChannelLogPageState extends ConsumerState<YtChannelLogPage> {
               for (final e in events)
                 if (e.channelId == c.id) e,
             ],
-            watched: const [],
+            watched: watchedOf(c.id),
           ).map((i) => i.withChannel(c)),
       ]..sort((a, b) => b.at.compareTo(a.at));
-      yield (channel: null, items: List.of(items), categories: categories);
-      for (var i = 0; i < channels.length; i += 6) {
-        final batch = channels.skip(i).take(6).toList();
-        final watched = await Future.wait(
-          batch.map((c) async {
-            final cached = await cache.load(c.id);
-            final w = [
-              for (final v in cached)
-                if (watchRecords[v.videoId] case final r?)
-                  (video: v, openedAt: r.openedAt),
-            ];
-            if (w.isEmpty) return const <YtChannelLogItem>[];
-            return buildYtChannelLog(
-              channel: c,
-              events: const [],
-              watched: w,
-            ).where((x) => x.isWatch).map((x) => x.withChannel(c)).toList();
-          }),
-        );
-        final add = watched.expand((x) => x).toList();
-        if (add.isEmpty) continue;
-        items
-          ..addAll(add)
-          ..sort((a, b) => b.at.compareTo(a.at));
-        yield (channel: null, items: List.of(items), categories: categories);
-      }
+      yield (channel: null, items: items, categories: categories);
       return;
     }
     final match = channels.where((c) => c.id == widget.channelId);
@@ -307,19 +287,12 @@ class _YtChannelLogPageState extends ConsumerState<YtChannelLogPage> {
     }
     final channel = match.first;
     final events = await YtChannelLogStore(kv).forChannel(channel.id);
-    final cached = await YtVideoCacheStore(kv).load(channel.id);
-    final watchRecords = await YtVideoWatchStore(kv).loadAll();
-    final watched = [
-      for (final v in cached)
-        if (watchRecords[v.videoId] case final r?)
-          (video: v, openedAt: r.openedAt),
-    ];
     yield (
       channel: channel,
       items: buildYtChannelLog(
         channel: channel,
         events: events,
-        watched: watched,
+        watched: watchedOf(channel.id),
       ),
       categories: categories,
     );

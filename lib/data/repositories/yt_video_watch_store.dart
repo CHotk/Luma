@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../services/youtube_api_service.dart';
 
 import '../../domain/models/yt_video_watch.dart';
 import '../storage/key_value_store.dart';
@@ -40,11 +41,20 @@ class YtVideoWatchStore {
 
   /// 標記一支影片被點開了：每一次點開都追加一筆時間戳，不是只記第一次
   /// 跟最近一次（2026-09-29 使用者糾正：每一次都該紀錄）。
-  Future<YtVideoWatchRecord> markOpened(String videoId) async {
+  ///
+  /// [video]／[channelId]：順便記下這支影片的資料（2026-10-15），紀錄頁
+  /// 直接用。
+  Future<YtVideoWatchRecord> markOpened(
+    String videoId, {
+    YoutubeVideo? video,
+    String? channelId,
+  }) async {
     final all = await loadAll();
     final existing = all[videoId];
     final updated = YtVideoWatchRecord(
       openedAt: [...?existing?.openedAt, DateTime.now()],
+      video: video ?? existing?.video,
+      channelId: channelId ?? existing?.channelId,
     );
     all[videoId] = updated;
     await _writeAll(all);
@@ -71,13 +81,40 @@ class YtVideoWatchStore {
         for (final t in entry.value.openedAt)
           if (known.add(t.toUtc().toIso8601String())) t,
       ];
-      if (fresh.isNotEmpty) {
+      // 影片資料：哪邊有就用哪邊的（2026-10-15）。
+      final gainSnapshot = l.video == null && entry.value.video != null;
+      if (fresh.isNotEmpty || gainSnapshot) {
         final merged = [...l.openedAt, ...fresh]..sort();
-        local[entry.key] = YtVideoWatchRecord(openedAt: merged);
+        local[entry.key] = YtVideoWatchRecord(
+          openedAt: merged,
+          video: l.video ?? entry.value.video,
+          channelId: l.channelId ?? entry.value.channelId,
+        );
         changed++;
       }
     }
     if (changed > 0) await _writeAll(local);
     return changed;
+  }
+
+  /// 設定裡「補齊看過紀錄」（2026-10-15）：還沒存影片資料的紀錄，從
+  /// [found]（影片 id → 影片＋頻道）補上。回傳補了幾筆、還有幾筆找不到。
+  Future<({int filled, int missing})> backfill(
+    Map<String, ({YoutubeVideo video, String channelId})> found,
+  ) async {
+    final all = await loadAll();
+    var filled = 0, missing = 0;
+    for (final e in all.entries.toList()) {
+      if (e.value.video != null) continue;
+      final f = found[e.key];
+      if (f == null) {
+        missing++;
+        continue;
+      }
+      all[e.key] = e.value.withSnapshot(f.video, f.channelId);
+      filled++;
+    }
+    if (filled > 0) await _writeAll(all);
+    return (filled: filled, missing: missing);
   }
 }

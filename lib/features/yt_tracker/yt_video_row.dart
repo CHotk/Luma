@@ -349,9 +349,12 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
     if (ref.read(ytVideoOpenModeProvider) == YtVideoOpenMode.embedded) {
       // 內嵌播放是彈出 App 自己的對話框，不是叫瀏覽器開新分頁，沒有
       // window.open 那個「必須同步呼叫」的顧慮，可以先標記已看過再開。
-      final record = await YtVideoWatchStore(
-        ref.read(keyValueStoreProvider),
-      ).markOpened(widget.video.videoId);
+      final record = await YtVideoWatchStore(ref.read(keyValueStoreProvider))
+          .markOpened(
+            widget.video.videoId,
+            video: widget.video,
+            channelId: widget.channelId,
+          );
       if (mounted) setState(() => _watched = record);
       widget.onWatchedChanged?.call(record);
       if (!context.mounted) return;
@@ -392,9 +395,12 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
     // （2026-09-30 使用者回報：加了已看過標記之後點影片就跳不出去了，
     // 就是這裡的順序錯了，跟 `external_link.dart` 的說明是同一個坑）。
     await openExternalUrl(context, widget.video.watchUrl);
-    final record = await YtVideoWatchStore(
-      ref.read(keyValueStoreProvider),
-    ).markOpened(widget.video.videoId);
+    final record = await YtVideoWatchStore(ref.read(keyValueStoreProvider))
+        .markOpened(
+          widget.video.videoId,
+          video: widget.video,
+          channelId: widget.channelId,
+        );
     if (mounted) setState(() => _watched = record);
     widget.onWatchedChanged?.call(record);
   }
