@@ -8,6 +8,7 @@ import '../../app/theme/typography.dart';
 import '../../data/storage/key_value_store.dart';
 import '../../data/storage/platform_store.dart';
 import '../../shared/widgets/ambient_background.dart';
+import '../../shared/widgets/app_notice.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
 import '../../shared/widgets/glass_card.dart';
@@ -45,21 +46,34 @@ class _LocalStoragePageState extends ConsumerState<LocalStoragePage> {
     _load();
   }
 
-  Future<void> _load() async {
+  bool _loading = false;
+
+  /// [announce]＝按右上角重新整理：讀完跳一句「已更新」，不然數字沒變
+  /// 看起來像沒反應（2026-10-15 使用者回報）。
+  Future<void> _load({bool announce = false}) async {
+    if (_loading) return;
     final store = ref.read(keyValueStoreProvider);
     if (store is! ListableKeyValueStore) {
       setState(() => _error = '這個平台的儲存方式不支援列出全部資料');
       return;
     }
-    final all = await store.readAll();
-    final estimate = await estimateStorage();
-    if (!mounted) return;
-    setState(() {
-      _all = all;
-      _groups = groupStorage(all);
-      _estimate = estimate;
-      _error = null;
-    });
+    setState(() => _loading = true);
+    try {
+      final all = await store.readAll();
+      final estimate = await estimateStorage();
+      if (!mounted) return;
+      setState(() {
+        _all = all;
+        _groups = groupStorage(all);
+        _estimate = estimate;
+        _error = null;
+      });
+      if (announce) {
+        showAppNotice(context, '已更新', detail: '共 ${all.length} 筆資料');
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   @override
@@ -78,11 +92,21 @@ class _LocalStoragePageState extends ConsumerState<LocalStoragePage> {
                 AppTopBar(
                   title: '本機儲存',
                   titleIcon: Icons.storage_outlined,
+                  // 從左邊選單進來的（換掉整個頁面），沒有上一頁可以回，
+                  // 跟同步、除錯一樣左上角放選單（2026-10-15 使用者回報
+                  // 返回鍵按了沒反應）。
+                  showBack: false,
                   showSettings: false,
                   actions: [
                     IconButton(
-                      onPressed: _load,
-                      icon: const Icon(Icons.refresh_rounded, size: 20),
+                      onPressed: _loading ? null : () => _load(announce: true),
+                      icon: _loading
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.refresh_rounded, size: 20),
                       color: AppColors.ink2,
                       tooltip: '重新整理',
                     ),
