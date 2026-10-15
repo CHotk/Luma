@@ -381,6 +381,48 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     if (mounted) setState(() {});
   }
 
+  /// 分頁膠囊捲到頂了沒（2026-10-15 使用者回報：釘住時膠囊上下跟旁邊
+  /// 還會透出底下的影片，很花）。捲到頂就在上面疊一顆固定的膠囊，並把
+  /// 捲動區最上面膠囊那一段挖掉（[_maskUnderTabs]），影片一捲到那裡就
+  /// 淡掉不見，膠囊四周只剩頁面背景。
+  final _tabsKey = GlobalKey();
+  final _scrollAreaKey = GlobalKey();
+  bool _tabsPinned = false;
+
+  void _updateTabsPinned() {
+    final tabs = _tabsKey.currentContext?.findRenderObject() as RenderBox?;
+    final area =
+        _scrollAreaKey.currentContext?.findRenderObject() as RenderBox?;
+    var pinned = false;
+    if (tabs != null && area != null && tabs.attached && area.attached) {
+      pinned =
+          tabs.localToGlobal(Offset.zero).dy <=
+          area.localToGlobal(Offset.zero).dy + 0.5;
+    }
+    if (pinned != _tabsPinned) setState(() => _tabsPinned = pinned);
+  }
+
+  Widget _maskUnderTabs(Widget child) {
+    if (!_tabsPinned || _searchOpen) return child;
+    const solid = _ChannelTabBar.height;
+    const fade = 14.0;
+    return ShaderMask(
+      blendMode: BlendMode.dstIn,
+      shaderCallback: (rect) => LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: const [
+          Colors.transparent,
+          Colors.transparent,
+          Colors.white,
+          Colors.white,
+        ],
+        stops: [0, solid / rect.height, (solid + fade) / rect.height, 1],
+      ).createShader(rect),
+      child: child,
+    );
+  }
+
   /// 設定開著才包一層一直顯示、可拖的捲動條（2026-10-12 使用者要求）。
   Widget _withScrollbar(bool show, Widget child) => show
       ? Scrollbar(
@@ -393,6 +435,7 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
 
   void _onScroll() {
     if (!_scroll.hasClients) return;
+    _updateTabsPinned();
     final pos = _scroll.position;
     final showTop = pos.pixels > _backToTopAfter;
     if (showTop != _showBackToTop) setState(() => _showBackToTop = showTop);
@@ -1959,61 +2002,78 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                           // 要求）；滑下去一段右下角出「回到最上面」。
                           Expanded(
                             child: Stack(
+                              key: _scrollAreaKey,
                               children: [
                                 // 捲動條自己畫，關掉 App 預設的（網頁桌機版
                                 // 預設會有一條），設定關掉就完全不顯示。
-                                ScrollConfiguration(
-                                  behavior: ScrollConfiguration.of(
-                                    context,
-                                  ).copyWith(scrollbars: false),
-                                  child: _withScrollbar(
-                                    prefs.showScrollbar,
-                                    CustomScrollView(
-                                      controller: _scroll,
-                                      slivers: [
-                                        ...(_searchOpen
-                                            ? _buildSearch(channel)
-                                            : [
-                                                SliverToBoxAdapter(
-                                                  child: _buildChannelBody(
-                                                    channel,
-                                                    categories,
-                                                    categoryLabel,
+                                _maskUnderTabs(
+                                  ScrollConfiguration(
+                                    behavior: ScrollConfiguration.of(
+                                      context,
+                                    ).copyWith(scrollbars: false),
+                                    child: _withScrollbar(
+                                      prefs.showScrollbar,
+                                      CustomScrollView(
+                                        controller: _scroll,
+                                        slivers: [
+                                          ...(_searchOpen
+                                              ? _buildSearch(channel)
+                                              : [
+                                                  SliverToBoxAdapter(
+                                                    child: _buildChannelBody(
+                                                      channel,
+                                                      categories,
+                                                      categoryLabel,
+                                                    ),
                                                   ),
-                                                ),
-                                                // 分頁列往上滑會黏在最上面。
-                                                SliverPersistentHeader(
-                                                  pinned: true,
-                                                  delegate: _TabBarDelegate(
-                                                    selected: _tab,
-                                                    onTap: _selectTab,
-                                                    dim: _editing,
-                                                  ),
-                                                ),
-                                                if (_editing)
-                                                  SliverIgnorePointer(
-                                                    sliver: SliverOpacity(
-                                                      opacity: 0.3,
-                                                      sliver: _buildTabBody(
-                                                        channel,
+                                                  // 分頁膠囊：跟著往上捲，捲到頂就換成上面
+                                                  // 固定的那顆（見 [_maskUnderTabs]）。
+                                                  SliverToBoxAdapter(
+                                                    child: KeyedSubtree(
+                                                      key: _tabsKey,
+                                                      child: _ChannelTabBar(
+                                                        selected: _tab,
+                                                        onTap: _selectTab,
+                                                        dim: _editing,
                                                       ),
                                                     ),
-                                                  )
-                                                else
-                                                  _buildTabBody(channel),
-                                              ]),
-                                        // 底部浮動分頁列擋住的高度（2026-10-14）。
-                                        SliverToBoxAdapter(
-                                          child: SizedBox(
-                                            height: FloatingNavInset.of(
-                                              context,
+                                                  ),
+                                                  if (_editing)
+                                                    SliverIgnorePointer(
+                                                      sliver: SliverOpacity(
+                                                        opacity: 0.3,
+                                                        sliver: _buildTabBody(
+                                                          channel,
+                                                        ),
+                                                      ),
+                                                    )
+                                                  else
+                                                    _buildTabBody(channel),
+                                                ]),
+                                          // 底部浮動分頁列擋住的高度（2026-10-14）。
+                                          SliverToBoxAdapter(
+                                            child: SizedBox(
+                                              height: FloatingNavInset.of(
+                                                context,
+                                              ),
                                             ),
                                           ),
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
                                   ),
                                 ),
+                                if (_tabsPinned && !_searchOpen)
+                                  Positioned(
+                                    left: 0,
+                                    right: 0,
+                                    top: 0,
+                                    child: _ChannelTabBar(
+                                      selected: _tab,
+                                      onTap: _selectTab,
+                                      dim: _editing,
+                                    ),
+                                  ),
                                 // 編輯中先藏起來，不跟儲存列擠。
                                 if (prefs.showBackToTop && !_editing)
                                   Positioned.fill(
@@ -3470,8 +3530,8 @@ String _fmtCount(int n) =>
 /// 選中的那格亮起來——跟底部分頁列、英日切換同一種樣子。膠囊外面完全
 /// 透明，黏在上面時就是浮著的一顆膠囊，不會有一整條底（使用者回報原本
 /// 整條黑底、半透明黑底都跟漸層背景接不起來，提議改成膠囊）。
-class _TabBarDelegate extends SliverPersistentHeaderDelegate {
-  _TabBarDelegate({
+class _ChannelTabBar extends StatelessWidget {
+  const _ChannelTabBar({
     required this.selected,
     required this.onTap,
     required this.dim,
@@ -3481,68 +3541,65 @@ class _TabBarDelegate extends SliverPersistentHeaderDelegate {
   final ValueChanged<_ChannelTab> onTap;
   final bool dim;
 
-  static const _height = 48.0;
+  static const height = 48.0;
 
   @override
-  double get minExtent => _height;
-
-  @override
-  double get maxExtent => _height;
-
-  @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlaps) {
-    return IgnorePointer(
-      ignoring: dim,
-      child: Opacity(
-        opacity: dim ? 0.3 : 1,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 5),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(999),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-              child: Container(
-                padding: const EdgeInsets.all(3),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1E1E2C).withValues(alpha: 0.72),
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.14),
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: height,
+      child: IgnorePointer(
+        ignoring: dim,
+        child: Opacity(
+          opacity: dim ? 0.3 : 1,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 5),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                child: Container(
+                  padding: const EdgeInsets.all(3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1E1E2C).withValues(alpha: 0.72),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.14),
+                    ),
                   ),
-                ),
-                child: Row(
-                  children: [
-                    for (final t in _ChannelTab.values)
-                      Expanded(
-                        child: GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onTap: () => onTap(t),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 180),
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: t == selected
-                                  ? Colors.white.withValues(alpha: 0.16)
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: FittedBox(
-                              fit: BoxFit.scaleDown,
-                              child: Text(
-                                t.label,
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  color: t == selected
-                                      ? AppColors.ink
-                                      : AppColors.ink2,
+                  child: Row(
+                    children: [
+                      for (final t in _ChannelTab.values)
+                        Expanded(
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () => onTap(t),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 180),
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: t == selected
+                                    ? Colors.white.withValues(alpha: 0.16)
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  t.label,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: t == selected
+                                        ? AppColors.ink
+                                        : AppColors.ink2,
+                                  ),
                                 ),
                               ),
                             ),
                           ),
                         ),
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -3551,10 +3608,6 @@ class _TabBarDelegate extends SliverPersistentHeaderDelegate {
       ),
     );
   }
-
-  @override
-  bool shouldRebuild(_TabBarDelegate old) =>
-      old.selected != selected || old.dim != dim;
 }
 
 /// 簡介分頁的一塊：大標題＋灰色小字說明，跟下一塊之間拉開距離。
