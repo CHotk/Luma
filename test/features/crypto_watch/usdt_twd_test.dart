@@ -154,10 +154,7 @@ void main() {
     // 匯率也最多小數第一位：打 31.25 → 31.3。
     await tester.enterText(rateField, '31.25');
     await tester.pump();
-    expect(
-      tester.widget<TextField>(rateField).controller!.text,
-      '31.3',
-    );
+    expect(tester.widget<TextField>(rateField).controller!.text, '31.3');
     final container = ProviderScope.containerOf(
       tester.element(find.text('USDT 換台幣匯率')),
     );

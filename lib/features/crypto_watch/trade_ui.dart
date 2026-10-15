@@ -19,7 +19,8 @@ import '../../shared/widgets/app_confirm_dialog.dart';
 const tradeUp = AppColors.ok;
 const tradeDown = Color(0xFFFF7A70);
 
-/// 重疊倉位的顏色（2026-10-14）：照開倉先後輪流用，避開綠／紅（那是賺賠）。
+/// 月曆上每單底線的顏色（2026-10-14），避開綠／紅（那是賺賠）。怎麼分配見
+/// [tradeMonthColors]。
 const tradeOverlapColors = [
   Color(0xFFF5C763),
   Color(0xFF60A5FA),
@@ -27,6 +28,82 @@ const tradeOverlapColors = [
   Color(0xFF2DD4BF),
   Color(0xFFF472B6),
 ];
+
+/// 月曆上每一單的顏色（2026-10-15 使用者要求，全部的單都上色）：
+/// - 每個月把 [tradeOverlapColors] 五種顏色打亂成一個順序，這個月開的單照
+///   開倉先後依序拿；五種用完就照**同一個順序**從頭再輪，不再重新打亂。
+/// - 上個月開、這個月還抱著的跨月單**保留原本的顏色**排在最前面，剩下的
+///   顏色才打亂接在後面，當作這個月的順序。
+/// - 打亂用年月當種子，每次打開、換裝置看都一樣；下個月才換新順序。
+///
+/// [trades] 給全部的單就好，這裡自己挑出持倉期間碰到這個月的。
+Map<String, Color> tradeMonthColors(
+  List<TradeEntry> trades,
+  int year,
+  int month, {
+  DateTime? now,
+}) => _monthColors(trades, DateTime(year, month), now ?? DateTime.now(), {});
+
+Map<String, Color> _monthColors(
+  List<TradeEntry> trades,
+  DateTime m,
+  DateTime now,
+  Map<DateTime, Map<String, Color>> memo,
+) {
+  final hit = memo[m];
+  if (hit != null) return hit;
+  final end = DateTime(m.year, m.month + 1);
+  final inMonth =
+      trades
+          .where(
+            (t) => t.openedAt.isBefore(end) && !(t.closedAt ?? now).isBefore(m),
+          )
+          .toList()
+        ..sort((a, b) => a.openedAt.compareTo(b.openedAt));
+  final out = <String, Color>{};
+  // 跨月單：拿它開倉那個月給的顏色。
+  final carried = <Color>[];
+  for (final t in inMonth.where((t) => t.openedAt.isBefore(m))) {
+    final om = DateTime(t.openedAt.year, t.openedAt.month);
+    final c =
+        _monthColors(trades, om, now, memo)[t.id] ?? tradeOverlapColors.first;
+    out[t.id] = c;
+    if (!carried.contains(c)) carried.add(c);
+  }
+  final order = [
+    ...carried,
+    ..._shuffled(
+      tradeOverlapColors.where((c) => !carried.contains(c)).toList(),
+      m.year * 12 + m.month,
+    ),
+  ];
+  var i = carried.length;
+  for (final t in inMonth.where((t) => !t.openedAt.isBefore(m))) {
+    out[t.id] = order[i % order.length];
+    i++;
+  }
+  return memo[m] = out;
+}
+
+/// 固定種子的打亂。不用 dart:math 的 Random（網頁跟手機算出來不保證一樣），
+/// 也不用位元運算（網頁上只有 32 位）。
+List<T> _shuffled<T>(List<T> list, int seed) {
+  var s = seed % 2147483646 + 1;
+  int next(int n) {
+    s = s * 48271 % 2147483647;
+    return s % n;
+  }
+
+  next(1);
+  next(1);
+  for (var i = list.length - 1; i > 0; i--) {
+    final j = next(i + 1);
+    final t = list[i];
+    list[i] = list[j];
+    list[j] = t;
+  }
+  return list;
+}
 
 Color pnlColor(double? v) => v == null || v == 0
     ? AppColors.ink2

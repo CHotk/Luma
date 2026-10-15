@@ -206,13 +206,9 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
       }
       if (t.id == _ganttSel) litDays.addAll(days);
     }
-    final overlapped = [
-      for (final t in monthTrades)
-        if (_daysOf(t).any((d) => (heldOn[d]?.length ?? 0) > 1)) t,
-    ];
-    // 有跟別單重疊過的單才給顏色，而且從開到平每一天都用同一個顏色
-    // （2026-10-14 使用者回報：5 號開 6 號平、6 號又開一單，5 號是黃線、6 號
-    // 變藍，接不起來）。從沒重疊過的單照舊一條黃線。
+    // 每單一個顏色，從開到平每一天都同一色（2026-10-14 使用者回報：5 號開
+    // 6 號平、6 號又開一單，5 號是黃線、6 號變藍，接不起來）。2026-10-15 起
+    // 不管有沒有重疊全部上色，每月隨機順序，見 [tradeMonthColors]。
     // 每單固定一個「層」（2026-10-14 使用者要求：同一單的線每天都在同一個
     // 高度，不要重疊那天在上面、隔天又掉到底部）。照開倉先後，給它還沒被
     // 同時抱著的單佔掉的最低那層。
@@ -231,10 +227,7 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
       laneOf[t.id] = lane;
     }
     final lanes = laneOf.values.fold(0, (m, l) => l + 1 > m ? l + 1 : m);
-    final colorOf = <String, Color>{
-      for (var i = 0; i < overlapped.length; i++)
-        overlapped[i].id: tradeOverlapColors[i % tradeOverlapColors.length],
-    };
+    final colorOf = tradeMonthColors(data.trades, _month.year, _month.month);
     // 每天的開／平事件（照真的時間排），重疊那天標籤換成那單的顏色。
     final events = <DateTime, List<(bool open, String id, DateTime at)>>{};
     for (final t in data.trades) {
@@ -351,7 +344,7 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
             children: [
               _legend(tradeUp.withValues(alpha: 0.4), '賺'),
               _legend(tradeDown.withValues(alpha: 0.4), '賠'),
-              _legend(tradeOverlapColors.first, '底部黃線＝有抱單'),
+              _legend(tradeOverlapColors[1], '底部彩線＝有抱單（一單一色）'),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -370,13 +363,13 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
               ),
             ],
           ),
-          if (overlapped.isNotEmpty) ...[
+          if (monthTrades.isNotEmpty) ...[
             const SizedBox(height: Gap.sm),
             Wrap(
               spacing: 6,
               runSpacing: 6,
               children: [
-                for (final t in overlapped)
+                for (final t in monthTrades)
                   Container(
                     padding: const EdgeInsets.fromLTRB(6, 3, 9, 3),
                     decoration: BoxDecoration(
@@ -437,7 +430,7 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
     int lanes = 1,
     required List<(bool open, String id, DateTime at)> events,
   }) {
-    // 兩單以上重疊時，開／平標籤用那單的顏色。
+    // 開／平標籤用那單的顏色。
     Widget eventTag((bool, String, DateTime) e) {
       final c = colorOf[e.$2];
       if (c == null) return _tag(e.$1 ? '開' : '平', open: e.$1);
@@ -556,8 +549,8 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
                   ),
                 ),
                 // 持倉期間：格子最底部，1～3 單每單一條細線、由下往上疊，每天
-                // 一樣長、左右留一點空（2026-10-14 使用者要求）。重疊過的單從開到
-                // 平都用它的顏色；從沒重疊過的是黃色，跟重疊時的黃一樣實心。
+                // 一樣長、左右留一點空（2026-10-14 使用者要求）。每單從開到平都用
+                // 它自己的顏色。
                 for (final t in held)
                   Positioned(
                     left: 4,
