@@ -68,25 +68,26 @@ class AppTopBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
+        // 返回鍵、選單三條線大一點（2026-10-15 使用者要求，原本 20）。
         if (showBack)
           IconButton(
             onPressed: () => Navigator.of(context).maybePop(),
-            icon: const Icon(Icons.arrow_back, size: 20),
+            icon: const Icon(Icons.arrow_back, size: 23),
             color: AppColors.ink2,
             tooltip: '返回',
             padding: EdgeInsets.zero,
             visualDensity: VisualDensity.compact,
-            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
           )
         else
           IconButton(
             onPressed: () => Scaffold.of(context).openDrawer(),
-            icon: const Icon(Icons.menu, size: 20),
+            icon: const Icon(Icons.menu, size: 23),
             color: AppColors.ink2,
             tooltip: '選單',
             padding: EdgeInsets.zero,
             visualDensity: VisualDensity.compact,
-            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
           ),
         const SizedBox(width: Gap.sm),
         Expanded(
