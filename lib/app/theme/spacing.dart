@@ -12,7 +12,7 @@ abstract final class Gap {
 
 /// 圓角。卡片大、按鈕中、標籤小，三級就夠，不要再多。
 abstract final class Radii {
-  static const card = 18.0;
+  static const card = 20.0;
   static const button = 15.0;
   static const chip = 999.0;
 }

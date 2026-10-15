@@ -5,7 +5,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 import '../features/sync/sync_progress_banner.dart';
 import 'router.dart';
-import 'theme/colors.dart';
+import 'theme/app_theme.dart';
 
 /// 讓滑鼠也能像手機觸控一樣按住拖拉捲動。
 ///
@@ -44,19 +44,8 @@ class LumeApp extends StatelessWidget {
       supportedLocales: const [Locale('zh', 'TW'), Locale('en')],
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
       scrollBehavior: _AppScrollBehavior(),
-      theme: ThemeData(
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: AppColors.bg,
-        colorScheme: const ColorScheme.dark(
-          surface: AppColors.bg,
-          primary: AppColors.accent,
-          secondary: AppColors.accentSolid,
-          error: AppColors.bad,
-        ),
-        // 之後打包思源黑體時，字體只要在這裡指定一次。
-        fontFamily: null,
-        useMaterial3: true,
-      ),
+      // 小元件樣子統一（2026-10-15 使用者選共用小元件第 3 版），見 app_theme.dart。
+      theme: buildAppTheme(),
     );
   }
 }
