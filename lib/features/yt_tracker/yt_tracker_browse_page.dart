@@ -108,6 +108,17 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
   /// 依上傳時間／依觀看次數）。觀看次數用快取裡的（見 [YtVideoViews]）。
   _VideoSort _videoSort = _VideoSort.newest;
 
+  /// 「隱藏已看過」「顯示已隱藏」兩個開關（2026-10-15 使用者要求跟頻道
+  /// 詳情頁一樣）。預設也跟詳情頁一樣：藏看過的、不顯示隱藏的。
+  bool _hideWatched = true;
+  bool _showHidden = false;
+
+  bool _passesMarks(_ChannelVideo c) {
+    final id = c.video.videoId;
+    if (_hiddenIds.contains(id)) return _showHidden;
+    return !(_hideWatched && (_watchedRecords?[id] != null));
+  }
+
   List<_ChannelVideo> _sortVideos(List<_ChannelVideo> list) {
     if (_videoSort == _VideoSort.newest) return list;
     final views = YtVideoViews.notifier.value;
@@ -130,7 +141,9 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
 
   /// 依影片顯示：每個頻道抓最近幾部，湊在一起依時間排序。不支援往下滑
   /// 載入更多（頻道多，資料量會太大，2026-09-24 使用者決定）。
-  static const _videosPerChannel = 10;
+  ///
+  /// 2026-10-15 使用者要求 10 → 20 部。
+  static const _videosPerChannel = 20;
 
   /// 同時抓幾個頻道。原本一個一個排隊抓，一個分類五十個頻道要等全部
   /// 抓完才看得到東西（2026-10-12 使用者回報太久）；改成同時抓幾個、
@@ -883,6 +896,27 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
             ),
           ],
         ),
+        Padding(
+          padding: const EdgeInsets.only(bottom: Gap.xs),
+          child: Wrap(
+            spacing: 6,
+            children: [
+              _TypeChip(
+                label: '隱藏已看過',
+                selected: _hideWatched,
+                onTap: () {
+                  setState(() => _hideWatched = !_hideWatched);
+                  _loadVideoMarks();
+                },
+              ),
+              _TypeChip(
+                label: '顯示已隱藏',
+                selected: _showHidden,
+                onTap: () => setState(() => _showHidden = !_showHidden),
+              ),
+            ],
+          ),
+        ),
         Expanded(
           child: _videosFuture == null
               ? const Center(child: CircularProgressIndicator.adaptive())
@@ -904,7 +938,7 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                             a.video.publishedAt,
                           ),
                         ),
-                      );
+                      ).where(_passesMarks).toList();
                       final progress = _liveTotal > 1
                           ? '（${done.length}／$_liveTotal 個頻道）'
                           : '';
@@ -941,6 +975,7 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                                     preview[i].channel.id,
                                   ),
                                   known: _knownFor(preview[i].video.videoId),
+                                  forceShow: _showHidden,
                                   onWatchedChanged: (r) =>
                                       _onWatched(preview[i].video.videoId, r),
                                   onHiddenChanged: _loadVideoMarks,
@@ -968,7 +1003,9 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                       );
                     }
                     // 類型篩選已經在抓的時候做掉了（見 _fetchVideos），這裡直接用。
-                    final videos = _sortVideos(snap.data ?? const []);
+                    final videos = _sortVideos(
+                      snap.data ?? const [],
+                    ).where(_passesMarks).toList();
                     if (videos.isEmpty) {
                       final typed = _typeFilter != _TypeFilter.all;
                       return SingleChildScrollView(
@@ -1018,6 +1055,7 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                           subtitle:
                               '${item.channel.name}・${ytRelativeTime(item.video.publishedAt)}',
                           known: _knownFor(item.video.videoId),
+                          forceShow: _showHidden,
                           onWatchedChanged: (r) =>
                               _onWatched(item.video.videoId, r),
                           onHiddenChanged: _loadVideoMarks,
