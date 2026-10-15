@@ -394,6 +394,7 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 2026-10-15 使用者要求每項高一點、字大一點（原本上下 10、字 13.5、圖示 19）。
     final color = active ? AppColors.ink : AppColors.ink2;
     return Material(
       color: active
@@ -404,7 +405,7 @@ class _NavItem extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 13),
           child: Row(
             children: [
               Stack(
@@ -413,23 +414,23 @@ class _NavItem extends StatelessWidget {
                   imageAsset == null
                       ? Icon(
                           icon,
-                          size: 19,
+                          size: 21,
                           color: active ? AppColors.accent : color,
                         )
                       // 縮小版圖示（見 `small_asset.dart`），沒有就退回原圖。
                       : Image.asset(
                           smallAssetFor(imageAsset!),
-                          width: 19,
-                          height: 19,
+                          width: 21,
+                          height: 21,
                           color: active ? AppColors.accent : color,
                           errorBuilder: (context, error, stack) => Image.asset(
                             imageAsset!,
-                            width: 19,
-                            height: 19,
+                            width: 21,
+                            height: 21,
                             color: active ? AppColors.accent : color,
                             errorBuilder: (context, error, stack) => Icon(
                               icon,
-                              size: 19,
+                              size: 21,
                               color: active ? AppColors.accent : color,
                             ),
                           ),
@@ -449,11 +450,11 @@ class _NavItem extends StatelessWidget {
                     ),
                 ],
               ),
-              const SizedBox(width: 11),
+              const SizedBox(width: 12),
               Text(
                 label,
                 style: TextStyle(
-                  fontSize: 13.5,
+                  fontSize: 15,
                   fontWeight: FontWeight.w600,
                   color: color,
                 ),
@@ -481,16 +482,16 @@ class _MockNavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 13),
       child: Row(
         children: [
-          Icon(icon, size: 19, color: AppColors.ink3),
+          Icon(icon, size: 21, color: AppColors.ink3),
           const SizedBox(width: 11),
           Expanded(
             child: Text(
               label,
               style: const TextStyle(
-                fontSize: 13.5,
+                fontSize: 15,
                 fontWeight: FontWeight.w600,
                 color: AppColors.ink3,
               ),
