@@ -218,7 +218,6 @@ class _TopBar extends StatelessWidget {
           // 跟左邊不對稱）。
           constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
         ),
-        // 原本這裡有「週四 21:30 🌙」，2026-10-15 使用者要求拿掉。
         const SizedBox(width: Gap.sm),
         const TrackSwitcher(current: LearningTrack.ja),
         const Spacer(),
