@@ -7,16 +7,16 @@ import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
 import '../../domain/models/yt_tracker.dart';
-import '../../shared/widgets/glass_card.dart';
 import 'yt_channel_avatar.dart';
 
 /// 頻道詳情頁「編輯中」的頭部（2026-10-12 使用者挑了編輯頻道設計稿第 5 版
 /// 「頻道頁本身直接點著改」，最終版見 `design-history/已選擇完成/
 /// 2026-10-12_YT編輯頻道最終版（頁面上直接改）.html`）。
 ///
-/// 版面跟平常的頭部一樣（頭像、名稱、分類・訂閱、連結、簡介），每個能改
+/// 版面跟平常的頭部一樣（頭像、名稱、分類・訂閱、連結），每個能改
 /// 的地方圍一圈藍色虛線＋右上角小鉛筆，點哪改哪；改過的那個虛線變實線。
-/// 名稱、連結、簡介點了原地變輸入框，分類點了下面展開一排色塊。頭像要
+/// 簡介 2026-10-15 起不給改（使用者要求：一律用 YouTube 的簡介）。
+/// 名稱、連結點了原地變輸入框，分類點了下面展開一排色塊。頭像要
 /// 開底部表單、可能要打 API，交給頁面處理（[onTapAvatar]）。
 ///
 /// 只改 [draft]，每次改都透過 [onChanged] 交回頁面；存不存、還原由頁面的
@@ -46,15 +46,12 @@ class YtChannelEditHeader extends StatefulWidget {
   State<YtChannelEditHeader> createState() => _YtChannelEditHeaderState();
 }
 
-enum _Field { name, category, url, description }
+enum _Field { name, category, url }
 
 class _YtChannelEditHeaderState extends State<YtChannelEditHeader> {
   _Field? _field;
   late final _name = TextEditingController(text: widget.draft.name);
   late final _url = TextEditingController(text: widget.draft.url);
-  late final _description = TextEditingController(
-    text: widget.draft.description,
-  );
 
   @override
   void didUpdateWidget(YtChannelEditHeader old) {
@@ -66,14 +63,12 @@ class _YtChannelEditHeaderState extends State<YtChannelEditHeader> {
 
     sync(_name, widget.draft.name);
     sync(_url, widget.draft.url);
-    sync(_description, widget.draft.description);
   }
 
   @override
   void dispose() {
     _name.dispose();
     _url.dispose();
-    _description.dispose();
     super.dispose();
   }
 
@@ -170,25 +165,6 @@ class _YtChannelEditHeaderState extends State<YtChannelEditHeader> {
             ),
           ],
         ),
-        const SizedBox(height: Gap.md),
-        const PanelLabel('簡介'),
-        const SizedBox(height: Gap.xs),
-        if (_field == _Field.description)
-          _descriptionInput()
-        else
-          _EditTarget(
-            changed: _d.description != _b.description,
-            onTap: () => _open(_Field.description),
-            child: SizedBox(
-              width: double.infinity,
-              child: Text(
-                _d.description.isEmpty ? '＋ 加簡介' : _d.description,
-                style: _d.description.isEmpty
-                    ? AppText.bodyDim.copyWith(color: AppColors.accent)
-                    : AppText.bodyDim,
-              ),
-            ),
-          ),
       ],
     );
   }
@@ -298,32 +274,6 @@ class _YtChannelEditHeaderState extends State<YtChannelEditHeader> {
         ],
       ),
     ),
-  );
-
-  Widget _descriptionInput() => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      TextField(
-        controller: _description,
-        autofocus: true,
-        minLines: 3,
-        maxLines: 8,
-        maxLength: 300,
-        onChanged: (v) {
-          setState(() {});
-          widget.onChanged(_d.copyWith(description: v));
-        },
-        style: AppText.bodyDim.copyWith(color: AppColors.ink),
-        decoration: _inputDecoration(hint: '寫點這個頻道在幹嘛'),
-      ),
-      Row(
-        children: [
-          Text('${_description.text.length}/300', style: AppText.note),
-          const Spacer(),
-          _doneButton(),
-        ],
-      ),
-    ],
   );
 
   Widget _categoryPicker() {

@@ -15,6 +15,8 @@ import '../../data/repositories/yt_stats_refresh_setting_store.dart';
 import '../../data/repositories/nav_bar_prefs_store.dart';
 import '../../data/repositories/yt_display_prefs_store.dart';
 import '../../data/repositories/yt_video_open_mode_store.dart';
+import '../../data/services/youtube_api_service.dart';
+import '../../shared/widgets/app_confirm_dialog.dart';
 import '../../shared/widgets/app_notice.dart';
 import 'settings_page.dart' show AppLogoSettingsCard;
 import 'all_settings_page.dart' show SettingsSection;
@@ -444,6 +446,11 @@ class YtSettingsSection extends ConsumerWidget {
               ),
               const Divider(height: Gap.lg, color: AppColors.glassEdge),
               const _YtDisplayPrefsRows(),
+              const Divider(height: Gap.lg, color: AppColors.glassEdge),
+              const SettingAnchor(
+                id: 'yt.descriptions',
+                child: _DescriptionOverwriteRow(),
+              ),
               const Divider(height: Gap.lg, color: AppColors.glassEdge),
               // 永久刪除的頻道清單（2026-10-06 使用者要求：放設定裡，想看
               // 刪了哪些可以點開；放最下面）。
@@ -1354,4 +1361,110 @@ class _VideoTabChannelRow extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// 用 YouTube 的簡介蓋掉全部頻道（2026-10-15 使用者要求：自己打的也直接
+/// 蓋，之後不再手動編輯簡介）。有頻道 id 的 50 個一批問（1 點配額），
+/// 還沒有 id 的照網址一個一個問。
+class _DescriptionOverwriteRow extends ConsumerStatefulWidget {
+  const _DescriptionOverwriteRow();
+
+  @override
+  ConsumerState<_DescriptionOverwriteRow> createState() =>
+      _DescriptionOverwriteRowState();
+}
+
+class _DescriptionOverwriteRowState
+    extends ConsumerState<_DescriptionOverwriteRow> {
+  bool _running = false;
+
+  Future<void> _run() async {
+    final apiKey = ref.read(ytApiKeyProvider);
+    if (apiKey == null || apiKey.isEmpty) {
+      showAppNotice(context, '要先設定 YouTube API 金鑰', isError: true);
+      return;
+    }
+    final ok = await showAppConfirmDialog(
+      context,
+      title: '用 YouTube 簡介蓋掉全部頻道？',
+      message: '每個頻道的簡介都換成 YouTube 上的，自己打過的也會被蓋掉。',
+      confirmLabel: '全部蓋掉',
+      destructive: true,
+    );
+    if (ok != true || !mounted) return;
+    setState(() => _running = true);
+    try {
+      final repo = ref.read(ytTrackerRepositoryProvider);
+      final api = YoutubeApiService(apiKey);
+      final channels = await repo.loadChannels();
+      final byId = await api.fetchDescriptions([
+        for (final c in channels)
+          if (c.youtubeChannelId.isNotEmpty) c.youtubeChannelId,
+      ]);
+      var updated = 0, failed = 0;
+      for (final c in channels) {
+        String? desc = byId[c.youtubeChannelId];
+        if (desc == null) {
+          final handle = YoutubeApiService.parseHandle(c.url);
+          if (handle == null) {
+            failed++;
+            continue;
+          }
+          try {
+            desc = (await api.fetchChannelInfo(handle)).description;
+          } catch (_) {
+            failed++;
+            continue;
+          }
+        }
+        if (desc == c.description) continue;
+        await repo.updateChannel(c.copyWith(description: desc));
+        updated++;
+      }
+      if (!mounted) return;
+      showAppNotice(
+        context,
+        '換好 $updated 個頻道的簡介',
+        detail: failed > 0 ? '$failed 個頻道問不到（沒網址或 YouTube 找不到）' : null,
+      );
+    } catch (e) {
+      if (mounted) showAppNotice(context, '抓不到：$e', isError: true);
+    } finally {
+      if (mounted) setState(() => _running = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      const SettingIcon(),
+      const SizedBox(width: Gap.sm),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '用 YouTube 簡介蓋掉全部頻道',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: AppColors.ink,
+              ),
+            ),
+            Text('自己打的簡介也會被換掉', style: AppText.note),
+          ],
+        ),
+      ),
+      _running
+          ? const Padding(
+              padding: EdgeInsets.all(10),
+              child: SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            )
+          : TextButton(onPressed: _run, child: const Text('全部更新')),
+    ],
+  );
 }

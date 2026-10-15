@@ -122,6 +122,12 @@ const settingIndex = [
   SettingEntry(SettingsSection.yt, 'yt:搜尋時列出已看過、已隱藏', '搜尋時列出已看過、已隱藏'),
   SettingEntry(SettingsSection.yt, 'yt.removed', '影片下架檢查', '刪除 私人'),
   SettingEntry(SettingsSection.yt, 'yt.views', '觀看次數更新', '播放次數 觀看 熱門'),
+  SettingEntry(
+    SettingsSection.yt,
+    'yt.descriptions',
+    '用 YouTube 簡介蓋掉全部頻道',
+    '簡介 介紹 說明',
+  ),
   SettingEntry(SettingsSection.yt, 'yt.purged', '永久刪除的頻道'),
   SettingEntry(SettingsSection.trade, 'trade.rate', 'USDT 換台幣匯率', '匯率 台幣'),
   SettingEntry(SettingsSection.lock, 'lock.pw', '日記／負債密碼', '密碼'),

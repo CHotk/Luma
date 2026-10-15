@@ -1,9 +1,9 @@
+import '../../data/services/youtube_api_service.dart';
+
 /// 一支影片「被點開過」的記錄（2026-09-29 使用者要求：YT 管理點頻道、
 /// 點影片，或用任何方式點開影片，都該標記成看過；後來使用者又糾正：
 /// 不是只記第一次跟最近一次，每一次點開都該記一筆，跟其他「只增不改」
 /// 的紀錄同一套邏輯——見 `YtVideoWatchStore` 的合併說明）。
-import '../../data/services/youtube_api_service.dart';
-
 class YtVideoWatchRecord {
   const YtVideoWatchRecord({
     required this.openedAt,
