@@ -48,7 +48,7 @@ void main() {
 
     // 分頁（2026-10-15 設計稿第 1 版）：全部／Shorts／直播／簡介／觀看紀錄。
     final xs = [
-      for (final t in ['全部', 'Shorts', '直播', '簡介', '觀看紀錄'])
+      for (final t in ['全部', '影片', 'Shorts', '直播', '簡介', '觀看紀錄'])
         tester.getTopLeft(find.text(t).first).dx,
     ];
     expect(xs, [...xs]..sort());

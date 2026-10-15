@@ -57,6 +57,8 @@ enum _TypeFilter { all, regular, shorts, live, removed }
 /// 式分頁」，順序照使用者指定：全部／Shorts／直播／簡介／觀看紀錄）。
 enum _ChannelTab {
   all('全部'),
+  // 一般影片（2026-10-15 使用者要求：放在全部右邊）。
+  regular('影片'),
   shorts('Shorts'),
   live('直播'),
   about('簡介'),
@@ -2249,6 +2251,7 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
 
   bool get _isVideoTab =>
       _tab == _ChannelTab.all ||
+      _tab == _ChannelTab.regular ||
       _tab == _ChannelTab.shorts ||
       _tab == _ChannelTab.live;
 
@@ -2258,6 +2261,8 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     switch (tab) {
       case _ChannelTab.all:
         _switchTypeFilter(_TypeFilter.all);
+      case _ChannelTab.regular:
+        _switchTypeFilter(_TypeFilter.regular);
       case _ChannelTab.shorts:
         _switchTypeFilter(_TypeFilter.shorts);
       case _ChannelTab.live:
