@@ -237,7 +237,7 @@ typedef _LogData = ({
 });
 
 class _YtChannelLogPageState extends ConsumerState<YtChannelLogPage> {
-  late final Future<_LogData> _future = _load();
+  late final Stream<_LogData> _stream = _load();
   _Filter _filter = _Filter.all;
 
   /// 從分類頁進來時，要不要只看那幾個分類（預設要）。
@@ -245,7 +245,10 @@ class _YtChannelLogPageState extends ConsumerState<YtChannelLogPage> {
 
   bool get _global => widget.channelId == null;
 
-  Future<_LogData> _load() async {
+  /// 先秀、再補（2026-10-15 使用者回報：點下去要等一兩秒才有反應）。
+  /// 頻道異動（加入、換分類…）資料很小，先畫出來；看過的影片要讀每個
+  /// 頻道的影片快取才知道標題，6 個頻道一批同時讀，讀完一批就補上一批。
+  Stream<_LogData> _load() async* {
     final kv = ref.read(keyValueStoreProvider);
     final repo = ref.read(ytTrackerRepositoryProvider);
     final channels = await repo.channelsForUpload();
@@ -254,34 +257,53 @@ class _YtChannelLogPageState extends ConsumerState<YtChannelLogPage> {
       final events = await YtChannelLogStore(kv).loadAll();
       final watchRecords = await YtVideoWatchStore(kv).loadAll();
       final cache = YtVideoCacheStore(kv);
-      final items = <YtChannelLogItem>[];
-      for (final c in channels) {
-        final cached = await cache.load(c.id);
-        items.addAll(
-          buildYtChannelLog(
+      final items = <YtChannelLogItem>[
+        for (final c in channels)
+          ...buildYtChannelLog(
             channel: c,
             events: [
               for (final e in events)
                 if (e.channelId == c.id) e,
             ],
-            watched: [
+            watched: const [],
+          ).map((i) => i.withChannel(c)),
+      ]..sort((a, b) => b.at.compareTo(a.at));
+      yield (channel: null, items: List.of(items), categories: categories);
+      for (var i = 0; i < channels.length; i += 6) {
+        final batch = channels.skip(i).take(6).toList();
+        final watched = await Future.wait(
+          batch.map((c) async {
+            final cached = await cache.load(c.id);
+            final w = [
               for (final v in cached)
                 if (watchRecords[v.videoId] case final r?)
                   (video: v, openedAt: r.openedAt),
-            ],
-          ).map((i) => i.withChannel(c)),
+            ];
+            if (w.isEmpty) return const <YtChannelLogItem>[];
+            return buildYtChannelLog(
+              channel: c,
+              events: const [],
+              watched: w,
+            ).where((x) => x.isWatch).map((x) => x.withChannel(c)).toList();
+          }),
         );
+        final add = watched.expand((x) => x).toList();
+        if (add.isEmpty) continue;
+        items
+          ..addAll(add)
+          ..sort((a, b) => b.at.compareTo(a.at));
+        yield (channel: null, items: List.of(items), categories: categories);
       }
-      items.sort((a, b) => b.at.compareTo(a.at));
-      return (channel: null, items: items, categories: categories);
+      return;
     }
     final match = channels.where((c) => c.id == widget.channelId);
     if (match.isEmpty) {
-      return (
+      yield (
         channel: null,
         items: <YtChannelLogItem>[],
         categories: categories,
       );
+      return;
     }
     final channel = match.first;
     final events = await YtChannelLogStore(kv).forChannel(channel.id);
@@ -292,7 +314,7 @@ class _YtChannelLogPageState extends ConsumerState<YtChannelLogPage> {
         if (watchRecords[v.videoId] case final r?)
           (video: v, openedAt: r.openedAt),
     ];
-    return (
+    yield (
       channel: channel,
       items: buildYtChannelLog(
         channel: channel,
@@ -329,8 +351,8 @@ class _YtChannelLogPageState extends ConsumerState<YtChannelLogPage> {
         child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: Gap.screenSide),
-            child: FutureBuilder(
-              future: _future,
+            child: StreamBuilder(
+              stream: _stream,
               builder: (context, snap) {
                 final data = snap.data;
                 return Column(

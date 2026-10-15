@@ -52,7 +52,16 @@ class YtVideoCacheStore {
   static String _keyFor(String channelId) =>
       'yt_tracker.video_cache.$channelId.v1';
 
+  /// 讀過的頻道留在記憶體（2026-10-15 使用者回報：都是快取，紀錄頁卻要等
+  /// 一兩秒——每次都從本機資料庫讀整份、重新解析幾千部影片）。只有這個
+  /// store 會寫這份快取，寫的時候一起換掉，不會讀到舊的。照底層儲存分開記，
+  /// 測試各自的假儲存不會互相串。
+  static final _mem = Expando<Map<String, List<YoutubeVideo>>>();
+  Map<String, List<YoutubeVideo>> get _memory => _mem[_store] ??= {};
+
   Future<List<YoutubeVideo>> load(String channelId) async {
+    final hit = _memory[channelId];
+    if (hit != null) return List.of(hit);
     final raw = await _store.read(_keyFor(channelId));
     if (raw == null) return const [];
     final list = (jsonDecode(raw) as List)
@@ -61,6 +70,7 @@ class YtVideoCacheStore {
         .toList();
     YtVideoTags.publish(list);
     YtVideoViews.publish(list);
+    _memory[channelId] = List.unmodifiable(list);
     return list;
   }
 
@@ -69,6 +79,7 @@ class YtVideoCacheStore {
     Iterable<YoutubeVideo> videos,
   ) async {
     final list = videos.toList();
+    _memory[channelId] = List.unmodifiable(list);
     YtVideoTags.publish(list);
     YtVideoViews.publish(list);
     await _store.write(
