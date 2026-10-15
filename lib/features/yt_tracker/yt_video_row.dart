@@ -612,8 +612,7 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
                                   '${t.year}/${t.month}/${t.day} '
                                   '${t.hour.toString().padLeft(2, '0')}:'
                                   '${t.minute.toString().padLeft(2, '0')}'
-                                  // 前面已經有日期，更早的不用再寫一次。
-                                  '${ytIsRecent(t) ? '・${ytRelativeTime(t)}' : ''}',
+                                  '・${ytRelativeTime(t)}',
                                   style: const TextStyle(
                                     fontSize: 12.5,
                                     color: AppColors.ink,
@@ -1046,26 +1045,13 @@ class _SwipeActionButton extends StatelessWidget {
   }
 }
 
-/// 三個月內（往回推三個月的同一時間）。
-bool ytIsRecent(DateTime t, {DateTime? now}) {
-  final n = now ?? DateTime.now();
-  return !t.isBefore(DateTime(n.year, n.month - 3, n.day, n.hour, n.minute));
-}
-
-/// YT 的時間（影片發布時間等）：三個月內寫「多久前」，更早的寫日期
-/// `2024/03/05`（2026-10-15 使用者要求，YT 全部一致；原本永遠寫多久前，
-/// 「2 年前」看不出是哪時候）。
-String ytRelativeTime(DateTime t, {DateTime? now}) {
-  final n = now ?? DateTime.now();
-  if (!ytIsRecent(t, now: n)) {
-    String two(int v) => v.toString().padLeft(2, '0');
-    return '${t.year}/${two(t.month)}/${two(t.day)}';
-  }
-  final diff = n.difference(t);
+String ytRelativeTime(DateTime t) {
+  final diff = DateTime.now().difference(t);
   if (diff.inMinutes < 60) return '${diff.inMinutes} 分鐘前';
   if (diff.inHours < 24) return '${diff.inHours} 小時前';
   if (diff.inDays < 30) return '${diff.inDays} 天前';
-  return '${(diff.inDays / 30).floor()} 個月前';
+  if (diff.inDays < 365) return '${(diff.inDays / 30).floor()} 個月前';
+  return '${(diff.inDays / 365).floor()} 年前';
 }
 
 /// 影片列縮圖左下角的類型標籤：直播優先（直播也可能是直的），再來
