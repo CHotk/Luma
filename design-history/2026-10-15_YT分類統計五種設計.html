@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YT 分類統計</title>
+<style>
+  :root { --bg: #0C0C13; --card: #151520; --card2: #1C1C2A; --sheet: #1C1C29; --line: #2A2A3D; --ink: #F3F2F8; --ink2: #A3A2B2; --ink3: #74738A; --accent: #7EA6FF; --ios: #0A84FF; --yt: #FF4E45; --green: #30D158; --amber: #FFB340; --purple: #BF5AF2; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--ink); min-height: 100vh; font: 14px/1.5 -apple-system, "SF Pro Text", system-ui, "Segoe UI", "Microsoft JhengHei", sans-serif; }
+  .page { max-width: 1140px; margin: 0 auto; padding: 24px 16px 60px; }
+  h1 { font-size: 20px; margin: 0 0 6px; }
+  .lead { color: var(--ink2); font-size: 13px; margin: 0 0 14px; } .lead b { color: var(--ink); }
+  .vtabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+  .vtabs button { border: 1px solid var(--line); background: var(--card); color: var(--ink2); padding: 8px 14px; border-radius: 99px; cursor: pointer; font-size: 13px; }
+  .vtabs button.on { border-color: var(--yt); color: #fff; background: rgba(255,78,69,.22); }
+  .stage { display: flex; gap: 28px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
+  .notes { flex: 1 1 320px; max-width: 470px; background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 18px 20px; font-size: 13.5px; color: var(--ink2); }
+  .notes h2 { color: var(--ink); font-size: 17px; margin: 0 0 4px; }
+  .notes .tag { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 99px; background: rgba(255,78,69,.15); color: #ff8a83; margin-bottom: 8px; }
+  .notes h3 { color: var(--ink); font-size: 13.5px; margin: 14px 0 4px; }
+  .notes ul { margin: 0; padding-left: 18px; } .notes li { margin: 3px 0; }
+  .notes .try { margin-top: 14px; padding: 10px 12px; border-radius: 12px; background: rgba(126,166,255,.08); border: 1px solid rgba(126,166,255,.25); color: var(--ink); font-size: 12.5px; }
+  .phone { width: 390px; max-width: 100%; height: 820px; flex-shrink: 0; border-radius: 44px; border: 1px solid var(--line); background: #0e0e17; position: relative; overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,.5); user-select: none; }
+  .screen { position: absolute; inset: 0; overflow-y: auto; padding: 44px 0 40px; scrollbar-width: none; }
+  .screen::-webkit-scrollbar { display: none; }
+  .status { position: absolute; top: 0; left: 0; right: 0; height: 40px; display: flex; align-items: center; justify-content: space-between; padding: 0 30px; font-size: 13px; font-weight: 700; z-index: 70; pointer-events: none; }
+  .top { display: flex; align-items: center; gap: 4px; padding: 6px 10px 10px; }
+  .top b { font-size: 17px; flex: 1; margin-left: 4px; }
+  .ib { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; color: var(--ink2); cursor: pointer; font-size: 16px; position: relative; }
+  .ib.hi { background: rgba(255,78,69,.18); color: #ff8a83; box-shadow: 0 0 0 2px rgba(255,78,69,.5); }
+  .pad { padding: 0 14px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 13px 14px; margin-bottom: 10px; }
+  .card h4 { margin: 0 0 8px; font-size: 14px; display: flex; align-items: center; gap: 6px; } .card h4 .small { margin-left: auto; font-weight: 500; }
+  .muted { color: var(--ink2); font-size: 12.5px; } .small { color: var(--ink3); font-size: 11.5px; }
+  .chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+  .chip { flex-shrink: 0; border: 1px solid var(--line); background: rgba(255,255,255,.05); color: var(--ink2); border-radius: 99px; padding: 5px 12px; font-size: 12.5px; cursor: pointer; white-space: nowrap; }
+  .chip.on { background: var(--ink); color: #111; border-color: var(--ink); font-weight: 700; }
+  .seg { display: flex; background: rgba(255,255,255,.07); border-radius: 10px; padding: 2px; }
+  .seg button { flex: 1; border: 0; background: none; color: var(--ink2); padding: 6px 0; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; }
+  .seg button.on { background: #3a3a50; color: #fff; }
+  .kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+  .kpi { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 11px 12px; }
+  .kpi b { display: block; font-size: 22px; } .kpi .d { font-size: 11px; font-weight: 700; } .up { color: var(--green); } .down { color: #FF7A70; }
+  .vbars { display: flex; align-items: flex-end; gap: 4px; height: 90px; }
+  .vbars div { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; font-size: 9.5px; color: var(--ink3); gap: 2px; }
+  .vbars i { width: 100%; border-radius: 4px 4px 1px 1px; background: rgba(126,166,255,.45); display: block; } .vbars i.b { background: var(--yt); opacity: .75; }
+  .hbar { display: flex; align-items: center; gap: 8px; margin: 6px 0; font-size: 12.5px; cursor: pointer; }
+  .hbar .nm { width: 96px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hbar .tr { flex: 1; height: 10px; border-radius: 99px; background: rgba(255,255,255,.06); overflow: hidden; } .hbar .tr i { display: block; height: 100%; border-radius: 99px; }
+  .hbar .v { width: 54px; text-align: right; color: var(--ink2); font-size: 11.5px; }
+  .av { width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; display: grid; place-items: center; font-size: 12px; font-weight: 800; color: #fff; }
+  .rank { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-top: 1px solid var(--line); cursor: pointer; } .rank:first-of-type { border-top: 0; }
+  .rank .n { width: 16px; font-weight: 900; color: var(--ink3); } .rank .nm { flex: 1; font-size: 13px; } .rank .v { font-size: 12px; color: var(--ink2); text-align: right; }
+  .heat { display: grid; grid-template-columns: 22px repeat(8, 1fr); gap: 3px; font-size: 9.5px; color: var(--ink3); }
+  .heat span { aspect-ratio: 1.3; border-radius: 4px; } .heat .lb { aspect-ratio: auto; display: grid; place-items: center; }
+  .cal { display: grid; grid-template-columns: repeat(13, 1fr); gap: 3px; }
+  .cal span { aspect-ratio: 1; border-radius: 3px; }
+  .donut { width: 110px; height: 110px; border-radius: 50%; position: relative; flex-shrink: 0; }
+  .donut::after { content: ""; position: absolute; inset: 22px; border-radius: 50%; background: var(--card); }
+  .leg { font-size: 12px; display: flex; align-items: center; gap: 6px; margin: 4px 0; } .leg i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+  .vrow { display: flex; gap: 10px; padding: 6px 0; cursor: pointer; }
+  .th { width: 112px; height: 63px; border-radius: 9px; background: #222 center/cover; flex-shrink: 0; position: relative; }
+  .th .dur { position: absolute; right: 3px; bottom: 3px; background: rgba(0,0,0,.8); font-size: 10px; font-weight: 700; padding: 0 4px; border-radius: 3px; }
+  .vt { font-size: 12.5px; font-weight: 600; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .story { margin: 0 14px; height: 560px; border-radius: 26px; padding: 26px 22px; position: relative; overflow: hidden; display: flex; flex-direction: column; cursor: pointer; }
+  .story .big { font-size: 56px; font-weight: 900; line-height: 1.05; margin: 14px 0 6px; }
+  .story .dots { display: flex; gap: 4px; margin-bottom: 18px; } .story .dots i { flex: 1; height: 3px; border-radius: 99px; background: rgba(255,255,255,.3); } .story .dots i.on { background: #fff; }
+  .health { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); cursor: pointer; } .health:first-of-type { border-top: 0; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .tip { display: flex; gap: 10px; align-items: flex-start; padding: 11px 12px; border-radius: 14px; background: rgba(255,179,64,.08); border: 1px solid rgba(255,179,64,.3); margin-bottom: 8px; font-size: 12.5px; }
+  .tip button { margin-left: auto; flex-shrink: 0; border: 0; border-radius: 9px; padding: 5px 10px; background: rgba(255,255,255,.1); color: var(--ink); font-size: 12px; font-weight: 700; cursor: pointer; }
+  .sheet-bg { position: absolute; inset: 0; z-index: 80; background: rgba(0,0,0,.5); animation: fade .2s; }
+  .sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 81; background: var(--sheet); border-radius: 24px 24px 0 0; padding: 10px 18px 26px; animation: up .25s cubic-bezier(.2,.9,.3,1); max-height: 82%; overflow-y: auto; }
+  .grab { width: 38px; height: 5px; border-radius: 99px; background: #4a4a5c; margin: 0 auto 12px; }
+  @keyframes up { from { transform: translateY(100%) } } @keyframes fade { from { opacity: 0 } }
+  .toast { position: absolute; left: 50%; top: 70px; transform: translateX(-50%); z-index: 95; background: rgba(30,30,44,.96); border: 1px solid var(--line); border-radius: 12px; padding: 8px 14px; font-size: 13px; white-space: nowrap; }
+  .cat { display: flex; align-items: center; gap: 10px; padding: 9px 14px; }
+  .foot { text-align: center; font-size: 11px; color: var(--ink3); margin: 6px 14px 14px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>YT 分類頁：統計・五種設計</h1>
+  <p class="lead">分類頁上方多一顆 <b>📊 統計</b>。<b>全部用手機裡已經有的資料算（影片快取、看過紀錄、隱藏、播放清單、頻道資料），不打 API、不花配額</b>。範圍可以切「這個分類／全部分類」、時間可以切「7 天／30 天／90 天／全部」。<br>每版都能點：切範圍、切時間、點頻道看那個頻道的數字；最下面寫資料涵蓋多少（還沒抓完整個頻道的會標出來）。</p>
+  <div class="vtabs" id="vtabs"></div>
+  <div class="stage"><div class="phone" id="phone"></div><div class="notes" id="notes"></div></div>
+</div>
+<script>
+const T = id => `https://i.ytimg.com/vi/${id}/mqdefault.jpg`;
+// 假資料：一個「音樂」分類 8 個頻道。up30 近 30 天發片、vids 快取影片數、seen 看過、lastUp 幾天前發片、lastSeen 幾天前看、avg 平均分鐘、sh Shorts%、subs 萬、full 是否抓完
+const CH = [
+  { n: '周杰倫 Jay Chou', c: '#FF4E45', subs: 2140, vids: 412, up30: 6, seen: 96, lastUp: 1, lastSeen: 0, avg: 4.6, sh: 18, full: 1 },
+  { n: '五月天 Mayday', c: '#7EA6FF', subs: 518, vids: 655, up30: 9, seen: 120, lastUp: 2, lastSeen: 3, avg: 6.1, sh: 25, full: 1 },
+  { n: '林俊傑 JJ Lin', c: '#30D158', subs: 412, vids: 380, up30: 4, seen: 41, lastUp: 6, lastSeen: 12, avg: 5.2, sh: 30, full: 1 },
+  { n: '鄧紫棋 G.E.M.', c: '#BF5AF2', subs: 1810, vids: 520, up30: 7, seen: 60, lastUp: 4, lastSeen: 5, avg: 4.9, sh: 22, full: 1 },
+  { n: '告五人', c: '#FFB340', subs: 64, vids: 140, up30: 3, seen: 72, lastUp: 9, lastSeen: 1, avg: 5.6, sh: 12, full: 1 },
+  { n: '茄子蛋', c: '#FF8FB1', subs: 41, vids: 98, up30: 0, seen: 30, lastUp: 74, lastSeen: 40, avg: 5.0, sh: 8, full: 1 },
+  { n: '草東沒有派對', c: '#2DD4BF', subs: 38, vids: 54, up30: 0, seen: 9, lastUp: 160, lastSeen: 95, avg: 4.4, sh: 0, full: 1 },
+  { n: '動力火車', c: '#A3A2B2', subs: 22, vids: 120, up30: 1, seen: 3, lastUp: 21, lastSeen: 200, avg: 4.8, sh: 15, full: 0 },
+];
+const TOP = [['1emA1EFsPMM', '周杰倫【最偉大的作品】Official MV', '1.2 億', '4:05', 0], ['DYptgVvkVLQ', '周杰倫【晴天】Official MV', '3.1 億', '4:29', 0], ['HK7SPnGSxLM', '周杰倫 x 阿信【說好不哭】', '1.6 億', '5:22', 0], ['kfXdP7nZIiE', '周杰倫【等你下課】Official MV', '2.3 億', '4:30', 0]];
+const PERIOD_K = { '7 天': .25, '30 天': 1, '90 天': 2.8, '全部': 9 };
+const S = { v: 0, stats: false, scope: '這個分類', period: '30 天', tab: '總覽', sort: 'up30', sheet: null, story: 0, toast: null };
+const k = () => PERIOD_K[S.period] * (S.scope === '全部分類' ? 2.6 : 1);
+const sum = f => CH.reduce((s, c) => s + f(c), 0);
+const fmtN = n => n >= 10000 ? (n / 10000).toFixed(1) + ' 萬' : Math.round(n).toLocaleString();
+const ups = () => Math.round(sum(c => c.up30) * k());
+const watched = () => Math.round(sum(c => c.seen) * k() / 9 * 2.4);
+const filters = () => `<div class="pad" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px"><div class="seg"><button class="${S.scope === '這個分類' ? 'on' : ''}" data-scope="這個分類">這個分類（音樂）</button><button class="${S.scope === '全部分類' ? 'on' : ''}" data-scope="全部分類">全部分類</button></div><div class="chips">${Object.keys(PERIOD_K).map(p => `<span class="chip ${S.period === p ? 'on' : ''}" data-period="${p}">${p}</span>`).join('')}</div></div>`;
+const foot = () => `<div class="foot">都用手機裡已經抓過的資料算，不花配額・${CH.filter(c => c.full).length}/${CH.length} 個頻道已抓完全部影片（動力火車還在抓）</div>`;
+const statsTop = (title = '統計') => `<div class="top"><span class="ib" data-back>‹</span><b>${title}</b><span class="ib" data-toast="可以截圖分享">⇪</span></div>`;
+const av = c => `<span class="av" style="background:${c.c}">${c.n[0]}</span>`;
+const hbars = (key, fmt, color) => { const list = [...CH].sort((a, b) => b[key] - a[key]); const m = Math.max(...list.map(c => c[key])) || 1; return list.map(c => `<div class="hbar" data-ch="${CH.indexOf(c)}"><span class="nm">${c.n}</span><span class="tr"><i style="width:${c[key] / m * 100}%;background:${color || c.c}"></i></span><span class="v">${fmt(c)}</span></div>`).join(''); };
+const weekBars = () => { const up = [5, 8, 6, 9, 7, 11, 8, 10], w = [12, 9, 15, 14, 18, 11, 16, 20]; const m = Math.max(...w); return `<div class="vbars">${up.map((u, i) => `<div><i style="height:${u / m * 70}px"></i><i class="b" style="height:${w[i] / m * 70}px"></i>${i === 7 ? '本週' : `${8 - i}週前`.replace('8週前', '8週')}</div>`).join('')}</div><div class="small" style="display:flex;gap:12px;margin-top:6px"><span><i style="display:inline-block;width:9px;height:9px;border-radius:2px;background:rgba(126,166,255,.6)"></i> 頻道發片</span><span><i style="display:inline-block;width:9px;height:9px;border-radius:2px;background:var(--yt)"></i> 你看了</span></div>`; };
+const heat = () => { const days = ['一', '二', '三', '四', '五', '六', '日'], slots = ['0', '3', '6', '9', '12', '15', '18', '21']; const val = (d, s) => Math.max(0, Math.round((s >= 6 ? 6 : s >= 4 ? 2 : s === 0 ? 1.5 : 0) + (d >= 5 ? 2 : 0) + Math.sin(d * 3 + s) * 1.5)); return `<div class="heat"><span class="lb"></span>${slots.map(s => `<span class="lb">${s}</span>`).join('')}${days.map((d, di) => `<span class="lb">${d}</span>` + slots.map((_, si) => { const v = val(di, si); return `<span style="background:rgba(255,78,69,${.08 + v * .11})" title="${v} 部"></span>`; }).join('')).join('')}</div><div class="small" style="margin-top:6px">你最常在 <b style="color:var(--ink)">星期六晚上 9 點後</b> 看</div>`; };
+const typeDonut = () => `<div style="display:flex;gap:16px;align-items:center"><div class="donut" style="background:conic-gradient(var(--accent) 0 64%, #FF6D00 64% 84%, #E53935 84% 100%)"></div><div><div class="leg"><i style="background:var(--accent)"></i>一般影片 64%</div><div class="leg"><i style="background:#FF6D00"></i>Shorts 20%</div><div class="leg"><i style="background:#E53935"></i>直播 16%</div><div class="small" style="margin-top:6px">平均長度 5:12・最長 3:12:40</div></div></div>`;
+const topVids = () => TOP.map(([id, t, v, d]) => `<div class="vrow" data-toast="播放中…"><div class="th" style="background-image:url(${T(id)})"><span class="dur">${d}</span></div><div><div class="vt">${t}</div><div class="small" style="margin-top:3px">${v} 次觀看</div></div></div>`).join('');
+function chSheet(i) {
+  const c = CH[i];
+  return `<div style="display:flex;gap:10px;align-items:center">${av(c).replace('28px', '44px')}<div><b style="font-size:17px">${c.n}</b><div class="small">${fmtN(c.subs * 10000)} 訂閱・快取 ${c.vids} 部${c.full ? '' : '（還在抓）'}</div></div></div>
+    <div class="kpis" style="margin-top:12px"><div class="kpi"><span class="small">近 30 天發片</span><b>${c.up30}</b></div><div class="kpi"><span class="small">你看過</span><b>${c.seen} <span style="font-size:13px">部・${Math.round(c.seen / c.vids * 100)}%</span></b></div><div class="kpi"><span class="small">最近發片</span><b style="font-size:18px">${c.lastUp} 天前</b></div><div class="kpi"><span class="small">你最近一次看</span><b style="font-size:18px">${c.lastSeen === 0 ? '今天' : c.lastSeen + ' 天前'}</b></div><div class="kpi"><span class="small">平均長度</span><b style="font-size:18px">${Math.floor(c.avg)}:${String(Math.round(c.avg % 1 * 60)).padStart(2, '0')}</b></div><div class="kpi"><span class="small">Shorts 比例</span><b style="font-size:18px">${c.sh}%</b></div></div>
+    <button style="width:100%;border:0;border-radius:14px;padding:12px;background:var(--yt);color:#fff;font-weight:800;font-size:15px;cursor:pointer" data-toast="進入 ${c.n}">進這個頻道 ›</button>`;
+}
+
+const V = [];
+// 1 主流：YouTube 數據分析
+V.push({ name: '1 數據分析（主流）', tag: '主流・YouTube 工作室那種', title: '版本 1：上面四格大數字，下面分頁「總覽／頻道／你的觀看」',
+  desc: `<h3>怎麼看</h3><ul><li>最上面範圍（這個分類／全部）跟時間（7／30／90 天／全部）。</li><li><b>總覽</b>：四格大數字（新片、你看了、看完比例、平均長度，綠紅箭頭比上一段時間）＋每週「發片 vs 你看了」長條。</li><li><b>頻道</b>：每個頻道一條長條，可以切排序：發片最多／你看最多／看過比例／最久沒發片；點頻道出它的數字。</li><li><b>你的觀看</b>：星期×時段熱力圖、類型比例、最熱門影片。</li></ul>`,
+  render() {
+    const tabs = ['總覽', '頻道', '你的觀看'];
+    let body;
+    if (S.tab === '總覽') body = `<div class="pad"><div class="kpis"><div class="kpi"><span class="small">新片</span><b>${ups()}</b><span class="d up">▲ 12%</span></div><div class="kpi"><span class="small">你看了</span><b>${watched()}</b><span class="d up">▲ 8%</span></div><div class="kpi"><span class="small">新片看完比例</span><b>${Math.min(99, Math.round(watched() / ups() * 30))}%</b><span class="d down">▼ 3%</span></div><div class="kpi"><span class="small">平均長度</span><b>5:12</b><span class="d" style="color:var(--ink3)">— 持平</span></div></div>
+      <div class="card"><h4>每週 <span class="small">發片 vs 你看了</span></h4>${weekBars()}</div></div>`;
+    else if (S.tab === '頻道') {
+      const SORTS = { up30: ['發片最多', c => `${Math.round(c.up30 * PERIOD_K[S.period])} 部`], seen: ['你看最多', c => `${c.seen} 部`], pct: ['看過比例', c => `${Math.round(c.seen / c.vids * 100)}%`], lastUp: ['最久沒發片', c => `${c.lastUp} 天`] };
+      CH.forEach(c => c.pct = c.seen / c.vids);
+      body = `<div class="pad"><div class="chips" style="margin-bottom:10px">${Object.entries(SORTS).map(([kk, [l]]) => `<span class="chip ${S.sort === kk ? 'on' : ''}" data-sort="${kk}">${l}</span>`).join('')}</div><div class="card">${hbars(S.sort, SORTS[S.sort][1])}</div></div>`;
+    } else body = `<div class="pad"><div class="card"><h4>你什麼時候看</h4>${heat()}</div><div class="card"><h4>類型</h4>${typeDonut()}</div><div class="card"><h4>最熱門 <span class="small">觀看次數</span></h4>${topVids()}</div></div>`;
+    return `${statsTop('音樂・統計')}${filters()}<div class="pad" style="margin-bottom:10px"><div class="seg">${tabs.map(t => `<button class="${S.tab === t ? 'on' : ''}" data-tab="${t}">${t}</button>`).join('')}</div></div>${body}${foot()}`;
+  } });
+// 2 排行榜
+V.push({ name: '2 排行榜', tag: '最好讀', title: '版本 2：一張張「前 5 名」榜單往下滑',
+  desc: `<h3>怎麼看</h3><ul><li>不用看圖表，一張卡一個榜：<b>最勤發片、你最愛看、追最緊（看過比例）、冷掉了（最久沒發片）、訂閱最多、最熱門影片</b>。</li><li>每張榜前 5 名，點頻道出它的數字；卡片右上「全部 ›」看完整排名。</li><li>最上面一句話總結：「這 30 天音樂分類發了 34 部，你看了 19 部」。</li></ul>`,
+  render() {
+    const board = (title, key, fmt, desc = true) => { const list = [...CH].sort((a, b) => desc ? b[key] - a[key] : a[key] - b[key]).slice(0, 5); return `<div class="card"><h4>${title}<span class="small" data-toast="完整排名">全部 ›</span></h4>${list.map((c, i) => `<div class="rank" data-ch="${CH.indexOf(c)}"><span class="n" style="${i === 0 ? 'color:var(--amber)' : ''}">${i + 1}</span>${av(c)}<span class="nm">${c.n}</span><span class="v">${fmt(c)}</span></div>`).join('')}</div>`; };
+    CH.forEach(c => c.pct = c.seen / c.vids);
+    return `${statsTop('音樂・排行榜')}${filters()}<div class="pad"><div class="card" style="background:linear-gradient(135deg,rgba(255,78,69,.18),rgba(126,166,255,.12))"><div class="muted">這 ${S.period}，${S.scope === '這個分類' ? '音樂分類' : '全部分類'}發了</div><div style="font-size:26px;font-weight:900">${ups()} 部新片</div><div class="muted">你看了 <b style="color:var(--ink)">${watched()}</b> 部</div></div>
+      ${board('🔥 最勤發片', 'up30', c => `${Math.round(c.up30 * PERIOD_K[S.period])} 部`)}${board('❤️ 你最愛看', 'seen', c => `${c.seen} 部`)}${board('🎯 追最緊', 'pct', c => `看過 ${Math.round(c.pct * 100)}%`)}${board('🧊 冷掉了', 'lastUp', c => `${c.lastUp} 天沒發片`)}${board('👥 訂閱最多', 'subs', c => fmtN(c.subs * 10000))}
+      <div class="card"><h4>▶ 最熱門影片</h4>${topVids()}</div></div>${foot()}`;
+  } });
+// 3 回顧故事卡
+V.push({ name: '3 回顧故事卡', tag: '最好玩', title: '版本 3：像年度回顧，一張一張點下一張',
+  desc: `<h3>怎麼看</h3><ul><li>全螢幕故事卡，<b>點一下換下一張</b>，最上面一排小條顯示第幾張。</li><li>每張一個大數字＋一句話：新片幾部、你看了幾部、你最愛的頻道、你最常在什麼時候看、最熱門的一部、冷掉的頻道。</li><li>最後一張是摘要，可以切範圍、時間重看。</li></ul>`,
+  render() {
+    const fav = [...CH].sort((a, b) => b.seen - a.seen)[0], cold = [...CH].sort((a, b) => b.lastUp - a.lastUp)[0];
+    const cards = [
+      ['linear-gradient(160deg,#3a1020,#0e0e17)', `這 ${S.period}`, `${ups()}`, `${S.scope === '這個分類' ? '音樂分類' : '全部分類'}一共發了 ${ups()} 部新片`],
+      ['linear-gradient(160deg,#10223a,#0e0e17)', '你看了', `${watched()}`, `大概是每天 ${(watched() / (PERIOD_K[S.period] * 30)).toFixed(1)} 部`],
+      ['linear-gradient(160deg,#2a1a3a,#0e0e17)', '你最愛', fav.n, `看了 ${fav.seen} 部，占你看的 ${Math.round(fav.seen / sum(c => c.seen) * 100)}%`],
+      ['linear-gradient(160deg,#3a2a10,#0e0e17)', '你最常在', '星期六晚上', '9 點以後，一週看最多的時段'],
+      ['linear-gradient(160deg,#102a22,#0e0e17)', '最熱門', '3.1 億次', '周杰倫【晴天】，這個分類觀看次數最高的一部'],
+      ['linear-gradient(160deg,#1a2a3a,#0e0e17)', '冷掉了', cold.n, `已經 ${cold.lastUp} 天沒發片，要不要移到冷藏？`],
+    ];
+    const i = S.story % (cards.length + 1);
+    if (i === cards.length) return `${statsTop('音樂・回顧')}${filters()}<div class="pad"><div class="card"><h4>摘要</h4>${cards.map(c => `<div class="rank"><span class="nm">${c[1]}</span><span class="v" style="color:var(--ink);font-weight:700">${c[2]}</span></div>`).join('')}</div><button style="width:100%;border:0;border-radius:14px;padding:12px;background:var(--yt);color:#fff;font-weight:800;cursor:pointer" data-story="0">從頭再看一次</button></div>${foot()}`;
+    const [bg, a, big, b] = cards[i];
+    return `${statsTop('音樂・回顧')}<div class="story" style="background:${bg}" data-next><div class="dots">${cards.map((_, j) => `<i class="${j <= i ? 'on' : ''}"></i>`).join('')}</div><div class="muted" style="font-size:15px">${a}</div><div class="big">${big}</div><div style="font-size:16px;color:var(--ink2)">${b}</div><div style="margin-top:auto" class="small">點一下看下一張 ›</div></div>`;
+  } });
+// 4 習慣熱力圖
+V.push({ name: '4 觀看習慣', tag: '看自己', title: '版本 4：重點放在「你」——每天看幾部的日曆熱力圖、連續天數',
+  desc: `<h3>怎麼看</h3><ul><li>最上面：<b>連續 N 天有看</b>、最長連續、這段時間平均每天幾部。</li><li>GitHub 那種日曆熱力圖：一格一天，越紅看越多；點一格出那天看了什麼。</li><li>下面：星期×時段熱力圖、你看最多的頻道、你看的影片平均多長（跟頻道平均比，看你是不是偏好短的）。</li></ul>`,
+  render() {
+    const cal = Array.from({ length: 91 }, (_, d) => { const v = Math.max(0, Math.round(2 + Math.sin(d * 1.7) * 2 + (d % 7 >= 5 ? 1.5 : 0) - (d < 10 ? 2 : 0))); return `<span style="background:rgba(255,78,69,${v ? .15 + v * .17 : .05})" data-toast="${d + 1} 天前：看了 ${v} 部"></span>`; }).join('');
+    return `${statsTop('我的觀看習慣')}${filters()}<div class="pad"><div class="kpis"><div class="kpi"><span class="small">連續有看</span><b style="color:var(--yt)">12 天</b></div><div class="kpi"><span class="small">最長連續</span><b>23 天</b></div><div class="kpi"><span class="small">平均每天</span><b>${(watched() / (PERIOD_K[S.period] * 30)).toFixed(1)} 部</b></div><div class="kpi"><span class="small">看影片的總時間</span><b>${Math.round(watched() * 5.2 / 60)} 小時</b></div></div>
+      <div class="card"><h4>近 13 週 <span class="small">一格一天</span></h4><div class="cal">${cal}</div></div><div class="card"><h4>你什麼時候看</h4>${heat()}</div>
+      <div class="card"><h4>你看最多</h4>${hbars('seen', c => `${c.seen} 部`, 'var(--yt)')}</div><div class="card"><h4>長度偏好</h4><div class="muted">你看的影片平均 <b style="color:var(--ink)">4:38</b>，比這些頻道平均（5:12）短一點——偏好短的。</div></div></div>${foot()}`;
+  } });
+// 5 健檢報告
+V.push({ name: '5 頻道健檢', tag: '幫你整理', title: '版本 5：每個頻道一個狀態燈＋整理建議',
+  desc: `<h3>怎麼看</h3><ul><li>每個頻道一顆燈：<b style="color:var(--green)">●活躍</b>（30 天內有發片、你也有在看）、<b style="color:var(--amber)">●你沒在看</b>（有發片但你 30 天沒看）、<b style="color:#FF7A70">●停更</b>（60 天沒發片）、<b style="color:var(--ink3)">●還在抓</b>。</li><li>最上面幾個<b>建議</b>：例如「2 個頻道 60 天沒發片，要不要移到冷藏？」按鈕直接做。</li><li>下面依燈號分組列出頻道，點頻道看數字。</li></ul>`,
+  render() {
+    const st = c => !c.full ? ['還在抓', 'var(--ink3)'] : c.lastUp > 60 ? ['停更', '#FF7A70'] : c.lastSeen > 30 ? ['你沒在看', 'var(--amber)'] : ['活躍', 'var(--green)'];
+    const groups = {}; CH.forEach((c, i) => { const [s] = st(c); (groups[s] ??= []).push(i); });
+    const stale = CH.filter(c => c.full && c.lastUp > 60);
+    return `${statsTop('音樂・頻道健檢')}${filters()}<div class="pad">
+      ${stale.length ? `<div class="tip"><span>🧊</span><span><b>${stale.length} 個頻道 60 天沒發片</b><br><span class="small">${stale.map(c => c.n).join('、')}</span></span><button data-toast="已移到冷藏">移到冷藏</button></div>` : ''}
+      <div class="tip" style="background:rgba(126,166,255,.08);border-color:rgba(126,166,255,.3)"><span>📺</span><span><b>有 23 部新片你還沒看</b><br><span class="small">最多的是五月天（7 部）</span></span><button data-toast="開啟「依影片顯示」只看沒看過的">去看</button></div>
+      ${Object.entries(groups).map(([g, ids]) => `<div class="card"><h4><span class="dot" style="background:${st(CH[ids[0]])[1]}"></span>${g} <span class="small">${ids.length} 個</span></h4>${ids.map(i => { const c = CH[i]; return `<div class="health" data-ch="${i}">${av(c)}<div style="flex:1"><div style="font-size:13px;font-weight:700">${c.n}</div><div class="small">${c.lastUp} 天前發片・你 ${c.lastSeen === 0 ? '今天' : c.lastSeen + ' 天前'}看・看過 ${Math.round(c.seen / c.vids * 100)}%</div></div><span style="color:var(--ink3)">›</span></div>`; }).join('')}</div>`).join('')}</div>${foot()}`;
+  } });
+
+// 分類頁（入口）
+function categoryPage() {
+  return `<div class="top"><span class="ib">☰</span><b>音樂</b><span class="ib">⌕</span><span class="ib">◎</span><span class="ib">＋</span><span class="ib">🕘</span><span class="ib hi" data-open title="統計">📊</span></div>
+    <div class="pad small" style="margin-bottom:6px">右上角多一顆 <b style="color:#ff8a83">📊 統計</b>（紅框），點了進統計 ›</div>
+    ${CH.map(c => `<div class="cat">${av(c).replace('28px', '40px').replace('28px', '40px')}<div style="flex:1"><div style="font-weight:700">${c.n}</div><div class="small">${fmtN(c.subs * 10000)} 訂閱・${c.lastUp} 天前發片</div></div></div>`).join('')}`;
+}
+
+const phone = document.getElementById('phone');
+function render() {
+  const v = V[S.v];
+  document.getElementById('vtabs').innerHTML = V.map((x, i) => `<button class="${i === S.v ? 'on' : ''}" data-v="${i}">${x.name}</button>`).join('');
+  document.getElementById('notes').innerHTML = `<span class="tag">${v.tag}</span><h2>${v.title}</h2>${v.desc}<h3>每版都一樣的</h3><ul><li>入口：分類頁右上角 📊。</li><li>全部從手機裡的資料算：頻道（訂閱、加入時間）、影片快取（發片時間、長度、類型、觀看次數、下架）、看過紀錄（每次點開的時間）、隱藏、播放清單。<b>不打 API</b>。</li><li>還沒抓完整個頻道的，最下面標出來，數字算「目前抓到的」。</li></ul><div class="try">試試：先在分類頁點 📊 進去；切「全部分類」、切時間；點任一個頻道看它的數字。</div>`;
+  const st = phone.querySelector('.screen')?.scrollTop || 0;
+  phone.innerHTML = `<div class="status"><span>21:30</span><span>5G ▮</span></div><div class="screen">${S.stats ? v.render() : categoryPage()}</div>
+    ${S.sheet !== null ? `<div class="sheet-bg" data-close></div><div class="sheet"><div class="grab"></div>${chSheet(S.sheet)}</div>` : ''}${S.toast ? `<div class="toast">${S.toast}</div>` : ''}`;
+  phone.querySelector('.screen').scrollTop = st;
+}
+let tt;
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-v],[data-open],[data-back],[data-scope],[data-period],[data-tab],[data-sort],[data-ch],[data-close],[data-toast],[data-next],[data-story]');
+  if (!el) return; const d = el.dataset;
+  if (d.v) { S.v = +d.v; S.sheet = null; S.story = 0; }
+  else if (d.open !== undefined) S.stats = true;
+  else if (d.back !== undefined) { S.stats = false; S.sheet = null; }
+  else if (d.scope) S.scope = d.scope;
+  else if (d.period) S.period = d.period;
+  else if (d.tab) S.tab = d.tab;
+  else if (d.sort) S.sort = d.sort;
+  else if (d.ch !== undefined) S.sheet = +d.ch;
+  else if (d.close !== undefined) S.sheet = null;
+  else if (d.next !== undefined) S.story++;
+  else if (d.story !== undefined) S.story = +d.story;
+  else if (d.toast) { S.toast = d.toast; clearTimeout(tt); tt = setTimeout(() => { S.toast = null; render(); }, 1400); }
+  render();
+});
+if (/^#[1-5]s?$/.test(location.hash)) { S.v = +location.hash[1] - 1; S.stats = location.hash.endsWith('s'); }
+render();
+</script>
+</body>
+</html>
