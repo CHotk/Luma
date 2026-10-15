@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard;
@@ -3430,50 +3431,60 @@ class _TabBarDelegate extends SliverPersistentHeaderDelegate {
       ignoring: dim,
       child: Opacity(
         opacity: dim ? 0.3 : 1,
-        child: Container(
-          color: AppColors.bg,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      for (final t in _ChannelTab.values)
-                        InkWell(
-                          onTap: () => onTap(t),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              border: Border(
-                                bottom: BorderSide(
-                                  width: 2,
-                                  color: t == selected
-                                      ? AppColors.ink
-                                      : Colors.transparent,
+        // 毛玻璃底：原本實心黑底，跟頁面的漸層背景接不起來很突兀
+        // （2026-10-15 使用者回報）；改成半透明＋模糊，黏在上面時底下的
+        // 影片糊掉看不清楚，不會干擾分頁字。
+        child: ClipRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+            child: Container(
+              color: AppColors.bg.withValues(alpha: 0.5),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          for (final t in _ChannelTab.values)
+                            InkWell(
+                              onTap: () => onTap(t),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                ),
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  border: Border(
+                                    bottom: BorderSide(
+                                      width: 2,
+                                      color: t == selected
+                                          ? AppColors.ink
+                                          : Colors.transparent,
+                                    ),
+                                  ),
+                                ),
+                                child: Text(
+                                  t.label,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    color: t == selected
+                                        ? AppColors.ink
+                                        : AppColors.ink2,
+                                  ),
                                 ),
                               ),
                             ),
-                            child: Text(
-                              t.label,
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                                color: t == selected
-                                    ? AppColors.ink
-                                    : AppColors.ink2,
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
+                        ],
+                      ),
+                    ),
                   ),
-                ),
+                  const Divider(height: 1, color: AppColors.glassEdge),
+                ],
               ),
-              const Divider(height: 1, color: AppColors.glassEdge),
-            ],
+            ),
           ),
         ),
       ),

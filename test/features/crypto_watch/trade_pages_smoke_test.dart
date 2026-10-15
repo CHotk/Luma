@@ -477,7 +477,10 @@ void main() {
       of: find.byType(AlertDialog),
       matching: find.text(two(o.hour)),
     );
-    await tester.tap(hourBox.first);
+    // 格子依序是年／月／日／時／分：月或日剛好跟時同一個數字（例如 10 月的
+    // 10 點）時，照文字找會先找到月或日，要跳過它們（2026-10-15 抓到）。
+    final before = [o.month, o.day].where((v) => two(v) == two(o.hour)).length;
+    await tester.tap(hourBox.at(before));
     await tester.pump();
     await tester.enterText(
       find.descendant(
