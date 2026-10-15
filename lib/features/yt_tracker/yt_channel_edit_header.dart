@@ -407,17 +407,23 @@ class _EditTarget extends StatelessWidget {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          CustomPaint(
-            foregroundPainter: _DashedOutline(solid: changed, circle: circle),
-            child: Padding(
-              padding: circle
-                  ? const EdgeInsets.all(3)
-                  : const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-              child: child,
+          // 長方形的右邊留 8 讓小鉛筆壓在框的角上、整顆都在自己範圍內：
+          // 滿版的欄位（名稱很長、網址、簡介）小鉛筆才不會超出螢幕
+          // （2026-10-15 使用者回報）。
+          Padding(
+            padding: EdgeInsets.only(right: circle ? 0 : 8),
+            child: CustomPaint(
+              foregroundPainter: _DashedOutline(solid: changed, circle: circle),
+              child: Padding(
+                padding: circle
+                    ? const EdgeInsets.all(3)
+                    : const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                child: child,
+              ),
             ),
           ),
           Positioned(
-            right: circle ? -2 : -7,
+            right: circle ? -2 : 0,
             top: circle ? null : -8,
             bottom: circle ? -2 : null,
             child: Container(

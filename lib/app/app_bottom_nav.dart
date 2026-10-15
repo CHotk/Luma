@@ -166,7 +166,15 @@ class _AppBottomNavFrameState extends ConsumerState<AppBottomNavFrame> {
     final ctx = rootNavigatorKey.currentState?.overlay?.context;
     if (ctx == null) return;
     final id = await pickVideoTabChannel(ctx, ref);
-    if (id != null) appRouter.go('/yt-tracker/channel/$id');
+    if (id != null) _openVideoChannel(id);
+  }
+
+  /// 「影片」那格開的頻道用疊上去的（2026-10-15 使用者回報：用換頁的
+  /// 開過去，返回鍵沒作用），返回就回到點之前那頁。已經在那個頻道就不再疊。
+  void _openVideoChannel(String id) {
+    final target = '/yt-tracker/channel/$id';
+    if (currentAppPath() == target) return;
+    appRouter.push(target);
   }
 
   void _onYtTab(int i, String path, String videoChannelId) {
@@ -178,7 +186,7 @@ class _AppBottomNavFrameState extends ConsumerState<AppBottomNavFrame> {
         if (videoChannelId.isEmpty) {
           _pickVideoChannel();
         } else {
-          appRouter.go('/yt-tracker/channel/$videoChannelId');
+          _openVideoChannel(videoChannelId);
         }
       default:
         if (path != '/yt-playlists') appRouter.go('/yt-playlists');

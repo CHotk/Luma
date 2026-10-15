@@ -1562,10 +1562,18 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     cancelLabel: '繼續改',
   );
 
-  /// 標題列的「完成」：沒改東西直接離開編輯；有改就先問要不要放棄。
-  Future<void> _finishEdit() async {
+  /// 「取消」跟編輯中按返回（2026-10-15 使用者要求：返回先取消編輯，
+  /// 離開編輯以後再按才是回上一頁）：沒改東西直接離開編輯；有改就先問
+  /// 要不要放棄。
+  Future<void> _cancelEdit() async {
     if (_changedCount > 0 && !await _confirmDiscard()) return;
     if (!mounted) return;
+    setState(() => _draft = null);
+  }
+
+  /// 「完成」：有改就存，沒改就直接離開編輯（iOS 主流：左取消、右完成）。
+  Future<void> _doneEdit() async {
+    if (_changedCount > 0) return _saveEdit();
     setState(() => _draft = null);
   }
 
@@ -1645,16 +1653,14 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
 
   @override
   Widget build(BuildContext context) {
-    // 編輯中有改東西沒存：返回先問要不要放棄。
+    // 編輯中按返回：先取消編輯（有改過先問），不離開頁面。
     return PopScope(
-      canPop: _changedCount == 0 && !_searchOpen,
+      canPop: !_editing && !_searchOpen,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
         // 搜尋中按返回：先收起搜尋，不離開頁面。
         if (_searchOpen) return _closeSearch();
-        if (!await _confirmDiscard() || !mounted) return;
-        setState(() => _draft = null);
-        Navigator.of(this.context).pop();
+        if (_editing) return _cancelEdit();
       },
       child: _buildScaffold(context),
     );
@@ -1744,7 +1750,20 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                               actions: _editing
                                   ? [
                                       TextButton(
-                                        onPressed: _finishEdit,
+                                        onPressed: _cancelEdit,
+                                        style: TextButton.styleFrom(
+                                          foregroundColor: AppColors.ink2,
+                                        ),
+                                        child: const Text('取消'),
+                                      ),
+                                      FilledButton(
+                                        onPressed: _doneEdit,
+                                        style: FilledButton.styleFrom(
+                                          visualDensity: VisualDensity.compact,
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 16,
+                                          ),
+                                        ),
                                         child: const Text(
                                           '完成',
                                           style: TextStyle(
