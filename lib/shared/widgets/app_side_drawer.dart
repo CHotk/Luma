@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../debug/app_log.dart';
+import '../nav_bar_hiders.dart';
 import '../small_asset.dart';
 
 /// 全 App 共用的左側選單（毛玻璃抽屜），設計稿見
@@ -16,8 +17,33 @@ import '../small_asset.dart';
 /// 子功能已經在各軌道首頁自己的頂部列（[TrackSwitcher] 跟那排
 /// IconButton）處理過，這裡重複列只會讓人分不清這兩層選單差在哪
 /// （2026-09-22 使用者要求：不要英文/日文，也拿掉單字庫那些選項）。
-class AppSideDrawer extends StatelessWidget {
+class AppSideDrawer extends StatefulWidget {
   const AppSideDrawer({super.key});
+
+  @override
+  State<AppSideDrawer> createState() => _AppSideDrawerState();
+}
+
+/// 選單只有打開（或拉開中）才會建出來，所以建出來的期間底部分頁列先藏起來
+/// （見 [navBarHiders]）。
+class _AppSideDrawerState extends State<AppSideDrawer> {
+  @override
+  void initState() {
+    super.initState();
+    // 建畫面的當下不能改（分頁列正在聽），等這一格畫完。
+    WidgetsBinding.instance.addPostFrameCallback((_) => navBarHiders.value++);
+  }
+
+  @override
+  void dispose() {
+    // 拆畫面的當下也一樣，等這一格畫完。
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => navBarHiders.value = navBarHiders.value > 0
+          ? navBarHiders.value - 1
+          : 0,
+    );
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {

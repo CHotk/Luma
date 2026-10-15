@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/repositories/nav_bar_prefs_store.dart';
 import '../features/yt_tracker/yt_playlist_actions.dart';
+import '../shared/nav_bar_hiders.dart';
 import '../shared/widgets/floating_tab_bar.dart';
 import 'providers.dart';
 import 'router.dart';
@@ -214,6 +215,7 @@ class _AppBottomNavFrameState extends ConsumerState<AppBottomNavFrame> {
       listenable: Listenable.merge([
         appRouter.routerDelegate,
         navBarRouteObserver.popups,
+        navBarHiders,
       ]),
       builder: (context, _) {
         final path = _path();
@@ -226,7 +228,10 @@ class _AppBottomNavFrameState extends ConsumerState<AppBottomNavFrame> {
         final mq = MediaQuery.of(context);
         final keyboard = mq.viewInsets.bottom > 0;
         final hidden =
-            spec == null || keyboard || navBarRouteObserver.popups.value > 0;
+            spec == null ||
+            keyboard ||
+            navBarRouteObserver.popups.value > 0 ||
+            navBarHiders.value > 0;
         // 離底部的距離（2026-10-14 使用者要求往上一點：原本貼著 Home 指示條）。
         final barBottom = math.max(mq.padding.bottom + 8, 26.0);
         // 浮在頁面上面，不佔一行（2026-10-14 使用者糾正）：頁面照樣排到最底，
