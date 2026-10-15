@@ -12,6 +12,7 @@ import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
 import '../../data/repositories/yt_subscriber_history_store.dart';
 import '../../data/repositories/yt_video_cache_store.dart';
+import '../../data/repositories/yt_video_views.dart';
 import '../../data/repositories/yt_video_watch_store.dart';
 import '../../data/repositories/yt_video_hidden_store.dart';
 import '../../data/services/youtube_api_service.dart';
@@ -21,6 +22,7 @@ import '../../domain/models/yt_video_watch.dart';
 import '../../shared/debug/app_log.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_notice.dart';
+import '../../shared/widgets/glass_menu.dart';
 import '../../shared/widgets/q_bounce.dart';
 import '../../shared/widgets/open_settings.dart';
 import '../../shared/widgets/app_confirm_dialog.dart';
@@ -101,6 +103,22 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
   /// 就忘。
   String? _lastOpenedChannelId;
   _TypeFilter _typeFilter = _TypeFilter.all;
+
+  /// 依影片顯示的排序（2026-10-15 使用者要求：一顆按鈕、毛玻璃下拉選單，
+  /// 依上傳時間／依觀看次數）。觀看次數用快取裡的（見 [YtVideoViews]）。
+  _VideoSort _videoSort = _VideoSort.newest;
+
+  List<_ChannelVideo> _sortVideos(List<_ChannelVideo> list) {
+    if (_videoSort == _VideoSort.newest) return list;
+    final views = YtVideoViews.notifier.value;
+    int v(_ChannelVideo c) => c.video.viewCount ?? views[c.video.videoId] ?? -1;
+    return [...list]..sort(
+      (a, b) => _videoSort == _VideoSort.views
+          ? v(b).compareTo(v(a))
+          : a.video.publishedAt.compareTo(b.video.publishedAt),
+    );
+  }
+
   // 預設依訂閱人數排序，不是加入順序（2026-09-29 使用者要求：每個分類
   // 預設頻道排序要照訂閱人數）。使用者還是能用排序鈕切回原本順序或
   // 升冪，這裡只是改預設值。
@@ -837,6 +855,26 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                 ],
               ),
             ),
+            Builder(
+              builder: (btn) => TextButton.icon(
+                onPressed: () async {
+                  final picked = await showGlassMenu<_VideoSort>(
+                    btn,
+                    selected: _videoSort,
+                    items: [
+                      for (final s in _VideoSort.values)
+                        GlassMenuItem(value: s, label: s.label, icon: s.icon),
+                    ],
+                  );
+                  if (picked != null && mounted) {
+                    setState(() => _videoSort = picked);
+                  }
+                },
+                icon: const Icon(Icons.sort_rounded, size: 16),
+                label: Text(_videoSort.short),
+                style: TextButton.styleFrom(foregroundColor: AppColors.ink2),
+              ),
+            ),
             TextButton.icon(
               onPressed: () => _ensureVideosLoaded(channels, force: true),
               icon: const Icon(Icons.refresh, size: 15),
@@ -856,16 +894,17 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                       // 哪個頻道抓到了就換成新抓的，還沒抓到的頻道先秀
                       // 快取（2026-10-12 使用者要求抓到就先顯示）。
                       final done = _liveDoneChannels;
-                      final preview =
-                          [
-                            ..._liveVideos,
-                            for (final p in _videoPreview)
-                              if (!done.contains(p.channel.id)) p,
-                          ]..sort(
-                            (a, b) => b.video.publishedAt.compareTo(
-                              a.video.publishedAt,
-                            ),
-                          );
+                      final preview = _sortVideos(
+                        [
+                          ..._liveVideos,
+                          for (final p in _videoPreview)
+                            if (!done.contains(p.channel.id)) p,
+                        ]..sort(
+                          (a, b) => b.video.publishedAt.compareTo(
+                            a.video.publishedAt,
+                          ),
+                        ),
+                      );
                       final progress = _liveTotal > 1
                           ? '（${done.length}／$_liveTotal 個頻道）'
                           : '';
@@ -929,7 +968,7 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                       );
                     }
                     // 類型篩選已經在抓的時候做掉了（見 _fetchVideos），這裡直接用。
-                    final videos = snap.data ?? const [];
+                    final videos = _sortVideos(snap.data ?? const []);
                     if (videos.isEmpty) {
                       final typed = _typeFilter != _TypeFilter.all;
                       return SingleChildScrollView(
@@ -2551,4 +2590,16 @@ class _TypeChip extends StatelessWidget {
       ),
     );
   }
+}
+
+/// 依影片顯示的排序。
+enum _VideoSort {
+  newest('上傳時間：新到舊', '最新', Icons.schedule_rounded),
+  oldest('上傳時間：舊到新', '最舊', Icons.history_rounded),
+  views('觀看次數：多到少', '觀看最多', Icons.visibility_rounded);
+
+  const _VideoSort(this.label, this.short, this.icon);
+  final String label;
+  final String short;
+  final IconData icon;
 }
