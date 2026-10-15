@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import '../services/youtube_api_service.dart';
 import '../storage/key_value_store.dart';
+import 'yt_new_videos.dart';
 import 'yt_video_tags.dart';
 import 'yt_video_views.dart';
 
@@ -170,6 +171,13 @@ class YtVideoCacheStore {
 
   Future<int> _upsert(String channelId, List<YoutubeVideo> videos) async {
     final byId = {for (final v in await load(channelId)) v.videoId: v};
+    // 原本快取沒有、這次從 YouTube 抓到的＝NEW（頻道第一次抓不算）。
+    if (byId.isNotEmpty) {
+      YtNewVideos.add([
+        for (final v in videos)
+          if (!byId.containsKey(v.videoId)) v.videoId,
+      ]);
+    }
     var changed = 0;
     for (final v in videos) {
       final existing = byId[v.videoId];
@@ -315,6 +323,12 @@ class YtVideoCacheStore {
   Future<void> save(String channelId, List<YoutubeVideo> videos) =>
       _serial(channelId, () async {
         final byId = {for (final v in await load(channelId)) v.videoId: v};
+        if (byId.isNotEmpty) {
+          YtNewVideos.add([
+            for (final v in videos)
+              if (!byId.containsKey(v.videoId)) v.videoId,
+          ]);
+        }
         for (final v in videos) {
           final current = byId[v.videoId];
           byId[v.videoId] = current == null ? v : _fillGaps(v, current);

@@ -9,6 +9,7 @@ import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
 import '../../data/external_link.dart';
 import '../../data/repositories/yt_embed_player_style_store.dart';
+import '../../data/repositories/yt_new_videos.dart';
 import '../../data/repositories/yt_playlist_store.dart';
 import '../../data/repositories/yt_video_hidden_store.dart';
 import '../../data/repositories/yt_video_open_mode_store.dart';
@@ -865,57 +866,94 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
                                   },
                                 ),
                               ),
-                              // 左上角「已看過」小標籤，點下去直接開「開啟
-                              // 紀錄」視窗，不是靠 Tooltip 長按才看得到
-                              // （2026-09-30 使用者要求：長按太不直覺，
-                              // 點一下就該看到；順便把標籤做大一點，原本
-                              // 太小了）。
-                              if (_watched != null)
-                                Positioned(
-                                  left: 3,
-                                  top: 3,
-                                  child: GestureDetector(
-                                    onTap: _showHistory,
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 5,
-                                        vertical: 2,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.ytAccent.withValues(
-                                          alpha: 0.92,
+                              // 影片列狀態（2026-10-15 使用者選設計稿
+                              // `design-history/已選擇完成/2026-10-15_YT影片列狀態標示五種設計.html`
+                              // 第 2 版）：縮圖右上角一排小方塊、固定順序
+                              // ✓ 已看過、⊘ 已隱藏、☁ 快取來的、★ 在播放清單；
+                              // 左上角新片 NEW。看過的標題變灰、隱藏的整列變淡
+                              // 照舊（使用者要求）。
+                              // NEW：這次打開 App 才從 YouTube 抓到、原本快取
+                              // 沒有的（見 [YtNewVideos]）。
+                              Positioned(
+                                left: 3,
+                                top: 3,
+                                child: ValueListenableBuilder(
+                                  valueListenable: YtNewVideos.notifier,
+                                  builder: (context, fresh, _) =>
+                                      !fresh.contains(video.videoId)
+                                      ? const SizedBox.shrink()
+                                      : Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 4,
+                                            vertical: 1,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.accentSolid,
+                                            borderRadius: BorderRadius.circular(
+                                              4,
+                                            ),
+                                          ),
+                                          child: const Text(
+                                            'NEW',
+                                            style: TextStyle(
+                                              fontSize: 8.5,
+                                              fontWeight: FontWeight.w900,
+                                              color: Colors.white,
+                                            ),
+                                          ),
                                         ),
-                                        borderRadius: BorderRadius.circular(5),
-                                      ),
-                                      child: const Icon(
-                                        Icons.visibility_rounded,
-                                        size: 14,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ),
                                 ),
-                              // 「這支是從本機快取讀的」小圓點，右上角
-                              // （2026-09-30 使用者要求：想知道哪些是秒
-                              // 出來、不用配額的）。純裝飾，不能點。
-                              if (widget.fromCache)
-                                Positioned(
-                                  right: 3,
-                                  top: 3,
-                                  child: Container(
-                                    width: 8,
-                                    height: 8,
-                                    decoration: BoxDecoration(
-                                      color: AppColors.ink2,
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: Colors.black.withValues(
-                                          alpha: 0.5,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
+                              ),
+                              Positioned(
+                                right: 3,
+                                top: 3,
+                                child: Consumer(
+                                  builder: (context, ref, _) {
+                                    final lists = [
+                                      for (final p in YtPlaylistStore.visible(
+                                        ref.watch(ytPlaylistsProvider),
+                                      ))
+                                        if (p.contains(video.videoId)) p.name,
+                                    ];
+                                    return Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        // 點 ✓ 看開啟紀錄（原本點左上角紅標，
+                                        // 2026-09-30 使用者要求點一下就看得到）。
+                                        if (_watched != null)
+                                          _StatusIcon(
+                                            Icons.check_rounded,
+                                            color: Colors.white,
+                                            tooltip: '已看過',
+                                            onTap: _showHistory,
+                                          ),
+                                        if (_hidden)
+                                          const _StatusIcon(
+                                            Icons.block_rounded,
+                                            color: AppColors.ink2,
+                                            tooltip: '已隱藏',
+                                          ),
+                                        if (widget.fromCache)
+                                          const _StatusIcon(
+                                            Icons.cloud_rounded,
+                                            color: Color(0xFFFFB340),
+                                            tooltip: '快取來的（不花配額）',
+                                          ),
+                                        if (lists.isNotEmpty)
+                                          _StatusIcon(
+                                            Icons.star_rounded,
+                                            color: const Color(0xFFFFD60A),
+                                            tooltip: '已存在：${lists.join('、')}',
+                                            onTap: () => showAppNotice(
+                                              context,
+                                              '已存在：${lists.join('、')}',
+                                            ),
+                                          ),
+                                      ],
+                                    );
+                                  },
                                 ),
+                              ),
                             ],
                           ),
                           const SizedBox(width: Gap.sm),
@@ -950,14 +988,14 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
                                     style: AppText.note,
                                   ),
                                 ),
-                                _SavedIn(videoId: video.videoId),
                               ],
                             ),
                           ),
                           // ⋮：存到稍後觀看／播放清單、隱藏、在 YouTube 開啟
                           // （2026-10-14 播放清單設計稿第 1 版）。
+                          // 離標題近一點（2026-10-15 使用者要求：原本 30 寬，留太多空）。
                           SizedBox(
-                            width: 30,
+                            width: 20,
                             child: IconButton(
                               onPressed: _showMenu,
                               icon: const Icon(
@@ -967,7 +1005,10 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
                               color: AppColors.ink3,
                               tooltip: '更多',
                               padding: EdgeInsets.zero,
-                              visualDensity: VisualDensity.compact,
+                              constraints: const BoxConstraints(
+                                minWidth: 20,
+                                minHeight: 36,
+                              ),
                             ),
                           ),
                         ],
@@ -1134,27 +1175,35 @@ TextSpan highlightedSpan(String text, String? query) {
   return TextSpan(children: spans);
 }
 
-/// 「≡ 已存在：稍後觀看、最愛」——存過的影片在清單上看得出來。
-class _SavedIn extends ConsumerWidget {
-  const _SavedIn({required this.videoId});
+/// 影片列縮圖右上角的一個狀態小方塊（設計稿第 2 版）。
+class _StatusIcon extends StatelessWidget {
+  const _StatusIcon(
+    this.icon, {
+    required this.color,
+    required this.tooltip,
+    this.onTap,
+  });
 
-  final String videoId;
+  final IconData icon;
+  final Color color;
+  final String tooltip;
+  final VoidCallback? onTap;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final names = [
-      for (final p in YtPlaylistStore.visible(ref.watch(ytPlaylistsProvider)))
-        if (p.contains(videoId)) p.name,
-    ];
-    if (names.isEmpty) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.only(top: 2),
-      child: Text(
-        '≡ 已存在：${names.join('、')}',
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(fontSize: 10.5, color: AppColors.accent),
+  Widget build(BuildContext context) {
+    final box = Container(
+      width: 17,
+      height: 17,
+      margin: const EdgeInsets.only(left: 2),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(5),
       ),
+      child: Icon(icon, size: 12, color: color),
+    );
+    return Tooltip(
+      message: tooltip,
+      child: onTap == null ? box : GestureDetector(onTap: onTap, child: box),
     );
   }
 }

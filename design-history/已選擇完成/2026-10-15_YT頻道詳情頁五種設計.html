@@ -99,6 +99,18 @@
   .dmenu .mi.on::after { content: "✓"; color: #2E6BFF; font-weight: 900; }
   .day { font-size: 11.5px; color: var(--ink3); margin: 14px 2px 4px; }
   .wcard { display: flex; gap: 0; background: #17172A; border: 1px solid var(--line); border-radius: 14px; margin: 4px 0; overflow: hidden; }
+  /* 最終版影片列：照影片列設計稿第 2 版（右上角狀態小方塊、NEW），可往左滑、⋮ 選單 */
+  .swipe { position: relative; overflow: hidden; }
+  .acts { position: absolute; right: 0; top: 0; bottom: 0; display: flex; }
+  .acts button { width: 76px; border: 0; color: #fff; font-weight: 800; font-size: 12px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+  .acts .a1 { background: #2E6BFF; } .acts .a2 { background: #4a4a5c; }
+  .rowin { position: relative; background: #0e0e17; transition: transform .22s cubic-bezier(.2,.9,.3,1); touch-action: pan-y; }
+  .rowin.drag { transition: none; }
+  .corner6 { position: absolute; top: 4px; right: 4px; display: flex; gap: 2px; }
+  .corner6 span { width: 18px; height: 18px; border-radius: 5px; display: grid; place-items: center; font-size: 10.5px; font-weight: 900; background: rgba(0,0,0,.72); }
+  .new6 { position: absolute; left: 4px; top: 4px; background: #2E6BFF; font-size: 9px; font-weight: 900; padding: 1px 5px; border-radius: 4px; }
+  .more6 { width: 14px; flex-shrink: 0; color: var(--ink3); font-size: 17px; line-height: 1; cursor: pointer; text-align: center; }
+  .toast6 { position: absolute; left: 50%; top: 60px; transform: translateX(-50%); z-index: 95; background: rgba(30,30,44,.95); border: 1px solid var(--line); border-radius: 12px; padding: 8px 14px; font-size: 13px; animation: fade .15s; }
   .btt { position: absolute; right: 14px; bottom: 96px; z-index: 65; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: rgba(255,78,69,.38); border: 1px solid rgba(255,255,255,.25); color: rgba(255,255,255,.8); font-size: 20px; cursor: pointer; backdrop-filter: blur(6px); }
   .astat { flex: 1; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 9px 10px; } .astat b { display: block; font-size: 16px; }
   .facts { display: flex; flex-wrap: wrap; gap: 10px 18px; margin-top: 6px; } .facts div { min-width: 96px; } .facts b { display: block; font-size: 13.5px; }
@@ -137,6 +149,7 @@ const RAW = [
   ['1hI-7vj2FhE', '周杰倫 Jay Chou【安靜 Silence】Official MV', 334, 200, '1.1 億', '影片', 1, 0, 1],
 ];
 const VIDS = RAW.map(r => ({ id: r[0], t: r[1], s: r[2], d: r[3], views: r[4], type: r[5], w: !!r[6], h: !!r[7], c: !!r[8] }));
+VIDS[0].n = 1; VIDS[1].l = '開車必聽'; VIDS[4].l = '稍後觀看';
 const UPLOADS = [3, 5, 2, 4, 6, 3, 1, 4, 7, 5, 3, 6];
 const MONTHS = ['11月', '12月', '1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月'];
 const DURS = ['不限', '2 分內', '2–6 分', '6–20 分', '自訂'];
@@ -254,6 +267,17 @@ V.push({ name: '5 影片｜資訊｜紀錄 分段', title: '版本 5：頂部 iO
       <div class="pad" style="display:flex;gap:12px;align-items:center;padding-bottom:12px"><img class="av" src="${AV}" style="width:54px;height:54px"><div><div style="font-weight:800;font-size:17px">周杰倫 Jay Chou</div><div class="muted">2,140 萬訂閱・${VIDS.length} 部</div></div></div>${seg}${body}`;
   } });
 
+// 最終版影片列：影片列設計稿第 2 版——右上角固定順序 ✓ 看過、⊘ 隱藏、☁ 快取、★ 播放清單，
+// 左上角 NEW；看過的標題變灰、隱藏的整列變淡（照 App 現在）；⋮ 貼近標題（縮 1/3）；可往左滑。
+const row6 = v => {
+  const ic = [v.w && '<span style="color:#fff">✓</span>', v.h && '<span style="color:var(--ink2)">⊘</span>', v.c && '<span style="color:var(--amber)">☁</span>', v.l && '<span style="color:#ffd60a">★</span>'].filter(Boolean).join('');
+  return `<div class="vrow" style="${v.h ? 'opacity:.5' : ''}"><div class="th"><img src="${T(v.id)}" loading="lazy"><span class="dur">${fmt(v.s)}</span>${ic ? `<div class="corner6">${ic}</div>` : ''}${v.n ? '<span class="new6">NEW</span>' : ''}${v.type !== '影片' ? `<span style="position:absolute;left:4px;bottom:4px;font-size:10px;font-weight:800;padding:0 5px;border-radius:4px;background:${v.type === '直播' ? '#E53935' : '#FF6D00'}">${v.type}</span>` : ''}</div>
+    <div class="vi"><div class="vt" style="color:${v.w ? 'var(--ink3)' : 'var(--ink)'}">${v.t}</div><div class="small" style="margin-top:3px">${v.views} 次・${ago(v.d)}</div></div><span class="more6" data-vmenu="${v.id}">⋮</span></div>`;
+};
+const swipeRow = v => `<div class="swipe"><div class="acts"><button class="a1" data-act="w" data-id="${v.id}">${v.w ? '↺<br>未看' : '✓<br>已看過'}</button><button class="a2" data-act="h" data-id="${v.id}">⊘<br>${v.h ? '取消隱藏' : '隱藏'}</button></div>
+  <div class="rowin" data-row6="${v.id}" style="transform:translateX(${S.open6 === v.id ? -152 : 0}px)">${row6(v)}</div></div>`;
+const listHtml6 = () => { const a = list(); return a.length ? a.map(swipeRow).join('') : '<div class="empty">沒有符合的影片<br><span class="small">把篩選放寬一點看看</span></div>'; };
+
 // 6 最終版（使用者選第 1 版，再加觀看紀錄、改分頁順序、篩選照 App 現在的樣子）
 const WATCH_LOG = [['今天', '21:14', 0], ['今天', '20:02', 4], ['昨天', '23:40', 1], ['10/12', '22:10', 7], ['10/12', '21:55', 11], ['10/09', '19:30', 15]];
 V.push({ name: '6 最終版', final: true, title: '最終版：第 1 版的分頁＋觀看紀錄，篩選照 App 現在的樣子', tag: '你選的・2026-10-15',
@@ -264,6 +288,8 @@ V.push({ name: '6 最終版', final: true, title: '最終版：第 1 版的分�
     <li>「隱藏已看過」「顯示已隱藏」照現在的樣子放第二排，旁邊數字是有幾部；有查到下架的影片才多一顆「已下架」。</li>
     <li>影片列多了觀看次數：「3.2 萬次・2 天前」。</li>
     <li><b>簡介分頁</b>豐富一點：最上面三格（訂閱／YouTube 上的影片／開始追蹤），再來簡介、這個頻道（類型、平均長度、平均每月、最近上傳、最早一部、觀看合計）、什麼時候發片（星期／時段長條）、上傳頻率、最熱門 3 部、你看過幾部。都用抓過的影片算，不多花配額。</li>
+    <li><b>影片列照影片列設計稿第 2 版</b>：縮圖右上角固定順序 ✓ 看過、⊘ 隱藏、☁ 快取、★ 播放清單；當下快取沒有、這次從 YouTube 抓到的左上角藍色 NEW；看過的標題變灰、隱藏的整列變淡（跟現在一樣）。</li>
+    <li>影片照樣能<b>往左滑</b>出「已看過／隱藏」兩顆；右邊 <b>⋮</b> 貼近標題（空間縮 1/3），點了出選單。</li>
     <li>頂部列整條不透明，往下滑分頁列接在下面不會透出影片；右下紅色「回到最上面」小球照舊（設定可關、跨裝置同步）。</li></ul>`,
   render() {
     const tabs = ['全部', 'Shorts', '直播', '簡介', '觀看紀錄'];
@@ -279,7 +305,7 @@ V.push({ name: '6 最終版', final: true, title: '最終版：第 1 版的分�
         <div class="card" style="margin-top:10px"><b>這個頻道</b><div class="facts"><div><span class="small">影片類型</span><b>一般 ${nType('影片')}・Shorts ${nType('Shorts')}・直播 ${nType('直播')}</b></div><div><span class="small">平均長度</span><b>8:42</b></div><div><span class="small">平均每月</span><b>2.4 部</b></div><div><span class="small">最近上傳</span><b>1 天前</b></div><div><span class="small">最早一部</span><b>2026/03/29</b></div><div><span class="small">觀看次數合計</span><b>23 億次</b></div></div></div>
         <div class="card" style="margin-top:10px"><b>什麼時候發片</b><div style="font-weight:700;margin-top:4px">最常在星期五・晚上</div>${bars(['一', '二', '三', '四', '五', '六', '日'], [1, 2, 1, 3, 5, 2, 2])}${bars(['凌晨', '早上', '下午', '晚上'], [1, 3, 4, 8])}</div>
         <div class="card" style="margin-top:10px"><b>上傳頻率（近半年）</b><div style="margin-top:8px">${chart()}</div></div>
-        <div class="card" style="margin-top:10px;padding:12px 0 4px"><b style="padding:0 14px">最熱門</b>${top.map(row).join('')}</div>
+        <div class="card" style="margin-top:10px;padding:12px 0 4px"><b style="padding:0 14px">最熱門</b>${top.map(swipeRow).join('')}</div>
         <div class="card" style="margin-top:10px"><b>你看過</b><p class="muted" style="margin:6px 0 0">看過 ${VIDS.filter(v => v.w).length} 部（${Math.round(VIDS.filter(v => v.w).length * 100 / VIDS.length)}%）・最近一次 今天</p></div></div>`;
     }
     else if (tab === '觀看紀錄') {
@@ -293,7 +319,7 @@ V.push({ name: '6 最終版', final: true, title: '最終版：第 1 版的分�
       const durOn = S.dur !== '不限';
       body = `<div class="pad" style="display:flex;gap:6px;align-items:center;margin:10px 0 6px">${['最新', '熱門', '最舊'].map(x => `<span class="chip ${S.sort === x ? 'on' : ''}" data-sort="${x}">${x}</span>`).join('')}
           <span style="flex:1"></span><span class="pill ${durOn ? 'on' : ''}" data-menu="dur6">⏱ ${durOn ? S.dur : '時長'} ▾</span><span class="ib" style="width:30px;height:30px;font-size:15px" title="重新整理">↻</span></div>
-        <div class="pad" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px"><span class="fchip ${S.hideW ? 'on' : ''}" data-t="hideW">隱藏已看過${nW ? ` (${nW})` : ''}</span><span class="fchip ${S.showH ? 'on' : ''}" data-t="showH">顯示已隱藏${nH ? ` (${nH})` : ''}</span></div>${listHtml()}`;
+        <div class="pad" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px"><span class="fchip ${S.hideW ? 'on' : ''}" data-t="hideW">隱藏已看過${nW ? ` (${nW})` : ''}</span><span class="fchip ${S.showH ? 'on' : ''}" data-t="showH">顯示已隱藏${nH ? ` (${nH})` : ''}</span></div>${listHtml6()}`;
     }
     // 頂部列整條不透明：原本漸層下半截透明，往下滑時頻道名字那條跟分頁列中間
     // 會透出下面的影片（2026-10-15 使用者回報）。
@@ -308,7 +334,7 @@ const phone = document.getElementById('phone');
 function render() {
   const v = V[S.v];
   document.getElementById('vtabs').innerHTML = V.map((x, i) => `<button class="${i === S.v ? 'on' : ''} ${x.final ? 'final' : ''}" data-v="${i}">${x.name}</button>`).join('');
-  document.getElementById('notes').innerHTML = `<span class="tag">${v.tag}</span><h2>${v.title}</h2>${v.desc}<div class="try">試試：改篩選看清單變化、往下滑看頭部、點 ⓘ／⚙／▾。</div>`;
+  document.getElementById('notes').innerHTML = `<span class="tag">${v.tag}</span><h2>${v.title}</h2>${v.desc}<div class="try">試試：改篩選看清單變化、往下滑看頭部、按住影片往左拖、點 ⋮。</div>`;
   const st = phone.querySelector('.screen')?.scrollTop || 0;
   let menu = '';
   if (S.menu === 'sort') menu = `<div class="scrim" data-close></div><div class="menu" style="right:14px;top:180px">${['最新', '熱門', '最舊'].map(s => `<div class="mi ${S.sort === s ? 'on' : ''}" data-sort="${s}">${s}</div>`).join('')}</div>`;
@@ -319,12 +345,27 @@ function render() {
     const cnt = d => base.filter(v => d === '不限' || (d === '2 分內' && v.s <= 120) || (d === '2–6 分' && v.s > 120 && v.s <= 360) || (d === '6–20 分' && v.s > 360 && v.s <= 1200)).length;
     menu = `<div class="scrim" data-close style="background:rgba(0,0,0,.26)"></div><div class="dmenu" style="top:${S.menuTop || 260}px">${DURS.map(d => `<div class="mi ${S.dur === d ? 'on' : ''}" data-dur="${d}">${d}${d !== '自訂' ? `<span class="n">${cnt(d)}</span>` : '<span class="n"></span>'}</div>`).join('')}</div>`;
   }
+  if (S.vmenu) {
+    const x = VIDS.find(y => y.id === S.vmenu);
+    menu = `<div class="scrim" data-close></div><div class="menu" style="right:18px;top:${Math.min(S.menuTop || 300, 560)}px"><div class="small" style="padding:4px 10px 6px">${x.c ? '☁ 來自快取' : '剛從 YouTube 抓的'}${x.l ? `<br>★ 已存到：${x.l}` : ''}</div>
+      <div class="mi" data-act="w" data-id="${x.id}">✓ ${x.w ? '標成沒看過' : '標成已看過'}</div><div class="mi" data-act="h" data-id="${x.id}">⊘ ${x.h ? '取消隱藏' : '隱藏'}</div><div class="mi" data-act="l" data-id="${x.id}">≡＋ 添加到播放清單</div><div class="mi">🕘 開啟紀錄</div><div class="mi">↗ 在 YouTube 開啟</div></div>`;
+  }
   phone.innerHTML = `<div class="status"><span>21:30</span><span>5G ▮</span></div><div class="screen">${v.render()}</div>${NAV}${v.final ? `<div class="btt" id="btt" data-top style="display:${st > 300 ? 'grid' : 'none'}">↑</div>` : ''}
-    ${S.sheet && v.sheet ? `<div class="sheet-bg" data-close></div><div class="sheet"><div class="grab"></div>${v.sheet(S.sheet)}</div>` : ''}${menu}`;
+    ${S.toast6 ? `<div class="toast6">${S.toast6}</div>` : ''}${S.sheet && v.sheet ? `<div class="sheet-bg" data-close></div><div class="sheet"><div class="grab"></div>${v.sheet(S.sheet)}</div>` : ''}${menu}`;
   const sc = phone.querySelector('.screen'); sc.scrollTop = st;
   sc.onscroll = () => { const b = phone.querySelector('#btt'); if (b) b.style.display = sc.scrollTop > 300 ? 'grid' : 'none'; const s = sc.scrollTop > 70; if (s !== S.scrolled) { S.scrolled = s; const tt = phone.querySelector('#tt'); if (tt) tt.textContent = s ? '周杰倫 Jay Chou' : ''; } };
 }
 document.addEventListener('click', e => {
+  if (dragMoved6) { dragMoved6 = false; return; }
+  const a6 = e.target.closest('[data-act],[data-vmenu],[data-row6]');
+  if (a6) {
+    const d = a6.dataset;
+    if (d.vmenu) { S.vmenu = d.vmenu; const r = a6.getBoundingClientRect(), pr = phone.getBoundingClientRect(); S.menuTop = r.top - pr.top + 20; }
+    else if (d.act) { const x = VIDS.find(y => y.id === d.id); if (d.act === 'w') x.w = !x.w; if (d.act === 'h') x.h = !x.h; if (d.act === 'l') x.l = x.l || '開車必聽';
+      S.toast6 = d.act === 'w' ? (x.w ? '標成已看過' : '標成沒看過') : d.act === 'h' ? (x.h ? '已隱藏' : '取消隱藏') : '已存到「開車必聽」'; setTimeout(() => { S.toast6 = null; render(); }, 1500); S.open6 = null; S.vmenu = null; }
+    else if (d.row6) { if (S.open6) S.open6 = null; else { S.toast6 = '播放中…'; setTimeout(() => { S.toast6 = null; render(); }, 1200); } }
+    render(); return;
+  }
   if (e.target.closest('[data-top]')) { phone.querySelector('.screen').scrollTo({ top: 0, behavior: 'smooth' }); return; }
   const el = e.target.closest('[data-tab6],[data-v],[data-type],[data-dur],[data-t],[data-sort],[data-open],[data-close],[data-tab],[data-tab5],[data-info],[data-clear],[data-menu],[data-stat]');
   if (!el) return; const d = el.dataset;
@@ -334,7 +375,7 @@ document.addEventListener('click', e => {
   else if (d.t) S[d.t] = !S[d.t];
   else if (d.sort) { S.sort = d.sort; S.menu = null; }
   else if (d.open) S.sheet = d.open;
-  else if (d.close !== undefined) { S.sheet = null; S.menu = null; }
+  else if (d.close !== undefined) { S.sheet = null; S.menu = null; S.vmenu = null; }
   else if (d.tab) { S.tab = d.tab; if (d.tab !== '簡介') S.type = d.tab === '影片' ? '影片' : d.tab; }
   else if (d.tab5) S.tab5 = d.tab5;
   else if (d.info !== undefined) S.info = !S.info;
@@ -344,6 +385,11 @@ document.addEventListener('click', e => {
   else if (d.stat !== undefined) S.stat = d.stat || null;
   render();
 });
+// 往左拖（最終版影片列）
+let drag6 = null, dragMoved6 = false;
+phone.addEventListener('pointerdown', e => { const r = e.target.closest('[data-row6]'); if (!r || e.target.closest('.more6')) return; drag6 = { el: r, x: e.clientX, base: S.open6 === r.dataset.row6 ? -152 : 0, dx: 0 }; });
+window.addEventListener('pointermove', e => { if (!drag6) return; drag6.dx = e.clientX - drag6.x; if (Math.abs(drag6.dx) > 5) { dragMoved6 = true; drag6.el.classList.add('drag'); drag6.el.style.transform = `translateX(${Math.min(0, Math.max(-180, drag6.base + drag6.dx))}px)`; } });
+window.addEventListener('pointerup', () => { if (!drag6) return; if (dragMoved6) { S.open6 = drag6.base + drag6.dx < -60 ? drag6.el.dataset.row6 : null; render(); setTimeout(() => dragMoved6 = false, 0); } drag6 = null; });
 // 沒指定就開最終版。
 S.v = /^#[1-6]$/.test(location.hash) ? +location.hash[1] - 1 : V.length - 1;
 render();

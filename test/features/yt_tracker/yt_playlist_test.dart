@@ -61,7 +61,7 @@ void main() {
     expect((await s.load()).mode, NavBarMode.global);
   });
 
-  testWidgets('影片 ⋮ →「添加到播放清單」勾稍後觀看：清單多一部、影片下面標已存在', (tester) async {
+  testWidgets('影片 ⋮ →「添加到播放清單」勾稍後觀看：清單多一部、縮圖角落出現 ★', (tester) async {
     final store = _MemoryStore();
     final container = ProviderContainer(
       overrides: [keyValueStoreProvider.overrideWithValue(store)],
@@ -102,7 +102,8 @@ void main() {
     expect(later.items.single.channelName, '頻道A');
     await tester.tap(find.text('完成'));
     await tester.pumpAndSettle();
-    expect(find.text('≡ 已存在：稍後觀看'), findsOneWidget);
+    // 2026-10-15 影片列設計稿第 2 版：改成縮圖右上角 ★。
+    expect(find.byTooltip('已存在：稍後觀看'), findsOneWidget);
     // 本機也存了。
     final saved = await tester.runAsync(() => YtPlaylistStore(store).loadAll());
     expect(saved!.firstWhere((p) => p.isLater).items, hasLength(1));
