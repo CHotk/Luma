@@ -281,8 +281,16 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     );
   }
 
+  /// 注音（含聲調）還沒選字的那一段（2026-10-15 使用者回報：打「ㄏㄟ」
+  /// 還沒變成字就先搜了）。
+  static final _bopomofo = RegExp('[㄀-ㄯㆠ-ㆿ˙ˊˇˋ]');
+
   void _onSearchTyped(YtChannel channel, String text) {
     _typeDebounce?.cancel();
+    // 輸入法還在組字（底線那段）或有注音，等選完字再搜。
+    final composing = _searchCtrl.value.composing;
+    if (composing.isValid && !composing.isCollapsed) return;
+    if (_bopomofo.hasMatch(text)) return;
     _typeDebounce = Timer(const Duration(milliseconds: 250), () {
       if (!mounted || !_searchOpen) return;
       _submitSearch(channel, text, typing: true);
