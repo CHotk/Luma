@@ -9,7 +9,6 @@ import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
 import '../../data/repositories/home_card_order_store.dart';
 import '../../domain/encouragement.dart';
-import '../../domain/time_of_day_label.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/glass_card.dart';
@@ -82,7 +81,7 @@ class _Body extends ConsumerWidget {
                   // 週幾／時間用當下的真實時間，不是 state.usage.date——
                   // 後者是「今天這筆用量第一次建立時」的時間戳，同一天內
                   // 重新打開 App 不會更新，拿來顯示時間會是舊的。
-                  _TopBar(now: DateTime.now()),
+                  const _TopBar(),
                   const SizedBox(height: Gap.lg),
 
                   // 卡片順序使用者可以自己調（2026-10-05，見
@@ -164,9 +163,7 @@ Map<String, Widget> _enCards(HomeState state, int minutesUsed) => {
 /// 首頁頂端。左邊週幾＋時間＋時段 emoji，中間是語言軌道切換，
 /// 右邊功能入口。（偽裝模式 2026-10-05 使用者要求拔掉了。）
 class _TopBar extends ConsumerWidget {
-  const _TopBar({required this.now});
-
-  final DateTime now;
+  const _TopBar();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -201,11 +198,7 @@ class _TopBar extends ConsumerWidget {
           // 空間跟左邊不對稱）。
           constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
         ),
-        const SizedBox(width: Gap.sm),
-        Text(
-          '${weekdayLabel(now)} ${clockLabel(now)} ${periodEmoji(now)}',
-          style: AppText.title,
-        ),
+        // 原本這裡有「週四 21:30 🌙」，2026-10-15 使用者要求拿掉。
         const SizedBox(width: Gap.sm),
         const TrackSwitcher(current: LearningTrack.en),
         const Spacer(),

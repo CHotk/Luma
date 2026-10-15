@@ -9,7 +9,6 @@ import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
 import '../../data/repositories/home_card_order_store.dart';
 import '../../domain/encouragement.dart';
-import '../../domain/time_of_day_label.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/glass_card.dart';
@@ -153,7 +152,7 @@ class _Body extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const SizedBox(height: Gap.md),
-                  _TopBar(now: DateTime.now()),
+                  const _TopBar(),
                   const SizedBox(height: Gap.lg),
 
                   // 卡片順序使用者可以自己調（2026-10-05，見
@@ -201,9 +200,7 @@ class _Body extends ConsumerWidget {
 /// ）指向的都是英文單字資料，搬到這裡點了也是空的或誤導，
 /// 所以不放；設定頁是全 App 共用的，留著。
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.now});
-
-  final DateTime now;
+  const _TopBar();
 
   @override
   Widget build(BuildContext context) {
@@ -221,11 +218,7 @@ class _TopBar extends StatelessWidget {
           // 跟左邊不對稱）。
           constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
         ),
-        const SizedBox(width: Gap.sm),
-        Text(
-          '${weekdayLabel(now)} ${clockLabel(now)} ${periodEmoji(now)}',
-          style: AppText.title,
-        ),
+        // 原本這裡有「週四 21:30 🌙」，2026-10-15 使用者要求拿掉。
         const SizedBox(width: Gap.sm),
         const TrackSwitcher(current: LearningTrack.ja),
         const Spacer(),
