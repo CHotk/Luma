@@ -148,7 +148,7 @@ void main() {
     await settle();
     // 點了鍵盤就跳出來（搜尋框拿到焦點）。
     expect(tester.testTextInput.isVisible, isTrue);
-    // 注音還沒選字（組字中、有底線）不搜。
+    // 還有注音（沒選字）不搜。
     await tester.showKeyboard(find.byType(TextField));
     tester.testTextInput.updateEditingValue(
       const TextEditingValue(
@@ -159,8 +159,14 @@ void main() {
     );
     await settle();
     expect(find.textContaining('搜抓過的'), findsNothing);
-    // 打字就搜，不用按 Enter。
-    await tester.enterText(find.byType(TextField), '黑洞');
+    // 選完字就搜，不用按 Enter——iPhone 選完字常常還算組字中，照樣要搜。
+    tester.testTextInput.updateEditingValue(
+      const TextEditingValue(
+        text: '黑洞',
+        selection: TextSelection.collapsed(offset: 2),
+        composing: TextRange(start: 0, end: 2),
+      ),
+    );
     await settle();
     expect(tester.takeException(), isNull);
     // 沒金鑰：只搜快取。

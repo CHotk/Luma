@@ -281,12 +281,14 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     );
   }
 
+  /// 注音（含聲調）。打字中還有注音＝還沒選字，先不搜（2026-10-15 使用者
+  /// 回報）。原本看輸入法「組字中」（底線），但 iPhone 選完字常常還算在
+  /// 組字，就一直不搜，所以改成只看有沒有注音。
+  static final _bopomofo = RegExp(r'[㄀-ㄯㆠ-ㆿ˙ˊˇˋ]');
+
   void _onSearchTyped(YtChannel channel, String text) {
     _typeDebounce?.cancel();
-    // 輸入法還在組字（底線那段，例如注音還沒選字）就先不搜，選完字再搜
-    // （2026-10-15 使用者回報）。
-    final composing = _searchCtrl.value.composing;
-    if (composing.isValid && !composing.isCollapsed) return;
+    if (_bopomofo.hasMatch(text)) return;
     _typeDebounce = Timer(const Duration(milliseconds: 250), () {
       if (!mounted || !_searchOpen) return;
       _submitSearch(channel, text, typing: true);
