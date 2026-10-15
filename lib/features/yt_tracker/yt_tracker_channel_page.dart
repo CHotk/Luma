@@ -2367,80 +2367,108 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
               style: AppText.bodyDim,
             ),
           ),
-          if (stats.total > 0) ...[
-            card(
-              filler.complete ? '這個頻道' : '這個頻道（目前抓到的 ${stats.total} 部）',
-              Wrap(
-                spacing: Gap.sm,
-                runSpacing: Gap.sm,
-                children: [
-                  _AboutFact(
-                    '影片類型',
-                    '一般 ${stats.regular}・Shorts ${stats.shorts}・直播 ${stats.live}',
-                  ),
-                  if (stats.avgDuration != null)
-                    _AboutFact('平均長度', formatVideoDuration(stats.avgDuration!)),
-                  if (stats.perMonth != null)
-                    _AboutFact(
-                      '平均每月',
-                      '${stats.perMonth!.toStringAsFixed(stats.perMonth! < 10 ? 1 : 0)} 部',
-                    ),
-                  if (stats.latest != null)
-                    _AboutFact('最近上傳', ytRelativeTime(stats.latest!)),
-                  if (stats.first != null)
-                    _AboutFact('最早一部', ymd(stats.first!)),
-                  if (stats.totalViews != null)
-                    _AboutFact('觀看次數合計', formatViewCount(stats.totalViews!)),
-                ],
-              ),
-            ),
-            card(
-              '什麼時候發片',
-              Column(
+          card('上傳頻率（近半年）', _buildHistoryChart(channel)),
+          // 平均每月、最早一部、最熱門這些要看整個頻道，抓完全部影片才顯示，
+          // 還在抓就轉圈（2026-10-15 使用者要求：只抓到一部分算出來的不準）。
+          ListenableBuilder(
+            listenable: filler,
+            builder: (context, _) {
+              if (!filler.complete) {
+                return card('這個頻道', _fillPending(channel, filler));
+              }
+              // 剛抓完：重讀一次快取，數字才是整個頻道的。
+              if (_aboutFullFor != channel.id) {
+                _aboutFullFor = channel.id;
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) _reloadCache();
+                });
+              }
+              return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  if (wd != null)
-                    Text(
-                      '最常在星期${YtChannelStats.weekdayLabels[wd]}'
-                      '${slot == null ? '' : '・${YtChannelStats.slotLabels[slot]}'}',
-                      style: const TextStyle(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.ink,
+                  if (stats.total > 0) ...[
+                    card(
+                      '這個頻道',
+                      Wrap(
+                        spacing: Gap.sm,
+                        runSpacing: Gap.sm,
+                        children: [
+                          _AboutFact(
+                            '影片類型',
+                            '一般 ${stats.regular}・Shorts ${stats.shorts}・直播 ${stats.live}',
+                          ),
+                          if (stats.avgDuration != null)
+                            _AboutFact(
+                              '平均長度',
+                              formatVideoDuration(stats.avgDuration!),
+                            ),
+                          if (stats.perMonth != null)
+                            _AboutFact(
+                              '平均每月',
+                              '${stats.perMonth!.toStringAsFixed(stats.perMonth! < 10 ? 1 : 0)} 部',
+                            ),
+                          if (stats.latest != null)
+                            _AboutFact('最近上傳', ytRelativeTime(stats.latest!)),
+                          if (stats.first != null)
+                            _AboutFact('最早一部', ymd(stats.first!)),
+                          if (stats.totalViews != null)
+                            _AboutFact(
+                              '觀看次數合計',
+                              formatViewCount(stats.totalViews!),
+                            ),
+                        ],
                       ),
                     ),
-                  const SizedBox(height: Gap.sm),
-                  _AboutBars(
-                    labels: YtChannelStats.weekdayLabels,
-                    counts: stats.weekdays,
-                  ),
-                  const SizedBox(height: Gap.sm),
-                  _AboutBars(
-                    labels: YtChannelStats.slotLabels,
-                    counts: stats.slots,
-                  ),
-                ],
-              ),
-            ),
-          ],
-          card('上傳頻率（近半年）', _buildHistoryChart(channel)),
-          if (stats.top.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(bottom: Gap.sm),
-              child: GlassCard(
-                padding: const EdgeInsets.fromLTRB(0, 12, 0, 4),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 14),
-                      child: PanelLabel('最熱門'),
+                    card(
+                      '什麼時候發片',
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (wd != null)
+                            Text(
+                              '最常在星期${YtChannelStats.weekdayLabels[wd]}'
+                              '${slot == null ? '' : '・${YtChannelStats.slotLabels[slot]}'}',
+                              style: const TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.ink,
+                              ),
+                            ),
+                          const SizedBox(height: Gap.sm),
+                          _AboutBars(
+                            labels: YtChannelStats.weekdayLabels,
+                            counts: stats.weekdays,
+                          ),
+                          const SizedBox(height: Gap.sm),
+                          _AboutBars(
+                            labels: YtChannelStats.slotLabels,
+                            counts: stats.slots,
+                          ),
+                        ],
+                      ),
                     ),
-                    for (final v in stats.top) _videoRow(channel, v),
                   ],
-                ),
-              ),
-            ),
+                  if (stats.top.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: Gap.sm),
+                      child: GlassCard(
+                        padding: const EdgeInsets.fromLTRB(0, 12, 0, 4),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 14),
+                              child: PanelLabel('最熱門'),
+                            ),
+                            for (final v in stats.top) _videoRow(channel, v),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
           card(
             '你看過',
             Text(
@@ -2448,7 +2476,7 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                   ? '還沒看過這個頻道的影片'
                   : [
                       '看過 ${stats.watched} 部'
-                          '${stats.total == 0 ? '' : '（${(stats.watched * 100 / stats.total).round()}%）'}',
+                          '${stats.total == 0 || !filler.complete ? '' : '（${(stats.watched * 100 / stats.total).round()}%）'}',
                       if (stats.lastWatched != null)
                         '最近一次 ${ytRelativeTime(stats.lastWatched!)}',
                     ].join('・'),
@@ -2457,6 +2485,60 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
           ),
         ],
       ),
+    );
+  }
+
+  /// 簡介分頁要等整個頻道抓完的那幾塊（[_buildAbout]）：哪個頻道已經
+  /// 重讀過抓完後的快取。
+  String? _aboutFullFor;
+
+  /// 還沒抓完整個頻道時，簡介分頁那塊顯示的東西。
+  Widget _fillPending(YtChannel channel, YtChannelFiller filler) {
+    if (filler.running) {
+      return Row(
+        children: [
+          const SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          const SizedBox(width: Gap.sm),
+          Expanded(
+            child: Text(
+              '正在抓整個頻道的影片…已有 ${_fmtCount(filler.cached)} 部\n'
+              '抓完才算得出平均每月、最早一部、最熱門',
+              style: AppText.note,
+            ),
+          ),
+        ],
+      );
+    }
+    final apiKey = ref.read(ytApiKeyProvider);
+    final canFetch = apiKey != null && apiKey.isNotEmpty;
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            canFetch
+                ? '要先抓完整個頻道的影片才算得出平均每月、最早一部、最熱門'
+                : '要先設定 API 金鑰、抓完整個頻道的影片才算得出來',
+            style: AppText.note,
+          ),
+        ),
+        if (canFetch)
+          TextButton(
+            onPressed: () => filler.start(
+              cache: YtVideoCacheStore(ref.read(keyValueStoreProvider)),
+              api: YoutubeApiService(apiKey),
+              uploadsId: () async =>
+                  _uploadsId ??
+                  (channel.uploadsPlaylistId.isEmpty
+                      ? null
+                      : channel.uploadsPlaylistId),
+            ),
+            child: const Text('現在抓'),
+          ),
+      ],
     );
   }
 
