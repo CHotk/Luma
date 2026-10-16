@@ -79,6 +79,43 @@
   .bud.calib .tap { outline: 2px solid #4ade80; background: rgba(74,222,128,.15); }
   .gpt-step { margin: 8px 16px 0; padding: 10px 12px; border-radius: 14px; background: rgba(255,183,203,.08); border: 1px solid rgba(255,183,203,.3); font-size: 12px; color: var(--ink2); position: relative; z-index: 5; }
   .chip.on { background: rgba(255,183,203,.18); border-color: rgba(255,183,203,.6); color: #FFD3E0; }
+  /* 會說話的樹 */
+  .talk { display: flex; gap: 10px; align-items: flex-start; margin: 6px 14px 0; position: relative; z-index: 6; cursor: pointer; }
+  .talk .ava { width: 40px; height: 40px; flex-shrink: 0; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff, #FFC2D4 45%, #FF7FA3); display: grid; place-items: center; font-size: 20px; box-shadow: 0 4px 14px rgba(255,90,140,.45); animation: bob 2.6s ease-in-out infinite; }
+  @keyframes bob { 50% { transform: translateY(-3px) rotate(-4deg) } }
+  .talk .bub { position: relative; flex: 1; padding: 9px 12px; border-radius: 4px 16px 16px 16px; background: rgba(255,240,246,.16); border: 1px solid rgba(255,255,255,.3); backdrop-filter: blur(14px); font-size: 13px; line-height: 1.45; color: #FFF4F8; animation: popin .3s; }
+  .talk .bub small { display: block; color: rgba(255,240,246,.6); font-size: 10.5px; margin-top: 3px; }
+  .stages { margin: 10px 14px 0; position: relative; z-index: 5; }
+  .stages .bar { position: relative; height: 8px; border-radius: 99px; background: rgba(20,14,28,.6); border: 1px solid rgba(255,255,255,.12); }
+  .stages .fill { position: absolute; inset: 0 auto 0 0; border-radius: 99px; background: linear-gradient(90deg, #FFC2D4, #FF7FA3); box-shadow: 0 0 10px rgba(255,127,163,.7); transition: width .8s; }
+  .stages .ms { position: absolute; top: 50%; width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 50%; display: grid; place-items: center; font-size: 10px; background: #2a1e30; border: 1.5px solid #5a4458; }
+  .stages .ms.on { background: #FF7FA3; border-color: #fff; }
+  .stages .lbl { display: flex; justify-content: space-between; font-size: 10.5px; color: rgba(255,240,246,.55); margin-top: 7px; }
+  .stages .lbl b { color: #FFD3E0; }
+  .cele-bg { position: absolute; inset: 0; z-index: 90; background: rgba(20,6,18,.55); backdrop-filter: blur(3px); animation: fadein .25s; }
+  .cele { position: absolute; left: 22px; right: 22px; top: 50%; transform: translateY(-50%); z-index: 91; text-align: center; padding: 70px 20px 20px; border-radius: 30px; background: linear-gradient(165deg, rgba(255,200,222,.34), rgba(255,120,165,.2)); border: 1px solid rgba(255,255,255,.4); backdrop-filter: blur(26px) saturate(1.4); box-shadow: 0 24px 60px rgba(60,10,40,.5); animation: popin .4s cubic-bezier(.2,.9,.3,1.3); }
+  .cele .big { position: absolute; left: 50%; top: -58px; width: 130px; height: 130px; margin-left: -65px; animation: bloom 1s cubic-bezier(.2,.9,.3,1.2); filter: drop-shadow(0 8px 20px rgba(255,90,140,.6)); }
+  .cele h4 { margin: 0; font: 900 26px "Noto Serif JP", serif; color: #fff; text-shadow: 0 2px 10px rgba(255,90,140,.6); }
+  .cele .stage-name { display: inline-block; margin: 6px 0 10px; padding: 2px 10px; border-radius: 99px; background: rgba(255,255,255,.2); font-size: 12px; font-weight: 800; color: #FFF4F8; }
+  .cele p { margin: 0 0 12px; font-size: 14px; line-height: 1.6; color: #FFF4F8; }
+  .cele .facts { display: flex; gap: 8px; margin-bottom: 14px; }
+  .cele .facts div { flex: 1; padding: 8px 4px; border-radius: 12px; background: rgba(255,255,255,.12); font-size: 11px; color: rgba(255,240,246,.75); }
+  .cele .facts b { display: block; font-size: 16px; color: #fff; }
+  .cele .btns { display: flex; gap: 8px; }
+  .cele .btns span { flex: 1; padding: 11px 0; border-radius: 14px; font-weight: 800; cursor: pointer; background: rgba(255,255,255,.18); color: #fff; }
+  .cele .btns span.main { background: #FF7FA3; color: #fff; box-shadow: 0 6px 18px rgba(255,90,140,.5); }
+  .storm img { position: absolute; top: -30px; pointer-events: none; z-index: 92; animation: storm linear infinite; }
+  @keyframes storm { 0% { transform: translate(0,0) rotate(0); opacity: 0 } 8% { opacity: 1 } 100% { transform: translate(-80px, 900px) rotate(720deg); opacity: .2 } }
+  .mankai { position: absolute; inset: 0; z-index: 91; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px 26px; text-align: center; background: radial-gradient(circle at 50% 35%, rgba(255,214,150,.38), rgba(50,8,34,.88) 72%); backdrop-filter: blur(8px); animation: fadein .5s; }
+  .mankai .kanji { font: 900 64px "Noto Serif JP", serif; color: #fff; letter-spacing: 6px; text-shadow: 0 0 30px rgba(255,200,120,.9), 0 4px 20px rgba(255,90,140,.8); animation: popin .8s cubic-bezier(.2,.9,.3,1.3); }
+  .mankai .sub { font-size: 15px; font-weight: 800; color: #FFE7B0; margin: 2px 0 16px; }
+  .mankai p { font-size: 14px; line-height: 1.7; color: #FFF4F8; margin: 0 0 16px; }
+  .mankai .card { width: 100%; padding: 14px; border-radius: 22px; background: rgba(255,240,246,.14); border: 1px solid rgba(255,255,255,.35); backdrop-filter: blur(18px); margin-bottom: 16px; }
+  .mankai .card .facts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .mankai .card .facts div { padding: 8px; border-radius: 12px; background: rgba(255,255,255,.1); font-size: 11px; color: rgba(255,240,246,.75); }
+  .mankai .card .facts b { display: block; font-size: 17px; color: #fff; }
+  .mankai .card .row10 { display: flex; gap: 4px; margin-top: 10px; }
+  .mankai .card .row10 span { flex: 1; padding: 4px 0; border-radius: 8px; background: rgba(255,127,163,.85); font-size: 12px; font-weight: 800; color: #fff; }
 </style>
 </head>
 <body>
@@ -306,26 +343,110 @@ V.push({ name: '1 GPT 版・會長大的樹', tag: '第 1 版的 AI 圖版本', 
       <div class="chips" style="position:relative;z-index:4;margin-top:-18px">${ROWS.map((r, i) => `<span class="chip ${S.data[i][0] ? 'on' : ''}" data-row="${i}">${r}</span>`).join('')}</div>`;
   } });
 
+// 7 GPT 會說話版（2026-10-16 使用者要求：每開一朵花給鼓勵、有進度、全開也要說話，跟使用者互動）。
+// 素材跟第 6 版一樣（樹、花團、背景、花瓣），多三樣：
+// ① 樹上的小精靈會講話（看你現在的狀況給建議，點一下換一句）
+// ② 「咲き」進度條：日本賞櫻真的用「三分咲き／五分咲き／満開」講開了幾成
+// ③ 開一朵跳鼓勵卡；10 朵全開跳「満開」慶祝畫面＋花瓣暴風
+const STAGE = n => n >= 10 ? ['満開', '全部開花'] : n >= 8 ? ['八分咲き', '快滿開了'] : n >= 5 ? ['五分咲き', '開了一半'] : n >= 3 ? ['三分咲き', '開始有顏色'] : n >= 1 ? ['咲き始め', '剛開始開花'] : ['つぼみ', '還是花苞'];
+const CHEER = {
+  1: '第一朵花開了！萬事起頭難，你已經跨過最難的那一步。',
+  2: '第二朵！節奏抓到了，照這樣一行一行來就好。',
+  3: '三分咲き——樹開始有顏色了，遠遠看得出是櫻花樹囉。',
+  4: '四朵了。回頭看第一朵，是不是覺得那時候好難？',
+  5: '五分咲き！一半的五十音已經是你的了 🎉',
+  6: '六朵。後面的行比較少人記得住，你正在超車。',
+  7: '七朵！剩下三行，終點看得到了。',
+  8: '八分咲き，整棵樹粉成一片，再兩朵就滿開。',
+  9: '只差最後一朵，就是満開了！最後一哩路衝一波 💪',
+};
+function speedLine(i) { const r = rec(i); const d = days(r.first, r.lit); return d <= 3 ? `只花 ${d} 天就開了，這行對你很友善！` : d <= 10 ? `練了 ${d} 天開花，穩穩的。` : `磨了 ${d} 天終於開了，堅持真的有回報。`; }
+// 小精靈現在要說的話：看狀況挑幾句，點一下換下一句。
+function tips() {
+  const n = litN(), out = [];
+  const close = S.data.map((r, i) => [r, i]).filter(([r]) => !r[0] && r[4] > 0).sort((a, b) => b[0][5] - a[0][5])[0];
+  if (n === 10) out.push(['滿開了！每一朵都是你自己寫出來的。', '想維持手感，偶爾點一朵再考一次就好']);
+  if (close) { const [r, i] = close; out.push([`${ROWS[i]}行最好 ${r[5]}%${r[6] ? '，只錯「' + r[6] + '」' : ''}——再考一次就可能開花！`, '差一點點', i]); }
+  const nx = nextIdx(); if (nx >= 0 && (!close || close[1] !== nx)) out.push([`還沒碰的：${ROWS[nx]}行。先手寫練幾次，再來點亮。`, '慢慢來，一次一行就好']);
+  if (n > 0 && n < 10) out.push([`現在是「${STAGE(n)[0]}」，${CHEER[n].replace(/[！。].*$/, '')}。`, `離滿開還差 ${10 - n} 朵`]);
+  out.push([`你總共練了 ${fmtMin(totalMin())}，比上週多一點點就是進步。`, '每天寫一點，比一次寫很多更記得住']);
+  return out;
+}
+V.push({ name: '7 GPT 會說話版', tag: '新版・鼓勵互動', cele: true, title: '版本 7：樹上的小精靈會跟你講話，每開一朵給鼓勵，全開有「満開」慶祝',
+  desc: `<h3>跟第 6 版比多了什麼</h3><ul>
+    <li><b>小精靈對話框</b>（上面粉色圓臉）：看你現在的狀況講話——哪一行最接近開花、哪一行還沒碰、現在開了幾成、總共練多久。<b>點一下換下一句</b>；講「快開花」那句時再點會直接打開那一行。</li>
+    <li><b>咲き進度條</b>：日本賞櫻真的這樣講——<b>咲き始め（1）→ 三分咲き（3）→ 五分咲き（5）→ 八分咲き（8）→ 満開（10）</b>，到了就點亮那個節點。</li>
+    <li><b>開一朵就跳鼓勵卡</b>：大花綻放進場，寫「か行 開花！」＋現在幾分咲き＋<b>每一朵不同的一句話</b>（第 1 朵「萬事起頭難」、第 5 朵「一半是你的了」、第 9 朵「最後一哩路」）＋這行花幾天開的評語＋三個數字，按鈕「去點亮下一行」。</li>
+    <li><b>10 朵全開</b>：整個畫面變金粉色、大大的「満開」、花瓣暴風、一段話，加一張總結卡（從第一朵到滿開幾天、總共練多久、考了幾次、全部 10 行），可以「留個紀念」。</li></ul>`,
+  render() {
+    const n = litN(), st = STAGE(n), T = tips(), t = T[(S.tip || 0) % T.length];
+    const MS = [[1, '咲き始め'], [3, '三分'], [5, '五分'], [8, '八分'], [10, '満開']];
+    return `<div style="position:absolute;inset:0;background:linear-gradient(#2a1838,#4a2448 45%,#6b3550 70%,#2a1a24)"></div>
+      <img src="${ART}bg.png" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">${imgPetals(3 + n * 2)}
+      <div class="top"><span class="ib">‹</span><b>五十音櫻花樹</b><span class="ib" data-sim title="模擬下一行全對">✦</span></div>
+      <div style="position:relative;z-index:4;padding:0 16px"><div style="display:flex;align-items:baseline;gap:8px"><b style="font-size:34px;color:#FFD3E0" class="serif">${n}</b><span class="muted">/ 10 朵・<b style="color:#FFD3E0">${st[0]}</b></span><span class="small" style="margin-left:auto">總共練了 ${fmtMin(totalMin())}</span></div></div>
+      <div class="stages"><div class="bar"><div class="fill" style="width:${n * 10}%"></div>${MS.map(([k]) => `<span class="ms ${n >= k ? 'on' : ''}" style="left:${k * 10}%">${n >= k ? '🌸' : ''}</span>`).join('')}</div>
+        <div class="lbl">${MS.map(([k, l]) => `<span>${n >= k ? '<b>' + l + '</b>' : l}</span>`).join('')}</div></div>
+      <div class="talk" data-tip><div class="ava">🌸</div><div class="bub">${t[0]}<small>${t[1]}・點我換一句</small>${t[2] !== undefined ? `<span data-tiprow="${t[2]}" style="display:inline-block;margin-top:6px;padding:3px 10px;border-radius:99px;background:#FF7FA3;font-weight:800;font-size:12px">看 ${ROWS[t[2]]}行 →</span>` : ''}</div></div>
+      <div class="art" style="z-index:4;margin-top:-10px">
+        <img class="layer" src="${ART}tree.png">
+        ${BUDS.map(([x, y], i) => { const lit = !!S.data[i][0]; return `<div class="bud ${lit ? 'lit' : ''} ${S.hl === i ? 'hl' : ''}" data-row="${i}" style="left:${x * SC}px;top:${y * SC}px">
+          ${lit ? `<img class="bloom ${S.justLit === i ? 'blooming' : ''}" src="${ART}bloom${(i % 4) + 1}.png">` : ''}<div class="tap"></div></div>`; }).join('')}${tagLayer()}
+      </div>
+      <div class="legend10" style="margin-top:-30px">${ROWS.map((r, i) => `<span class="${S.data[i][0] ? 'on' : ''} ${S.hl === i ? 'hl' : ''}" data-hl="${i}">${r}</span>`).join('')}</div>
+      <div style="height:24px"></div>`;
+  },
+  overlay() {
+    if (S.cele === null || S.cele === undefined) return '';
+    const n = litN(), i = S.cele, r = rec(i), st = STAGE(n);
+    if (n === 10) {
+      const dv = d => new Date("2026/" + d), byDate = (a, b) => dv(a) - dv(b);
+      const firsts = S.data.map(x => x[1]).sort(byDate), lasts = S.data.map(x => x[0]).sort(byDate);
+      const storm = Array.from({ length: 34 }, (_, k) => `<img src="${ART}petal${(k % 3) + 1}.png" style="left:${(k * 37) % 400}px;width:${16 + (k % 4) * 6}px;animation-duration:${3 + (k % 5) * .7}s;animation-delay:${-k * .37}s">`).join('');
+      return `<div class="storm">${storm}</div><div class="mankai">
+        <div class="kanji">満開</div><div class="sub">五十音 10 行，全部開花</div>
+        <p>從「あ」第一筆開始，到最後一朵 ${ROWS[i]}行開花。<br>這棵樹上的每一朵，都是你一個字一個字寫出來的。<br><b>辛苦了，也恭喜你 🌸</b></p>
+        <div class="card"><div class="facts">
+          <div>第一朵到滿開<b>${days(firsts[0], lasts[9])} 天</b></div><div>總共練了<b>${fmtMin(totalMin())}</b></div>
+          <div>手寫練習<b>${S.data.reduce((a, x) => a + x[2], 0)} 次</b></div><div>點亮考試<b>${S.data.reduce((a, x) => a + x[4], 0)} 次</b></div></div>
+          <div class="row10">${ROWS.map(x => `<span>${x}</span>`).join('')}</div></div>
+        <div class="cele btns" style="position:static;transform:none;padding:0;background:none;border:0;box-shadow:none;backdrop-filter:none;animation:none;width:100%"><div class="btns" style="width:100%"><span data-cele-close>回到樹下</span><span class="main" data-keep>📸 留個紀念</span></div></div>
+      </div>`;
+    }
+    const nx = nextIdx();
+    return `<div class="cele-bg" data-cele-close></div><div class="cele">
+      <img class="big" src="${ART}bloom${(i % 4) + 1}.png">
+      <h4>${ROWS[i]}行 開花！</h4><div class="stage-name">第 ${n} 朵・${st[0]}（${st[1]}）</div>
+      <p>${CHEER[n]}<br><span style="opacity:.8;font-size:13px">${speedLine(i)}</span></p>
+      <div class="facts"><div>花了<b>${days(r.first, r.lit)} 天</b></div><div>手寫<b>${r.n} 次</b></div><div>考了<b>${r.exams} 次</b></div></div>
+      <div class="btns"><span data-cele-close>好耶</span>${nx >= 0 ? `<span class="main" data-go="${nx}" data-cele-close>點亮 ${ROWS[nx]}行 →</span>` : ''}</div>
+    </div>`;
+  } });
+
 const phone = document.getElementById('phone');
 function render() {
   const v = V[S.v];
   document.getElementById('vtabs').innerHTML = V.map((x, i) => `<button class="${i === S.v ? 'on' : ''}" data-v="${i}">${x.name}</button>`).join('');
   document.getElementById('notes').innerHTML = `<span class="tag">${v.tag}</span><h2>${v.title}</h2>${v.desc}<h3>每版都一樣的</h3><ul><li>點花（或花苞）出明細：開花日期、從第一次練到開花花幾天、手寫練幾次／多久、點亮考幾次、最好幾 %、上次還錯哪幾字；下面「開始點亮」直接進那一行的點亮考試。</li><li>開花時有一段<b>綻放動畫</b>（從小轉著長大、彈一下）。</li></ul><div class="try">試試：按右上 ✦ 連按幾次，看花一朵朵開、背景跟花瓣越來越熱鬧；點任一朵花看明細。</div>`;
   phone.innerHTML = `<div class="status"><span>21:30</span><span>5G ▮</span></div><div class="screen">${v.render()}</div>
-    ${S.sheet !== null ? `<div class="sheet-bg" data-close></div><div class="sheet"><span data-close style="position:absolute;right:14px;top:12px;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.18);cursor:pointer;font-size:14px">✕</span>${detail(S.sheet)}</div>` : ''}${S.toast ? `<div class="toast">${S.toast}</div>` : ''}`;
+    ${S.sheet !== null ? `<div class="sheet-bg" data-close></div><div class="sheet"><span data-close style="position:absolute;right:14px;top:12px;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.18);cursor:pointer;font-size:14px">✕</span>${detail(S.sheet)}</div>` : ''}${S.toast ? `<div class="toast">${S.toast}</div>` : ''}${v.overlay ? v.overlay() : ''}`;
 }
 let tt;
 function toast(t) { S.toast = t; clearTimeout(tt); tt = setTimeout(() => { S.toast = null; render(); }, 1700); }
 document.addEventListener('click', e => {
   if (e.target.closest('[data-calib]')) { S.calib = !S.calib; render(); return; }
   if (S.calib && e.target.closest('[data-bud]')) return;
+  if (e.target.closest('[data-keep]')) { toast('📸 存成圖片（App 裡會真的存）'); return; }
+  if (e.target.closest('[data-cele-close]')) { const g = e.target.closest('[data-go]'); S.cele = null; if (g) toast(`開始點亮 ${ROWS[+g.dataset.go]}行…`); render(); return; }
+  const tr = e.target.closest('[data-tiprow]'); if (tr) { S.sheet = +tr.dataset.tiprow; render(); return; }
+  if (e.target.closest('[data-tip]')) { S.tip = (S.tip || 0) + 1; render(); return; }
   const hl = e.target.closest('[data-hl]');
   if (hl) { const i = +hl.dataset.hl; if (S.hl === i) { S.sheet = i; S.hl = null; } else { S.hl = i; } render(); return; }
   const el = e.target.closest('[data-v],[data-row],[data-close],[data-go],[data-sim]');
   if (!el) return; const d = el.dataset;
   S.justLit = null;
-  if (d.v) { S.v = +d.v; S.sheet = null; S.hl = null; }
-  else if (d.sim !== undefined) { const i = nextIdx(); if (i < 0) { S.data = SEED.map(r => [...r]); toast('全部開完了，重來一次'); } else { const r = S.data[i]; r[0] = '10/16'; r[1] = r[1] || '10/14'; r[4]++; r[5] = 100; r[6] = ''; S.justLit = i; toast(`🌸 ${ROWS[i]}行 開花了！`); } }
+  if (d.v) { S.v = +d.v; S.sheet = null; S.hl = null; S.cele = null; }
+  else if (d.sim !== undefined) { const i = nextIdx(); if (i < 0) { S.data = SEED.map(r => [...r]); toast('全部開完了，重來一次'); } else { const r = S.data[i]; r[0] = '10/16'; r[1] = r[1] || '10/14'; r[4]++; r[5] = 100; r[6] = ''; S.justLit = i; if (V[S.v].cele) S.cele = i; else toast(`🌸 ${ROWS[i]}行 開花了！`); } }
   else if (d.row !== undefined) S.sheet = +d.row;
   else if (d.close !== undefined) S.sheet = null;
   else if (d.go !== undefined) { S.sheet = null; toast(`開始點亮 ${ROWS[+d.go]}行…`); }
