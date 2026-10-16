@@ -12,6 +12,7 @@ import '../data/repositories/app_home_style_store.dart';
 import '../data/repositories/history_repository.dart';
 import '../data/repositories/home_card_order_store.dart';
 import '../data/repositories/jp_home_ring_store.dart';
+import '../data/repositories/jp_light_style_store.dart';
 import '../data/repositories/kana_exam_repository.dart';
 import '../data/repositories/kana_practice_repository.dart';
 import '../data/repositories/settings_repository.dart';
@@ -200,6 +201,12 @@ final ytPlaylistsProvider = StateProvider<List<YtPlaylist>>(
 /// 隱藏，設定裡可以打開）。
 final jpShowProgressRingProvider = StateProvider<bool>(
   (ref) => JpHomeRingStore.defaultShow,
+);
+
+/// 五十音櫻花樹用哪種畫法（2026-10-16 使用者要求：預設 GPT 圖版，原本那
+/// 版保留可以切回去）。
+final jpLightStyleProvider = StateProvider<JpLightStyle>(
+  (ref) => JpLightStyleStore.defaultStyle,
 );
 
 /// 內嵌播放器要用下滑收合式還是可拖曳/可收合浮動視窗，使用者在設定頁調

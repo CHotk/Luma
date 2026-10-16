@@ -11,6 +11,7 @@ import 'data/repositories/app_home_style_store.dart';
 import 'data/repositories/app_logo_store.dart';
 import 'data/repositories/error_log_repository.dart';
 import 'data/repositories/jp_home_ring_store.dart';
+import 'data/repositories/jp_light_style_store.dart';
 import 'data/repositories/usdt_twd_rate_store.dart';
 import 'data/repositories/yt_api_key_store.dart';
 import 'data/repositories/yt_embed_player_style_store.dart';
@@ -75,6 +76,7 @@ Future<void> _start() async {
     final savedYtVideoOpenMode = await YtVideoOpenModeStore(store).load();
     final savedYtEmbedPlayerStyle = await YtEmbedPlayerStyleStore(store).load();
     final savedJpShowRing = await JpHomeRingStore(store).load();
+    final savedJpLightStyle = await JpLightStyleStore(store).load();
     final savedYtDisplayPrefs = await YtDisplayPrefsStore(store).load();
     final savedNavBarPrefs = await NavBarPrefsStore(store).load();
     final savedYtPlaylists = await YtPlaylistStore(store).loadAll();
@@ -98,6 +100,7 @@ Future<void> _start() async {
             (ref) => savedYtEmbedPlayerStyle,
           ),
           jpShowProgressRingProvider.overrideWith((ref) => savedJpShowRing),
+          jpLightStyleProvider.overrideWith((ref) => savedJpLightStyle),
           ytDisplayPrefsProvider.overrideWith((ref) => savedYtDisplayPrefs),
           navBarPrefsProvider.overrideWith((ref) => savedNavBarPrefs),
           ytPlaylistsProvider.overrideWith((ref) => savedYtPlaylists),

@@ -105,6 +105,7 @@ const settingIndex = [
     '答對幾次 錯過的字 幾倍 待複習 候選池 已掌握 句型 每輪出題數',
   ),
   SettingEntry(SettingsSection.jp, 'jp.ring', '首頁顯示今天進度圈', '日文'),
+  SettingEntry(SettingsSection.jp, 'jp.light', '五十音櫻花樹畫法', '點亮 GPT 原本'),
   SettingEntry(SettingsSection.jp, 'jp.order', '日文首頁卡片順序', '排序'),
   SettingEntry(SettingsSection.yt, 'yt.videoTab', '底部分頁列「影片」開的頻道', '快捷'),
   SettingEntry(SettingsSection.yt, 'yt.key', 'YouTube API 金鑰', 'key 配額'),

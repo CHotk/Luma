@@ -11,6 +11,7 @@ import '../../data/repositories/usdt_twd_rate_store.dart';
 import '../../data/repositories/nav_bar_prefs_store.dart';
 import '../../data/repositories/app_home_style_store.dart';
 import '../../data/repositories/jp_home_ring_store.dart';
+import '../../data/repositories/jp_light_style_store.dart';
 import '../../data/repositories/yt_embed_player_style_store.dart';
 import '../../data/repositories/yt_search_recents_store.dart';
 import '../../data/repositories/yt_stats_refresh_setting_store.dart';
@@ -461,9 +462,23 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
             container.read(jpShowProgressRingProvider.notifier).state =
                 await ringStore.load();
           }
+          // 櫻花樹畫法（2026-10-16）。
+          final lightStore = JpLightStyleStore(
+            container.read(keyValueStoreProvider),
+          );
+          final light = await service.syncStampedSetting(lightStore.record);
+          if (light.downloaded > 0) {
+            container.read(jpLightStyleProvider.notifier).state =
+                await lightStore.load();
+          }
           return (
-            downloaded: r.downloaded + order.downloaded + ring.downloaded,
-            uploaded: r.uploaded + order.uploaded + ring.uploaded,
+            downloaded:
+                r.downloaded +
+                order.downloaded +
+                ring.downloaded +
+                light.downloaded,
+            uploaded:
+                r.uploaded + order.uploaded + ring.uploaded + light.uploaded,
           );
         }),
         run(

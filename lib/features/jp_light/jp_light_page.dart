@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/app_bottom_nav.dart' show FloatingNavInset;
+import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
@@ -10,19 +11,73 @@ import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
 import '../../shared/widgets/glass_card.dart';
+import '../../data/repositories/jp_light_style_store.dart';
 import '../kana_practice/gojuon_data.dart';
 import 'jp_light_data.dart';
+import 'jp_light_gpt_view.dart';
 
 /// 五十音櫻花樹（2026-10-15 使用者選設計稿
 /// `design-history/已選擇完成/2026-10-15_日文點亮進度五種設計.html` 第 4 版）：
 /// 一棵樹、樹枝上 10 個花苞（あ～わ行），點亮一行開一朵。點花看那一行的
 /// 數字，「開始點亮」直接進那一行的點亮考試。
+///
+/// 2026-10-16 起預設是 GPT 圖版（[JpLightGptBody]），原本這版保留，右上
+/// 角或設定裡可以切回來（[JpLightStyle]）。
 class JpLightPage extends ConsumerWidget {
   const JpLightPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(jpLightProvider);
+    final style = ref.watch(jpLightStyleProvider);
+    final gpt = style == JpLightStyle.gpt;
+    final swap = IconButton(
+      onPressed: () async {
+        final next = gpt ? JpLightStyle.classic : JpLightStyle.gpt;
+        ref.read(jpLightStyleProvider.notifier).state = next;
+        await JpLightStyleStore(ref.read(keyValueStoreProvider)).save(next);
+      },
+      icon: const Icon(Icons.swap_horiz_rounded, size: 22),
+      color: AppColors.ink2,
+      tooltip: gpt ? '換成原本的樹枝版' : '換成 GPT 圖版',
+      visualDensity: VisualDensity.compact,
+    );
+    if (gpt) {
+      return Scaffold(
+        drawer: const AppSideDrawer(),
+        backgroundColor: const Color(0xFF2A1838),
+        body: Stack(
+          children: [
+            const Positioned.fill(child: JpLightGptBackground()),
+            SafeArea(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: Gap.sm),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: Gap.screenSide,
+                    ),
+                    child: AppTopBar(title: '🌸 五十音櫻花樹', actions: [swap]),
+                  ),
+                  Expanded(
+                    child: switch (async) {
+                      AsyncData(:final value) => JpLightGptBody(lights: value),
+                      AsyncError(:final error) => Center(
+                        child: Text('讀不到紀錄：$error', style: AppText.bodyDim),
+                      ),
+                      _ => const Center(
+                        child: CircularProgressIndicator.adaptive(),
+                      ),
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
     return Scaffold(
       drawer: const AppSideDrawer(),
       body: AmbientBackground(
@@ -40,7 +95,7 @@ class JpLightPage extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: Gap.sm),
-                const AppTopBar(title: '🌸 五十音櫻花樹'),
+                AppTopBar(title: '🌸 五十音櫻花樹', actions: [swap]),
                 const SizedBox(height: Gap.sm),
                 Expanded(
                   child: switch (async) {

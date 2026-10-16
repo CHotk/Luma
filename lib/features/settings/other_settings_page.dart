@@ -9,6 +9,7 @@ import '../../app/theme/typography.dart';
 import '../../data/repositories/app_home_style_store.dart';
 import '../../data/repositories/diary_password_store.dart';
 import '../../data/repositories/jp_home_ring_store.dart';
+import '../../data/repositories/jp_light_style_store.dart';
 import '../../data/repositories/usdt_twd_rate_store.dart';
 import '../../data/repositories/yt_embed_player_style_store.dart';
 import '../../data/repositories/yt_stats_refresh_setting_store.dart';
@@ -252,6 +253,7 @@ class JpSettingsSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final showRing = ref.watch(jpShowProgressRingProvider);
+    final lightStyle = ref.watch(jpLightStyleProvider);
     return SettingsBlock(
       section: SettingsSection.jp,
       children: [
@@ -285,6 +287,51 @@ class JpSettingsSection extends ConsumerWidget {
                     await JpHomeRingStore(
                       ref.read(keyValueStoreProvider),
                     ).save(v);
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: Gap.sm),
+        SettingAnchor(
+          id: 'jp.light',
+          child: SettingsRowCard(
+            child: Row(
+              children: [
+                const SettingIcon(),
+                const SizedBox(width: Gap.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        '五十音櫻花樹畫法',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.ink,
+                        ),
+                      ),
+                      Text('GPT 圖版（預設）或原本的樹枝版', style: AppText.note),
+                    ],
+                  ),
+                ),
+                SegmentedButton<JpLightStyle>(
+                  segments: const [
+                    ButtonSegment(value: JpLightStyle.gpt, label: Text('GPT')),
+                    ButtonSegment(
+                      value: JpLightStyle.classic,
+                      label: Text('原本'),
+                    ),
+                  ],
+                  selected: {lightStyle},
+                  showSelectedIcon: false,
+                  onSelectionChanged: (v) async {
+                    ref.read(jpLightStyleProvider.notifier).state = v.first;
+                    await JpLightStyleStore(
+                      ref.read(keyValueStoreProvider),
+                    ).save(v.first);
                   },
                 ),
               ],

@@ -92,3 +92,5 @@ flutter:
     # 資料夾，要另外宣告一行才會真的打包進去。
     - assets/images/app_logo/splash/
     - assets/images/user_profile/
+    # 五十音櫻花樹 GPT 圖版（ChatGPT 產的圖縮小過；上一層是原圖，不打包）。
+    - assets/images/jp_light/app/
