@@ -11,16 +11,17 @@ import '../kana_practice/gojuon_data.dart';
 /// 那一行、全部答對就開花。考試本來就每題隨機平假／片假，所以不分兩種
 /// 字，一共 10 朵。
 /// 開花那一刻的紀錄（2026-10-16 使用者要求）：到開花為止**全部累加**的
-/// 手寫練習幾次、普通考試幾輪、點亮通關幾次，從第一天練到開花多久，跟
-/// 開花的時間。不另外存檔——練習／考試紀錄一筆都不刪（刪除只是標記
+/// 手寫練習、普通考試、點亮考試次數（都是寫一次算一次：考一題算一次，
+/// 點亮考 10 題就是 10 次）跟三樣加總，從第一天練到開花多久，跟開花的
+/// 時間。不另外存檔——練習／考試紀錄一筆都不刪（刪除只是標記
 /// `deletedAt`），所以用「那一刻還在的紀錄」重算，結果永遠跟當下一樣。
 class JpBloomRecord {
   const JpBloomRecord({
     required this.at,
     required this.since,
     required this.practiceCount,
-    required this.examRounds,
-    required this.lightPasses,
+    required this.examAnswers,
+    required this.lightAnswers,
   });
 
   /// 開花的時間（那一輪最後一題存檔的時間）。
@@ -32,11 +33,14 @@ class JpBloomRecord {
   /// 到開花為止：手寫練習總次數（所有字）。
   final int practiceCount;
 
-  /// 到開花為止：普通考試（不是點亮）考了幾輪。
-  final int examRounds;
+  /// 到開花為止：普通考試（不是點亮）寫了幾題。
+  final int examAnswers;
 
-  /// 到開花為止：點亮考試全對通關幾次（含這一次）。
-  final int lightPasses;
+  /// 到開花為止：點亮考試寫了幾題（含這一輪）。
+  final int lightAnswers;
+
+  /// 三樣加總：總共寫了幾次。
+  int get total => practiceCount + examAnswers + lightAnswers;
 
   Duration get span => at.difference(since);
 }
@@ -52,7 +56,13 @@ class JpRowLight {
     required this.best,
     required this.lastWrong,
     this.record,
+    required this.totalCount,
   });
+
+  /// 明細「全部次數」（2026-10-16 使用者要求，取代最好成績）：手寫、普通
+  /// 考試、點亮考試寫一次算一次的加總。開了的是開花那一刻的數字，還沒開
+  /// 的是到現在為止。
+  final int totalCount;
 
   /// 開花那一刻的累加紀錄；還沒開是 null。
   final JpBloomRecord? record;
@@ -123,11 +133,6 @@ List<JpRowLight> computeJpLight(
   // 那一刻還在（存了、還沒被刪）的紀錄。
   bool alive(DateTime saved, DateTime? deleted, DateTime t) =>
       !saved.isAfter(t) && (deleted == null || deleted.isAfter(t));
-  // 所有點亮考試輪次：寫完整輪又全對的，記下通關時間。
-  final lightRounds = <String, List<KanaExamEntry>>{};
-  for (final e in exams) {
-    if (e.lightRow != null) (lightRounds[e.roundId] ??= []).add(e);
-  }
   JpBloomRecord recordAt(DateTime t) {
     final practiceAlive = [
       for (final p in practice)
@@ -137,32 +142,20 @@ List<JpRowLight> computeJpLight(
       for (final e in exams)
         if (alive(e.savedAt, e.deletedAt, t)) e,
     ];
-    var passes = 0;
-    for (final r in lightRounds.values) {
-      final live = [
-        for (final e in r)
-          if (alive(e.savedAt, e.deletedAt, t)) e,
-      ];
-      if (live.isNotEmpty &&
-          live.length >= jpLightExamSize(r.first.lightRow!) &&
-          live.every((e) => e.isCorrect)) {
-        passes++;
-      }
-    }
     final starts = [...practiceAlive, for (final e in examAlive) e.savedAt]
       ..sort();
     return JpBloomRecord(
       at: t,
       since: starts.isEmpty ? t : starts.first,
       practiceCount: practiceAlive.length,
-      examRounds: {
-        for (final e in examAlive)
-          if (e.lightRow == null) e.roundId,
-      }.length,
-      lightPasses: passes,
+      examAnswers: examAlive.where((e) => e.lightRow == null).length,
+      lightAnswers: examAlive.where((e) => e.lightRow != null).length,
     );
   }
 
+  final totalNow =
+      practice.where((p) => p.deletedAt == null).length +
+      exams.where((e) => e.deletedAt == null).length;
   final out = <JpRowLight>[];
   for (final row in gojuonRows.keys) {
     final kana = jpRowKana(row);
@@ -198,6 +191,7 @@ List<JpRowLight> computeJpLight(
           : p.strokes.last.last.$3;
       ms += last;
     }
+    final record = litAt == null ? null : recordAt(litAt);
     final starts = [
       for (final p in mine) p.savedAt,
       for (final r in rounds.values)
@@ -218,7 +212,8 @@ List<JpRowLight> computeJpLight(
                 for (final e in done.last)
                   if (!e.isCorrect) e.kana,
               ],
-        record: litAt == null ? null : recordAt(litAt),
+        record: record,
+        totalCount: record?.total ?? totalNow,
       ),
     );
   }

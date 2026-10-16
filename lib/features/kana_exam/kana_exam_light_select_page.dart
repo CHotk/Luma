@@ -206,7 +206,7 @@ class _LightRowTile extends StatelessWidget {
                   )
                 else if (l != null && l.exams > 0)
                   Text(
-                    '最好 ${l.best}%',
+                    '考過 ${l.exams} 次',
                     style: TextStyle(fontSize: 12, color: AppColors.ink3),
                   ),
               ],

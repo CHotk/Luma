@@ -244,20 +244,10 @@ class _Body extends StatelessWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(99),
-                                child: LinearProgressIndicator(
-                                  value: l.best / 100,
-                                  minHeight: 6,
-                                  backgroundColor: Colors.white.withValues(
-                                    alpha: 0.08,
-                                  ),
-                                  color: AppColors.jpAccent,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
+                              // 最好成績留在資料裡但不顯示（2026-10-16 使用者
+                              // 要求：開花不難，不用秀）。
                               Text(
-                                '最好 ${l.best}%'
+                                '考過 ${l.exams} 次'
                                 '${l.lastWrong.isEmpty ? '' : '・還錯 ${l.lastWrong.join()}'}',
                                 style: AppText.note,
                               ),
@@ -451,7 +441,7 @@ void _showRow(BuildContext context, JpRowLight l, List<JpRowLight> lights) {
                   : l.firstAt == null
                   ? '還沒開始：先手寫練幾次，再用點亮考一次'
                   : '還沒開花・從 ${md(l.firstAt!)} 開始練'
-                        '${l.exams > 0 ? '，最好 ${l.best}%' : ''}',
+                        '${l.exams > 0 ? '，考過 ${l.exams} 次' : ''}',
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
@@ -471,7 +461,7 @@ void _showRow(BuildContext context, JpRowLight l, List<JpRowLight> lights) {
               children: [
                 _Fact('點亮考試', '${l.exams} 次'),
                 const SizedBox(width: 8),
-                _Fact('最好成績', l.exams == 0 ? '—' : '${l.best}%'),
+                _Fact('全部次數', '${l.totalCount} 次'),
               ],
             ),
             if (l.record != null) ...[

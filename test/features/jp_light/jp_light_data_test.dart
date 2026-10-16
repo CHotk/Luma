@@ -105,7 +105,7 @@ void main() {
     ];
     const aKana = ['あ', 'い', 'う', 'え', 'お', 'ア', 'イ', 'ウ', 'エ', 'オ'];
     final exams = [
-      e('n1', 'さ', true, DateTime(2026, 10, 2)), // 普通考試 2 輪
+      e('n1', 'さ', true, DateTime(2026, 10, 2)), // 普通考試 3 題
       e('n1', 'し', false, DateTime(2026, 10, 2)),
       e('n2', 'す', true, DateTime(2026, 10, 2, 12)),
       e('n3', 'せ', true, later), // 開花後
@@ -120,8 +120,9 @@ void main() {
     expect(r.since, day1);
     expect(r.span, bloom.difference(day1));
     expect(r.practiceCount, 2);
-    expect(r.examRounds, 2);
-    expect(r.lightPasses, 1);
+    expect(r.examAnswers, 3); // n1 兩題＋n2 一題
+    expect(r.lightAnswers, 20); // L1、L2 各 10 題
+    expect(r.total, 2 + 3 + 20);
     expect(computeJpLight(exams, practice)[1].record, isNull);
   });
 

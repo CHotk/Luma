@@ -542,7 +542,7 @@ void _showRowGlass(
                                 : l.firstAt == null
                                 ? '還沒開始：先手寫練幾次，再用點亮考一次'
                                 : '還沒開花・從 ${md(l.firstAt!)} 開始練'
-                                      '${l.exams > 0 ? '，最好 ${l.best}%' : ''}',
+                                      '${l.exams > 0 ? '，考過 ${l.exams} 次' : ''}',
                             style: const TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w700,
@@ -565,10 +565,7 @@ void _showRowGlass(
                             children: [
                               _GlassFact('點亮考試', '${l.exams} 次'),
                               const SizedBox(width: 8),
-                              _GlassFact(
-                                '最好成績',
-                                l.exams == 0 ? '—' : '${l.best}%',
-                              ),
+                              _GlassFact('全部次數', '${l.totalCount} 次'),
                             ],
                           ),
                           if (l.record != null) ...[
