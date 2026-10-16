@@ -125,12 +125,15 @@
   .keep-prev { position: absolute; inset: 0; z-index: 95; background: rgba(10,4,12,.82); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 50px 30px 30px; animation: fadein .3s; }
   .keep-prev img { max-width: 100%; max-height: 600px; border-radius: 18px; box-shadow: 0 20px 50px rgba(0,0,0,.6); }
   .keep-prev .small { color: #FFE3EC; text-align: center; }
+  .rec { margin: 12px 0 4px; padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,.08); }
+  .rec > div:not(.small) { display: flex; justify-content: space-between; font-size: 13px; padding: 2px 0; }
+  .rec span { opacity: .75; }
 </style>
 </head>
 <body>
 <div class="page">
   <h1>日文點亮：櫻花重新設計・五版</h1>
-  <p class="lead">規則不變：10 行（あ～わ），考試選「點亮」、那一行全對就開花。這次每版都用<b>真正的五瓣櫻花</b>（花瓣尖端有缺口），有<b>開花動畫</b>跟<b>飄落的花瓣</b>，越開越熱鬧。<br>每版都能：點花看明細（開花日期、花幾天、練幾次、寫多久、最好幾 %、還錯哪幾字）→「開始點亮」；右上 ✦ 模擬下一行全對看開花。</p>
+  <p class="lead">規則不變：10 行（あ～わ），考試選「點亮」、那一行全對就開花。這次每版都用<b>真正的五瓣櫻花</b>（花瓣尖端有缺口），有<b>開花動畫</b>跟<b>飄落的花瓣</b>，越開越熱鬧。<br>每版都能：點花看明細（開花日期、花幾天、練幾次、寫多久、還錯哪幾字）→「開始點亮」；右上 ✦ 模擬下一行全對看開花。</p>
   <div class="vtabs" id="vtabs"></div>
   <div class="stage"><div class="phone" id="phone"></div><div class="notes" id="notes"></div></div>
 </div>
@@ -165,16 +168,22 @@ function sakura(cx, cy, r, { lit, i, color = '#FFC4D6', edge = '#FF8FB1', label 
 const petals = (n, color) => Array.from({ length: n }, (_, k) => `<span class="petal" style="left:${(k * 47) % 360}px;animation-duration:${6 + (k % 5)}s;animation-delay:${-k * 1.3}s;${color ? `background:${color}` : ''}"></span>`).join('');
 const topBar = (title, color = 'var(--ink)') => `<div class="top"><span class="ib">‹</span><b style="color:${color}">${title}</b><span class="ib" data-sim title="模擬下一行全對">✦</span></div>`;
 
+// 點亮某一行的題數：あ考到這一行、平假片假各一次
+const examSize = i => ROWS.slice(0, i + 1).reduce((a, r) => a + KANA[r].replace(/ /g, '').length * 2, 0);
+// 假資料：寫一次算一次的累計（手寫＋普通考試一題＋點亮考試一題）
+const NORMAL_ANS = 64;
+const counts = i => { const upto = S.data[i][0] ? S.data.slice(0, i + 1) : S.data; const pr = upto.reduce((a, x) => a + x[2], 0), li = upto.reduce((a, x, j) => a + x[4] * examSize(j), 0), no = S.data[i][0] ? Math.round(NORMAL_ANS * (i + 1) / 10) : NORMAL_ANS; return { pr, no, li, all: pr + no + li }; };
 function detail(i) {
-  const r = rec(i), row = ROWS[i];
+  const r = rec(i), row = ROWS[i], c = counts(i), nx = nextIdx(), locked = !r.lit && i !== nx;
   const status = r.lit ? `<div style="font-size:15px;font-weight:800;color:var(--sakura)">🌸 ${r.lit} 開花</div><div class="muted">從第一次練（${r.first}）到開花，花了 <b style="color:var(--ink)">${days(r.first, r.lit)} 天</b></div>`
-    : r.first ? `<div style="font-size:15px;font-weight:800">還是花苞</div><div class="muted">從 ${r.first} 開始練；最好 ${r.best}%</div>` : `<div style="font-size:15px;font-weight:800">還沒開始</div><div class="muted">先手寫練幾次，再用點亮模式考一次</div>`;
+    : r.first ? `<div style="font-size:15px;font-weight:800">還是花苞</div><div class="muted">從 ${r.first} 開始練；考過 ${r.exams} 次</div>` : `<div style="font-size:15px;font-weight:800">還沒開始</div><div class="muted">先手寫練幾次，再用點亮模式考一次</div>`;
   return `<div style="display:flex;gap:14px;align-items:center"><svg width="64" height="64" viewBox="-32 -32 64 64">${sakura(0, 0, 28, { lit: !!r.lit, i: -1, label: r.lit ? '' : row, font: 18 })}</svg>
     <div><b style="font-size:19px" class="serif">${row}行</b><div class="small" style="letter-spacing:4px;font-size:13px">${KANA[row]}</div></div></div>
     <div style="margin-top:12px">${status}</div>
-    <div class="kv"><div><span class="small">手寫練習</span><b>${r.n} 次</b></div><div><span class="small">寫了多久</span><b>${fmtMin(r.min)}</b></div><div><span class="small">點亮考試</span><b>${r.exams} 次</b></div><div><span class="small">最好成績</span><b>${r.exams ? r.best + '%' : '—'}</b></div></div>
+    <div class="kv"><div><span class="small">手寫練習</span><b>${r.n} 次</b></div><div><span class="small">寫了多久</span><b>${fmtMin(r.min)}</b></div><div><span class="small">點亮考試</span><b>${r.exams} 次</b></div><div><span class="small">全部次數</span><b>${c.all} 次</b></div><div style="grid-column:span 2"><span class="small">開花次數（點亮考試考 100 分幾次）</span><b>${r.lit ? Math.max(1, r.exams - 1) + " 次" : "還沒開過"}</b></div><!-- 最好成績不顯示 --></div>
+    ${r.lit ? `<div class="rec"><div class="small" style="font-weight:700;margin-bottom:4px">🌸 開花紀錄（到開花為止的累計）</div><div><span>開花時間</span><b>2026/${r.lit} 21:30</b></div><div><span>從第一天（${S.data[0][1]}）練到開花</span><b>${days(S.data[0][1], r.lit)} 天 12 小時</b></div><div><span>手寫練習</span><b>${c.pr} 次</b></div><div><span>普通考試</span><b>${c.no} 次</b></div><div><span>點亮考試</span><b>${c.li} 次</b></div></div>` : ''}
     ${r.bad ? `<div class="small" style="margin-bottom:6px">上次還錯的字</div>${[...r.bad].map(k => `<span class="kchip">${k}</span>`).join('')}` : ''}
-    <div style="display:flex;gap:8px;margin-top:16px"><button class="btn" data-go="${i}">${r.lit ? '再考一次（維持手感）' : `開始點亮 ${row}行`}</button></div>`;
+    <div style="display:flex;gap:8px;margin-top:16px">${locked ? `<button class="btn" disabled style="opacity:.5;cursor:not-allowed">🔒 先點亮 ${ROWS[nx]}行</button>` : `<button class="btn" data-go="${i}">${r.lit ? `再考一次（${examSize(i)} 題）` : `開始點亮 ${row}行（${examSize(i)} 題）`}</button>`}</div>`;
 }
 
 const V = [];
@@ -268,7 +277,7 @@ V.push({ name: '4 一枝櫻', tag: '最優雅', title: '版本 4：極簡——�
   } });
 // 5 櫻花環
 V.push({ name: '5 櫻花環', tag: '一眼看進度', title: '版本 5：十朵花圍成一圈，中間大大的「桜」跟進度',
-  desc: `<h3>怎麼看</h3><ul><li>畫面中間一個<b>花環</b>：10 朵花順時針圍一圈（あ在最上面），花之間有細細的藤蔓連著。</li><li>圓心是一個大大的明朝體「<b>桜</b>」，下面「6 / 10」；外圈一條細細的粉色進度弧。</li><li>開的花是大朵五瓣櫻、沒開的是小花苞（寫行名），下一個要點亮的花苞微微閃。</li><li>花環下面兩張小卡：「快開了」（最好成績最高的那行、還錯哪幾字）跟「最近開的」。</li></ul>`,
+  desc: `<h3>怎麼看</h3><ul><li>畫面中間一個<b>花環</b>：10 朵花順時針圍一圈（あ在最上面），花之間有細細的藤蔓連著。</li><li>圓心是一個大大的明朝體「<b>桜</b>」，下面「6 / 10」；外圈一條細細的粉色進度弧。</li><li>開的花是大朵五瓣櫻、沒開的是小花苞（寫行名），下一個要點亮的花苞微微閃。</li><li>花環下面兩張小卡：「快開了」（輪到的那一行考過幾次、還錯哪幾字）跟「最近開的」。</li></ul>`,
   render() {
     const n = litN(), nx = nextIdx(), cx = 195, cy = 300, R = 128;
     const P = ROWS.map((_, i) => { const a = -Math.PI / 2 + i * 2 * Math.PI / 10; return [cx + R * Math.cos(a), cy + R * Math.sin(a)]; });
@@ -288,7 +297,7 @@ V.push({ name: '5 櫻花環', tag: '一眼看進度', title: '版本 5：十朵�
           : `<g class="flower" data-row="${i}" transform="translate(${x},${y})" style="${i === nx ? 'animation:glow 1.6s infinite' : ''}"><circle r="15" fill="#2c2030" stroke="${i === nx ? '#FF7FA3' : '#5a4458'}" stroke-width="1.5"/><text text-anchor="middle" dy=".35em" font-family="Noto Serif JP" font-size="13" fill="#9a8aa0">${ROWS[i]}</text></g>`).join('')}
       </svg>
       <div style="display:flex;gap:10px;padding:0 16px;position:relative;z-index:4;margin-top:-26px">
-        <div style="flex:1;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:11px 12px" ${close ? `data-row="${close[1]}"` : ''}><div class="small">快開了</div>${close ? `<b class="serif" style="font-size:18px">${ROWS[close[1]]}行</b><div class="small">最好 ${close[0][5]}%・還錯 ${close[0][6]}</div>` : '<div class="muted">—</div>'}</div>
+        <div style="flex:1;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:11px 12px" ${close ? `data-row="${close[1]}"` : ''}><div class="small">快開了</div>${close ? `<b class="serif" style="font-size:18px">${ROWS[close[1]]}行</b><div class="small">考過 ${close[0][4]} 次・還錯 ${close[0][6]}</div>` : '<div class="muted">—</div>'}</div>
         <div style="flex:1;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:11px 12px" ${last ? `data-row="${last[1]}"` : ''}><div class="small">最近開的</div>${last ? `<b class="serif" style="font-size:18px;color:#FFD3E0">${ROWS[last[1]]}行</b><div class="small">${last[0]}・花 ${days(rec(last[1]).first, last[0])} 天</div>` : '<div class="muted">—</div>'}</div>
       </div>`;
   } });
@@ -387,10 +396,10 @@ function wordTip(k) {
 }
 function tips() {
   const n = litN(), out = [];
-  const close = S.data.map((r, i) => [r, i]).filter(([r]) => !r[0] && r[4] > 0).sort((a, b) => b[0][5] - a[0][5])[0];
+  const close = (j => j >= 0 && S.data[j][4] > 0 ? [S.data[j], j] : undefined)(nextIdx());
   if (n === 10) out.push(['滿開了！每一朵都是你自己寫出來的。', '想維持手感，偶爾點一朵再考一次就好']);
   const wt = wordTip(S.tip || 0); if (wt) out.push(wt);
-  if (close) { const [r, i] = close; out.push([`${ROWS[i]}行最好 ${r[5]}%${r[6] ? '，只錯「' + r[6] + '」' : ''}——再考一次就可能開花！`, '差一點點', i]); }
+  if (close) { const [r, i] = close; out.push([`${ROWS[i]}行考過 ${r[4]} 次${r[6] ? '，上次只錯「' + r[6] + '」' : ''}——再考一次就可能開花！`, '差一點點', i]); }
   const nx = nextIdx(); if (nx >= 0 && (!close || close[1] !== nx)) out.push([`還沒碰的：${ROWS[nx]}行。先手寫練幾次，再來點亮。`, '慢慢來，一次一行就好']);
   if (n > 0 && n < 10) out.push([`現在是「${STAGE(n)[0]}」，${CHEER[n].replace(/[！。].*$/, '')}。`, `離滿開還差 ${10 - n} 朵`]);
   out.push([`你總共練了 ${fmtMin(totalMin())}，比上週多一點點就是進步。`, '每天寫一點，比一次寫很多更記得住']);
@@ -492,7 +501,7 @@ function render() {
   // 開花動畫只播這一次，之後不管什麼原因重畫都不再播。
   requestAnimationFrame(() => { S.justLit = null; });
   document.getElementById('vtabs').innerHTML = V.map((x, i) => `<button class="${i === S.v ? 'on' : ''}" data-v="${i}">${x.name}</button>`).join('');
-  document.getElementById('notes').innerHTML = `<span class="tag">${v.tag}</span><h2>${v.title}</h2>${v.desc}<h3>每版都一樣的</h3><ul><li>點花（或花苞）出明細：開花日期、從第一次練到開花花幾天、手寫練幾次／多久、點亮考幾次、最好幾 %、上次還錯哪幾字；下面「開始點亮」直接進那一行的點亮考試。</li><li>開花時有一段<b>綻放動畫</b>（從小轉著長大、彈一下）。</li></ul><div class="try">試試：按右上 ✦ 連按幾次，看花一朵朵開、背景跟花瓣越來越熱鬧；點任一朵花看明細。</div>`;
+  document.getElementById('notes').innerHTML = `<span class="tag">${v.tag}</span><h2>${v.title}</h2>${v.desc}<h3>每版都一樣的</h3><ul><li>點花（或花苞）出明細：開花日期、從第一次練到開花花幾天、手寫練幾次／多久、點亮考幾次、上次還錯哪幾字；下面「開始點亮」直接進那一行的點亮考試。</li><li>開花時有一段<b>綻放動畫</b>（從小轉著長大、彈一下）。</li></ul><div class="try">試試：按右上 ✦ 連按幾次，看花一朵朵開、背景跟花瓣越來越熱鬧；點任一朵花看明細。</div>`;
   phone.innerHTML = `<div class="status"><span>21:30</span><span>5G ▮</span></div><div class="screen">${v.render()}</div>
     ${S.sheet !== null ? `<div class="sheet-bg" data-close></div><div class="sheet"><span data-close style="position:absolute;right:14px;top:12px;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.18);cursor:pointer;font-size:14px">✕</span>${detail(S.sheet)}</div>` : ''}${S.toast ? `<div class="toast">${S.toast}</div>` : ''}${v.overlay ? v.overlay() : ''}${S.keepUrl ? `<div class="keep-prev" data-keep-close><img src="${S.keepUrl}"><div class="small">這張已經存下來了（手機會跳出分享選單，選「儲存影像」就進照片）<br>點任何地方關閉</div></div>` : ''}`;
 }

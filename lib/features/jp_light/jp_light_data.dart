@@ -57,7 +57,12 @@ class JpRowLight {
     required this.lastWrong,
     this.record,
     required this.totalCount,
+    this.bloomTimes = const [],
   });
+
+  /// 每一次開花（點亮考試 100 分）的時間，舊到新（2026-10-16 使用者要求：
+  /// 開花後還能再考 100 分，每次都記；畫面只顯示次數，時間不顯示）。
+  final List<DateTime> bloomTimes;
 
   /// 明細「全部次數」（2026-10-16 使用者要求，取代最好成績）：手寫、普通
   /// 考試、點亮考試寫一次算一次的加總。開了的是開花那一刻的數字，還沒開
@@ -173,12 +178,16 @@ List<JpRowLight> computeJpLight(
         if (r.length >= size) r..sort((a, b) => a.savedAt.compareTo(b.savedAt)),
     ]..sort((a, b) => a.last.savedAt.compareTo(b.last.savedAt));
     DateTime? litAt;
+    final bloomTimes = <DateTime>[];
     var best = 0;
     for (final r in done) {
       final right = r.where((e) => e.isCorrect).length;
       final pct = (right * 100 / r.length).round();
       if (pct > best) best = pct;
-      if (right == r.length && prevLit) litAt ??= r.last.savedAt;
+      if (right == r.length && prevLit) {
+        litAt ??= r.last.savedAt;
+        bloomTimes.add(r.last.savedAt);
+      }
     }
     final mine = [
       for (final p in practice)
@@ -214,6 +223,7 @@ List<JpRowLight> computeJpLight(
               ],
         record: record,
         totalCount: record?.total ?? totalNow,
+        bloomTimes: bloomTimes,
       ),
     );
   }

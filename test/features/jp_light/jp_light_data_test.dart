@@ -123,6 +123,8 @@ void main() {
     expect(r.examAnswers, 3); // n1 兩題＋n2 一題
     expect(r.lightAnswers, 20); // L1、L2 各 10 題
     expect(r.total, 2 + 3 + 20);
+    // L2、L3 都 100 分 → 開花 2 次，時間都記著
+    expect(a.bloomTimes, [bloom, later]);
     expect(computeJpLight(exams, practice)[1].record, isNull);
   });
 

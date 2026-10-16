@@ -464,6 +464,15 @@ void _showRow(BuildContext context, JpRowLight l, List<JpRowLight> lights) {
                 _Fact('全部次數', '${l.totalCount} 次'),
               ],
             ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                _Fact(
+                  '開花次數（點亮考 100 分幾次）',
+                  l.bloomTimes.isEmpty ? '還沒開過' : '${l.bloomTimes.length} 次',
+                ),
+              ],
+            ),
             if (l.record != null) ...[
               const SizedBox(height: Gap.md),
               JpBloomRecordView(
