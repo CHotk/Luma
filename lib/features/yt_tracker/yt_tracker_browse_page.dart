@@ -2182,8 +2182,8 @@ Future<bool> showAddYtChannelDialog(
         .read(ytTrackerRepositoryProvider)
         .updateChannel(
           revive.restored().copyWith(
-            // 救回來的跟新加的一樣，先放待評鑑。
-            reviewedAt: null,
+            // 自己手動加的直接進一般區（2026-10-16 使用者要求，不放待評鑑）。
+            reviewedAt: DateTime.now(),
             name: name,
             categoryId: categoryId,
             pinnedAt: null,
@@ -2203,6 +2203,9 @@ Future<bool> showAddYtChannelDialog(
           url: urlController.text.trim(),
           description: descriptionController.text.trim(),
           addedAt: DateTime.now(),
+          // 自己手動加的直接進一般區（2026-10-16 使用者要求）；挖掘自動找到
+          // 的才放待評鑑。
+          reviewedAt: DateTime.now(),
           youtubeChannelId: fetched?.channelId ?? '',
           uploadsPlaylistId: fetched?.uploadsPlaylistId ?? '',
           subscriberCount: fetched?.subscriberCount,
