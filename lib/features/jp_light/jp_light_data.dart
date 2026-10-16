@@ -56,7 +56,6 @@ class JpRowLight {
     required this.best,
     required this.lastWrong,
     this.record,
-    required this.totalCount,
     this.bloomTimes = const [],
     this.attempts = 0,
   });
@@ -68,11 +67,6 @@ class JpRowLight {
   /// 每一次開花（點亮考試 100 分）的時間，舊到新（2026-10-16 使用者要求：
   /// 開花後還能再考 100 分，每次都記；畫面只顯示次數，時間不顯示）。
   final List<DateTime> bloomTimes;
-
-  /// 明細「全部次數」（2026-10-16 使用者要求，取代最好成績）：手寫、普通
-  /// 考試、點亮考試寫一次算一次的加總。開了的是開花那一刻的數字，還沒開
-  /// 的是到現在為止。
-  final int totalCount;
 
   /// 開花那一刻的累加紀錄；還沒開是 null。
   final JpBloomRecord? record;
@@ -166,9 +160,6 @@ List<JpRowLight> computeJpLight(
     );
   }
 
-  final totalNow =
-      practice.where((p) => p.deletedAt == null).length +
-      exams.where((e) => e.deletedAt == null).length;
   final out = <JpRowLight>[];
   for (final row in gojuonRows.keys) {
     final kana = jpRowKana(row);
@@ -229,7 +220,6 @@ List<JpRowLight> computeJpLight(
                   if (!e.isCorrect) e.kana,
               ],
         record: record,
-        totalCount: record?.total ?? totalNow,
         bloomTimes: bloomTimes,
         attempts: rounds.length,
       ),

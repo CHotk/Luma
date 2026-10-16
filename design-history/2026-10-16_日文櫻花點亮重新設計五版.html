@@ -174,15 +174,20 @@ const examSize = i => ROWS.slice(0, i + 1).reduce((a, r) => a + KANA[r].replace(
 const NORMAL_ANS = 64;
 const counts = i => { const upto = S.data[i][0] ? S.data.slice(0, i + 1) : S.data; const pr = upto.reduce((a, x) => a + x[2], 0), li = upto.reduce((a, x, j) => a + x[4] * examSize(j), 0), no = S.data[i][0] ? Math.round(NORMAL_ANS * (i + 1) / 10) : NORMAL_ANS; return { pr, no, li, all: pr + no + li }; };
 function detail(i) {
+  // 跟 App 明細一模一樣（2026-10-16）：上排數字是第一次開花當下的快照，還沒開花就不顯示；
+  // 嘗試點亮、開花次數算到現在；最好成績不顯示；只能照順序點亮。
   const r = rec(i), row = ROWS[i], c = counts(i), nx = nextIdx(), locked = !r.lit && i !== nx;
-  const status = r.lit ? `<div style="font-size:15px;font-weight:800;color:var(--sakura)">🌸 ${r.lit} 開花</div><div class="muted">從第一次練（${r.first}）到開花，花了 <b style="color:var(--ink)">${days(r.first, r.lit)} 天</b></div>`
-    : r.first ? `<div style="font-size:15px;font-weight:800">還是花苞</div><div class="muted">從 ${r.first} 開始練；考過 ${r.exams} 次</div>` : `<div style="font-size:15px;font-weight:800">還沒開始</div><div class="muted">先手寫練幾次，再用點亮模式考一次</div>`;
-  return `<div style="display:flex;gap:14px;align-items:center"><svg width="64" height="64" viewBox="-32 -32 64 64">${sakura(0, 0, 28, { lit: !!r.lit, i: -1, label: r.lit ? '' : row, font: 18 })}</svg>
-    <div><b style="font-size:19px" class="serif">${row}行</b><div class="small" style="letter-spacing:4px;font-size:13px">${KANA[row]}</div></div></div>
-    <div style="margin-top:12px">${status}</div>
-    <div class="kv"><div><span class="small">手寫練習</span><b>${r.n} 次</b></div><div><span class="small">寫了多久</span><b>${fmtMin(r.min)}</b></div><div><span class="small">嘗試點亮</span><b>${r.exams + (r.lit ? 0 : 1)} 次</b></div><div><span class="small">開花次數</span><b>${r.lit ? Math.max(1, r.exams - 1) + " 次" : "還沒開過"}</b></div><div style="grid-column:span 2"><span class="small">全部次數（手寫＋考試，寫一次算一次）</span><b>${c.all} 次</b></div><!-- 最好成績不顯示 --></div>
-    ${r.lit ? `<div class="rec"><div class="small" style="font-weight:700;margin-bottom:4px">🌸 開花紀錄（到開花為止的累計）</div><div><span>開花時間</span><b>2026/${r.lit} 21:30</b></div><div><span>從第一天（${S.data[0][1]}）練到開花</span><b>${days(S.data[0][1], r.lit)} 天 12 小時</b></div><div><span>手寫練習</span><b>${c.pr} 次</b></div><div><span>普通考試</span><b>${c.no} 次</b></div><div><span>點亮考試</span><b>${c.li} 次</b></div></div>` : ''}
-    ${r.bad ? `<div class="small" style="margin-bottom:6px">上次還錯的字</div>${[...r.bad].map(k => `<span class="kchip">${k}</span>`).join('')}` : ''}
+  const attempts = r.exams + (r.lit ? 0 : 1), blooms = r.lit ? Math.max(1, r.exams - 1) : 0;
+  const status = r.lit ? `🌸 ${r.lit} 開花・從第一次練到開花花了 ${days(r.first, r.lit)} 天`
+    : r.first ? `還沒開花・從 ${r.first} 開始練${r.exams ? '，考過 ' + r.exams + ' 次' : ''}` : '還沒開始：先手寫練幾次，再用點亮考一次';
+  return `<div style="display:flex;gap:12px;align-items:center"><b class="serif" style="font-size:34px;color:${r.lit ? 'var(--sakura)' : 'var(--ink)'}">${row}</b>
+    <div><b style="font-size:17px">${row}行</b><div class="small">${KANA[row].split('').filter(x => x !== ' ').join(' ')}</div></div></div>
+    <div style="margin-top:12px;font-size:14px;font-weight:700;color:${r.lit ? 'var(--sakura)' : 'var(--ink)'}">${status}</div>
+    <div class="kv">${r.lit ? `<div><span class="small">手寫練習</span><b>${c.pr} 次</b></div><div><span class="small">普通考試</span><b>${c.no} 次</b></div>` : ''}
+      <div><span class="small">嘗試點亮</span><b>${attempts} 次</b></div><div><span class="small">開花次數</span><b>${blooms ? blooms + ' 次' : '還沒開過'}</b></div>
+      ${r.lit ? `<div style="grid-column:span 2"><span class="small">全部次數（手寫＋考試，寫一次算一次）</span><b>${c.all} 次</b></div>` : ''}</div>
+    ${r.lit ? `<div class="rec"><div class="small" style="font-weight:700;margin-bottom:4px">🌸 開花紀錄（到開花為止的累計）</div><div><span>開花時間</span><b>2026/${r.lit} 21:30</b></div><div><span>從第一天（${S.data[0][1]}）練到開花</span><b>${days(S.data[0][1], r.lit)} 天 12 小時</b></div><div><span>點亮考試</span><b>${c.li} 次</b></div></div>` : ''}
+    ${r.bad ? `<div class="small" style="margin:12px 0 6px">上次還錯的字</div>${[...r.bad].map(k => `<span class="kchip">${k}</span>`).join('')}` : ''}
     <div style="display:flex;gap:8px;margin-top:16px">${locked ? `<button class="btn" disabled style="opacity:.5;cursor:not-allowed">🔒 先點亮 ${ROWS[nx]}行</button>` : `<button class="btn" data-go="${i}">${r.lit ? `再考一次（${examSize(i)} 題）` : `開始點亮 ${row}行（${examSize(i)} 題）`}</button>`}</div>`;
 }
 

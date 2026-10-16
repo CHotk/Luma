@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'jp_light_data.dart';
 
 /// 明細裡的「開花紀錄」（2026-10-16 使用者要求）：開花的時間、從第一天練
-/// 到開花多久，跟到那一刻為止累加的手寫練習、普通考試、點亮考試次數
-/// （寫一次算一次）。加總放在明細上面的「全部次數」。
+/// 到開花多久、到那一刻為止點亮考試寫了幾題。手寫練習、普通考試、全部
+/// 次數也是同一份快照，放在明細上面的格子裡。
 /// 原本版（深色底）跟 GPT 版（粉色毛玻璃）共用，顏色由外面給。
 class JpBloomRecordView extends StatelessWidget {
   const JpBloomRecordView({
@@ -72,8 +72,6 @@ class JpBloomRecordView extends StatelessWidget {
           const SizedBox(height: 4),
           line('開花時間', when),
           line('從第一天（$since）練到開花', span),
-          line('手寫練習', '${r.practiceCount} 次'),
-          line('普通考試', '${r.examAnswers} 次'),
           line('點亮考試', '${r.lightAnswers} 次'),
         ],
       ),

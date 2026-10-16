@@ -446,14 +446,18 @@ void _showRow(BuildContext context, JpRowLight l, List<JpRowLight> lights) {
               ),
             ),
             const SizedBox(height: Gap.md),
-            Row(
-              children: [
-                _Fact('手寫練習', '${l.practiceCount} 次'),
-                const SizedBox(width: 8),
-                _Fact('考試寫了多久', fmtPracticeTime(l.examTime)),
-              ],
-            ),
-            const SizedBox(height: 8),
+            // 數字是第一次開花當下的快照（2026-10-16 使用者要求），還沒開花就
+            // 沒有快照、先不顯示；嘗試點亮跟開花次數本來就算到現在。
+            if (l.record != null) ...[
+              Row(
+                children: [
+                  _Fact('手寫練習', '${l.record!.practiceCount} 次'),
+                  const SizedBox(width: 8),
+                  _Fact('普通考試', '${l.record!.examAnswers} 次'),
+                ],
+              ),
+              const SizedBox(height: 8),
+            ],
             Row(
               children: [
                 _Fact('嘗試點亮', '${l.attempts} 次'),
@@ -464,9 +468,11 @@ void _showRow(BuildContext context, JpRowLight l, List<JpRowLight> lights) {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            Row(children: [_Fact('全部次數（手寫＋考試，寫一次算一次）', '${l.totalCount} 次')]),
             if (l.record != null) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [_Fact('全部次數（手寫＋考試，寫一次算一次）', '${l.record!.total} 次')],
+              ),
               const SizedBox(height: Gap.md),
               JpBloomRecordView(
                 record: l.record!,
