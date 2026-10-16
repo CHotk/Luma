@@ -59,7 +59,15 @@
   .missing { position: absolute; border: 2px dashed rgba(255,183,203,.45); border-radius: 18px; display: grid; place-items: center; text-align: center; color: #FFB7CB; font-size: 12px; background: rgba(255,183,203,.05); }
   .bud { position: absolute; transform: translate(-50%,-50%); cursor: pointer; }
   .bud .tap { width: 54px; height: 54px; border-radius: 50%; }
-  .bud .tag { position: absolute; left: 50%; top: 100%; transform: translateX(-50%); font: 900 12px "Noto Serif JP", serif; color: #FFE3EC; text-shadow: 0 1px 3px #000; white-space: nowrap; }
+  .bud .tag { position: absolute; left: 50%; top: calc(100% - 4px); transform: translateX(-50%); font: 800 11.5px -apple-system, "Microsoft JhengHei", sans-serif; white-space: nowrap; padding: 2px 8px; border-radius: 99px; background: rgba(20,14,28,.72); color: #B9AFC4; border: 1px solid rgba(255,255,255,.18); backdrop-filter: blur(4px); z-index: 2; }
+  .bud.lit .tag { background: rgba(255,127,163,.92); color: #fff; border-color: rgba(255,255,255,.6); box-shadow: 0 2px 8px rgba(255,90,140,.45); }
+  @keyframes ping { 0% { transform: translate(-50%,-50%) scale(.6); opacity: .9 } 100% { transform: translate(-50%,-50%) scale(1.8); opacity: 0 } }
+  .bud.hl::before { content: ""; position: absolute; left: 50%; top: 50%; width: 60px; height: 60px; border-radius: 50%; border: 3px solid #FFE08A; animation: ping 1s ease-out infinite; transform: translate(-50%,-50%); }
+  .bud.hl .tag { background: #FFE08A; color: #3a2400; border-color: #fff; }
+  .legend10 { display: flex; gap: 5px; padding: 0 12px; position: relative; z-index: 5; }
+  .legend10 span { flex: 1; text-align: center; padding: 5px 0; border-radius: 10px; font-size: 13px; font-weight: 800; cursor: pointer; background: rgba(20,14,28,.6); color: #8a7f96; border: 1px solid rgba(255,255,255,.12); backdrop-filter: blur(6px); }
+  .legend10 span.on { background: rgba(255,127,163,.85); color: #fff; border-color: rgba(255,255,255,.5); }
+  .legend10 span.hl { outline: 2px solid #FFE08A; }
   .bud img.bloom { position: absolute; left: 50%; top: 50%; width: 74px; height: 74px; margin: -46px 0 0 -37px; pointer-events: none; }
   .bud.calib .tap { outline: 2px solid #4ade80; background: rgba(74,222,128,.15); }
   .gpt-step { margin: 8px 16px 0; padding: 10px 12px; border-radius: 14px; background: rgba(255,183,203,.08); border: 1px solid rgba(255,183,203,.3); font-size: 12px; color: var(--ink2); position: relative; z-index: 5; }
@@ -260,10 +268,11 @@ V.push({ name: '6 GPT 圖層版', tag: '配合 ChatGPT 生圖・進行中', titl
       <div style="position:relative;z-index:4;padding:0 16px"><div style="display:flex;align-items:baseline;gap:8px"><b style="font-size:34px;color:#FFD3E0" class="serif">${n}</b><span class="muted">/ 10 朵開花</span><span class="small" style="margin-left:auto">總共練了 ${fmtMin(totalMin())}</span></div></div>
       <div class="art" id="art" style="z-index:4">
         ${ok['tree.png'] === false ? '<div class="missing" style="left:40px;right:40px;top:30px;bottom:20px">等 tree.png<br><span class="small">光禿禿的櫻花樹・1024×1536・透明背景</span></div>' : img('tree.png', 'layer')}
-        ${BUDS.map(([x, y], i) => { const lit = !!S.data[i][0]; return `<div class="bud ${S.calib ? 'calib' : ''}" data-row="${i}" data-bud="${i}" style="left:${x * SC}px;top:${y * SC}px">
+        ${BUDS.map(([x, y], i) => { const lit = !!S.data[i][0]; return `<div class="bud ${S.calib ? 'calib' : ''} ${lit ? 'lit' : ''} ${S.hl === i ? 'hl' : ''}" data-row="${i}" data-bud="${i}" style="left:${x * SC}px;top:${y * SC}px">
           ${lit ? (ok[bloomName(i)] === false ? `<svg width="70" height="70" viewBox="-35 -35 70 70" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%)" class="${S.justLit === i ? 'blooming' : ''}">${sakura(0, 0, 26, { lit: true, i: -1 })}</svg>` : img(bloomName(i), `bloom ${S.justLit === i ? 'blooming' : ''}`)) : ''}
-          <div class="tap"></div><span class="tag">${S.calib ? i + 1 + '・' : ''}${ROWS[i]}</span></div>`; }).join('')}
+          <div class="tap"></div><span class="tag">${S.calib ? i + 1 + '・' : ''}${lit ? '🌸 ' : ''}${ROWS[i]}行</span></div>`; }).join('')}
       </div>
+      <div class="legend10">${ROWS.map((r, i) => `<span class="${S.data[i][0] ? 'on' : ''} ${S.hl === i ? 'hl' : ''}" data-hl="${i}">${r}</span>`).join('')}</div>
       ${S.calib ? `<div class="gpt-step" style="font-family:monospace;color:#bbf7d0">BUDS = [${BUDS.map(([x, y]) => `[${Math.round(x)}, ${Math.round(y)}]`).join(', ')}]</div>` : `<div class="gpt-step">🎨 GPT 圖層版：${['tree.png', 'bloom1.png', 'bg.png', 'petal1.png'].filter(n => !ok[n]).length ? '還在等圖：' + ['tree.png', 'bloom1.png', 'bg.png', 'petal1.png'].filter(n => !ok[n]).join('、') : '圖都到齊了'}</div>`}`;
   } });
 
@@ -280,8 +289,8 @@ V.push({ name: '1 GPT 版・會長大的樹', tag: '第 1 版的 AI 圖版本', 
       <div class="art" style="z-index:4">
         <div style="position:absolute;left:50%;top:38%;width:${150 + n * 26}px;height:${130 + n * 22}px;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(closest-side,rgba(255,190,210,${.12 + n * .045}),rgba(255,190,210,0));transition:all .8s"></div>
         <img class="layer" src="${ART}tree.png">
-        ${BUDS.map(([x, y], i) => { const lit = !!S.data[i][0]; return `<div class="bud" data-row="${i}" style="left:${x * SC}px;top:${y * SC}px">
-          ${lit ? `<img class="bloom ${S.justLit === i ? 'blooming' : ''}" src="${ART}${bloomName(i)}">` : ''}<div class="tap"></div><span class="tag">${ROWS[i]}</span></div>`; }).join('')}
+        ${BUDS.map(([x, y], i) => { const lit = !!S.data[i][0]; return `<div class="bud ${lit ? 'lit' : ''} ${S.hl === i ? 'hl' : ''}" data-row="${i}" style="left:${x * SC}px;top:${y * SC}px">
+          ${lit ? `<img class="bloom ${S.justLit === i ? 'blooming' : ''}" src="${ART}${bloomName(i)}">` : ''}<div class="tap"></div><span class="tag">${lit ? '🌸 ' : ''}${ROWS[i]}行</span></div>`; }).join('')}
       </div>
       <div class="chips" style="position:relative;z-index:4;margin-top:-18px">${ROWS.map((r, i) => `<span class="chip ${S.data[i][0] ? 'on' : ''}" data-row="${i}">${r}</span>`).join('')}</div>`;
   } });
@@ -299,10 +308,12 @@ function toast(t) { S.toast = t; clearTimeout(tt); tt = setTimeout(() => { S.toa
 document.addEventListener('click', e => {
   if (e.target.closest('[data-calib]')) { S.calib = !S.calib; render(); return; }
   if (S.calib && e.target.closest('[data-bud]')) return;
+  const hl = e.target.closest('[data-hl]');
+  if (hl) { const i = +hl.dataset.hl; if (S.hl === i) { S.sheet = i; S.hl = null; } else { S.hl = i; } render(); return; }
   const el = e.target.closest('[data-v],[data-row],[data-close],[data-go],[data-sim]');
   if (!el) return; const d = el.dataset;
   S.justLit = null;
-  if (d.v) { S.v = +d.v; S.sheet = null; }
+  if (d.v) { S.v = +d.v; S.sheet = null; S.hl = null; }
   else if (d.sim !== undefined) { const i = nextIdx(); if (i < 0) { S.data = SEED.map(r => [...r]); toast('全部開完了，重來一次'); } else { const r = S.data[i]; r[0] = '10/16'; r[1] = r[1] || '10/14'; r[4]++; r[5] = 100; r[6] = ''; S.justLit = i; toast(`🌸 ${ROWS[i]}行 開花了！`); } }
   else if (d.row !== undefined) S.sheet = +d.row;
   else if (d.close !== undefined) S.sheet = null;
