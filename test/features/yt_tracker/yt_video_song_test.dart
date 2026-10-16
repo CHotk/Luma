@@ -68,6 +68,7 @@ void main() {
     expect(container.read(ytVideoSongsProvider), {'v1'});
     expect(await YtVideoSongStore(store).loadIds(), {'v1'});
     expect(find.byTooltip('歌曲'), findsOneWidget); // 縮圖上的 ♪
+    expect(find.text('♪ 歌曲'), findsOneWidget); // 縮圖左下角的標籤
 
     await tester.timedDrag(
       find.text('一首歌'),
@@ -78,6 +79,7 @@ void main() {
     await tester.tap(find.text('取消歌曲'));
     await tester.pumpAndSettle();
     expect(container.read(ytVideoSongsProvider), isEmpty);
+    expect(find.text('♪ 歌曲'), findsNothing);
     expect(await YtVideoSongStore(store).loadIds(), isEmpty);
   });
 

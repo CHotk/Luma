@@ -548,6 +548,11 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
                 ),
                 // 2026-10-14 使用者要求：拿掉「存到稍後觀看」（添加到播放清單
                 // 裡就能勾），改名「添加到播放清單」、圖示跟 YouTube 一樣。
+                // 標歌曲放第一個（2026-10-16 使用者要求）。
+                if (widget.songMode)
+                  _isSong
+                      ? item('song', Icons.music_off_rounded, '取消歌曲')
+                      : item('song', Icons.music_note_rounded, '標成歌曲'),
                 item('save', Icons.playlist_add_rounded, '添加到播放清單'),
                 if (playlist != null) ...[
                   item('top', Icons.vertical_align_top_rounded, '移到最上面'),
@@ -562,10 +567,6 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
                 _hidden
                     ? item('unhide', Icons.visibility_rounded, '取消隱藏')
                     : item('hide', Icons.visibility_off_rounded, '隱藏這部'),
-                if (widget.songMode)
-                  _isSong
-                      ? item('song', Icons.music_off_rounded, '取消歌曲')
-                      : item('song', Icons.music_note_rounded, '標成歌曲'),
                 item('youtube', Icons.open_in_new_rounded, '在 YouTube 開啟'),
               ],
             ),
@@ -705,25 +706,7 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
               padding: const EdgeInsets.fromLTRB(0, 6, 6, 6),
               child: Row(
                 children: [
-                  _SwipeActionButton(
-                    icon: Icons.history_rounded,
-                    label: '紀錄',
-                    color: _iosBlue,
-                    onTap: _showHistory,
-                  ),
-                  _hidden
-                      ? _SwipeActionButton(
-                          icon: Icons.visibility_rounded,
-                          label: '取消隱藏',
-                          color: _iosGreen,
-                          onTap: _unhide,
-                        )
-                      : _SwipeActionButton(
-                          icon: Icons.visibility_off_rounded,
-                          label: '隱藏',
-                          color: _iosGray,
-                          onTap: _hide,
-                        ),
+                  // 標歌曲放第一個（2026-10-16 使用者要求）。
                   if (widget.songMode)
                     Consumer(
                       builder: (context, ref, _) =>
@@ -743,6 +726,25 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
                               onTap: _toggleSong,
                             ),
                     ),
+                  _SwipeActionButton(
+                    icon: Icons.history_rounded,
+                    label: '紀錄',
+                    color: _iosBlue,
+                    onTap: _showHistory,
+                  ),
+                  _hidden
+                      ? _SwipeActionButton(
+                          icon: Icons.visibility_rounded,
+                          label: '取消隱藏',
+                          color: _iosGreen,
+                          onTap: _unhide,
+                        )
+                      : _SwipeActionButton(
+                          icon: Icons.visibility_off_rounded,
+                          label: '隱藏',
+                          color: _iosGray,
+                          onTap: _hide,
+                        ),
                 ],
               ),
             ),
@@ -890,28 +892,65 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
                                     final label = _typeLabel(
                                       YtVideoTags.apply(video, tags),
                                     );
-                                    if (label == null) {
+                                    // 標成歌曲的：左下角粉紅「♪ 歌曲」（2026-10-16
+                                    // 使用者回報右上角小 ♪ 看不出來）。
+                                    final song =
+                                        widget.songMode &&
+                                        ref
+                                            .watch(ytVideoSongsProvider)
+                                            .contains(video.videoId);
+                                    if (label == null && !song) {
                                       return const SizedBox.shrink();
                                     }
-                                    return Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 4,
-                                        vertical: 1,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: label.color.withValues(
-                                          alpha: 0.9,
-                                        ),
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: Text(
-                                        label.text,
-                                        style: const TextStyle(
-                                          fontSize: 9.5,
-                                          fontWeight: FontWeight.w700,
-                                          color: Colors.white,
-                                        ),
-                                      ),
+                                    return Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        if (song)
+                                          Container(
+                                            margin: EdgeInsets.only(
+                                              right: label == null ? 0 : 3,
+                                            ),
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 5,
+                                              vertical: 1,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xEBFF375F),
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
+                                            ),
+                                            child: const Text(
+                                              '♪ 歌曲',
+                                              style: TextStyle(
+                                                fontSize: 9.5,
+                                                fontWeight: FontWeight.w800,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ),
+                                        if (label != null)
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 4,
+                                              vertical: 1,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: label.color.withValues(
+                                                alpha: 0.9,
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
+                                            ),
+                                            child: Text(
+                                              label.text,
+                                              style: const TextStyle(
+                                                fontSize: 9.5,
+                                                fontWeight: FontWeight.w700,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ),
+                                      ],
                                     );
                                   },
                                 ),

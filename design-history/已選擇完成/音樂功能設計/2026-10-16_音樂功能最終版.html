@@ -444,9 +444,9 @@ function ytChannel(k) {
     <div class="ythead">${avatar(k, 62)}<div><div style="font-weight:800;font-size:17px">${c.name}</div><div class="note3">訂閱 ${c.subs}・${vids.length} 部・分類：${c.cat}</div></div></div>${banner}
     <div class="ytsub">${['影片', '關於'].map(t => `<span class="${S.yt.tab === t ? 'on' : ''}">${t}</span>`).join('')}</div>
     <div class="picks">${YT_VIEWS.filter(x => x !== '♪ 歌曲' || c.cat === '音樂').map(x => `<span class="${view === x ? 'on' : ''} ${x === '♪ 歌曲' ? 'song' : ''}" data-a="ytView" data-v="${x}">${x} ${vids.filter(v => ytVisible(v, x)).length}</span>`).join('')}</div>
-    <div class="swipehint">App 裡往左滑影片：紀錄｜隱藏｜<b style="color:#FF375F">♪ 歌曲</b>（這裡用 ⋮ 代替）</div>
+    <div class="swipehint">App 裡往左滑影片：<b style="color:#FF375F">♪ 歌曲</b>｜紀錄｜隱藏（這裡用 ⋮ 代替）</div>
     ${list.map(v => { const s = S.songs[v.id]; return `<div class="vrow"><div class="th">${v.th ? img(YTI(v.th)) : `<div class="gcov" style="width:100%;height:100%;background:linear-gradient(135deg,${c.color},#15151f)">🎬</div>`}
-      <div class="icons">${S.watched.has(v.id) ? '<i>✓</i>' : ''}${S.hidden.has(v.id) ? '<i>⊘</i>' : ''}${s ? '<i style="color:#FF8FB1">♪</i>' : ''}</div><span class="dur">${fmt(v.len)}</span></div>
+      <div class="icons">${S.watched.has(v.id) ? '<i>✓</i>' : ''}${S.hidden.has(v.id) ? '<i>⊘</i>' : ''}${s ? '<i style="color:#FF8FB1">♪</i>' : ''}</div><span class="dur">${fmt(v.len)}</span>${s ? '<span class="dur" style="left:4px;right:auto;background:rgba(255,55,95,.92);font-weight:800">♪ 歌曲</span>' : ''}</div>
       <div class="meta"><div class="nm">${esc(v.title)}</div><div class="note3" style="margin-top:3px">${v.y}${s ? `・<span style="color:var(--pink)">♪ ${esc(s.t)}</span> ${relBadge(s)}` : ''}</div></div>
       <div class="vrow dots3" data-a="vMenu" data-id="${v.id}">⋮</div></div>`; }).join('') || '<div class="note3" style="text-align:center;padding:24px">這裡空空的</div>'}`;
 }
@@ -590,9 +590,10 @@ function sheetBody() {
     return `<div class="row" style="margin-bottom:4px">${avatar(x, 34)}<b style="font-size:16px">${CH[x].name} 的影片</b></div><div class="note3" style="margin-bottom:4px">YT 快取裡的（不花配額）。是歌就按 ♪；花絮、vlog 不要標</div>${VID.filter(v => v.ch === x).map(candRow).join('')}`; }
   if (k === 'paste') return `<b style="font-size:17px">貼一首歌的網址</b><div class="note3">頻道還沒追蹤的話，會順便加進 YT 管理</div><div class="field">🔗<input value="https://youtu.be/wf_2"></div><button class="btn sm pink" data-a="pasteSong">加進音樂庫</button>`;
   if (k === 'vMenu') { const v = vById(S.sheet.id), s = S.songs[v.id];
-    return `<div class="note3" style="margin:2px 0 6px">${esc(v.title)}</div><div class="act">≡＋ 添加到播放清單</div><div class="act">🕘　開啟紀錄</div>
-      <div class="act" data-a="ytHide" data-id="${v.id}">${S.hidden.has(v.id) ? '👁　取消隱藏' : '⊘　隱藏這部'}</div>
+    return `<div class="note3" style="margin:2px 0 6px">${esc(v.title)}</div>
       ${CH[v.ch].cat === '音樂' || s ? (s ? `<div class="act" data-a="sheet" data-k="edit" data-id="${v.id}">♪　歌曲資訊（${esc(s.t)}・${s.rel}）</div><div class="act" data-a="unsong" data-id="${v.id}" style="color:#FF7A7A">♪̸　取消歌曲</div>` : `<div class="act" data-a="toggleSong" data-id="${v.id}" style="color:var(--pink)">♪　標成歌曲</div>`) : ''}
+      <div class="act">≡＋ 添加到播放清單</div><div class="act">🕘　開啟紀錄</div>
+      <div class="act" data-a="ytHide" data-id="${v.id}">${S.hidden.has(v.id) ? '👁　取消隱藏' : '⊘　隱藏這部'}</div>
       <div class="act">↗　在 YouTube 開啟</div>`; }
   if (k === 'chMenu') { const x = S.sheet.ch;
     return `<div class="row" style="margin-bottom:6px">${avatar(x, 40)}<b>${CH[x].name}</b></div><div class="act">📌　置頂</div><div class="act">🧊　冷藏</div>
