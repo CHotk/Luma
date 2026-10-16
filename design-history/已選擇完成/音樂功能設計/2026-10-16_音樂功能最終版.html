@@ -1,0 +1,689 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>音樂功能最終版</title>
+<style>
+  :root {
+    --bg: #0B0B12; --card: #151520; --card2: #1A1A27; --sheet: #1C1C2A; --line: #2A2A3D;
+    --ink: #F4F3F8; --ink2: #A9A8B8; --ink3: #75748A;
+    --accent: #7EA6FF; --ios: #0A84FF; --yt: #FF3B3B; --ok: #5FE08D; --mid: #F5C763; --pink: #FF6FAE;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--ink); min-height: 100vh; font: 14px/1.5 -apple-system, "SF Pro Text", system-ui, "Segoe UI", "Microsoft JhengHei", sans-serif; }
+  img { display: block; }
+  .page { max-width: 1160px; margin: 0 auto; padding: 24px 16px 60px; }
+  h1 { font-size: 21px; margin: 0 0 6px; }
+  .lead { color: var(--ink2); font-size: 13px; margin: 0 0 14px; } .lead b { color: var(--ink); }
+  .vtabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+  .vtabs button { border: 1px solid var(--line); background: var(--card); color: var(--ink2); padding: 8px 14px; border-radius: 99px; cursor: pointer; font-size: 13px; }
+  .vtabs button.on { border-color: var(--accent); color: #fff; background: rgba(46,107,255,.35); }
+  .stage { display: flex; gap: 28px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
+  .notes { flex: 1 1 330px; max-width: 480px; background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 18px 20px; font-size: 13.5px; color: var(--ink2); }
+  .notes h2 { color: var(--ink); font-size: 17px; margin: 0 0 4px; }
+  .notes .tag { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 99px; background: rgba(255,59,59,.15); color: var(--yt); margin-bottom: 8px; }
+  .notes h3 { color: var(--ink); font-size: 13.5px; margin: 14px 0 4px; }
+  .notes ul { margin: 0; padding-left: 18px; } .notes li { margin: 3px 0; }
+  .notes .box { margin-top: 14px; padding: 11px 13px; border-radius: 12px; background: var(--card2); border: 1px solid var(--line); font-size: 12.5px; }
+  .notes .box b { color: var(--ink); }
+  .notes .try { margin-top: 14px; padding: 10px 12px; border-radius: 12px; background: rgba(126,166,255,.08); border: 1px solid rgba(126,166,255,.25); color: var(--ink); font-size: 12.5px; }
+  .notes .warn { background: rgba(245,199,99,.07); border-color: rgba(245,199,99,.3); }
+  .notes button.demo { margin-top: 8px; border: 1px solid var(--line); background: var(--card2); color: var(--ink); border-radius: 10px; padding: 6px 10px; cursor: pointer; font-size: 12px; }
+
+  /* 手機框 */
+  .phone { width: 390px; max-width: 100%; height: 820px; flex-shrink: 0; border-radius: 44px; border: 1px solid var(--line); background: #0E0E16; position: relative; overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,.55); }
+  .screen { position: absolute; inset: 0; overflow-y: auto; padding: 44px 16px 170px; scrollbar-width: none; }
+  .screen::-webkit-scrollbar { display: none; }
+  .status { position: absolute; top: 0; left: 0; right: 0; height: 40px; display: flex; align-items: center; justify-content: space-between; padding: 0 30px; font-size: 13px; font-weight: 700; z-index: 30; pointer-events: none; }
+  .home-ind { position: absolute; bottom: 7px; left: 50%; transform: translateX(-50%); width: 124px; height: 5px; border-radius: 9px; background: rgba(255,255,255,.6); z-index: 90; pointer-events: none; }
+  .bgglow { position: absolute; inset: 0 0 auto 0; height: 380px; pointer-events: none; transition: background .6s; }
+
+  .row { display: flex; align-items: center; gap: 10px; } .sp { flex: 1; }
+  .bar { display: flex; align-items: center; gap: 8px; padding: 2px 0 12px; position: relative; }
+  .bar .t { flex: 1; font-weight: 900; font-size: 26px; letter-spacing: -.3px; }
+  .ib { width: 36px; height: 36px; border-radius: 12px; display: grid; place-items: center; color: var(--ink2); cursor: pointer; flex-shrink: 0; font-size: 17px; }
+  .ib:hover { background: rgba(255,255,255,.06); }
+  .note { font-size: 12px; color: var(--ink2); } .note3 { font-size: 11px; color: var(--ink3); }
+  .h2 { font-size: 18px; font-weight: 800; margin: 18px 0 10px; display: flex; align-items: center; gap: 8px; position: relative; }
+  .h2 .more { margin-left: auto; font-size: 12px; font-weight: 600; color: var(--ink2); cursor: pointer; }
+  .chips { display: flex; gap: 7px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; position: relative; }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip { border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.06); color: var(--ink); border-radius: 9px; padding: 6px 12px; font-size: 12.5px; cursor: pointer; white-space: nowrap; }
+  .chip.on { background: #fff; color: #111; border-color: #fff; font-weight: 700; }
+  .hscroll { display: flex; gap: 12px; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 0 16px 4px; position: relative; }
+  .hscroll::-webkit-scrollbar { display: none; }
+
+  .cover { border-radius: 10px; overflow: hidden; background: linear-gradient(135deg,#2a2a40,#15151f); position: relative; flex-shrink: 0; }
+  .cover img { width: 100%; height: 100%; object-fit: cover; }
+  .sq { aspect-ratio: 1; }
+  .wide { aspect-ratio: 16/9; }
+  .round { border-radius: 50%; }
+  .tile { width: 132px; cursor: pointer; flex-shrink: 0; }
+  .tile .tt { font-size: 13px; font-weight: 700; margin-top: 7px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .song { display: flex; align-items: center; gap: 11px; padding: 7px 0; cursor: pointer; border-radius: 10px; position: relative; }
+  .song:hover { background: rgba(255,255,255,.03); }
+  .song .cover { width: 50px; height: 50px; border-radius: 8px; }
+  .song .meta { flex: 1; min-width: 0; }
+  .song .nm { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .song.now .nm { color: var(--pink); }
+  .song .sub { font-size: 12px; color: var(--ink3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .song .num { width: 22px; text-align: center; font-weight: 800; color: var(--ink3); }
+  .dots { width: 30px; height: 30px; display: grid; place-items: center; color: var(--ink3); border-radius: 9px; cursor: pointer; }
+  .dots:hover { background: rgba(255,255,255,.07); }
+  .badge { font-size: 9.5px; font-weight: 800; padding: 1px 5px; border-radius: 5px; margin-right: 4px; vertical-align: 1px; }
+  .b-mv { background: rgba(255,59,59,.18); color: #FF7A7A; } .b-live { background: rgba(95,224,141,.15); color: var(--ok); } .b-lyric { background: rgba(126,166,255,.15); color: var(--accent); }
+  .eq { display: inline-flex; gap: 2px; align-items: flex-end; height: 12px; margin-right: 5px; }
+  .eq i { width: 3px; background: var(--pink); border-radius: 2px; animation: eq 1s ease-in-out infinite; }
+  .eq i:nth-child(2) { animation-delay: .2s } .eq i:nth-child(3) { animation-delay: .4s }
+  .paused .eq i { animation-play-state: paused; }
+  @keyframes eq { 0%,100% { height: 3px } 50% { height: 12px } }
+  .btn { border: 0; border-radius: 99px; padding: 10px 18px; font-weight: 800; font-size: 14px; cursor: pointer; background: #fff; color: #111; display: inline-flex; gap: 6px; align-items: center; }
+  .btn.ghost { background: rgba(255,255,255,.12); color: var(--ink); }
+  .btn.pink { background: var(--pink); color: #2a0614; }
+  .btn.sm { padding: 7px 13px; font-size: 12.5px; }
+
+  /* 浮動膠囊（跟 App 新的底部分頁列同一個元件） */
+  .lg { background: rgba(28,28,40,.55); backdrop-filter: blur(22px) saturate(190%); -webkit-backdrop-filter: blur(22px) saturate(190%);
+    border: 1px solid rgba(255,255,255,.16); box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 10px 30px rgba(0,0,0,.5); }
+  .tabbar { position: absolute; left: 50%; transform: translateX(-50%); bottom: 26px; height: 60px; border-radius: 30px; display: flex; padding: 4px; z-index: 50; }
+  .tabbar .blob { position: absolute; top: 4px; bottom: 4px; width: 84px; border-radius: 26px; background: rgba(255,255,255,.14); transition: left .38s cubic-bezier(.3,1.35,.4,1); }
+  .tabbar button { position: relative; width: 84px; border: 0; background: transparent; color: #fff; font-size: 10.5px; font-weight: 700; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; cursor: pointer; }
+  .tabbar button span { font-size: 20px; line-height: 1.1; }
+  .tabbar button.on { color: var(--pink); }
+
+  /* 迷你播放列 */
+  .mini { position: absolute; left: 12px; right: 12px; bottom: 96px; height: 60px; border-radius: 16px; z-index: 55; display: flex; align-items: center; gap: 10px; padding: 0 10px 0 7px; cursor: pointer; overflow: hidden; animation: rise .3s cubic-bezier(.2,.9,.3,1); }
+  .mini .cover { width: 46px; height: 46px; border-radius: 9px; }
+  .mini .pbar { position: absolute; left: 12px; right: 12px; bottom: 0; height: 2px; background: rgba(255,255,255,.12); border-radius: 2px; overflow: hidden; }
+  .mini .pbar i { display: block; height: 100%; background: var(--pink); }
+  .mini .ctl { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; font-size: 18px; }
+  .mini .ctl:hover { background: rgba(255,255,255,.08); }
+
+  /* 全螢幕播放器 */
+  .player { position: absolute; inset: 0; z-index: 80; overflow-y: auto; padding: 44px 22px 40px; animation: up .32s cubic-bezier(.2,.9,.3,1); scrollbar-width: none; }
+  .player::-webkit-scrollbar { display: none; }
+  .player .bgimg { position: absolute; inset: -40px; background-size: cover; background-position: center; filter: blur(46px) saturate(1.4) brightness(.45); transform: scale(1.2); z-index: -1; }
+  .ytbox { border-radius: 16px; overflow: hidden; position: relative; aspect-ratio: 16/9; background: #000; box-shadow: 0 20px 50px rgba(0,0,0,.5); transition: all .35s; }
+  .ytbox img { width: 100%; height: 100%; object-fit: cover; opacity: .92; }
+  .ytbox .ytlogo { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); width: 64px; height: 44px; border-radius: 12px; background: rgba(255,0,0,.92); display: grid; place-items: center; font-size: 20px; }
+  .ytbox .lbl { position: absolute; left: 8px; bottom: 8px; font-size: 10px; background: rgba(0,0,0,.65); padding: 2px 7px; border-radius: 6px; }
+  .ytbox.small { width: 110px; margin-left: auto; }
+  .bigart { aspect-ratio: 1; border-radius: 20px; overflow: hidden; margin: 6px 14px 0; box-shadow: 0 26px 60px rgba(0,0,0,.55); }
+  .bigart img { width: 100%; height: 100%; object-fit: cover; }
+  .seg2 { display: flex; background: rgba(255,255,255,.1); border-radius: 10px; padding: 2px; margin: 0 auto 14px; width: max-content; }
+  .seg2 button { border: 0; background: transparent; color: var(--ink2); font-size: 12px; font-weight: 700; padding: 6px 14px; border-radius: 8px; cursor: pointer; }
+  .seg2 button.on { background: rgba(255,255,255,.2); color: #fff; }
+  .prog { margin: 18px 0 4px; height: 5px; border-radius: 5px; background: rgba(255,255,255,.18); position: relative; cursor: pointer; }
+  .prog i { position: absolute; left: 0; top: 0; bottom: 0; background: #fff; border-radius: 5px; }
+  .prog b { position: absolute; top: 50%; width: 13px; height: 13px; border-radius: 50%; background: #fff; transform: translate(-50%,-50%); }
+  .ctls { display: flex; align-items: center; justify-content: space-between; margin: 12px 6px; }
+  .ctls .c { width: 44px; height: 44px; display: grid; place-items: center; font-size: 22px; cursor: pointer; border-radius: 50%; color: var(--ink2); }
+  .ctls .c.on { color: var(--pink); }
+  .ctls .big { width: 70px; height: 70px; border-radius: 50%; background: #fff; color: #111; font-size: 28px; display: grid; place-items: center; cursor: pointer; }
+  .limit { margin-top: 16px; padding: 11px 12px; border-radius: 14px; background: rgba(255,255,255,.07); font-size: 11.5px; color: var(--ink2); line-height: 1.6; }
+  .limit b { color: var(--ink); }
+  .ytlink { color: #FF7A7A; font-weight: 700; text-decoration: none; }
+
+  /* 底部面板、提示 */
+  .scrim { position: absolute; inset: 0; background: rgba(0,0,0,.5); z-index: 95; display: flex; align-items: flex-end; animation: fade .18s; }
+  .sheet { width: 100%; background: var(--sheet); border-radius: 26px 26px 0 0; padding: 0 16px 34px; max-height: 80%; overflow-y: auto; animation: up .26s cubic-bezier(.2,.9,.3,1); }
+  .handle { width: 40px; height: 5px; border-radius: 9px; background: rgba(255,255,255,.2); margin: 9px auto 10px; }
+  .act { display: flex; gap: 14px; align-items: center; padding: 13px 4px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,.06); font-size: 14px; }
+  .act:last-child { border-bottom: 0; }
+  .toast { position: absolute; left: 50%; top: 52px; transform: translateX(-50%); z-index: 99; width: max-content; max-width: 86%; background: rgba(40,40,58,.96); backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,.12); border-radius: 14px; padding: 9px 14px; font-size: 12.5px; animation: drop .22s; }
+  @keyframes fade { from { opacity: 0 } }
+  @keyframes up { from { transform: translateY(70px); opacity: .3 } }
+  @keyframes rise { from { transform: translateY(16px); opacity: 0 } }
+  @keyframes drop { from { transform: translate(-50%, -12px); opacity: 0 } }
+
+  /* V1 快速選曲 */
+  .qp { display: grid; grid-auto-flow: column; grid-template-rows: repeat(4, auto); grid-auto-columns: 86%; gap: 0 14px; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 0 16px; scroll-snap-type: x mandatory; }
+  .qp::-webkit-scrollbar { display: none; }
+  .qp .song { scroll-snap-align: start; }
+  .search { display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,.08); border-radius: 12px; padding: 0 12px; height: 42px; }
+  .search input { flex: 1; background: transparent; border: 0; outline: 0; color: var(--ink); font: inherit; font-size: 15px; }
+
+  /* V2 歌手頁 */
+  .artgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px 12px; }
+  .art { text-align: center; cursor: pointer; position: relative; }
+  .art .cover { width: 100%; }
+  .art .nm { font-size: 12.5px; font-weight: 700; margin-top: 6px; }
+  .newdot { position: absolute; top: 4px; right: 6px; background: var(--pink); color: #2a0614; font-size: 9.5px; font-weight: 900; padding: 1px 6px; border-radius: 99px; }
+  .hero { margin: -44px -16px 0; height: 330px; position: relative; overflow: hidden; }
+  .hero img { width: 100%; height: 100%; object-fit: cover; }
+  .hero::after { content: ""; position: absolute; inset: 0; background: linear-gradient(transparent 35%, #0E0E16); }
+  .hero .hn { position: absolute; left: 18px; bottom: 16px; z-index: 2; }
+  .hero .hn b { font-size: 34px; font-weight: 900; letter-spacing: -.5px; display: block; }
+  .hero .back { position: absolute; left: 12px; top: 46px; z-index: 3; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; background: rgba(0,0,0,.4); cursor: pointer; }
+
+  /* V3 情境 */
+  .mood { border-radius: 22px; padding: 16px; margin-bottom: 12px; cursor: pointer; position: relative; overflow: hidden; min-height: 132px; }
+  .mood .t { font-size: 20px; font-weight: 900; }
+  .mood .stack { position: absolute; right: 14px; bottom: 14px; display: flex; }
+  .mood .stack .cover { width: 54px; height: 54px; border-radius: 10px; margin-left: -18px; border: 2px solid rgba(0,0,0,.25); box-shadow: 0 6px 14px rgba(0,0,0,.35); }
+
+  /* V4 動態 */
+  .post { margin-bottom: 18px; }
+  .post .who { display: flex; gap: 9px; align-items: center; margin-bottom: 8px; }
+  .post .who .cover { width: 34px; height: 34px; }
+  .post .wide { border-radius: 16px; cursor: pointer; }
+  .post .acts { display: flex; gap: 8px; margin-top: 9px; }
+  .newbanner { border-radius: 18px; padding: 14px; background: linear-gradient(135deg, rgba(255,111,174,.25), rgba(126,166,255,.15)); border: 1px solid rgba(255,255,255,.1); margin-bottom: 14px; }
+
+  /* V5 心情 */
+  .moods { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .md { border-radius: 20px; padding: 14px 8px; text-align: center; cursor: pointer; border: 1px solid rgba(255,255,255,.1); transition: transform .15s; }
+  .md:active { transform: scale(.95); }
+  .md .e { font-size: 30px; } .md .n { font-size: 13px; font-weight: 800; margin-top: 2px; }
+  .md.on { outline: 2px solid #fff; }
+  .card { position: relative; height: 420px; margin-top: 8px; }
+  .card .c { position: absolute; inset: 0; border-radius: 26px; overflow: hidden; box-shadow: 0 24px 60px rgba(0,0,0,.5); transition: transform .35s, opacity .35s; }
+  .card .c img { width: 100%; height: 100%; object-fit: cover; }
+  .card .c::after { content: ""; position: absolute; inset: 0; background: linear-gradient(transparent 45%, rgba(0,0,0,.85)); }
+  .card .c .ci { position: absolute; left: 18px; right: 18px; bottom: 18px; z-index: 2; }
+  .card .c.back { transform: scale(.94) translateY(16px); opacity: .55; }
+  .card .c.out-l { transform: translateX(-130%) rotate(-14deg); opacity: 0; }
+  .card .c.out-r { transform: translateX(130%) rotate(14deg); opacity: 0; }
+  .swipe { display: flex; justify-content: center; gap: 22px; margin-top: 16px; }
+  .swipe .s { width: 62px; height: 62px; border-radius: 50%; display: grid; place-items: center; font-size: 24px; cursor: pointer; border: 1px solid rgba(255,255,255,.15); background: rgba(255,255,255,.06); }
+  .swipe .s.l { color: #FF7A7A; } .swipe .s.r { color: var(--pink); width: 70px; height: 70px; background: rgba(255,111,174,.15); }
+  /* 最終版：新增歌手／歌曲 */
+  .field { display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,.08); border-radius: 12px; padding: 0 12px; height: 42px; margin: 6px 0; }
+  .field input { flex: 1; background: transparent; border: 0; outline: 0; color: var(--ink); font: inherit; font-size: 14px; }
+  .pill { font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 99px; }
+  .p-on { background: rgba(95,224,141,.16); color: var(--ok); } .p-add { background: var(--pink); color: #2a0614; cursor: pointer; }
+  .p-off { background: rgba(255,255,255,.1); color: var(--ink2); cursor: pointer; }
+  .cand { display: flex; align-items: center; gap: 11px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,.06); }
+  .cand .cover { width: 64px; height: 36px; border-radius: 6px; display: grid; place-items: center; font-size: 15px; }
+  .cand .meta { flex: 1; min-width: 0; } .cand .nm { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tog { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; cursor: pointer; border: 1.5px solid var(--ink3); color: var(--ink3); flex-shrink: 0; }
+  .tog.on { background: var(--pink); border-color: var(--pink); color: #2a0614; }
+  .seg { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 10px; }
+  .seg span { padding: 6px 12px; border-radius: 99px; background: rgba(255,255,255,.08); font-size: 12.5px; cursor: pointer; }
+  .seg span.on { background: #fff; color: #111; font-weight: 800; }
+  .lbl2 { font-size: 11.5px; color: var(--ink3); margin-top: 10px; }
+  .onb { text-align: center; padding: 26px 8px 10px; }
+  .onb .step { display: flex; gap: 12px; text-align: left; align-items: flex-start; padding: 12px; border-radius: 16px; background: rgba(255,255,255,.05); margin-top: 10px; }
+  .onb .step b.n { width: 26px; height: 26px; border-radius: 50%; background: var(--pink); color: #2a0614; display: grid; place-items: center; flex-shrink: 0; font-size: 13px; }
+  .avatar0 { display: grid; place-items: center; font-weight: 900; font-size: 18px; color: #fff; }
+  .fab { position: absolute; right: 18px; bottom: 170px; width: 52px; height: 52px; border-radius: 50%; background: var(--pink); color: #2a0614; font-size: 26px; display: grid; place-items: center; z-index: 56; cursor: pointer; box-shadow: 0 10px 26px rgba(255,111,174,.45); }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>音樂功能・最終版（第 1 版「音樂庫分頁」延伸）</h1>
+  <p class="lead">
+    照你選的<b>第 1 版</b>（首頁＋搜尋＋音樂庫，YouTube Music／Spotify 那種）做成最終版，重點補上<b>「歌手、歌曲從哪裡加」</b>——
+    資料都是<b>你自己加</b>的，App 不會自動把一堆影片當成歌。<br>
+    右邊說明寫了三個入口；手機裡<b>都能真的點</b>：音樂庫右上「＋」、歌手頁「＋ 加歌」、粉紅「＋」浮動鈕，還有空的音樂庫第一次打開的引導。
+  </p>
+  <div class="stage">
+    <div class="phone" id="phone"></div>
+    <div class="notes" id="notes"></div>
+  </div>
+</div>
+<script>
+// ── 資料（影片 id 都是官方頻道 MV，2026-10-14 查過） ─────────────────
+const ARTISTS = {
+  jay: { name: '周杰倫', en: 'Jay Chou', img: 'https://yt3.googleusercontent.com/FPqiPaQ9oLussTZPAGcHkQPvv6r9EsxkLjepbYCLV53ZoAq6IYRTU_ld8JflMg3rt4-NTQ9URg=s400-c-k-c0x00ffffff-no-rj', subs: '754 萬', hero: 'DYptgVvkVLQ', color: '#3B6FB6' },
+  mayday: { name: '五月天', en: 'Mayday', img: 'https://yt3.googleusercontent.com/ytc/AIdro_kDrLS_QkHiC0cQ2UcHj5Q_c2euU1TeQGPlBeH3xSRdvYE=s400-c-k-c0x00ffffff-no-rj', subs: '218 萬', hero: 'GtDRcXtDg-4', color: '#2F8F6B' },
+  jj: { name: '林俊傑', en: 'JJ Lin', img: 'https://yt3.googleusercontent.com/88A8LNYmzNpjXeuHCAN2pK496G418wTT2CR2Qv5FGFoBPV-MKaRg7B-NeNVMlF0XHoW2AgAI_g=s400-c-k-c0x00ffffff-no-rj', subs: '410 萬', hero: 'G97_rOdHcnY', color: '#8A5A2B' },
+  gem: { name: '鄧紫棋', en: 'G.E.M.', img: 'https://i.ytimg.com/vi/T4SimnaiktU/mqdefault.jpg', subs: '563 萬', hero: 'T4SimnaiktU', color: '#7B3FA0' },
+};
+// [id, 歌名, 英文, 歌手, 年, 專輯, 長度秒, 類型, 心情]
+const RAW = [
+  ['DYptgVvkVLQ', '晴天', 'Sunny Day', 'jay', 2003, '葉惠美', 269, 'MV', ['懷舊', '想哭']],
+  ['bu7nU9Mhpyo', '告白氣球', 'Love Confession', 'jay', 2016, '周杰倫的床邊故事', 215, 'MV', ['開心']],
+  ['sHD_z90ZKV0', '稻香', 'Rice Field', 'jay', 2008, '魔杰座', 223, 'MV', ['開心', '放鬆']],
+  ['Bbp9ZaJD_eA', '七里香', 'Orange Jasmine', 'jay', 2004, '七里香', 299, 'MV', ['懷舊', '放鬆']],
+  ['Z8Mqw0b9ADs', '青花瓷', 'Blue and White Porcelain', 'jay', 2007, '我很忙', 239, 'MV', ['放鬆']],
+  ['6Q0Pd53mojY', '夜曲', 'Nocturne', 'jay', 2005, '十一月的蕭邦', 226, 'MV', ['想哭', '熱血']],
+  ['HK7SPnGSxLM', '說好不哭', "Won't Cry", 'jay', 2019, '單曲', 222, 'MV', ['想哭']],
+  ['kfXdP7nZIiE', '等你下課', 'Waiting For You', 'jay', 2018, '單曲', 270, '歌詞版', ['懷舊']],
+  ['Y4xCVlyCvX4', '簡單愛', 'Simple Love', 'jay', 2001, '范特西', 270, 'MV', ['開心']],
+  ['9q7JOQfcJQM', '以父之名', 'In The Name of The Father', 'jay', 2003, '葉惠美', 342, 'MV', ['熱血']],
+  ['1emA1EFsPMM', '最偉大的作品', 'Greatest Works of Art', 'jay', 2022, '最偉大的作品', 245, 'MV', ['熱血']],
+  ['YJfHuATJYsQ', '擱淺', 'Step Aside', 'jay', 2004, '七里香', 235, 'MV', ['想哭']],
+  ['uIWypArI73w', '不能說的祕密', 'Secret', 'jay', 2007, '不能說的秘密', 296, 'MV', ['懷舊', '想哭']],
+  ['1hI-7vj2FhE', '安靜', 'Silence', 'jay', 2001, '范特西', 334, 'MV', ['想哭', '放鬆']],
+  ['_B8RaLCNUZw', '聽媽媽的話', 'Listen to Mom', 'jay', 2006, '依然范特西', 266, 'MV', ['放鬆']],
+  ['VitJnr3IySc', '蒲公英的約定', "A Dandelion's Promise", 'jay', 2007, '我很忙', 247, 'MV', ['懷舊']],
+  ['R2s-H_crYkc', '倔強', 'Stubborn', 'mayday', 2004, '神的孩子都在跳舞', 260, 'MV', ['熱血']],
+  ['GtDRcXtDg-4', '突然好想你', 'Suddenly missing you so bad', 'mayday', 2008, '後青春期的詩', 265, 'MV', ['想哭', '懷舊']],
+  ['G97_rOdHcnY', '江南', 'River South', 'jj', 2004, '第二天堂', 268, 'MV', ['懷舊']],
+  ['LWV-f6dMN3Q', '修煉愛情', 'Practice Love', 'jj', 2013, '因你而在', 287, 'MV', ['想哭']],
+  ['T4SimnaiktU', '光年之外', 'Light Years Away', 'gem', 2016, '單曲', 235, 'MV', ['熱血']],
+  ['mGeiABBB5f8', '泡沫', 'Bubble', 'gem', 2012, 'Xposed', 259, 'MV', ['想哭']],
+];
+const SONGS = RAW.map(([id, t, en, a, y, al, len, type, moods], i) => ({ id, t, en, a, y, al, len, type, moods, ago: [2, 6, 13, 30, 45, 61, 90][i % 7] }));
+// 「新歌」：動態那版用，假裝最近幾天發的
+const FRESH = [
+  { id: '1emA1EFsPMM', what: '發了新影片', type: 'MV', days: 0.2 },
+  { id: 'HK7SPnGSxLM', what: '上傳了現場版', type: 'Live', days: 1 },
+  { id: 'T4SimnaiktU', what: '發了新影片', type: 'MV', days: 2 },
+  { id: 'kfXdP7nZIiE', what: '上傳了歌詞版', type: '歌詞版', days: 3 },
+  { id: 'GtDRcXtDg-4', what: '上傳了現場版', type: 'Live', days: 5 },
+  { id: 'LWV-f6dMN3Q', what: '發了新影片', type: 'MV', days: 8 },
+];
+const byId = id => SONGS.find(s => s.id === id);
+const thumb = id => `https://i.ytimg.com/vi/${id}/mqdefault.jpg`;
+// 大圖用 1280×720（沒有黑邊）；少數影片沒有（YouTube 回一張 120 寬的灰圖）就退回 480×360。
+const big = id => `https://i.ytimg.com/vi/${id}/maxresdefault.jpg`;
+const fmt = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+const img = (src, cls = '') => `<img class="${cls}" src="${src}" loading="lazy" alt="" onload="if(this.naturalWidth===120&&this.src.includes('maxresdefault'))this.src=this.src.replace('maxresdefault','hqdefault')" onerror="if(this.src.includes('maxresdefault'))this.src=this.src.replace('maxresdefault','hqdefault');else this.style.opacity=0">`;
+const cov = (id, cls = 'sq', w) => `<div class="cover ${cls}" ${w ? `style="width:${w}px"` : ''}>${img(thumb(id))}</div>`;
+
+// ── 狀態 ─────────────────────────────────────────────
+const S = {
+  v: 0, tab: 0, sub: null, now: null, playing: false, pos: 0, full: false, queue: [], qi: 0, shuffle: false, repeat: 0,
+  video: true, sheet: null, toast: null, search: '', libTab: '歌單', mood: null, deck: [], deckOut: null, feedFilter: '全部',
+  liked: new Set(['DYptgVvkVLQ', 'sHD_z90ZKV0', 'Bbp9ZaJD_eA']), later: new Set(), heard: new Set(),
+  lists: [
+    { id: 'p1', name: '開車必聽', ids: ['9q7JOQfcJQM', 'R2s-H_crYkc', 'T4SimnaiktU', '1emA1EFsPMM'] },
+    { id: 'p2', name: '晚上一個人', ids: ['6Q0Pd53mojY', '1hI-7vj2FhE', 'GtDRcXtDg-4', 'YJfHuATJYsQ', 'LWV-f6dMN3Q'] },
+  ],
+  recent: ['DYptgVvkVLQ', 'GtDRcXtDg-4', 'bu7nU9Mhpyo', 'G97_rOdHcnY', 'Z8Mqw0b9ADs'],
+};
+
+// ── 播放（模擬 YouTube 內嵌播放器：會走進度、播完自動下一首） ───────
+function play(id, list) {
+  const q = list && list.length ? list : [id];
+  S.queue = S.shuffle ? [id, ...q.filter(x => x !== id).sort(() => Math.random() - .5)] : q;
+  S.qi = Math.max(0, S.queue.indexOf(id));
+  S.now = id; S.pos = 0; S.playing = true;
+  S.recent = [id, ...S.recent.filter(x => x !== id)].slice(0, 8);
+  S.heard.add(id);
+}
+function next(auto) {
+  if (!S.now) return;
+  if (auto && S.repeat === 2) { S.pos = 0; return; }
+  if (S.qi < S.queue.length - 1) S.qi++;
+  else if (S.repeat === 1 || !auto) S.qi = 0;
+  else { S.playing = false; S.pos = byId(S.now).len; toast('佇列播完了'); return; }
+  S.now = S.queue[S.qi]; S.pos = 0; S.playing = true;
+  if (auto) toast('▶ 自動接下一首：' + byId(S.now).t);
+}
+function prev() { if (S.pos > 3) { S.pos = 0; return; } S.qi = Math.max(0, S.qi - 1); S.now = S.queue[S.qi]; S.pos = 0; }
+setInterval(() => {
+  if (!S.playing || !S.now) return;
+  const before = S.now;
+  S.pos += 1;
+  if (S.pos >= byId(S.now).len) next(true);
+  if (S.now !== before || !S.playing) paint(); else tick();
+}, 1000);
+function tick() {
+  // 只更新進度條，不重畫整頁
+  const s = byId(S.now); if (!s) return;
+  const pct = Math.min(100, S.pos / s.len * 100);
+  phone.querySelectorAll('[data-prog]').forEach(el => el.style.width = pct + '%');
+  phone.querySelectorAll('[data-knob]').forEach(el => el.style.left = pct + '%');
+  phone.querySelectorAll('[data-pos]').forEach(el => el.textContent = fmt(S.pos));
+}
+
+// ── 共用小元件 ─────────────────────────────────────────
+function songRow(s, opts = {}) {
+  const now = S.now === s.id;
+  const sub = opts.sub ?? `${ARTISTS[s.a].name}・${s.al}`;
+  return `<div class="song ${now ? 'now' : ''} ${now && !S.playing ? 'paused' : ''}" data-a="play" data-id="${s.id}" data-list="${opts.list || ''}">
+    ${opts.num ? `<div class="num">${opts.num}</div>` : ''}${cov(s.id)}
+    <div class="meta"><div class="nm">${now ? '<span class="eq"><i></i><i></i><i></i></span>' : ''}${esc(s.t)}</div>
+    <div class="sub">${s.type !== 'MV' ? `<span class="badge ${s.type === 'Live' ? 'b-live' : 'b-lyric'}">${s.type}</span>` : ''}${esc(sub)}</div></div>
+    ${S.liked.has(s.id) ? '<span style="color:var(--pink);font-size:13px">♥</span>' : ''}
+    <div class="dots" data-a="songMenu" data-id="${s.id}">⋮</div></div>`;
+}
+const listAttr = arr => arr.map(s => s.id || s).join(',');
+function mini() {
+  if (!S.now || S.full) return '';
+  const s = byId(S.now);
+  return `<div class="mini lg" data-a="openFull">${cov(s.id)}
+    <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(s.t)}</div>
+    <div class="note3">${ARTISTS[s.a].name}・YouTube</div></div>
+    <div class="ctl" data-a="toggle">${S.playing ? '❚❚' : '▶'}</div><div class="ctl" data-a="next">⏭</div>
+    <div class="pbar"><i data-prog style="width:${S.pos / s.len * 100}%"></i></div></div>`;
+}
+function tabbar(tabs) {
+  return `<div class="tabbar lg" style="width:${tabs.length * 84 + 8}px"><div class="blob" style="left:${4 + S.tab * 84}px"></div>
+    ${tabs.map(([ic, n], i) => `<button class="${S.tab === i ? 'on' : ''}" data-a="tab" data-i="${i}"><span>${ic}</span>${n}</button>`).join('')}</div>`;
+}
+function fullPlayer() {
+  const s = byId(S.now), a = ARTISTS[s.a];
+  const up = S.queue.slice(S.qi + 1, S.qi + 4).map(byId);
+  return `<div class="player" style="background:#0d0d14"><div class="bgimg" style="background-image:url(${big(s.id)})"></div>
+    <div class="row" style="margin-bottom:12px"><div class="ib" data-a="closeFull">⌄</div><div class="sp" style="text-align:center;font-size:12px;color:var(--ink2)">播放自 ${S.queue.length > 1 ? '佇列（' + S.queue.length + ' 首）' : '單曲'}</div><div class="ib" data-a="songMenu" data-id="${s.id}">⋯</div></div>
+    <div class="seg2"><button class="${S.video ? 'on' : ''}" data-a="video" data-v="1">看 MV</button><button class="${S.video ? '' : 'on'}" data-a="video" data-v="0">只聽</button></div>
+    ${S.video ? `<div class="ytbox">${img(big(s.id))}<div class="ytlogo">▶</div><div class="lbl">YouTube 內嵌播放器（這裡用縮圖示意）</div></div>`
+      : `<div class="bigart">${img(big(s.id))}</div><div class="ytbox small" style="margin-top:10px">${img(thumb(s.id))}<div class="lbl" style="font-size:8px">播放器縮小</div></div>`}
+    <div class="row" style="margin-top:18px"><div style="flex:1;min-width:0"><div style="font-size:22px;font-weight:900">${esc(s.t)}</div>
+      <div class="note" style="font-size:14px">${a.name}・${s.al}（${s.y}）</div></div>
+      <div class="ib" data-a="like" data-id="${s.id}" style="font-size:22px;color:${S.liked.has(s.id) ? 'var(--pink)' : 'var(--ink2)'}">${S.liked.has(s.id) ? '♥' : '♡'}</div></div>
+    <div class="prog" data-a="seek"><i data-prog style="width:${S.pos / s.len * 100}%"></i><b data-knob style="left:${S.pos / s.len * 100}%"></b></div>
+    <div class="row note3"><span data-pos>${fmt(S.pos)}</span><span class="sp"></span><span>${fmt(s.len)}</span></div>
+    <div class="ctls"><div class="c ${S.shuffle ? 'on' : ''}" data-a="shuffle">⇄</div><div class="c" data-a="prev" style="color:#fff">⏮</div>
+      <div class="big" data-a="toggle">${S.playing ? '❚❚' : '▶'}</div><div class="c" data-a="next" style="color:#fff">⏭</div>
+      <div class="c ${S.repeat ? 'on' : ''}" data-a="repeat">${S.repeat === 2 ? '🔂' : '🔁'}</div></div>
+    <div class="row" style="justify-content:center;gap:10px"><button class="btn ghost sm" data-a="addTo" data-id="${s.id}">＋ 加到歌單</button>
+      <a class="btn ghost sm ytlink" href="https://www.youtube.com/watch?v=${s.id}" target="_blank" rel="noopener">在 YouTube 開啟 ↗</a></div>
+    ${up.length ? `<div class="h2" style="font-size:15px;margin-top:20px">接下來<span class="more" data-a="queue">全部 ›</span></div>${up.map(x => songRow(x, { list: listAttr(S.queue) })).join('')}` : ''}
+    <div class="limit">⚠ <b>YouTube 的限制</b>：iPhone 網頁版<b>鎖螢幕或切到別的 App 就會停</b>（Apple 對網頁的限制，YouTube App 本身要 Premium 才行）。想背景聽 → 按「在 YouTube 開啟」。
+      「只聽」也不能把影片藏起來，YouTube 規定播放器要看得到，只能縮小放在角落。有沒有廣告是 YouTube 決定的。</div></div>`;
+}
+function sheetHtmlBase() {
+  if (!S.sheet) return '';
+  const s = S.sheet.id && byId(S.sheet.id);
+  let body = '';
+  if (S.sheet.k === 'menu') body = `<div class="row" style="margin-bottom:6px">${cov(s.id, 'sq', 48)}<div><b>${esc(s.t)}</b><div class="note3">${ARTISTS[s.a].name}・${s.y}</div></div></div>
+    <div class="act" data-a="playNext" data-id="${s.id}">⤵︎　下一首播放</div><div class="act" data-a="addTo" data-id="${s.id}">≡＋ 加到歌單…</div>
+    <div class="act" data-a="like" data-id="${s.id}">${S.liked.has(s.id) ? '♥　取消喜歡' : '♡　喜歡'}</div><div class="act" data-a="goArtist" data-ar="${s.a}">👤　去歌手頁</div>
+    <div class="act" data-a="editSong" data-id="${s.id}">✎　編輯歌曲資訊（歌名、類型、年份）</div>
+    <div class="act" data-a="unsong" data-id="${s.id}" style="color:#FF7A7A">♪̸　不算歌曲（移出音樂庫，影片還在 YT）</div>
+    <a class="act ytlink" style="color:inherit" href="https://www.youtube.com/watch?v=${s.id}" target="_blank" rel="noopener">↗　在 YouTube 開啟</a>`;
+  if (S.sheet.k === 'addTo') body = `<b style="font-size:16px">加到歌單</b><div class="note3" style="margin-bottom:6px">可以勾好幾個（跟 YT 播放清單同一套）</div>
+    ${[{ id: 'liked', name: '♥ 喜歡的歌', ids: [...S.liked] }, ...S.lists].map(p => { const on = p.ids.includes(s.id); return `<div class="act" data-a="toggleList" data-p="${p.id}" data-id="${s.id}">
+      <span style="width:22px;height:22px;border-radius:6px;display:grid;place-items:center;border:2px solid ${on ? 'var(--ios)' : 'var(--ink3)'};background:${on ? 'var(--ios)' : 'transparent'};font-size:12px">${on ? '✓' : ''}</span>${esc(p.name)}<span class="sp"></span><span class="note3">${p.ids.length}</span></div>`; }).join('')}
+    <div class="act" data-a="newList" data-id="${s.id}" style="color:var(--ios)">＋　新增歌單</div>`;
+  if (S.sheet.k === 'queue') body = `<b style="font-size:16px">播放佇列</b><div class="note3" style="margin-bottom:6px">${S.shuffle ? '隨機中・' : ''}${S.queue.length} 首</div>` +
+    S.queue.map((id, i) => `<div style="opacity:${i < S.qi ? .45 : 1}">${songRow(byId(id), { list: listAttr(S.queue), num: i === S.qi ? '▶' : i + 1 })}</div>`).join('');
+  return `<div class="scrim" data-a="closeSheet"><div class="sheet" data-stop><div class="handle"></div>${body}</div></div>`;
+}
+function toast(m) { S.toast = m; clearTimeout(toast.t); toast.t = setTimeout(() => { S.toast = null; paint(); }, 2000); }
+
+function withTab(i, fn) { const t = S.tab; S.tab = i; try { return fn(); } finally { S.tab = t; } }
+
+// ── 最終版：哪些是「你加的」 ────────────────────────────
+// 歌手＝YT 管理裡標成「歌手頻道」的頻道；歌曲＝標成「♪ 歌曲」的影片。兩邊同一份資料、同步。
+S.artistOn = new Set(['jay', 'mayday', 'jj', 'gem']);
+S.songOn = new Set(SONGS.map(s => s.id));
+S.empty = false;      // 「模擬：空的音樂庫」
+S.addArtistQ = '';
+S.edit = {};          // 歌曲資訊改過的
+// YT 追蹤裡、在音樂分類、還不是歌手的頻道（可以直接加）
+const MORE_CH = {
+  wonfu: { name: '告五人', en: 'Accusefive', color: '#2F6FB0', subs: '96 萬' },
+  eggplant: { name: '茄子蛋', en: 'EggPlantEgg', color: '#9A5B2E', subs: '61 萬' },
+  jolin: { name: '蔡依林', en: 'Jolin Tsai', color: '#B0367A', subs: '245 萬' },
+};
+// 每個歌手頻道裡、還沒標成歌曲的影片（快取裡的上傳清單）——有的是歌、有的不是（vlog、花絮）
+// 不是歌手的頻道（綜藝、翻唱），標題提到歌手名字的影片也會被找出來
+const OTHER_CH = { show: { name: '綜藝玩很大', color: '#6B6B80' } };
+const CAND = {
+  show: [['sh_c1', '周杰倫 突襲現場 清唱【稻香】超感動', '現場', 2021, 190], ['sh_c2', '綜藝玩很大 第 300 集 精華', '', 2021, 2400]],
+  jay: [
+    ['jay_c1', '周杰倫 Jay Chou【聖誕星 Christmas Star】Official MV', 'MV', 2023, 252],
+    ['jay_c2', '周杰倫 Jay Chou【嘉年華 Carnival】2019 演唱會 Live', '現場', 2019, 301],
+    ['jay_c3', '周杰倫 最偉大的作品 拍攝花絮 Behind The Scenes', '', 2022, 412],
+    ['jay_c4', '周杰倫 Jay Chou【粉色海洋 Pink Ocean】Lyric Video', '歌詞版', 2022, 210],
+    ['jay_c5', '周杰倫的嘉年華 演唱會 宣傳影片', '', 2023, 31],
+  ],
+  mayday: [['md_c3', '五月天 x 周杰倫【倔強】演唱會合唱 Live', '現場', 2024, 288], ['md_c1', '五月天 MAYDAY [ 頑固 Gu Gu ] Official Music Video', 'MV', 2016, 279], ['md_c2', '五月天 演唱會 後台 vlog', '', 2024, 600]],
+  jj: [['jj_c1', '林俊傑 JJ Lin《孤獨的人不孤單》Official MV', 'MV', 2023, 264]],
+  gem: [['gem_c1', 'G.E.M.鄧紫棋【倒數 TIK TOK】Official MV', 'MV', 2018, 230]],
+  wonfu: [['wf_c1', '告五人 Accusefive [ 愛人錯過 ] Official Music Video', 'MV', 2019, 268], ['wf_c2', '告五人 [ 給你一瓶魔法藥水 ] Official Music Video', 'MV', 2020, 262], ['wf_c3', '告五人 巡演紀錄片', '', 2023, 1201]],
+  eggplant: [['ep_c1', '茄子蛋 EggPlantEgg - 浪子回頭 Official Music Video', 'MV', 2017, 286]],
+  jolin: [['jl_c1', '蔡依林 Jolin Tsai《玫瑰少年 Womxnly》Official Music Video', 'MV', 2018, 246]],
+};
+// 影片標題 → 建議的歌名：拿掉歌手名、Official MV、Live、Lyric 這些
+function guessTitle(raw, a) {
+  const art = ARTISTS[a] || MORE_CH[a];
+  let t = raw.replace(art ? art.name : '', '').replace(art ? art.en : '', '').replace(/G\.E\.M\.|MAYDAY|JJ Lin|Jay Chou|EggPlantEgg|Accusefive|Jolin Tsai/gi, '');
+  const m = t.match(/[【《\[]\s*([^】》\]]+?)\s*[】》\]]/);
+  if (m) t = m[1];
+  t = t.replace(/Official( Music)? (Video|MV)|Lyric Video|Live|演唱會|- /gi, '').replace(/\s+/g, ' ').trim();
+  return t.split(' ')[0] || raw;
+}
+Object.assign(ARTISTS, MORE_CH);
+const allArtists = () => ARTISTS;
+// 標題裡提到的歌手（合唱、feat.、別人頻道上的）都算這首歌的歌手
+const guessArtists = (raw, ch) => { const hit = Object.keys(ARTISTS).filter(k => raw.includes(ARTISTS[k].name) || (ARTISTS[k].en && raw.toLowerCase().includes(ARTISTS[k].en.toLowerCase()))); return ARTISTS[ch] ? [ch, ...hit.filter(k => k !== ch)] : hit; };
+const artistsOf = s => (S.edit[s.id] && S.edit[s.id].as) || s.as || [s.a];
+const names = s => artistsOf(s).map(k => ARTISTS[k].name).join('、');
+function addSongFromCand(ch, c) {
+  const [id, raw, type, y, len] = c;
+  const as = guessArtists(raw, ch), a = as[0] || ch;
+  if (!byId(id)) SONGS.push({ id, t: guessTitle(raw, ARTISTS[a] ? a : ch), en: '', a, as, ch, y, al: '單曲', len, type: type === '現場' ? 'Live' : type || 'MV', moods: [], ago: 1, raw });
+  S.songOn.add(id);
+}
+const mySongs = () => S.empty ? [] : SONGS.filter(s => S.songOn.has(s.id) && artistsOf(s).some(k => S.artistOn.has(k))).map(s => ({ ...s, ...(S.edit[s.id] || {}) }));
+const songOf = id => { const s = byId(id); return s && { ...s, ...(S.edit[id] || {}) }; };
+const S_artistKeys = () => [...S.artistOn];
+const myArtists = () => S.empty ? [] : [...S.artistOn];
+const avatar = (k, w) => { const a = allArtists()[k]; return a.img ? `<div class="cover round sq" style="width:${w}px">${img(a.img)}</div>` : `<div class="cover round sq avatar0" style="width:${w}px;background:${a.color}">${a.name[0]}</div>`; };
+
+function artistPage(k) {
+  const a = ARTISTS[k], list = SONGS.filter(s => s.a === k), top = list.slice(0, 5);
+  const albums = [...new Set(list.map(s => s.al))].map(al => list.find(s => s.al === al));
+  return `<div class="hero">${img(big(a.hero))}<div class="back" data-a="back">‹</div><div class="hn"><b>${a.name}</b><span class="note">${a.en}・訂閱 ${a.subs}・${list.length} 首</span></div></div>
+    <div class="row" style="margin:14px 0 4px"><button class="btn pink" data-a="playAll" data-list="${listAttr(list)}" data-shuffle="1">⇄ 隨機播放</button><button class="btn ghost" data-a="playAll" data-list="${listAttr(list)}">▶ 播放</button><span class="sp"></span><span class="chip">追蹤中 ✓</span></div>
+    <div class="h2">熱門</div>${top.map((s, i) => songRow(s, { num: i + 1, list: listAttr(list), sub: `${s.al}・${s.y}` })).join('')}
+    <div class="h2">專輯・單曲</div><div class="hscroll">${albums.map(s => `<div class="tile" data-a="playAll" data-list="${listAttr(list.filter(x => x.al === s.al))}">${cov(s.id, 'sq', 132)}<div class="tt">${esc(s.al)}</div><div class="note3">${s.y}・${list.filter(x => x.al === s.al).length} 首</div></div>`).join('')}</div>
+    <div class="h2">全部 ${list.length} 首<span class="more">依年份 ▾</span></div>${list.slice().sort((x, y) => y.y - x.y).map(s => songRow(s, { list: listAttr(list), sub: `${s.y}・${s.al}` })).join('')}`;
+}
+function listPage(pid) {
+  const p = pid === 'liked' ? { name: '喜歡的歌', ids: [...S.liked] } : S.lists.find(x => x.id === pid);
+  const l = p.ids.map(byId);
+  return `<div class="bar"><div class="ib" data-a="back" style="font-size:22px">‹</div><div class="sp"></div><div class="ib">⋯</div></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;width:190px;height:190px;margin:0 auto;border-radius:16px;overflow:hidden;box-shadow:0 18px 40px rgba(0,0,0,.5)">${[0, 1, 2, 3].map(i => l[i] ? `<div class="cover" style="border-radius:0">${img(thumb(l[i].id))}</div>` : '<div style="background:#1b1b28"></div>').join('')}</div>
+    <div style="text-align:center;margin:14px 0 4px;font-size:22px;font-weight:900">${esc(p.name)}</div><div class="note" style="text-align:center">${l.length} 首・${fmt(l.reduce((t, s) => t + s.len, 0))}</div>
+    <div class="row" style="justify-content:center;margin:14px 0"><button class="btn" data-a="playAll" data-list="${listAttr(l)}">▶ 播放</button><button class="btn ghost" data-a="playAll" data-list="${listAttr(l)}" data-shuffle="1">⇄ 隨機</button></div>
+    ${l.map(s => songRow(s, { list: listAttr(l) })).join('') || '<div class="note3" style="text-align:center;padding:20px">還沒有歌，在歌曲 ⋮ 選「加到歌單」</div>'}`;
+}
+
+const COMMON = `<div class="box"><b>五版都一樣的地方</b><ul>
+  <li><b>歌從哪來</b>：你在 YT 頻道追蹤裡追的<b>官方頻道</b>，一首歌＝一支影片；自動分 MV／現場／歌詞版。資料、快取、同步都沿用 YT 那套。</li>
+  <li><b>怎麼播</b>：App 裡面的 <b>YouTube 內嵌播放器</b>（現在點影片用的那個）。能連續播（YouTube 播放器會說「播完了」，App 接著放下一首）、隨機、重複、佇列。</li>
+  <li><b>看 MV／只聽</b>：只聽時影片縮小在角落，<b>不能完全藏起來</b>（YouTube 規定播放器要看得到）。</li>
+  <li><b>收藏、歌單</b>：跟 YT 播放清單同一套（⋮ → 加到歌單，可勾好幾個），多裝置同步。</li></ul></div>
+  <div class="box warn"><b>⚠ 網頁接 YouTube 做不到的</b><ul>
+  <li><b>iPhone 鎖螢幕或切到別的 App 就會停</b>——Apple 不讓網頁在背景播影片（YouTube App 本身也要 Premium）。每首歌都有「在 YouTube 開啟」可以跳過去聽。</li>
+  <li>不能下載、不能抓音檔、不能去廣告（廣告是 YouTube 決定的）。</li>
+  <li>歌詞：YouTube 不給，只能看影片裡有沒有字幕。</li></ul></div>`;
+
+// ── 新增歌手／歌曲的面板 ─────────────────────────────
+function sheetHtml() {
+  if (!S.sheet) return '';
+  const k = S.sheet.k;
+  let body = '';
+  if (k === 'add') body = `<b style="font-size:17px">新增</b><div class="note3" style="margin-bottom:6px">你加的才會出現在音樂庫</div>
+    <div class="act" data-a="sheetAddArtist">👤　加歌手<span class="sp"></span><span class="note3">從 YT 追蹤的頻道挑、或貼頻道網址</span></div>
+    <div class="act" data-a="sheetPickArtistForSong">♪　加歌曲<span class="sp"></span><span class="note3">先選歌手，再勾哪幾部是歌</span></div>
+    <div class="act" data-a="sheetPasteSong">🔗　貼一首歌的 YouTube 網址</div>
+    <div class="act" data-a="newList">≡＋ 新增歌單</div>`;
+  if (k === 'addArtist') {
+    const q = S.addArtistQ.trim();
+    const all = allArtists();
+    const rows = Object.keys(all).filter(x => !q || (all[x].name + all[x].en).toLowerCase().includes(q.toLowerCase()));
+    body = `<b style="font-size:17px">加歌手</b><div class="note3">你在 YT 管理裡<b>音樂分類</b>的頻道（跟 YT 那邊「標成歌手」是同一件事，兩邊都會打勾）</div>
+      <div class="field">⌕<input data-k="addArtistQ" placeholder="找頻道" value="${esc(S.addArtistQ)}"></div>
+      ${rows.map(x => { const on = S.artistOn.has(x); return `<div class="cand">${avatar(x, 40)}<div class="meta"><div class="nm" style="font-size:14px">${all[x].name}</div><div class="note3">${all[x].en}・訂閱 ${all[x].subs}</div></div>
+        ${on ? `<span class="pill p-on" data-a="toggleArtist" data-ar="${x}">歌手 ✓</span>` : `<span class="pill p-add" data-a="toggleArtist" data-ar="${x}">＋ 加</span>`}</div>`; }).join('')}
+      <div class="lbl2">不在上面？貼 YouTube 頻道網址（會自動抓名字跟頭像，一起加進 YT 追蹤的音樂分類）</div>
+      <div class="field">🔗<input placeholder="https://www.youtube.com/@..." id="chUrl"></div>
+      <button class="btn sm pink" data-a="pasteChannel" style="margin-top:4px">加這個頻道</button>`;
+  }
+  if (k === 'pickArtist') body = `<b style="font-size:17px">加歌曲：先選歌手</b>${myArtists().map(x => `<div class="cand" data-a="openCand" data-ar="${x}" style="cursor:pointer">${avatar(x, 40)}<div class="meta"><div class="nm" style="font-size:14px">${allArtists()[x].name}</div><div class="note3">還有 ${(CAND[x] || []).filter(c => !S.songOn.has(c[0])).length} 部影片沒標</div></div><span class="note3">›</span></div>`).join('') || '<div class="note3" style="padding:16px 0">還沒有歌手，先加歌手</div>'}`;
+  if (k === 'cand') {
+    const a = S.sheet.ar, list = CAND[a] || [];
+    body = `<div class="row" style="margin-bottom:4px">${avatar(a, 34)}<b style="font-size:16px">${allArtists()[a].name} 的影片</b></div>
+      <div class="note3" style="margin-bottom:6px">從這個頻道抓過的影片（YT 快取，不花配額）。<b>點 ♪ 標成歌曲</b>，花絮、vlog 不要標就好。標了會自動猜歌名，之後可以改。</div>
+      ${list.map(c => { const on = S.songOn.has(c[0]); return `<div class="cand"><div class="cover" style="background:linear-gradient(135deg,${allArtists()[a].color || '#334'},#15151f)">${c[2] ? '♪' : '🎬'}</div>
+        <div class="meta"><div class="nm">${esc(c[1])}</div><div class="note3">${c[3]}・${fmt(c[4])}${on ? `・歌名「${esc(songOf(c[0]).t)}」` : ''}</div></div>
+        <div class="tog ${on ? 'on' : ''}" data-a="toggleCand" data-ar="${a}" data-id="${c[0]}">♪</div></div>`; }).join('')}
+      <div class="lbl2">這個頻道比較舊的影片還沒抓？</div><button class="btn sm ghost" data-a="toastMore" style="margin-top:4px">抓這個頻道全部影片（跟 YT 管理同一套快取）</button>`;
+  }
+  if (k === 'paste') body = `<b style="font-size:17px">貼一首歌的網址</b><div class="note3">YouTube 影片網址就行；頻道還不是歌手的話會順便問要不要加</div>
+    <div class="field">🔗<input placeholder="https://youtu.be/..." id="songUrl" value="https://youtu.be/wf_c2"></div><button class="btn sm pink" data-a="pasteSong" style="margin-top:4px">加進音樂庫</button>`;
+  if (k === 'edit') {
+    const s = songOf(S.sheet.id), types = ['MV', 'Live', '歌詞版', 'Cover'];
+    body = `<div class="row" style="margin-bottom:8px">${cov(s.id, 'sq', 48)}<div style="min-width:0"><b>編輯歌曲資訊</b><div class="note3" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">原標題：${esc(s.raw || s.t + ' (Official MV)')}</div></div></div>
+      <div class="lbl2">歌名（從標題自動猜的，可以改）</div><div class="field"><input id="edT" value="${esc(s.t)}"></div>
+      <div class="lbl2">歌手（合唱就選好幾個；從標題自動找的）</div><div class="seg">${S_artistKeys().map(k => `<span class="${artistsOf(s).includes(k) ? 'on' : ''}" data-a="edArtist" data-ar="${k}" data-id="${s.id}">${ARTISTS[k].name}</span>`).join('')}</div>
+      <div class="lbl2">類型</div><div class="seg">${types.map(t => `<span class="${s.type === t ? 'on' : ''}" data-a="edType" data-t="${t}" data-id="${s.id}">${t === 'Live' ? '現場' : t}</span>`).join('')}</div>
+      <div class="row"><div style="flex:1"><div class="lbl2">年份（預設上傳年）</div><div class="field"><input id="edY" value="${s.y}"></div></div><div style="flex:1.4"><div class="lbl2">專輯（選填）</div><div class="field"><input id="edA" value="${esc(s.al === '單曲' ? '' : s.al)}" placeholder="單曲"></div></div></div>
+      <button class="btn pink" data-a="saveEdit" data-id="${s.id}" style="width:100%;justify-content:center;margin-top:10px">儲存</button>`;
+  }
+  if (!body) return sheetHtmlBase();
+  return `<div class="scrim" data-a="closeSheet"><div class="sheet" data-stop><div class="handle"></div>${body}</div></div>`;
+}
+
+// 空的音樂庫：第一次打開的引導
+function onboarding() {
+  return `<div class="onb"><div style="font-size:46px">🎵</div><div style="font-size:20px;font-weight:900;margin-top:6px">音樂庫還是空的</div>
+    <div class="note" style="margin-top:4px">歌是你自己挑的：先加歌手，再勾他哪幾部影片是歌</div>
+    <div class="step"><b class="n">1</b><div><b>加歌手</b><div class="note3">從 YT 追蹤的音樂分類挑，或貼頻道網址</div><button class="btn sm pink" data-a="sheetAddArtist" style="margin-top:6px">＋ 加歌手</button></div></div>
+    <div class="step"><b class="n">2</b><div><b>勾哪些影片是歌</b><div class="note3">歌手頁「＋ 加歌」，或在 YT 管理往左滑影片按「♪ 歌曲」</div></div></div>
+    <div class="step"><b class="n">3</b><div><b>開始聽</b><div class="note3">點一首就播，可以做歌單、隨機、重複</div></div></div>
+    <div class="note3" style="margin-top:14px">之前在 YT 管理已經標過的歌手、歌曲，<b>會直接出現在這裡</b></div></div>`;
+}
+
+// 歌手頁：多一顆「＋ 加歌」
+function artistPage2(k) {
+  if (!ARTISTS[k].hero) {
+    const a = ARTISTS[k], list = mySongs().filter(s => artistsOf(s).includes(k));
+    return `<div class="bar"><div class="ib" data-a="back" style="font-size:22px">‹</div></div><div style="text-align:center">${avatar(k, 120).replace('class="cover', 'style="margin:0 auto" class="cover')}<div style="font-size:26px;font-weight:900;margin-top:10px">${a.name}</div><div class="note">${a.en}・${list.length} 首</div></div>
+      <div class="row" style="margin:14px 0;justify-content:center"><button class="btn pink" data-a="playAll" data-list="${listAttr(list)}" ${list.length ? '' : 'disabled'}>▶ 播放</button><button class="btn ghost" data-a="openCand" data-ar="${k}">＋ 加歌</button></div>
+      ${list.map(s => songRow(s, { list: listAttr(list), sub: s.y + '・' + s.al })).join('') || '<div class="note3" style="text-align:center;padding:20px">還沒有歌：按「＋ 加歌」勾他哪幾部影片是歌</div>'}`;
+  }
+  return artistPage(k).replace('<span class="chip">追蹤中 ✓</span>', `<button class="btn ghost sm" data-a="openCand" data-ar="${k}">＋ 加歌</button>`) + featPart(k);
+}
+// 合唱、在別人頻道上的歌＋快取裡標題提到他、還沒標的（建議）
+function featPart(k) {
+  const a = ARTISTS[k];
+  const feat = mySongs().filter(s => s.a !== k && artistsOf(s).includes(k));
+  const sug = Object.entries(CAND).flatMap(([ch, l]) => l.filter(c => ch !== k && !S.songOn.has(c[0]) && (c[1].includes(a.name) || (a.en && c[1].toLowerCase().includes(a.en.toLowerCase())))).map(c => [ch, c]));
+  const chName = ch => (ARTISTS[ch] || OTHER_CH[ch]).name;
+  return (feat.length ? `<div class="h2">合唱・在別的頻道</div>${feat.map(s => songRow(s, { list: listAttr(feat), sub: '在「' + chName(s.ch || s.a) + '」頻道・' + names(s) })).join('')}` : '') +
+    (sug.length ? `<div class="h2">可能也是他的<span class="more" style="cursor:default">從 YT 快取找到</span></div><div class="note3" style="margin:-6px 0 6px">別的頻道標題提到「${a.name}」、還沒標成歌的影片（不花配額）。是歌就按 ♪</div>${sug.map(([ch, c]) => `<div class="cand"><div class="cover" style="background:linear-gradient(135deg,${(ARTISTS[ch] || OTHER_CH[ch]).color},#15151f)">${c[2] ? '♪' : '🎬'}</div><div class="meta"><div class="nm">${esc(c[1])}</div><div class="note3">「${chName(ch)}」頻道・${c[3]}</div></div><div class="tog" data-a="toggleCand" data-ar="${ch}" data-id="${c[0]}">♪</div></div>`).join('')}` : '');
+}
+
+// ── 最終版畫面（第 1 版＋新增入口） ─────────────────────
+const TABS = [['⌂', '首頁'], ['⌕', '搜尋'], ['♫', '音樂庫']];
+function render() {
+  if (S.sub && S.sub.k === 'artist') return artistPage2(S.sub.ar);
+  if (S.sub && S.sub.k === 'list') return listPage(S.sub.p);
+  const songs = mySongs();
+  if (S.tab === 0) {
+    if (!songs.length) return `<div class="bar"><div class="t">音樂</div></div>${onboarding()}`;
+    const qp = songs.slice(0, 16), recent = S.recent.filter(id => songs.some(s => s.id === id));
+    return `<div class="bar"><div class="t">晚安</div><div class="ib" data-a="openAdd">＋</div></div>
+      <div class="chips">${['全部', 'MV', '現場', '歌詞版'].map((c, i) => `<span class="chip ${(S.home || '全部') === c ? 'on' : ''}" data-a="home" data-t="${c}">${c}</span>`).join('')}</div>
+      ${recent.length ? `<div class="h2">最近播放</div><div class="hscroll">${recent.map(id => { const s = songOf(id); return `<div class="tile" data-a="play" data-id="${id}" data-list="${recent.join(',')}">${cov(id, 'sq', 132)}<div class="tt">${esc(s.t)}</div><div class="note3">${allArtists()[s.a].name}</div></div>`; }).join('')}</div>` : ''}
+      <div class="h2">快速選曲<span class="more" data-a="playAll" data-list="${listAttr(qp)}">全部播放</span></div>
+      <div class="qp">${qp.filter(s => !S.home || S.home === '全部' || (S.home === '現場' ? s.type === 'Live' : s.type === S.home)).map(s => songRow(s, { list: listAttr(qp) })).join('')}</div>
+      <div class="h2">你的歌手<span class="more" data-a="sheetAddArtist">＋ 加歌手</span></div><div class="hscroll">${myArtists().map(k => `<div class="tile" style="width:96px;text-align:center" data-a="goArtist" data-ar="${k}">${avatar(k, 96)}<div class="tt">${allArtists()[k].name}</div></div>`).join('')}</div>`;
+  }
+  if (S.tab === 1) {
+    const q = S.search.trim();
+    const hits = q ? songs.filter(s => (s.t + s.en + allArtists()[s.a].name + (allArtists()[s.a].en || '') + s.al).toLowerCase().includes(q.toLowerCase())) : [];
+    return `<div class="bar"><div class="t">搜尋</div></div><div class="search">⌕<input data-k="search" placeholder="歌名、歌手、專輯" value="${esc(S.search)}"></div>
+      ${q ? `<div class="note3" style="margin:10px 0 4px">你的音樂庫找到 ${hits.length} 首</div>${hits.map(s => songRow(s, { list: listAttr(hits) })).join('')}
+        <div style="text-align:center;padding:24px 10px" class="note">${hits.length ? '還想找別的？' : `你的音樂庫沒有「${esc(q)}」`}<br><span class="ytlink" style="cursor:pointer" data-a="sheetPasteSong">貼 YouTube 網址加進來</span>・<a class="ytlink" href="https://www.youtube.com/results?search_query=${encodeURIComponent(q)}" target="_blank">去 YouTube 搜 ↗</a></div>`
+      : `<div class="h2">試試看</div><div class="chips" style="flex-wrap:wrap">${['晴天', 'jay', '七里香', '五月天', '光年'].map(k => `<span class="chip" data-a="quick" data-q="${k}">${k}</span>`).join('')}</div>`}`;
+  }
+  const tabs = ['歌單', '喜歡的歌', '歌手', '全部歌曲'];
+  let body = '';
+  if (S.libTab === '歌單') body = `<div class="song" data-a="openList" data-p="liked"><div class="cover sq" style="width:50px;background:linear-gradient(135deg,#FF6FAE,#7E5BFF);display:grid;place-items:center;font-size:20px">♥</div><div class="meta"><div class="nm">喜歡的歌</div><div class="sub">${S.liked.size} 首</div></div></div>` +
+    S.lists.map(p => `<div class="song" data-a="openList" data-p="${p.id}">${cov(p.ids[0])}<div class="meta"><div class="nm">${esc(p.name)}</div><div class="sub">歌單・${p.ids.length} 首</div></div></div>`).join('') +
+    `<div class="song" data-a="newList"><div class="cover sq" style="width:50px;display:grid;place-items:center;font-size:22px;border:1.5px dashed var(--line);background:none">＋</div><div class="meta"><div class="nm">新增歌單</div></div></div>`;
+  if (S.libTab === '喜歡的歌') { const l = [...S.liked].map(songOf).filter(s => s && S.songOn.has(s.id)); body = l.map(s => songRow(s, { list: listAttr(l) })).join('') || '<div class="note3" style="padding:20px;text-align:center">還沒有</div>'; }
+  if (S.libTab === '歌手') body = myArtists().map(k => `<div class="song" data-a="goArtist" data-ar="${k}">${avatar(k, 50)}<div class="meta"><div class="nm">${allArtists()[k].name}</div><div class="sub">${songs.filter(s => s.a === k).length} 首・訂閱 ${allArtists()[k].subs}</div></div></div>`).join('') +
+    `<div class="song" data-a="sheetAddArtist"><div class="cover round sq" style="width:50px;display:grid;place-items:center;font-size:22px;border:1.5px dashed var(--line);background:none">＋</div><div class="meta"><div class="nm">加歌手</div><div class="sub">從 YT 追蹤的音樂分類挑</div></div></div>`;
+  if (S.libTab === '全部歌曲') body = `<div class="note3" style="margin-bottom:4px">${songs.length} 首・新加的在上面</div>` + songs.slice().reverse().map(s => songRow(s, { list: listAttr(songs) })).join('') +
+    `<div class="song" data-a="sheetPickArtistForSong"><div class="cover sq" style="width:50px;display:grid;place-items:center;font-size:22px;border:1.5px dashed var(--line);background:none">＋</div><div class="meta"><div class="nm">加歌曲</div><div class="sub">選歌手 → 勾哪幾部是歌</div></div></div>`;
+  return `<div class="bar"><div class="t">音樂庫</div><div class="ib" data-a="openAdd" style="font-size:22px">＋</div></div>
+    <div class="chips" style="margin-bottom:8px">${tabs.map(t => `<span class="chip ${S.libTab === t ? 'on' : ''}" data-a="libTab" data-t="${t}">${t}</span>`).join('')}</div>${songs.length || S.libTab === '歌單' ? body : onboarding()}`;
+}
+// songRow 用改過的歌名
+const _songRow = songRow;
+songRow = (s, o = {}) => { const x = songOf(s.id) || s; return _songRow(x, { ...o, sub: o.sub ?? (names(x) + '・' + x.al) }); };
+const _byId = byId;
+
+// ── 畫面 ─────────────────────────────────────────────
+const phone = document.getElementById('phone');
+function paint(keep = true) {
+  const sc = phone.querySelector('.screen'), y = sc && keep ? sc.scrollTop : 0;
+  const ae = document.activeElement, k = ae && phone.contains(ae) && ae.dataset.k, caret = k ? ae.selectionStart : null;
+  phone.innerHTML = `<div class="bgglow" style="background:radial-gradient(120% 70% at 30% 0%, rgba(59,111,182,.45), transparent 70%)"></div><div class="status"><span>21:41</span><span>▮▮▮ ◔ 82%</span></div>
+    <div class="screen">${render()}</div>${mini()}${S.full || S.sub ? '' : '<div class="fab" data-a="openAdd" title="新增歌手／歌曲">＋</div>'}${S.full ? '' : tabbar(TABS)}${S.full ? fullPlayer() : ''}${sheetHtml()}
+    ${S.toast ? `<div class="toast">${S.toast}</div>` : ''}<div class="home-ind"></div>`;
+  phone.querySelector('.screen').scrollTop = y;
+  if (k) { const el = phone.querySelector(`[data-k="${k}"]`); if (el) { el.focus(); el.setSelectionRange(caret, caret); } }
+}
+document.getElementById('notes').innerHTML = `<h2>最終版：音樂庫分頁＋你自己加歌手、歌曲</h2><span class="tag">第 1 版延伸</span>
+  <h3>歌手、歌曲從哪裡加（三個入口，同一份資料）</h3><ul>
+  <li><b>音樂頁右上「＋」／粉紅浮動鈕</b>：加歌手、加歌曲、貼一首歌的網址、新增歌單。</li>
+  <li><b>歌手頁「＋ 加歌」</b>：列出這個頻道抓過的影片（YT 快取、不花配額），<b>點 ♪ 標成歌曲</b>，花絮、vlog 不標就好；標了自動猜歌名（拿掉歌手名、Official MV 這些），之後可以改。</li>
+  <li><b>YT 管理</b>（已經做好的）：音樂分類裡頻道長按／⋮「標成歌手」、影片往左滑「♪ 歌曲」——<b>跟這裡是同一件事</b>，兩邊互通。</li></ul>
+  <h3>合唱、在別人頻道上的歌</h3><ul>
+  <li><b>一首歌可以有好幾個歌手</b>：標成歌曲時從標題自動找（標題裡出現的歌手名字、feat.、x），編輯可以再勾。合唱的歌<b>每個歌手頁都看得到</b>，歌手頁多一段「合唱・在別的頻道」。</li>
+  <li><b>歌手頁「可能也是他的」</b>：自動翻 <b>YT 快取</b>（你追蹤的所有頻道抓過的影片），標題提到這個歌手、還沒標成歌的列出來（例如五月天頻道的合唱、綜藝頻道的清唱），是歌按 ♪ 就收進來。<b>不打 YouTube 搜尋</b>：搜尋一次 100 點配額，一天只能搜 100 次，所以只翻快取；快取沒有的貼網址加。</li></ul>
+  <h3>資料怎麼存</h3><ul>
+  <li>歌手＝YT 追蹤裡標成「歌手頻道」的頻道；歌曲＝標成「♪ 歌曲」的影片。<b>不另外存一份</b>，YT 那邊改了這裡馬上跟著變，跨裝置同步照舊。</li>
+  <li>音樂頁自己多存的只有：歌名／類型／年份／專輯（你改過的）、喜歡、歌單、最近播放。</li>
+  <li>「不算歌曲」只是從音樂庫拿掉，影片還在 YT 管理。</li></ul>
+  <h3>新的頻道</h3><ul><li>加歌手時貼頻道網址：自動抓名字跟頭像（跟 YT 加頻道同一招），順便放進 YT 追蹤的音樂分類。</li></ul>
+  ${COMMON}
+  <div class="try">試試看：<br>① 音樂庫 →「歌手」→ ＋加歌手 → 加「告五人」→ 點告五人 →「＋ 加歌」勾兩首 → 回來播放<br>
+  ② 點周杰倫 → 拉到最下面「可能也是他的」→ 按 ♪ 收五月天頻道的合唱、綜藝的清唱 → 出現在「合唱・在別的頻道」<br>  ③ 點一首歌 ⋮ →「編輯歌曲資訊」改歌名、勾歌手、類型<br>④ 搜尋打「愛人」找不到 → 貼網址加進來<br>
+  <button class="demo" id="emptyBtn">模擬：空的音樂庫（第一次打開）</button></div>`;
+document.getElementById('emptyBtn').onclick = () => { S.empty = !S.empty; S.tab = 0; S.sub = null; document.getElementById('emptyBtn').textContent = S.empty ? '回到有資料的樣子' : '模擬：空的音樂庫（第一次打開）'; paint(false); };
+phone.addEventListener('input', e => { const k = e.target.dataset.k; if (k === 'search') { S.search = e.target.value; paint(); } if (k === 'addArtistQ') { S.addArtistQ = e.target.value; paint(); } });
+phone.addEventListener('click', e => {
+  const el = e.target.closest('[data-a]'); if (!el) return;
+  if (el.tagName === 'A') return;
+  if (el.dataset.a === 'closeSheet' && e.target.closest('[data-stop]') && el.classList.contains('scrim')) return;
+  e.stopPropagation();
+  const a = el.dataset.a, id = el.dataset.id;
+  const listOf = x => (x || '').split(',').filter(Boolean);
+  switch (a) {
+    case 'tab': { const i = +el.dataset.i; if (i === S.tab && S.sub) S.sub = null; else if (i === S.tab) { phone.querySelector('.screen').scrollTo({ top: 0, behavior: 'smooth' }); return; } S.tab = i; S.sub = null; paint(false); return; }
+    case 'play': play(id, listOf(el.dataset.list)); S.sheet = null; break;
+    case 'playAll': { const l = listOf(el.dataset.list); if (!l.length) return; if (el.dataset.shuffle) S.shuffle = true; play(S.shuffle ? l[Math.floor(Math.random() * l.length)] : l[0], l); toast(`▶ 播放 ${l.length} 首${el.dataset.shuffle ? '（隨機）' : ''}`); break; }
+    case 'toggle': S.playing = !S.playing; break;
+    case 'next': next(false); break;
+    case 'prev': prev(); break;
+    case 'shuffle': S.shuffle = !S.shuffle; toast(S.shuffle ? '隨機播放：開' : '隨機播放：關'); break;
+    case 'repeat': S.repeat = (S.repeat + 1) % 3; toast(['重複：關', '重複：整個佇列', '重複：這一首'][S.repeat]); break;
+    case 'seek': { const r = el.getBoundingClientRect(); S.pos = Math.round((e.clientX - r.left) / r.width * byId(S.now).len); break; }
+    case 'openFull': S.full = true; break;
+    case 'closeFull': S.full = false; break;
+    case 'video': S.video = el.dataset.v === '1'; break;
+    case 'queue': S.sheet = { k: 'queue' }; break;
+    case 'songMenu': S.sheet = { k: 'menu', id }; break;
+    case 'addTo': S.sheet = { k: 'addTo', id }; break;
+    case 'closeSheet': S.sheet = null; break;
+    case 'like': S.liked.has(id) ? S.liked.delete(id) : S.liked.add(id); toast(S.liked.has(id) ? '♥ 加到喜歡的歌' : '已取消喜歡'); if (S.sheet && S.sheet.k === 'menu') S.sheet = null; break;
+    case 'toggleList': { if (el.dataset.p === 'liked') { S.liked.has(id) ? S.liked.delete(id) : S.liked.add(id); } else { const p = S.lists.find(x => x.id === el.dataset.p); p.ids = p.ids.includes(id) ? p.ids.filter(x => x !== id) : [...p.ids, id]; } break; }
+    case 'newList': { const n = prompt('新歌單的名字'); if (n && n.trim()) { S.lists.push({ id: 'p' + Date.now(), name: n.trim(), ids: id ? [id] : [] }); toast(`已建立「${esc(n.trim())}」`); } S.sheet = null; break; }
+    case 'playNext': S.queue.splice(S.qi + 1, 0, id); if (!S.now) play(id); toast('下一首播放：' + songOf(id).t); S.sheet = null; break;
+    case 'goArtist': S.sub = { k: 'artist', ar: el.dataset.ar }; S.sheet = null; S.full = false; paint(false); return;
+    case 'openList': S.sub = { k: 'list', p: el.dataset.p }; paint(false); return;
+    case 'back': S.sub = null; paint(false); return;
+    case 'libTab': S.libTab = el.dataset.t; break;
+    case 'home': S.home = el.dataset.t; break;
+    case 'quick': S.search = el.dataset.q; break;
+    // 新增
+    case 'openAdd': S.sheet = { k: 'add' }; break;
+    case 'sheetAddArtist': S.sheet = { k: 'addArtist' }; S.addArtistQ = ''; break;
+    case 'sheetPickArtistForSong': S.sheet = { k: 'pickArtist' }; break;
+    case 'sheetPasteSong': S.sheet = { k: 'paste' }; break;
+    case 'openCand': S.sheet = { k: 'cand', ar: el.dataset.ar }; break;
+    case 'toggleArtist': { const k = el.dataset.ar; if (S.artistOn.has(k)) { S.artistOn.delete(k); toast(`已取消「${allArtists()[k].name}」的歌手（歌曲標記還留著）`); } else { S.artistOn.add(k); S.empty = false; toast(`👤 已加歌手：${allArtists()[k].name}（YT 管理那邊也標成歌手了）`); } break; }
+    case 'pasteChannel': { const v = (document.getElementById('chUrl') || {}).value || ''; if (!v.trim()) { toast('先貼頻道網址'); break; } S.artistOn.add('jolin'); S.empty = false; toast('🔗 抓到「蔡依林」，已加進 YT 追蹤的音樂分類並標成歌手'); break; }
+    case 'toggleCand': { const k = el.dataset.ar, c = CAND[k].find(x => x[0] === id); if (S.songOn.has(id)) { S.songOn.delete(id); toast('已取消歌曲'); } else { addSongFromCand(k, c); if (ARTISTS[k]) S.artistOn.add(k); S.empty = false; toast(`♪ 加進音樂庫：「${songOf(id).t}」・${names(songOf(id))}`); } break; }
+    case 'pasteSong': addSongFromCand('wonfu', CAND.wonfu[1]); S.artistOn.add('wonfu'); S.empty = false; S.sheet = null; toast('🔗 已加「給你一瓶魔法藥水」・告五人（頻道也加成歌手了）'); break;
+    case 'editSong': S.sheet = { k: 'edit', id }; break;
+    case 'edArtist': { const cur = artistsOf(songOf(id)), k = el.dataset.ar; const nx = cur.includes(k) ? cur.filter(x => x !== k) : [...cur, k]; if (!nx.length) { toast('至少要有一個歌手'); break; } S.edit[id] = { ...(S.edit[id] || {}), as: nx }; break; }
+    case 'edType': S.edit[id] = { ...(S.edit[id] || {}), type: el.dataset.t }; break;
+    case 'saveEdit': { const t = document.getElementById('edT').value.trim(), y = +document.getElementById('edY').value || songOf(id).y, al = document.getElementById('edA').value.trim() || '單曲'; S.edit[id] = { ...(S.edit[id] || {}), t: t || songOf(id).t, y, al }; S.sheet = null; toast('✎ 已儲存'); break; }
+    case 'unsong': S.songOn.delete(id); S.sheet = null; if (S.now === id) { S.playing = false; S.now = null; } toast('已從音樂庫拿掉（影片還在 YT 管理）'); break;
+    case 'toastMore': toast('（示意）背景把整個頻道抓進快取，抓完這裡就看得到'); break;
+  }
+  paint();
+});
+paint(false);
+</script>
+</body>
+</html>
