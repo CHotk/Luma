@@ -126,7 +126,11 @@ final appRouter = GoRouter(
       path: '/jp-log',
       builder: (_, state) => JpLogPage(lightOnly: state.extra == 'light'),
     ),
-    GoRoute(path: '/jp-light', builder: (_, _) => const JpLightPage()),
+    GoRoute(
+      path: '/jp-light',
+      // extra 是剛點亮的那一行（考試全對按「看櫻花樹」帶過來），進來跳慶祝。
+      builder: (_, state) => JpLightPage(celebrateRow: state.extra as String?),
+    ),
     GoRoute(path: '/quiz', builder: (_, _) => const QuizPage()),
     GoRoute(path: '/result', builder: (_, _) => const ResultPage()),
     GoRoute(path: '/history', builder: (_, _) => const HistoryPage()),

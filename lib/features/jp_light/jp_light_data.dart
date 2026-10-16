@@ -58,7 +58,12 @@ class JpRowLight {
     this.record,
     this.bloomTimes = const [],
     this.attempts = 0,
+    this.attemptsPerBloom = const [],
   });
+
+  /// 每一次開花各嘗試點亮了幾次（第 1 次開花前試了幾次、第 1 次到第 2 次
+  /// 之間又試了幾次……），跟 [bloomTimes] 一一對應。記著、不顯示。
+  final List<int> attemptsPerBloom;
 
   /// 嘗試點亮幾次（2026-10-16 使用者要求）：這一行開始過的點亮考試輪數，
   /// 沒寫完、沒全對、開花之後繼續考的都算。
@@ -190,6 +195,20 @@ List<JpRowLight> computeJpLight(
         bloomTimes.add(r.last.savedAt);
       }
     }
+    // 每一次開花各嘗試了幾次（2026-10-16 使用者要求記下來、不顯示）：照開始
+    // 時間排所有輪次（沒寫完的也算一次），數到開花為止，開完重數。
+    final attemptsPerBloom = <int>[];
+    var tries = 0;
+    for (final r
+        in rounds.values.toList()
+          ..sort((a, b) => a.first.savedAt.compareTo(b.first.savedAt))) {
+      tries++;
+      final bloom = prevLit && r.length >= size && r.every((e) => e.isCorrect);
+      if (bloom) {
+        attemptsPerBloom.add(tries);
+        tries = 0;
+      }
+    }
     final mine = [
       for (final p in practice)
         if (p.deletedAt == null && kana.contains(p.kana)) p,
@@ -224,6 +243,7 @@ List<JpRowLight> computeJpLight(
         record: record,
         bloomTimes: bloomTimes,
         attempts: rounds.length,
+        attemptsPerBloom: attemptsPerBloom,
       ),
     );
   }

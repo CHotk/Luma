@@ -5,3 +5,6 @@
 bool saveTextFile(String filename, String content) => false;
 
 bool saveBytesFile(String filename, List<int> bytes, String mimeType) => false;
+
+/// 存一張圖片（手機叫系統分享、電腦下載）；非網頁平台還沒做。
+Future<bool> shareOrSaveImage(String filename, List<int> png) async => false;

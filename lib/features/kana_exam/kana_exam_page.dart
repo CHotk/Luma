@@ -661,7 +661,14 @@ class _KanaExamPageState extends ConsumerState<KanaExamPage> {
                       onPressed: () {
                         final router = GoRouter.of(context);
                         router.go('/jp-home');
-                        router.push('/jp-light');
+                        // 全對就帶這一行過去，櫻花樹頁跳開花慶祝。
+                        final passed =
+                            _failedKana == null &&
+                            _correctCount == _currentQuestions.length;
+                        router.push(
+                          '/jp-light',
+                          extra: passed ? widget.lightRow : null,
+                        );
                       },
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.jpAccent,

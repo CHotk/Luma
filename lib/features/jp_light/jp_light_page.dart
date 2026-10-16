@@ -14,6 +14,7 @@ import '../../shared/widgets/glass_card.dart';
 import '../../data/repositories/jp_light_style_store.dart';
 import '../kana_practice/gojuon_data.dart';
 import 'jp_bloom_record_view.dart';
+import 'jp_bloom_celebration.dart';
 import 'jp_light_data.dart';
 import 'jp_light_gpt_view.dart';
 
@@ -25,7 +26,11 @@ import 'jp_light_gpt_view.dart';
 /// 2026-10-16 起預設是 GPT 圖版（[JpLightGptBody]），原本這版保留，設定裡
 /// 可以切回來（[JpLightStyle]）。
 class JpLightPage extends ConsumerWidget {
-  const JpLightPage({super.key});
+  const JpLightPage({super.key, this.celebrateRow});
+
+  /// 點亮考試全對、按「看櫻花樹」過來的那一行：進來跳一次開花慶祝
+  /// （[showBloomCelebration]）。
+  final String? celebrateRow;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -61,7 +66,11 @@ class JpLightPage extends ConsumerWidget {
                   ),
                   Expanded(
                     child: switch (async) {
-                      AsyncData(:final value) => JpLightGptBody(lights: value),
+                      AsyncData(:final value) => _WithCelebration(
+                        lights: value,
+                        row: celebrateRow,
+                        child: JpLightGptBody(lights: value),
+                      ),
                       AsyncError(:final error) => Center(
                         child: Text('讀不到紀錄：$error', style: AppText.bodyDim),
                       ),
@@ -98,7 +107,11 @@ class JpLightPage extends ConsumerWidget {
                 const SizedBox(height: Gap.sm),
                 Expanded(
                   child: switch (async) {
-                    AsyncData(:final value) => _Body(lights: value),
+                    AsyncData(:final value) => _WithCelebration(
+                      lights: value,
+                      row: celebrateRow,
+                      child: _Body(lights: value),
+                    ),
                     AsyncError(:final error) => Center(
                       child: Text('讀不到紀錄：$error', style: AppText.bodyDim),
                     ),
@@ -568,4 +581,36 @@ class _Fact extends StatelessWidget {
       ),
     ),
   );
+}
+
+/// 資料一到就跳一次開花慶祝（只跳一次，資料之後再變也不會再跳）。
+class _WithCelebration extends StatefulWidget {
+  const _WithCelebration({
+    required this.lights,
+    required this.row,
+    required this.child,
+  });
+
+  final List<JpRowLight> lights;
+  final String? row;
+  final Widget child;
+
+  @override
+  State<_WithCelebration> createState() => _WithCelebrationState();
+}
+
+class _WithCelebrationState extends State<_WithCelebration> {
+  @override
+  void initState() {
+    super.initState();
+    final l = widget.lights.where((x) => x.row == widget.row).firstOrNull;
+    if (l != null && jpShouldCelebrate(l)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) showBloomCelebration(context, widget.lights, l);
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }

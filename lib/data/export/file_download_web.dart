@@ -5,6 +5,10 @@
 // 已經穩定很久的 dart:html Blob 下載，之後真的要換再換。
 import 'dart:convert';
 import 'dart:html' as html;
+import 'dart:js_interop';
+import 'dart:typed_data';
+
+import 'package:web/web.dart' as web;
 
 /// 網頁版：用瀏覽器原生的下載機制。
 ///
@@ -30,4 +34,31 @@ bool saveBytesFile(String filename, List<int> bytes, String mimeType) {
     ..click();
   html.Url.revokeObjectUrl(url);
   return true;
+}
+
+/// 存一張圖片（2026-10-16 使用者要求「留個紀念」要真的存圖、不管作業系統）：
+/// 手機瀏覽器支援分享檔案就叫系統分享選單（iPhone 選「儲存影像」進照片、
+/// Android 存相簿）；不支援（電腦）或分享失敗就直接下載 PNG。
+Future<bool> shareOrSaveImage(String filename, List<int> png) async {
+  final bytes = Uint8List.fromList(png);
+  final mobile = RegExp(
+    'Mobi|Android|iPhone|iPad',
+  ).hasMatch(web.window.navigator.userAgent);
+  if (mobile) {
+    final file = web.File(
+      [bytes.toJS].toJS,
+      filename,
+      web.FilePropertyBag(type: 'image/png'),
+    );
+    final data = web.ShareData(files: [file].toJS);
+    try {
+      if (web.window.navigator.canShare(data)) {
+        await web.window.navigator.share(data).toDart;
+        return true;
+      }
+    } catch (_) {
+      // 使用者取消、或瀏覽器不讓分享 → 退回下載。
+    }
+  }
+  return saveBytesFile(filename, bytes, 'image/png');
 }
