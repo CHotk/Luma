@@ -39,8 +39,13 @@
   .petal { position: absolute; top: 0; width: 12px; height: 10px; border-radius: 10px 0 10px 0; background: linear-gradient(135deg, #FFD3E0, #FF9DBB); animation: fall linear infinite; pointer-events: none; z-index: 3; }
   @keyframes glow { 0%,100% { opacity: .65 } 50% { opacity: 1 } }
   @keyframes sway { 0%,100% { transform: rotate(-2deg) } 50% { transform: rotate(2deg) } }
-  .sheet-bg { position: absolute; inset: 0; z-index: 80; background: rgba(0,0,0,.5); }
-  .sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 81; background: #1C1C29; border-radius: 26px 26px 0 0; padding: 10px 20px 26px; animation: up .28s cubic-bezier(.2,.9,.3,1); }
+  .sheet-bg { position: absolute; inset: 0; z-index: 80; background: rgba(20,8,20,.35); animation: fadein .2s; }
+  @keyframes fadein { from { opacity: 0 } }
+  /* 明細：畫面正中間的粉色毛玻璃卡片（2026-10-16 使用者要求，不要從底部滑上來） */
+  .sheet { position: absolute; left: 18px; right: 18px; top: 50%; transform: translateY(-50%); z-index: 81; padding: 20px 20px 22px; border-radius: 28px; background: linear-gradient(160deg, rgba(255,190,214,.30), rgba(255,120,165,.18)); border: 1px solid rgba(255,255,255,.38); box-shadow: 0 24px 60px rgba(60,10,40,.45), inset 0 1px 0 rgba(255,255,255,.35); backdrop-filter: blur(26px) saturate(1.4); -webkit-backdrop-filter: blur(26px) saturate(1.4); animation: popin .32s cubic-bezier(.2,.9,.3,1.25); }
+  @keyframes popin { from { opacity: 0; transform: translateY(-50%) scale(.86) } }
+  .sheet .kv div { background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.14); }
+  .sheet .muted, .sheet .small { color: rgba(255,240,246,.78); }
   @keyframes up { from { transform: translateY(100%) } }
   .grab { width: 38px; height: 5px; border-radius: 99px; background: #4a4a5c; margin: 0 auto 14px; }
   .kv { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0; }
@@ -59,11 +64,13 @@
   .missing { position: absolute; border: 2px dashed rgba(255,183,203,.45); border-radius: 18px; display: grid; place-items: center; text-align: center; color: #FFB7CB; font-size: 12px; background: rgba(255,183,203,.05); }
   .bud { position: absolute; transform: translate(-50%,-50%); cursor: pointer; }
   .bud .tap { width: 54px; height: 54px; border-radius: 50%; }
-  .bud .tag { position: absolute; left: 50%; top: calc(100% - 4px); transform: translateX(-50%); font: 800 11.5px -apple-system, "Microsoft JhengHei", sans-serif; white-space: nowrap; padding: 2px 8px; border-radius: 99px; background: rgba(20,14,28,.72); color: #B9AFC4; border: 1px solid rgba(255,255,255,.18); backdrop-filter: blur(4px); z-index: 2; }
-  .bud.lit .tag { background: rgba(255,127,163,.92); color: #fff; border-color: rgba(255,255,255,.6); box-shadow: 0 2px 8px rgba(255,90,140,.45); }
+  .tags { position: absolute; inset: 0; pointer-events: none; z-index: 20; }
+  .tags .ptag { pointer-events: auto; cursor: pointer; }
+  .ptag { position: absolute; transform: translate(-50%,0); font: 800 11.5px -apple-system, "Microsoft JhengHei", sans-serif; white-space: nowrap; padding: 2px 8px; border-radius: 99px; background: rgba(20,14,28,.72); color: #B9AFC4; border: 1px solid rgba(255,255,255,.18); backdrop-filter: blur(4px); z-index: 2; }
+  .ptag.lit { background: rgba(255,127,163,.92); color: #fff; border-color: rgba(255,255,255,.6); box-shadow: 0 2px 8px rgba(255,90,140,.45); }
   @keyframes ping { 0% { transform: translate(-50%,-50%) scale(.6); opacity: .9 } 100% { transform: translate(-50%,-50%) scale(1.8); opacity: 0 } }
   .bud.hl::before { content: ""; position: absolute; left: 50%; top: 50%; width: 60px; height: 60px; border-radius: 50%; border: 3px solid #FFE08A; animation: ping 1s ease-out infinite; transform: translate(-50%,-50%); }
-  .bud.hl .tag { background: #FFE08A; color: #3a2400; border-color: #fff; }
+  .ptag.hl { background: #FFE08A; color: #3a2400; border-color: #fff; }
   .legend10 { display: flex; gap: 5px; padding: 0 12px; position: relative; z-index: 5; }
   .legend10 span { flex: 1; text-align: center; padding: 5px 0; border-radius: 10px; font-size: 13px; font-weight: 800; cursor: pointer; background: rgba(20,14,28,.6); color: #8a7f96; border: 1px solid rgba(255,255,255,.12); backdrop-filter: blur(6px); }
   .legend10 span.on { background: rgba(255,127,163,.85); color: #fff; border-color: rgba(255,255,255,.5); }
@@ -246,6 +253,10 @@ const ART = 'assets/jp_light/';
 // tree.png（2026-10-16 第二版，10 團花苞）上量出來的位置，あ～わ 由上往下、左右交錯。
 const BUDS = [[490, 215], [245, 355], [615, 320], [775, 365], [215, 610], [805, 635], [130, 870], [935, 850], [150, 1090], [885, 1110]];
 const SC = 390 / 1024;
+// 牌子放在花的哪裡（畫面上的 px，相對花苞中心）：預設在正下方；
+// 擠在一起的挪開——あ行在最上面、下面緊貼著さ行，牌子改放上面。
+const TAG_OFF = [[0, -64], [0, 34], [0, 34], [8, 34], [0, 34], [0, 34], [0, 34], [-6, 34], [0, 34], [0, 34]];
+const tagLayer = () => `<div class="tags">${BUDS.map(([x, y], i) => { const lit = !!S.data[i][0]; return `<span class="ptag ${lit ? 'lit' : ''} ${S.hl === i ? 'hl' : ''}" data-row="${i}" style="left:${x * SC + TAG_OFF[i][0]}px;top:${y * SC + TAG_OFF[i][1]}px">${S.calib ? i + 1 + '・' : ''}${lit ? '🌸 ' : ''}${ROWS[i]}行</span>`; }).join('')}</div>`;
 // ChatGPT 產的三片花瓣（petals.png 切的），輪流飄、大小跟轉速不一樣。
 const imgPetals = n => Array.from({ length: n }, (_, k) => `<img src="${ART}petal${(k % 3) + 1}.png" style="position:absolute;top:0;left:${(k * 47) % 360}px;width:${16 + (k % 3) * 5}px;height:${16 + (k % 3) * 5}px;object-fit:contain;animation:fall ${6 + (k % 5)}s linear infinite ${-k * 1.3}s;pointer-events:none;z-index:3">`).join('');
 const ok = {};
@@ -270,7 +281,7 @@ V.push({ name: '6 GPT 圖層版', tag: '配合 ChatGPT 生圖・進行中', titl
         ${ok['tree.png'] === false ? '<div class="missing" style="left:40px;right:40px;top:30px;bottom:20px">等 tree.png<br><span class="small">光禿禿的櫻花樹・1024×1536・透明背景</span></div>' : img('tree.png', 'layer')}
         ${BUDS.map(([x, y], i) => { const lit = !!S.data[i][0]; return `<div class="bud ${S.calib ? 'calib' : ''} ${lit ? 'lit' : ''} ${S.hl === i ? 'hl' : ''}" data-row="${i}" data-bud="${i}" style="left:${x * SC}px;top:${y * SC}px">
           ${lit ? (ok[bloomName(i)] === false ? `<svg width="70" height="70" viewBox="-35 -35 70 70" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%)" class="${S.justLit === i ? 'blooming' : ''}">${sakura(0, 0, 26, { lit: true, i: -1 })}</svg>` : img(bloomName(i), `bloom ${S.justLit === i ? 'blooming' : ''}`)) : ''}
-          <div class="tap"></div><span class="tag">${S.calib ? i + 1 + '・' : ''}${lit ? '🌸 ' : ''}${ROWS[i]}行</span></div>`; }).join('')}
+          <div class="tap"></div></div>`; }).join('')}${tagLayer()}
       </div>
       <div class="legend10">${ROWS.map((r, i) => `<span class="${S.data[i][0] ? 'on' : ''} ${S.hl === i ? 'hl' : ''}" data-hl="${i}">${r}</span>`).join('')}</div>
       ${S.calib ? `<div class="gpt-step" style="font-family:monospace;color:#bbf7d0">BUDS = [${BUDS.map(([x, y]) => `[${Math.round(x)}, ${Math.round(y)}]`).join(', ')}]</div>` : `<div class="gpt-step">🎨 GPT 圖層版：${['tree.png', 'bloom1.png', 'bg.png', 'petal1.png'].filter(n => !ok[n]).length ? '還在等圖：' + ['tree.png', 'bloom1.png', 'bg.png', 'petal1.png'].filter(n => !ok[n]).join('、') : '圖都到齊了'}</div>`}`;
@@ -290,7 +301,7 @@ V.push({ name: '1 GPT 版・會長大的樹', tag: '第 1 版的 AI 圖版本', 
         <div style="position:absolute;left:50%;top:38%;width:${150 + n * 26}px;height:${130 + n * 22}px;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(closest-side,rgba(255,190,210,${.12 + n * .045}),rgba(255,190,210,0));transition:all .8s"></div>
         <img class="layer" src="${ART}tree.png">
         ${BUDS.map(([x, y], i) => { const lit = !!S.data[i][0]; return `<div class="bud ${lit ? 'lit' : ''} ${S.hl === i ? 'hl' : ''}" data-row="${i}" style="left:${x * SC}px;top:${y * SC}px">
-          ${lit ? `<img class="bloom ${S.justLit === i ? 'blooming' : ''}" src="${ART}${bloomName(i)}">` : ''}<div class="tap"></div><span class="tag">${lit ? '🌸 ' : ''}${ROWS[i]}行</span></div>`; }).join('')}
+          ${lit ? `<img class="bloom ${S.justLit === i ? 'blooming' : ''}" src="${ART}${bloomName(i)}">` : ''}<div class="tap"></div></div>`; }).join('')}${tagLayer()}
       </div>
       <div class="chips" style="position:relative;z-index:4;margin-top:-18px">${ROWS.map((r, i) => `<span class="chip ${S.data[i][0] ? 'on' : ''}" data-row="${i}">${r}</span>`).join('')}</div>`;
   } });
@@ -301,7 +312,7 @@ function render() {
   document.getElementById('vtabs').innerHTML = V.map((x, i) => `<button class="${i === S.v ? 'on' : ''}" data-v="${i}">${x.name}</button>`).join('');
   document.getElementById('notes').innerHTML = `<span class="tag">${v.tag}</span><h2>${v.title}</h2>${v.desc}<h3>每版都一樣的</h3><ul><li>點花（或花苞）出明細：開花日期、從第一次練到開花花幾天、手寫練幾次／多久、點亮考幾次、最好幾 %、上次還錯哪幾字；下面「開始點亮」直接進那一行的點亮考試。</li><li>開花時有一段<b>綻放動畫</b>（從小轉著長大、彈一下）。</li></ul><div class="try">試試：按右上 ✦ 連按幾次，看花一朵朵開、背景跟花瓣越來越熱鬧；點任一朵花看明細。</div>`;
   phone.innerHTML = `<div class="status"><span>21:30</span><span>5G ▮</span></div><div class="screen">${v.render()}</div>
-    ${S.sheet !== null ? `<div class="sheet-bg" data-close></div><div class="sheet"><div class="grab"></div>${detail(S.sheet)}</div>` : ''}${S.toast ? `<div class="toast">${S.toast}</div>` : ''}`;
+    ${S.sheet !== null ? `<div class="sheet-bg" data-close></div><div class="sheet"><span data-close style="position:absolute;right:14px;top:12px;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.18);cursor:pointer;font-size:14px">✕</span>${detail(S.sheet)}</div>` : ''}${S.toast ? `<div class="toast">${S.toast}</div>` : ''}`;
 }
 let tt;
 function toast(t) { S.toast = t; clearTimeout(tt); tt = setTimeout(() => { S.toast = null; render(); }, 1700); }
