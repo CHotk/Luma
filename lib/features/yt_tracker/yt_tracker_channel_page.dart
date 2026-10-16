@@ -918,33 +918,6 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
   /// 標好的那份，有新下架的提示一下。
   String? _removedCheckStartedFor;
 
-  /// 簡介是空的頻道（以前加的、或手動加沒抓到），進來時問一次 YouTube
-  /// 補上（2026-10-15 使用者回報簡介沒自動抓）。1 點配額，每次開 App
-  /// 每個頻道最多問一次。
-  static final _descTried = <String>{};
-
-  Future<void> _fillDescription(YtChannel channel) async {
-    if (channel.description.isNotEmpty || !_descTried.add(channel.id)) return;
-    final apiKey = ref.read(ytApiKeyProvider);
-    final handle = YoutubeApiService.parseHandle(channel.url);
-    if (apiKey == null || apiKey.isEmpty || handle == null) return;
-    try {
-      final info = await YoutubeApiService(apiKey).fetchChannelInfo(handle);
-      if (info.description.isEmpty) return;
-      final repo = ref.read(ytTrackerRepositoryProvider);
-      final latest = (await repo.loadChannels()).where(
-        (c) => c.id == channel.id,
-      );
-      if (latest.isEmpty || latest.first.description.isNotEmpty) return;
-      await repo.updateChannel(
-        latest.first.copyWith(description: info.description),
-      );
-      if (mounted) _reload();
-    } catch (_) {
-      // 沒網路、配額用完：下次開 App 再試。
-    }
-  }
-
   /// 觀看次數（2026-10-15 使用者要求）：進頻道才觸發，超過設定天數沒更新
   /// 的影片在背景重抓，不綁頁面（跟下架檢查一樣）。抓到的寫回快取、發布
   /// 到 [YtVideoViews]，畫面上的影片列自己會更新。
@@ -1975,7 +1948,6 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                         _scanVideoTypes();
                         _checkRemovedVideos(channel);
                         _refreshViewCounts(channel);
-                        _fillDescription(channel);
                       });
 
                       return Column(
