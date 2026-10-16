@@ -2334,6 +2334,11 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
   void _selectTab(_ChannelTab tab) {
     if (tab == _tab && _typeFilter != _TypeFilter.removed) return;
     setState(() => _tab = tab);
+    // 換分頁內容高度會變，捲動位置可能被拉回去、膠囊不再黏在頂端，
+    // 畫完重新判斷一次（不然固定的膠囊跟遮罩會留著）。
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _updateTabsPinned();
+    });
     switch (tab) {
       case _ChannelTab.all:
         _switchTypeFilter(_TypeFilter.all);

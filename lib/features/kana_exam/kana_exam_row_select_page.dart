@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../app/app_bottom_nav.dart' show FloatingNavInset;
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../shared/widgets/ambient_background.dart';
@@ -164,7 +165,8 @@ class _KanaExamRowSelectPageState extends State<KanaExamRowSelectPage> {
                     ),
                   ),
                 ),
-                const SizedBox(height: Gap.lg),
+                // 底部日文分頁列浮在上面（2026-10-15），按鈕不要被擋住。
+                SizedBox(height: Gap.lg + FloatingNavInset.of(context)),
               ],
             ),
           ),

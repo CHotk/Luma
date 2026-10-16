@@ -182,13 +182,7 @@ class YtVideoCacheStore {
 
   Future<int> _upsert(String channelId, List<YoutubeVideo> videos) async {
     final byId = {for (final v in await load(channelId)) v.videoId: v};
-    // 原本快取沒有、這次從 YouTube 抓到的＝NEW（頻道第一次抓不算）。
-    if (byId.isNotEmpty) {
-      YtNewVideos.add([
-        for (final v in videos)
-          if (!byId.containsKey(v.videoId)) v.videoId,
-      ]);
-    }
+    _markNew(byId, videos);
     var changed = 0;
     for (final v in videos) {
       final existing = byId[v.videoId];
@@ -200,6 +194,24 @@ class YtVideoCacheStore {
     }
     if (changed > 0) await _writeVideos(channelId, byId.values);
     return changed;
+  }
+
+  /// 原本快取沒有、這次從 YouTube 抓到、而且比快取裡最新那部還新的＝NEW
+  /// （頻道第一次抓不算）。不比最新還新的是往回翻補到的舊片，不算新
+  /// （2026-10-16 檢查抓到：背景補全部影片時，幾百部舊片會一起被標 NEW）。
+  static void _markNew(
+    Map<String, YoutubeVideo> before,
+    List<YoutubeVideo> fetched,
+  ) {
+    if (before.isEmpty) return;
+    final newest = before.values
+        .map((v) => v.publishedAt)
+        .reduce((a, b) => a.isAfter(b) ? a : b);
+    YtNewVideos.add([
+      for (final v in fetched)
+        if (!before.containsKey(v.videoId) && v.publishedAt.isAfter(newest))
+          v.videoId,
+    ]);
   }
 
   /// 把雲端抓下來的快取併進本機（2026-09-24 使用者要求：資料都該可同步）。
@@ -334,12 +346,7 @@ class YtVideoCacheStore {
   Future<void> save(String channelId, List<YoutubeVideo> videos) =>
       _serial(channelId, () async {
         final byId = {for (final v in await load(channelId)) v.videoId: v};
-        if (byId.isNotEmpty) {
-          YtNewVideos.add([
-            for (final v in videos)
-              if (!byId.containsKey(v.videoId)) v.videoId,
-          ]);
-        }
+        _markNew(byId, videos);
         for (final v in videos) {
           final current = byId[v.videoId];
           byId[v.videoId] = current == null ? v : _fillGaps(v, current);

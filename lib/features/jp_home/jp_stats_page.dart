@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app/app_bottom_nav.dart' show FloatingNavInset;
 import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
@@ -70,7 +71,8 @@ class JpStatsPage extends ConsumerWidget {
                           ) => _ErrorCard(message: '$error'),
                           _ => const _LoadingCard(),
                         },
-                        const SizedBox(height: Gap.lg),
+                        // 底部日文分頁列浮在上面（2026-10-15），按鈕不要被擋住。
+                        SizedBox(height: Gap.lg + FloatingNavInset.of(context)),
                       ],
                     ),
                   ),

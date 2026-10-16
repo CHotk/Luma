@@ -7,6 +7,7 @@ import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../app/app_bottom_nav.dart' show FloatingNavInset;
 import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
@@ -310,6 +311,10 @@ class _KanaPracticeHistoryPageState
                                     ),
                                   )
                                 : ListView.separated(
+                                    // 底部日文分頁列浮在上面（2026-10-15），最後一筆捲得上來。
+                                    padding: EdgeInsets.only(
+                                      bottom: FloatingNavInset.of(context),
+                                    ),
                                     itemCount: filtered.length,
                                     separatorBuilder: (_, _) =>
                                         const SizedBox(height: Gap.sm),

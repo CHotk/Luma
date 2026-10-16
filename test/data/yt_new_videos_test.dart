@@ -6,18 +6,19 @@ import 'package:lume/data/storage/key_value_store.dart';
 
 /// NEW（2026-10-15 使用者定義）：當下快取沒有、API 抓到的。
 void main() {
-  YoutubeVideo v(String id) => YoutubeVideo(
+  YoutubeVideo v(String id, [int day = 1]) => YoutubeVideo(
     videoId: id,
     title: id,
-    publishedAt: DateTime(2026),
+    publishedAt: DateTime(2026, 1, day),
     thumbnailUrl: '',
   );
 
   test('頻道第一次抓不算；之後新抓到、快取沒有的才算；同步帶來的不算', () async {
     final cache = YtVideoCacheStore(_MemoryStore());
-    await cache.upsertVideos('UC', [v('a'), v('b')]);
+    await cache.upsertVideos('UC', [v('a', 2), v('b', 3)]);
     expect(YtNewVideos.notifier.value, isEmpty);
-    await cache.upsertVideos('UC', [v('b'), v('c')]);
+    // c 比快取裡最新的還新＝NEW；old 是往回翻補到的舊片，不算。
+    await cache.upsertVideos('UC', [v('b'), v('c', 5), v('old', 1)]);
     expect(YtNewVideos.notifier.value, {'c'});
     await cache.mergeFromCloud('UC', [v('d')], null);
     expect(YtNewVideos.notifier.value, {'c'});

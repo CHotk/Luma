@@ -622,7 +622,12 @@ class _KanaExamPageState extends ConsumerState<KanaExamPage> {
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton(
-                      onPressed: () => context.go('/jp-light'),
+                      // 疊在日文首頁上（用 go 直接換頁的話，櫻花樹頁的返回鍵沒作用）。
+                      onPressed: () {
+                        final router = GoRouter.of(context);
+                        router.go('/jp-home');
+                        router.push('/jp-light');
+                      },
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.jpAccent,
                         side: BorderSide(
