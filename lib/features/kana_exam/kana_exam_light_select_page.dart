@@ -14,6 +14,10 @@ import 'kana_exam_header_bar.dart';
 /// 「點亮」考試選範圍（2026-10-15 使用者要求：考試多一個點亮模式，範圍
 /// 從複選變單選）：一次只選一行，全部答對那一行就開花（見
 /// `jp_light_data.dart`）。每一行旁邊標開了沒、最好幾 %。
+///
+/// 2026-10-16 使用者要求：只能照五十音順序點亮，後面的行鎖住；點亮哪一行
+/// 都要從あ考到那一行、平假片假都考（[jpLightExamRows]）。預設選好輪到
+/// 的那一行。
 class KanaExamLightSelectPage extends ConsumerStatefulWidget {
   const KanaExamLightSelectPage({super.key});
 
@@ -28,10 +32,10 @@ class _KanaExamLightSelectPageState
 
   @override
   Widget build(BuildContext context) {
-    final lights = {
-      for (final l in ref.watch(jpLightProvider).valueOrNull ?? const [])
-        l.row: l,
-    };
+    final list = ref.watch(jpLightProvider).valueOrNull ?? const [];
+    final lights = {for (final l in list) l.row: l};
+    final next = jpNextLightRow(list);
+    final row = _row ?? next;
     return Scaffold(
       drawer: const AppSideDrawer(),
       body: AmbientBackground(
@@ -55,7 +59,7 @@ class _KanaExamLightSelectPageState
                   children: [
                     Expanded(
                       child: Text(
-                        '選一行，平假片假隨機出，全部答對就點亮那一行的櫻花。',
+                        '照順序一行一行點亮：從あ考到這一行，平假片假都考，全部答對就開花。',
                         style: TextStyle(
                           fontSize: 13,
                           color: AppColors.ink2,
@@ -76,21 +80,24 @@ class _KanaExamLightSelectPageState
                 Expanded(
                   child: ListView(
                     children: [
-                      for (final row in gojuonRows.keys)
+                      for (final r in gojuonRows.keys)
                         _LightRowTile(
-                          row: row,
-                          light: lights[row],
-                          selected: _row == row,
-                          onTap: () => setState(() => _row = row),
+                          row: r,
+                          light: lights[r],
+                          selected: row == r,
+                          lockedBy: list.isEmpty || jpCanLight(list, r)
+                              ? null
+                              : next,
+                          onTap: () => setState(() => _row = r),
                         ),
                     ],
                   ),
                 ),
                 const SizedBox(height: Gap.md),
                 FilledButton(
-                  onPressed: _row == null
+                  onPressed: row == null
                       ? null
-                      : () => context.push('/kana-exam/start', extra: _row),
+                      : () => context.push('/kana-exam/start', extra: row),
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.jpAccent,
                     foregroundColor: AppColors.jpAccentInk,
@@ -102,9 +109,9 @@ class _KanaExamLightSelectPageState
                     ),
                   ),
                   child: Text(
-                    _row == null
+                    row == null
                         ? '選一行開始'
-                        : '開始點亮 $_row行（${gojuonRows[_row]!.length} 題）',
+                        : '開始點亮 $row行（${jpLightExamSize(row)} 題）',
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
@@ -127,8 +134,12 @@ class _LightRowTile extends StatelessWidget {
     required this.row,
     required this.light,
     required this.selected,
+    required this.lockedBy,
     required this.onTap,
   });
+
+  /// 還沒輪到：要先點亮的那一行；能考是 null。
+  final String? lockedBy;
 
   final String row;
   final JpRowLight? light;
@@ -143,55 +154,63 @@ class _LightRowTile extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 8),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-          decoration: BoxDecoration(
-            color: selected
-                ? AppColors.jpAccent.withValues(alpha: 0.16)
-                : AppColors.glassFill,
-            border: Border.all(
+        onTap: lockedBy == null ? onTap : null,
+        child: Opacity(
+          opacity: lockedBy == null ? 1 : 0.45,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+            decoration: BoxDecoration(
               color: selected
-                  ? AppColors.jpAccent.withValues(alpha: 0.7)
-                  : AppColors.glassEdge,
+                  ? AppColors.jpAccent.withValues(alpha: 0.16)
+                  : AppColors.glassFill,
+              border: Border.all(
+                color: selected
+                    ? AppColors.jpAccent.withValues(alpha: 0.7)
+                    : AppColors.glassEdge,
+              ),
+              borderRadius: BorderRadius.circular(14),
             ),
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                selected
-                    ? Icons.radio_button_checked_rounded
-                    : Icons.radio_button_off_rounded,
-                size: 20,
-                color: selected ? AppColors.jpAccent : AppColors.ink3,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  kana,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    letterSpacing: 2,
-                    color: AppColors.ink,
+            child: Row(
+              children: [
+                Icon(
+                  selected
+                      ? Icons.radio_button_checked_rounded
+                      : Icons.radio_button_off_rounded,
+                  size: 20,
+                  color: selected ? AppColors.jpAccent : AppColors.ink3,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    kana,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      letterSpacing: 2,
+                      color: AppColors.ink,
+                    ),
                   ),
                 ),
-              ),
-              if (l != null && l.lit)
-                const Text(
-                  '🌸 已點亮',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.jpAccent,
+                if (lockedBy != null)
+                  Text(
+                    '🔒 先點亮 $lockedBy行',
+                    style: TextStyle(fontSize: 12, color: AppColors.ink3),
+                  )
+                else if (l != null && l.lit)
+                  const Text(
+                    '🌸 已點亮',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.jpAccent,
+                    ),
+                  )
+                else if (l != null && l.exams > 0)
+                  Text(
+                    '最好 ${l.best}%',
+                    style: TextStyle(fontSize: 12, color: AppColors.ink3),
                   ),
-                )
-              else if (l != null && l.exams > 0)
-                Text(
-                  '最好 ${l.best}%',
-                  style: TextStyle(fontSize: 12, color: AppColors.ink3),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

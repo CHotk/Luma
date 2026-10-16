@@ -56,6 +56,31 @@ Set<String> jpRowKana(String row) => {
   for (final k in gojuonRowsKatakana[row] ?? const <(String, String)>[]) k.$1,
 };
 
+/// 點亮某一行要考哪幾行：從あ一路考到這一行（2026-10-16 使用者要求：
+/// 每開一朵花，前面開過的也要再考一遍；只能照五十音順序一行一行點亮）。
+List<String> jpLightExamRows(String row) {
+  final keys = gojuonRows.keys.toList();
+  return keys.sublist(0, keys.indexOf(row) + 1);
+}
+
+/// 點亮某一行要寫幾題：考的每一行、每個字平假片假各考一次（2026-10-16
+/// 使用者要求：每一行都要包含平假跟片假）。
+int jpLightExamSize(String row) => [
+  for (final r in jpLightExamRows(row)) gojuonRows[r]!.length * 2,
+].fold(0, (a, b) => a + b);
+
+/// 下一個能點亮的行（照順序第一個還沒開的）；全開了是 null。
+String? jpNextLightRow(List<JpRowLight> lights) {
+  for (final l in lights) {
+    if (!l.lit) return l.row;
+  }
+  return null;
+}
+
+/// 這一行現在能不能考點亮：開過的可以再考，沒開的只有輪到的那一行可以。
+bool jpCanLight(List<JpRowLight> lights, String row) =>
+    lights.any((l) => l.row == row && l.lit) || jpNextLightRow(lights) == row;
+
 List<JpRowLight> computeJpLight(
   List<KanaExamEntry> exams,
   List<KanaPracticeEntry> practice,
@@ -63,8 +88,10 @@ List<JpRowLight> computeJpLight(
   final out = <JpRowLight>[];
   for (final row in gojuonRows.keys) {
     final kana = jpRowKana(row);
-    final size = gojuonRows[row]!.length;
-    // 點亮考試：照輪次分組，寫完整輪（題數＝這一行的字數）才算。
+    final size = jpLightExamSize(row);
+    // 前一行還沒開，這一行就算全對也不開（只能照順序點亮）。
+    final prevLit = out.isEmpty || out.last.lit;
+    // 點亮考試：照輪次分組，寫完整輪（あ到這一行、平假片假都考）才算。
     final rounds = <String, List<KanaExamEntry>>{};
     for (final e in exams) {
       if (e.deletedAt != null || e.lightRow != row) continue;
@@ -80,7 +107,7 @@ List<JpRowLight> computeJpLight(
       final right = r.where((e) => e.isCorrect).length;
       final pct = (right * 100 / r.length).round();
       if (pct > best) best = pct;
-      if (right == r.length) litAt ??= r.last.savedAt;
+      if (right == r.length && prevLit) litAt ??= r.last.savedAt;
     }
     final mine = [
       for (final p in practice)

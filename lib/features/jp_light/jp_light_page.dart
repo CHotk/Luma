@@ -199,7 +199,7 @@ class _Body extends StatelessWidget {
                           top: _spots[i].dy * sy - 28,
                           child: _Bloom(
                             light: lights[i],
-                            onTap: () => _showRow(context, lights[i]),
+                            onTap: () => _showRow(context, lights[i], lights),
                           ),
                         ),
                     ],
@@ -222,7 +222,7 @@ class _Body extends StatelessWidget {
                 padding: EdgeInsets.zero,
                 child: InkWell(
                   borderRadius: BorderRadius.circular(Radii.card),
-                  onTap: () => _showRow(context, l),
+                  onTap: () => _showRow(context, l, lights),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 14,
@@ -398,8 +398,10 @@ class _Bloom extends StatelessWidget {
 
 /// 一行的明細：開了沒、花了幾天、練幾次、寫多久、考幾次、最好幾 %、還錯
 /// 哪幾個字，最下面直接「開始點亮」。
-void _showRow(BuildContext context, JpRowLight l) {
+void _showRow(BuildContext context, JpRowLight l, List<JpRowLight> lights) {
   String md(DateTime d) => '${d.month}/${d.day}';
+  // 只能照順序點亮（2026-10-16），還沒輪到的按鈕鎖住。
+  final lockedBy = jpCanLight(lights, l.row) ? null : jpNextLightRow(lights);
   final kana = gojuonRows[l.row]!.map((k) => k.$1).join(' ');
   showModalBottomSheet<void>(
     context: context,
@@ -500,17 +502,23 @@ void _showRow(BuildContext context, JpRowLight l) {
             ],
             const SizedBox(height: Gap.lg),
             FilledButton(
-              onPressed: () {
-                Navigator.of(sheet).pop();
-                context.push('/kana-exam/start', extra: l.row);
-              },
+              onPressed: lockedBy != null
+                  ? null
+                  : () {
+                      Navigator.of(sheet).pop();
+                      context.push('/kana-exam/start', extra: l.row);
+                    },
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.jpAccent,
                 foregroundColor: AppColors.jpAccentInk,
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),
               child: Text(
-                l.lit ? '再考一次（維持手感）' : '開始點亮 ${l.row}行',
+                lockedBy != null
+                    ? '🔒 先點亮 $lockedBy行'
+                    : l.lit
+                    ? '再考一次（${jpLightExamSize(l.row)} 題）'
+                    : '開始點亮 ${l.row}行（${jpLightExamSize(l.row)} 題）',
                 style: const TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w800,

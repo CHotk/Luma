@@ -265,7 +265,7 @@ class _JpLightGptBodyState extends State<JpLightGptBody> {
 
   void _open(JpRowLight l) {
     setState(() => _hl = null);
-    _showRowGlass(context, l);
+    _showRowGlass(context, l, widget.lights);
   }
 }
 
@@ -428,8 +428,14 @@ class _PetalRainState extends State<_PetalRain>
 
 /// 一行的明細，從畫面正中間跳出粉色毛玻璃卡片（2026-10-16 使用者要求：
 /// 不要從底部跳出）。內容跟原本版的明細一樣，最下面直接「開始點亮」。
-void _showRowGlass(BuildContext context, JpRowLight l) {
+void _showRowGlass(
+  BuildContext context,
+  JpRowLight l,
+  List<JpRowLight> lights,
+) {
   String md(DateTime d) => '${d.month}/${d.day}';
+  // 只能照順序點亮（2026-10-16），還沒輪到的按鈕鎖住。
+  final lockedBy = jpCanLight(lights, l.row) ? null : jpNextLightRow(lights);
   final kana = gojuonRows[l.row]!.map((k) => k.$1).join(' ');
   const ink = Color(0xFFFFF4F8);
   const dim = Color(0xC7FFF0F6);
@@ -601,17 +607,26 @@ void _showRowGlass(BuildContext context, JpRowLight l) {
                           ],
                           const SizedBox(height: Gap.lg),
                           FilledButton(
-                            onPressed: () {
-                              Navigator.of(dialog).pop();
-                              context.push('/kana-exam/start', extra: l.row);
-                            },
+                            onPressed: lockedBy != null
+                                ? null
+                                : () {
+                                    Navigator.of(dialog).pop();
+                                    context.push(
+                                      '/kana-exam/start',
+                                      extra: l.row,
+                                    );
+                                  },
                             style: FilledButton.styleFrom(
                               backgroundColor: AppColors.jpAccent,
                               foregroundColor: AppColors.jpAccentInk,
                               padding: const EdgeInsets.symmetric(vertical: 14),
                             ),
                             child: Text(
-                              l.lit ? '再考一次（維持手感）' : '開始點亮 ${l.row}行',
+                              lockedBy != null
+                                  ? '🔒 先點亮 $lockedBy行'
+                                  : l.lit
+                                  ? '再考一次（${jpLightExamSize(l.row)} 題）'
+                                  : '開始點亮 ${l.row}行（${jpLightExamSize(l.row)} 題）',
                               style: const TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w800,

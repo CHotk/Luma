@@ -14,6 +14,7 @@ import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
 import '../../shared/widgets/glass_card.dart';
 import '../../shared/widgets/speaker_button.dart';
+import '../jp_light/jp_light_data.dart';
 import '../kana_practice/gojuon_data.dart';
 import '../kana_practice/kana_paper.dart';
 import 'exam_question_data.dart';
@@ -35,8 +36,8 @@ class KanaExamPage extends ConsumerStatefulWidget {
     this.lightRow,
   });
 
-  /// 「點亮」模式（2026-10-15）：只考這一行，全對就開花（見
-  /// `jp_light_data.dart`）。每一題都記上這一行。
+  /// 「點亮」模式（2026-10-15）：考あ到這一行、平假片假都考，全對就開花
+  /// （2026-10-16 改成累積考，見 [jpLightExamRows]）。每一題都記上這一行。
   final String? lightRow;
 
   final ExamMode mode;
@@ -67,12 +68,13 @@ class _KanaExamPageState extends ConsumerState<KanaExamPage> {
   int? _activePointer;
 
   // 題目列表
-  late final List<ExamQuestion> _kanaQuestions = _rows != null
-      ? _questionsFromRows(_rows!)
-      : ExamQuestionData.getShuffledKanaQuestions();
+  late final List<ExamQuestion> _kanaQuestions = _freshKanaQuestions();
 
-  Set<String>? get _rows =>
-      widget.lightRow != null ? {widget.lightRow!} : widget.selectedRows;
+  List<ExamQuestion> _freshKanaQuestions() => widget.lightRow != null
+      ? _lightQuestions(widget.lightRow!)
+      : widget.selectedRows != null
+      ? _questionsFromRows(widget.selectedRows!)
+      : ExamQuestionData.getShuffledKanaQuestions();
   late final List<ExamQuestion> _vocabQuestions =
       ExamQuestionData.getShuffledVocabQuestions();
 
@@ -97,6 +99,20 @@ class _KanaExamPageState extends ConsumerState<KanaExamPage> {
       }
     }
     result.shuffle();
+    return result;
+  }
+
+  /// 點亮考試（2026-10-16 使用者要求）：從あ考到要點亮的這一行，每個字
+  /// 平假片假各考一次，全部打散。
+  static List<ExamQuestion> _lightQuestions(String row) {
+    final result = <ExamQuestion>[
+      for (final r in jpLightExamRows(row)) ...[
+        for (final k in gojuonRows[r] ?? const <(String, String)>[])
+          (k.$2, k.$1, false),
+        for (final k in gojuonRowsKatakana[r] ?? const <(String, String)>[])
+          (k.$2, k.$1, true),
+      ],
+    ]..shuffle();
     return result;
   }
 
@@ -477,11 +493,7 @@ class _KanaExamPageState extends ConsumerState<KanaExamPage> {
       if (_mode == ExamMode.kana) {
         _kanaQuestions
           ..clear()
-          ..addAll(
-            _rows != null
-                ? _questionsFromRows(_rows!)
-                : ExamQuestionData.getShuffledKanaQuestions(),
-          );
+          ..addAll(_freshKanaQuestions());
       } else {
         _vocabQuestions
           ..clear()
