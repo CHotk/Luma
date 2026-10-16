@@ -122,6 +122,9 @@
   .mankai .card .facts b { display: block; font-size: 17px; color: #fff; }
   .mankai .card .row10 { display: flex; gap: 4px; margin-top: 10px; }
   .mankai .card .row10 span { flex: 1; padding: 4px 0; border-radius: 8px; background: rgba(255,127,163,.85); font-size: 12px; font-weight: 800; color: #fff; }
+  .keep-prev { position: absolute; inset: 0; z-index: 95; background: rgba(10,4,12,.82); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 50px 30px 30px; animation: fadein .3s; }
+  .keep-prev img { max-width: 100%; max-height: 600px; border-radius: 18px; box-shadow: 0 20px 50px rgba(0,0,0,.6); }
+  .keep-prev .small { color: #FFE3EC; text-align: center; }
 </style>
 </head>
 <body>
@@ -131,6 +134,7 @@
   <div class="vtabs" id="vtabs"></div>
   <div class="stage"><div class="phone" id="phone"></div><div class="notes" id="notes"></div></div>
 </div>
+<script src="assets/jp_light/embed.js"></script>
 <script>
 const ROWS = ['あ', 'か', 'さ', 'た', 'な', 'は', 'ま', 'や', 'ら', 'わ'];
 const KANA = { あ: 'あいうえお', か: 'かきくけこ', さ: 'さしすせそ', た: 'たちつてと', な: 'なにぬねの', は: 'はひふへほ', ま: 'まみむめも', や: 'や ゆ よ', ら: 'らりるれろ', わ: 'わ を ん' };
@@ -430,7 +434,7 @@ V.push({ name: '7 GPT 會說話版', tag: '新版・鼓勵互動', cele: true, t
           <div>第一朵到滿開<b>${days(firsts[0], lasts[9])} 天</b></div><div>總共練了<b>${fmtMin(totalMin())}</b></div>
           <div>手寫練習<b>${S.data.reduce((a, x) => a + x[2], 0)} 次</b></div><div>點亮考試<b>${S.data.reduce((a, x) => a + x[4], 0)} 次</b></div></div>
           <div class="row10">${ROWS.map(x => `<span>${x}</span>`).join('')}</div></div>
-        <div class="cele btns" style="position:static;transform:none;padding:0;background:none;border:0;box-shadow:none;backdrop-filter:none;animation:none;width:100%"><div class="btns" style="width:100%"><span data-cele-close>回到樹下</span><span class="main" data-keep>📸 留個紀念</span></div></div>
+        <div class="cele btns" style="position:static;transform:none;padding:0;background:none;border:0;box-shadow:none;backdrop-filter:none;animation:none;width:100%"><div class="btns" style="width:100%"><span data-cele-close>回到樹下</span><span class="main" data-keep="${i}">📸 留個紀念</span></div></div>
       </div>`;
     }
     const nx = nextIdx();
@@ -439,9 +443,48 @@ V.push({ name: '7 GPT 會說話版', tag: '新版・鼓勵互動', cele: true, t
       <h4>${ROWS[i]}行 開花！</h4><div class="stage-name">第 ${n} 朵・${st[0]}（${st[1]}）</div>
       <p>${CHEER[n]}<br><span style="opacity:.8;font-size:13px">${speedLine(i)}</span></p>
       <div class="facts"><div>花了<b>${days(r.first, r.lit)} 天</b></div><div>手寫<b>${r.n} 次</b></div><div>考了<b>${r.exams} 次</b></div></div>
-      <div class="btns"><span data-cele-close>好耶</span>${nx >= 0 ? `<span class="main" data-go="${nx}" data-cele-close>點亮 ${ROWS[nx]}行 →</span>` : ''}</div>
+      <div class="btns"><span data-keep="${i}">📸 記錄</span>${nx >= 0 ? `<span class="main" data-go="${nx}" data-cele-close>點亮 ${ROWS[nx]}行 →</span>` : ''}</div>
     </div>`;
   } });
+
+// 「留個紀念」：把滿開畫面畫成一張 1080×1920 的圖。手機（支援分享檔案）叫出系統分享選單——
+// iPhone 選「儲存影像」就進照片、Android 可存相簿；不支援的（電腦）直接下載 PNG。不分作業系統。
+const loadImg = src => new Promise((ok, bad) => { const im = new Image(); im.onload = () => ok(im); im.onerror = bad; im.src = src; });
+const EMB = k => (window.JP_EMBED || {})[k] || ART + (k === 'bg' ? 'bg.png' : k + '.png');
+function rr(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+async function keepsake(row) {
+  const all = litN() === 10, r1 = rec(row);
+  const W = 1080, H = 1920, c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d');
+  await Promise.all([document.fonts.load('900 200px "Noto Serif JP"'), document.fonts.load('700 40px "Noto Serif JP"')]).catch(() => {});
+  const [bg, tree, ...blooms] = await Promise.all(['bg', 'tree', 'bloom1', 'bloom2', 'bloom3', 'bloom4'].map(k => loadImg(EMB(k))));
+  // 背景（cover）
+  const sc = Math.max(W / bg.width, H / bg.height); g.drawImage(bg, (W - bg.width * sc) / 2, (H - bg.height * sc) / 2, bg.width * sc, bg.height * sc);
+  // 樹＋10 團花（跟畫面同一組座標）
+  const TY = 330, ts = W / 1024; g.drawImage(tree, 0, TY, W, W * 1.5);
+  const bs = 74 / 390 * W; BUDS.forEach(([x, y], i) => { if (S.data[i][0]) g.drawImage(blooms[i % 4], x * ts - bs / 2, TY + y * ts - 9 / 390 * W - bs / 2, bs, bs); });
+  // 上面壓暗＋金色光暈，標題才看得清楚
+  let gr = g.createLinearGradient(0, 0, 0, 700); gr.addColorStop(0, 'rgba(30,8,30,.85)'); gr.addColorStop(1, 'rgba(30,8,30,0)'); g.fillStyle = gr; g.fillRect(0, 0, W, 700);
+  gr = g.createRadialGradient(W / 2, 250, 20, W / 2, 250, 520); gr.addColorStop(0, 'rgba(255,214,150,.45)'); gr.addColorStop(1, 'rgba(255,214,150,0)'); g.fillStyle = gr; g.fillRect(0, 0, W, 800);
+  g.textAlign = 'center'; g.fillStyle = '#fff'; g.shadowColor = 'rgba(255,120,160,.9)'; g.shadowBlur = 40;
+  g.font = '900 210px "Noto Serif JP", serif'; g.fillText(all ? '満開' : ROWS[row] + '行 開花', W / 2, 330);
+  g.shadowBlur = 0; g.fillStyle = '#FFE7B0'; g.font = '800 46px -apple-system, "Microsoft JhengHei", sans-serif'; g.fillText(all ? '五十音 10 行，全部開花' : `第 ${litN()} 朵・${STAGE(litN())[0]}`, W / 2, 420);
+  // 下面總結卡
+  const dv = d => new Date('2026/' + d), byDate = (a, b) => dv(a) - dv(b);
+  const firsts = S.data.map(x => x[1]).sort(byDate), lasts = S.data.map(x => x[0]).sort(byDate);
+  gr = g.createLinearGradient(0, H - 620, 0, H); gr.addColorStop(0, 'rgba(40,10,34,0)'); gr.addColorStop(.35, 'rgba(40,10,34,.75)'); gr.addColorStop(1, 'rgba(40,10,34,.92)'); g.fillStyle = gr; g.fillRect(0, H - 620, W, 620);
+  const facts = !all ? [['從開始練到開花', days(r1.first, r1.lit) + ' 天'], ['手寫練習', r1.n + ' 次'], ['寫了多久', fmtMin(r1.min)], ['點亮考試', r1.exams + ' 次']] : [['第一朵到滿開', days(firsts[0], lasts[9]) + ' 天'], ['總共練了', fmtMin(totalMin())], ['手寫練習', S.data.reduce((a, x) => a + x[2], 0) + ' 次'], ['點亮考試', S.data.reduce((a, x) => a + x[4], 0) + ' 次']];
+  facts.forEach(([k, v], j) => { const x = 70 + (j % 2) * 480, y = H - 430 + Math.floor(j / 2) * 150; g.fillStyle = 'rgba(255,255,255,.14)'; rr(g, x, y, 460, 130, 28); g.fill(); g.textAlign = 'left'; g.fillStyle = 'rgba(255,240,246,.75)'; g.font = '500 32px -apple-system, "Microsoft JhengHei", sans-serif'; g.fillText(k, x + 32, y + 50); g.fillStyle = '#fff'; g.font = '900 48px -apple-system, "Microsoft JhengHei", sans-serif'; g.fillText(v, x + 32, y + 106); });
+  ROWS.forEach((r, i) => { const w = 86, x = 70 + i * (w + 9.5), y = H - 140; g.fillStyle = S.data[i][0] ? 'rgba(255,127,163,.9)' : 'rgba(20,14,28,.6)'; rr(g, x, y, w, 64, 16); g.fill(); g.fillStyle = '#fff'; g.textAlign = 'center'; g.font = '900 36px "Noto Serif JP", serif'; g.fillText(r, x + w / 2, y + 45); });
+  g.fillStyle = 'rgba(255,240,246,.6)'; g.font = '500 28px -apple-system, "Microsoft JhengHei", sans-serif'; g.textAlign = 'center'; g.fillText(`Lume・五十音櫻花樹・${new Date().toLocaleDateString('zh-TW')}`, W / 2, H - 470);
+  const blob = await new Promise(r => c.toBlob(r, 'image/png'));
+  const file = new File([blob], `${all ? '満開' : ROWS[row] + '行開花'}_${new Date().toISOString().slice(0, 10)}.png`, { type: 'image/png' });
+  S.keepUrl = URL.createObjectURL(blob); render();
+  if (navigator.canShare && navigator.canShare({ files: [file] }) && /Mobi|Android|iPhone|iPad/.test(navigator.userAgent)) {
+    try { await navigator.share({ files: [file], title: all ? '満開' : ROWS[row] + '行 開花' }); return; } catch (e) { if (e.name === 'AbortError') return; }
+  }
+  const a = document.createElement('a'); a.href = S.keepUrl; a.download = file.name; document.body.appendChild(a); a.click(); a.remove();
+  toast('📸 已存成圖片（下載資料夾）');
+}
 
 const phone = document.getElementById('phone');
 function render() {
@@ -451,7 +494,7 @@ function render() {
   document.getElementById('vtabs').innerHTML = V.map((x, i) => `<button class="${i === S.v ? 'on' : ''}" data-v="${i}">${x.name}</button>`).join('');
   document.getElementById('notes').innerHTML = `<span class="tag">${v.tag}</span><h2>${v.title}</h2>${v.desc}<h3>每版都一樣的</h3><ul><li>點花（或花苞）出明細：開花日期、從第一次練到開花花幾天、手寫練幾次／多久、點亮考幾次、最好幾 %、上次還錯哪幾字；下面「開始點亮」直接進那一行的點亮考試。</li><li>開花時有一段<b>綻放動畫</b>（從小轉著長大、彈一下）。</li></ul><div class="try">試試：按右上 ✦ 連按幾次，看花一朵朵開、背景跟花瓣越來越熱鬧；點任一朵花看明細。</div>`;
   phone.innerHTML = `<div class="status"><span>21:30</span><span>5G ▮</span></div><div class="screen">${v.render()}</div>
-    ${S.sheet !== null ? `<div class="sheet-bg" data-close></div><div class="sheet"><span data-close style="position:absolute;right:14px;top:12px;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.18);cursor:pointer;font-size:14px">✕</span>${detail(S.sheet)}</div>` : ''}${S.toast ? `<div class="toast">${S.toast}</div>` : ''}${v.overlay ? v.overlay() : ''}`;
+    ${S.sheet !== null ? `<div class="sheet-bg" data-close></div><div class="sheet"><span data-close style="position:absolute;right:14px;top:12px;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.18);cursor:pointer;font-size:14px">✕</span>${detail(S.sheet)}</div>` : ''}${S.toast ? `<div class="toast">${S.toast}</div>` : ''}${v.overlay ? v.overlay() : ''}${S.keepUrl ? `<div class="keep-prev" data-keep-close><img src="${S.keepUrl}"><div class="small">這張已經存下來了（手機會跳出分享選單，選「儲存影像」就進照片）<br>點任何地方關閉</div></div>` : ''}`;
 }
 let tt;
 // 提示消失時只拿掉那一條，不整個重畫——整個重畫會讓開花動畫、明細卡片的彈出動畫又播一次（2026-10-16 使用者回報「點開花會觸發兩次」）。
@@ -459,7 +502,8 @@ function toast(t) { S.toast = t; clearTimeout(tt); tt = setTimeout(() => { S.toa
 document.addEventListener('click', e => {
   if (e.target.closest('[data-calib]')) { S.calib = !S.calib; render(); return; }
   if (S.calib && e.target.closest('[data-bud]')) return;
-  if (e.target.closest('[data-keep]')) { toast('📸 存成圖片（App 裡會真的存）'); return; }
+  if (e.target.closest('[data-keep-close]')) { S.keepUrl = null; render(); return; }
+  if (e.target.closest('[data-keep]')) { keepsake(+e.target.closest('[data-keep]').dataset.keep).catch(err => toast('存圖失敗：' + err.message)); return; }
   if (e.target.closest('[data-cele-close]')) { const g = e.target.closest('[data-go]'); S.cele = null; if (g) toast(`開始點亮 ${ROWS[+g.dataset.go]}行…`); render(); return; }
   const tr = e.target.closest('[data-tiprow]'); if (tr) { S.sheet = +tr.dataset.tiprow; render(); return; }
   if (e.target.closest('[data-tip]')) { S.tip = (S.tip || 0) + 1; render(); return; }
