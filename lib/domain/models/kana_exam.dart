@@ -18,11 +18,25 @@ class KanaExamEntry {
     this.updatedAt,
     this.deletedAt,
     this.lightRow,
+    this.writeMs,
   });
 
-  /// 見 `jp_light_data.dart`）。一般考試是 null。
-  /// 見 ）。一般考試是 null。
+  /// 點亮考試是在點亮哪一行（2026-10-15，見 `jp_light_data.dart`）。
+  /// 一般考試是 null。
   final String? lightRow;
+
+  /// 這一題從第一筆落筆到按「提交」／「不會」的毫秒數（2026-10-16 使用者
+  /// 要求：考試要算寫了多久）。之前存的沒有，用筆畫最後一點的時間代替，
+  /// 見 [writeDuration]。
+  final double? writeMs;
+
+  /// 這一題寫了多久。
+  Duration get writeDuration {
+    final ms =
+        writeMs ??
+        (strokes.isEmpty || strokes.last.isEmpty ? 0.0 : strokes.last.last.$3);
+    return Duration(microseconds: (ms * 1000).round());
+  }
 
   /// 多裝置同步用（2026-09-24），同 `KanaPracticeEntry.updatedAt`。
   final DateTime? updatedAt;
@@ -45,6 +59,7 @@ class KanaExamEntry {
       updatedAt: now,
       deletedAt: deleted ? now : deletedAt,
       lightRow: lightRow,
+      writeMs: writeMs,
     );
   }
 
@@ -96,6 +111,7 @@ class KanaExamEntry {
     'updatedAt': updatedAt?.toIso8601String(),
     'deletedAt': deletedAt?.toIso8601String(),
     if (lightRow != null) 'lightRow': lightRow,
+    if (writeMs != null) 'writeMs': writeMs,
     'strokes': [
       for (final stroke in strokes)
         [
@@ -122,6 +138,7 @@ class KanaExamEntry {
         ? null
         : DateTime.parse(json['deletedAt'] as String),
     lightRow: json['lightRow'] as String?,
+    writeMs: (json['writeMs'] as num?)?.toDouble(),
     strokes: [
       for (final stroke in (json['strokes'] as List? ?? const []))
         [

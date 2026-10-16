@@ -194,16 +194,21 @@ class _KanaExamHistoryPageState extends ConsumerState<KanaExamHistoryPage> {
                         );
                       }
 
+                      // 點亮考試（2026-10-16 使用者要求分得出來）單獨一類，
+                      // 「50 音」只算一般的 50 音考試。
+                      String kind(KanaExamEntry e) =>
+                          e.lightRow != null ? 'light' : e.examType;
                       final kanaCount = all
-                          .where((e) => e.examType == 'kana')
+                          .where((e) => kind(e) == 'kana')
                           .length;
-                      final vocabCount = all.length - kanaCount;
+                      final lightCount = all
+                          .where((e) => kind(e) == 'light')
+                          .length;
+                      final vocabCount = all.length - kanaCount - lightCount;
 
                       final filtered = _typeFilter == null
                           ? all
-                          : all
-                                .where((e) => e.examType == _typeFilter)
-                                .toList();
+                          : all.where((e) => kind(e) == _typeFilter).toList();
                       final correct = filtered.where((e) => e.isCorrect).length;
                       final accuracy = filtered.isEmpty
                           ? 0
@@ -265,6 +270,14 @@ class _KanaExamHistoryPageState extends ConsumerState<KanaExamHistoryPage> {
                                 selected: _typeFilter == 'kana',
                                 onTap: () =>
                                     setState(() => _typeFilter = 'kana'),
+                              ),
+                              const SizedBox(width: 6),
+                              _FilterChip(
+                                label: '🌸 點亮',
+                                count: lightCount,
+                                selected: _typeFilter == 'light',
+                                onTap: () =>
+                                    setState(() => _typeFilter = 'light'),
                               ),
                               const SizedBox(width: 6),
                               _FilterChip(
@@ -430,6 +443,14 @@ class _RoundCardState extends State<_RoundCard> {
     final correct = entries.where((e) => e.isCorrect).length;
     final accuracy = (correct / entries.length * 100).round();
     final examType = entries.first.examType;
+    final lightRow = entries.first.lightRow;
+    final spent = entries.fold<Duration>(
+      Duration.zero,
+      (s, e) => s + e.writeDuration,
+    );
+    final spentLabel = spent.inMinutes > 0
+        ? '${spent.inMinutes} 分 ${spent.inSeconds % 60} 秒'
+        : '${spent.inSeconds} 秒';
 
     String two(int n) => n.toString().padLeft(2, '0');
     final timeLabel =
@@ -461,7 +482,11 @@ class _RoundCardState extends State<_RoundCard> {
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: Text(
-                      examType == 'kana' ? '50 音' : '詞彙',
+                      lightRow != null
+                          ? '🌸 點亮 $lightRow行'
+                          : examType == 'kana'
+                          ? '50 音'
+                          : '詞彙',
                       style: const TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
@@ -484,7 +509,8 @@ class _RoundCardState extends State<_RoundCard> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          '正確率 $accuracy%（$correct / ${entries.length} 題）',
+                          '正確率 $accuracy%（$correct / ${entries.length} 題）'
+                          '・寫了 $spentLabel',
                           style: AppText.note,
                         ),
                       ],
@@ -643,7 +669,11 @@ class _EntryCard extends StatelessWidget {
                             borderRadius: BorderRadius.circular(999),
                           ),
                           child: Text(
-                            entry.examType == 'kana' ? '50 音' : '詞彙',
+                            entry.lightRow != null
+                                ? '點亮'
+                                : entry.examType == 'kana'
+                                ? '50 音'
+                                : '詞彙',
                             style: const TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w600,

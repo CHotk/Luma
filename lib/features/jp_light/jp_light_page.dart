@@ -126,7 +126,6 @@ class _Body extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final lit = lights.where((l) => l.lit).length;
-    final total = lights.fold(Duration.zero, (s, l) => s + l.practiceTime);
     final close = lights.where((l) => !l.lit && l.exams > 0).toList()
       ..sort((a, b) => b.best.compareTo(a.best));
     return ListView(
@@ -151,7 +150,7 @@ class _Body extends StatelessWidget {
                   const SizedBox(width: 6),
                   Text('/ ${lights.length} 行開花', style: AppText.note),
                   const Spacer(),
-                  Text('總共練了 ${fmtPracticeTime(total)}', style: AppText.note),
+                  JpExamTimeText(style: AppText.note),
                 ],
               ),
               const SizedBox(height: Gap.sm),
@@ -453,7 +452,7 @@ void _showRow(BuildContext context, JpRowLight l, List<JpRowLight> lights) {
               children: [
                 _Fact('手寫練習', '${l.practiceCount} 次'),
                 const SizedBox(width: 8),
-                _Fact('寫了多久', fmtPracticeTime(l.practiceTime)),
+                _Fact('考試寫了多久', fmtPracticeTime(l.examTime)),
               ],
             ),
             const SizedBox(height: 8),

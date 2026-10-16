@@ -54,7 +54,7 @@ void main() {
     expect(a.best, 100);
     expect(a.lastWrong, isEmpty);
     expect(a.practiceCount, 1);
-    expect(a.practiceTime, const Duration(seconds: 3));
+    expect(a.examTime, Duration.zero); // 手寫練習的時間不算，測試的考試沒筆畫
     expect(a.daysToLight, 11);
     final ka = l.firstWhere((x) => x.row == 'か');
     expect(ka.lit, isFalse);

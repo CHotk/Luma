@@ -51,7 +51,7 @@ class JpRowLight {
     required this.litAt,
     required this.firstAt,
     required this.practiceCount,
-    required this.practiceTime,
+    required this.examTime,
     required this.exams,
     required this.best,
     required this.lastWrong,
@@ -86,9 +86,12 @@ class JpRowLight {
   /// 第一次碰這一行（手寫練習或點亮考試）的時間；還沒碰過是 null。
   final DateTime? firstAt;
 
-  /// 這一行的字手寫練了幾次、寫了多久（筆畫時間加總）。
+  /// 這一行的字手寫練了幾次（手寫練習的時間照樣存在紀錄裡，但不算——
+  /// 2026-10-16 使用者：手寫時間沒什麼參考性）。
   final int practiceCount;
-  final Duration practiceTime;
+
+  /// 這一行的字考試（普通＋點亮）寫了多久：每題第一筆到按提交的時間加總。
+  final Duration examTime;
 
   /// 點亮考試考過幾次（寫完整輪才算）、最好幾 %。
   final int exams;
@@ -198,12 +201,11 @@ List<JpRowLight> computeJpLight(
       for (final p in practice)
         if (p.deletedAt == null && kana.contains(p.kana)) p,
     ];
-    var ms = 0.0;
-    for (final p in mine) {
-      final last = p.strokes.isEmpty || p.strokes.last.isEmpty
-          ? 0.0
-          : p.strokes.last.last.$3;
-      ms += last;
+    var examTime = Duration.zero;
+    for (final e in exams) {
+      if (e.deletedAt == null && kana.contains(e.kana)) {
+        examTime += e.writeDuration;
+      }
     }
     final record = litAt == null ? null : recordAt(litAt);
     final starts = [
@@ -217,7 +219,7 @@ List<JpRowLight> computeJpLight(
         litAt: litAt,
         firstAt: starts.isEmpty ? null : starts.first,
         practiceCount: mine.length,
-        practiceTime: Duration(milliseconds: ms.round()),
+        examTime: examTime,
         exams: done.length,
         best: best,
         lastWrong: done.isEmpty
@@ -245,6 +247,16 @@ final jpLightProvider = FutureProvider.autoDispose<List<JpRowLight>>((
   final exams = await ref.read(kanaExamRepositoryProvider).loadAll();
   final practice = await ref.read(kanaPracticeRepositoryProvider).loadAll();
   return computeJpLight(exams, practice);
+});
+
+/// 考試總共寫了多久（50 音、詞彙、點亮都算；2026-10-16 使用者要求，取代
+/// 原本加總手寫練習的時間）。
+final jpExamTimeProvider = FutureProvider.autoDispose<Duration>((ref) async {
+  ref.watch(dataRevisionProvider);
+  final exams = await ref.read(kanaExamRepositoryProvider).loadAll();
+  return exams
+      .where((e) => e.deletedAt == null)
+      .fold<Duration>(Duration.zero, (s, e) => s + e.writeDuration);
 });
 
 String fmtPracticeTime(Duration d) {

@@ -142,13 +142,15 @@ class _KanaExamPageState extends ConsumerState<KanaExamPage> {
   void _submitAnswer() {
     if (_isCompleted || _strokes.isEmpty) return;
     final question = _currentQuestions[_currentQuestionIndex];
+    final writeMs = _writeMs();
     showExamResultDialog(
       context: context,
       userStrokes: List.of(_strokes),
       correctAnswer: question.$2,
       knownIncorrect: false,
       isKatakana: question.$3,
-      onFinish: (isCorrect) => _saveAndAdvance(question, isCorrect: isCorrect),
+      onFinish: (isCorrect) =>
+          _saveAndAdvance(question, isCorrect: isCorrect, writeMs: writeMs),
     );
   }
 
@@ -159,21 +161,27 @@ class _KanaExamPageState extends ConsumerState<KanaExamPage> {
   void _markAsUnknown() {
     if (_isCompleted) return;
     final question = _currentQuestions[_currentQuestionIndex];
+    final writeMs = _writeMs();
     showExamResultDialog(
       context: context,
       userStrokes: List.of(_strokes),
       correctAnswer: question.$2,
       knownIncorrect: true,
       isKatakana: question.$3,
-      onFinish: (isCorrect) => _saveAndAdvance(question, isCorrect: isCorrect),
+      onFinish: (isCorrect) =>
+          _saveAndAdvance(question, isCorrect: isCorrect, writeMs: writeMs),
     );
   }
 
   /// 使用者在結果彈窗裡確認完（自評或看完不會的答案）才真的存檔、
   /// 進下一題——「提交」按下去那一刻還不知道對錯，不能提前存。
+  /// 從第一筆落筆到現在（按提交／不會那一刻）幾毫秒；沒落筆是 0。
+  double _writeMs() => _sessionStart == null ? 0 : _elapsedMs();
+
   Future<void> _saveAndAdvance(
     ExamQuestion question, {
     required bool isCorrect,
+    required double writeMs,
   }) async {
     if (isCorrect) {
       setState(() {
@@ -191,6 +199,7 @@ class _KanaExamPageState extends ConsumerState<KanaExamPage> {
       examType: _mode == ExamMode.kana ? 'kana' : 'vocab',
       savedAt: now,
       lightRow: widget.lightRow,
+      writeMs: writeMs,
       strokes: [
         for (var i = 0; i < _strokes.length; i++)
           [
