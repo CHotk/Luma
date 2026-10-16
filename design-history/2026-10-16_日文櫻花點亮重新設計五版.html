@@ -426,13 +426,16 @@ V.push({ name: '7 GPT 會說話版', tag: '新版・鼓勵互動', cele: true, t
 const phone = document.getElementById('phone');
 function render() {
   const v = V[S.v];
+  // 開花動畫只播這一次，之後不管什麼原因重畫都不再播。
+  requestAnimationFrame(() => { S.justLit = null; });
   document.getElementById('vtabs').innerHTML = V.map((x, i) => `<button class="${i === S.v ? 'on' : ''}" data-v="${i}">${x.name}</button>`).join('');
   document.getElementById('notes').innerHTML = `<span class="tag">${v.tag}</span><h2>${v.title}</h2>${v.desc}<h3>每版都一樣的</h3><ul><li>點花（或花苞）出明細：開花日期、從第一次練到開花花幾天、手寫練幾次／多久、點亮考幾次、最好幾 %、上次還錯哪幾字；下面「開始點亮」直接進那一行的點亮考試。</li><li>開花時有一段<b>綻放動畫</b>（從小轉著長大、彈一下）。</li></ul><div class="try">試試：按右上 ✦ 連按幾次，看花一朵朵開、背景跟花瓣越來越熱鬧；點任一朵花看明細。</div>`;
   phone.innerHTML = `<div class="status"><span>21:30</span><span>5G ▮</span></div><div class="screen">${v.render()}</div>
     ${S.sheet !== null ? `<div class="sheet-bg" data-close></div><div class="sheet"><span data-close style="position:absolute;right:14px;top:12px;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.18);cursor:pointer;font-size:14px">✕</span>${detail(S.sheet)}</div>` : ''}${S.toast ? `<div class="toast">${S.toast}</div>` : ''}${v.overlay ? v.overlay() : ''}`;
 }
 let tt;
-function toast(t) { S.toast = t; clearTimeout(tt); tt = setTimeout(() => { S.toast = null; render(); }, 1700); }
+// 提示消失時只拿掉那一條，不整個重畫——整個重畫會讓開花動畫、明細卡片的彈出動畫又播一次（2026-10-16 使用者回報「點開花會觸發兩次」）。
+function toast(t) { S.toast = t; clearTimeout(tt); tt = setTimeout(() => { S.toast = null; const el = phone.querySelector('.toast'); if (el) el.remove(); }, 1700); }
 document.addEventListener('click', e => {
   if (e.target.closest('[data-calib]')) { S.calib = !S.calib; render(); return; }
   if (S.calib && e.target.closest('[data-bud]')) return;
