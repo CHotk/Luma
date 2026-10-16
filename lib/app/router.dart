@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'app_bottom_nav.dart';
 import 'package:go_router/go_router.dart';
 import '../features/crypto_watch/crypto_watch_page.dart';
+import '../features/jp_home/jp_log_page.dart';
 import '../features/crypto_watch/trade_day_page.dart';
 import '../features/crypto_watch/trade_journal_page.dart';
 import '../features/crypto_watch/trade_report_page.dart';
@@ -120,6 +121,11 @@ final appRouter = GoRouter(
     GoRoute(path: '/home', builder: (_, _) => const HomePage()),
     GoRoute(path: '/jp-home', builder: (_, _) => const JpHomePage()),
     GoRoute(path: '/jp-stats', builder: (_, _) => const JpStatsPage()),
+    // 日文練習紀錄（手寫＋考試＋點亮）；extra 是 'light' 就只看點亮。
+    GoRoute(
+      path: '/jp-log',
+      builder: (_, state) => JpLogPage(lightOnly: state.extra == 'light'),
+    ),
     GoRoute(path: '/jp-light', builder: (_, _) => const JpLightPage()),
     GoRoute(path: '/quiz', builder: (_, _) => const QuizPage()),
     GoRoute(path: '/result', builder: (_, _) => const ResultPage()),

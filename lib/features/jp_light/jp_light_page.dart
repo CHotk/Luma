@@ -22,8 +22,8 @@ import 'jp_light_gpt_view.dart';
 /// 一棵樹、樹枝上 10 個花苞（あ～わ行），點亮一行開一朵。點花看那一行的
 /// 數字，「開始點亮」直接進那一行的點亮考試。
 ///
-/// 2026-10-16 起預設是 GPT 圖版（[JpLightGptBody]），原本這版保留，右上
-/// 角或設定裡可以切回來（[JpLightStyle]）。
+/// 2026-10-16 起預設是 GPT 圖版（[JpLightGptBody]），原本這版保留，設定裡
+/// 可以切回來（[JpLightStyle]）。
 class JpLightPage extends ConsumerWidget {
   const JpLightPage({super.key});
 
@@ -32,15 +32,13 @@ class JpLightPage extends ConsumerWidget {
     final async = ref.watch(jpLightProvider);
     final style = ref.watch(jpLightStyleProvider);
     final gpt = style == JpLightStyle.gpt;
-    final swap = IconButton(
-      onPressed: () async {
-        final next = gpt ? JpLightStyle.classic : JpLightStyle.gpt;
-        ref.read(jpLightStyleProvider.notifier).state = next;
-        await JpLightStyleStore(ref.read(keyValueStoreProvider)).save(next);
-      },
-      icon: const Icon(Icons.swap_horiz_rounded, size: 22),
+    // 右上角看點亮紀錄（2026-10-16 使用者要求：換畫法在設定裡就有，這裡
+    // 不用放切換鈕）。
+    final log = IconButton(
+      onPressed: () => context.push('/jp-log', extra: 'light'),
+      icon: const Icon(Icons.history, size: 22),
       color: AppColors.ink2,
-      tooltip: gpt ? '換成原本的樹枝版' : '換成 GPT 圖版',
+      tooltip: '點亮紀錄',
       visualDensity: VisualDensity.compact,
     );
     if (gpt) {
@@ -59,7 +57,7 @@ class JpLightPage extends ConsumerWidget {
                     padding: const EdgeInsets.symmetric(
                       horizontal: Gap.screenSide,
                     ),
-                    child: AppTopBar(title: '🌸 五十音櫻花樹', actions: [swap]),
+                    child: AppTopBar(title: '🌸 五十音櫻花樹', actions: [log]),
                   ),
                   Expanded(
                     child: switch (async) {
@@ -96,7 +94,7 @@ class JpLightPage extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: Gap.sm),
-                AppTopBar(title: '🌸 五十音櫻花樹', actions: [swap]),
+                AppTopBar(title: '🌸 五十音櫻花樹', actions: [log]),
                 const SizedBox(height: Gap.sm),
                 Expanded(
                   child: switch (async) {

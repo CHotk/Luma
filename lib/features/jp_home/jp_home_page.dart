@@ -237,7 +237,7 @@ class _TopBar extends StatelessWidget {
           constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
         ),
         IconButton(
-          onPressed: () => context.push('/kana-practice/history'),
+          onPressed: () => context.push('/jp-log'),
           icon: const Icon(Icons.history, size: 20),
           color: AppColors.ink2,
           tooltip: '練習紀錄',
