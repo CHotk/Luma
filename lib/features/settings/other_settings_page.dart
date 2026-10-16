@@ -1024,7 +1024,9 @@ class _YtDisplayPrefsRows extends ConsumerWidget {
         row(
           Icons.visibility_outlined,
           '搜尋時列出已看過、已隱藏',
-          prefs.searchShowAll ? '不管「隱藏已看過／顯示已隱藏」，全部列出來' : '照「隱藏已看過／顯示已隱藏」篩',
+          prefs.searchShowAll
+              ? '不管上面選「沒看過／已隱藏／全部」，搜到的全部列出來'
+              : '照上面選的「沒看過／已隱藏／全部」篩',
           prefs.searchShowAll,
           (v) => update(prefs.copyWith(searchShowAll: v)),
         ),

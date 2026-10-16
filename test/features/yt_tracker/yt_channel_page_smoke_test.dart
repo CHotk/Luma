@@ -42,7 +42,9 @@ void main() {
     }
     expect(tester.takeException(), isNull);
     expect(find.text('還沒有設定 API 金鑰'), findsOneWidget);
-    expect(find.text('全部'), findsOneWidget);
+    // 上面類型分頁的「全部」＋影片列哪些的「全部」（2026-10-16）。
+    expect(find.text('全部'), findsNWidgets(2));
+    expect(find.text('沒看過'), findsOneWidget);
     // 右側捲動條、回到最上面預設都開（2026-10-12）：捲動條在。
     expect(find.byType(RawScrollbar), findsWidgets);
 
@@ -194,7 +196,7 @@ void main() {
     await tester.tap(find.byTooltip('收起搜尋'));
     await settle();
     expect(find.byTooltip('收起搜尋').hitTestable(), findsNothing);
-    expect(find.text('全部'), findsOneWidget);
+    expect(find.text('全部'), findsNWidgets(2));
   });
 }
 

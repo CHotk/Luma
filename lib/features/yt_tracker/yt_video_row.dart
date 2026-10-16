@@ -11,6 +11,7 @@ import '../../data/external_link.dart';
 import '../../data/repositories/yt_embed_player_style_store.dart';
 import '../../data/repositories/yt_playlist_store.dart';
 import '../../data/repositories/yt_video_hidden_store.dart';
+import '../../data/repositories/yt_video_song_store.dart';
 import '../../data/repositories/yt_video_open_mode_store.dart';
 import '../../data/repositories/yt_video_tags.dart';
 import '../../data/repositories/yt_video_views.dart';
@@ -228,7 +229,12 @@ class YtVideoRow extends ConsumerStatefulWidget {
     this.channelName,
     this.playlistId,
     this.background = AppColors.bg,
+    this.songMode = false,
   });
+
+  /// 頻道在音樂分類裡（2026-10-16）：往左滑多一顆「歌曲」、⋮ 選單多「標成
+  /// 歌曲」、標了的縮圖多一個 ♪。不在音樂分類就都不出現，資料照樣留著。
+  final bool songMode;
 
   /// 這部影片是哪個頻道的（存進播放清單時一起記下來，2026-10-14）。
   final String? channelId;
@@ -285,8 +291,22 @@ class YtVideoRow extends ConsumerStatefulWidget {
 }
 
 class _YtVideoRowState extends ConsumerState<YtVideoRow> {
-  /// 往左滑露出的動作區寬度（兩顆鈕＋間距）。
-  static const _actionsWidth = 156.0;
+  /// 往左滑露出的動作區寬度（兩顆鈕＋間距；音樂分類三顆）。
+  double get _actionsWidth => widget.songMode ? 234.0 : 156.0;
+
+  bool get _isSong =>
+      ref.read(ytVideoSongsProvider).contains(widget.video.videoId);
+
+  /// 標成／取消歌曲（2026-10-16）。
+  Future<void> _toggleSong() async {
+    final id = widget.video.videoId;
+    final next = !_isSong;
+    final ids = {...ref.read(ytVideoSongsProvider)};
+    next ? ids.add(id) : ids.remove(id);
+    ref.read(ytVideoSongsProvider.notifier).state = ids;
+    await YtVideoSongStore(ref.read(keyValueStoreProvider)).set(id, next);
+    if (mounted) setState(() => _dragOffset = 0);
+  }
 
   /// 拉過頭時還能再多拉多少（橡皮筋，iOS 原生的手感），放手就彈回。
   static const _overscroll = 36.0;
@@ -542,6 +562,10 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
                 _hidden
                     ? item('unhide', Icons.visibility_rounded, '取消隱藏')
                     : item('hide', Icons.visibility_off_rounded, '隱藏這部'),
+                if (widget.songMode)
+                  _isSong
+                      ? item('song', Icons.music_off_rounded, '取消歌曲')
+                      : item('song', Icons.music_note_rounded, '標成歌曲'),
                 item('youtube', Icons.open_in_new_rounded, '在 YouTube 開啟'),
               ],
             ),
@@ -576,6 +600,8 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
         await _hide();
       case 'unhide':
         await _unhide();
+      case 'song':
+        await _toggleSong();
       case 'youtube':
         await openExternalUrl(context, widget.video.watchUrl);
     }
@@ -698,6 +724,25 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
                           color: _iosGray,
                           onTap: _hide,
                         ),
+                  if (widget.songMode)
+                    Consumer(
+                      builder: (context, ref, _) =>
+                          ref
+                              .watch(ytVideoSongsProvider)
+                              .contains(widget.video.videoId)
+                          ? _SwipeActionButton(
+                              icon: Icons.music_off_rounded,
+                              label: '取消歌曲',
+                              color: _iosGray,
+                              onTap: _toggleSong,
+                            )
+                          : _SwipeActionButton(
+                              icon: Icons.music_note_rounded,
+                              label: '歌曲',
+                              color: _iosPink,
+                              onTap: _toggleSong,
+                            ),
+                    ),
                 ],
               ),
             ),
@@ -954,6 +999,15 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
                                             color: Color(0xFFFFB340),
                                             tooltip: '快取來的（不花配額）',
                                           ),
+                                        if (widget.songMode &&
+                                            ref
+                                                .watch(ytVideoSongsProvider)
+                                                .contains(video.videoId))
+                                          const _StatusIcon(
+                                            Icons.music_note_rounded,
+                                            color: Color(0xFFFF8FB1),
+                                            tooltip: '歌曲',
+                                          ),
                                         if (lists.isNotEmpty)
                                           _StatusIcon(
                                             Icons.star_rounded,
@@ -1009,20 +1063,24 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
                           // ⋮：存到稍後觀看／播放清單、隱藏、在 YouTube 開啟
                           // （2026-10-14 播放清單設計稿第 1 版）。
                           // 離標題近一點（2026-10-15 使用者要求：原本 30 寬，留太多空）。
+                          // 大一點、長一點（2026-10-16 使用者要求）。
                           SizedBox(
-                            width: 20,
+                            width: 28,
                             child: IconButton(
                               onPressed: _showMenu,
-                              icon: const Icon(
-                                Icons.more_vert_rounded,
-                                size: 18,
+                              icon: Transform.scale(
+                                scaleY: 1.25,
+                                child: const Icon(
+                                  Icons.more_vert_rounded,
+                                  size: 26,
+                                ),
                               ),
-                              color: AppColors.ink3,
+                              color: AppColors.ink2,
                               tooltip: '更多',
                               padding: EdgeInsets.zero,
                               constraints: const BoxConstraints(
-                                minWidth: 20,
-                                minHeight: 36,
+                                minWidth: 28,
+                                minHeight: 48,
                               ),
                             ),
                           ),
@@ -1044,6 +1102,7 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
 const _iosBlue = Color(0xFF0A84FF);
 const _iosGray = Color(0xFF636366);
 const _iosGreen = Color(0xFF30D158);
+const _iosPink = Color(0xFFFF375F);
 
 /// 滑開影片列露出的其中一顆動作鈕：iOS 風格的圓角色塊，左邊留 6px
 /// 間距。寬度由外層跟著滑動距離分配，太窄時圖示跟字先淡出、不擠成一團。

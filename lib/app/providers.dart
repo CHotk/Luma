@@ -13,6 +13,7 @@ import '../data/repositories/history_repository.dart';
 import '../data/repositories/home_card_order_store.dart';
 import '../data/repositories/jp_home_ring_store.dart';
 import '../data/repositories/jp_light_style_store.dart';
+import '../data/repositories/yt_video_song_store.dart';
 import '../data/repositories/kana_exam_repository.dart';
 import '../data/repositories/kana_practice_repository.dart';
 import '../data/repositories/settings_repository.dart';
@@ -202,6 +203,9 @@ final ytPlaylistsProvider = StateProvider<List<YtPlaylist>>(
 final jpShowProgressRingProvider = StateProvider<bool>(
   (ref) => JpHomeRingStore.defaultShow,
 );
+
+/// 音樂分類裡標成「歌曲」的影片 id（2026-10-16，見 [YtVideoSongStore]）。
+final ytVideoSongsProvider = StateProvider<Set<String>>((ref) => const {});
 
 /// 五十音櫻花樹用哪種畫法（2026-10-16 使用者要求：預設 GPT 圖版，原本那
 /// 版保留可以切回去）。

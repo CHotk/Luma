@@ -142,8 +142,13 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
   /// 看過紀錄整份（影片 id → 每次點開的時間），頁面讀一次交給每一列，
   /// 不讓每一列自己讀（見 [YtVideoRow.known]）。
   Map<String, YtVideoWatchRecord> _watchedRecords = {};
-  bool _hideWatched = true;
-  bool _showHiddenVideos = false;
+
+  /// 列哪些影片（2026-10-16 使用者要求，取代「隱藏已看過／顯示已隱藏」
+  /// 兩個繞口的開關）：沒看過（預設）｜已隱藏｜全部｜♪歌曲。
+  _VideoView _view = _VideoView.unwatched;
+
+  /// 頻道在音樂分類裡（分類名有「音樂」）：才有「♪歌曲」跟標歌曲的按鈕。
+  bool _music = false;
 
   // 哪些 videoId 這次是從本機快取讀到的、不是真的打 API 抓來的
   // （2026-09-30 使用者要求：想在畫面上看出哪些是秒出來、不用配額的）。
@@ -796,10 +801,17 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     }
   }
 
-  /// 「隱藏已看過」「顯示已隱藏」兩個開關套用後，這支影片要不要出現。
-  bool _passesBaseFilters(YoutubeVideo v) {
-    if (_hiddenVideoIds.contains(v.videoId)) return _showHiddenVideos;
-    return !(_hideWatched && _watchedVideoIds.contains(v.videoId));
+  /// 照現在選的 [_view]，這支影片要不要出現。
+  bool _passesBaseFilters(YoutubeVideo v) => _inView(v, _view);
+
+  bool _inView(YoutubeVideo v, _VideoView view) {
+    final hidden = _hiddenVideoIds.contains(v.videoId);
+    return switch (view) {
+      _VideoView.unwatched => !hidden && !_watchedVideoIds.contains(v.videoId),
+      _VideoView.hidden => hidden,
+      _VideoView.all => true,
+      _VideoView.songs => ref.read(ytVideoSongsProvider).contains(v.videoId),
+    };
   }
 
   /// 再加上時長篩選。
@@ -864,6 +876,7 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     }),
     onHiddenChanged: _loadVideoFilters,
     fromCache: allFromCache || _cachedVideoIds.contains(v.videoId),
+    songMode: _music,
   );
 
   // 切類型篩選（2026-09-30 使用者要求）。原本的做法是抓全部上傳清單，
@@ -1690,17 +1703,17 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
       if (loaded.isEmpty && isTyped) '這個頻道沒有這個類型的影片',
       if (!_durationFilter.isAny && loaded.isNotEmpty)
         '時長「${_durationFilter.rangeLabel}」裡沒有影片',
-      if (_hideWatched && watched > 0) '$watched 部已看過的被收起來了',
-      if (!_showHiddenVideos && hiddenByUser > 0) '$hiddenByUser 部是你隱藏的',
+      if (_view == _VideoView.unwatched && watched > 0) '$watched 部已看過的沒列出來',
+      if (_view == _VideoView.unwatched && hiddenByUser > 0)
+        '$hiddenByUser 部是你隱藏的',
+      if (_view == _VideoView.songs) '還沒有標成歌曲的影片（往左滑影片按「歌曲」）',
     ];
     return InlineEmptyCard(
       title: '這裡空空的',
       message: reasons.isEmpty ? '目前的篩選下沒有影片' : reasons.join('，'),
       actions: [
-        if (_hideWatched && watched > 0)
-          EmptyAction('顯示已看過', () => setState(() => _hideWatched = false)),
-        if (!_showHiddenVideos && hiddenByUser > 0)
-          EmptyAction('顯示已隱藏', () => setState(() => _showHiddenVideos = true)),
+        if (_view != _VideoView.all)
+          EmptyAction('看全部', () => setState(() => _view = _VideoView.all)),
         if (isTyped)
           EmptyAction('看全部類型', () => _switchTypeFilter(_TypeFilter.all)),
         if (!_durationFilter.isAny)
@@ -1874,6 +1887,8 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
 
   @override
   Widget build(BuildContext context) {
+    // 標／取消歌曲後「♪ 歌曲」的清單跟數字要跟著變。
+    ref.watch(ytVideoSongsProvider);
     // 編輯中按返回：先取消編輯（有改過先問），不離開頁面。
     return PopScope(
       canPop: !_editing && !_searchOpen,
@@ -1937,6 +1952,7 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                       final categoryLabel = category.isEmpty
                           ? '未分類'
                           : category.first.name;
+                      _music = categoryLabel.contains('音樂');
 
                       // 不能在 build() 當下直接呼叫（裡面可能觸發
                       // setState），排到這一幀畫完之後——跟
@@ -2786,12 +2802,6 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
       ])
         v.videoId: v,
     }.values.toList();
-    final hiddenCount = loaded
-        .where((v) => _hiddenVideoIds.contains(v.videoId))
-        .length;
-    final watchedCount = loaded
-        .where((v) => _watchedVideoIds.contains(v.videoId))
-        .length;
     String withCount(String label, int n) => n > 0 ? '$label ($n)' : label;
     return Padding(
       padding: const EdgeInsets.only(top: Gap.sm, bottom: Gap.sm),
@@ -2832,52 +2842,30 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
             runSpacing: 6,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              FilterChip(
-                label: Text(withCount('隱藏已看過', watchedCount)),
-                selected: _hideWatched,
-                // 不顯示打勾圖示（2026-09-30 使用者回報：切開/關會多/少那個勾勾
-                // 圖示，導致按鈕本身寬度跟著變、旁邊的「顯示已隱藏」也被推著
-                // 移動——選中/沒選中已經有底色跟外框顏色可以分辨，不需要再靠
-                // 圖示，維持固定寬度比較重要）。
-                showCheckmark: false,
-                // 點這顆（不管切成開還是關）都重新讀一次「已看過」清單
-                // （2026-09-30 使用者要求：看了好幾部之後，這個開關本來
-                // 讀進來的清單是舊的，不會包含這個 session 剛看過的，導致
-                // 篩選結果很怪；不用跳出頻道頁再回來才更新，點這顆本身
-                // 就順便刷新）。
-                onSelected: (v) {
-                  setState(() => _hideWatched = v);
-                  _loadVideoFilters();
-                },
-                backgroundColor: AppColors.glassFill,
-                selectedColor: AppColors.accentSolid.withValues(alpha: 0.28),
-                labelStyle: TextStyle(
-                  fontSize: 12.5,
-                  color: _hideWatched ? AppColors.ink : AppColors.ink2,
-                ),
-                side: BorderSide(
-                  color: _hideWatched
-                      ? AppColors.accentSolid
-                      : AppColors.glassEdge,
-                ),
-              ),
-              FilterChip(
-                label: Text(withCount('顯示已隱藏', hiddenCount)),
-                selected: _showHiddenVideos,
-                showCheckmark: false,
-                onSelected: (v) => setState(() => _showHiddenVideos = v),
-                backgroundColor: AppColors.glassFill,
-                selectedColor: AppColors.accentSolid.withValues(alpha: 0.28),
-                labelStyle: TextStyle(
-                  fontSize: 12.5,
-                  color: _showHiddenVideos ? AppColors.ink : AppColors.ink2,
-                ),
-                side: BorderSide(
-                  color: _showHiddenVideos
-                      ? AppColors.accentSolid
-                      : AppColors.glassEdge,
-                ),
-              ),
+              // 一次只亮一格（2026-10-16 使用者要求）：沒看過是平常的樣子，
+              // 點別格切過去、再點亮著的那格回到沒看過。每點一次都重讀看過／
+              // 隱藏名單（看了幾部回來，名單才會是新的）。
+              for (final view in _VideoView.values)
+                if (view != _VideoView.songs || _music)
+                  _Pick(
+                    label: withCount(
+                      view.label,
+                      loaded.where((v) => _inView(v, view)).length,
+                    ),
+                    color: view == _VideoView.songs
+                        ? const Color(0xFFFF375F)
+                        : AppColors.accentSolid,
+                    selected: _view == view,
+                    onTap: () {
+                      setState(
+                        () => _view =
+                            _view == view && view != _VideoView.unwatched
+                            ? _VideoView.unwatched
+                            : view,
+                      );
+                      _loadVideoFilters();
+                    },
+                  ),
               // 「已下架」：有查到下架的影片才出現（2026-10-12 使用者要求），
               // 再點一次回到這個分頁的類型。
               if (removedCount > 0 || _typeFilter == _TypeFilter.removed)
@@ -3887,4 +3875,15 @@ class _AboutBars extends StatelessWidget {
       ),
     );
   }
+}
+
+/// 頻道詳情頁影片分頁「列哪些」（2026-10-16）。
+enum _VideoView {
+  unwatched('沒看過'),
+  hidden('已隱藏'),
+  all('全部'),
+  songs('♪ 歌曲');
+
+  const _VideoView(this.label);
+  final String label;
 }

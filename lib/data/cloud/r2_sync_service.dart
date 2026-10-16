@@ -40,6 +40,7 @@ import '../repositories/nav_bar_prefs_store.dart';
 import '../repositories/stamped_setting_store.dart';
 import '../repositories/yt_display_prefs_store.dart';
 import '../repositories/yt_playlist_store.dart';
+import '../repositories/yt_video_song_store.dart';
 import '../storage/key_value_store.dart';
 import 'r2_client.dart';
 
@@ -942,6 +943,35 @@ class R2SyncService {
     final body = utf8.encode(jsonEncode(local.toJson()));
     await _writeMeta(key, body, fetched.etag);
     return (downloaded: 0, uploaded: 0);
+  }
+
+  /// 音樂分類標成「歌曲」的影片（2026-10-16）：一部一部比改的時間，後改
+  /// 的贏（取消標記也帶時間，見 [YtVideoSongStore]）。
+  Future<({int downloaded, int uploaded})> syncYtVideoSongs(
+    YtVideoSongStore store,
+  ) async {
+    const key = YtVideoSongStore.cloudKey;
+    final local = await store.loadRecords();
+    final localBytes = utf8.encode(YtVideoSongStore.encode(local));
+    if (await _canSkip(key, localBytes)) return (downloaded: 0, uploaded: 0);
+
+    final fetched = await _client.getObjectWithEtag(key);
+    final cloud = fetched.bytes == null
+        ? <String, ({bool song, DateTime at})>{}
+        : YtVideoSongStore.decode(utf8.decode(fetched.bytes!));
+    final merged = YtVideoSongStore.merge(local, cloud);
+    int changedFrom(Map<String, ({bool song, DateTime at})> side) =>
+        merged.entries.where((e) => side[e.key]?.at != e.value.at).length;
+    final downloaded = changedFrom(local);
+    final uploaded = changedFrom(cloud);
+    if (downloaded > 0) await store.saveRecords(merged);
+    final body = utf8.encode(YtVideoSongStore.encode(merged));
+    var etag = fetched.etag;
+    if (uploaded > 0) {
+      etag = await _client.putObject(key, Uint8List.fromList(body));
+    }
+    await _writeMeta(key, body, etag);
+    return (downloaded: downloaded, uploaded: uploaded);
   }
 
   /// YT 播放清單（2026-10-14）：一份一份比改的時間，後改的贏；刪掉的

@@ -108,10 +108,12 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
   /// 依上傳時間／依觀看次數）。觀看次數用快取裡的（見 [YtVideoViews]）。
   _VideoSort _videoSort = _VideoSort.newest;
 
-  /// 「隱藏已看過」「顯示已隱藏」兩個開關（2026-10-15 使用者要求跟頻道
-  /// 詳情頁一樣）。預設也跟詳情頁一樣：藏看過的、不顯示隱藏的。
-  bool _hideWatched = true;
-  bool _showHidden = false;
+  /// 列哪些影片（2026-10-16 跟頻道詳情頁一起改）：沒看過（預設）｜已隱藏｜
+  /// 全部｜♪歌曲（只有音樂分類有）。
+  _MarkView _view = _MarkView.unwatched;
+
+  /// 選的分類全都是音樂分類（名字有「音樂」）：才有「♪歌曲」跟標歌曲。
+  bool _music = false;
 
   /// 分類頁搜尋（2026-10-15）：只搜快取裡這些頻道的全部影片標題，打字就搜。
   bool _searchOpen = false;
@@ -229,6 +231,7 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                     highlight: _query,
                     known: _knownFor(item.video.videoId),
                     forceShow: true,
+                    songMode: _music,
                     onWatchedChanged: (r) => _onWatched(item.video.videoId, r),
                     onHiddenChanged: _loadVideoMarks,
                   );
@@ -271,10 +274,16 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
     ]..sort((a, b) => b.video.publishedAt.compareTo(a.video.publishedAt));
   }
 
-  bool _passesMarks(_ChannelVideo c) {
-    final id = c.video.videoId;
-    if (_hiddenIds.contains(id)) return _showHidden;
-    return !(_hideWatched && (_watchedRecords?[id] != null));
+  bool _passesMarks(_ChannelVideo c) => _inView(c.video.videoId, _view);
+
+  bool _inView(String id, _MarkView view) {
+    final hidden = _hiddenIds.contains(id);
+    return switch (view) {
+      _MarkView.unwatched => !hidden && _watchedRecords?[id] == null,
+      _MarkView.hidden => hidden,
+      _MarkView.all => true,
+      _MarkView.songs => ref.read(ytVideoSongsProvider).contains(id),
+    };
   }
 
   List<_ChannelVideo> _sortVideos(List<_ChannelVideo> list) {
@@ -1088,19 +1097,21 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
           child: Wrap(
             spacing: 6,
             children: [
-              _TypeChip(
-                label: '隱藏已看過',
-                selected: _hideWatched,
-                onTap: () {
-                  setState(() => _hideWatched = !_hideWatched);
-                  _loadVideoMarks();
-                },
-              ),
-              _TypeChip(
-                label: '顯示已隱藏',
-                selected: _showHidden,
-                onTap: () => setState(() => _showHidden = !_showHidden),
-              ),
+              for (final view in _MarkView.values)
+                if (view != _MarkView.songs || _music)
+                  _TypeChip(
+                    label: view.label,
+                    selected: _view == view,
+                    onTap: () {
+                      setState(
+                        () =>
+                            _view = _view == view && view != _MarkView.unwatched
+                            ? _MarkView.unwatched
+                            : view,
+                      );
+                      _loadVideoMarks();
+                    },
+                  ),
               _TypeChip(
                 label: _allCached ? '範圍：全部快取' : '範圍：每頻道最新 20 部',
                 selected: _allCached,
@@ -1170,7 +1181,8 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                                     preview[i].channel.id,
                                   ),
                                   known: _knownFor(preview[i].video.videoId),
-                                  forceShow: _showHidden,
+                                  forceShow: _view != _MarkView.unwatched,
+                                  songMode: _music,
                                   onWatchedChanged: (r) =>
                                       _onWatched(preview[i].video.videoId, r),
                                   onHiddenChanged: _loadVideoMarks,
@@ -1250,7 +1262,8 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                           subtitle:
                               '${item.channel.name}・${ytRelativeTime(item.video.publishedAt)}',
                           known: _knownFor(item.video.videoId),
-                          forceShow: _showHidden,
+                          forceShow: _view != _MarkView.unwatched,
+                          songMode: _music,
                           onWatchedChanged: (r) =>
                               _onWatched(item.video.videoId, r),
                           onHiddenChanged: _loadVideoMarks,
@@ -1266,6 +1279,8 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
 
   @override
   Widget build(BuildContext context) {
+    // 標／取消歌曲後「♪ 歌曲」的清單要跟著變。
+    ref.watch(ytVideoSongsProvider);
     return Scaffold(
       drawer: const AppSideDrawer(),
       body: AmbientBackground(
@@ -1616,7 +1631,19 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                                         ),
                                       ],
                                     )
-                                  : _buildVideoPanel(channels),
+                                  : (() {
+                                      // 選的分類都是音樂分類才有歌曲。
+                                      _music =
+                                          _selected.isNotEmpty &&
+                                          _selected.every(
+                                            (id) => categories.any(
+                                              (c) =>
+                                                  c.id == id &&
+                                                  c.name.contains('音樂'),
+                                            ),
+                                          );
+                                      return _buildVideoPanel(channels);
+                                    })(),
                             ),
                           ],
                         ],
@@ -2894,4 +2921,15 @@ enum _VideoSort {
   final String label;
   final String short;
   final IconData icon;
+}
+
+/// 依影片顯示「列哪些」（2026-10-16）。
+enum _MarkView {
+  unwatched('沒看過'),
+  hidden('已隱藏'),
+  all('全部'),
+  songs('♪ 歌曲');
+
+  const _MarkView(this.label);
+  final String label;
 }
