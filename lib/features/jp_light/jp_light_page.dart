@@ -13,6 +13,7 @@ import '../../shared/widgets/app_top_bar.dart';
 import '../../shared/widgets/glass_card.dart';
 import '../../data/repositories/jp_light_style_store.dart';
 import '../kana_practice/gojuon_data.dart';
+import 'jp_bloom_record_view.dart';
 import 'jp_light_data.dart';
 import 'jp_light_gpt_view.dart';
 
@@ -473,6 +474,15 @@ void _showRow(BuildContext context, JpRowLight l, List<JpRowLight> lights) {
                 _Fact('最好成績', l.exams == 0 ? '—' : '${l.best}%'),
               ],
             ),
+            if (l.record != null) ...[
+              const SizedBox(height: Gap.md),
+              JpBloomRecordView(
+                record: l.record!,
+                ink: AppColors.ink,
+                dim: AppColors.ink2,
+                fill: Colors.white.withValues(alpha: 0.05),
+              ),
+            ],
             if (l.lastWrong.isNotEmpty) ...[
               const SizedBox(height: Gap.md),
               Text('上次還錯的字', style: AppText.note),

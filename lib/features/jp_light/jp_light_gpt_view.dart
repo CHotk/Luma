@@ -8,6 +8,7 @@ import '../../app/app_bottom_nav.dart' show FloatingNavInset;
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../kana_practice/gojuon_data.dart';
+import 'jp_bloom_record_view.dart';
 import 'jp_light_data.dart';
 
 /// 五十音櫻花樹的 GPT 圖版（2026-10-16 使用者要求預設用這版，設計稿
@@ -570,6 +571,15 @@ void _showRowGlass(
                               ),
                             ],
                           ),
+                          if (l.record != null) ...[
+                            const SizedBox(height: Gap.md),
+                            JpBloomRecordView(
+                              record: l.record!,
+                              ink: ink,
+                              dim: dim,
+                              fill: Colors.white.withValues(alpha: 0.12),
+                            ),
+                          ],
                           if (l.lastWrong.isNotEmpty) ...[
                             const SizedBox(height: Gap.md),
                             const Text(

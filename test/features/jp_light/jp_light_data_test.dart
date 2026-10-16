@@ -83,6 +83,48 @@ void main() {
     expect(jpCanLight(l, 'か'), isFalse);
   });
 
+  test('開花紀錄：累加到開花那一刻，之後的、開花前已刪的都不算', () {
+    final day1 = DateTime(2026, 10, 1, 9),
+        bloom = DateTime(2026, 10, 3, 21, 30),
+        later = DateTime(2026, 10, 5);
+    KanaPracticeEntry pr(String id, DateTime at, {DateTime? del}) =>
+        KanaPracticeEntry(
+          id: id,
+          kana: 'か',
+          romaji: 'ka',
+          assisted: false,
+          savedAt: at,
+          deletedAt: del,
+          strokes: const [],
+        );
+    final practice = [
+      pr('p1', day1),
+      pr('p2', day1.add(const Duration(hours: 1))),
+      pr('p3', day1, del: DateTime(2026, 10, 2)), // 開花前刪了
+      pr('p4', later), // 開花後才練
+    ];
+    const aKana = ['あ', 'い', 'う', 'え', 'お', 'ア', 'イ', 'ウ', 'エ', 'オ'];
+    final exams = [
+      e('n1', 'さ', true, DateTime(2026, 10, 2)), // 普通考試 2 輪
+      e('n1', 'し', false, DateTime(2026, 10, 2)),
+      e('n2', 'す', true, DateTime(2026, 10, 2, 12)),
+      e('n3', 'せ', true, later), // 開花後
+      for (final k in aKana)
+        e('L1', k, k != 'い', DateTime(2026, 10, 3), row: 'あ'),
+      for (final k in aKana) e('L2', k, true, bloom, row: 'あ'),
+      for (final k in aKana) e('L3', k, true, later, row: 'あ'),
+    ];
+    final a = computeJpLight(exams, practice).first;
+    final r = a.record!;
+    expect(r.at, bloom);
+    expect(r.since, day1);
+    expect(r.span, bloom.difference(day1));
+    expect(r.practiceCount, 2);
+    expect(r.examRounds, 2);
+    expect(r.lightPasses, 1);
+    expect(computeJpLight(exams, practice)[1].record, isNull);
+  });
+
   test('沒寫完整輪不算', () {
     final exams = [
       for (final k in ['か', 'き'])
