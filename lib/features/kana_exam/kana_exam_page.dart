@@ -61,6 +61,10 @@ class _KanaExamPageState extends ConsumerState<KanaExamPage> {
   int _currentQuestionIndex = 0;
   int _correctCount = 0;
 
+  /// 點亮考試錯一題就直接結束（2026-10-16 使用者要求：點亮是一題都不能錯）；
+  /// 錯的那個字。之前寫的每一題（含錯的這題）都照樣存。
+  String? _failedKana;
+
   // 繪圖相關
   final _strokes = <List<Offset>>[];
   final _strokeTimes = <List<double>>[];
@@ -116,7 +120,8 @@ class _KanaExamPageState extends ConsumerState<KanaExamPage> {
     return result;
   }
 
-  bool get _isCompleted => _currentQuestionIndex >= _currentQuestions.length;
+  bool get _isCompleted =>
+      _failedKana != null || _currentQuestionIndex >= _currentQuestions.length;
 
   void _clearInk() {
     _strokes.clear();
@@ -216,6 +221,13 @@ class _KanaExamPageState extends ConsumerState<KanaExamPage> {
     ref.read(dataRevisionProvider.notifier).state++;
 
     if (!mounted) return;
+    if (widget.lightRow != null && !isCorrect) {
+      setState(() {
+        _failedKana = question.$2;
+        _clearInk();
+      });
+      return;
+    }
     _nextQuestion();
   }
 
@@ -497,6 +509,7 @@ class _KanaExamPageState extends ConsumerState<KanaExamPage> {
     setState(() {
       _currentQuestionIndex = 0;
       _correctCount = 0;
+      _failedKana = null;
       _roundId = DateTime.now().microsecondsSinceEpoch.toString();
       _clearInk();
       if (_mode == ExamMode.kana) {
@@ -540,7 +553,7 @@ class _KanaExamPageState extends ConsumerState<KanaExamPage> {
                   widget.lightRow != null
                       ? (_correctCount == total
                             ? '🌸 ${widget.lightRow}行 開花了！'
-                            : '${widget.lightRow}行 還差一點')
+                            : '${widget.lightRow}行 這次沒開花')
                       : _mode == ExamMode.kana
                       ? '🌸 50 音考試完成！'
                       : '🌸 詞彙考試完成！',
@@ -609,7 +622,8 @@ class _KanaExamPageState extends ConsumerState<KanaExamPage> {
                   widget.lightRow != null
                       ? (_correctCount == total
                             ? '這一行全對，櫻花樹上開了一朵'
-                            : '全部答對才會開花，再試一次')
+                            : '點亮要全部答對，錯一題就結束。'
+                                  '這次對了 $_correctCount 題，錯在「${_failedKana ?? ''}」，再試一次')
                       : accuracy >= 80
                       ? '寫得很扎實，繼續保持'
                       : '多練幾次，肌肉記憶會自己長出來',

@@ -174,16 +174,18 @@ List<JpRowLight> computeJpLight(
     }
     final done = [
       for (final r in rounds.values)
-        if (r.length >= size) r..sort((a, b) => a.savedAt.compareTo(b.savedAt)),
+        // 寫完整輪，或中途錯一題就結束的（2026-10-16 起點亮錯一題就停）。
+        if (r.length >= size || r.any((e) => !e.isCorrect))
+          r..sort((a, b) => a.savedAt.compareTo(b.savedAt)),
     ]..sort((a, b) => a.last.savedAt.compareTo(b.last.savedAt));
     DateTime? litAt;
     final bloomTimes = <DateTime>[];
     var best = 0;
     for (final r in done) {
       final right = r.where((e) => e.isCorrect).length;
-      final pct = (right * 100 / r.length).round();
+      final pct = (right * 100 / size).round();
       if (pct > best) best = pct;
-      if (right == r.length && prevLit) {
+      if (right == r.length && r.length >= size && prevLit) {
         litAt ??= r.last.savedAt;
         bloomTimes.add(r.last.savedAt);
       }

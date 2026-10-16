@@ -129,6 +129,20 @@ void main() {
     expect(computeJpLight(exams, practice)[1].record, isNull);
   });
 
+  test('點亮錯一題就結束：那一輪算考過一次、記下錯的字，但不開花', () {
+    final exams = [
+      e('r', 'あ', true, DateTime(2026, 10, 1), row: 'あ'),
+      e('r', 'イ', true, DateTime(2026, 10, 1), row: 'あ'),
+      e('r', 'う', false, DateTime(2026, 10, 1), row: 'あ'),
+    ];
+    final a = computeJpLight(exams, const []).first;
+    expect(a.exams, 1);
+    expect(a.attempts, 1);
+    expect(a.lit, isFalse);
+    expect(a.best, 20);
+    expect(a.lastWrong, ['う']);
+  });
+
   test('沒寫完整輪不算', () {
     final exams = [
       for (final k in ['か', 'き'])
