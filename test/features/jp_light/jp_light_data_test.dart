@@ -125,6 +125,7 @@ void main() {
     expect(r.total, 2 + 3 + 20);
     // L2、L3 都 100 分 → 開花 2 次，時間都記著
     expect(a.bloomTimes, [bloom, later]);
+    expect(a.attempts, 3); // L1 沒全對、L2 開花、L3 開花後再考
     expect(computeJpLight(exams, practice)[1].record, isNull);
   });
 

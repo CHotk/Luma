@@ -58,7 +58,12 @@ class JpRowLight {
     this.record,
     required this.totalCount,
     this.bloomTimes = const [],
+    this.attempts = 0,
   });
+
+  /// 嘗試點亮幾次（2026-10-16 使用者要求）：這一行開始過的點亮考試輪數，
+  /// 沒寫完、沒全對、開花之後繼續考的都算。
+  final int attempts;
 
   /// 每一次開花（點亮考試 100 分）的時間，舊到新（2026-10-16 使用者要求：
   /// 開花後還能再考 100 分，每次都記；畫面只顯示次數，時間不顯示）。
@@ -224,6 +229,7 @@ List<JpRowLight> computeJpLight(
         record: record,
         totalCount: record?.total ?? totalNow,
         bloomTimes: bloomTimes,
+        attempts: rounds.length,
       ),
     );
   }

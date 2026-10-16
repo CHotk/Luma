@@ -563,19 +563,22 @@ void _showRowGlass(
                           const SizedBox(height: 8),
                           Row(
                             children: [
-                              _GlassFact('點亮考試', '${l.exams} 次'),
+                              _GlassFact('嘗試點亮', '${l.attempts} 次'),
                               const SizedBox(width: 8),
-                              _GlassFact('全部次數', '${l.totalCount} 次'),
+                              _GlassFact(
+                                '開花次數',
+                                l.bloomTimes.isEmpty
+                                    ? '還沒開過'
+                                    : '${l.bloomTimes.length} 次',
+                              ),
                             ],
                           ),
                           const SizedBox(height: 8),
                           Row(
                             children: [
                               _GlassFact(
-                                '開花次數（點亮考 100 分幾次）',
-                                l.bloomTimes.isEmpty
-                                    ? '還沒開過'
-                                    : '${l.bloomTimes.length} 次',
+                                '全部次數（手寫＋考試，寫一次算一次）',
+                                '${l.totalCount} 次',
                               ),
                             ],
                           ),
