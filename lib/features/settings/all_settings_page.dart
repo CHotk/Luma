@@ -151,29 +151,18 @@ class _AllSettingsPageState extends ConsumerState<AllSettingsPage> {
   final _scroll = ScrollController();
   final _tabScroll = ScrollController();
   final _search = TextEditingController();
-  final _sectionKeys = {for (final s in SettingsSection.values) s: GlobalKey()};
   final _tabKeys = {for (final s in SettingsSection.values) s: GlobalKey()};
   final _anchors = <String, GlobalKey>{};
   final _highlight = ValueNotifier<String?>(null);
   late SettingsSection _current = settingsSectionFor(widget.fromLocation);
-
-  /// 點分頁籤捲動中：先不讓捲動監聽改亮哪一格，免得一路閃過中間的。
-  bool _jumping = false;
-
-  /// 剛打開：上面幾段（例如英文要讀設定檔）畫完會變高，把目標段落往下
-  /// 推；使用者還沒自己滑之前，內容高度一變就再對準一次。
-  bool _pinned = true;
 
   String get _query => _search.text.trim();
 
   @override
   void initState() {
     super.initState();
-    _scroll.addListener(_syncTab);
     _search.addListener(() => setState(() {}));
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _jumpTo(_current, animate: false);
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _showTab(_current));
   }
 
   @override
@@ -185,28 +174,12 @@ class _AllSettingsPageState extends ConsumerState<AllSettingsPage> {
     super.dispose();
   }
 
-  void _repin() {
-    if (!_pinned || !mounted) return;
-    final ctx = _sectionKeys[_current]!.currentContext;
-    if (ctx == null) return;
-    _jumping = true;
-    Scrollable.ensureVisible(ctx);
-    _jumping = false;
-  }
-
-  Future<void> _jumpTo(SettingsSection s, {bool animate = true}) async {
-    if (animate) _pinned = false;
+  /// 點分頁籤：只顯示那一段（2026-10-16 使用者要求：不用整頁一路捲下去、
+  /// 也不用標特別顏色），回到最上面。
+  void _select(SettingsSection s) {
     setState(() => _current = s);
     _showTab(s);
-    final ctx = _sectionKeys[s]!.currentContext;
-    if (ctx == null) return;
-    _jumping = true;
-    await Scrollable.ensureVisible(
-      ctx,
-      duration: animate ? const Duration(milliseconds: 350) : Duration.zero,
-      curve: Curves.easeOutCubic,
-    );
-    _jumping = false;
+    if (_scroll.hasClients) _scroll.jumpTo(0);
   }
 
   void _showTab(SettingsSection s) {
@@ -220,51 +193,21 @@ class _AllSettingsPageState extends ConsumerState<AllSettingsPage> {
     }
   }
 
-  /// 往下滑：最上面那段是哪段，分頁籤就亮哪格。
-  void _syncTab() {
-    if (_jumping || !_scroll.hasClients) return;
-    final top = (context.findRenderObject() as RenderBox?)?.localToGlobal(
-      Offset.zero,
-    );
-    if (top == null) return;
-    var cur = SettingsSection.values.first;
-    for (final s in SettingsSection.values) {
-      final box =
-          _sectionKeys[s]!.currentContext?.findRenderObject() as RenderBox?;
-      if (box == null) continue;
-      final y = box.localToGlobal(Offset.zero).dy;
-      if (y <= top.dy + 180) cur = s;
-    }
-    // 滑到底：最後一段就算很短也要亮。
-    if (_scroll.position.pixels >= _scroll.position.maxScrollExtent - 4) {
-      cur = SettingsSection.values.last;
-    }
-    if (cur != _current) {
-      setState(() => _current = cur);
-      _showTab(cur);
-    }
-  }
-
   Future<void> _openResult(SettingEntry e) async {
-    _pinned = false;
     _search.clear();
     FocusScope.of(context).unfocus();
     setState(() => _current = e.section);
     // 等清單畫回來才捲得到。
     await WidgetsBinding.instance.endOfFrame;
-    final ctx =
-        _anchors[e.anchor]?.currentContext ??
-        _sectionKeys[e.section]!.currentContext;
+    _showTab(e.section);
+    final ctx = _anchors[e.anchor]?.currentContext;
     if (ctx == null || !ctx.mounted) return;
-    _jumping = true;
     await Scrollable.ensureVisible(
       ctx,
       alignment: 0.2,
       duration: const Duration(milliseconds: 350),
       curve: Curves.easeOutCubic,
     );
-    _jumping = false;
-    _showTab(e.section);
     _highlight.value = e.anchor;
     await Future<void>.delayed(const Duration(milliseconds: 1400));
     if (mounted && _highlight.value == e.anchor) _highlight.value = null;
@@ -340,7 +283,7 @@ class _AllSettingsPageState extends ConsumerState<AllSettingsPage> {
                               child: _TabChip(
                                 section: s,
                                 selected: s == _current,
-                                onTap: () => _jumpTo(s),
+                                onTap: () => _select(s),
                               ),
                             ),
                         ],
@@ -357,48 +300,23 @@ class _AllSettingsPageState extends ConsumerState<AllSettingsPage> {
                         : SettingsAnchors(
                             keys: _anchors,
                             highlight: _highlight,
-                            child: NotificationListener<Notification>(
-                              onNotification: (n) {
-                                if (n is UserScrollNotification) {
-                                  _pinned = false;
-                                } else if (n is SizeChangedLayoutNotification &&
-                                    _pinned) {
-                                  WidgetsBinding.instance.addPostFrameCallback(
-                                    (_) => _repin(),
-                                  );
-                                }
-                                return false;
-                              },
-                              child: SingleChildScrollView(
-                                controller: _scroll,
-                                keyboardDismissBehavior:
-                                    ScrollViewKeyboardDismissBehavior.onDrag,
-                                child: SizeChangedLayoutNotifier(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.stretch,
-                                    children: [
-                                      for (final s
-                                          in SettingsSection.values) ...[
-                                        _SectionHeader(
-                                          key: _sectionKeys[s],
-                                          section: s,
-                                        ),
-                                        _sectionBody(s),
-                                        const SizedBox(height: Gap.lg),
-                                      ],
-                                      const VersionFooter(),
-                                      // 最後一段捲得到最上面，分頁籤才對得上；
-                                      // 底部浮動分頁列也不會蓋住。
-                                      SizedBox(
-                                        height:
-                                            MediaQuery.of(context).size.height *
-                                                0.45 +
-                                            FloatingNavInset.of(context),
-                                      ),
-                                    ],
+                            child: SingleChildScrollView(
+                              controller: _scroll,
+                              keyboardDismissBehavior:
+                                  ScrollViewKeyboardDismissBehavior.onDrag,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  _SectionHeader(section: _current),
+                                  _sectionBody(_current),
+                                  const SizedBox(height: Gap.lg),
+                                  const VersionFooter(),
+                                  // 底部浮動分頁列不要蓋住最後一列。
+                                  SizedBox(
+                                    height:
+                                        Gap.lg + FloatingNavInset.of(context),
                                   ),
-                                ),
+                                ],
                               ),
                             ),
                           ),
@@ -490,7 +408,7 @@ class _TabChip extends StatelessWidget {
 }
 
 class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({super.key, required this.section});
+  const _SectionHeader({required this.section});
 
   final SettingsSection section;
 
