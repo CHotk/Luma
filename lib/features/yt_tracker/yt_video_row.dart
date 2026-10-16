@@ -9,7 +9,6 @@ import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
 import '../../data/external_link.dart';
 import '../../data/repositories/yt_embed_player_style_store.dart';
-import '../../data/repositories/yt_new_videos.dart';
 import '../../data/repositories/yt_playlist_store.dart';
 import '../../data/repositories/yt_video_hidden_store.dart';
 import '../../data/repositories/yt_video_open_mode_store.dart';
@@ -878,36 +877,46 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
                               // ✓ 已看過、⊘ 已隱藏、☁ 快取來的、★ 在播放清單；
                               // 左上角新片 NEW。看過的標題變灰、隱藏的整列變淡
                               // 照舊（使用者要求）。
-                              // NEW：這次打開 App 才從 YouTube 抓到、原本快取
-                              // 沒有的（見 [YtNewVideos]）。
+                              // NEW：發布 N 天內、還沒點開看過（2026-10-16
+                              // 使用者要求；N 在設定調，見
+                              // [YtDisplayPrefs.newBadgeDays]）。
                               Positioned(
                                 left: 3,
                                 top: 3,
-                                child: ValueListenableBuilder(
-                                  valueListenable: YtNewVideos.notifier,
-                                  builder: (context, fresh, _) =>
-                                      !fresh.contains(video.videoId)
-                                      ? const SizedBox.shrink()
-                                      : Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 4,
-                                            vertical: 1,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: AppColors.accentSolid,
-                                            borderRadius: BorderRadius.circular(
-                                              4,
+                                child: Consumer(
+                                  builder: (context, ref, _) {
+                                    final days = ref
+                                        .watch(ytDisplayPrefsProvider)
+                                        .newBadgeDays;
+                                    final fresh =
+                                        days > 0 &&
+                                        _watched == null &&
+                                        DateTime.now()
+                                                .difference(video.publishedAt)
+                                                .inHours <
+                                            days * 24;
+                                    return !fresh
+                                        ? const SizedBox.shrink()
+                                        : Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 4,
+                                              vertical: 1,
                                             ),
-                                          ),
-                                          child: const Text(
-                                            'NEW',
-                                            style: TextStyle(
-                                              fontSize: 8.5,
-                                              fontWeight: FontWeight.w900,
-                                              color: Colors.white,
+                                            decoration: BoxDecoration(
+                                              color: AppColors.accentSolid,
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
                                             ),
-                                          ),
-                                        ),
+                                            child: const Text(
+                                              'NEW',
+                                              style: TextStyle(
+                                                fontSize: 8.5,
+                                                fontWeight: FontWeight.w900,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          );
+                                  },
                                 ),
                               ),
                               Positioned(

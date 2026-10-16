@@ -17,6 +17,7 @@ class YtDisplayPrefs {
     this.showBackToTop = true,
     this.removedCheckDays = defaultRemovedCheckDays,
     this.viewsRefreshDays = defaultViewsRefreshDays,
+    this.newBadgeDays = defaultNewBadgeDays,
     this.backToTopRight = defaultBackToTopRight,
     this.backToTopBottom = defaultBackToTopBottom,
     required this.updatedAt,
@@ -63,6 +64,12 @@ class YtDisplayPrefs {
   static const defaultViewsRefreshDays = 7;
   static const viewsRefreshChoices = [3, 7, 14, 30, 0];
 
+  /// 影片列的「NEW」：發布幾天內、而且還沒點開看過的都標（2026-10-16
+  /// 使用者要求，取代原本「這次打開 App 才抓到」的定義）。0＝不標。
+  final int newBadgeDays;
+  static const defaultNewBadgeDays = 7;
+  static const newBadgeChoices = [1, 3, 7, 14, 0];
+
   /// 「回到最上面」按鈕離右邊、下面多遠（2026-10-12 使用者要求：起始
   /// 位置靠上一點、可以拖；拖完記住，跟著同步）。
   final double backToTopRight;
@@ -90,6 +97,7 @@ class YtDisplayPrefs {
     bool? showBackToTop,
     int? removedCheckDays,
     int? viewsRefreshDays,
+    int? newBadgeDays,
     double? backToTopRight,
     double? backToTopBottom,
     DateTime? updatedAt,
@@ -104,6 +112,7 @@ class YtDisplayPrefs {
     showBackToTop: showBackToTop ?? this.showBackToTop,
     removedCheckDays: removedCheckDays ?? this.removedCheckDays,
     viewsRefreshDays: viewsRefreshDays ?? this.viewsRefreshDays,
+    newBadgeDays: newBadgeDays ?? this.newBadgeDays,
     backToTopRight: backToTopRight ?? this.backToTopRight,
     backToTopBottom: backToTopBottom ?? this.backToTopBottom,
     updatedAt: updatedAt ?? this.updatedAt,
@@ -120,6 +129,7 @@ class YtDisplayPrefs {
     'showBackToTop': showBackToTop,
     'removedCheckDays': removedCheckDays,
     'viewsRefreshDays': viewsRefreshDays,
+    'newBadgeDays': newBadgeDays,
     'backToTopRight': backToTopRight,
     'backToTopBottom': backToTopBottom,
     'updatedAt': updatedAt.toIso8601String(),
@@ -139,6 +149,7 @@ class YtDisplayPrefs {
         (j['removedCheckDays'] as num?)?.toInt() ?? defaultRemovedCheckDays,
     viewsRefreshDays:
         (j['viewsRefreshDays'] as num?)?.toInt() ?? defaultViewsRefreshDays,
+    newBadgeDays: (j['newBadgeDays'] as num?)?.toInt() ?? defaultNewBadgeDays,
     backToTopRight:
         (j['backToTopRight'] as num?)?.toDouble() ?? defaultBackToTopRight,
     backToTopBottom:

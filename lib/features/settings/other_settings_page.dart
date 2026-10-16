@@ -1029,6 +1029,71 @@ class _YtDisplayPrefsRows extends ConsumerWidget {
           (v) => update(prefs.copyWith(searchShowAll: v)),
         ),
         // 影片下架檢查多久一次（2026-10-12 使用者要求：設定可調、跨裝置同步）。
+        // 影片列 NEW 標記：發布幾天內、還沒點開看過（2026-10-16 使用者要求）。
+        SettingAnchor(
+          id: 'yt.new',
+          child: Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.only(top: 2),
+                  child: SettingIcon(),
+                ),
+                const SizedBox(width: Gap.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        '影片 NEW 標記',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.ink,
+                        ),
+                      ),
+                      Text(
+                        prefs.newBadgeDays <= 0
+                            ? '不標 NEW'
+                            : '發布 ${prefs.newBadgeDays} 天內、還沒點開看過的影片，縮圖左上角標 NEW',
+                        style: AppText.note,
+                      ),
+                      const SizedBox(height: Gap.xs),
+                      SegmentedButton<int>(
+                        segments: [
+                          for (final d in YtDisplayPrefs.newBadgeChoices)
+                            ButtonSegment(
+                              value: d,
+                              label: Text(switch (d) {
+                                0 => '不標',
+                                7 => '一週',
+                                14 => '兩週',
+                                _ => '$d 天',
+                              }),
+                            ),
+                        ],
+                        selected: {prefs.newBadgeDays},
+                        showSelectedIcon: false,
+                        onSelectionChanged: (s) =>
+                            update(prefs.copyWith(newBadgeDays: s.first)),
+                        style: SegmentedButton.styleFrom(
+                          backgroundColor: AppColors.glassFill,
+                          foregroundColor: AppColors.ink2,
+                          selectedBackgroundColor: AppColors.accentSolid
+                              .withValues(alpha: 0.28),
+                          selectedForegroundColor: AppColors.ink,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
         SettingAnchor(
           id: 'yt.views',
           child: Padding(
