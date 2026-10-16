@@ -9,7 +9,9 @@ import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../kana_practice/gojuon_data.dart';
 import 'jp_bloom_record_view.dart';
+import 'jp_bloom_celebration.dart' show jpBloomStage;
 import 'jp_light_data.dart';
+import 'jp_light_sprite.dart';
 
 /// 五十音櫻花樹的 GPT 圖版（2026-10-16 使用者要求預設用這版，設計稿
 /// `design-history/2026-10-16_日文櫻花點亮重新設計五版.html` 第 6 版）：
@@ -123,12 +125,24 @@ class _JpLightGptBodyState extends State<JpLightGptBody> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    '/ ${lights.length} 朵開花',
+                    '/ ${lights.length} 朵・',
                     style: const TextStyle(fontSize: 14, color: _ink2),
+                  ),
+                  Text(
+                    jpBloomStage(lit).$1,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFFFFD3E0),
+                    ),
                   ),
                 ],
               ),
             ),
+            const SizedBox(height: 6),
+            JpBloomStageBar(lit: lit, total: lights.length),
+            const SizedBox(height: 8),
+            JpLightSprite(lights: lights, onRow: _open),
             AspectRatio(
               aspectRatio: 2 / 3,
               child: LayoutBuilder(
