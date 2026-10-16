@@ -5,7 +5,7 @@ import 'jp_bloom_celebration.dart' show jpBloomStage;
 import 'jp_light_data.dart';
 
 /// 櫻花樹頁上面的「咲き進度條」跟「小精靈對話」（2026-10-16 使用者要求，
-/// 照設計稿 `design-history/2026-10-16_日文櫻花點亮重新設計五版.html`
+/// 照設計稿 `design-history/已選擇完成/點亮/2026-10-16_日文櫻花點亮重新設計五版.html`
 /// 第 7 版）。
 
 /// 咲き進度條：日本賞櫻講開了幾成，到了就點亮那個節點。

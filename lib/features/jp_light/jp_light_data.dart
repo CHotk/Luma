@@ -6,7 +6,7 @@ import '../../domain/models/kana_practice.dart';
 import '../kana_practice/gojuon_data.dart';
 
 /// 日文「點亮」（2026-10-15 使用者選設計稿
-/// `design-history/已選擇完成/2026-10-15_日文點亮進度五種設計.html` 第 4 版
+/// `design-history/已選擇完成/點亮/2026-10-15_日文點亮進度五種設計.html` 第 4 版
 /// 「櫻花樹開花」）：一行（あ～わ）一朵花，考試選「點亮」模式、一次只考
 /// 那一行、全部答對就開花。考試本來就每題隨機平假／片假，所以不分兩種
 /// 字，一共 10 朵。

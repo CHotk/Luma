@@ -14,13 +14,13 @@ import 'jp_light_data.dart';
 import 'jp_light_sprite.dart';
 
 /// 五十音櫻花樹的 GPT 圖版（2026-10-16 使用者要求預設用這版，設計稿
-/// `design-history/2026-10-16_日文櫻花點亮重新設計五版.html` 第 6 版）：
+/// `design-history/已選擇完成/點亮/2026-10-16_日文櫻花點亮重新設計五版.html` 第 6 版）：
 /// ChatGPT 產的黃昏背景＋光禿的樹，開了的行在那一團花苞疊上盛開的花，
 /// 每團花掛行名牌子，下面一排對照表，點花從畫面正中間跳出粉色毛玻璃卡片。
 ///
-/// 圖在 `assets/images/jp_light/app/`（原圖縮小過；原圖留在
-/// `assets/images/jp_light/` 跟 `design-history/assets/jp_light/`）。
-const _art = 'assets/images/jp_light/app';
+/// 圖在 `assets/images/jp_light/`（縮小過的，只有這份會打包）；ChatGPT 原圖、
+/// 設計稿用的版本都在 `design-history/已選擇完成/點亮/`。
+const _art = 'assets/images/jp_light';
 
 /// 背景，整頁鋪滿（給 [JpLightPage] 墊在最底下）。
 class JpLightGptBackground extends StatelessWidget {
@@ -55,33 +55,34 @@ class JpLightGptBackground extends StatelessWidget {
 }
 
 /// 10 團花苞在 tree.png 上的位置（原圖 1024×1536 的座標，設計稿對位模式
-/// 量的）。順序 あ か さ た な は ま や ら わ。
+/// 量的）。順序 あ か さ た な は ま や ら わ：あ在樹的左下角、か右下角，
+/// 左右交替往上，わ在樹頂（2026-10-16 使用者要求）。
 const _buds = [
-  Offset(490, 215),
-  Offset(245, 355),
-  Offset(615, 320),
-  Offset(775, 365),
-  Offset(215, 610),
-  Offset(805, 635),
-  Offset(130, 870),
-  Offset(935, 850),
   Offset(150, 1090),
   Offset(885, 1110),
+  Offset(130, 870),
+  Offset(935, 850),
+  Offset(215, 610),
+  Offset(805, 635),
+  Offset(245, 355),
+  Offset(775, 365),
+  Offset(615, 320),
+  Offset(490, 215),
 ];
 
-/// 牌子相對花苞中心放哪（設計稿 390 寬時的 px）：預設正下方；あ行在最
-/// 上面、下面緊貼著さ行，牌子改放上面。
+/// 牌子相對花苞中心放哪（設計稿 390 寬時的 px）：預設正下方；わ行在樹頂、
+/// 下面緊貼著ら行，牌子改放上面。
 const _tagOff = [
-  Offset(0, -64),
-  Offset(0, 34),
-  Offset(0, 34),
-  Offset(8, 34),
   Offset(0, 34),
   Offset(0, 34),
   Offset(0, 34),
   Offset(-6, 34),
   Offset(0, 34),
   Offset(0, 34),
+  Offset(0, 34),
+  Offset(8, 34),
+  Offset(0, 34),
+  Offset(0, -64),
 ];
 
 class JpLightGptBody extends StatefulWidget {

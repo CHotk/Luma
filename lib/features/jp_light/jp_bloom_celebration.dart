@@ -10,10 +10,10 @@ import '../../shared/widgets/app_notice.dart';
 import 'jp_light_data.dart';
 
 /// 點亮考試全對、回到櫻花樹時跳出來的慶祝（2026-10-16 使用者要求，照設計稿
-/// `design-history/2026-10-16_日文櫻花點亮重新設計五版.html` 第 7 版）：
+/// `design-history/已選擇完成/點亮/2026-10-16_日文櫻花點亮重新設計五版.html` 第 7 版）：
 /// 一朵 → 畫面中間粉色毛玻璃鼓勵卡；10 朵全開 → 整頁「満開」。兩種都能
 /// 「記錄」：畫成一張 1080×1920 的圖，手機叫分享（存照片）、電腦下載。
-const _art = 'assets/images/jp_light/app';
+const _art = 'assets/images/jp_light';
 
 /// 日本賞櫻講開了幾成：咲き始め → 三分咲き → 五分咲き → 八分咲き → 満開。
 (String, String) jpBloomStage(int n) => n >= 10
@@ -592,16 +592,16 @@ class _FullBloomState extends State<_FullBloom>
 
 /// 10 團花苞在 tree.png（原圖 1024×1536）上的位置，跟 GPT 版畫面同一組。
 const _buds = [
-  Offset(490, 215),
-  Offset(245, 355),
-  Offset(615, 320),
-  Offset(775, 365),
-  Offset(215, 610),
-  Offset(805, 635),
-  Offset(130, 870),
-  Offset(935, 850),
   Offset(150, 1090),
   Offset(885, 1110),
+  Offset(130, 870),
+  Offset(935, 850),
+  Offset(215, 610),
+  Offset(805, 635),
+  Offset(245, 355),
+  Offset(775, 365),
+  Offset(615, 320),
+  Offset(490, 215),
 ];
 
 Future<ui.Image> _img(String path) async {

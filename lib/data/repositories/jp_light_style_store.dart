@@ -3,7 +3,7 @@ import 'stamped_setting_store.dart';
 
 /// 五十音櫻花樹用哪種畫法（2026-10-16 使用者要求：保留原本那一版，但預設
 /// 用 ChatGPT 產圖的那一版，設計稿
-/// `design-history/2026-10-16_日文櫻花點亮重新設計五版.html` 第 6 版）。
+/// `design-history/已選擇完成/點亮/2026-10-16_日文櫻花點亮重新設計五版.html` 第 6 版）。
 enum JpLightStyle {
   /// ChatGPT 產的圖疊起來：黃昏背景＋樹＋花團＋飄花瓣。預設。
   gpt,

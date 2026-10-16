@@ -19,7 +19,7 @@ import 'jp_light_data.dart';
 import 'jp_light_gpt_view.dart';
 
 /// 五十音櫻花樹（2026-10-15 使用者選設計稿
-/// `design-history/已選擇完成/2026-10-15_日文點亮進度五種設計.html` 第 4 版）：
+/// `design-history/已選擇完成/點亮/2026-10-15_日文點亮進度五種設計.html` 第 4 版）：
 /// 一棵樹、樹枝上 10 個花苞（あ～わ行），點亮一行開一朵。點花看那一行的
 /// 數字，「開始點亮」直接進那一行的點亮考試。
 ///
@@ -279,17 +279,18 @@ class _Body extends StatelessWidget {
 }
 
 /// 10 個花苞在樹上的位置（設計稿 362×430 的座標，畫的時候照實際大小縮放）。
+/// 2026-10-16 使用者要求：あ在左下角、か右下角，左右交替往上，わ在樹頂。
 const _spots = [
-  Offset(181, 52),
-  Offset(112, 100),
-  Offset(250, 104),
-  Offset(62, 168),
-  Offset(172, 158),
-  Offset(292, 180),
-  Offset(112, 232),
-  Offset(232, 240),
   Offset(72, 306),
   Offset(282, 306),
+  Offset(112, 232),
+  Offset(232, 240),
+  Offset(62, 168),
+  Offset(292, 180),
+  Offset(172, 158),
+  Offset(112, 100),
+  Offset(250, 104),
+  Offset(181, 52),
 ];
 
 class _BranchPainter extends CustomPainter {
