@@ -302,6 +302,16 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
   // 升冪，這裡只是改預設值。
   _ChannelSort _sort = _ChannelSort.subsDesc;
 
+  /// 音樂分類「🎤 歌手」篩選（2026-10-16 使用者要求）：只列標成歌手的頻道。
+  bool _artistOnly = false;
+
+  /// 選的分類全都是音樂分類（名字有「音樂」）。
+  bool _allMusic(List<YtCategory> categories) =>
+      _selected.isNotEmpty &&
+      _selected.every(
+        (id) => categories.any((c) => c.id == id && c.name.contains('音樂')),
+      );
+
   Future<List<_ChannelVideo>>? _videosFuture;
   List<String>? _videosLoadedFor;
   bool _videosLoadedAll = false;
@@ -1554,43 +1564,76 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                                       crossAxisAlignment:
                                           CrossAxisAlignment.stretch,
                                       children: [
-                                        Wrap(
-                                          spacing: 6,
+                                        Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
-                                            _TypeChip(
-                                              label: '預設排序',
-                                              selected:
-                                                  _sort == _ChannelSort.normal,
-                                              onTap: () => setState(
-                                                () =>
-                                                    _sort = _ChannelSort.normal,
+                                            Expanded(
+                                              child: Wrap(
+                                                spacing: 6,
+                                                runSpacing: 6,
+                                                children: [
+                                                  _TypeChip(
+                                                    label: '預設排序',
+                                                    selected:
+                                                        _sort ==
+                                                        _ChannelSort.normal,
+                                                    onTap: () => setState(
+                                                      () => _sort =
+                                                          _ChannelSort.normal,
+                                                    ),
+                                                  ),
+                                                  _TypeChip(
+                                                    label: '訂閱人數 多→少',
+                                                    selected:
+                                                        _sort ==
+                                                        _ChannelSort.subsDesc,
+                                                    onTap: () => setState(
+                                                      () => _sort =
+                                                          _ChannelSort.subsDesc,
+                                                    ),
+                                                  ),
+                                                  _TypeChip(
+                                                    label: '訂閱人數 少→多',
+                                                    selected:
+                                                        _sort ==
+                                                        _ChannelSort.subsAsc,
+                                                    onTap: () => setState(
+                                                      () => _sort =
+                                                          _ChannelSort.subsAsc,
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
                                             ),
-                                            _TypeChip(
-                                              label: '訂閱人數 多→少',
-                                              selected:
-                                                  _sort ==
-                                                  _ChannelSort.subsDesc,
-                                              onTap: () => setState(
-                                                () => _sort =
-                                                    _ChannelSort.subsDesc,
+                                            // 音樂分類才有：只看歌手頻道。
+                                            if (_allMusic(categories)) ...[
+                                              const SizedBox(width: 6),
+                                              _TypeChip(
+                                                label:
+                                                    '🎤 歌手 ${channels.where((c) => c.isArtist).length}',
+                                                selected: _artistOnly,
+                                                onTap: () => setState(
+                                                  () => _artistOnly =
+                                                      !_artistOnly,
+                                                ),
                                               ),
-                                            ),
-                                            _TypeChip(
-                                              label: '訂閱人數 少→多',
-                                              selected:
-                                                  _sort == _ChannelSort.subsAsc,
-                                              onTap: () => setState(
-                                                () => _sort =
-                                                    _ChannelSort.subsAsc,
-                                              ),
-                                            ),
+                                            ],
                                           ],
                                         ),
                                         const SizedBox(height: Gap.sm),
                                         Expanded(
                                           child: _ChannelGrid(
-                                            channels: _sortedChannels(channels),
+                                            channels: _sortedChannels(
+                                              _artistOnly &&
+                                                      _allMusic(categories)
+                                                  ? channels
+                                                        .where(
+                                                          (c) => c.isArtist,
+                                                        )
+                                                        .toList()
+                                                  : channels,
+                                            ),
                                             // 只有單獨看「挖掘新頻道」分類時才秀來源標籤
                                             // （2026-09-29 使用者要求：僅在挖掘分類才顯示）。
                                             showDiscoveredBadge:
@@ -1633,15 +1676,7 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                                     )
                                   : (() {
                                       // 選的分類都是音樂分類才有歌曲。
-                                      _music =
-                                          _selected.isNotEmpty &&
-                                          _selected.every(
-                                            (id) => categories.any(
-                                              (c) =>
-                                                  c.id == id &&
-                                                  c.name.contains('音樂'),
-                                            ),
-                                          );
+                                      _music = _allMusic(categories);
                                       return _buildVideoPanel(channels);
                                     })(),
                             ),
