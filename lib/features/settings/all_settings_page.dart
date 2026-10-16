@@ -147,8 +147,15 @@ class AllSettingsPage extends ConsumerStatefulWidget {
   ConsumerState<AllSettingsPage> createState() => _AllSettingsPageState();
 }
 
-class _AllSettingsPageState extends ConsumerState<AllSettingsPage> {
-  final _scroll = ScrollController();
+class _AllSettingsPageState extends ConsumerState<AllSettingsPage>
+    with SingleTickerProviderStateMixin {
+  /// 真正的分頁（2026-10-16 使用者要求）：一段一頁，可以左右滑，每頁自己
+  /// 記捲到哪、沒存的設定也留著（[_KeepAlive]）。
+  late final TabController _tabs = TabController(
+    length: SettingsSection.values.length,
+    vsync: this,
+    initialIndex: settingsSectionFor(widget.fromLocation).index,
+  )..addListener(_onTabChanged);
   final _tabScroll = ScrollController();
   final _search = TextEditingController();
   final _tabKeys = {for (final s in SettingsSection.values) s: GlobalKey()};
@@ -165,22 +172,24 @@ class _AllSettingsPageState extends ConsumerState<AllSettingsPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _showTab(_current));
   }
 
+  /// 滑動或點分頁籤換頁：上面那排分頁籤跟著亮、捲到看得到。
+  void _onTabChanged() {
+    final s = SettingsSection.values[_tabs.index];
+    if (s == _current) return;
+    setState(() => _current = s);
+    _showTab(s);
+  }
+
   @override
   void dispose() {
-    _scroll.dispose();
+    _tabs.dispose();
     _tabScroll.dispose();
     _search.dispose();
     _highlight.dispose();
     super.dispose();
   }
 
-  /// 點分頁籤：只顯示那一段（2026-10-16 使用者要求：不用整頁一路捲下去、
-  /// 也不用標特別顏色），回到最上面。
-  void _select(SettingsSection s) {
-    setState(() => _current = s);
-    _showTab(s);
-    if (_scroll.hasClients) _scroll.jumpTo(0);
-  }
+  void _select(SettingsSection s) => _tabs.animateTo(s.index);
 
   void _showTab(SettingsSection s) {
     final ctx = _tabKeys[s]!.currentContext;
@@ -197,7 +206,9 @@ class _AllSettingsPageState extends ConsumerState<AllSettingsPage> {
     _search.clear();
     FocusScope.of(context).unfocus();
     setState(() => _current = e.section);
-    // 等清單畫回來才捲得到。
+    _tabs.index = e.section.index;
+    // 等那一頁畫出來才捲得到。
+    await WidgetsBinding.instance.endOfFrame;
     await WidgetsBinding.instance.endOfFrame;
     _showTab(e.section);
     final ctx = _anchors[e.anchor]?.currentContext;
@@ -300,24 +311,35 @@ class _AllSettingsPageState extends ConsumerState<AllSettingsPage> {
                         : SettingsAnchors(
                             keys: _anchors,
                             highlight: _highlight,
-                            child: SingleChildScrollView(
-                              controller: _scroll,
-                              keyboardDismissBehavior:
-                                  ScrollViewKeyboardDismissBehavior.onDrag,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  _SectionHeader(section: _current),
-                                  _sectionBody(_current),
-                                  const SizedBox(height: Gap.lg),
-                                  const VersionFooter(),
-                                  // 底部浮動分頁列不要蓋住最後一列。
-                                  SizedBox(
-                                    height:
-                                        Gap.lg + FloatingNavInset.of(context),
+                            child: TabBarView(
+                              controller: _tabs,
+                              children: [
+                                for (final s in SettingsSection.values)
+                                  _KeepAlive(
+                                    child: SingleChildScrollView(
+                                      key: PageStorageKey(s),
+                                      keyboardDismissBehavior:
+                                          ScrollViewKeyboardDismissBehavior
+                                              .onDrag,
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.stretch,
+                                        children: [
+                                          _SectionHeader(section: s),
+                                          _sectionBody(s),
+                                          const SizedBox(height: Gap.lg),
+                                          const VersionFooter(),
+                                          // 底部浮動分頁列不要蓋住最後一列。
+                                          SizedBox(
+                                            height:
+                                                Gap.lg +
+                                                FloatingNavInset.of(context),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
                                   ),
-                                ],
-                              ),
+                              ],
                             ),
                           ),
                   ),
@@ -485,5 +507,27 @@ class _SearchResults extends StatelessWidget {
         SizedBox(height: FloatingNavInset.of(context) + Gap.xl),
       ],
     );
+  }
+}
+
+/// 分頁滑走時不要把那一頁拆掉：捲動位置、還沒存的輸入都留著。
+class _KeepAlive extends StatefulWidget {
+  const _KeepAlive({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_KeepAlive> createState() => _KeepAliveState();
+}
+
+class _KeepAliveState extends State<_KeepAlive>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return widget.child;
   }
 }
