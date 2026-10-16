@@ -195,7 +195,7 @@ V.push({ name: '1 會長大的樹（主流）', tag: '主流・像 Forest 種樹
     const n = litN();
     return `<div style="position:absolute;inset:0;background:linear-gradient(#2a1838 0%,#4a2448 45%,#6b3550 70%,#2a1a24 100%)"></div>${petals(4 + n * 2)}
       ${topBar('五十音櫻花樹')}
-      <div style="position:relative;z-index:4;padding:0 16px"><div style="display:flex;align-items:baseline;gap:8px"><b style="font-size:34px;color:#FFD3E0" class="serif">${n}</b><span class="muted">/ 10 朵開花</span><span class="small" style="margin-left:auto">總共練了 ${fmtMin(totalMin())}</span></div></div>
+      <div style="position:relative;z-index:4;padding:0 16px"><div style="display:flex;align-items:baseline;gap:8px"><b style="font-size:34px;color:#FFD3E0" class="serif">${n}</b><span class="muted">/ 10 朵開花</span></div></div>
       <svg viewBox="0 0 390 520" width="390" height="520" style="position:relative;z-index:4;display:block;margin-top:-6px">
         <ellipse cx="195" cy="250" rx="${70 + n * 13}" ry="${60 + n * 10}" fill="rgba(255,183,203,${.05 + n * .025})" filter="blur(2px)"/>
         <ellipse cx="195" cy="500" rx="200" ry="40" fill="#2c3a2a"/>
@@ -332,7 +332,7 @@ V.push({ name: '6 GPT 圖層版', tag: '配合 ChatGPT 生圖・進行中', titl
     return `<div style="position:absolute;inset:0;background:linear-gradient(#2a1838,#4a2448 45%,#6b3550 70%,#2a1a24)"></div>
       ${ok['bg.png'] !== false ? `<img src="${ART}bg.png" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover" onload="window.__ok('bg.png',true)" onerror="window.__ok('bg.png',false)">` : ''}${petalLayer}
       <div class="top"><span class="ib">‹</span><b>五十音櫻花樹</b><span class="ib" data-calib title="對位模式" style="${S.calib ? 'color:#4ade80' : ''}">⌖</span><span class="ib" data-sim title="模擬下一行全對">✦</span></div>
-      <div style="position:relative;z-index:4;padding:0 16px"><div style="display:flex;align-items:baseline;gap:8px"><b style="font-size:34px;color:#FFD3E0" class="serif">${n}</b><span class="muted">/ 10 朵開花</span><span class="small" style="margin-left:auto">總共練了 ${fmtMin(totalMin())}</span></div></div>
+      <div style="position:relative;z-index:4;padding:0 16px"><div style="display:flex;align-items:baseline;gap:8px"><b style="font-size:34px;color:#FFD3E0" class="serif">${n}</b><span class="muted">/ 10 朵開花</span></div></div>
       <div class="art" id="art" style="z-index:4">
         ${ok['tree.png'] === false ? '<div class="missing" style="left:40px;right:40px;top:30px;bottom:20px">等 tree.png<br><span class="small">光禿禿的櫻花樹・1024×1536・透明背景</span></div>' : img('tree.png', 'layer')}
         ${BUDS.map(([x, y], i) => { const lit = !!S.data[i][0]; return `<div class="bud ${S.calib ? 'calib' : ''} ${lit ? 'lit' : ''} ${S.hl === i ? 'hl' : ''}" data-row="${i}" data-bud="${i}" style="left:${x * SC}px;top:${y * SC}px">
@@ -352,7 +352,7 @@ V.push({ name: '1 GPT 版・會長大的樹', tag: '第 1 版的 AI 圖版本', 
     return `<div style="position:absolute;inset:0;background:linear-gradient(#2a1838,#4a2448 45%,#6b3550 70%,#2a1a24)"></div>
       <img src="${ART}bg.png" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">${imgPetals(3 + n * 2)}
       <div class="top"><span class="ib">‹</span><b>五十音櫻花樹</b><span class="ib" data-sim title="模擬下一行全對">✦</span></div>
-      <div style="position:relative;z-index:4;padding:0 16px"><div style="display:flex;align-items:baseline;gap:8px"><b style="font-size:34px;color:#FFD3E0" class="serif">${n}</b><span class="muted">/ 10 朵開花</span><span class="small" style="margin-left:auto">總共練了 ${fmtMin(totalMin())}</span></div></div>
+      <div style="position:relative;z-index:4;padding:0 16px"><div style="display:flex;align-items:baseline;gap:8px"><b style="font-size:34px;color:#FFD3E0" class="serif">${n}</b><span class="muted">/ 10 朵開花</span></div></div>
       <div class="art" style="z-index:4">
         <div style="position:absolute;left:50%;top:38%;width:${150 + n * 26}px;height:${130 + n * 22}px;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(closest-side,rgba(255,190,210,${.12 + n * .045}),rgba(255,190,210,0));transition:all .8s"></div>
         <img class="layer" src="${ART}tree.png">
@@ -402,7 +402,7 @@ function tips() {
   if (close) { const [r, i] = close; out.push([`${ROWS[i]}行考過 ${r[4]} 次${r[6] ? '，上次只錯「' + r[6] + '」' : ''}——再考一次就可能開花！`, '差一點點', i]); }
   const nx = nextIdx(); if (nx >= 0 && (!close || close[1] !== nx)) out.push([`還沒碰的：${ROWS[nx]}行。先手寫練幾次，再來點亮。`, '慢慢來，一次一行就好']);
   if (n > 0 && n < 10) out.push([`現在是「${STAGE(n)[0]}」，${CHEER[n].replace(/[！。].*$/, '')}。`, `離滿開還差 ${10 - n} 朵`]);
-  out.push([`你總共練了 ${fmtMin(totalMin())}，比上週多一點點就是進步。`, '每天寫一點，比一次寫很多更記得住']);
+  out.push([`你總共寫了 ${S.data.reduce((a, x, j) => a + x[2] + x[4] * examSize(j), 0) + NORMAL_ANS} 次，每一次都算數。`, '每天寫一點，比一次寫很多更記得住']);
   return out;
 }
 V.push({ name: '7 GPT 會說話版', tag: '新版・鼓勵互動', cele: true, title: '版本 7：樹上的小精靈會跟你講話，每開一朵給鼓勵，全開有「満開」慶祝',
@@ -417,7 +417,7 @@ V.push({ name: '7 GPT 會說話版', tag: '新版・鼓勵互動', cele: true, t
     return `<div style="position:absolute;inset:0;background:linear-gradient(#2a1838,#4a2448 45%,#6b3550 70%,#2a1a24)"></div>
       <img src="${ART}bg.png" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">${imgPetals(3 + n * 2)}
       <div class="top"><span class="ib">‹</span><b>五十音櫻花樹</b><span class="ib" data-sim title="模擬下一行全對">✦</span></div>
-      <div style="position:relative;z-index:4;padding:0 16px"><div style="display:flex;align-items:baseline;gap:8px"><b style="font-size:34px;color:#FFD3E0" class="serif">${n}</b><span class="muted">/ 10 朵・<b style="color:#FFD3E0">${st[0]}</b></span><span class="small" style="margin-left:auto">總共練了 ${fmtMin(totalMin())}</span></div></div>
+      <div style="position:relative;z-index:4;padding:0 16px"><div style="display:flex;align-items:baseline;gap:8px"><b style="font-size:34px;color:#FFD3E0" class="serif">${n}</b><span class="muted">/ 10 朵・<b style="color:#FFD3E0">${st[0]}</b></span></div></div>
       <div class="stages"><div class="bar"><div class="fill" style="width:${n * 10}%"></div>${MS.map(([k]) => `<span class="ms ${n >= k ? 'on' : ''}" style="left:${k * 10}%">${n >= k ? '🌸' : ''}</span>`).join('')}</div>
         <div class="lbl">${MS.map(([k, l]) => `<span>${n >= k ? '<b>' + l + '</b>' : l}</span>`).join('')}</div></div>
       <div class="talk" data-tip><div class="ava">🌸</div><div class="bub"><div class="say">${t[0]}</div>${t[3] || ''}<small>${t[1]}・點我換一句</small>${t[2] !== undefined ? `<span data-tiprow="${t[2]}" style="display:inline-block;margin-top:6px;padding:3px 10px;border-radius:99px;background:#FF7FA3;font-weight:800;font-size:12px">看 ${ROWS[t[2]]}行 →</span>` : ''}</div></div>

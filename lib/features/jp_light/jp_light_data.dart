@@ -249,16 +249,6 @@ final jpLightProvider = FutureProvider.autoDispose<List<JpRowLight>>((
   return computeJpLight(exams, practice);
 });
 
-/// 考試總共寫了多久（50 音、詞彙、點亮都算；2026-10-16 使用者要求，取代
-/// 原本加總手寫練習的時間）。
-final jpExamTimeProvider = FutureProvider.autoDispose<Duration>((ref) async {
-  ref.watch(dataRevisionProvider);
-  final exams = await ref.read(kanaExamRepositoryProvider).loadAll();
-  return exams
-      .where((e) => e.deletedAt == null)
-      .fold<Duration>(Duration.zero, (s, e) => s + e.writeDuration);
-});
-
 String fmtPracticeTime(Duration d) {
   final m = d.inMinutes;
   if (m < 1) return '${d.inSeconds} 秒';

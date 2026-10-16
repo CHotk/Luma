@@ -149,8 +149,6 @@ class _Body extends StatelessWidget {
                   ),
                   const SizedBox(width: 6),
                   Text('/ ${lights.length} 行開花', style: AppText.note),
-                  const Spacer(),
-                  JpExamTimeText(style: AppText.note),
                 ],
               ),
               const SizedBox(height: Gap.sm),

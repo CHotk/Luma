@@ -2,7 +2,6 @@ import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/app_bottom_nav.dart' show FloatingNavInset;
@@ -126,10 +125,6 @@ class _JpLightGptBodyState extends State<JpLightGptBody> {
                   Text(
                     '/ ${lights.length} 朵開花',
                     style: const TextStyle(fontSize: 14, color: _ink2),
-                  ),
-                  const Spacer(),
-                  const JpExamTimeText(
-                    style: TextStyle(fontSize: 12, color: _ink2),
                   ),
                 ],
               ),
@@ -698,18 +693,4 @@ class _GlassFact extends StatelessWidget {
       ),
     ),
   );
-}
-
-/// 右上角「考試寫了 N 分」：50 音、詞彙、點亮考試每題第一筆到按提交的時間
-/// 加總（2026-10-16 使用者要求，手寫練習時間不算）。
-class JpExamTimeText extends ConsumerWidget {
-  const JpExamTimeText({super.key, required this.style});
-
-  final TextStyle style;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final t = ref.watch(jpExamTimeProvider).valueOrNull ?? Duration.zero;
-    return Text('考試寫了 ${fmtPracticeTime(t)}', style: style);
-  }
 }
