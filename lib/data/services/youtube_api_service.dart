@@ -321,42 +321,6 @@ class YoutubeApiService {
   /// 個，1 單位配額）。回傳「頻道 ID → 人數（隱藏時 count 是 null）」。
   /// 順便帶回 [videoCount]（總影片數，2026-09-30 加）——同一次請求本來
   /// 就有這個欄位，不用多打一次 API。
-  /// 一次問一批頻道的簡介（`channels.list` 的 snippet，50 個 1 單位；
-  /// 2026-10-15 設定「用 YouTube 簡介蓋掉全部頻道」用）。
-  Future<Map<String, String>> fetchDescriptions(List<String> channelIds) async {
-    final result = <String, String>{};
-    for (var i = 0; i < channelIds.length; i += 50) {
-      final batch = channelIds.sublist(
-        i,
-        i + 50 > channelIds.length ? channelIds.length : i + 50,
-      );
-      final uri = Uri.parse('$_base/channels').replace(
-        queryParameters: {
-          'part': 'snippet',
-          'id': batch.join(','),
-          'maxResults': '50',
-          'key': apiKey,
-        },
-      );
-      final res = await _get(uri);
-      final body = jsonDecode(res.body) as Map<String, dynamic>;
-      if (res.statusCode != 200) {
-        throw YoutubeApiException(
-          _errorMessage(res.statusCode, body),
-          status: res.statusCode,
-        );
-      }
-      for (final item
-          in ((body['items'] as List?) ?? const [])
-              .cast<Map<String, dynamic>>()) {
-        final snippet = item['snippet'] as Map<String, dynamic>? ?? const {};
-        result[item['id'] as String] = (snippet['description'] as String? ?? '')
-            .trim();
-      }
-    }
-    return result;
-  }
-
   Future<Map<String, ({int? count, bool hidden, int? videoCount})>>
   fetchSubscriberStats(List<String> channelIds) async {
     final result = <String, ({int? count, bool hidden, int? videoCount})>{};
