@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>櫻花點亮重新設計</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root { --bg: #0C0C13; --card: #151520; --line: #2A2A3D; --ink: #F3F2F8; --ink2: #A3A2B2; --ink3: #74738A; --sakura: #FFB7CB; --sakura2: #FF7FA3; --deep: #E2557F; --gold: #F2C46D; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--ink); min-height: 100vh; font: 14px/1.5 -apple-system, "SF Pro Text", system-ui, "Segoe UI", "Microsoft JhengHei", sans-serif; }
+  .page { max-width: 1140px; margin: 0 auto; padding: 24px 16px 60px; }
+  h1 { font-size: 20px; margin: 0 0 6px; }
+  .lead { color: var(--ink2); font-size: 13px; margin: 0 0 14px; } .lead b { color: var(--ink); }
+  .vtabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+  .vtabs button { border: 1px solid var(--line); background: var(--card); color: var(--ink2); padding: 8px 14px; border-radius: 99px; cursor: pointer; font-size: 13px; }
+  .vtabs button.on { border-color: var(--sakura2); color: #fff; background: rgba(255,127,163,.22); }
+  .stage { display: flex; gap: 28px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
+  .notes { flex: 1 1 320px; max-width: 470px; background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 18px 20px; font-size: 13.5px; color: var(--ink2); }
+  .notes h2 { color: var(--ink); font-size: 17px; margin: 0 0 4px; }
+  .notes .tag { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 99px; background: rgba(255,127,163,.15); color: var(--sakura); margin-bottom: 8px; }
+  .notes h3 { color: var(--ink); font-size: 13.5px; margin: 14px 0 4px; }
+  .notes ul { margin: 0; padding-left: 18px; } .notes li { margin: 3px 0; }
+  .notes .try { margin-top: 14px; padding: 10px 12px; border-radius: 12px; background: rgba(255,127,163,.08); border: 1px solid rgba(255,127,163,.25); color: var(--ink); font-size: 12.5px; }
+  .phone { width: 390px; max-width: 100%; height: 820px; flex-shrink: 0; border-radius: 44px; border: 1px solid var(--line); background: #0e0e17; position: relative; overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,.5); user-select: none; }
+  .screen { position: absolute; inset: 0; overflow-y: auto; scrollbar-width: none; }
+  .screen::-webkit-scrollbar { display: none; }
+  .status { position: absolute; top: 0; left: 0; right: 0; height: 40px; display: flex; align-items: center; justify-content: space-between; padding: 0 30px; font-size: 13px; font-weight: 700; z-index: 70; pointer-events: none; }
+  .top { display: flex; align-items: center; gap: 8px; padding: 50px 16px 8px; position: relative; z-index: 5; }
+  .top b { flex: 1; font-size: 17px; }
+  .ib { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; color: var(--ink2); cursor: pointer; font-size: 16px; background: rgba(255,255,255,.06); }
+  .flower { cursor: pointer; transition: transform .25s; transform-box: fill-box; transform-origin: center; }
+  .flower:hover { transform: scale(1.08); }
+  @keyframes bloom { 0% { transform: scale(.2) rotate(-60deg); opacity: 0 } 60% { transform: scale(1.18) rotate(8deg); opacity: 1 } 100% { transform: scale(1) rotate(0) } }
+  .blooming { animation: bloom .9s cubic-bezier(.2,.9,.3,1.2); transform-box: fill-box; transform-origin: center; }
+  @keyframes fall { 0% { transform: translate(0,-20px) rotate(0); opacity: 0 } 10% { opacity: .9 } 100% { transform: translate(60px, 860px) rotate(540deg); opacity: 0 } }
+  .petal { position: absolute; top: 0; width: 12px; height: 10px; border-radius: 10px 0 10px 0; background: linear-gradient(135deg, #FFD3E0, #FF9DBB); animation: fall linear infinite; pointer-events: none; z-index: 3; }
+  @keyframes glow { 0%,100% { opacity: .65 } 50% { opacity: 1 } }
+  @keyframes sway { 0%,100% { transform: rotate(-2deg) } 50% { transform: rotate(2deg) } }
+  .sheet-bg { position: absolute; inset: 0; z-index: 80; background: rgba(0,0,0,.5); }
+  .sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 81; background: #1C1C29; border-radius: 26px 26px 0 0; padding: 10px 20px 26px; animation: up .28s cubic-bezier(.2,.9,.3,1); }
+  @keyframes up { from { transform: translateY(100%) } }
+  .grab { width: 38px; height: 5px; border-radius: 99px; background: #4a4a5c; margin: 0 auto 14px; }
+  .kv { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0; }
+  .kv div { background: rgba(255,255,255,.05); border-radius: 12px; padding: 9px 11px; } .kv b { display: block; font-size: 16px; }
+  .small { color: var(--ink3); font-size: 11.5px; } .muted { color: var(--ink2); font-size: 12.5px; }
+  .btn { display: block; width: 100%; border: 0; border-radius: 14px; padding: 13px; background: linear-gradient(135deg, var(--sakura2), var(--deep)); color: #fff; font-weight: 800; font-size: 15px; cursor: pointer; }
+  .btn.ghost { background: rgba(255,255,255,.08); }
+  .kchip { display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; border: 1px solid #FF6B6B; color: #FF9A9A; font-size: 17px; margin-right: 6px; }
+  .toast { position: absolute; left: 50%; top: 92px; transform: translateX(-50%); z-index: 95; background: rgba(40,20,32,.95); border: 1px solid rgba(255,183,203,.6); border-radius: 14px; padding: 10px 16px; font-size: 13.5px; font-weight: 700; white-space: nowrap; }
+  .serif { font-family: "Noto Serif JP", serif; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; padding: 0 16px; }
+  .chip { min-width: 30px; padding: 4px 8px; text-align: center; border-radius: 99px; font-size: 13px; font-weight: 700; cursor: pointer; border: 1px solid rgba(255,255,255,.12); color: var(--ink3); }
+  .chip.on { background: rgba(255,183,203,.18); border-color: rgba(255,183,203,.6); color: #FFD3E0; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>日文點亮：櫻花重新設計・五版</h1>
+  <p class="lead">規則不變：10 行（あ～わ），考試選「點亮」、那一行全對就開花。這次每版都用<b>真正的五瓣櫻花</b>（花瓣尖端有缺口），有<b>開花動畫</b>跟<b>飄落的花瓣</b>，越開越熱鬧。<br>每版都能：點花看明細（開花日期、花幾天、練幾次、寫多久、最好幾 %、還錯哪幾字）→「開始點亮」；右上 ✦ 模擬下一行全對看開花。</p>
+  <div class="vtabs" id="vtabs"></div>
+  <div class="stage"><div class="phone" id="phone"></div><div class="notes" id="notes"></div></div>
+</div>
+<script>
+const ROWS = ['あ', 'か', 'さ', 'た', 'な', 'は', 'ま', 'や', 'ら', 'わ'];
+const KANA = { あ: 'あいうえお', か: 'かきくけこ', さ: 'さしすせそ', た: 'たちつてと', な: 'なにぬねの', は: 'はひふへほ', ま: 'まみむめも', や: 'や ゆ よ', ら: 'らりるれろ', わ: 'わ を ん' };
+const SEED = [['9/18', '9/12', 34, 41, 3, 100, ''], ['9/24', '9/15', 28, 36, 4, 100, ''], ['10/02', '9/20', 41, 52, 5, 100, ''], ['10/09', '9/26', 30, 44, 6, 100, ''], [null, '10/01', 22, 27, 3, 80, 'ぬ'], [null, '10/05', 15, 19, 2, 60, 'ひふ'], [null, '10/10', 6, 8, 1, 40, 'むめも'], [null, null, 0, 0, 0, 0, ''], [null, null, 0, 0, 0, 0, ''], [null, null, 0, 0, 0, 0, '']];
+const S = { v: 0, data: SEED.map(r => [...r]), sheet: null, toast: null, justLit: null };
+const rec = i => { const r = S.data[i]; return { lit: r[0], first: r[1], n: r[2], min: r[3], exams: r[4], best: r[5], bad: r[6] }; };
+const litN = () => S.data.filter(r => r[0]).length;
+const nextIdx = () => S.data.findIndex(r => !r[0]);
+const days = (a, b) => Math.max(1, Math.round((new Date('2026/' + b) - new Date('2026/' + a)) / 864e5));
+const fmtMin = m => m >= 60 ? `${Math.floor(m / 60)} 小時 ${m % 60} 分` : `${m} 分`;
+const totalMin = () => S.data.reduce((s, r) => s + r[3], 0);
+
+// 五瓣櫻花（花瓣尖端有 V 字缺口），r = 半徑
+function sakura(cx, cy, r, { lit, i, color = '#FFC4D6', edge = '#FF8FB1', label = '', labelColor, budColor = '#3a2a36', budEdge = '#5a4458', font = 13, serif = false } = {}) {
+  const petal = `M0,0 C${-r * .55},${-r * .25} ${-r * .62},${-r * .85} ${-r * .2},${-r} L0,${-r * .82} L${r * .2},${-r} C${r * .62},${-r * .85} ${r * .55},${-r * .25} 0,0Z`;
+  const cls = `flower ${S.justLit === i ? 'blooming' : ''}`;
+  if (!lit) {
+    return `<g class="flower" data-row="${i}" transform="translate(${cx},${cy})"><circle r="${r * .52}" fill="${budColor}" stroke="${budEdge}" stroke-width="1.5" stroke-dasharray="3 3"/>
+      <text text-anchor="middle" dy=".35em" font-size="${font}" font-weight="800" fill="#8a7a90" ${serif ? 'font-family="Noto Serif JP"' : ''}>${label}</text></g>`;
+  }
+  const grad = `g${i}${S.v}`;
+  return `<g class="${cls}" data-row="${i}" transform="translate(${cx},${cy})">
+    <defs><radialGradient id="${grad}"><stop offset="0" stop-color="#fff"/><stop offset=".35" stop-color="${color}"/><stop offset="1" stop-color="${edge}"/></radialGradient></defs>
+    ${[0, 72, 144, 216, 288].map(a => `<path d="${petal}" fill="url(#${grad})" stroke="rgba(255,255,255,.35)" stroke-width=".6" transform="rotate(${a})"/>`).join('')}
+    <circle r="${r * .18}" fill="#FFE08A"/>${[0, 60, 120, 180, 240, 300].map(a => `<circle r="${r * .045}" fill="#E8A33D" transform="rotate(${a}) translate(0,${-r * .28})"/>`).join('')}
+    ${label ? `<text text-anchor="middle" y="${r + font + 2}" font-size="${font}" font-weight="900" fill="${labelColor || '#FFD3E0'}" ${serif ? 'font-family="Noto Serif JP"' : ''}>${label}</text>` : ''}</g>`;
+}
+const petals = (n, color) => Array.from({ length: n }, (_, k) => `<span class="petal" style="left:${(k * 47) % 360}px;animation-duration:${6 + (k % 5)}s;animation-delay:${-k * 1.3}s;${color ? `background:${color}` : ''}"></span>`).join('');
+const topBar = (title, color = 'var(--ink)') => `<div class="top"><span class="ib">‹</span><b style="color:${color}">${title}</b><span class="ib" data-sim title="模擬下一行全對">✦</span></div>`;
+
+function detail(i) {
+  const r = rec(i), row = ROWS[i];
+  const status = r.lit ? `<div style="font-size:15px;font-weight:800;color:var(--sakura)">🌸 ${r.lit} 開花</div><div class="muted">從第一次練（${r.first}）到開花，花了 <b style="color:var(--ink)">${days(r.first, r.lit)} 天</b></div>`
+    : r.first ? `<div style="font-size:15px;font-weight:800">還是花苞</div><div class="muted">從 ${r.first} 開始練；最好 ${r.best}%</div>` : `<div style="font-size:15px;font-weight:800">還沒開始</div><div class="muted">先手寫練幾次，再用點亮模式考一次</div>`;
+  return `<div style="display:flex;gap:14px;align-items:center"><svg width="64" height="64" viewBox="-32 -32 64 64">${sakura(0, 0, 28, { lit: !!r.lit, i: -1, label: r.lit ? '' : row, font: 18 })}</svg>
+    <div><b style="font-size:19px" class="serif">${row}行</b><div class="small" style="letter-spacing:4px;font-size:13px">${KANA[row]}</div></div></div>
+    <div style="margin-top:12px">${status}</div>
+    <div class="kv"><div><span class="small">手寫練習</span><b>${r.n} 次</b></div><div><span class="small">寫了多久</span><b>${fmtMin(r.min)}</b></div><div><span class="small">點亮考試</span><b>${r.exams} 次</b></div><div><span class="small">最好成績</span><b>${r.exams ? r.best + '%' : '—'}</b></div></div>
+    ${r.bad ? `<div class="small" style="margin-bottom:6px">上次還錯的字</div>${[...r.bad].map(k => `<span class="kchip">${k}</span>`).join('')}` : ''}
+    <div style="display:flex;gap:8px;margin-top:16px"><button class="btn" data-go="${i}">${r.lit ? '再考一次（維持手感）' : `開始點亮 ${row}行`}</button></div>`;
+}
+
+const V = [];
+// 1 主流：一棵會長大的樹（Forest 式）
+V.push({ name: '1 會長大的樹（主流）', tag: '主流・像 Forest 種樹', title: '版本 1：一棵完整的櫻花樹，開越多朵整棵越茂盛',
+  desc: `<h3>怎麼看</h3><ul><li>黃昏粉紫色的天空、草地上一棵<b>畫得比較細的樹</b>（樹幹有粗細變化、分岔自然）。</li><li>10 朵花分佈在樹冠，<b>開了的是真正的五瓣櫻花</b>、還沒開的是暗暗的花苞（寫著行名）。</li><li>開越多朵，樹後面那團淡粉色的「花雲」越大越亮，天上飄的花瓣也越多——一眼看得出進度。</li><li>下面一排 10 顆小膠囊，對照哪幾行開了。</li></ul>`,
+  render() {
+    const P = [[195, 150], [128, 190], [262, 188], [88, 250], [178, 228], [300, 252], [130, 300], [242, 296], [92, 350], [292, 348]];
+    const n = litN();
+    return `<div style="position:absolute;inset:0;background:linear-gradient(#2a1838 0%,#4a2448 45%,#6b3550 70%,#2a1a24 100%)"></div>${petals(4 + n * 2)}
+      ${topBar('五十音櫻花樹')}
+      <div style="position:relative;z-index:4;padding:0 16px"><div style="display:flex;align-items:baseline;gap:8px"><b style="font-size:34px;color:#FFD3E0" class="serif">${n}</b><span class="muted">/ 10 朵開花</span><span class="small" style="margin-left:auto">總共練了 ${fmtMin(totalMin())}</span></div></div>
+      <svg viewBox="0 0 390 520" width="390" height="520" style="position:relative;z-index:4;display:block;margin-top:-6px">
+        <ellipse cx="195" cy="250" rx="${70 + n * 13}" ry="${60 + n * 10}" fill="rgba(255,183,203,${.05 + n * .025})" filter="blur(2px)"/>
+        <ellipse cx="195" cy="500" rx="200" ry="40" fill="#2c3a2a"/>
+        <path d="M188 500 C186 440 184 400 190 360 C194 330 192 300 195 270 L201 270 C203 300 202 330 204 360 C210 400 208 440 206 500 Z" fill="#5b3a2c"/>
+        ${[[195, 300, 130, 300, 92, 350], [198, 300, 250, 296, 292, 348], [195, 270, 140, 240, 88, 250], [198, 268, 250, 240, 300, 252], [196, 250, 160, 210, 128, 190], [198, 248, 230, 210, 262, 188], [197, 240, 190, 200, 195, 150], [196, 300, 210, 300, 242, 296], [196, 280, 160, 300, 130, 300], [197, 250, 182, 240, 178, 228]].map(([x1, y1, cx, cy, x2, y2], k) => `<path d="M${x1} ${y1} Q${cx} ${cy} ${x2} ${y2}" stroke="#5b3a2c" stroke-width="${6 - k * .3}" fill="none" stroke-linecap="round"/>`).join('')}
+        ${P.map(([x, y], i) => sakura(x, y, 24, { lit: !!S.data[i][0], i, label: ROWS[i], labelColor: '#FFE3EC' })).join('')}
+      </svg>
+      <div class="chips" style="position:relative;z-index:4;margin-top:-30px">${ROWS.map((r, i) => `<span class="chip ${S.data[i][0] ? 'on' : ''}" data-row="${i}">${r}</span>`).join('')}</div>`;
+  } });
+// 2 和風掛軸
+V.push({ name: '2 和風掛軸', tag: '最有日本味', title: '版本 2：直式掛軸，水墨樹枝＋金箔花，行名直書',
+  desc: `<h3>怎麼看</h3><ul><li>畫面中間一幅<b>米色和紙掛軸</b>，上下有木軸，一根<b>水墨畫的櫻花枝</b>從右上斜斜垂下來。</li><li>開了的花是<b>淡粉色加一圈金箔邊</b>，旁邊用明朝體直書「あ行」。還沒開的是墨點花苞。</li><li>掛軸右下角蓋一顆<b>紅色印章</b>，寫目前開了幾朵（像落款）。</li><li>掛軸下面一行小字：最近開的是哪一行、花了幾天。</li></ul>`,
+  render() {
+    const P = [[300, 70], [262, 118], [230, 160], [278, 196], [196, 214], [150, 262], [214, 290], [118, 318], [168, 360], [96, 392]];
+    const n = litN(), last = S.data.map((r, i) => [r[0], i]).filter(x => x[0]).pop();
+    return `<div style="position:absolute;inset:0;background:radial-gradient(ellipse at 50% 30%,#2a2030,#120e16)"></div>
+      ${topBar('掛軸・五十音', '#F3E6D0')}
+      <div style="margin:4px auto 0;width:318px;position:relative;z-index:4">
+        <div style="height:14px;border-radius:7px;background:linear-gradient(#6b4a2c,#3a2616);margin:0 -10px"></div>
+        <div style="background:linear-gradient(#f4ecdc,#e9dfcb);border-left:8px solid #8a6a3c;border-right:8px solid #8a6a3c;height:520px;position:relative;overflow:hidden">
+          <svg viewBox="0 0 318 520" width="302" height="520" style="display:block">
+            <path d="M320 20 C280 60 250 120 230 160 C210 200 190 240 150 262 C120 280 110 300 118 318 M230 160 C250 175 270 185 278 196 M262 118 C280 100 292 85 300 70 M196 214 C205 250 210 270 214 290 M150 262 C155 300 160 330 168 360 M118 318 C108 350 100 370 96 392" stroke="#2a2420" stroke-width="5" fill="none" stroke-linecap="round" opacity=".85"/>
+            <path d="M320 20 C280 60 250 120 230 160" stroke="#2a2420" stroke-width="9" fill="none" stroke-linecap="round" opacity=".7"/>
+            ${P.map(([x, y], i) => S.data[i][0] ? sakura(x, y, 20, { lit: true, i, color: '#FFD9E3', edge: '#F2A7BC' }).replace('stroke="rgba(255,255,255,.35)"', 'stroke="#C9A04A"').replace(/stroke-width=".6"/g, 'stroke-width="1.2"') + `<text x="${x + 24}" y="${y - 10}" font-family="Noto Serif JP" font-size="15" font-weight="700" fill="#3a2a22" writing-mode="tb" data-row="${i}" style="cursor:pointer">${ROWS[i]}行</text>`
+              : `<g class="flower" data-row="${i}" transform="translate(${x},${y})"><circle r="7" fill="#3a2a22" opacity=".75"/><circle r="11" fill="none" stroke="#3a2a22" stroke-width=".8" opacity=".35"/><text x="14" y="4" font-family="Noto Serif JP" font-size="12" fill="#8a7a6a">${ROWS[i]}</text></g>`).join('')}
+            <g transform="translate(250,450) rotate(-4)"><rect width="52" height="52" rx="6" fill="#B8322C" opacity=".92"/><text x="26" y="24" text-anchor="middle" font-family="Noto Serif JP" font-size="16" font-weight="900" fill="#F4E4D0">${n}</text><text x="26" y="42" text-anchor="middle" font-family="Noto Serif JP" font-size="11" fill="#F4E4D0">／十</text></g>
+          </svg>
+        </div>
+        <div style="height:14px;border-radius:7px;background:linear-gradient(#6b4a2c,#3a2616);margin:0 -10px"></div>
+      </div>
+      <div class="muted serif" style="text-align:center;margin-top:12px;position:relative;z-index:4">${last ? `最近開花：${ROWS[last[1]]}行（${last[0]}）・花了 ${days(rec(last[1]).first, last[0])} 天` : '還沒有開花'}　總共練了 ${fmtMin(totalMin())}</div>`;
+  } });
+// 3 夜櫻提燈
+V.push({ name: '3 夜櫻提燈', tag: '最有氣氛', title: '版本 3：夜櫻祭——一行一盞提燈，點亮就亮起暖光',
+  desc: `<h3>怎麼看</h3><ul><li>深藍夜空、遠處山的剪影，一條<b>掛滿提燈的繩子</b>彎彎地橫過畫面，上面是櫻花枝的剪影。</li><li>10 盞紅色<b>提燈</b>，燈籠上寫行名；<b>點亮的燈發出暖橘光暈</b>、旁邊開出櫻花；沒點亮的是暗的。</li><li>點亮越多，背景越亮、飄的花瓣越多。</li><li>最下面「今晚亮了 N 盞」＋總練習時間。</li></ul>`,
+  render() {
+    const n = litN();
+    const P = ROWS.map((_, i) => { const x = 30 + i * 36.5, y = 175 + Math.sin((i / 9) * Math.PI) * 70 + (i % 2) * 34; return [x, y]; });
+    const rope = `M10 150 Q195 ${300} 380 150`;
+    return `<div style="position:absolute;inset:0;background:radial-gradient(ellipse at 50% 110%,rgba(255,150,80,${.05 + n * .03}),transparent 60%),linear-gradient(#0a0f2a,#14163a 60%,#1c1430)"></div>${petals(2 + n * 2)}
+      ${topBar('夜櫻・五十音', '#FFE2B8')}
+      <svg viewBox="0 0 390 600" width="390" height="600" style="position:relative;z-index:4;display:block">
+        <circle cx="320" cy="60" r="26" fill="#FFF3D6" opacity=".9"/><circle cx="330" cy="54" r="24" fill="#14163a"/>
+        ${Array.from({ length: 30 }, (_, k) => `<circle cx="${(k * 53) % 390}" cy="${(k * 31) % 140}" r="${k % 3 ? .8 : 1.4}" fill="#fff" opacity=".6"/>`).join('')}
+        <path d="M0 470 L60 430 L120 455 L190 410 L260 450 L330 420 L390 445 L390 600 L0 600Z" fill="#0b0c1c"/>
+        <path d="M-10 70 C80 110 160 90 240 120 C300 140 350 120 400 100" stroke="#0e0e20" stroke-width="10" fill="none"/>
+        ${[[60, 92], [140, 100], [210, 110], [290, 128], [350, 112]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="16" fill="rgba(255,183,203,${.15 + n * .04})"/>`).join('')}
+        <path d="${rope}" stroke="#3a2a2a" stroke-width="1.5" fill="none"/>
+        ${P.map(([x, y], i) => { const lit = !!S.data[i][0]; return `<g class="flower ${S.justLit === i ? 'blooming' : ''}" data-row="${i}" transform="translate(${x},${y})" style="animation:${lit ? '' : 'none'}">
+          <line y1="-26" y2="-14" stroke="#3a2a2a"/>${lit ? `<circle r="34" fill="rgba(255,160,90,.25)" style="animation:glow 2.6s infinite ${i * .2}s"/>` : ''}
+          <rect x="-12" y="-14" width="24" height="6" rx="2" fill="#2a1a14"/><ellipse rx="15" ry="20" cy="8" fill="${lit ? 'url(#lan)' : '#3a1a1e'}" stroke="${lit ? '#FFB060' : '#5a2a2e'}" stroke-width="1"/>
+          ${[0, 6, 12].map(d => `<ellipse rx="15" ry="1" cy="${-4 + d * 1.4}" fill="none" stroke="rgba(0,0,0,.25)"/>`).join('')}
+          <rect x="-10" y="27" width="20" height="5" rx="2" fill="#2a1a14"/>
+          <text y="13" text-anchor="middle" font-family="Noto Serif JP" font-size="14" font-weight="900" fill="${lit ? '#3a0a0a' : '#7a4a4e'}">${ROWS[i]}</text>
+          ${lit ? `<g transform="translate(16,-20) scale(.55)">${sakura(0, 0, 18, { lit: true, i: -1 })}</g>` : ''}</g>`; }).join('')}
+        <defs><radialGradient id="lan" cx=".5" cy=".45"><stop offset="0" stop-color="#FFE0A0"/><stop offset=".55" stop-color="#FF8A4C"/><stop offset="1" stop-color="#C83A2A"/></radialGradient></defs>
+        <text x="195" y="520" text-anchor="middle" font-family="Noto Serif JP" font-size="22" font-weight="700" fill="#FFE2B8">今晚亮了 ${n} 盞</text>
+        <text x="195" y="546" text-anchor="middle" font-size="12" fill="#A39AB8">總共練了 ${fmtMin(totalMin())}</text>
+      </svg>`;
+  } });
+// 4 一枝櫻（極簡）
+V.push({ name: '4 一枝櫻', tag: '最優雅', title: '版本 4：極簡——一根樹枝橫過畫面，花沿著枝一朵朵開',
+  desc: `<h3>怎麼看</h3><ul><li>大片留白（深色）、一根<b>線條優雅的長樹枝</b>從左下彎到右上，粗細自然變細。</li><li>10 朵花<b>沿著樹枝由下往上</b>排（あ行在最下面），開花就是大朵的五瓣櫻花、旁邊細細的行名；沒開的是小小的嫩芽。</li><li>上面一行大字「七つ目まで、あと少し」這種一句話（日文小鼓勵），下面是進度細線。</li><li>沒有多餘的框框跟卡片，整頁像一幅畫。</li></ul>`,
+  render() {
+    const n = litN(), nx = nextIdx();
+    const pts = [[60, 640], [96, 588], [140, 548], [168, 494], [212, 456], [236, 400], [278, 360], [296, 304], [330, 262], [342, 204]];
+    const words = ['まだ蕾', 'ひとつ咲いた', 'ふたつ咲いた', 'みっつ咲いた', 'よっつ咲いた', '半分咲いた', 'むっつ咲いた', 'ななつ咲いた', 'やっつ咲いた', 'ここのつ咲いた', '満開！'];
+    return `<div style="position:absolute;inset:0;background:radial-gradient(ellipse at 80% 20%,#2a1a2a,#0d0c14 70%)"></div>${petals(n)}
+      ${topBar('一枝の桜')}
+      <div style="position:relative;z-index:4;padding:6px 22px 0"><div class="serif" style="font-size:26px;font-weight:700;color:#FFE3EC">${words[n]}</div>
+        <div class="small" style="margin-top:2px">${n} / 10・${nx >= 0 ? `次は ${ROWS[nx]}行` : '全部咲いた'}・練了 ${fmtMin(totalMin())}</div>
+        <div style="height:2px;background:rgba(255,255,255,.08);margin-top:10px;border-radius:2px"><div style="height:2px;width:${n * 10}%;background:linear-gradient(90deg,#FFB7CB,#FF7FA3);border-radius:2px"></div></div></div>
+      <svg viewBox="0 0 390 700" width="390" height="700" style="position:absolute;left:0;top:120px;z-index:4">
+        <path d="M0 700 C40 660 50 630 60 640 C90 600 120 570 140 548 C160 520 170 500 212 456 C230 430 240 410 278 360 C290 340 300 320 330 262 C340 240 345 222 342 204 C340 180 350 150 370 120" stroke="url(#br)" stroke-width="7" fill="none" stroke-linecap="round"/>
+        <defs><linearGradient id="br" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#6a4434"/><stop offset="1" stop-color="#3a2620"/></linearGradient></defs>
+        ${pts.map(([x, y], i) => { const lit = !!S.data[i][0]; return lit ? sakura(x + (i % 2 ? 18 : -18), y - 6, 22 + (i % 3) * 3, { lit: true, i }) + `<text x="${x + (i % 2 ? 46 : -50)}" y="${y}" font-family="Noto Serif JP" font-size="13" fill="#E9C7D2">${ROWS[i]}</text>`
+          : `<g class="flower" data-row="${i}" transform="translate(${x + (i % 2 ? 12 : -12)},${y - 4})"><ellipse rx="5" ry="8" fill="${i === nx ? '#C76A86' : '#5a3a46'}" transform="rotate(${i % 2 ? 30 : -30})"/><text x="${i % 2 ? 12 : -22}" y="4" font-family="Noto Serif JP" font-size="11" fill="#6a5a68">${ROWS[i]}</text></g>`; }).join('')}
+      </svg>`;
+  } });
+// 5 櫻花環
+V.push({ name: '5 櫻花環', tag: '一眼看進度', title: '版本 5：十朵花圍成一圈，中間大大的「桜」跟進度',
+  desc: `<h3>怎麼看</h3><ul><li>畫面中間一個<b>花環</b>：10 朵花順時針圍一圈（あ在最上面），花之間有細細的藤蔓連著。</li><li>圓心是一個大大的明朝體「<b>桜</b>」，下面「6 / 10」；外圈一條細細的粉色進度弧。</li><li>開的花是大朵五瓣櫻、沒開的是小花苞（寫行名），下一個要點亮的花苞微微閃。</li><li>花環下面兩張小卡：「快開了」（最好成績最高的那行、還錯哪幾字）跟「最近開的」。</li></ul>`,
+  render() {
+    const n = litN(), nx = nextIdx(), cx = 195, cy = 300, R = 128;
+    const P = ROWS.map((_, i) => { const a = -Math.PI / 2 + i * 2 * Math.PI / 10; return [cx + R * Math.cos(a), cy + R * Math.sin(a)]; });
+    const close = S.data.map((r, i) => [r, i]).filter(([r]) => !r[0] && r[4]).sort((a, b) => b[0][5] - a[0][5])[0];
+    const last = S.data.map((r, i) => [r[0], i]).filter(x => x[0]).pop();
+    const arc = n / 10, ang = arc * 2 * Math.PI - Math.PI / 2, large = arc > .5 ? 1 : 0;
+    return `<div style="position:absolute;inset:0;background:radial-gradient(circle at 50% 38%,#3a2034,#110d16 65%)"></div>${petals(n)}
+      ${topBar('櫻花環')}
+      <svg viewBox="0 0 390 520" width="390" height="520" style="position:relative;z-index:4;display:block;margin-top:-30px">
+        <circle cx="${cx}" cy="${cy}" r="${R + 34}" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="3"/>
+        ${n ? `<path d="M${cx} ${cy - R - 34} A${R + 34} ${R + 34} 0 ${large} 1 ${cx + (R + 34) * Math.cos(ang)} ${cy + (R + 34) * Math.sin(ang)}" stroke="url(#arc)" stroke-width="3" fill="none" stroke-linecap="round"/>` : ''}
+        <defs><linearGradient id="arc"><stop offset="0" stop-color="#FFD3E0"/><stop offset="1" stop-color="#FF7FA3"/></linearGradient></defs>
+        <circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="#4a3a34" stroke-width="2.5" stroke-dasharray="1 7" stroke-linecap="round"/>
+        <text x="${cx}" y="${cy + 6}" text-anchor="middle" font-family="Noto Serif JP" font-size="92" font-weight="900" fill="rgba(255,211,224,${.25 + n * .07})">桜</text>
+        <text x="${cx}" y="${cy + 52}" text-anchor="middle" font-size="15" font-weight="800" fill="#FFD3E0">${n} / 10</text>
+        ${P.map(([x, y], i) => S.data[i][0] ? sakura(x, y, 25, { lit: true, i }) + `<text x="${x}" y="${y + 4}" text-anchor="middle" font-family="Noto Serif JP" font-size="12" font-weight="900" fill="#7a1a3a" pointer-events="none">${ROWS[i]}</text>`
+          : `<g class="flower" data-row="${i}" transform="translate(${x},${y})" style="${i === nx ? 'animation:glow 1.6s infinite' : ''}"><circle r="15" fill="#2c2030" stroke="${i === nx ? '#FF7FA3' : '#5a4458'}" stroke-width="1.5"/><text text-anchor="middle" dy=".35em" font-family="Noto Serif JP" font-size="13" fill="#9a8aa0">${ROWS[i]}</text></g>`).join('')}
+      </svg>
+      <div style="display:flex;gap:10px;padding:0 16px;position:relative;z-index:4;margin-top:-26px">
+        <div style="flex:1;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:11px 12px" ${close ? `data-row="${close[1]}"` : ''}><div class="small">快開了</div>${close ? `<b class="serif" style="font-size:18px">${ROWS[close[1]]}行</b><div class="small">最好 ${close[0][5]}%・還錯 ${close[0][6]}</div>` : '<div class="muted">—</div>'}</div>
+        <div style="flex:1;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:11px 12px" ${last ? `data-row="${last[1]}"` : ''}><div class="small">最近開的</div>${last ? `<b class="serif" style="font-size:18px;color:#FFD3E0">${ROWS[last[1]]}行</b><div class="small">${last[0]}・花 ${days(rec(last[1]).first, last[0])} 天</div>` : '<div class="muted">—</div>'}</div>
+      </div>`;
+  } });
+
+const phone = document.getElementById('phone');
+function render() {
+  const v = V[S.v];
+  document.getElementById('vtabs').innerHTML = V.map((x, i) => `<button class="${i === S.v ? 'on' : ''}" data-v="${i}">${x.name}</button>`).join('');
+  document.getElementById('notes').innerHTML = `<span class="tag">${v.tag}</span><h2>${v.title}</h2>${v.desc}<h3>每版都一樣的</h3><ul><li>點花（或花苞）出明細：開花日期、從第一次練到開花花幾天、手寫練幾次／多久、點亮考幾次、最好幾 %、上次還錯哪幾字；下面「開始點亮」直接進那一行的點亮考試。</li><li>開花時有一段<b>綻放動畫</b>（從小轉著長大、彈一下）。</li></ul><div class="try">試試：按右上 ✦ 連按幾次，看花一朵朵開、背景跟花瓣越來越熱鬧；點任一朵花看明細。</div>`;
+  phone.innerHTML = `<div class="status"><span>21:30</span><span>5G ▮</span></div><div class="screen">${v.render()}</div>
+    ${S.sheet !== null ? `<div class="sheet-bg" data-close></div><div class="sheet"><div class="grab"></div>${detail(S.sheet)}</div>` : ''}${S.toast ? `<div class="toast">${S.toast}</div>` : ''}`;
+}
+let tt;
+function toast(t) { S.toast = t; clearTimeout(tt); tt = setTimeout(() => { S.toast = null; render(); }, 1700); }
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-v],[data-row],[data-close],[data-go],[data-sim]');
+  if (!el) return; const d = el.dataset;
+  S.justLit = null;
+  if (d.v) { S.v = +d.v; S.sheet = null; }
+  else if (d.sim !== undefined) { const i = nextIdx(); if (i < 0) { S.data = SEED.map(r => [...r]); toast('全部開完了，重來一次'); } else { const r = S.data[i]; r[0] = '10/16'; r[1] = r[1] || '10/14'; r[4]++; r[5] = 100; r[6] = ''; S.justLit = i; toast(`🌸 ${ROWS[i]}行 開花了！`); } }
+  else if (d.row !== undefined) S.sheet = +d.row;
+  else if (d.close !== undefined) S.sheet = null;
+  else if (d.go !== undefined) { S.sheet = null; toast(`開始點亮 ${ROWS[+d.go]}行…`); }
+  render();
+});
+if (/^#[1-5]$/.test(location.hash)) S.v = +location.hash[1] - 1;
+render();
+</script>
+</body>
+</html>
