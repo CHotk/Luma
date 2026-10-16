@@ -238,6 +238,8 @@ const ART = 'assets/jp_light/';
 // tree.png（2026-10-16 第二版，10 團花苞）上量出來的位置，あ～わ 由上往下、左右交錯。
 const BUDS = [[490, 215], [245, 355], [615, 320], [775, 365], [215, 610], [805, 635], [130, 870], [935, 850], [150, 1090], [885, 1110]];
 const SC = 390 / 1024;
+// ChatGPT 產的三片花瓣（petals.png 切的），輪流飄、大小跟轉速不一樣。
+const imgPetals = n => Array.from({ length: n }, (_, k) => `<img src="${ART}petal${(k % 3) + 1}.png" style="position:absolute;top:0;left:${(k * 47) % 360}px;width:${16 + (k % 3) * 5}px;height:${16 + (k % 3) * 5}px;object-fit:contain;animation:fall ${6 + (k % 5)}s linear infinite ${-k * 1.3}s;pointer-events:none;z-index:3">`).join('');
 const ok = {};
 function img(name, cls, extra = '') {
   if (ok[name] === false) return '';
@@ -246,12 +248,12 @@ function img(name, cls, extra = '') {
 window.__ok = (n, v) => { if (ok[n] !== v) { ok[n] = v; render(); } };
 V.push({ name: '6 GPT 圖層版', tag: '配合 ChatGPT 生圖・進行中', title: '版本 6：底圖＋光禿的樹＋盛開花團＋花瓣，全部用 AI 產的圖疊起來',
   desc: `<h3>怎麼疊</h3><ul><li>最底下 <b>bg.png</b>：黃昏天空、遠山、草地（1024×1536）。</li><li>中間 <b>tree.png</b>：完全沒開花的樹，枝頭 10 團花苞（1024×1536，透明背景）。</li><li>開花：在那一行的花苞位置疊上 <b>bloom1～4.png</b>（盛開花團，透明背景），配綻放動畫。</li><li>最上面飄 <b>petal.png</b> 花瓣，開越多朵飄越多。</li></ul>
-    <h3>目前進度</h3><ul>${['bg.png', 'tree.png', 'bloom1.png', 'petal.png'].map(n => `<li>${n}：${ok[n] ? '✅ 已放進去' : '⬜ 還沒有（先用虛線框／簡單圖代替）'}</li>`).join('')}</ul>
+    <h3>目前進度</h3><ul>${['bg.png', 'tree.png', 'bloom1.png', 'petal1.png'].map(n => `<li>${n}：${ok[n] ? '✅ 已放進去' : '⬜ 還沒有（先用虛線框／簡單圖代替）'}</li>`).join('')}</ul>
     <h3>對位</h3><ul><li>右上「⌖」打開對位模式：綠框是 10 個花苞的位置，可以拖拉調整，下面會印出座標，我照著寫進 App。</li></ul>`,
   render() {
     const n = litN();
     const bloomName = i => `bloom${(i % 4) + 1}.png`;
-    const petalLayer = ok['petal.png'] ? Array.from({ length: 3 + n * 2 }, (_, k) => `<img src="${ART}petal.png" style="position:absolute;top:0;left:${(k * 47) % 360}px;width:22px;height:22px;object-fit:contain;animation:fall ${6 + (k % 5)}s linear infinite ${-k * 1.3}s;pointer-events:none;z-index:3">`).join('') : petals(3 + n * 2);
+    const petalLayer = imgPetals(3 + n * 2);
     return `<div style="position:absolute;inset:0;background:linear-gradient(#2a1838,#4a2448 45%,#6b3550 70%,#2a1a24)"></div>
       ${ok['bg.png'] !== false ? `<img src="${ART}bg.png" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover" onload="window.__ok('bg.png',true)" onerror="window.__ok('bg.png',false)">` : ''}${petalLayer}
       <div class="top"><span class="ib">‹</span><b>五十音櫻花樹</b><span class="ib" data-calib title="對位模式" style="${S.calib ? 'color:#4ade80' : ''}">⌖</span><span class="ib" data-sim title="模擬下一行全對">✦</span></div>
@@ -262,7 +264,7 @@ V.push({ name: '6 GPT 圖層版', tag: '配合 ChatGPT 生圖・進行中', titl
           ${lit ? (ok[bloomName(i)] === false ? `<svg width="70" height="70" viewBox="-35 -35 70 70" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%)" class="${S.justLit === i ? 'blooming' : ''}">${sakura(0, 0, 26, { lit: true, i: -1 })}</svg>` : img(bloomName(i), `bloom ${S.justLit === i ? 'blooming' : ''}`)) : ''}
           <div class="tap"></div><span class="tag">${S.calib ? i + 1 + '・' : ''}${ROWS[i]}</span></div>`; }).join('')}
       </div>
-      ${S.calib ? `<div class="gpt-step" style="font-family:monospace;color:#bbf7d0">BUDS = [${BUDS.map(([x, y]) => `[${Math.round(x)}, ${Math.round(y)}]`).join(', ')}]</div>` : `<div class="gpt-step">🎨 GPT 圖層版：${['tree.png', 'bloom1.png', 'bg.png', 'petal.png'].filter(n => !ok[n]).length ? '還在等圖：' + ['tree.png', 'bloom1.png', 'bg.png', 'petal.png'].filter(n => !ok[n]).join('、') : '圖都到齊了'}</div>`}`;
+      ${S.calib ? `<div class="gpt-step" style="font-family:monospace;color:#bbf7d0">BUDS = [${BUDS.map(([x, y]) => `[${Math.round(x)}, ${Math.round(y)}]`).join(', ')}]</div>` : `<div class="gpt-step">🎨 GPT 圖層版：${['tree.png', 'bloom1.png', 'bg.png', 'petal1.png'].filter(n => !ok[n]).length ? '還在等圖：' + ['tree.png', 'bloom1.png', 'bg.png', 'petal1.png'].filter(n => !ok[n]).join('、') : '圖都到齊了'}</div>`}`;
   } });
 
 // 1 GPT 版：跟第 1 版同一個構想（會長大的樹），改用 ChatGPT 產的圖（樹、花團、背景跟第 6 版共用）。
@@ -272,7 +274,7 @@ V.push({ name: '1 GPT 版・會長大的樹', tag: '第 1 版的 AI 圖版本', 
     const n = litN();
     const bloomName = i => `bloom${(i % 4) + 1}.png`;
     return `<div style="position:absolute;inset:0;background:linear-gradient(#2a1838,#4a2448 45%,#6b3550 70%,#2a1a24)"></div>
-      <img src="${ART}bg.png" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">${petals(3 + n * 2)}
+      <img src="${ART}bg.png" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">${imgPetals(3 + n * 2)}
       <div class="top"><span class="ib">‹</span><b>五十音櫻花樹</b><span class="ib" data-sim title="模擬下一行全對">✦</span></div>
       <div style="position:relative;z-index:4;padding:0 16px"><div style="display:flex;align-items:baseline;gap:8px"><b style="font-size:34px;color:#FFD3E0" class="serif">${n}</b><span class="muted">/ 10 朵開花</span><span class="small" style="margin-left:auto">總共練了 ${fmtMin(totalMin())}</span></div></div>
       <div class="art" style="z-index:4">
