@@ -80,11 +80,17 @@
   .gpt-step { margin: 8px 16px 0; padding: 10px 12px; border-radius: 14px; background: rgba(255,183,203,.08); border: 1px solid rgba(255,183,203,.3); font-size: 12px; color: var(--ink2); position: relative; z-index: 5; }
   .chip.on { background: rgba(255,183,203,.18); border-color: rgba(255,183,203,.6); color: #FFD3E0; }
   /* 會說話的樹 */
-  .talk { display: flex; gap: 10px; align-items: flex-start; margin: 6px 14px 0; position: relative; z-index: 6; cursor: pointer; }
+  .talk { display: flex; gap: 10px; align-items: flex-start; margin: 6px 14px 0; height: 104px; position: relative; z-index: 6; cursor: pointer; }
   .talk .ava { width: 40px; height: 40px; flex-shrink: 0; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff, #FFC2D4 45%, #FF7FA3); display: grid; place-items: center; font-size: 20px; box-shadow: 0 4px 14px rgba(255,90,140,.45); animation: bob 2.6s ease-in-out infinite; }
   @keyframes bob { 50% { transform: translateY(-3px) rotate(-4deg) } }
   .talk .bub { position: relative; flex: 1; padding: 9px 12px; border-radius: 4px 16px 16px 16px; background: rgba(255,240,246,.16); border: 1px solid rgba(255,255,255,.3); backdrop-filter: blur(14px); font-size: 13px; line-height: 1.45; color: #FFF4F8; animation: popin .3s; }
-  .talk .bub small { display: block; color: rgba(255,240,246,.6); font-size: 10.5px; margin-top: 3px; }
+  .talk .bub { max-height: 104px; overflow: hidden; }
+  .talk .bub .say { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .talk .bub small { display: block; color: rgba(255,240,246,.6); font-size: 10.5px; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .talk .wds { display: flex; gap: 5px; margin-top: 5px; flex-wrap: nowrap; overflow: hidden; }
+  .talk .wd { flex-shrink: 0; padding: 2px 8px; border-radius: 10px; background: rgba(255,255,255,.2); font: 800 13px "Noto Serif JP", serif; color: #fff; }
+  .talk .wd i { font: 400 10px -apple-system, "Microsoft JhengHei", sans-serif; font-style: normal; color: rgba(255,240,246,.75); margin-left: 3px; }
+  .talk .wd.lock { background: rgba(20,14,28,.45); color: rgba(255,255,255,.55); border: 1px dashed rgba(255,255,255,.35); }
   .stages { margin: 10px 14px 0; position: relative; z-index: 5; }
   .stages .bar { position: relative; height: 8px; border-radius: 99px; background: rgba(20,14,28,.6); border: 1px solid rgba(255,255,255,.12); }
   .stages .fill { position: absolute; inset: 0 auto 0 0; border-radius: 99px; background: linear-gradient(90deg, #FFC2D4, #FF7FA3); box-shadow: 0 0 10px rgba(255,127,163,.7); transition: width .8s; }
@@ -129,7 +135,7 @@
 const ROWS = ['あ', 'か', 'さ', 'た', 'な', 'は', 'ま', 'や', 'ら', 'わ'];
 const KANA = { あ: 'あいうえお', か: 'かきくけこ', さ: 'さしすせそ', た: 'たちつてと', な: 'なにぬねの', は: 'はひふへほ', ま: 'まみむめも', や: 'や ゆ よ', ら: 'らりるれろ', わ: 'わ を ん' };
 const SEED = [['9/18', '9/12', 34, 41, 3, 100, ''], ['9/24', '9/15', 28, 36, 4, 100, ''], ['10/02', '9/20', 41, 52, 5, 100, ''], ['10/09', '9/26', 30, 44, 6, 100, ''], [null, '10/01', 22, 27, 3, 80, 'ぬ'], [null, '10/05', 15, 19, 2, 60, 'ひふ'], [null, '10/10', 6, 8, 1, 40, 'むめも'], [null, null, 0, 0, 0, 0, ''], [null, null, 0, 0, 0, 0, ''], [null, null, 0, 0, 0, 0, '']];
-const S = { v: 0, data: SEED.map(r => [...r]), sheet: null, toast: null, justLit: null };
+const S = { tip: new Date().getDate(), v: 0, data: SEED.map(r => [...r]), sheet: null, toast: null, justLit: null };
 const rec = i => { const r = S.data[i]; return { lit: r[0], first: r[1], n: r[2], min: r[3], exams: r[4], best: r[5], bad: r[6] }; };
 const litN = () => S.data.filter(r => r[0]).length;
 const nextIdx = () => S.data.findIndex(r => !r[0]);
@@ -362,10 +368,24 @@ const CHEER = {
 };
 function speedLine(i) { const r = rec(i); const d = days(r.first, r.lit); return d <= 3 ? `只花 ${d} 天就開了，這行對你很友善！` : d <= 10 ? `練了 ${d} 天開花，穩穩的。` : `磨了 ${d} 天終於開了，堅持真的有回報。`; }
 // 小精靈現在要說的話：看狀況挑幾句，點一下換下一句。
+// 拼詞用的小字典（只用清音，點亮的 10 行就寫得出來；片假名的「ー」不算字）。
+const WORDS = [['さくら', '櫻花'], ['あか', '紅色'], ['あさ', '早上'], ['いす', '椅子'], ['うし', '牛'], ['えき', '車站'], ['かさ', '雨傘'], ['くつ', '鞋子'], ['すし', '壽司'], ['あし', '腳'], ['いけ', '池塘'], ['きた', '北邊'], ['した', '下面'], ['たけ', '竹子'], ['つくえ', '書桌'], ['おかし', '點心'], ['せかい', '世界'], ['あいさつ', '打招呼'], ['ねこ', '貓'], ['いぬ', '狗'], ['はな', '花'], ['なつ', '夏天'], ['ふね', '船'], ['ほし', '星星'], ['ひと', '人'], ['やま', '山'], ['うみ', '海'], ['ゆき', '雪'], ['はる', '春天'], ['よる', '晚上'], ['もり', '森林'], ['くるま', '車子'], ['てら', '寺廟'], ['ほん', '書'], ['わたし', '我'], ['おはよう', '早安'], ['こんにちは', '你好'], ['さようなら', '再見'], ['カメラ', '相機'], ['ケーキ', '蛋糕'], ['スキー', '滑雪'], ['タクシー', '計程車'], ['ホテル', '飯店'], ['トマト', '番茄'], ['メロン', '哈密瓜'], ['アニメ', '動畫'], ['ラーメン', '拉麵']];
+const rowOf = ch => { if (ch === 'ー') return null; const c = ch.charCodeAt(0); const h = c >= 0x30A1 && c <= 0x30F6 ? String.fromCharCode(c - 0x60) : ch; return ROWS.findIndex(r => KANA[r].includes(h)); };
+const needRows = w => { const r = [...w].map(rowOf); if (r.includes(-1)) return [-1, -1]; return [...new Set(r.filter(i => i !== null && !S.data[i][0]))]; };
+function wordTip(k) {
+  const can = WORDS.filter(([w]) => needRows(w).length === 0);
+  const near = WORDS.filter(([w]) => needRows(w).length === 1).sort((a, b) => (b[0] === 'さくら') - (a[0] === 'さくら'));
+  if (!can.length) return near.length ? [`開了花的字就能拼詞！再開 ${ROWS[needRows(near[0][0])[0]]}行，就能寫「${near[0][0]}」（${near[0][1]}）。`, '先點亮一行試試'] : null;
+  const pick = Array.from({ length: Math.min(3, can.length) }, (_, j) => can[(k * 3 + j) % can.length]);
+  const lock = near[k % Math.max(1, near.length)];
+  return [`你開花的字，已經能拼出 ${can.length} 個詞：`, lock ? `再開 ${ROWS[needRows(lock[0])[0]]}行，就能寫「${lock[0]}」${lock[1]}` : '10 行全開，清音的詞都寫得出來了', undefined,
+    `<div class="wds">${pick.map(([w, m]) => `<span class="wd">${w}<i>${m}</i></span>`).join('')}${lock ? `<span class="wd lock">${lock[0]}<i>🔒</i></span>` : ''}</div>`];
+}
 function tips() {
   const n = litN(), out = [];
   const close = S.data.map((r, i) => [r, i]).filter(([r]) => !r[0] && r[4] > 0).sort((a, b) => b[0][5] - a[0][5])[0];
   if (n === 10) out.push(['滿開了！每一朵都是你自己寫出來的。', '想維持手感，偶爾點一朵再考一次就好']);
+  const wt = wordTip(S.tip || 0); if (wt) out.push(wt);
   if (close) { const [r, i] = close; out.push([`${ROWS[i]}行最好 ${r[5]}%${r[6] ? '，只錯「' + r[6] + '」' : ''}——再考一次就可能開花！`, '差一點點', i]); }
   const nx = nextIdx(); if (nx >= 0 && (!close || close[1] !== nx)) out.push([`還沒碰的：${ROWS[nx]}行。先手寫練幾次，再來點亮。`, '慢慢來，一次一行就好']);
   if (n > 0 && n < 10) out.push([`現在是「${STAGE(n)[0]}」，${CHEER[n].replace(/[！。].*$/, '')}。`, `離滿開還差 ${10 - n} 朵`]);
@@ -387,7 +407,7 @@ V.push({ name: '7 GPT 會說話版', tag: '新版・鼓勵互動', cele: true, t
       <div style="position:relative;z-index:4;padding:0 16px"><div style="display:flex;align-items:baseline;gap:8px"><b style="font-size:34px;color:#FFD3E0" class="serif">${n}</b><span class="muted">/ 10 朵・<b style="color:#FFD3E0">${st[0]}</b></span><span class="small" style="margin-left:auto">總共練了 ${fmtMin(totalMin())}</span></div></div>
       <div class="stages"><div class="bar"><div class="fill" style="width:${n * 10}%"></div>${MS.map(([k]) => `<span class="ms ${n >= k ? 'on' : ''}" style="left:${k * 10}%">${n >= k ? '🌸' : ''}</span>`).join('')}</div>
         <div class="lbl">${MS.map(([k, l]) => `<span>${n >= k ? '<b>' + l + '</b>' : l}</span>`).join('')}</div></div>
-      <div class="talk" data-tip><div class="ava">🌸</div><div class="bub">${t[0]}<small>${t[1]}・點我換一句</small>${t[2] !== undefined ? `<span data-tiprow="${t[2]}" style="display:inline-block;margin-top:6px;padding:3px 10px;border-radius:99px;background:#FF7FA3;font-weight:800;font-size:12px">看 ${ROWS[t[2]]}行 →</span>` : ''}</div></div>
+      <div class="talk" data-tip><div class="ava">🌸</div><div class="bub"><div class="say">${t[0]}</div>${t[3] || ''}<small>${t[1]}・點我換一句</small>${t[2] !== undefined ? `<span data-tiprow="${t[2]}" style="display:inline-block;margin-top:6px;padding:3px 10px;border-radius:99px;background:#FF7FA3;font-weight:800;font-size:12px">看 ${ROWS[t[2]]}行 →</span>` : ''}</div></div>
       <div class="art" style="z-index:4;margin-top:-10px">
         <img class="layer" src="${ART}tree.png">
         ${BUDS.map(([x, y], i) => { const lit = !!S.data[i][0]; return `<div class="bud ${lit ? 'lit' : ''} ${S.hl === i ? 'hl' : ''}" data-row="${i}" style="left:${x * SC}px;top:${y * SC}px">
