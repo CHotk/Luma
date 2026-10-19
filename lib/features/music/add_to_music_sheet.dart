@@ -22,6 +22,7 @@ Future<void> showAddToMusicSheet(
   String channelAvatarUrl = '',
   required DateTime publishedAt,
   int? durationSec,
+  String? artistId,
 }) async {
   final data = ref.read(musicDataProvider);
   if (data.hasVideo(videoId)) {
@@ -36,7 +37,8 @@ Future<void> showAddToMusicSheet(
   final titleC = TextEditingController(text: g.title);
   final noteC = TextEditingController();
   var type = g.type;
-  var artists = List<String>.of(g.artistIds);
+  // 從歌手頁加的：誰唱的就是那個歌手（還是可以再改）。
+  var artists = artistId == null ? List<String>.of(g.artistIds) : [artistId];
   var orig = List<String>.of(g.originalArtistIds);
   final saved = await showMusicSheet<bool>(
     context,

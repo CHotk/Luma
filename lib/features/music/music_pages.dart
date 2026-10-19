@@ -910,6 +910,21 @@ class _MusicArtistPageState extends ConsumerState<MusicArtistPage> {
                     ),
                   ),
                 ),
+                // 幫這個歌手加歌（2026-10-19 使用者要求）：加的時候歌手直接選好他。
+                Positioned(
+                  right: 8,
+                  top: 4,
+                  child: IconButton(
+                    onPressed: () =>
+                        showMusicAddFromYt(context, forArtistId: a.id),
+                    icon: const Icon(Icons.add_rounded),
+                    color: Colors.white,
+                    tooltip: '幫${a.name}加歌',
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.black38,
+                    ),
+                  ),
+                ),
                 Positioned(
                   left: 18,
                   bottom: 14,
@@ -1004,7 +1019,7 @@ class _MusicArtistPageState extends ConsumerState<MusicArtistPage> {
                       },
                       icon: const Icon(Icons.edit_rounded),
                       color: AppColors.ink2,
-                      tooltip: '改名字、大頭貼',
+                      tooltip: '編輯',
                     ),
                   ],
                 ),
@@ -1162,7 +1177,7 @@ class _MusicWorkPageState extends ConsumerState<MusicWorkPage> {
                           onPressed: () => _editWork(w),
                           icon: const Icon(Icons.edit_rounded),
                           color: AppColors.ink2,
-                          tooltip: '改歌名、原唱',
+                          tooltip: '編輯',
                         ),
                       ],
                     ),

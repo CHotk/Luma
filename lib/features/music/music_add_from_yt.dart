@@ -12,20 +12,25 @@ import 'music_widgets.dart';
 
 /// 音樂這邊按「＋」：從 YT 管理挑影片（2026-10-19）。先選頻道（任何分類都
 /// 行），再從那個頻道抓過的影片挑（YT 快取，不花配額）。[searchTitle] 有給
-/// （歌曲頁「加版本」）就直接列出所有頻道標題有這個歌名的影片。
-Future<void> showMusicAddFromYt(BuildContext context, {String? searchTitle}) =>
-    showMusicSheet<void>(
-      context,
-      (ctx) => SizedBox(
-        height: MediaQuery.of(ctx).size.height * 0.78,
-        child: _AddFromYt(searchTitle: searchTitle),
-      ),
-    );
+/// （歌曲頁「加版本」）就直接列出所有頻道標題有這個歌名的影片。[forArtistId]
+/// 有給（歌手頁右上角 ＋）就是幫那個歌手加歌：加的時候歌手直接選好他。
+Future<void> showMusicAddFromYt(
+  BuildContext context, {
+  String? searchTitle,
+  String? forArtistId,
+}) => showMusicSheet<void>(
+  context,
+  (ctx) => SizedBox(
+    height: MediaQuery.of(ctx).size.height * 0.78,
+    child: _AddFromYt(searchTitle: searchTitle, forArtistId: forArtistId),
+  ),
+);
 
 class _AddFromYt extends ConsumerStatefulWidget {
-  const _AddFromYt({this.searchTitle});
+  const _AddFromYt({this.searchTitle, this.forArtistId});
 
   final String? searchTitle;
+  final String? forArtistId;
 
   @override
   ConsumerState<_AddFromYt> createState() => _AddFromYtState();
@@ -143,6 +148,7 @@ class _AddFromYtState extends ConsumerState<_AddFromYt> {
                     channelAvatarUrl: c.avatarImageUrl,
                     publishedAt: v.publishedAt,
                     durationSec: v.duration?.inSeconds,
+                    artistId: widget.forArtistId,
                   ),
                   style: FilledButton.styleFrom(
                     backgroundColor: musicPink,
@@ -224,7 +230,10 @@ class _AddFromYtState extends ConsumerState<_AddFromYt> {
               ),
             Expanded(
               child: Text(
-                _channel?.name ?? '從 YT 管理挑',
+                _channel?.name ??
+                    (widget.forArtistId == null
+                        ? '從 YT 管理挑'
+                        : '幫「${ref.read(musicDataProvider).artistMap[widget.forArtistId]?.name ?? ''}」加歌'),
                 style: const TextStyle(
                   fontSize: 17,
                   fontWeight: FontWeight.w800,

@@ -498,7 +498,9 @@ promptMusicArtist(
               style: const TextStyle(color: AppColors.ink, fontSize: 15),
               decoration: musicInputDecoration('例如：周杰倫'),
             ),
-            musicFieldLabel('大頭貼網址（直接貼，最多 ${MusicArtist.maxAvatars} 張，壞了照順序換下一張）'),
+            musicFieldLabel(
+              '大頭貼網址（直接貼，最多 ${MusicArtist.maxAvatars} 張，壞了照順序換下一張）',
+            ),
             for (var i = 0; i < urlCs.length; i++)
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
