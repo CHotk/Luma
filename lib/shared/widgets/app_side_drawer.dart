@@ -1,7 +1,10 @@
+import 'dart:convert';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
@@ -69,6 +72,8 @@ class _AppSideDrawerState extends State<AppSideDrawer> {
         !isDiary &&
         !isYtTracker &&
         !isFitness &&
+        !isMusic &&
+        !isLocalStorage &&
         !isDebugLog &&
         !isSync &&
         !isCryptoWatch &&
@@ -90,247 +95,263 @@ class _AppSideDrawerState extends State<AppSideDrawer> {
               border: Border(right: BorderSide(color: AppColors.glassEdge)),
             ),
             child: SafeArea(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(14, 18, 14, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Row(
-                    children: [
-                      const _ProfileAvatar(),
-                      const SizedBox(width: 10),
-                      const Text(
-                        'Rex',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.ink,
+                  Expanded(
+                    child: ListView(
+                      padding: const EdgeInsets.fromLTRB(14, 18, 14, 16),
+                      children: [
+                        Row(
+                          children: [
+                            const _ProfileAvatar(),
+                            const SizedBox(width: 10),
+                            const Text(
+                              'Rex',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.ink,
+                              ),
+                            ),
+                            const Spacer(),
+                            IconButton(
+                              onPressed: () => Navigator.of(context).pop(),
+                              icon: const Icon(Icons.close, size: 18),
+                              color: AppColors.ink3,
+                              padding: EdgeInsets.zero,
+                              visualDensity: VisualDensity.compact,
+                              constraints: const BoxConstraints(
+                                minWidth: 28,
+                                minHeight: 28,
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                      const Spacer(),
-                      IconButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        icon: const Icon(Icons.close, size: 18),
-                        color: AppColors.ink3,
-                        padding: EdgeInsets.zero,
-                        visualDensity: VisualDensity.compact,
-                        constraints: const BoxConstraints(
-                          minWidth: 28,
-                          minHeight: 28,
+                        const SizedBox(height: Gap.md),
+                        _NavItem(
+                          icon: Icons.home_rounded,
+                          label: '首頁',
+                          active: isHome,
+                          onTap: () {
+                            Navigator.of(context).pop();
+                            if (!isHome) context.go('/start');
+                          },
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: Gap.md),
-                  _NavItem(
-                    icon: Icons.home_rounded,
-                    label: '首頁',
-                    active: isHome,
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      if (!isHome) context.go('/start');
-                    },
-                  ),
-                  _NavItem(
-                    icon: Icons.school_rounded,
-                    imageAsset: 'assets/images/nav_icons/language.png',
-                    label: '語言學習',
-                    active: isLanguage,
-                    // 已經在語言學習裡面了，點這項只是關掉選單，不用再
-                    // 導一次頁；不在的話（例如從日記點回來）才真的導頁。
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      if (!isLanguage) context.go('/home');
-                    },
-                  ),
-                  _NavItem(
-                    icon: Icons.auto_stories_rounded,
-                    imageAsset: 'assets/images/nav_icons/diary.png',
-                    label: '日記',
-                    active: isDiary,
-                    // 日記做出來了（2026-09-22），從「敬請期待」那組
-                    // 移出來變成真的可以點的大類別，跟語言學習同一層。
-                    // 已經在日記裡就只關選單，不重複導頁。這裡一定要用
-                    // go 不是 push——大分類切換是「換到另一個大類別」，
-                    // 不是子頁面的往下鑽，用 push 的話每點一次選單就多疊
-                    // 一頁，使用者在語言學習／日記／YT 頻道追蹤之間跳幾次
-                    // 就疊出一長串歷史，返回鍵要按超多次才回得去
-                    // （2026-09-23 使用者實機回報：點幾個小功能就開幾個
-                    // 頁面一直堆上去）。
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      if (!isDiary) context.go('/diary');
-                    },
-                  ),
-                  _NavItem(
-                    icon: Icons.subscriptions_rounded,
-                    imageAsset: 'assets/images/nav_icons/yt_tracker.png',
-                    label: 'YT 頻道追蹤',
-                    active: isYtTracker,
-                    // 分類／頻道管理做出來了（2026-09-22），從「敬請
-                    // 期待」那組移出來，同上。同樣用 go，理由見上面
-                    // 日記那項的註解。
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      if (!isYtTracker) context.go('/yt-tracker');
-                    },
-                  ),
-                  // 音樂（2026-10-19）。
-                  _NavItem(
-                    icon: Icons.library_music_rounded,
-                    label: '音樂',
-                    active: isMusic,
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      if (!isMusic) context.go('/music');
-                    },
-                  ),
-                  _NavItem(
-                    icon: Icons.fitness_center_rounded,
-                    imageAsset: 'assets/images/nav_icons/fitness.png',
-                    label: '健身',
-                    active: isFitness,
-                    // 健身打卡做出來了（2026-09-23，設計稿 02 打卡日曆式
-                    // 定案），從「敬請期待」那組移出來，同上。
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      if (!isFitness) context.go('/fitness');
-                    },
-                  ),
-                  _NavItem(
-                    icon: Icons.candlestick_chart_outlined,
-                    label: '交易&自律',
-                    active: isCryptoWatch,
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      if (!isCryptoWatch) context.go('/crypto-watch');
-                    },
-                  ),
-                  _NavItem(
-                    icon: Icons.account_balance_wallet_outlined,
-                    label: '負債管理',
-                    active: isDebt,
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      if (!isDebt) context.go('/debt');
-                    },
-                  ),
-                  _NavItem(
-                    icon: Icons.smoking_rooms_outlined,
-                    label: '抽菸記錄',
-                    active: isSmoking,
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      if (!isSmoking) context.go('/smoking-log');
-                    },
-                  ),
-                  _NavItem(
-                    icon: Icons.local_bar_outlined,
-                    label: '喝酒記錄',
-                    active: isDrinking,
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      if (!isDrinking) context.go('/drinking-log');
-                    },
-                  ),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 10),
-                    child: Divider(height: 1, color: AppColors.glassEdge),
-                  ),
-                  const Padding(
-                    padding: EdgeInsets.fromLTRB(10, 0, 10, 6),
-                    child: Text(
-                      '敬請期待',
-                      style: TextStyle(
-                        fontSize: 10.5,
-                        letterSpacing: 1.2,
-                        color: AppColors.ink3,
-                      ),
+                        _NavItem(
+                          icon: Icons.school_rounded,
+                          imageAsset: 'assets/images/nav_icons/language.png',
+                          label: '語言學習',
+                          active: isLanguage,
+                          // 已經在語言學習裡面了，點這項只是關掉選單，不用再
+                          // 導一次頁；不在的話（例如從日記點回來）才真的導頁。
+                          onTap: () {
+                            Navigator.of(context).pop();
+                            if (!isLanguage) context.go('/home');
+                          },
+                        ),
+                        _NavItem(
+                          icon: Icons.auto_stories_rounded,
+                          imageAsset: 'assets/images/nav_icons/diary.png',
+                          label: '日記',
+                          active: isDiary,
+                          // 日記做出來了（2026-09-22），從「敬請期待」那組
+                          // 移出來變成真的可以點的大類別，跟語言學習同一層。
+                          // 已經在日記裡就只關選單，不重複導頁。這裡一定要用
+                          // go 不是 push——大分類切換是「換到另一個大類別」，
+                          // 不是子頁面的往下鑽，用 push 的話每點一次選單就多疊
+                          // 一頁，使用者在語言學習／日記／YT 頻道追蹤之間跳幾次
+                          // 就疊出一長串歷史，返回鍵要按超多次才回得去
+                          // （2026-09-23 使用者實機回報：點幾個小功能就開幾個
+                          // 頁面一直堆上去）。
+                          onTap: () {
+                            Navigator.of(context).pop();
+                            if (!isDiary) context.go('/diary');
+                          },
+                        ),
+                        _NavItem(
+                          icon: Icons.subscriptions_rounded,
+                          imageAsset: 'assets/images/nav_icons/yt_tracker.png',
+                          label: 'YT 頻道追蹤',
+                          active: isYtTracker,
+                          // 分類／頻道管理做出來了（2026-09-22），從「敬請
+                          // 期待」那組移出來，同上。同樣用 go，理由見上面
+                          // 日記那項的註解。
+                          onTap: () {
+                            Navigator.of(context).pop();
+                            if (!isYtTracker) context.go('/yt-tracker');
+                          },
+                        ),
+                        // 音樂（2026-10-19）。
+                        _NavItem(
+                          icon: Icons.library_music_rounded,
+                          label: '音樂',
+                          active: isMusic,
+                          onTap: () {
+                            Navigator.of(context).pop();
+                            if (!isMusic) context.go('/music');
+                          },
+                        ),
+                        _NavItem(
+                          icon: Icons.fitness_center_rounded,
+                          imageAsset: 'assets/images/nav_icons/fitness.png',
+                          label: '健身',
+                          active: isFitness,
+                          // 健身打卡做出來了（2026-09-23，設計稿 02 打卡日曆式
+                          // 定案），從「敬請期待」那組移出來，同上。
+                          onTap: () {
+                            Navigator.of(context).pop();
+                            if (!isFitness) context.go('/fitness');
+                          },
+                        ),
+                        _NavItem(
+                          icon: Icons.candlestick_chart_outlined,
+                          label: '交易&自律',
+                          active: isCryptoWatch,
+                          onTap: () {
+                            Navigator.of(context).pop();
+                            if (!isCryptoWatch) context.go('/crypto-watch');
+                          },
+                        ),
+                        _NavItem(
+                          icon: Icons.account_balance_wallet_outlined,
+                          label: '負債管理',
+                          active: isDebt,
+                          onTap: () {
+                            Navigator.of(context).pop();
+                            if (!isDebt) context.go('/debt');
+                          },
+                        ),
+                        _NavItem(
+                          icon: Icons.smoking_rooms_outlined,
+                          label: '抽菸記錄',
+                          active: isSmoking,
+                          onTap: () {
+                            Navigator.of(context).pop();
+                            if (!isSmoking) context.go('/smoking-log');
+                          },
+                        ),
+                        _NavItem(
+                          icon: Icons.local_bar_outlined,
+                          label: '喝酒記錄',
+                          active: isDrinking,
+                          onTap: () {
+                            Navigator.of(context).pop();
+                            if (!isDrinking) context.go('/drinking-log');
+                          },
+                        ),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 10),
+                          child: Divider(height: 1, color: AppColors.glassEdge),
+                        ),
+                        const Padding(
+                          padding: EdgeInsets.fromLTRB(10, 0, 10, 6),
+                          child: Text(
+                            '敬請期待',
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              letterSpacing: 1.2,
+                              color: AppColors.ink3,
+                            ),
+                          ),
+                        ),
+                        const _MockNavItem(
+                          icon: Icons.account_balance_wallet_rounded,
+                          label: '記帳',
+                        ),
+                        const _MockNavItem(
+                          icon: Icons.event_note_rounded,
+                          label: '行程表',
+                        ),
+                        const _MockNavItem(
+                          icon: Icons.alarm_rounded,
+                          label: '鬧鐘',
+                        ),
+                        const _MockNavItem(
+                          icon: Icons.timer_rounded,
+                          label: '碼錶',
+                        ),
+                        // 純前端網頁沒有後端能在背景推播，App／分頁沒開著就
+                        // 不可能準時提醒（2026-09-23 已經跟使用者說明這個限制）。
+                        // 一開始只想到健身提醒才取名「健身提醒」，使用者後來
+                        // 决定改成更通用的「提醒」，也明確表示不做退化版本
+                        // （只開分頁才會響那種），純粹先記著構想。
+                        const _MockNavItem(
+                          icon: Icons.notifications_active_outlined,
+                          label: '提醒',
+                        ),
+                        const _MockNavItem(
+                          icon: Icons.restaurant_menu_rounded,
+                          label: '飲食控制',
+                        ),
+                        const _MockNavItem(
+                          icon: Icons.soup_kitchen_outlined,
+                          label: '料理技能',
+                        ),
+                        const _MockNavItem(
+                          icon: Icons.theaters_outlined,
+                          label: '已看過的影劇',
+                        ),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 10),
+                          child: Divider(height: 1, color: AppColors.glassEdge),
+                        ),
+                        // 本機儲存檢視（2026-10-05 做出來，原本是「敬請期待」）：
+                        // 跟同步、除錯一樣是看資料狀態的工具，排在同一區。
+                        _NavItem(
+                          icon: Icons.storage_outlined,
+                          label: '本機儲存',
+                          active: isLocalStorage,
+                          onTap: () {
+                            Navigator.of(context).pop();
+                            if (!isLocalStorage) context.go('/local-storage');
+                          },
+                        ),
+                        // 多裝置同步（2026-09-23）獨立成自己的功能頁，不是塞在
+                        // 設定頁裡的一個區塊——這功能之後會一直擴充（日記以外
+                        // 的功能陸續加進來同步），該有自己的入口。排在除錯
+                        // 正上方，使用者原話「放在debug出錯訊息上面」。
+                        _NavItem(
+                          icon: Icons.cloud_sync_outlined,
+                          label: '多裝置同步',
+                          active: isSync,
+                          onTap: () {
+                            Navigator.of(context).pop();
+                            if (!isSync) context.go('/sync');
+                          },
+                        ),
+                        // 除錯放整個選單最後一項，圖示角標式（設計稿 04）：
+                        // 平常就是普通圖示，只有「上次看過除錯頁之後又出現新的
+                        // 錯誤」才冒紅點，不是「只要出過一次錯就一直掛著」
+                        // （2026-09-23 使用者要求：放最後一個＋圖示角標式）。
+                        ValueListenableBuilder<List<AppLogEntry>>(
+                          valueListenable: AppLog.entries,
+                          builder: (context, entries, _) {
+                            final unread = entries
+                                .where(
+                                  (e) =>
+                                      e.isError &&
+                                      e.at.isAfter(AppLog.lastViewedAt),
+                                )
+                                .length;
+                            return _NavItem(
+                              icon: Icons.bug_report_outlined,
+                              imageAsset: 'assets/images/nav_icons/debug.png',
+                              label: '除錯',
+                              active: isDebugLog,
+                              badgeCount: unread,
+                              onTap: () {
+                                Navigator.of(context).pop();
+                                if (!isDebugLog) context.go('/debug-log');
+                              },
+                            );
+                          },
+                        ),
+                      ],
                     ),
                   ),
-                  const _MockNavItem(
-                    icon: Icons.account_balance_wallet_rounded,
-                    label: '記帳',
-                  ),
-                  const _MockNavItem(
-                    icon: Icons.event_note_rounded,
-                    label: '行程表',
-                  ),
-                  const _MockNavItem(icon: Icons.alarm_rounded, label: '鬧鐘'),
-                  const _MockNavItem(icon: Icons.timer_rounded, label: '碼錶'),
-                  // 純前端網頁沒有後端能在背景推播，App／分頁沒開著就
-                  // 不可能準時提醒（2026-09-23 已經跟使用者說明這個限制）。
-                  // 一開始只想到健身提醒才取名「健身提醒」，使用者後來
-                  // 决定改成更通用的「提醒」，也明確表示不做退化版本
-                  // （只開分頁才會響那種），純粹先記著構想。
-                  const _MockNavItem(
-                    icon: Icons.notifications_active_outlined,
-                    label: '提醒',
-                  ),
-                  const _MockNavItem(
-                    icon: Icons.restaurant_menu_rounded,
-                    label: '飲食控制',
-                  ),
-                  const _MockNavItem(
-                    icon: Icons.soup_kitchen_outlined,
-                    label: '料理技能',
-                  ),
-                  const _MockNavItem(
-                    icon: Icons.theaters_outlined,
-                    label: '已看過的影劇',
-                  ),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 10),
-                    child: Divider(height: 1, color: AppColors.glassEdge),
-                  ),
-                  // 本機儲存檢視（2026-10-05 做出來，原本是「敬請期待」）：
-                  // 跟同步、除錯一樣是看資料狀態的工具，排在同一區。
-                  _NavItem(
-                    icon: Icons.storage_outlined,
-                    label: '本機儲存',
-                    active: isLocalStorage,
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      if (!isLocalStorage) context.go('/local-storage');
-                    },
-                  ),
-                  // 多裝置同步（2026-09-23）獨立成自己的功能頁，不是塞在
-                  // 設定頁裡的一個區塊——這功能之後會一直擴充（日記以外
-                  // 的功能陸續加進來同步），該有自己的入口。排在除錯
-                  // 正上方，使用者原話「放在debug出錯訊息上面」。
-                  _NavItem(
-                    icon: Icons.cloud_sync_outlined,
-                    label: '多裝置同步',
-                    active: isSync,
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      if (!isSync) context.go('/sync');
-                    },
-                  ),
-                  // 除錯放整個選單最後一項，圖示角標式（設計稿 04）：
-                  // 平常就是普通圖示，只有「上次看過除錯頁之後又出現新的
-                  // 錯誤」才冒紅點，不是「只要出過一次錯就一直掛著」
-                  // （2026-09-23 使用者要求：放最後一個＋圖示角標式）。
-                  ValueListenableBuilder<List<AppLogEntry>>(
-                    valueListenable: AppLog.entries,
-                    builder: (context, entries, _) {
-                      final unread = entries
-                          .where(
-                            (e) =>
-                                e.isError && e.at.isAfter(AppLog.lastViewedAt),
-                          )
-                          .length;
-                      return _NavItem(
-                        icon: Icons.bug_report_outlined,
-                        imageAsset: 'assets/images/nav_icons/debug.png',
-                        label: '除錯',
-                        active: isDebugLog,
-                        badgeCount: unread,
-                        onTap: () {
-                          Navigator.of(context).pop();
-                          if (!isDebugLog) context.go('/debug-log');
-                        },
-                      );
-                    },
-                  ),
+                  // 左下角版本號（2026-10-19 使用者要求）。
+                  const _VersionLabel(),
                 ],
               ),
             ),
@@ -339,6 +360,58 @@ class _AppSideDrawerState extends State<AppSideDrawer> {
       ),
     );
   }
+}
+
+/// 選單左下角的版本號：pubspec 的版本＋建置編號（建置編號用日期，看得出是
+/// 哪天的版本）。網頁版直接讀建置時產生的 `version.json`（套件在網頁上讀
+/// 不到，2026-10-19 實測），讀不到再問 [PackageInfo]。
+Future<String> _loadVersionLabel() async {
+  String fmt(String v, String b) {
+    final date = b.length == 8
+        ? '・${b.substring(0, 4)}/${int.parse(b.substring(4, 6))}/${int.parse(b.substring(6))}'
+        : (b.isEmpty ? '' : '+$b');
+    return 'v$v$date';
+  }
+
+  try {
+    final r = await http
+        .get(
+          Uri.base.resolve(
+            'version.json?t=${DateTime.now().millisecondsSinceEpoch}',
+          ),
+        )
+        .timeout(const Duration(seconds: 5));
+    if (r.statusCode == 200) {
+      final j = jsonDecode(r.body) as Map<String, dynamic>;
+      return fmt('${j['version']}', '${j['build_number'] ?? ''}');
+    }
+  } catch (_) {
+    // 不是網頁版、或讀不到：問套件。
+  }
+  try {
+    final info = await PackageInfo.fromPlatform();
+    return fmt(info.version, info.buildNumber);
+  } catch (_) {
+    return '';
+  }
+}
+
+final _versionLabel = _loadVersionLabel();
+
+class _VersionLabel extends StatelessWidget {
+  const _VersionLabel();
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<String>(
+    future: _versionLabel,
+    builder: (context, snap) => Padding(
+      padding: const EdgeInsets.fromLTRB(18, 4, 18, 12),
+      child: Text(
+        snap.data ?? '',
+        style: const TextStyle(fontSize: 11.5, color: AppColors.ink3),
+      ),
+    ),
+  );
 }
 
 /// 側邊選單頂端其實是使用者的個人檔案頭像，不是 App 品牌標誌

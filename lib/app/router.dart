@@ -122,6 +122,7 @@ final appRouter = GoRouter(
     // 音樂功能（2026-10-19）：首頁／搜尋／音樂庫三格，歌手、歌曲、歌單疊上去。
     GoRoute(path: '/music', builder: (_, _) => const MusicHomePage()),
     GoRoute(path: '/music/search', builder: (_, _) => const MusicSearchPage()),
+    GoRoute(path: '/music/log', builder: (_, _) => const MusicEventLogPage()),
     GoRoute(
       path: '/music/library',
       builder: (_, state) =>

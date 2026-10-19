@@ -492,6 +492,7 @@ class _FullPlayer extends ConsumerWidget {
                         for (final x in data.versionsOfWork(o.workId)) x.id,
                       ],
                       byWho: true,
+                      from: '播放器・這首歌的其他版本',
                     ),
                 ],
                 const SizedBox(height: 16),

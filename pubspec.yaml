@@ -1,7 +1,7 @@
 name: lume
 description: "Lume 微光 — 一天一點未來光"
 publish_to: 'none'
-version: 0.1.0+1
+version: 1.0.0+20261019
 
 environment:
   sdk: ^3.9.2

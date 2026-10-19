@@ -43,11 +43,13 @@ void main() {
     final c = await pump(
       tester,
       MusicPlayMode.youtube,
-      (ctx, ref) => musicPlay(ctx, ref, ['a', 'b', 'c'], 'b'),
+      (ctx, ref) => musicPlay(ctx, ref, ['a', 'b', 'c'], 'b', from: '歌手頁'),
     );
     await tester.tap(find.text('播'));
     await tester.pumpAndSettle();
     expect(c.read(musicPlayLogProvider)['b'], hasLength(1));
+    expect(c.read(musicPlayLogProvider)['b']!.first.from, '歌手頁');
+    expect(c.read(musicPlayLogProvider)['b']!.first.mode, 'youtube');
     expect(c.read(musicPlayerProvider).current, isNull);
     final saved = await MusicPlayLogStore(c.read(keyValueStoreProvider)).load();
     expect(saved['b'], hasLength(1));
@@ -57,7 +59,7 @@ void main() {
     final c = await pump(
       tester,
       MusicPlayMode.embedded,
-      (ctx, ref) => musicPlay(ctx, ref, ['a', 'b'], 'a'),
+      (ctx, ref) => musicPlay(ctx, ref, ['a', 'b'], 'a', from: '歌單'),
     );
     await tester.tap(find.text('播'));
     await tester.pumpAndSettle();
@@ -68,16 +70,28 @@ void main() {
     final log = c.read(musicPlayLogProvider);
     expect(log['a'], hasLength(1));
     expect(log['b'], hasLength(1));
+    expect(log['a']!.first.from, '歌單');
+    expect(log['a']!.first.mode, 'app');
+    expect(log['b']!.first.from, '歌單・按下一首');
   });
 
   test('播放紀錄合併是聯集，同一個時間不重複', () {
-    final t1 = DateTime.utc(2026, 10, 1), t2 = DateTime.utc(2026, 10, 2);
+    final t1 = MusicPlay(at: DateTime.utc(2026, 10, 1), from: '首頁');
+    final t2 = MusicPlay(at: DateTime.utc(2026, 10, 2), from: '歌手頁');
     final m = MusicPlayLogStore.merge(
-      {'a': [t1]},
-      {'a': [t1, t2], 'b': [t2]},
+      {
+        'a': [t1],
+      },
+      {
+        'a': [t1, t2],
+        'b': [t2],
+      },
     );
-    expect(m['a'], [t1, t2]);
-    expect(m['b'], [t2]);
+    expect(m['a']!.map((p) => p.from), ['首頁', '歌手頁']);
+    expect(m['b'], hasLength(1));
+    // 最早只存時間字串的舊紀錄也讀得進來。
+    final old = MusicPlayLogStore.decode('{"x":["2026-10-19T10:00:00.000"]}');
+    expect(old['x']!.single.from, '');
     expect(MusicPlayLogStore.count(m), 3);
   });
 }

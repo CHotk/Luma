@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
+import '../../data/repositories/music_event_log_store.dart';
 import '../../data/repositories/music_store.dart';
 import '../../domain/models/music.dart';
 
@@ -18,18 +19,54 @@ class MusicActions {
     await MusicStore(_ref.read(keyValueStoreProvider)).save(next);
   }
 
+  /// 寫一筆異動紀錄（2026-10-19 使用者要求：加了哪首、改了什麼都要記，一筆
+  /// 都不刪）。
+  Future<void> _log(String text, {String? versionId}) async {
+    final now = DateTime.now();
+    final e = MusicEvent(
+      id: 'e${now.microsecondsSinceEpoch}',
+      at: now,
+      text: text,
+      versionId: versionId,
+    );
+    final next = [..._ref.read(musicEventLogProvider), e];
+    _ref.read(musicEventLogProvider.notifier).state = next;
+    await MusicEventLogStore(_ref.read(keyValueStoreProvider)).save(next);
+  }
+
   static String _newId(String prefix) =>
       '$prefix${DateTime.now().microsecondsSinceEpoch}';
 
-  /// 新增歌手（同名的已經有就直接用那個）。
-  Future<String> ensureArtist(String name, {String avatarUrl = ''}) async {
+  String _names(List<String> ids) =>
+      [for (final id in ids) data.artist(id)?.name ?? '?'].join('、');
+
+  String _orNone(String s) => s.isEmpty ? '（沒有）' : s;
+
+  String _title(MusicVersion v) => data.work(v.workId)?.title ?? v.videoTitle;
+
+  static List<String> _clean(List<String> urls) => [
+    for (final u in urls)
+      if (u.trim().isNotEmpty) u.trim(),
+  ].take(MusicArtist.maxAvatars).toList();
+
+  /// 新增歌手（同名的已經有就直接用那個；那個還沒有大頭貼就補上）。
+  Future<String> ensureArtist(
+    String name, {
+    List<String> avatarUrls = const [],
+    int shownAvatar = 0,
+  }) async {
     final n = name.trim();
+    final urls = _clean(avatarUrls);
     final hit = data.artists.where((a) => a.name == n).firstOrNull;
     if (hit != null) {
-      if (hit.avatarUrl.isEmpty && avatarUrl.isNotEmpty) {
+      if (hit.avatarUrls.isEmpty && urls.isNotEmpty) {
         await _set(
           data.putArtist(
-            hit.copyWith(avatarUrl: avatarUrl, updatedAt: DateTime.now()),
+            hit.copyWith(
+              avatarUrls: urls,
+              shownAvatar: shownAvatar,
+              updatedAt: DateTime.now(),
+            ),
           ),
         );
       }
@@ -38,19 +75,53 @@ class MusicActions {
     final a = MusicArtist(
       id: _newId('a'),
       name: n,
-      avatarUrl: avatarUrl,
+      avatarUrls: urls,
+      shownAvatar: shownAvatar.clamp(0, urls.isEmpty ? 0 : urls.length - 1),
       updatedAt: DateTime.now(),
     );
     await _set(data.putArtist(a));
+    await _log('新增歌手「$n」${urls.isEmpty ? '' : '（大頭貼 ${urls.length} 張）'}');
     return a.id;
+  }
+
+  /// 改歌手的名字、大頭貼（好幾張、照順序）、顯示哪一張（2026-10-19 使用者
+  /// 要求：歌手自己打名字、貼網址，不從 YT 頻道挑）。
+  Future<void> updateArtist(
+    String id, {
+    required String name,
+    required List<String> avatarUrls,
+    required int shownAvatar,
+  }) async {
+    final a = data.artist(id);
+    final n = name.trim();
+    final urls = _clean(avatarUrls);
+    final shown = shownAvatar.clamp(0, urls.isEmpty ? 0 : urls.length - 1);
+    if (a == null || n.isEmpty) return;
+    final changes = <String>[
+      if (n != a.name) '名字「${a.name}」→「$n」',
+      if (urls.join('|') != a.avatarUrls.join('|')) '大頭貼改成 ${urls.length} 張',
+      if (urls.isNotEmpty && shown != a.shownAvatar) '改顯示第 ${shown + 1} 張大頭貼',
+    ];
+    if (changes.isEmpty) return;
+    await _set(
+      data.putArtist(
+        a.copyWith(
+          name: n,
+          avatarUrls: urls,
+          shownAvatar: shown,
+          updatedAt: DateTime.now(),
+        ),
+      ),
+    );
+    await _log('歌手「${a.name}」：${changes.join('，')}');
   }
 
   Future<void> renameArtist(String id, String name) async {
     final a = data.artist(id);
-    if (a == null || name.trim().isEmpty) return;
-    await _set(
-      data.putArtist(a.copyWith(name: name.trim(), updatedAt: DateTime.now())),
-    );
+    final n = name.trim();
+    if (a == null || n.isEmpty || n == a.name) return;
+    await _set(data.putArtist(a.copyWith(name: n, updatedAt: DateTime.now())));
+    await _log('歌手「${a.name}」改名成「$n」');
   }
 
   Future<void> editWork(
@@ -60,15 +131,26 @@ class MusicActions {
   }) async {
     final w = data.work(id);
     if (w == null) return;
+    final t = title?.trim();
+    final newTitle = t == null || t.isEmpty ? w.title : t;
+    final newOrig = originalArtistIds ?? w.originalArtistIds;
+    final oldNames = _names(w.originalArtistIds), newNames = _names(newOrig);
+    final changes = <String>[
+      if (newTitle != w.title) '歌名「${w.title}」→「$newTitle」',
+      if (oldNames != newNames)
+        '原唱 ${_orNone(oldNames)} → ${_orNone(newNames)}',
+    ];
+    if (changes.isEmpty) return;
     await _set(
       data.putWork(
         w.copyWith(
-          title: title?.trim().isEmpty ?? true ? null : title!.trim(),
-          originalArtistIds: originalArtistIds,
+          title: newTitle,
+          originalArtistIds: newOrig,
           updatedAt: DateTime.now(),
         ),
       ),
     );
+    await _log('《${w.title}》：${changes.join('，')}');
   }
 
   /// 把一部 YouTube 影片加進音樂（抄一份影片資料）。[workId] 給了就加成那首
@@ -90,6 +172,7 @@ class MusicActions {
     final now = DateTime.now();
     var d = data;
     var wid = workId;
+    var isNewWork = false;
     if (wid == null || d.work(wid) == null) {
       final w = MusicWork(
         id: _newId('w'),
@@ -101,6 +184,7 @@ class MusicActions {
       );
       d = d.putWork(w);
       wid = w.id;
+      isNewWork = true;
     }
     final v = MusicVersion(
       id: videoId,
@@ -117,6 +201,13 @@ class MusicActions {
       updatedAt: now,
     );
     await _set(d.putVersion(v));
+    final n = note.trim();
+    await _log(
+      '加入《${d.work(wid)!.title}》${isNewWork ? '（新歌曲）' : ''}：'
+      '${type.label}・${_names(artistIds)}${n.isEmpty ? '' : '・$n'}，'
+      '來自「$uploaderName」',
+      versionId: videoId,
+    );
     return v;
   }
 
@@ -129,21 +220,33 @@ class MusicActions {
   }) async {
     final v = data.version(id);
     if (v == null) return;
+    final n = note?.trim();
+    final changes = <String>[
+      if (type != null && type != v.type) '種類 ${v.type.label} → ${type.label}',
+      if (artistIds != null && _names(artistIds) != _names(v.artistIds))
+        '誰唱 ${_names(v.artistIds)} → ${_names(artistIds)}',
+      if (n != null && n != v.note) '備註「${_orNone(v.note)}」→「${_orNone(n)}」',
+    ];
+    if (changes.isEmpty && workId == null) return;
     await _set(
       data.putVersion(
         v.copyWith(
           type: type,
           artistIds: artistIds,
           workId: workId,
-          note: note?.trim(),
+          note: n,
           updatedAt: DateTime.now(),
         ),
       ),
     );
+    if (changes.isNotEmpty) {
+      await _log('《${_title(v)}》：${changes.join('，')}', versionId: id);
+    }
   }
 
   /// 這個版本改成屬於歌名 [title] 的那首歌：已經有同名的歌就併過去，沒有就
-  /// 新增一首（原唱沿用原本那首）。原本那首沒有別的版本了就拿掉。
+  /// 新增一首（原唱沿用原本那首）。原本那首沒有別的版本了就收起來（版本
+  /// 一直都在，只是歌曲換了一首）。
   Future<void> moveVersionToTitle(String id, String title) async {
     final v = data.version(id);
     final t = title.trim();
@@ -153,6 +256,7 @@ class MusicActions {
     final now = DateTime.now();
     var d = data;
     var target = d.works.where((w) => w.title == t).firstOrNull;
+    final merged = target != null;
     if (target == null) {
       target = MusicWork(
         id: _newId('w'),
@@ -167,32 +271,44 @@ class MusicActions {
       d = d.putWork(old.copyWith(deletedAt: now, updatedAt: now));
     }
     await _set(d);
+    await _log(
+      '歌名「${old?.title ?? v.videoTitle}」→「$t」${merged ? '（併到已有的《$t》）' : ''}',
+      versionId: id,
+    );
   }
 
-  /// 從音樂刪掉（YT 管理不動）。那首歌沒有別的版本了，歌也一起拿掉。
-  Future<void> deleteVersion(String id) async {
+  /// 不喜歡／取消不喜歡（音樂不做刪除，見 [MusicVersion.dislikedAt]）。
+  Future<void> toggleDislike(String id) async {
     final v = data.version(id);
     if (v == null) return;
-    final now = DateTime.now();
-    var d = data.putVersion(v.copyWith(deletedAt: now, updatedAt: now));
-    if (d.versionsOfWork(v.workId).isEmpty) {
-      final w = d.work(v.workId);
-      if (w != null) d = d.putWork(w.copyWith(deletedAt: now, updatedAt: now));
+    final to = !v.disliked;
+    await _set(
+      data.putVersion(v.copyWith(disliked: to, updatedAt: DateTime.now())),
+    );
+    if (to) {
+      // 不喜歡就不留在「喜歡的歌」。
+      final l = data.liked;
+      if (l.versionIds.contains(id)) {
+        await _set(
+          data.putPlaylist(
+            l.copyWith(
+              versionIds: l.versionIds.where((x) => x != id).toList(),
+              updatedAt: DateTime.now(),
+            ),
+          ),
+        );
+      }
     }
-    await _set(d);
+    await _log(
+      '《${_title(v)}》（${_names(v.artistIds)}）${to ? '標成不喜歡' : '取消不喜歡'}',
+      versionId: id,
+    );
   }
 
   bool isLiked(String versionId) => data.liked.versionIds.contains(versionId);
 
-  Future<void> toggleLike(String versionId) async {
-    final l = data.liked;
-    final ids = l.versionIds.contains(versionId)
-        ? l.versionIds.where((x) => x != versionId).toList()
-        : [versionId, ...l.versionIds];
-    await _set(
-      data.putPlaylist(l.copyWith(versionIds: ids, updatedAt: DateTime.now())),
-    );
-  }
+  Future<void> toggleLike(String versionId) =>
+      togglePlaylistItem(MusicPlaylist.likedId, versionId);
 
   Future<String> createPlaylist(String name) async {
     final p = MusicPlaylist(
@@ -201,6 +317,7 @@ class MusicActions {
       updatedAt: DateTime.now(),
     );
     await _set(data.putPlaylist(p));
+    await _log('新增歌單「${p.name}」');
     return p.id;
   }
 
@@ -208,12 +325,23 @@ class MusicActions {
     final p = playlistId == MusicPlaylist.likedId
         ? data.liked
         : data.playlistMap[playlistId];
+    final v = data.version(versionId);
     if (p == null) return;
-    final ids = p.versionIds.contains(versionId)
+    final removing = p.versionIds.contains(versionId);
+    final ids = removing
         ? p.versionIds.where((x) => x != versionId).toList()
         : [versionId, ...p.versionIds];
     await _set(
       data.putPlaylist(p.copyWith(versionIds: ids, updatedAt: DateTime.now())),
+    );
+    final name = v == null
+        ? versionId
+        : '《${_title(v)}》（${_names(v.artistIds)}）';
+    await _log(
+      p.isLiked
+          ? '$name${removing ? '取消喜歡' : '標成喜歡'}'
+          : '$name${removing ? '移出' : '加進'}歌單「${p.name}」',
+      versionId: versionId,
     );
   }
 
@@ -222,6 +350,7 @@ class MusicActions {
     if (p == null || p.isLiked) return;
     final now = DateTime.now();
     await _set(data.putPlaylist(p.copyWith(deletedAt: now, updatedAt: now)));
+    await _log('刪掉歌單「${p.name}」（歌都還在）');
   }
 }
 
@@ -336,11 +465,7 @@ class MusicGuess {
       orig = o;
       by = named.where((id) => !o.contains(id)).toList();
     }
-    if (by.isEmpty &&
-        channelName.isNotEmpty &&
-        !data.artists.any((a) => a.name == channelName)) {
-      newNames.add(channelName);
-    }
+    // 不自動拿上傳頻道當新歌手（2026-10-19 使用者要求：歌手自己打名字跟大頭貼）。
     final why = [
       switch (type) {
         MusicVersionType.cover => '標題有「翻唱／cover」',

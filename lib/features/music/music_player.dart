@@ -13,8 +13,14 @@ class MusicPlayer extends ChangeNotifier {
     bridge = MusicYtBridge(_onEvent);
   }
 
-  /// 每一首開始播（含自動接下一首）時呼叫，拿來記播放紀錄。
-  final void Function(String videoId)? onStart;
+  /// 每一首開始播（含自動接下一首）時呼叫，拿來記播放紀錄：(影片 id, 從哪來)。
+  final void Function(String videoId, String from)? onStart;
+
+  /// 這份佇列是從哪裡點的（記播放紀錄用）。
+  String source = '';
+
+  /// 下一次開始播是怎麼來的（第一首＝[source]，之後是「自動接下一首」等）。
+  String _reason = '';
 
   late final MusicYtBridge bridge;
 
@@ -38,7 +44,9 @@ class MusicPlayer extends ChangeNotifier {
   String? get current => queue.isEmpty ? null : queue[index];
 
   /// 從 [list] 裡的 [id] 開始播；隨機開著就把其他的打散。
-  void playList(List<String> list, String id) {
+  void playList(List<String> list, String id, {String from = ''}) {
+    source = from;
+    _reason = from;
     final q = list.isEmpty ? [id] : list;
     if (shuffle) {
       final rest = q.where((x) => x != id).toList()..shuffle(math.Random());
@@ -52,16 +60,16 @@ class MusicPlayer extends ChangeNotifier {
   }
 
   /// 隨機播一整份。
-  void shuffleAll(List<String> list) {
+  void shuffleAll(List<String> list, {String from = ''}) {
     if (list.isEmpty) return;
     shuffle = true;
-    playList(list, list[math.Random().nextInt(list.length)]);
+    playList(list, list[math.Random().nextInt(list.length)], from: from);
   }
 
   /// 下一首播放：插在現在這首後面。
   void playNext(String id) {
     if (current == null) {
-      playList([id], id);
+      playList([id], id, from: '下一首播放');
       return;
     }
     final q = List.of(queue)..remove(id);
@@ -77,7 +85,7 @@ class MusicPlayer extends ChangeNotifier {
     duration = 0;
     playing = true;
     bridge.load(current!);
-    onStart?.call(current!);
+    onStart?.call(current!, _reason);
     notifyListeners();
   }
 
@@ -95,6 +103,7 @@ class MusicPlayer extends ChangeNotifier {
       bridge.play();
       return;
     }
+    _reason = auto ? '$source・自動接下一首' : '$source・按下一首';
     if (index < queue.length - 1) {
       index++;
     } else if (repeat == 1 || !auto) {
@@ -114,6 +123,7 @@ class MusicPlayer extends ChangeNotifier {
       return;
     }
     index = math.max(0, index - 1);
+    _reason = '$source・按上一首';
     _loadCurrent();
   }
 
@@ -205,5 +215,8 @@ class MusicPlayer extends ChangeNotifier {
 }
 
 final musicPlayerProvider = ChangeNotifierProvider<MusicPlayer>(
-  (ref) => MusicPlayer(onStart: (id) => recordMusicPlay(ref.read, id)),
+  (ref) => MusicPlayer(
+    onStart: (id, from) =>
+        recordMusicPlay(ref.read, id, from: from, mode: 'app'),
+  ),
 );

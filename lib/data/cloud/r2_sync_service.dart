@@ -43,6 +43,7 @@ import '../repositories/yt_playlist_store.dart';
 import '../repositories/yt_video_song_store.dart';
 import '../repositories/music_store.dart';
 import '../repositories/music_play_log_store.dart';
+import '../repositories/music_event_log_store.dart';
 import '../../domain/models/music.dart';
 import '../storage/key_value_store.dart';
 import 'r2_client.dart';
@@ -987,7 +988,7 @@ class R2SyncService {
     }
     final fetched = await _client.getObjectWithEtag(key);
     final cloud = fetched.bytes == null
-        ? <String, List<DateTime>>{}
+        ? <String, List<MusicPlay>>{}
         : MusicPlayLogStore.decode(utf8.decode(fetched.bytes!));
     final merged = MusicPlayLogStore.merge(local, cloud);
     final total = MusicPlayLogStore.count(merged);
@@ -995,6 +996,32 @@ class R2SyncService {
     final uploaded = total - MusicPlayLogStore.count(cloud);
     if (downloaded > 0) await store.save(merged);
     final body = utf8.encode(MusicPlayLogStore.encode(merged));
+    var etag = fetched.etag;
+    if (uploaded > 0) {
+      etag = await _client.putObject(key, Uint8List.fromList(body));
+    }
+    await _writeMeta(key, body, etag);
+    return (downloaded: downloaded, uploaded: uploaded);
+  }
+
+  /// 音樂的異動紀錄（2026-10-19）：聯集，紀錄只會變多。
+  Future<({int downloaded, int uploaded})> syncMusicEventLog(
+    MusicEventLogStore store,
+  ) async {
+    const key = MusicEventLogStore.cloudKey;
+    final local = await store.load();
+    if (await _canSkip(key, utf8.encode(MusicEventLogStore.encode(local)))) {
+      return (downloaded: 0, uploaded: 0);
+    }
+    final fetched = await _client.getObjectWithEtag(key);
+    final cloud = fetched.bytes == null
+        ? <MusicEvent>[]
+        : MusicEventLogStore.decode(utf8.decode(fetched.bytes!));
+    final merged = MusicEventLogStore.merge(local, cloud);
+    final downloaded = merged.length - local.length;
+    final uploaded = merged.length - cloud.length;
+    if (downloaded > 0) await store.save(merged);
+    final body = utf8.encode(MusicEventLogStore.encode(merged));
     var etag = fetched.etag;
     if (uploaded > 0) {
       etag = await _client.putObject(key, Uint8List.fromList(body));

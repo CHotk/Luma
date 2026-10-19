@@ -15,6 +15,7 @@ import '../../data/repositories/jp_light_style_store.dart';
 import '../../data/repositories/yt_video_song_store.dart';
 import '../../data/repositories/music_store.dart';
 import '../../data/repositories/music_play_log_store.dart';
+import '../../data/repositories/music_event_log_store.dart';
 import '../../data/repositories/music_play_mode_store.dart';
 import '../../data/repositories/yt_embed_player_style_store.dart';
 import '../../data/repositories/yt_search_recents_store.dart';
@@ -86,6 +87,7 @@ class _SyncUiState extends ChangeNotifier {
   _FeaturePhase kanaExam = _FeaturePhase.idle;
   _FeaturePhase english = _FeaturePhase.idle;
   _FeaturePhase appHome = _FeaturePhase.idle;
+  _FeaturePhase music = _FeaturePhase.idle;
   _FeaturePhase syncLog = _FeaturePhase.idle;
   _FeaturePhase errorLog = _FeaturePhase.idle;
   final habits = <String, _FeaturePhase>{};
@@ -119,6 +121,8 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
   set _kanaExamPhase(_FeaturePhase v) => _ui.kanaExam = v;
   _FeaturePhase get _englishPhase => _ui.english;
   set _englishPhase(_FeaturePhase v) => _ui.english = v;
+  _FeaturePhase get _musicPhase => _ui.music;
+  set _musicPhase(_FeaturePhase v) => _ui.music = v;
   _FeaturePhase get _appHomePhase => _ui.appHome;
   set _appHomePhase(_FeaturePhase v) => _ui.appHome = v;
   Map<String, _FeaturePhase> get _habitPhases => _ui.habits;
@@ -264,6 +268,7 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
       _kanaExamPhase = _FeaturePhase.downloading;
       _englishPhase = _FeaturePhase.downloading;
       _appHomePhase = _FeaturePhase.downloading;
+      _musicPhase = _FeaturePhase.downloading;
       _habitPhases
         ..clear()
         ..addEntries(
@@ -406,30 +411,6 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
               }
               return r;
             }),
-            // 音樂功能（2026-10-19）跟 YT 一起同步。
-            service.syncMusic(MusicStore(kv)).then((r) async {
-              if (r.downloaded > 0) {
-                container.read(musicDataProvider.notifier).state =
-                    await MusicStore(kv).load();
-              }
-              return r;
-            }),
-            service.syncMusicPlayLog(MusicPlayLogStore(kv)).then((r) async {
-              if (r.downloaded > 0) {
-                container.read(musicPlayLogProvider.notifier).state =
-                    await MusicPlayLogStore(kv).load();
-              }
-              return r;
-            }),
-            service.syncStampedSetting(MusicPlayModeStore(kv).record).then((
-              r,
-            ) async {
-              if (r.downloaded > 0) {
-                container.read(musicPlayModeProvider.notifier).state =
-                    await MusicPlayModeStore(kv).load();
-              }
-              return r;
-            }),
             service.syncYtVideoSongs(YtVideoSongStore(kv)).then((r) async {
               if (r.downloaded > 0) {
                 container.read(ytVideoSongsProvider.notifier).state =
@@ -476,6 +457,47 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
               ytResult.uploaded,
               (n, r) => n + r.uploaded,
             ),
+          );
+        }),
+        // 音樂（2026-10-19 使用者要求：同步頁要有自己一條）：歌手／歌曲／
+        // 版本、異動紀錄、播放紀錄、播放方式設定。
+        run('音樂', (p) => _musicPhase = p, (_) async {
+          final kv = container.read(keyValueStoreProvider);
+          final results = await Future.wait([
+            service.syncMusic(MusicStore(kv)).then((r) async {
+              if (r.downloaded > 0) {
+                container.read(musicDataProvider.notifier).state =
+                    await MusicStore(kv).load();
+              }
+              return r;
+            }),
+            service.syncMusicEventLog(MusicEventLogStore(kv)).then((r) async {
+              if (r.downloaded > 0) {
+                container.read(musicEventLogProvider.notifier).state =
+                    await MusicEventLogStore(kv).load();
+              }
+              return r;
+            }),
+            service.syncMusicPlayLog(MusicPlayLogStore(kv)).then((r) async {
+              if (r.downloaded > 0) {
+                container.read(musicPlayLogProvider.notifier).state =
+                    await MusicPlayLogStore(kv).load();
+              }
+              return r;
+            }),
+            service.syncStampedSetting(MusicPlayModeStore(kv).record).then((
+              r,
+            ) async {
+              if (r.downloaded > 0) {
+                container.read(musicPlayModeProvider.notifier).state =
+                    await MusicPlayModeStore(kv).load();
+              }
+              return r;
+            }),
+          ]);
+          return (
+            downloaded: results.fold<int>(0, (n, r) => n + r.downloaded),
+            uploaded: results.fold<int>(0, (n, r) => n + r.uploaded),
           );
         }),
         run('五十音練習', (p) => _kanaPracticePhase = p, (onPhase) async {
@@ -799,6 +821,11 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
           label: 'YT 頻道追蹤',
           phase: _ytPhase,
           result: _results['YT 頻道追蹤'],
+        ),
+        _FeatureStatusRow(
+          label: '音樂',
+          phase: _musicPhase,
+          result: _results['音樂'],
         ),
         _FeatureStatusRow(
           label: '五十音練習',

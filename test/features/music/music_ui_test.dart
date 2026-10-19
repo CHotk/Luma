@@ -6,6 +6,7 @@ import 'package:lume/data/repositories/music_store.dart';
 import 'package:lume/data/storage/key_value_store.dart';
 import 'package:lume/domain/models/music.dart';
 import 'package:lume/features/music/add_to_music_sheet.dart';
+import 'package:lume/features/music/music_actions.dart';
 import 'package:lume/features/music/music_pages.dart';
 import 'package:lume/features/music/music_player.dart';
 
@@ -28,11 +29,22 @@ void main() {
   final seed = MusicData.empty
       .putArtist(MusicArtist(id: 'jay', name: '周杰倫', updatedAt: t))
       .putArtist(MusicArtist(id: 'hana', name: '小花', updatedAt: t))
-      .putWork(MusicWork(id: 'w1', title: '晴天', originalArtistIds: const ['jay'], updatedAt: t))
+      .putWork(
+        MusicWork(
+          id: 'w1',
+          title: '晴天',
+          originalArtistIds: const ['jay'],
+          updatedAt: t,
+        ),
+      )
       .putVersion(v('v1', 'w1', MusicVersionType.sing, ['jay']))
       .putVersion(v('v2', 'w1', MusicVersionType.cover, ['hana']));
 
-  Future<ProviderContainer> pump(WidgetTester tester, Widget page, {MusicData? data}) async {
+  Future<ProviderContainer> pump(
+    WidgetTester tester,
+    Widget page, {
+    MusicData? data,
+  }) async {
     tester.view.physicalSize = const Size(400, 860);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -45,7 +57,10 @@ void main() {
     );
     addTearDown(c.dispose);
     await tester.pumpWidget(
-      UncontrolledProviderScope(container: c, child: MaterialApp(home: page)),
+      UncontrolledProviderScope(
+        container: c,
+        child: MaterialApp(home: page),
+      ),
     );
     await tester.pump();
     return c;
@@ -118,6 +133,35 @@ void main() {
     final saved = await MusicStore(c.read(keyValueStoreProvider)).load();
     expect(saved.version('v3'), isNotNull);
     await tester.pump(const Duration(seconds: 4));
+  });
+
+  testWidgets('不喜歡：從首頁跟歌曲頁的版本清單拿掉，收進「不喜歡」；異動紀錄記下來', (tester) async {
+    final c = await pump(tester, const MusicWorkPage(workId: 'w1'));
+    late WidgetRef r;
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: c,
+        child: MaterialApp(
+          home: Consumer(
+            builder: (context, ref, _) {
+              r = ref;
+              return const MusicWorkPage(workId: 'w1');
+            },
+          ),
+        ),
+      ),
+    );
+    await MusicActions(r).toggleDislike('v2');
+    await tester.pump();
+    final d = c.read(musicDataProvider);
+    expect(d.playable.map((v) => v.id), ['v1']);
+    expect(d.disliked.map((v) => v.id), ['v2']);
+    expect(find.text('不喜歡 1'), findsOneWidget);
+    final events = c.read(musicEventLogProvider);
+    expect(events.last.text, contains('標成不喜歡'));
+    expect(events.last.versionId, 'v2');
+    await MusicActions(r).editVersion('v1', note: '鋼琴版');
+    expect(c.read(musicEventLogProvider).last.text, contains('備註'));
   });
 
   test('播放佇列：下一首、重複、刪掉正在播的', () {

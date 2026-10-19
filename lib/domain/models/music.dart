@@ -42,7 +42,8 @@ class MusicArtist implements MusicRecord {
   const MusicArtist({
     required this.id,
     required this.name,
-    this.avatarUrl = '',
+    this.avatarUrls = const [],
+    this.shownAvatar = 0,
     required this.updatedAt,
     this.deletedAt,
   });
@@ -51,22 +52,41 @@ class MusicArtist implements MusicRecord {
   final String id;
   final String name;
 
-  /// 頭像（從 YT 頻道抄來的，可以沒有）。
-  final String avatarUrl;
+  /// 大頭貼網址，照順序：預設、備用 2、3、4、5（2026-10-19 使用者要求：可以
+  /// 放好幾張，選要顯示哪一張；那張壞了就照順序換下一張）。
+  final List<String> avatarUrls;
+
+  /// 要顯示第幾張（[avatarUrls] 的索引）。跟著歌手一起同步。
+  final int shownAvatar;
   @override
   final DateTime updatedAt;
   @override
   final DateTime? deletedAt;
 
+  static const maxAvatars = 5;
+
+  /// 顯示的順序：選的那張先，壞了再照原本順序換其他張。
+  List<String> get avatarOrder {
+    final urls = avatarUrls.where((u) => u.trim().isNotEmpty).toList();
+    if (urls.isEmpty) return const [];
+    final i = shownAvatar.clamp(0, urls.length - 1);
+    return [urls[i], for (var k = 0; k < urls.length; k++) if (k != i) urls[k]];
+  }
+
+  /// 現在顯示的那張（沒有就是空字串）。
+  String get avatarUrl => avatarOrder.firstOrNull ?? '';
+
   MusicArtist copyWith({
     String? name,
-    String? avatarUrl,
+    List<String>? avatarUrls,
+    int? shownAvatar,
     DateTime? updatedAt,
     DateTime? deletedAt,
   }) => MusicArtist(
     id: id,
     name: name ?? this.name,
-    avatarUrl: avatarUrl ?? this.avatarUrl,
+    avatarUrls: avatarUrls ?? this.avatarUrls,
+    shownAvatar: shownAvatar ?? this.shownAvatar,
     updatedAt: updatedAt ?? this.updatedAt,
     deletedAt: deletedAt ?? this.deletedAt,
   );
@@ -75,7 +95,8 @@ class MusicArtist implements MusicRecord {
   Map<String, dynamic> toJson() => {
     'id': id,
     'name': name,
-    if (avatarUrl.isNotEmpty) 'avatarUrl': avatarUrl,
+    if (avatarUrls.isNotEmpty) 'avatars': avatarUrls,
+    if (shownAvatar != 0) 'shown': shownAvatar,
     'updatedAt': updatedAt.toIso8601String(),
     if (deletedAt != null) 'deletedAt': deletedAt!.toIso8601String(),
   };
@@ -83,7 +104,13 @@ class MusicArtist implements MusicRecord {
   factory MusicArtist.fromJson(Map<String, dynamic> j) => MusicArtist(
     id: j['id'] as String,
     name: j['name'] as String? ?? '',
-    avatarUrl: j['avatarUrl'] as String? ?? '',
+    avatarUrls: [
+      for (final x in (j['avatars'] as List? ?? const [])) x as String,
+      // 最早只存一張（avatarUrl）。
+      if (j['avatars'] == null && (j['avatarUrl'] as String? ?? '').isNotEmpty)
+        j['avatarUrl'] as String,
+    ],
+    shownAvatar: (j['shown'] as num?)?.toInt() ?? 0,
     updatedAt: _date(j['updatedAt']),
     deletedAt: _dateOrNull(j['deletedAt']),
   );
@@ -158,6 +185,7 @@ class MusicVersion implements MusicRecord {
     required this.addedAt,
     required this.updatedAt,
     this.deletedAt,
+    this.dislikedAt,
   });
 
   /// YouTube 影片 id。
@@ -185,6 +213,13 @@ class MusicVersion implements MusicRecord {
   @override
   final DateTime? deletedAt;
 
+  /// 標成「不喜歡」的時間（2026-10-19 使用者要求：音樂不做刪除——本意是記
+  /// 這個歌手有哪些歌——不想聽的放「不喜歡」那一區）。null＝沒有。不喜歡的
+  /// 不會出現在首頁、也不會被播放全部／隨機排進去。
+  final DateTime? dislikedAt;
+
+  bool get disliked => dislikedAt != null;
+
   String get videoId => id;
 
   MusicVersion copyWith({
@@ -192,6 +227,7 @@ class MusicVersion implements MusicRecord {
     MusicVersionType? type,
     List<String>? artistIds,
     String? note,
+    bool? disliked,
     DateTime? updatedAt,
     DateTime? deletedAt,
   }) => MusicVersion(
@@ -208,6 +244,9 @@ class MusicVersion implements MusicRecord {
     addedAt: addedAt,
     updatedAt: updatedAt ?? this.updatedAt,
     deletedAt: deletedAt ?? this.deletedAt,
+    dislikedAt: disliked == null
+        ? dislikedAt
+        : (disliked ? (dislikedAt ?? DateTime.now()) : null),
   );
 
   @override
@@ -225,6 +264,7 @@ class MusicVersion implements MusicRecord {
     'addedAt': addedAt.toIso8601String(),
     'updatedAt': updatedAt.toIso8601String(),
     if (deletedAt != null) 'deletedAt': deletedAt!.toIso8601String(),
+    if (dislikedAt != null) 'dislikedAt': dislikedAt!.toIso8601String(),
   };
 
   factory MusicVersion.fromJson(Map<String, dynamic> j) => MusicVersion(
@@ -243,6 +283,7 @@ class MusicVersion implements MusicRecord {
     addedAt: _date(j['addedAt']),
     updatedAt: _date(j['updatedAt']),
     deletedAt: _dateOrNull(j['deletedAt']),
+    dislikedAt: _dateOrNull(j['dislikedAt']),
   );
 }
 
@@ -329,6 +370,13 @@ class MusicData {
   List<MusicVersion> get versions =>
       _alive(versionMap)..sort((a, b) => b.addedAt.compareTo(a.addedAt));
   List<MusicPlaylist> get playlists => _alive(playlistMap);
+
+  /// 沒標不喜歡的（首頁、播放全部、隨機用這份）。
+  List<MusicVersion> get playable =>
+      versions.where((v) => !v.disliked).toList();
+
+  /// 標了不喜歡的。
+  List<MusicVersion> get disliked => versions.where((v) => v.disliked).toList();
 
   MusicArtist? artist(String id) {
     final a = artistMap[id];

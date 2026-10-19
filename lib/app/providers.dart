@@ -15,6 +15,8 @@ import '../data/repositories/jp_home_ring_store.dart';
 import '../data/repositories/jp_light_style_store.dart';
 import '../data/repositories/yt_video_song_store.dart';
 import '../data/repositories/music_play_mode_store.dart';
+import '../data/repositories/music_event_log_store.dart';
+import '../data/repositories/music_play_log_store.dart';
 import '../domain/models/music.dart';
 import '../data/repositories/kana_exam_repository.dart';
 import '../data/repositories/kana_practice_repository.dart';
@@ -215,9 +217,14 @@ final musicPlayModeProvider = StateProvider<MusicPlayMode>(
   (ref) => MusicPlayModeStore.defaultMode,
 );
 
-/// 音樂的播放紀錄（影片 id → 每次開始播的時間），見 [MusicPlayLogStore]。
-final musicPlayLogProvider = StateProvider<Map<String, List<DateTime>>>(
+/// 音樂的播放紀錄（影片 id → 每一次播放），見 [MusicPlayLogStore]。
+final musicPlayLogProvider = StateProvider<Map<String, List<MusicPlay>>>(
   (ref) => const {},
+);
+
+/// 音樂的異動紀錄（加了哪首、改了什麼…），見 [MusicEventLogStore]。
+final musicEventLogProvider = StateProvider<List<MusicEvent>>(
+  (ref) => const [],
 );
 
 /// 音樂裡有的影片 id（YT 管理每一列看這份決定要不要標 ♫，查一下就知道）。

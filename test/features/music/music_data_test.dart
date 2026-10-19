@@ -10,10 +10,19 @@ void main() {
   final base = MusicData.empty
       .putArtist(a('jay', '周杰倫'))
       .putArtist(a('gem', '鄧紫棋'))
-      .putWork(MusicWork(id: 'w1', title: '晴天', originalArtistIds: const ['jay'], updatedAt: t0));
+      .putWork(
+        MusicWork(
+          id: 'w1',
+          title: '晴天',
+          originalArtistIds: const ['jay'],
+          updatedAt: t0,
+        ),
+      );
 
   test('合併：同一筆後改的贏，刪掉的墓碑也會傳過去', () {
-    final local = base.putArtist(a('jay', '周杰倫').copyWith(name: 'Jay', updatedAt: t1));
+    final local = base.putArtist(
+      a('jay', '周杰倫').copyWith(name: 'Jay', updatedAt: t1),
+    );
     final cloud = base.putArtist(
       a('gem', '鄧紫棋').copyWith(deletedAt: t1, updatedAt: t1),
     );
@@ -40,7 +49,8 @@ void main() {
     expect(g.workId, 'w1');
     expect(g.originalArtistIds, ['jay']);
     expect(g.artistIds, isEmpty);
-    expect(g.newArtistNames, ['小花翻唱']);
+    // 不自動拿上傳頻道當新歌手（使用者自己打名字）。
+    expect(g.newArtistNames, isEmpty);
   });
 
   test('自動判斷：官方 MV，歌名從【】拿、英文副標拿掉', () {
@@ -56,7 +66,10 @@ void main() {
   });
 
   test('自動判斷：合唱、清唱、Live', () {
-    expect(MusicGuess.guessType('五月天 x 周杰倫【倔強】演唱會合唱 Live'), MusicVersionType.duet);
+    expect(
+      MusicGuess.guessType('五月天 x 周杰倫【倔強】演唱會合唱 Live'),
+      MusicVersionType.duet,
+    );
     expect(MusicGuess.guessType('周杰倫 突襲現場 清唱【稻香】'), MusicVersionType.acapella);
     expect(MusicGuess.guessType('周杰倫【晴天】2019 演唱會 Live'), MusicVersionType.live);
   });

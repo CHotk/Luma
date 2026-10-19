@@ -15,6 +15,7 @@ import 'data/repositories/jp_light_style_store.dart';
 import 'data/repositories/yt_video_song_store.dart';
 import 'data/repositories/music_store.dart';
 import 'data/repositories/music_play_log_store.dart';
+import 'data/repositories/music_event_log_store.dart';
 import 'data/repositories/music_play_mode_store.dart';
 import 'data/repositories/usdt_twd_rate_store.dart';
 import 'data/repositories/yt_api_key_store.dart';
@@ -85,6 +86,7 @@ Future<void> _start() async {
     final savedMusic = await MusicStore(store).load();
     final savedMusicMode = await MusicPlayModeStore(store).load();
     final savedMusicLog = await MusicPlayLogStore(store).load();
+    final savedMusicEvents = await MusicEventLogStore(store).load();
     final savedYtDisplayPrefs = await YtDisplayPrefsStore(store).load();
     final savedNavBarPrefs = await NavBarPrefsStore(store).load();
     final savedYtPlaylists = await YtPlaylistStore(store).loadAll();
@@ -113,6 +115,7 @@ Future<void> _start() async {
           musicDataProvider.overrideWith((ref) => savedMusic),
           musicPlayModeProvider.overrideWith((ref) => savedMusicMode),
           musicPlayLogProvider.overrideWith((ref) => savedMusicLog),
+          musicEventLogProvider.overrideWith((ref) => savedMusicEvents),
           ytDisplayPrefsProvider.overrideWith((ref) => savedYtDisplayPrefs),
           navBarPrefsProvider.overrideWith((ref) => savedNavBarPrefs),
           ytPlaylistsProvider.overrideWith((ref) => savedYtPlaylists),

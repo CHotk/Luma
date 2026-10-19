@@ -7,8 +7,8 @@ import '../../app/theme/colors.dart';
 import '../../app/theme/typography.dart';
 import '../yt_tracker/yt_video_row.dart' show openExternalUrl;
 import '../../data/repositories/music_play_mode_store.dart';
+import '../../data/repositories/music_play_log_store.dart';
 import '../../domain/models/music.dart';
-import '../../shared/widgets/app_confirm_dialog.dart';
 import '../../shared/widgets/app_notice.dart';
 import 'music_actions.dart';
 import 'music_play.dart';
@@ -105,12 +105,15 @@ class MusicCover extends StatelessWidget {
               width: w,
               height: h,
               fit: BoxFit.cover,
+              webHtmlElementStrategy: WebHtmlElementStrategy.fallback,
               errorBuilder: (_, _, _) => placeholder,
             ),
     );
   }
 }
 
+/// 歌手大頭貼：先用選的那張，壞了（網址失效、被擋）就照順序換下一張備用的，
+/// 全都不行才用名字第一個字（2026-10-19 使用者要求）。
 class MusicArtistAvatar extends StatelessWidget {
   const MusicArtistAvatar(this.artist, {super.key, this.size = 50});
 
@@ -138,15 +141,22 @@ class MusicArtistAvatar extends StatelessWidget {
         ),
       ),
     );
-    if (artist.avatarUrl.isEmpty) return fallback;
+    final urls = artist.avatarOrder;
+    Widget chain(int i) => i >= urls.length
+        ? fallback
+        : Image.network(
+            urls[i],
+            key: ValueKey(urls[i]),
+            width: size,
+            height: size,
+            fit: BoxFit.cover,
+            // 別的網站的圖常常不給跨網域讀，被擋就改用瀏覽器原生的 <img>
+            // 顯示（不然大頭貼網址幾乎都會失敗）。
+            webHtmlElementStrategy: WebHtmlElementStrategy.fallback,
+            errorBuilder: (_, _, _) => chain(i + 1),
+          );
     return ClipOval(
-      child: Image.network(
-        artist.avatarUrl,
-        width: size,
-        height: size,
-        fit: BoxFit.cover,
-        errorBuilder: (_, _, _) => fallback,
-      ),
+      child: SizedBox(width: size, height: size, child: chain(0)),
     );
   }
 }
@@ -159,7 +169,11 @@ class MusicVersionTile extends ConsumerWidget {
     required this.queue,
     this.byWho = false,
     this.rank,
+    this.from = '',
   });
+
+  /// 從哪裡點的（記進播放紀錄，例如「歌手頁」「首頁・快速選曲」）。
+  final String from;
 
   final MusicVersion version;
 
@@ -197,7 +211,7 @@ class MusicVersionTile extends ConsumerWidget {
     ];
     return InkWell(
       borderRadius: BorderRadius.circular(10),
-      onTap: () => musicPlay(context, ref, queue, v.id),
+      onTap: () => musicPlay(context, ref, queue, v.id, from: from),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 6),
         child: Row(
@@ -356,41 +370,267 @@ class MusicWorkTile extends ConsumerWidget {
   }
 }
 
-/// 底部面板的外框（音樂的樣子）。
+/// 音樂的面板（2026-10-19 使用者要求：不要從下面升起來，改成畫面中間的
+/// 卡片；四周留空白，點外面就關，右上角也有 ✕）。內容太長在卡片裡捲。
 Future<T?> showMusicSheet<T>(
   BuildContext context,
   Widget Function(BuildContext) builder,
-) => showModalBottomSheet<T>(
+) => showGeneralDialog<T>(
   context: context,
-  isScrollControlled: true,
-  useSafeArea: true,
-  backgroundColor: musicSheetBg,
-  shape: const RoundedRectangleBorder(
-    borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
-  ),
-  builder: (ctx) => Padding(
-    padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-    child: SafeArea(
-      top: false,
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 18),
-        child: builder(ctx),
-      ),
+  barrierDismissible: true,
+  barrierLabel: '關閉',
+  barrierColor: const Color(0x99000000),
+  transitionDuration: const Duration(milliseconds: 220),
+  transitionBuilder: (ctx, anim, _, child) => FadeTransition(
+    opacity: anim,
+    child: ScaleTransition(
+      scale: Tween(
+        begin: 0.94,
+        end: 1.0,
+      ).animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
+      child: child,
     ),
   ),
+  pageBuilder: (ctx, _, _) {
+    final mq = MediaQuery.of(ctx);
+    return SafeArea(
+      child: Padding(
+        // 四周留空白，點得到外面（點外面＝取消）。鍵盤出來時往上讓。
+        padding: EdgeInsets.fromLTRB(18, 28, 18, 28 + mq.viewInsets.bottom),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: 480,
+              maxHeight: (mq.size.height - mq.viewInsets.bottom) * 0.86,
+            ),
+            child: Material(
+              color: musicSheetBg,
+              borderRadius: BorderRadius.circular(24),
+              clipBehavior: Clip.antiAlias,
+              child: Stack(
+                children: [
+                  SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+                    child: builder(ctx),
+                  ),
+                  Positioned(
+                    top: 6,
+                    right: 6,
+                    child: IconButton(
+                      onPressed: () => Navigator.of(ctx).pop(),
+                      icon: const Icon(Icons.close_rounded, size: 20),
+                      color: AppColors.ink3,
+                      tooltip: '關閉',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  },
 );
 
-Widget musicSheetHandle() => Center(
-  child: Container(
-    width: 40,
-    height: 5,
-    margin: const EdgeInsets.only(bottom: 10),
-    decoration: BoxDecoration(
-      color: Colors.white24,
-      borderRadius: BorderRadius.circular(9),
+/// 面板最上面留給 ✕ 的空間（原本是底部面板的拉把）。
+Widget musicSheetHandle() => const SizedBox(height: 2);
+
+/// 新增／編輯歌手（2026-10-19 使用者要求）：打名字、直接貼大頭貼網址（最多
+/// 5 張，照順序是預設、備用 2～5），每張旁邊即時預覽；點「顯示這張」選要顯示
+/// 哪一張，那張壞了就照順序換下一張。回傳 (名字, 網址們, 顯示第幾張)；取消是 null。
+Future<({String name, List<String> avatarUrls, int shownAvatar})?>
+promptMusicArtist(
+  BuildContext context, {
+  String name = '',
+  List<String> avatarUrls = const [],
+  int shownAvatar = 0,
+}) {
+  final nameC = TextEditingController(text: name);
+  final urlCs = [
+    for (final u in (avatarUrls.isEmpty ? const [''] : avatarUrls))
+      TextEditingController(text: u),
+  ];
+  var shown = shownAvatar.clamp(0, urlCs.length - 1);
+  String label(int i) => i == 0 ? '預設' : '備用 ${i + 1}';
+  return showMusicSheet<
+    ({String name, List<String> avatarUrls, int shownAvatar})
+  >(
+    context,
+    (ctx) => StatefulBuilder(
+      builder: (ctx, setS) {
+        final urls = [for (final c in urlCs) c.text.trim()];
+        final preview = MusicArtist(
+          id: '',
+          name: nameC.text.trim().isEmpty ? '?' : nameC.text.trim(),
+          avatarUrls: urls,
+          shownAvatar: shown,
+          updatedAt: DateTime(2000),
+        );
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              name.isEmpty ? '新增歌手' : '編輯歌手',
+              style: const TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                color: AppColors.ink,
+              ),
+            ),
+            const SizedBox(height: 12),
+            // 實際會顯示的樣子（選的那張壞了會換下一張）。
+            Center(child: MusicArtistAvatar(preview, size: 92)),
+            const SizedBox(height: 4),
+            Center(
+              child: Text(
+                urls.any((u) => u.isNotEmpty)
+                    ? '顯示：${label(shown)}'
+                    : '還沒有大頭貼，先用名字第一個字',
+                style: AppText.note,
+              ),
+            ),
+            musicFieldLabel('歌手名稱'),
+            TextField(
+              controller: nameC,
+              autofocus: name.isEmpty,
+              onChanged: (_) => setS(() {}),
+              style: const TextStyle(color: AppColors.ink, fontSize: 15),
+              decoration: musicInputDecoration('例如：周杰倫'),
+            ),
+            musicFieldLabel('大頭貼網址（直接貼，最多 ${MusicArtist.maxAvatars} 張，照順序是備用）'),
+            for (var i = 0; i < urlCs.length; i++)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    // 每一張的小預覽。
+                    GestureDetector(
+                      onTap: () => setS(() => shown = i),
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: shown == i ? musicPink : Colors.transparent,
+                            width: 2,
+                          ),
+                        ),
+                        child: MusicArtistAvatar(
+                          MusicArtist(
+                            id: '',
+                            name: '${i + 1}',
+                            avatarUrls: [urls[i]],
+                            updatedAt: DateTime(2000),
+                          ),
+                          size: 40,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: urlCs[i],
+                        onChanged: (_) => setS(() {}),
+                        keyboardType: TextInputType.url,
+                        style: const TextStyle(
+                          color: AppColors.ink,
+                          fontSize: 12.5,
+                        ),
+                        decoration: musicInputDecoration(
+                          '${label(i)}：https://…',
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        GestureDetector(
+                          onTap: () => setS(() => shown = i),
+                          child: Text(
+                            shown == i ? '● 顯示' : '○ 顯示',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w700,
+                              color: shown == i ? musicPink : AppColors.ink3,
+                            ),
+                          ),
+                        ),
+                        if (urlCs.length > 1)
+                          GestureDetector(
+                            onTap: () => setS(() {
+                              urlCs.removeAt(i);
+                              if (shown >= urlCs.length) {
+                                shown = urlCs.length - 1;
+                              } else if (shown > i) {
+                                shown--;
+                              }
+                            }),
+                            child: const Padding(
+                              padding: EdgeInsets.only(top: 4),
+                              child: Text(
+                                '拿掉',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.ink3,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            if (urlCs.length < MusicArtist.maxAvatars)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () =>
+                      setS(() => urlCs.add(TextEditingController())),
+                  icon: const Icon(Icons.add_rounded, size: 18),
+                  label: Text('再加一張（${label(urlCs.length)}）'),
+                ),
+              ),
+            const SizedBox(height: 12),
+            FilledButton(
+              onPressed: () {
+                if (nameC.text.trim().isEmpty) {
+                  showAppNotice(ctx, '名字不能空白', isError: true);
+                  return;
+                }
+                // 空白的欄位不算；顯示的那張跟著移到對的位置。
+                final keep = <String>[];
+                var shownOut = 0;
+                for (var i = 0; i < urlCs.length; i++) {
+                  final u = urlCs[i].text.trim();
+                  if (u.isEmpty) continue;
+                  if (i == shown) shownOut = keep.length;
+                  keep.add(u);
+                }
+                Navigator.pop(ctx, (
+                  name: nameC.text.trim(),
+                  avatarUrls: keep,
+                  shownAvatar: shownOut,
+                ));
+              },
+              style: FilledButton.styleFrom(
+                backgroundColor: musicPink,
+                foregroundColor: const Color(0xFF2A0614),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+              child: Text(
+                name.isEmpty ? '新增' : '儲存',
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ),
+          ],
+        );
+      },
     ),
-  ),
-);
+  );
+}
 
 Widget _menuItem(
   IconData icon,
@@ -418,7 +658,11 @@ Future<void> showMusicVersionMenu(
   if (v == null) return;
   final work = data.work(v.workId);
   final liked = data.liked.versionIds.contains(id);
-  final plays = ref.read(musicPlayLogProvider)[id] ?? const <DateTime>[];
+  final plays = ref.read(musicPlayLogProvider)[id] ?? const <MusicPlay>[];
+  final events = ref
+      .read(musicEventLogProvider)
+      .where((e) => e.versionId == id)
+      .length;
   final embedded = ref.read(musicPlayModeProvider) == MusicPlayMode.embedded;
   final choice = await showMusicSheet<String>(
     context,
@@ -478,7 +722,7 @@ Future<void> showMusicVersionMenu(
           ),
         _menuItem(
           Icons.history_rounded,
-          '播放紀錄（${plays.length} 次）',
+          '紀錄（播放 ${plays.length} 次・異動 $events 筆）',
           () => Navigator.pop(ctx, 'log'),
         ),
         _menuItem(
@@ -509,11 +753,15 @@ Future<void> showMusicVersionMenu(
           '在 YouTube 開啟',
           () => Navigator.pop(ctx, 'yt'),
         ),
+        // 音樂不做刪除（2026-10-19 使用者要求：本意是記這個歌手有哪些歌），
+        // 不想聽的放「不喜歡」。
         _menuItem(
-          Icons.delete_outline_rounded,
-          '從音樂刪掉',
-          () => Navigator.pop(ctx, 'delete'),
-          color: const Color(0xFFFF7A7A),
+          v.disliked
+              ? Icons.thumb_up_alt_outlined
+              : Icons.thumb_down_alt_outlined,
+          v.disliked ? '取消不喜歡' : '不喜歡（不出現在首頁、不會被排進播放）',
+          () => Navigator.pop(ctx, 'dislike'),
+          color: const Color(0xFFFF9A7A),
         ),
       ],
     ),
@@ -537,17 +785,10 @@ Future<void> showMusicVersionMenu(
       appRouter.push('/music/work/${v.workId}');
     case 'yt':
       await openExternalUrl(context, 'https://www.youtube.com/watch?v=$id');
-    case 'delete':
-      final ok = await showAppConfirmDialog(
-        context,
-        title: '從音樂刪掉？',
-        message: '只刪音樂裡這一份，YT 管理的影片不動。',
-        confirmLabel: '刪掉',
-        cancelLabel: '取消',
-      );
-      if (ok) {
-        await MusicActions(ref).deleteVersion(id);
-        player.removeFromQueue(id);
+    case 'dislike':
+      await MusicActions(ref).toggleDislike(id);
+      if (context.mounted) {
+        showAppNotice(context, v.disliked ? '已取消不喜歡' : '已標成不喜歡（在「不喜歡」那一區找得到）');
       }
     default:
       if (choice.startsWith('artist:')) {
@@ -559,30 +800,21 @@ Future<void> showMusicVersionMenu(
   }
 }
 
-/// 選誰唱的（可以好幾個；可以打名字新增）。回傳選好的歌手 id。
-class MusicArtistPicker extends ConsumerStatefulWidget {
+/// 選誰唱的（可以好幾個）。「＋ 新歌手」打名字、大頭貼網址，當場建好並選上。
+class MusicArtistPicker extends ConsumerWidget {
   const MusicArtistPicker({
     super.key,
     required this.selected,
     required this.onChanged,
-    this.newNames = const [],
-    this.onNewNamesChanged,
+    this.allowNew = true,
   });
 
   final List<String> selected;
   final ValueChanged<List<String>> onChanged;
-
-  /// 還沒建立的新歌手名字（存的時候才建立）。
-  final List<String> newNames;
-  final ValueChanged<List<String>>? onNewNamesChanged;
+  final bool allowNew;
 
   @override
-  ConsumerState<MusicArtistPicker> createState() => _MusicArtistPickerState();
-}
-
-class _MusicArtistPickerState extends ConsumerState<MusicArtistPicker> {
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final artists = ref.watch(musicDataProvider).artists
       ..sort((a, b) => a.name.compareTo(b.name));
     return Wrap(
@@ -592,27 +824,23 @@ class _MusicArtistPickerState extends ConsumerState<MusicArtistPicker> {
         for (final a in artists)
           musicChoiceChip(
             a.name,
-            widget.selected.contains(a.id),
-            () => widget.onChanged(
-              widget.selected.contains(a.id)
-                  ? widget.selected.where((x) => x != a.id).toList()
-                  : [...widget.selected, a.id],
+            selected.contains(a.id),
+            () => onChanged(
+              selected.contains(a.id)
+                  ? selected.where((x) => x != a.id).toList()
+                  : [...selected, a.id],
             ),
           ),
-        for (final n in widget.newNames)
-          musicChoiceChip(
-            '$n（新歌手）✕',
-            true,
-            () => widget.onNewNamesChanged?.call(
-              widget.newNames.where((x) => x != n).toList(),
-            ),
-          ),
-        if (widget.onNewNamesChanged != null)
+        if (allowNew)
           musicChoiceChip('＋ 新歌手', false, () async {
-            final n = await promptMusicText(context, title: '新歌手的名字');
-            if (n != null && n.isNotEmpty) {
-              widget.onNewNamesChanged!([...widget.newNames, n]);
-            }
+            final r = await promptMusicArtist(context);
+            if (r == null) return;
+            final id = await MusicActions(ref).ensureArtist(
+              r.name,
+              avatarUrls: r.avatarUrls,
+              shownAvatar: r.shownAvatar,
+            );
+            onChanged([...selected, id]);
           }, dashed: true),
       ],
     );
@@ -721,7 +949,6 @@ Future<void> showMusicEditVersionSheet(
   final noteC = TextEditingController(text: v.note);
   var type = v.type;
   var artists = List<String>.of(v.artistIds);
-  var newNames = <String>[];
   final saved = await showMusicSheet<bool>(
     context,
     (ctx) => StatefulBuilder(
@@ -782,8 +1009,6 @@ Future<void> showMusicEditVersionSheet(
           MusicArtistPicker(
             selected: artists,
             onChanged: (x) => setS(() => artists = x),
-            newNames: newNames,
-            onNewNamesChanged: (x) => setS(() => newNames = x),
           ),
           const SizedBox(height: 18),
           FilledButton(
@@ -805,9 +1030,6 @@ Future<void> showMusicEditVersionSheet(
   if (saved != true) return;
   final actions = MusicActions(ref);
   final ids = [...artists];
-  for (final n in newNames) {
-    ids.add(await actions.ensureArtist(n));
-  }
   await actions.editVersion(id, type: type, artistIds: ids, note: noteC.text);
   final t = titleC.text.trim();
   if (t.isNotEmpty && t != work?.title) {
@@ -932,41 +1154,102 @@ Widget musicVideoPreview({
   required String sub,
 }) => _VideoPreview(thumbnailUrl: thumbnailUrl, title: title, sub: sub);
 
-/// 一首歌的播放紀錄：每一次播的時間，新的在上面（2026-10-19）。
+/// 一首歌的紀錄（2026-10-19）：播放紀錄（什麼時候、從哪裡、怎麼播）跟異動
+/// 紀錄（加入、改了什麼、喜歡、不喜歡…），新的在上面。
 Future<void> showMusicPlayLog(BuildContext context, WidgetRef ref, String id) {
   final data = ref.read(musicDataProvider);
   final v = data.version(id);
   final title = v == null ? '' : data.work(v.workId)?.title ?? v.videoTitle;
   final plays = [...?ref.read(musicPlayLogProvider)[id]]
-    ..sort((a, b) => b.compareTo(a));
-  String two(int n) => n.toString().padLeft(2, '0');
+    ..sort((a, b) => b.at.compareTo(a.at));
+  final events = ref
+      .read(musicEventLogProvider)
+      .where((e) => e.versionId == id)
+      .toList()
+      .reversed
+      .toList();
   return showMusicSheet<void>(
     context,
-    (ctx) => Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        musicSheetHandle(),
-        Text(
-          '播放紀錄・$title',
-          style: const TextStyle(
-            fontSize: 17,
-            fontWeight: FontWeight.w800,
-            color: AppColors.ink,
-          ),
-        ),
-        Text(
-          plays.isEmpty ? '還沒播過' : '一共 ${plays.length} 次',
-          style: AppText.note,
-        ),
-        const SizedBox(height: 8),
-        for (final t in plays)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 5),
-            child: Text(
-              '${t.year}/${t.month}/${t.day} ${two(t.hour)}:${two(t.minute)}',
-              style: const TextStyle(fontSize: 14, color: AppColors.ink2),
+    (ctx) => DefaultTabController(
+      length: 2,
+      child: SizedBox(
+        height: MediaQuery.of(ctx).size.height * 0.7,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            musicSheetHandle(),
+            Text(
+              '紀錄・$title',
+              style: const TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                color: AppColors.ink,
+              ),
             ),
+            TabBar(
+              labelColor: AppColors.ink,
+              unselectedLabelColor: AppColors.ink3,
+              indicatorColor: musicPink,
+              tabs: [
+                Tab(text: '播放 ${plays.length}'),
+                Tab(text: '異動 ${events.length}'),
+              ],
+            ),
+            Expanded(
+              child: TabBarView(
+                children: [
+                  plays.isEmpty
+                      ? Center(child: Text('還沒播過', style: AppText.note))
+                      : ListView(
+                          children: [
+                            for (final p in plays)
+                              musicLogLine(
+                                p.at,
+                                [
+                                  p.from,
+                                  p.modeLabel,
+                                ].where((x) => x.isNotEmpty).join('・'),
+                              ),
+                          ],
+                        ),
+                  events.isEmpty
+                      ? Center(child: Text('還沒有異動', style: AppText.note))
+                      : ListView(
+                          children: [
+                            for (final e in events) musicLogLine(e.at, e.text),
+                          ],
+                        ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+/// 紀錄的一行：時間＋內容。
+Widget musicLogLine(DateTime t, String text) {
+  String two(int n) => n.toString().padLeft(2, '0');
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 7),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 118,
+          child: Text(
+            '${t.year}/${t.month}/${t.day} ${two(t.hour)}:${two(t.minute)}',
+            style: const TextStyle(fontSize: 12.5, color: AppColors.ink3),
           ),
+        ),
+        Expanded(
+          child: Text(
+            text.isEmpty ? '—' : text,
+            style: const TextStyle(fontSize: 13.5, color: AppColors.ink2),
+          ),
+        ),
       ],
     ),
   );

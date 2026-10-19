@@ -37,7 +37,6 @@ Future<void> showAddToMusicSheet(
   final noteC = TextEditingController();
   var type = g.type;
   var artists = List<String>.of(g.artistIds);
-  var newNames = List<String>.of(g.newArtistNames);
   var orig = List<String>.of(g.originalArtistIds);
   final saved = await showMusicSheet<bool>(
     context,
@@ -95,8 +94,6 @@ Future<void> showAddToMusicSheet(
             MusicArtistPicker(
               selected: artists,
               onChanged: (x) => setS(() => artists = x),
-              newNames: newNames,
-              onNewNamesChanged: (x) => setS(() => newNames = x),
             ),
             musicFieldLabel('歌名'),
             TextField(
@@ -181,7 +178,7 @@ Future<void> showAddToMusicSheet(
             const SizedBox(height: 18),
             FilledButton(
               onPressed: () {
-                if (artists.isEmpty && newNames.isEmpty) {
+                if (artists.isEmpty) {
                   showAppNotice(ctx, '先選是誰唱的', isError: true);
                   return;
                 }
@@ -209,14 +206,6 @@ Future<void> showAddToMusicSheet(
   if (saved != true) return;
   final actions = MusicActions(ref);
   final ids = [...artists];
-  for (final n in newNames) {
-    ids.add(
-      await actions.ensureArtist(
-        n,
-        avatarUrl: n == channelName ? channelAvatarUrl : '',
-      ),
-    );
-  }
   final d = ref.read(musicDataProvider);
   final t = titleC.text.trim();
   final existing = d.works.where((w) => w.title == t).firstOrNull;

@@ -221,7 +221,8 @@ class _MusicHomePageState extends ConsumerState<MusicHomePage> {
   @override
   Widget build(BuildContext context) {
     final data = ref.watch(musicDataProvider);
-    final all = data.versions;
+    // 不喜歡的不出現在首頁（2026-10-19）。
+    final all = data.playable;
     final hour = DateTime.now().hour;
     final hello = hour < 11
         ? '早安'
@@ -237,8 +238,8 @@ class _MusicHomePageState extends ConsumerState<MusicHomePage> {
     final recent = [
       for (final e
           in (log.entries.where((e) => e.value.isNotEmpty).toList()
-            ..sort((a, b) => b.value.last.compareTo(a.value.last))))
-        ?data.version(e.key),
+            ..sort((a, b) => b.value.last.at.compareTo(a.value.last.at))))
+        if (data.version(e.key) case final v? when !v.disliked) v,
     ].take(12).toList();
     final hot = data.works.toList()
       ..sort(
@@ -268,14 +269,14 @@ class _MusicHomePageState extends ConsumerState<MusicHomePage> {
             showBack: false,
             actions: [
               IconButton(
-                onPressed: () => showMusicAddFromYt(context),
+                onPressed: () => showMusicAddMenu(context, ref),
                 icon: const Icon(Icons.add_rounded),
                 color: AppColors.ink2,
-                tooltip: '加歌',
+                tooltip: '新增',
               ),
             ],
           ),
-          if (all.isEmpty)
+          if (data.versions.isEmpty)
             const MusicEmpty()
           else ...[
             const SizedBox(height: Gap.sm),
@@ -311,9 +312,13 @@ class _MusicHomePageState extends ConsumerState<MusicHomePage> {
                     Padding(
                       padding: const EdgeInsets.only(right: 12),
                       child: GestureDetector(
-                        onTap: () => musicPlay(context, ref, [
-                          for (final x in all) x.id,
-                        ], v.id),
+                        onTap: () => musicPlay(
+                          context,
+                          ref,
+                          [for (final x in all) x.id],
+                          v.id,
+                          from: '首頁・最近加的',
+                        ),
                         child: SizedBox(
                           width: 132,
                           child: Column(
@@ -364,15 +369,20 @@ class _MusicHomePageState extends ConsumerState<MusicHomePage> {
               '快速選曲',
               trailing: _more(
                 '全部播放',
-                () => musicPlay(context, ref, [
-                  for (final v in quick) v.id,
-                ], quick.first.id),
+                () => musicPlay(
+                  context,
+                  ref,
+                  [for (final v in quick) v.id],
+                  quick.first.id,
+                  from: '首頁・快速選曲・全部播放',
+                ),
               ),
             ),
             for (final v in quick)
               MusicVersionTile(
                 version: v,
                 queue: [for (final x in quick) x.id],
+                from: '首頁・快速選曲',
               ),
             _h2(
               '你的歌手',
@@ -536,7 +546,7 @@ class _MusicSearchPageState extends ConsumerState<MusicSearchPage> {
             if (versions.isNotEmpty) ...[
               _h2('版本'),
               for (final v in versions)
-                MusicVersionTile(version: v, queue: ids),
+                MusicVersionTile(version: v, queue: ids, from: '搜尋'),
             ],
             if (artists.isEmpty && works.isEmpty && versions.isEmpty)
               Padding(
@@ -573,7 +583,7 @@ class MusicLibraryPage extends ConsumerStatefulWidget {
 }
 
 class _MusicLibraryPageState extends ConsumerState<MusicLibraryPage> {
-  static const _tabs = ['歌單', '喜歡的歌', '歌手', '歌曲'];
+  static const _tabs = ['歌單', '喜歡的歌', '歌手', '歌曲', '不喜歡'];
   late String _tab = _tabs.contains(widget.initialTab)
       ? widget.initialTab!
       : '歌手';
@@ -634,7 +644,37 @@ class _MusicLibraryPageState extends ConsumerState<MusicLibraryPage> {
                     MusicVersionTile(
                       version: v,
                       queue: [for (final x in vs) x.id],
+                      from: '喜歡的歌',
                     ),
+                ],
+        );
+      case '不喜歡':
+        // 不做刪除：不想聽的都在這裡，⋮ 可以取消（2026-10-19）。
+        final vs = data.disliked;
+        children.addAll(
+          vs.isEmpty
+              ? [
+                  Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Center(
+                      child: Text(
+                        '沒有。不想聽的歌在 ⋮ 按「不喜歡」，會收到這裡',
+                        style: AppText.note,
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                ]
+              : [
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Text(
+                      '不會出現在首頁、也不會被排進播放全部／隨機；⋮ 可以取消',
+                      style: AppText.note,
+                    ),
+                  ),
+                  for (final v in vs)
+                    MusicVersionTile(version: v, queue: [v.id], from: '不喜歡'),
                 ],
         );
       case '歌手':
@@ -653,11 +693,15 @@ class _MusicLibraryPageState extends ConsumerState<MusicLibraryPage> {
               child: const Icon(Icons.add_rounded, color: AppColors.ink2),
             ),
             title: const Text('新增歌手', style: TextStyle(color: AppColors.ink)),
-            subtitle: Text('打名字就好', style: AppText.note),
+            subtitle: Text('打名字、貼大頭貼網址', style: AppText.note),
             onTap: () async {
-              final n = await promptMusicText(context, title: '新歌手的名字');
-              if (n != null && n.isNotEmpty) {
-                await MusicActions(ref).ensureArtist(n);
+              final r = await promptMusicArtist(context);
+              if (r != null) {
+                await MusicActions(ref).ensureArtist(
+                  r.name,
+                  avatarUrls: r.avatarUrls,
+                  shownAvatar: r.shownAvatar,
+                );
               }
             },
           ),
@@ -686,10 +730,16 @@ class _MusicLibraryPageState extends ConsumerState<MusicLibraryPage> {
             showBack: false,
             actions: [
               IconButton(
-                onPressed: () => showMusicAddFromYt(context),
+                onPressed: () => context.push('/music/log'),
+                icon: const Icon(Icons.history_rounded),
+                color: AppColors.ink2,
+                tooltip: '異動紀錄',
+              ),
+              IconButton(
+                onPressed: () => showMusicAddMenu(context, ref),
                 icon: const Icon(Icons.add_rounded),
                 color: AppColors.ink2,
-                tooltip: '加歌',
+                tooltip: '新增',
               ),
             ],
           ),
@@ -811,13 +861,16 @@ class _MusicArtistPageState extends ConsumerState<MusicArtistPage> {
         ),
       );
     }
-    final vs = data.versionsOfArtist(a.id);
+    final everything = data.versionsOfArtist(a.id);
+    // 不喜歡的放最下面那一區，不排進播放（2026-10-19）。
+    final vs = everything.where((v) => !v.disliked).toList();
+    final bad = everything.where((v) => v.disliked).toList();
     final ids = [for (final v in vs) v.id];
     final shown = _type == null
         ? vs
         : vs.where((v) => v.type == _type).toList();
     final own = data.worksByOriginal(a.id);
-    final hero = vs.where((v) => v.thumbnailUrl.isNotEmpty).firstOrNull;
+    final hero = everything.where((v) => v.thumbnailUrl.isNotEmpty).firstOrNull;
     return MusicScaffold(
       showDrawer: false,
       child: ListView(
@@ -907,6 +960,7 @@ class _MusicArtistPageState extends ConsumerState<MusicArtistPage> {
                               ids,
                               ids.first,
                               shuffle: true,
+                              from: '歌手頁「${a.name}」',
                             ),
                       style: FilledButton.styleFrom(
                         backgroundColor: musicPink,
@@ -920,39 +974,49 @@ class _MusicArtistPageState extends ConsumerState<MusicArtistPage> {
                       style: musicGhostButton,
                       onPressed: vs.isEmpty
                           ? null
-                          : () => musicPlay(context, ref, ids, ids.first),
+                          : () => musicPlay(
+                              context,
+                              ref,
+                              ids,
+                              ids.first,
+                              from: '歌手頁「${a.name}」・播放',
+                            ),
                       icon: const Icon(Icons.play_arrow_rounded),
                       label: const Text('播放'),
                     ),
                     const Spacer(),
-                    PopupMenuButton<String>(
-                      icon: const Icon(
-                        Icons.more_horiz_rounded,
-                        color: AppColors.ink2,
-                      ),
-                      color: musicSheetBg,
-                      onSelected: (c) async {
-                        if (c == 'rename') {
-                          final n = await promptMusicText(
-                            context,
-                            title: '歌手名字',
-                            initial: a.name,
+                    IconButton(
+                      onPressed: () async {
+                        final r = await promptMusicArtist(
+                          context,
+                          name: a.name,
+                          avatarUrls: a.avatarUrls,
+                          shownAvatar: a.shownAvatar,
+                        );
+                        if (r != null) {
+                          await MusicActions(ref).updateArtist(
+                            a.id,
+                            name: r.name,
+                            avatarUrls: r.avatarUrls,
+                            shownAvatar: r.shownAvatar,
                           );
-                          if (n != null && n.isNotEmpty) {
-                            await MusicActions(ref).renameArtist(a.id, n);
-                          }
                         }
                       },
-                      itemBuilder: (_) => const [
-                        PopupMenuItem(value: 'rename', child: Text('改名字')),
-                      ],
+                      icon: const Icon(Icons.edit_rounded),
+                      color: AppColors.ink2,
+                      tooltip: '改名字、大頭貼',
                     ),
                   ],
                 ),
                 if (vs.isNotEmpty) ...[
                   _h2('熱門'),
                   for (var i = 0; i < vs.length && i < 5; i++)
-                    MusicVersionTile(version: vs[i], queue: ids, rank: i + 1),
+                    MusicVersionTile(
+                      version: vs[i],
+                      queue: ids,
+                      rank: i + 1,
+                      from: '歌手頁「${a.name}」・熱門',
+                    ),
                   _h2('他唱的・全部 ${vs.length}'),
                   _chips([
                     _chip(
@@ -973,6 +1037,7 @@ class _MusicArtistPageState extends ConsumerState<MusicArtistPage> {
                     MusicVersionTile(
                       version: v,
                       queue: [for (final x in shown) x.id],
+                      from: '歌手頁「${a.name}」',
                     ),
                 ] else
                   Padding(
@@ -987,6 +1052,16 @@ class _MusicArtistPageState extends ConsumerState<MusicArtistPage> {
                   _h2('他原唱的歌'),
                   Text('點進去看還有誰唱過', style: AppText.note),
                   for (final w in own) MusicWorkTile(work: w),
+                ],
+                if (bad.isNotEmpty) ...[
+                  _h2('不喜歡 ${bad.length}'),
+                  Text('記著他有這些歌，但不會被排進播放；⋮ 可以取消', style: AppText.note),
+                  for (final v in bad)
+                    MusicVersionTile(
+                      version: v,
+                      queue: [v.id],
+                      from: '歌手頁「${a.name}」・不喜歡',
+                    ),
                 ],
               ],
             ),
@@ -1026,14 +1101,16 @@ class _MusicWorkPageState extends ConsumerState<MusicWorkPage> {
         ),
       );
     }
-    final vs = data.versionsOfWork(w.id);
+    final everything = data.versionsOfWork(w.id);
+    final vs = everything.where((v) => !v.disliked).toList();
+    final bad = everything.where((v) => v.disliked).toList();
     final shown = _type == null
         ? vs
         : vs.where((v) => v.type == _type).toList();
     final ids = [for (final v in shown) v.id];
-    final singers = {for (final v in vs) ...v.artistIds};
+    final singers = {for (final v in everything) ...v.artistIds};
     final orig = [for (final id in w.originalArtistIds) ?data.artist(id)];
-    final bg = vs.where((v) => v.thumbnailUrl.isNotEmpty).firstOrNull;
+    final bg = everything.where((v) => v.thumbnailUrl.isNotEmpty).firstOrNull;
     return MusicScaffold(
       showDrawer: false,
       child: ListView(
@@ -1130,7 +1207,13 @@ class _MusicWorkPageState extends ConsumerState<MusicWorkPage> {
                         FilledButton.icon(
                           onPressed: ids.isEmpty
                               ? null
-                              : () => musicPlay(context, ref, ids, ids.first),
+                              : () => musicPlay(
+                                  context,
+                                  ref,
+                                  ids,
+                                  ids.first,
+                                  from: '歌曲頁《${w.title}》・依序聽',
+                                ),
                           style: FilledButton.styleFrom(
                             backgroundColor: musicPink,
                             foregroundColor: const Color(0xFF2A0614),
@@ -1200,8 +1283,23 @@ class _MusicWorkPageState extends ConsumerState<MusicWorkPage> {
                       ),
                     ),
                     for (final v in shown.where((v) => v.type == t))
-                      MusicVersionTile(version: v, queue: ids, byWho: true),
+                      MusicVersionTile(
+                        version: v,
+                        queue: ids,
+                        byWho: true,
+                        from: '歌曲頁《${w.title}》',
+                      ),
                   ],
+                if (bad.isNotEmpty) ...[
+                  _h2('不喜歡 ${bad.length}'),
+                  for (final v in bad)
+                    MusicVersionTile(
+                      version: v,
+                      queue: [v.id],
+                      byWho: true,
+                      from: '歌曲頁《${w.title}》・不喜歡',
+                    ),
+                ],
               ],
             ),
           ),
@@ -1334,7 +1432,14 @@ class MusicPlaylistPage extends ConsumerWidget {
               FilledButton.icon(
                 onPressed: ids.isEmpty
                     ? null
-                    : () => musicPlay(context, ref, ids, ids.first),
+                    : () => musicPlay(
+                        context,
+                        ref,
+                        ids,
+                        ids.first,
+                        from:
+                            '歌單「${p?.isLiked ?? false ? '喜歡的歌' : p?.name ?? ''}」',
+                      ),
                 style: FilledButton.styleFrom(
                   backgroundColor: Colors.white,
                   foregroundColor: Colors.black,
@@ -1353,6 +1458,8 @@ class MusicPlaylistPage extends ConsumerWidget {
                         ids,
                         ids.first,
                         shuffle: true,
+                        from:
+                            '歌單「${p?.isLiked ?? false ? '喜歡的歌' : p?.name ?? ''}」',
                       ),
                 icon: const Icon(Icons.shuffle_rounded),
                 label: const Text('隨機'),
@@ -1369,7 +1476,12 @@ class MusicPlaylistPage extends ConsumerWidget {
                 textAlign: TextAlign.center,
               ),
             ),
-          for (final v in vs) MusicVersionTile(version: v, queue: ids),
+          for (final v in vs)
+            MusicVersionTile(
+              version: v,
+              queue: ids,
+              from: '歌單「${p?.isLiked ?? false ? '喜歡的歌' : p?.name ?? ''}」',
+            ),
         ],
       ),
     );
@@ -1391,7 +1503,7 @@ class _RecentTile extends ConsumerWidget {
     return Padding(
       padding: const EdgeInsets.only(right: 12),
       child: GestureDetector(
-        onTap: () => musicPlay(context, ref, queue, v.id),
+        onTap: () => musicPlay(context, ref, queue, v.id, from: '首頁・最近播放'),
         child: SizedBox(
           width: 132,
           child: Column(
@@ -1425,5 +1537,178 @@ class _RecentTile extends ConsumerWidget {
         ),
       ),
     );
+  }
+}
+
+// ═══════════════ 異動紀錄 ═══════════════
+
+/// 音樂的全部異動紀錄（2026-10-19）：加了哪首、改了什麼、喜歡、不喜歡、歌單，
+/// 新的在上面、一筆都不刪；點有對應歌的那一筆看那首的紀錄。
+class MusicEventLogPage extends ConsumerWidget {
+  const MusicEventLogPage({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final events = ref.watch(musicEventLogProvider).reversed.toList();
+    final data = ref.watch(musicDataProvider);
+    String? lastDay;
+    final children = <Widget>[];
+    for (final e in events) {
+      final day = '${e.at.year}/${e.at.month}/${e.at.day}';
+      if (day != lastDay) {
+        lastDay = day;
+        children.add(
+          Padding(
+            padding: const EdgeInsets.fromLTRB(2, 14, 2, 4),
+            child: Text(day, style: AppText.note),
+          ),
+        );
+      }
+      final v = e.versionId == null ? null : data.version(e.versionId!);
+      String two(int n) => n.toString().padLeft(2, '0');
+      children.add(
+        InkWell(
+          borderRadius: BorderRadius.circular(10),
+          onTap: v == null ? null : () => showMusicPlayLog(context, ref, v.id),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: 46,
+                  child: Text(
+                    '${two(e.at.hour)}:${two(e.at.minute)}',
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      color: AppColors.ink3,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Text(
+                    e.text,
+                    style: const TextStyle(fontSize: 14, color: AppColors.ink),
+                  ),
+                ),
+                if (v != null)
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: AppColors.ink3,
+                  ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+    return MusicScaffold(
+      showDrawer: false,
+      child: ListView(
+        padding: EdgeInsets.fromLTRB(
+          Gap.screenSide,
+          Gap.sm,
+          Gap.screenSide,
+          musicBottomInset(context),
+        ),
+        children: [
+          const AppTopBar(title: '異動紀錄'),
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(
+              '加了哪首、改了什麼、喜歡／不喜歡、歌單，一筆都不刪；共 ${events.length} 筆',
+              style: AppText.note,
+            ),
+          ),
+          if (events.isEmpty)
+            Padding(
+              padding: const EdgeInsets.all(30),
+              child: Center(child: Text('還沒有異動', style: AppText.note)),
+            ),
+          ...children,
+        ],
+      ),
+    );
+  }
+}
+
+/// 音樂右上角「＋」（2026-10-19 使用者要求：要能直接新增歌手，不是只能去
+/// 搜影片）：新增歌手／加歌（從 YT 管理挑）／新增歌單。
+Future<void> showMusicAddMenu(BuildContext context, WidgetRef ref) async {
+  Widget item(
+    BuildContext ctx,
+    IconData icon,
+    String title,
+    String sub,
+    String v,
+  ) => ListTile(
+    contentPadding: EdgeInsets.zero,
+    leading: CircleAvatar(
+      backgroundColor: Colors.white.withValues(alpha: 0.08),
+      child: Icon(icon, color: musicPink),
+    ),
+    title: Text(
+      title,
+      style: const TextStyle(color: AppColors.ink, fontWeight: FontWeight.w700),
+    ),
+    subtitle: Text(sub, style: AppText.note),
+    onTap: () => Navigator.pop(ctx, v),
+  );
+  final c = await showMusicSheet<String>(
+    context,
+    (ctx) => Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text(
+          '新增',
+          style: TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+            color: AppColors.ink,
+          ),
+        ),
+        const SizedBox(height: 6),
+        item(
+          ctx,
+          Icons.person_add_alt_1_rounded,
+          '新增歌手',
+          '打名字、貼大頭貼網址',
+          'artist',
+        ),
+        item(
+          ctx,
+          Icons.library_add_rounded,
+          '加歌',
+          '從 YT 管理挑影片（任何分類），或打歌名找',
+          'song',
+        ),
+        item(
+          ctx,
+          Icons.playlist_add_rounded,
+          '新增歌單',
+          '取個名字，之後在歌的 ⋮ 加進來',
+          'list',
+        ),
+      ],
+    ),
+  );
+  if (c == null || !context.mounted) return;
+  switch (c) {
+    case 'artist':
+      final r = await promptMusicArtist(context);
+      if (r == null) return;
+      final id = await MusicActions(ref).ensureArtist(
+        r.name,
+        avatarUrls: r.avatarUrls,
+        shownAvatar: r.shownAvatar,
+      );
+      if (context.mounted) context.push('/music/artist/$id');
+    case 'song':
+      await showMusicAddFromYt(context);
+    case 'list':
+      final n = await promptMusicText(context, title: '新歌單的名字');
+      if (n == null || n.isEmpty) return;
+      final id = await MusicActions(ref).createPlaylist(n);
+      if (context.mounted) context.push('/music/list/$id');
   }
 }
