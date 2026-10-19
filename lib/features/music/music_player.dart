@@ -3,14 +3,18 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'music_play.dart' show recordMusicPlay;
 import 'music_yt_bridge.dart';
 
 /// 音樂播放器的狀態（2026-10-19）：佇列、播到哪、隨機、重複、展開沒。
 /// 整個 App 一份（[musicPlayerProvider]），播放器畫面疊在最上層，換頁不中斷。
 class MusicPlayer extends ChangeNotifier {
-  MusicPlayer() {
+  MusicPlayer({this.onStart}) {
     bridge = MusicYtBridge(_onEvent);
   }
+
+  /// 每一首開始播（含自動接下一首）時呼叫，拿來記播放紀錄。
+  final void Function(String videoId)? onStart;
 
   late final MusicYtBridge bridge;
 
@@ -73,6 +77,7 @@ class MusicPlayer extends ChangeNotifier {
     duration = 0;
     playing = true;
     bridge.load(current!);
+    onStart?.call(current!);
     notifyListeners();
   }
 
@@ -200,5 +205,5 @@ class MusicPlayer extends ChangeNotifier {
 }
 
 final musicPlayerProvider = ChangeNotifierProvider<MusicPlayer>(
-  (ref) => MusicPlayer(),
+  (ref) => MusicPlayer(onStart: (id) => recordMusicPlay(ref.read, id)),
 );

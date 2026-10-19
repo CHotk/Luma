@@ -13,7 +13,7 @@ import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
 import 'music_actions.dart';
 import 'music_add_from_yt.dart';
-import 'music_player.dart';
+import 'music_play.dart';
 import 'music_widgets.dart';
 
 /// 音樂功能（2026-10-19，設計稿
@@ -221,7 +221,6 @@ class _MusicHomePageState extends ConsumerState<MusicHomePage> {
   @override
   Widget build(BuildContext context) {
     final data = ref.watch(musicDataProvider);
-    final player = ref.read(musicPlayerProvider);
     final all = data.versions;
     final hour = DateTime.now().hour;
     final hello = hour < 11
@@ -233,6 +232,14 @@ class _MusicHomePageState extends ConsumerState<MusicHomePage> {
         ? all
         : all.where((v) => v.type == _type).toList();
     final quick = pool.take(16).toList();
+    // 最近播放：照播放紀錄，最後一次播的新到舊。
+    final log = ref.watch(musicPlayLogProvider);
+    final recent = [
+      for (final e
+          in (log.entries.where((e) => e.value.isNotEmpty).toList()
+            ..sort((a, b) => b.value.last.compareTo(a.value.last))))
+        ?data.version(e.key),
+    ].take(12).toList();
     final hot = data.works.toList()
       ..sort(
         (a, b) => data
@@ -278,6 +285,22 @@ class _MusicHomePageState extends ConsumerState<MusicHomePage> {
                 if (all.any((v) => v.type == t))
                   _chip(t.label, _type == t, () => setState(() => _type = t)),
             ]),
+            if (recent.isNotEmpty) ...[
+              _h2('最近播放'),
+              SizedBox(
+                height: 186,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  children: [
+                    for (final v in recent)
+                      _RecentTile(
+                        version: v,
+                        queue: [for (final x in recent) x.id],
+                      ),
+                  ],
+                ),
+              ),
+            ],
             _h2('最近加的'),
             SizedBox(
               height: 186,
@@ -288,8 +311,9 @@ class _MusicHomePageState extends ConsumerState<MusicHomePage> {
                     Padding(
                       padding: const EdgeInsets.only(right: 12),
                       child: GestureDetector(
-                        onTap: () =>
-                            player.playList([for (final x in all) x.id], v.id),
+                        onTap: () => musicPlay(context, ref, [
+                          for (final x in all) x.id,
+                        ], v.id),
                         child: SizedBox(
                           width: 132,
                           child: Column(
@@ -340,7 +364,7 @@ class _MusicHomePageState extends ConsumerState<MusicHomePage> {
               '快速選曲',
               trailing: _more(
                 '全部播放',
-                () => player.playList([
+                () => musicPlay(context, ref, [
                   for (final v in quick) v.id,
                 ], quick.first.id),
               ),
@@ -787,7 +811,6 @@ class _MusicArtistPageState extends ConsumerState<MusicArtistPage> {
         ),
       );
     }
-    final player = ref.read(musicPlayerProvider);
     final vs = data.versionsOfArtist(a.id);
     final ids = [for (final v in vs) v.id];
     final shown = _type == null
@@ -878,7 +901,13 @@ class _MusicArtistPageState extends ConsumerState<MusicArtistPage> {
                     FilledButton.icon(
                       onPressed: vs.isEmpty
                           ? null
-                          : () => player.shuffleAll(ids),
+                          : () => musicPlay(
+                              context,
+                              ref,
+                              ids,
+                              ids.first,
+                              shuffle: true,
+                            ),
                       style: FilledButton.styleFrom(
                         backgroundColor: musicPink,
                         foregroundColor: const Color(0xFF2A0614),
@@ -891,7 +920,7 @@ class _MusicArtistPageState extends ConsumerState<MusicArtistPage> {
                       style: musicGhostButton,
                       onPressed: vs.isEmpty
                           ? null
-                          : () => player.playList(ids, ids.first),
+                          : () => musicPlay(context, ref, ids, ids.first),
                       icon: const Icon(Icons.play_arrow_rounded),
                       label: const Text('播放'),
                     ),
@@ -997,7 +1026,6 @@ class _MusicWorkPageState extends ConsumerState<MusicWorkPage> {
         ),
       );
     }
-    final player = ref.read(musicPlayerProvider);
     final vs = data.versionsOfWork(w.id);
     final shown = _type == null
         ? vs
@@ -1102,7 +1130,7 @@ class _MusicWorkPageState extends ConsumerState<MusicWorkPage> {
                         FilledButton.icon(
                           onPressed: ids.isEmpty
                               ? null
-                              : () => player.playList(ids, ids.first),
+                              : () => musicPlay(context, ref, ids, ids.first),
                           style: FilledButton.styleFrom(
                             backgroundColor: musicPink,
                             foregroundColor: const Color(0xFF2A0614),
@@ -1253,7 +1281,6 @@ class MusicPlaylistPage extends ConsumerWidget {
       for (final id in p?.versionIds ?? const <String>[]) ?data.version(id),
     ];
     final ids = [for (final v in vs) v.id];
-    final player = ref.read(musicPlayerProvider);
     return MusicScaffold(
       showDrawer: false,
       child: ListView(
@@ -1307,7 +1334,7 @@ class MusicPlaylistPage extends ConsumerWidget {
               FilledButton.icon(
                 onPressed: ids.isEmpty
                     ? null
-                    : () => player.playList(ids, ids.first),
+                    : () => musicPlay(context, ref, ids, ids.first),
                 style: FilledButton.styleFrom(
                   backgroundColor: Colors.white,
                   foregroundColor: Colors.black,
@@ -1318,7 +1345,15 @@ class MusicPlaylistPage extends ConsumerWidget {
               const SizedBox(width: 8),
               FilledButton.icon(
                 style: musicGhostButton,
-                onPressed: ids.isEmpty ? null : () => player.shuffleAll(ids),
+                onPressed: ids.isEmpty
+                    ? null
+                    : () => musicPlay(
+                        context,
+                        ref,
+                        ids,
+                        ids.first,
+                        shuffle: true,
+                      ),
                 icon: const Icon(Icons.shuffle_rounded),
                 label: const Text('隨機'),
               ),
@@ -1336,6 +1371,58 @@ class MusicPlaylistPage extends ConsumerWidget {
             ),
           for (final v in vs) MusicVersionTile(version: v, queue: ids),
         ],
+      ),
+    );
+  }
+}
+
+class _RecentTile extends ConsumerWidget {
+  const _RecentTile({required this.version, required this.queue});
+
+  final MusicVersion version;
+  final List<String> queue;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final data = ref.watch(musicDataProvider);
+    final v = version;
+    final title = data.work(v.workId)?.title ?? v.videoTitle;
+    final n = ref.watch(musicPlayLogProvider)[v.id]?.length ?? 0;
+    return Padding(
+      padding: const EdgeInsets.only(right: 12),
+      child: GestureDetector(
+        onTap: () => musicPlay(context, ref, queue, v.id),
+        child: SizedBox(
+          width: 132,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              MusicCover(
+                url: v.thumbnailUrl,
+                fallback: title,
+                size: 132,
+                radius: 10,
+              ),
+              const SizedBox(height: 7),
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.ink,
+                ),
+              ),
+              Text(
+                '${data.artistNames(v)}・播過 $n 次',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 11, color: AppColors.ink3),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

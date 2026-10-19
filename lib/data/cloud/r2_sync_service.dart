@@ -42,6 +42,7 @@ import '../repositories/yt_display_prefs_store.dart';
 import '../repositories/yt_playlist_store.dart';
 import '../repositories/yt_video_song_store.dart';
 import '../repositories/music_store.dart';
+import '../repositories/music_play_log_store.dart';
 import '../../domain/models/music.dart';
 import '../storage/key_value_store.dart';
 import 'r2_client.dart';
@@ -967,6 +968,33 @@ class R2SyncService {
     final uploaded = cloud.newerIn(merged);
     if (downloaded > 0) await store.save(merged);
     final body = encode(merged);
+    var etag = fetched.etag;
+    if (uploaded > 0) {
+      etag = await _client.putObject(key, Uint8List.fromList(body));
+    }
+    await _writeMeta(key, body, etag);
+    return (downloaded: downloaded, uploaded: uploaded);
+  }
+
+  /// 音樂的播放紀錄（2026-10-19）：聯集，紀錄只會變多。
+  Future<({int downloaded, int uploaded})> syncMusicPlayLog(
+    MusicPlayLogStore store,
+  ) async {
+    const key = MusicPlayLogStore.cloudKey;
+    final local = await store.load();
+    if (await _canSkip(key, utf8.encode(MusicPlayLogStore.encode(local)))) {
+      return (downloaded: 0, uploaded: 0);
+    }
+    final fetched = await _client.getObjectWithEtag(key);
+    final cloud = fetched.bytes == null
+        ? <String, List<DateTime>>{}
+        : MusicPlayLogStore.decode(utf8.decode(fetched.bytes!));
+    final merged = MusicPlayLogStore.merge(local, cloud);
+    final total = MusicPlayLogStore.count(merged);
+    final downloaded = total - MusicPlayLogStore.count(local);
+    final uploaded = total - MusicPlayLogStore.count(cloud);
+    if (downloaded > 0) await store.save(merged);
+    final body = utf8.encode(MusicPlayLogStore.encode(merged));
     var etag = fetched.etag;
     if (uploaded > 0) {
       etag = await _client.putObject(key, Uint8List.fromList(body));

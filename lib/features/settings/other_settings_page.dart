@@ -10,6 +10,7 @@ import '../../data/repositories/app_home_style_store.dart';
 import '../../data/repositories/diary_password_store.dart';
 import '../../data/repositories/jp_home_ring_store.dart';
 import '../../data/repositories/jp_light_style_store.dart';
+import '../../data/repositories/music_play_mode_store.dart';
 import '../../data/repositories/usdt_twd_rate_store.dart';
 import '../../data/repositories/yt_embed_player_style_store.dart';
 import '../../data/repositories/yt_stats_refresh_setting_store.dart';
@@ -247,6 +248,79 @@ class _TradeSettingsSectionState extends ConsumerState<TradeSettingsSection> {
 
 /// 日文的設定（2026-10-05 使用者要求：首頁「今天進度」那一圈預設隱藏，
 /// 在這裡打開）。
+/// 音樂的設定（2026-10-19）：點歌時轉到 YouTube（預設）還是 App 內播放。
+class MusicSettingsSection extends ConsumerWidget {
+  const MusicSettingsSection({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mode = ref.watch(musicPlayModeProvider);
+    return SettingsBlock(
+      section: SettingsSection.music,
+      children: [
+        SettingAnchor(
+          id: 'music.play',
+          child: SettingsRowCard(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.only(top: 2),
+                  child: SettingIcon(),
+                ),
+                const SizedBox(width: Gap.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        '點歌時',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.ink,
+                        ),
+                      ),
+                      Text(
+                        mode == MusicPlayMode.youtube
+                            ? '開 YouTube 播；播放全部／隨機會用 YouTube 的臨時播放清單一次帶過去'
+                            : 'App 裡的播放器：迷你列＋全螢幕，播完自動下一首（iPhone 鎖螢幕會停）',
+                        style: AppText.note,
+                      ),
+                      const SizedBox(height: Gap.xs),
+                      SegmentedButton<MusicPlayMode>(
+                        segments: const [
+                          ButtonSegment(
+                            value: MusicPlayMode.youtube,
+                            label: Text('轉到 YouTube'),
+                          ),
+                          ButtonSegment(
+                            value: MusicPlayMode.embedded,
+                            label: Text('App 內播放'),
+                          ),
+                        ],
+                        selected: {mode},
+                        showSelectedIcon: false,
+                        onSelectionChanged: (s) async {
+                          ref.read(musicPlayModeProvider.notifier).state =
+                              s.first;
+                          await MusicPlayModeStore(
+                            ref.read(keyValueStoreProvider),
+                          ).save(s.first);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class JpSettingsSection extends ConsumerWidget {
   const JpSettingsSection({super.key});
 

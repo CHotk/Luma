@@ -26,6 +26,7 @@ enum SettingsSection {
   english('英文', Color(0xFFFF9F0A), text: 'A'),
   jp('日文', Color(0xFFFF2D55), text: 'あ'),
   yt('YT', Color(0xFFFF3B30), icon: Icons.play_arrow_rounded),
+  music('音樂', Color(0xFFFF6FAE), icon: Icons.library_music_rounded),
   trade('交易&自律', Color(0xFF30B0C7), text: '₮'),
   lock('日記／負債', Color(0xFF5E5CE6), icon: Icons.lock_rounded),
   sync('雲端同步', Color(0xFF0A84FF), icon: Icons.cloud_rounded);
@@ -47,6 +48,7 @@ SettingsSection settingsSectionFor(String? location) {
   final l = location ?? '';
   bool any(List<String> ps) => ps.any(l.startsWith);
   if (any(['/yt-tracker', '/yt-playlists'])) return SettingsSection.yt;
+  if (any(['/music'])) return SettingsSection.music;
   if (any(['/jp', '/kana'])) return SettingsSection.jp;
   if (any(['/crypto-watch'])) return SettingsSection.trade;
   if (any(['/diary', '/debt'])) return SettingsSection.lock;
@@ -107,6 +109,12 @@ const settingIndex = [
   SettingEntry(SettingsSection.jp, 'jp.ring', '首頁顯示今天進度圈', '日文'),
   SettingEntry(SettingsSection.jp, 'jp.light', '五十音櫻花樹畫法', '點亮 GPT 原本'),
   SettingEntry(SettingsSection.jp, 'jp.order', '日文首頁卡片順序', '排序'),
+  SettingEntry(
+    SettingsSection.music,
+    'music.play',
+    '音樂點歌時',
+    '轉到 YouTube App 內播放 內嵌',
+  ),
   SettingEntry(SettingsSection.yt, 'yt.videoTab', '底部分頁列「影片」開的頻道', '快捷'),
   SettingEntry(SettingsSection.yt, 'yt.key', 'YouTube API 金鑰', 'key 配額'),
   SettingEntry(SettingsSection.yt, 'yt.export', '匯出分類／頻道', '備份'),
@@ -230,6 +238,7 @@ class _AllSettingsPageState extends ConsumerState<AllSettingsPage>
     SettingsSection.english => const EnglishSettingsSection(),
     SettingsSection.jp => const JpSettingsSection(),
     SettingsSection.yt => const YtSettingsSection(),
+    SettingsSection.music => const MusicSettingsSection(),
     SettingsSection.trade => const TradeSettingsSection(),
     SettingsSection.lock => LockSettingsSection(
       // 不是從日記／負債（已經過密碼鎖）進來的，改密碼前要先輸入舊密碼。

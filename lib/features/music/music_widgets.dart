@@ -6,10 +6,12 @@ import '../../app/router.dart' show appRouter, rootNavigatorKey;
 import '../../app/theme/colors.dart';
 import '../../app/theme/typography.dart';
 import '../yt_tracker/yt_video_row.dart' show openExternalUrl;
+import '../../data/repositories/music_play_mode_store.dart';
 import '../../domain/models/music.dart';
 import '../../shared/widgets/app_confirm_dialog.dart';
 import '../../shared/widgets/app_notice.dart';
 import 'music_actions.dart';
+import 'music_play.dart';
 import 'music_player.dart';
 
 /// 音樂的主色（設計稿的粉紅）。
@@ -195,7 +197,7 @@ class MusicVersionTile extends ConsumerWidget {
     ];
     return InkWell(
       borderRadius: BorderRadius.circular(10),
-      onTap: () => ref.read(musicPlayerProvider).playList(queue, v.id),
+      onTap: () => musicPlay(context, ref, queue, v.id),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 6),
         child: Row(
@@ -416,6 +418,8 @@ Future<void> showMusicVersionMenu(
   if (v == null) return;
   final work = data.work(v.workId);
   final liked = data.liked.versionIds.contains(id);
+  final plays = ref.read(musicPlayLogProvider)[id] ?? const <DateTime>[];
+  final embedded = ref.read(musicPlayModeProvider) == MusicPlayMode.embedded;
   final choice = await showMusicSheet<String>(
     context,
     (ctx) => Column(
@@ -465,10 +469,17 @@ Future<void> showMusicVersionMenu(
           () => Navigator.pop(ctx, 'edit'),
           color: musicPink,
         ),
+        // 下一首播放只有 App 內播放才有佇列可以插。
+        if (embedded)
+          _menuItem(
+            Icons.queue_play_next_rounded,
+            '下一首播放',
+            () => Navigator.pop(ctx, 'next'),
+          ),
         _menuItem(
-          Icons.queue_play_next_rounded,
-          '下一首播放',
-          () => Navigator.pop(ctx, 'next'),
+          Icons.history_rounded,
+          '播放紀錄（${plays.length} 次）',
+          () => Navigator.pop(ctx, 'log'),
         ),
         _menuItem(
           liked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
@@ -517,6 +528,8 @@ Future<void> showMusicVersionMenu(
       showAppNotice(context, '下一首播放');
     case 'like':
       await MusicActions(ref).toggleLike(id);
+    case 'log':
+      await showMusicPlayLog(context, ref, id);
     case 'list':
       await showMusicAddToPlaylistSheet(context, ref, id);
     case 'work':
@@ -918,3 +931,43 @@ Widget musicVideoPreview({
   required String title,
   required String sub,
 }) => _VideoPreview(thumbnailUrl: thumbnailUrl, title: title, sub: sub);
+
+/// 一首歌的播放紀錄：每一次播的時間，新的在上面（2026-10-19）。
+Future<void> showMusicPlayLog(BuildContext context, WidgetRef ref, String id) {
+  final data = ref.read(musicDataProvider);
+  final v = data.version(id);
+  final title = v == null ? '' : data.work(v.workId)?.title ?? v.videoTitle;
+  final plays = [...?ref.read(musicPlayLogProvider)[id]]
+    ..sort((a, b) => b.compareTo(a));
+  String two(int n) => n.toString().padLeft(2, '0');
+  return showMusicSheet<void>(
+    context,
+    (ctx) => Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        musicSheetHandle(),
+        Text(
+          '播放紀錄・$title',
+          style: const TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+            color: AppColors.ink,
+          ),
+        ),
+        Text(
+          plays.isEmpty ? '還沒播過' : '一共 ${plays.length} 次',
+          style: AppText.note,
+        ),
+        const SizedBox(height: 8),
+        for (final t in plays)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 5),
+            child: Text(
+              '${t.year}/${t.month}/${t.day} ${two(t.hour)}:${two(t.minute)}',
+              style: const TextStyle(fontSize: 14, color: AppColors.ink2),
+            ),
+          ),
+      ],
+    ),
+  );
+}
