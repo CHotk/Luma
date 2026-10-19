@@ -222,270 +222,8 @@ Future<String?> _promptName(BuildContext context, {String name = ''}) {
   );
 }
 
-// ═══════════════════════ 帳本清單 ═══════════════════════
-
-class TallyHomePage extends ConsumerStatefulWidget {
-  const TallyHomePage({super.key});
-
-  @override
-  ConsumerState<TallyHomePage> createState() => _TallyHomePageState();
-}
-
-class _TallyHomePageState extends ConsumerState<TallyHomePage> {
-  List<TallyBook>? _books;
-  Map<String, List<TallyItem>> _items = const {};
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    final repo = ref.read(tallyRepositoryProvider);
-    final books = await repo.books();
-    final items = <String, List<TallyItem>>{};
-    for (final i in await repo.items()) {
-      (items[i.bookId] ??= []).add(i);
-    }
-    if (mounted) {
-      setState(() {
-        _books = books;
-        _items = items;
-      });
-    }
-  }
-
-  Future<void> _newBook() async {
-    final n = await _promptName(context);
-    if (n == null || n.isEmpty) return;
-    final b = await ref.read(tallyRepositoryProvider).addBook(n);
-    if (!mounted) return;
-    await context.push('/tally/${b.id}');
-    _load();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final books = _books;
-    return _page(
-      context,
-      drawer: true,
-      top: AppTopBar(
-        title: '簡單記帳',
-        titleIcon: Icons.receipt_long_rounded,
-        titleIconColor: tallyAccent,
-        showBack: false,
-        actions: [
-          _iconAction(Icons.history_rounded, '異動紀錄', () async {
-            await context.push('/tally/log');
-            _load();
-          }),
-        ],
-      ),
-      children: [
-        if (books == null)
-          const Padding(
-            padding: EdgeInsets.all(40),
-            child: Center(child: CircularProgressIndicator.adaptive()),
-          )
-        else ...[
-          if (books.isNotEmpty) ...[
-            _SummaryCard(books: books, items: _items),
-            const SizedBox(height: Gap.lg),
-            const Padding(
-              padding: EdgeInsets.only(left: 4, bottom: 8),
-              child: Text(
-                '帳本',
-                style: TextStyle(fontSize: 14, color: AppColors.ink2),
-              ),
-            ),
-          ],
-          if (books.isEmpty)
-            InlineEmptyCard(
-              title: '還沒有帳本',
-              message: '一個朋友開一本，借出記 ＋、還錢記 −，隨時匯出成圖片傳給他',
-              actions: [EmptyAction('＋ 新帳本', _newBook)],
-            ),
-          for (final b in books) ...[
-            _BookCard(
-              book: b,
-              items: _items[b.id] ?? const [],
-              onTap: () async {
-                await context.push('/tally/${b.id}');
-                _load();
-              },
-            ),
-            const SizedBox(height: Gap.sm + 2),
-          ],
-        ],
-      ],
-      bottom: _GlassAction(
-        icon: Icons.add_rounded,
-        label: '新帳本',
-        color: tallyAccent,
-        onTap: _newBook,
-      ),
-    );
-  }
-}
-
-/// 結餘拆成「說法」跟「金額」兩行顯示。
+/// 結餘的說法（欠／已還清／多還了）。
 String _statusWord(int b) => b > 0 ? '還欠' : (b == 0 ? '已還清' : '多還了');
-
-/// 首頁最上面：所有朋友加起來還欠多少。
-class _SummaryCard extends StatelessWidget {
-  const _SummaryCard({required this.books, required this.items});
-
-  final List<TallyBook> books;
-  final Map<String, List<TallyItem>> items;
-
-  @override
-  Widget build(BuildContext context) {
-    var owed = 0, open = 0;
-    for (final b in books) {
-      final bal = (items[b.id] ?? const []).fold<int>(
-        0,
-        (s, i) => s + i.signed,
-      );
-      if (bal > 0) {
-        owed += bal;
-        open++;
-      }
-    }
-    return GlassCard(
-      padding: const EdgeInsets.fromLTRB(22, 20, 22, 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            '朋友總共還欠你',
-            style: TextStyle(fontSize: 14, color: AppColors.ink2),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            tallyMoney(owed),
-            style: TextStyle(
-              fontSize: 36,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -0.5,
-              color: owed > 0 ? _plusColor : AppColors.ok,
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            owed > 0
-                ? '$open 個人還沒還清・共 ${books.length} 本帳'
-                : '全部都還清了・共 ${books.length} 本帳',
-            style: const TextStyle(fontSize: 13.5, color: AppColors.ink2),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _BookCard extends StatelessWidget {
-  const _BookCard({
-    required this.book,
-    required this.items,
-    required this.onTap,
-  });
-
-  final TallyBook book;
-  final List<TallyItem> items;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final bal = items.fold<int>(0, (s, i) => s + i.signed);
-    final last = items.isEmpty ? null : items.last.at;
-    final c = _statusColor(bal);
-    return GlassCard(
-      onTap: onTap,
-      padding: const EdgeInsets.fromLTRB(16, 16, 10, 16),
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  tallyAccent.withValues(alpha: 0.35),
-                  tallyAccent.withValues(alpha: 0.12),
-                ],
-              ),
-              border: Border.all(color: tallyAccent.withValues(alpha: 0.35)),
-            ),
-            child: Text(
-              book.name.isEmpty ? '?' : book.name.characters.first,
-              style: const TextStyle(
-                fontSize: 20,
-                color: tallyAccent,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  book.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 17.5,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.ink,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  last == null
-                      ? '還沒有記錄'
-                      : '${items.length} 筆・最後 ${last.month}/${last.day}',
-                  style: const TextStyle(fontSize: 13, color: AppColors.ink2),
-                ),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                _statusWord(bal),
-                style: TextStyle(
-                  fontSize: 12.5,
-                  color: c.withValues(alpha: 0.85),
-                ),
-              ),
-              if (bal != 0)
-                Text(
-                  tallyMoney(bal),
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: c,
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(width: 4),
-          const Icon(Icons.chevron_right_rounded, color: AppColors.ink3),
-        ],
-      ),
-    );
-  }
-}
 
 /// 底部固定列裡的毛玻璃大按鈕（帶顏色的玻璃，不用實心色塊）。
 class _GlassAction extends StatelessWidget {
@@ -550,10 +288,58 @@ class _GlassAction extends StatelessWidget {
 
 // ═══════════════════════ 一個帳本 ═══════════════════════
 
+/// 簡單記帳的入口（2026-10-19 使用者要求：沒有帳本概念，打開就是一本帳）。
+/// 這個瀏覽器裡沒有帳就自動建一本（標題用 [name]，沒給就「我的帳」）。
+/// [solo] 是分享給朋友的獨立網址 `#/tally-solo?name=標題`：沒有返回鍵、功能
+/// 選單、設定，也看不到任何異動紀錄的痕跡，不會跳到 App 其他功能；資料存在
+/// 朋友自己的瀏覽器，記完按匯出圖片傳回來。App 內的 `#/tally` 則是從功能
+/// 選單進來，多一個異動紀錄入口。
+class TallyEntryPage extends ConsumerStatefulWidget {
+  const TallyEntryPage({super.key, this.name, this.solo = false});
+
+  final String? name;
+  final bool solo;
+
+  @override
+  ConsumerState<TallyEntryPage> createState() => _TallyEntryPageState();
+}
+
+class _TallyEntryPageState extends ConsumerState<TallyEntryPage> {
+  String? _id;
+
+  @override
+  void initState() {
+    super.initState();
+    _open();
+  }
+
+  Future<void> _open() async {
+    final repo = ref.read(tallyRepositoryProvider);
+    final want = (widget.name ?? '').trim();
+    final books = await repo.books();
+    final hit = want.isEmpty
+        ? books.lastOrNull
+        : books.where((b) => b.name == want).firstOrNull;
+    final book = hit ?? await repo.addBook(want.isEmpty ? '我的帳' : want);
+    if (mounted) setState(() => _id = book.id);
+  }
+
+  @override
+  Widget build(BuildContext context) => _id == null
+      ? const Scaffold(
+          body: Center(child: CircularProgressIndicator.adaptive()),
+        )
+      : TallyBookPage(bookId: _id!, solo: widget.solo);
+}
+
 class TallyBookPage extends ConsumerStatefulWidget {
-  const TallyBookPage({super.key, required this.bookId});
+  const TallyBookPage({super.key, required this.bookId, this.solo = false});
 
   final String bookId;
+
+  /// 獨立分享頁：沒有返回、選單、設定、異動紀錄、更多，也看不到任何
+  /// 新增／修改時間的痕跡（使用者不想讓朋友知道有紀錄異動）。
+  final bool solo;
 
   @override
   ConsumerState<TallyBookPage> createState() => _TallyBookPageState();
@@ -586,7 +372,12 @@ class _TallyBookPageState extends ConsumerState<TallyBookPage> {
   int get _balance => _items.fold(0, (s, i) => s + i.signed);
 
   Future<void> _edit({bool plus = true, TallyItem? old}) async {
-    final r = await showTallyItemForm(context, plus: plus, old: old);
+    final r = await showTallyItemForm(
+      context,
+      plus: plus,
+      old: old,
+      solo: widget.solo,
+    );
     if (r == null) return;
     final repo = ref.read(tallyRepositoryProvider);
     if (old == null) {
@@ -617,7 +408,7 @@ class _TallyBookPageState extends ConsumerState<TallyBookPage> {
     if (!mounted) return;
     final c = await _card<String>(
       context,
-      (ctx) => _ItemDetail(item: it, events: events),
+      (ctx) => _ItemDetail(item: it, events: events, solo: widget.solo),
     );
     if (!mounted) return;
     if (c == 'edit') {
@@ -626,7 +417,9 @@ class _TallyBookPageState extends ConsumerState<TallyBookPage> {
       final ok = await showAppConfirmDialog(
         context,
         title: '刪除這一筆？',
-        message: '${tallyItemLabel(it)}\n刪掉後結餘會重算；異動紀錄裡會留下這筆的完整內容',
+        message: widget.solo
+            ? '${tallyItemLabel(it)}\n刪掉後結餘會重算'
+            : '${tallyItemLabel(it)}\n刪掉後結餘會重算；異動紀錄裡會留下這筆的完整內容',
         confirmLabel: '刪除',
       );
       if (!ok) return;
@@ -651,39 +444,15 @@ class _TallyBookPageState extends ConsumerState<TallyBookPage> {
             title: const Text('改名', style: TextStyle(color: AppColors.ink)),
             onTap: () => Navigator.pop(ctx, 'rename'),
           ),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(
-              Icons.delete_outline_rounded,
-              color: AppColors.bad,
-            ),
-            title: const Text('刪除帳本', style: TextStyle(color: AppColors.bad)),
-            subtitle: Text(
-              '建立：${_full(b.createdAt)}・最後修改：${_full(b.updatedAt)}',
-              style: AppText.note,
-            ),
-            onTap: () => Navigator.pop(ctx, 'delete'),
-          ),
         ],
       ),
     );
     if (!mounted || c == null) return;
-    final repo = ref.read(tallyRepositoryProvider);
     if (c == 'rename') {
       final n = await _promptName(context, name: b.name);
       if (n == null || n.isEmpty) return;
-      await repo.renameBook(b, n);
+      await ref.read(tallyRepositoryProvider).renameBook(b, n);
       _load();
-    } else if (c == 'delete') {
-      final ok = await showAppConfirmDialog(
-        context,
-        title: '刪除「${b.name}」這本帳？',
-        message: '帳本會從清單拿掉；異動紀錄還是留著，查得到',
-        confirmLabel: '刪除',
-      );
-      if (!ok) return;
-      await repo.deleteBook(b);
-      if (mounted) context.pop();
     }
   }
 
@@ -698,7 +467,7 @@ class _TallyBookPageState extends ConsumerState<TallyBookPage> {
     if (b == null) {
       return _page(
         context,
-        top: const AppTopBar(title: '簡單記帳'),
+        top: const AppTopBar(title: '簡單記帳', showSettings: false),
         children: const [InlineEmptyCard(title: '找不到這個帳本（可能已經刪掉了）')],
       );
     }
@@ -717,15 +486,24 @@ class _TallyBookPageState extends ConsumerState<TallyBookPage> {
     return _page(
       context,
       top: AppTopBar(
-        title: b.name,
+        title: widget.solo ? b.name : '簡單記帳',
+        titleIcon: widget.solo ? null : Icons.receipt_long_rounded,
+        titleIconColor: tallyAccent,
+        showBack: false,
+        showSettings: false,
+        // 整個簡單記帳都是獨立功能（2026-10-19 使用者要求）：沒有功能選單、
+        // 沒有設定、沒有返回，只能從功能選單點進來。
+        standalone: true,
         actions: [
           _iconAction(Icons.ios_share_rounded, '匯出圖片', () async {
             await showTallyExport(context, ref, b, _items);
           }),
-          _iconAction(Icons.history_rounded, '異動紀錄', () {
-            context.push('/tally/log?book=${b.id}');
-          }),
-          _iconAction(Icons.more_vert_rounded, '更多', _more),
+          if (!widget.solo) ...[
+            _iconAction(Icons.history_rounded, '異動紀錄', () {
+              context.push('/tally/log');
+            }),
+            _iconAction(Icons.edit_rounded, '改標題', _more),
+          ],
         ],
       ),
       children: [
@@ -802,6 +580,7 @@ class _TallyBookPageState extends ConsumerState<TallyBookPage> {
                     item: i,
                     after: running[i.id]!,
                     onTap: () => _openItem(i),
+                    solo: widget.solo,
                   ),
                 ],
               ],
@@ -870,7 +649,10 @@ class _ItemRow extends StatelessWidget {
     required this.item,
     required this.after,
     required this.onTap,
+    required this.solo,
   });
+
+  final bool solo;
 
   final TallyItem item;
   final int after;
@@ -930,7 +712,7 @@ class _ItemRow extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    item.edited
+                    item.edited && !solo
                         ? '✎ 改過・${item.updatedAt.month}/${item.updatedAt.day} ${_hm(item.updatedAt)}'
                         : '${item.plus ? '借出' : '還款'}・${item.at.year}',
                     style: const TextStyle(
@@ -970,7 +752,13 @@ class _ItemRow extends StatelessWidget {
 
 /// 點一筆：完整資料（含新增、最後修改時間）跟這筆的異動歷史。
 class _ItemDetail extends StatelessWidget {
-  const _ItemDetail({required this.item, required this.events});
+  const _ItemDetail({
+    required this.item,
+    required this.events,
+    required this.solo,
+  });
+
+  final bool solo;
 
   final TallyItem item;
   final List<TallyEvent> events;
@@ -1006,9 +794,11 @@ class _ItemDetail extends StatelessWidget {
         row('種類', item.plus ? '＋ 借出／代墊' : '− 還款'),
         row('備註', item.note.isEmpty ? '（沒寫）' : item.note),
         row('日期', _ymd(item.at)),
-        row('新增於', _full(item.createdAt)),
-        row('最後修改', item.edited ? _full(item.updatedAt) : '沒改過'),
-        if (events.isNotEmpty) ...[
+        if (!solo) ...[
+          row('新增於', _full(item.createdAt)),
+          row('最後修改', item.edited ? _full(item.updatedAt) : '沒改過'),
+        ],
+        if (!solo && events.isNotEmpty) ...[
           const SizedBox(height: 14),
           const Text(
             '這筆的異動',
@@ -1080,6 +870,7 @@ Future<({bool plus, int amount, String note, DateTime at})?> showTallyItemForm(
   BuildContext context, {
   bool plus = true,
   TallyItem? old,
+  bool solo = false,
 }) {
   var p = old?.plus ?? plus;
   var at = old?.at ?? DateTime.now();
@@ -1174,7 +965,7 @@ Future<({bool plus, int amount, String note, DateTime at})?> showTallyItemForm(
                 padding: const EdgeInsets.symmetric(vertical: 15),
               ),
             ),
-            if (old != null)
+            if (old != null && !solo)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(
@@ -1408,16 +1199,11 @@ class TallyLogPage extends ConsumerStatefulWidget {
 
 class _TallyLogPageState extends ConsumerState<TallyLogPage> {
   List<TallyEvent>? _events;
-  String? _book;
   TallyAction? _action;
-  bool _inited = false;
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (_inited) return;
-    _inited = true;
-    _book = GoRouterState.of(context).uri.queryParameters['book'];
+  void initState() {
+    super.initState();
     _load();
   }
 
@@ -1448,16 +1234,8 @@ class _TallyLogPageState extends ConsumerState<TallyLogPage> {
   @override
   Widget build(BuildContext context) {
     final all = _events;
-    final books = <String, String>{};
-    for (final e in all ?? const <TallyEvent>[]) {
-      books.putIfAbsent(e.bookId, () => e.bookName);
-    }
     final shown = (all ?? const <TallyEvent>[])
-        .where(
-          (e) =>
-              (_book == null || e.bookId == _book) &&
-              (_action == null || e.action == _action),
-        )
+        .where((e) => _action == null || e.action == _action)
         .toList();
     final days = <String, List<TallyEvent>>{};
     for (final e in shown) {
@@ -1495,6 +1273,7 @@ class _TallyLogPageState extends ConsumerState<TallyLogPage> {
       context,
       top: AppTopBar(
         title: '異動紀錄',
+        showSettings: false,
         actions: [
           _iconAction(Icons.download_rounded, '匯出 JSON', () {
             final data = const JsonEncoder.withIndent(
@@ -1515,13 +1294,6 @@ class _TallyLogPageState extends ConsumerState<TallyLogPage> {
             child: Center(child: CircularProgressIndicator.adaptive()),
           )
         else ...[
-          Wrap(
-            children: [
-              _chip('全部帳本', _book == null, () => setState(() => _book = null)),
-              for (final MapEntry(:key, :value) in books.entries)
-                _chip(value, _book == key, () => setState(() => _book = key)),
-            ],
-          ),
           Wrap(
             children: [
               _chip(

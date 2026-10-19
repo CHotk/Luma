@@ -119,12 +119,15 @@ final appRouter = GoRouter(
       path: '/drinking-log/stats',
       builder: (_, _) => const DrinkingStatsPage(),
     ),
-    // 簡單記帳（2026-10-19）：帳本清單、一個帳本、異動紀錄。
-    GoRoute(path: '/tally', builder: (_, _) => const TallyHomePage()),
+    // 簡單記帳（2026-10-19）：沒有帳本概念，打開就是一本帳。
+    GoRoute(path: '/tally', builder: (_, _) => const TallyEntryPage()),
     GoRoute(path: '/tally/log', builder: (_, _) => const TallyLogPage()),
+    // 分享給朋友的獨立網址：#/tally-solo?name=標題（沒有返回、選單、設定、
+    // 異動紀錄入口）。
     GoRoute(
-      path: '/tally/:id',
-      builder: (_, s) => TallyBookPage(bookId: s.pathParameters['id']!),
+      path: '/tally-solo',
+      builder: (_, s) =>
+          TallyEntryPage(name: s.uri.queryParameters['name'], solo: true),
     ),
     GoRoute(path: '/start', builder: (_, _) => const AppHomePage()),
     // 音樂功能（2026-10-19）：首頁／搜尋／音樂庫三格，歌手、歌曲、歌單疊上去。

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lume/app/providers.dart';
 import 'package:lume/data/repositories/tally_repository.dart';
 import 'package:lume/data/storage/key_value_store.dart';
 import 'package:lume/domain/models/tally.dart';
@@ -7,6 +9,7 @@ import 'package:lume/features/tally/tally_pages.dart';
 
 void main() {
   setUp(() => TallyRepository.deviceLabel = () => '測試機');
+  soloTests();
 
   test('結餘、新增／修改時間、每個動作都留完整異動紀錄', () async {
     final repo = TallyRepository(_MemoryStore());
@@ -130,4 +133,38 @@ class _MemoryStore implements KeyValueStore {
 
   @override
   Future<void> remove(String key) async => data.remove(key);
+}
+
+void soloTests() {
+  testWidgets('分享用獨立頁：自動用標題建一本帳；沒有返回、選單、設定、更多', (t) async {
+    t.view.physicalSize = const Size(400, 860);
+    t.view.devicePixelRatio = 1;
+    addTearDown(t.view.reset);
+    final store = _MemoryStore();
+    final c = ProviderContainer(
+      overrides: [keyValueStoreProvider.overrideWithValue(store)],
+    );
+    addTearDown(c.dispose);
+    await t.pumpWidget(
+      UncontrolledProviderScope(
+        container: c,
+        child: const MaterialApp(
+          home: TallyEntryPage(name: '欠小明的錢', solo: true),
+        ),
+      ),
+    );
+    await t.pumpAndSettle();
+    expect(find.text('欠小明的錢'), findsOneWidget);
+    expect(find.byIcon(Icons.arrow_back), findsNothing);
+    expect(find.byIcon(Icons.menu), findsNothing);
+    expect(find.byTooltip('設定'), findsNothing);
+    expect(find.byTooltip('改標題'), findsNothing);
+    expect(find.byTooltip('異動紀錄'), findsNothing);
+    expect(find.byTooltip('匯出圖片'), findsOneWidget);
+    expect(find.text('借出'), findsOneWidget);
+    expect(find.text('還款'), findsOneWidget);
+    // 再開一次，同標題不重複建。
+    final repo = c.read(tallyRepositoryProvider);
+    expect((await repo.books()).length, 1);
+  });
 }

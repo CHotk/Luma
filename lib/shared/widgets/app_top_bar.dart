@@ -31,6 +31,7 @@ class AppTopBar extends StatelessWidget {
     this.showSettings = true,
     this.actions = const [],
     this.marqueeTitle = false,
+    this.standalone = false,
   });
 
   final String title;
@@ -64,12 +65,18 @@ class AppTopBar extends StatelessWidget {
   /// 詳情頁的頻道名稱）。預設 false，其他頁照舊。
   final bool marqueeTitle;
 
+  /// 獨立頁（2026-10-19 簡單記帳的分享網址）：左邊沒有返回鍵也沒有選單、
+  /// 右邊沒有設定，整頁就是那個功能本身，不能跳到 App 其他地方。
+  final bool standalone;
+
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
         // 返回鍵、選單三條線大一點（2026-10-15 使用者要求，原本 20）。
-        if (showBack)
+        if (standalone)
+          const SizedBox(width: Gap.xs)
+        else if (showBack)
           IconButton(
             onPressed: () => Navigator.of(context).maybePop(),
             icon: const Icon(Icons.arrow_back, size: 23),
@@ -118,7 +125,7 @@ class AppTopBar extends StatelessWidget {
           if (i > 0) const SizedBox(width: 6),
           actions[i],
         ],
-        if (showSettings) ...[
+        if (showSettings && !standalone) ...[
           if (actions.isNotEmpty) const SizedBox(width: 6),
           IconButton(
             onPressed: () => openSettings(context),

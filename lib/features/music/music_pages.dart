@@ -126,7 +126,11 @@ Widget _chips(List<Widget> chips) => SingleChildScrollView(
 
 /// 空的音樂庫：怎麼開始。
 class MusicEmpty extends StatelessWidget {
-  const MusicEmpty({super.key});
+  const MusicEmpty({super.key, this.title = '還沒有歌'});
+
+  /// 首頁是拿歌拼出來的（最近加的、快速選曲…），沒歌就說「還沒有歌」；
+  /// 音樂庫頁才說「音樂庫還是空的」。
+  final String title;
 
   @override
   Widget build(BuildContext context) {
@@ -177,9 +181,9 @@ class MusicEmpty extends StatelessWidget {
         children: [
           const Text('🎵', style: TextStyle(fontSize: 46)),
           const SizedBox(height: 6),
-          const Text(
-            '音樂庫還是空的',
-            style: TextStyle(
+          Text(
+            title,
+            style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w900,
               color: AppColors.ink,
@@ -755,7 +759,7 @@ class _MusicLibraryPageState extends ConsumerState<MusicLibraryPage> {
           ]),
           const SizedBox(height: Gap.sm),
           if (data.versions.isEmpty && _tab != '歌單')
-            const MusicEmpty()
+            const MusicEmpty(title: '音樂庫還是空的')
           else
             ...children,
         ],

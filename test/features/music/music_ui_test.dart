@@ -91,7 +91,7 @@ void main() {
     await pump(tester, const MusicHomePage());
     expect(find.text('快速選曲'), findsOneWidget);
     await pump(tester, const MusicHomePage(), data: MusicData.empty);
-    expect(find.text('音樂庫還是空的'), findsOneWidget);
+    expect(find.text('還沒有歌'), findsOneWidget);
   });
 
   testWidgets('首頁：剛新增、還沒有歌的歌手排最前面；完全沒歌時也列出歌手', (tester) async {
@@ -110,7 +110,7 @@ void main() {
       const MusicHomePage(),
       data: MusicData.empty.putArtist(fresh),
     );
-    expect(find.text('音樂庫還是空的'), findsOneWidget);
+    expect(find.text('還沒有歌'), findsOneWidget);
     expect(find.text('你的歌手'), findsOneWidget);
     expect(find.text('新歌手'), findsOneWidget);
   });
