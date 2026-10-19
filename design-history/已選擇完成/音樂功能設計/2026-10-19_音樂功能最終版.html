@@ -248,11 +248,11 @@
 </head>
 <body>
 <div class="page">
-  <h1>音樂功能・最終版（歌手＋歌曲兩種看法）</h1>
+  <h1>音樂功能・最終版（第 1 版「音樂庫分頁」改的）</h1>
   <p class="lead">
-    <b>音樂自己存一份</b>：從 YT 管理（或貼網址）加進來的那一刻，把影片的 id、標題、縮圖、長度、上傳頻道<b>抄一份到音樂裡</b>，之後跟 YT 管理無關——YT 那邊刪頻道、換分類、取消追蹤，音樂裡的歌都還在。<br>
+    <b>音樂自己存一份</b>：從 YT 管理<b>任何分類的影片</b>（或貼網址）「加到歌曲」的那一刻，把影片的 id、標題、縮圖、長度、上傳頻道<b>抄一份到音樂裡</b>，之後跟 YT 管理無關——YT 那邊刪頻道、換分類、取消追蹤，音樂裡的歌都還在。<br>
     資料分三層：<b>歌手</b>、<b>歌曲</b>（一首作品，例如《晴天》）、<b>版本</b>（一部影片＝某人唱的某一版：演唱／合唱／翻唱／Live／清唱）。
-    音樂庫上面兩個分頁：<b>依歌手</b>看他唱過的所有版本、<b>依歌曲</b>看一首歌被誰唱過。
+    畫面照<b>第 1 版</b>（首頁＋搜尋＋音樂庫，YouTube Music／Spotify 那種）：音樂庫 chips 多一個「<b>歌曲</b>」——「歌手」看他唱過的所有版本、「歌曲」看一首歌被誰唱過。
   </p>
   <div class="modes" id="modes"></div>
   <div class="stage"><div class="phone" id="phone"></div><div class="notes" id="notes"></div></div>
@@ -299,8 +299,9 @@ const V = [
   { id: 'mGeiABBB5f8', w: 'w11', type: '演唱', by: ['gem'], up: '鄧紫棋', title: 'G.E.M.鄧紫棋【泡沫】Official MV', th: 'mGeiABBB5f8', len: 259, y: 2012 },
 ];
 // ════════ 來源：YT 管理裡的頻道跟影片（只拿來「加進音樂」）════════
-const YCH = { jay: { name: '周杰倫', color: '#3B6FB6', img: A.jay.img }, mayday: { name: '五月天', color: '#2F8F6B', img: A.mayday.img },
-  wonfu: { name: '告五人', color: '#2F6FB0' }, cover: { name: '小花翻唱', color: '#8E5BC4' }, show: { name: '綜藝玩很大', color: '#6B6B80' } };
+const YCH = { jay: { name: '周杰倫', cat: '音樂', color: '#3B6FB6', img: A.jay.img }, mayday: { name: '五月天', cat: '音樂', color: '#2F8F6B', img: A.mayday.img },
+  wonfu: { name: '告五人', cat: '樂團', color: '#2F6FB0' }, cover: { name: '小花翻唱', cat: '翻唱', color: '#8E5BC4' }, show: { name: '綜藝玩很大', cat: '綜藝', color: '#6B6B80' },
+  vlog: { name: '阿明的生活', cat: '生活', color: '#4F7A5A' } };
 const YV = [
   ['DYptgVvkVLQ', 'jay', '周杰倫【晴天】Official MV', 2003, 269, 'DYptgVvkVLQ'],
   ['Z8Mqw0b9ADs', 'jay', '周杰倫 Jay Chou【青花瓷 Blue and White Porcelain】Official MV', 2007, 239, 'Z8Mqw0b9ADs'],
@@ -313,6 +314,8 @@ const YV = [
   ['cv_3', 'cover', '【翻唱】告白氣球 - 周杰倫｜小花 Cover', 2025, 214, ''],
   ['cv_4', 'cover', '小花 開箱新麥克風', 2025, 512, ''],
   ['sh_2', 'show', '林俊傑 清唱【江南】全場安靜', 2022, 170, ''],
+  ['vl_1', 'vlog', '在捷運站遇到街頭藝人唱《晴天》太好聽了', 2025, 205, ''],
+  ['vl_2', 'vlog', '週末去爬山 vlog', 2025, 760, ''],
 ].map(([id, ch, title, y, len, th]) => ({ id, ch, title, y, len, th }));
 
 // ════════ 狀態 ════════
@@ -351,7 +354,7 @@ function verRow(v, o = {}) {
   const now = S.now === v.id;
   const main = o.byWho ? byNames(v) : W[v.w].t;
   const sub = o.byWho ? `${v.up !== byNames(v) ? `在「${v.up}」・` : ''}${v.y}・${fmt(v.len)}` : `${byNames(v)}${W[v.w].orig.some(k => !v.by.includes(k)) && v.type === '翻唱' ? `（原唱 ${W[v.w].orig.map(k => A[k].name).join('、')}）` : ''}${v.up !== byNames(v) && !v.by.map(k => A[k].name).includes(v.up) ? `・在「${v.up}」` : ''}`;
-  return `<div class="song ${now ? 'now' : ''} ${now && !S.playing ? 'paused' : ''}" data-a="play" data-id="${v.id}" data-list="${o.list || ''}">${vcov(v)}
+  return `<div class="song ${now ? 'now' : ''} ${now && !S.playing ? 'paused' : ''}" data-a="play" data-id="${v.id}" data-list="${o.list || ''}">${o.num ? `<div class="num">${o.num}</div>` : ''}${vcov(v)}
     <div class="meta"><div class="nm">${now ? '<span class="eq"><i></i><i></i><i></i></span>' : ''}${esc(main)}</div><div class="sub">${tyb(v.type)}${esc(sub)}</div></div>
     ${S.liked.has(v.id) ? '<span style="color:var(--pink);font-size:13px">♥</span>' : ''}<div class="dots" data-a="verMenu" data-id="${v.id}" style="font-size:20px">⋮</div></div>`;
 }
@@ -361,18 +364,21 @@ function workRow(w) {
     <div class="meta"><div class="nm">${esc(W[w].t)}</div><div class="vcount">原唱 ${W[w].orig.map(k => A[k].name).join('、')}・${vs.length} 個版本（${cnt.map(([t, n]) => t + ' ' + n).join('・')}）</div></div><span class="note3">›</span></div>`;
 }
 function home() {
-  const recent = S.recent.map(ver).filter(Boolean), all = V.slice(0, 12);
-  const hot = Object.keys(W).sort((a, b) => versOfWork(b).length - versOfWork(a).length).slice(0, 4);
-  return `<div class="bar"><div class="t">晚安</div><div class="ib" data-a="sheet" data-k="add" style="font-size:22px">＋</div></div>
+  const recent = S.recent.map(ver).filter(Boolean);
+  const hf = S.homeType || '全部', pool = hf === '全部' ? V : V.filter(v => v.type === hf), qp = pool.slice(0, 16);
+  const hot = Object.keys(W).sort((a, b) => versOfWork(b).length - versOfWork(a).length).slice(0, 6);
+  return `<div class="bar"><div class="t">晚安</div><div class="ib" data-a="sheet" data-k="add" style="font-size:22px">＋</div><div class="ib">⚙</div></div>
+    <div class="chips">${['全部', ...TYPES.slice(0, 5)].map(c => `<span class="chip ${hf === c ? 'on' : ''}" data-a="homeType" data-t="${c}">${c}</span>`).join('')}</div>
     <div class="h2">最近播放</div><div class="hscroll">${recent.map(v => `<div class="tile" data-a="play" data-id="${v.id}" data-list="${ids(recent)}">${vcov(v, 'sq', 132)}<div class="tt">${esc(W[v.w].t)}</div><div class="note3">${tyb(v.type)}${esc(byNames(v))}</div></div>`).join('')}</div>
-    <div class="h2">快速選曲<span class="more" data-a="playAll" data-list="${ids(all)}">全部播放</span></div><div class="qp">${all.map(v => verRow(v, { list: ids(all) })).join('')}</div>
-    <div class="h2">你的歌手<span class="more" data-a="lib" data-l="歌手">全部 ›</span></div><div class="hscroll">${Object.keys(A).map(k => `<div class="tile" style="width:88px;text-align:center" data-a="artist" data-k="${k}">${avatar(k, 88)}<div class="tt">${A[k].name}</div></div>`).join('')}</div>
-    <div class="h2">很多人唱過的歌<span class="more" data-a="lib" data-l="歌曲">全部 ›</span></div>${hot.map(workRow).join('')}`;
+    <div class="h2">快速選曲<span class="more" data-a="playAll" data-list="${ids(qp)}">全部播放</span></div><div class="qp">${qp.map(v => verRow(v, { list: ids(qp) })).join('')}</div>
+    <div class="h2">你的歌手</div><div class="hscroll">${Object.keys(A).map(k => `<div class="tile" style="width:96px;text-align:center" data-a="artist" data-k="${k}">${avatar(k, 96)}<div class="tt">${A[k].name}</div></div>`).join('')}</div>
+    <div class="h2">很多人唱過的歌</div><div class="hscroll">${hot.map(w => { const vs = versOfWork(w), v = vs.find(x => x.th) || vs[0]; return `<div class="tile" style="width:200px" data-a="work" data-w="${w}">${vcov(v, 'wide', 200)}<div class="tt">${esc(W[w].t)}</div><div class="note3">${vs.length} 個版本・原唱 ${W[w].orig.map(k => A[k].name).join('、')}</div></div>`; }).join('')}</div>`;
 }
 function search() {
   const q = S.search.trim().toLowerCase();
   if (!q) return `<div class="bar"><div class="t">搜尋</div></div><div class="search">⌕<input data-k="search" placeholder="歌名、歌手" value=""></div>
-    <div class="h2">試試看</div><div class="chips" style="flex-wrap:wrap">${['晴天', '周杰倫', '小花', '倔強', '翻唱'].map(k => `<span class="chip" data-a="quick" data-q="${k}">${k}</span>`).join('')}</div>`;
+    <div class="h2">試試看</div><div class="chips" style="flex-wrap:wrap">${['晴天', '周杰倫', '小花', '倔強', '翻唱'].map(k => `<span class="chip" data-a="quick" data-q="${k}">${k}</span>`).join('')}</div>
+    <div class="h2">依年代</div><div class="hscroll">${[['2000 初', 2000, 2004], ['2005–09', 2005, 2009], ['2010 後', 2010, 2030]].map(([n, a, b]) => { const l = V.filter(v => v.y >= a && v.y <= b); const c = l.find(v => v.th) || l[0]; return `<div class="tile" style="width:150px" data-a="playAll" data-list="${ids(l)}"><div class="cover sq" style="width:150px">${c.th ? img(YTI(c.th)) : ''}<div style="position:absolute;inset:0;background:linear-gradient(transparent,rgba(0,0,0,.75));display:flex;align-items:flex-end;padding:10px;font-weight:900;font-size:18px">${n}</div></div><div class="note3" style="margin-top:4px">${l.length} 個版本</div></div>`; }).join('')}</div>`;
   const ar = Object.keys(A).filter(k => A[k].name.toLowerCase().includes(q));
   const wk = Object.keys(W).filter(w => W[w].t.toLowerCase().includes(q));
   const vs = V.filter(v => (W[v.w].t + byNames(v) + v.type + v.up).toLowerCase().includes(q));
@@ -380,29 +386,32 @@ function search() {
     ${ar.length ? `<div class="h2">歌手</div>${ar.map(k => `<div class="song" data-a="artist" data-k="${k}">${avatar(k, 50)}<div class="meta"><div class="nm">${A[k].name}</div><div class="sub">${versOfArtist(k).length} 個版本</div></div></div>`).join('')}` : ''}
     ${wk.length ? `<div class="h2">歌曲</div>${wk.map(workRow).join('')}` : ''}
     ${vs.length ? `<div class="h2">版本</div>${vs.map(v => verRow(v, { list: ids(vs) })).join('')}` : ''}
-    ${!ar.length && !wk.length && !vs.length ? `<div class="note" style="text-align:center;padding:30px">音樂裡沒有「${esc(S.search)}」<br><span class="addbtn" data-a="sheet" data-k="src" style="display:inline-block;margin-top:10px">從 YT 管理／網址加</span></div>` : ''}`;
+    ${!ar.length && !wk.length && !vs.length ? `<div style="text-align:center;padding:30px 10px" class="note">你的音樂庫沒有「${esc(S.search)}」<br><span class="addbtn" data-a="sheet" data-k="src" style="display:inline-block;margin-top:10px">從 YT 管理／網址加</span>　<a class="ytlink" href="https://www.youtube.com/results?search_query=${encodeURIComponent(S.search)}" target="_blank">去 YouTube 搜 ↗</a></div>` : ''}`;
 }
 function library() {
-  const tabs = ['歌手', '歌曲', '歌單'];
+  const tabs = ['歌單', '喜歡的歌', '歌手', '歌曲'];
   let body = '';
+  if (S.lib === '歌單') body = `<div class="song" data-a="list" data-p="liked"><div class="cover sq" style="width:50px;background:linear-gradient(135deg,#FF6FAE,#7E5BFF);display:grid;place-items:center;font-size:20px">♥</div><div class="meta"><div class="nm">喜歡的歌</div><div class="sub">${S.liked.size} 首</div></div></div>` +
+    S.lists.map(p => `<div class="song" data-a="list" data-p="${p.id}">${vcov(ver(p.ids[0]))}<div class="meta"><div class="nm">${esc(p.name)}</div><div class="sub">歌單・${p.ids.length} 首</div></div></div>`).join('') +
+    `<div class="song" data-a="newList"><div class="cover sq" style="width:50px;display:grid;place-items:center;font-size:22px;border:1.5px dashed var(--line);background:none">＋</div><div class="meta"><div class="nm">新增歌單</div></div></div>`;
+  if (S.lib === '喜歡的歌') { const l = [...S.liked].map(ver).filter(Boolean); body = l.map(v => verRow(v, { list: ids(l) })).join('') || '<div class="note3" style="padding:20px;text-align:center">還沒有</div>'; }
   if (S.lib === '歌手') body = Object.keys(A).map(k => { const vs = versOfArtist(k); const c = TYPES.map(t => [t, vs.filter(v => v.type === t).length]).filter(([, n]) => n);
-    return `<div class="song" data-a="artist" data-k="${k}">${avatar(k, 52)}<div class="meta"><div class="nm">${A[k].name}</div><div class="sub">${vs.length} 個版本・${c.map(([t, n]) => t + ' ' + n).join('・')}</div></div><span class="note3">›</span></div>`; }).join('') +
-    `<div class="song" data-a="sheet" data-k="newArtist"><div class="cover round sq" style="width:52px;display:grid;place-items:center;font-size:22px;border:1.5px dashed var(--line);background:none">＋</div><div class="meta"><div class="nm">新增歌手</div><div class="sub">打名字就好，頭像可以從 YT 頻道抓</div></div></div>`;
-  if (S.lib === '歌曲') body = `<div class="sec-sub" style="margin:0 0 4px">一首歌一列，點進去看所有人唱的版本</div>` + Object.keys(W).sort((a, b) => W[a].t.localeCompare(W[b].t, 'zh-Hant')).map(workRow).join('');
-  if (S.lib === '歌單') body = `<div class="song" data-a="list" data-p="liked"><div class="cover sq" style="width:50px;background:linear-gradient(135deg,#FF6FAE,#7E5BFF);display:grid;place-items:center;font-size:20px">♥</div><div class="meta"><div class="nm">喜歡的</div><div class="sub">${S.liked.size} 個版本</div></div></div>` +
-    S.lists.map(p => `<div class="song" data-a="list" data-p="${p.id}">${vcov(ver(p.ids[0]))}<div class="meta"><div class="nm">${esc(p.name)}</div><div class="sub">歌單・${p.ids.length} 首</div></div></div>`).join('');
-  return `<div class="bar"><div class="t">音樂庫</div><div class="ib" data-a="sheet" data-k="add" style="font-size:22px">＋</div></div>
-    <div class="seg2" style="margin:0 0 12px;width:100%;display:flex">${tabs.map(t => `<button class="${S.lib === t ? 'on' : ''}" style="flex:1" data-a="lib" data-l="${t}">${t === '歌手' ? '依歌手' : t === '歌曲' ? '依歌曲' : '歌單'}</button>`).join('')}</div>${body}`;
+    return `<div class="song" data-a="artist" data-k="${k}">${avatar(k, 50)}<div class="meta"><div class="nm">${A[k].name}</div><div class="sub">${vs.length} 首・${c.map(([t, n]) => t + ' ' + n).join('・')}</div></div></div>`; }).join('') +
+    `<div class="song" data-a="sheet" data-k="newArtist"><div class="cover round sq" style="width:50px;display:grid;place-items:center;font-size:22px;border:1.5px dashed var(--line);background:none">＋</div><div class="meta"><div class="nm">新增歌手</div><div class="sub">打名字就好</div></div></div>`;
+  if (S.lib === '歌曲') body = `<div class="sec-sub" style="margin:0 0 4px">一首歌一列，點進去看所有人唱的版本</div>` + Object.keys(W).map(workRow).join('');
+  return `<div class="bar"><div class="t">音樂庫</div><div class="ib" data-a="sheet" data-k="add">＋</div></div>
+    <div class="chips" style="margin-bottom:8px">${tabs.map(t => `<span class="chip ${S.lib === t ? 'on' : ''}" data-a="lib" data-l="${t}">${t}</span>`).join('')}</div>${body}`;
 }
 function artistPage(k) {
   const a = A[k], vs = versOfArtist(k), f = S.aFilter;
   const c = TYPES.map(t => [t, vs.filter(v => v.type === t).length]).filter(([, n]) => n);
   const shown = f === '全部' ? vs : vs.filter(v => v.type === f);
-  const own = worksByOrig(k), coveredByOthers = own.filter(w => versOfWork(w).some(v => !v.by.includes(k)));
-  const hero = a.hero ? `<div class="hero">${img(`https://i.ytimg.com/vi/${a.hero}/maxresdefault.jpg`)}<div class="back" data-a="back">‹</div><div class="hn"><b>${a.name}</b><span class="note">${vs.length} 個版本・原唱 ${own.length} 首</span></div></div>`
-    : `<div class="bar"><div class="ib" data-a="back" style="font-size:22px">‹</div></div><div style="text-align:center">${avatar(k, 110).replace('class="cover', 'style="margin:0 auto;width:110px" class="cover')}<div style="font-size:26px;font-weight:900;margin-top:8px">${a.name}</div><div class="note">${vs.length} 個版本</div></div>`;
-  return `${hero}<div class="row" style="margin:14px 0 6px"><button class="btn pink" data-a="playAll" data-list="${ids(shown)}" data-shuffle="1">⇄ 隨機播放</button><button class="btn ghost" data-a="sheet" data-k="src">＋ 加</button><span class="sp"></span><span class="dots" data-a="sheet" data-k="artistMenu" data-ak="${k}" style="font-size:20px">⋯</span></div>
-    <div class="h2">他唱的</div><div class="chips" style="margin-bottom:6px">${[['全部', vs.length], ...c].map(([t, n]) => `<span class="chip ${f === t ? 'on' : ''}" data-a="aFilter" data-f="${t}">${t} ${n}</span>`).join('')}</div>
+  const top = vs.slice(0, 5), own = worksByOrig(k), coveredByOthers = own.filter(w => versOfWork(w).some(v => !v.by.includes(k)));
+  const hero = a.hero ? `<div class="hero">${img(`https://i.ytimg.com/vi/${a.hero}/maxresdefault.jpg`)}<div class="back" data-a="back">‹</div><div class="hn"><b>${a.name}</b><span class="note">${vs.length} 首・原唱 ${own.length} 首</span></div></div>`
+    : `<div class="bar"><div class="ib" data-a="back" style="font-size:22px">‹</div></div><div style="text-align:center">${avatar(k, 110).replace('class="cover', 'style="margin:0 auto;width:110px" class="cover')}<div style="font-size:26px;font-weight:900;margin-top:8px">${a.name}</div><div class="note">${vs.length} 首</div></div>`;
+  return `${hero}<div class="row" style="margin:14px 0 4px"><button class="btn pink" data-a="playAll" data-list="${ids(vs)}" data-shuffle="1">⇄ 隨機播放</button><button class="btn ghost" data-a="playAll" data-list="${ids(vs)}">▶ 播放</button><span class="sp"></span><span class="chip" data-a="sheet" data-k="artistMenu" data-ak="${k}">⋯</span></div>
+    <div class="h2">熱門</div>${top.map((v, i) => verRow(v, { num: i + 1, list: ids(vs) })).join('')}
+    <div class="h2">他唱的・全部 ${vs.length}</div><div class="chips" style="margin-bottom:6px">${[['全部', vs.length], ...c].map(([t, n]) => `<span class="chip ${f === t ? 'on' : ''}" data-a="aFilter" data-f="${t}">${t} ${n}</span>`).join('')}</div>
     ${shown.map(v => verRow(v, { list: ids(shown) })).join('')}
     ${own.length ? `<div class="h2">他原唱的歌</div><div class="sec-sub">點進去看還有誰唱過${coveredByOthers.length ? `（${coveredByOthers.length} 首有別人的版本）` : ''}</div>${own.map(workRow).join('')}` : ''}`;
 }
@@ -448,14 +457,14 @@ function fullPlayer() {
 // ════════ YT 管理（只當來源） ════════
 const inMusic = id => !!ver(id);
 function ytPage() {
-  if (!S.yt.ch) return `<div class="ytbar"><div class="ib">‹</div><div class="t">音樂（YT 分類）</div><div class="ib">⌕</div></div>
-    <div class="row" style="margin-bottom:8px"><span class="chip">預設排序 ▾</span><span class="sp"></span><span class="chip">🎤 歌手</span></div>
-    ${Object.keys(YCH).map(k => { const n = YV.filter(v => v.ch === k && inMusic(v.id)).length; return `<div class="chrow" data-a="ytCh" data-c="${k}">${chAvatar(k, 46)}<div class="meta" style="flex:1"><div style="font-weight:700">${YCH[k].name}</div><div class="note3">${YV.filter(v => v.ch === k).length} 部${n ? `・<span style="color:var(--ok)">${n} 部已在音樂</span>` : ''}</div></div><span class="note3">›</span></div>`; }).join('')}`;
+  if (!S.yt.ch) return `<div class="ytbar"><div class="ib">‹</div><div class="t">YT 管理</div><div class="ib">⌕</div></div>
+    <div class="note3" style="margin:-4px 0 10px">任何分類、任何頻道的影片都能「加到歌曲」</div>
+    ${Object.keys(YCH).map(k => { const n = YV.filter(v => v.ch === k && inMusic(v.id)).length; return `<div class="chrow" data-a="ytCh" data-c="${k}">${chAvatar(k, 46)}<div class="meta" style="flex:1"><div style="font-weight:700">${YCH[k].name} <span class="note3" style="font-weight:600">・${YCH[k].cat}</span></div><div class="note3">${YV.filter(v => v.ch === k).length} 部${n ? `・<span style="color:var(--ok)">${n} 部已在音樂</span>` : ''}</div></div><span class="note3">›</span></div>`; }).join('')}`;
   const k = S.yt.ch, vs = YV.filter(v => v.ch === k);
   return `<div class="ytbar"><div class="ib" data-a="ytBack" style="font-size:22px">‹</div><div class="t">${YCH[k].name}</div></div>
     <div class="picks" style="display:flex;gap:6px;margin-bottom:6px"><span class="chip on">沒看過</span><span class="chip">已隱藏</span><span class="chip">全部</span></div>
-    <div class="note3" style="text-align:center;margin-bottom:6px">App 裡往左滑：<b style="color:#FF375F">♪ 加進音樂</b>｜紀錄｜隱藏（這裡用 ⋮）</div>
-    ${vs.map(v => `<div class="vrow"><div class="th">${v.th ? img(YTI(v.th)) : `<div class="gcov" style="width:100%;height:100%;background:linear-gradient(135deg,${YCH[k].color},#15151f)">🎬</div>`}${inMusic(v.id) ? '<span class="tag">♪ 在音樂</span>' : ''}</div>
+    <div class="note3" style="text-align:center;margin-bottom:6px">App 裡往左滑：<b style="color:#FF375F">♪ 加到歌曲</b>｜紀錄｜隱藏（這裡用 ⋮）</div>
+    ${vs.map(v => `<div class="vrow"><div class="th">${v.th ? img(YTI(v.th)) : `<div class="gcov" style="width:100%;height:100%;background:linear-gradient(135deg,${YCH[k].color},#15151f)">🎬</div>`}${inMusic(v.id) ? `<span class="tag">♪ ${esc(W[ver(v.id).w].t)}</span>` : ''}</div>
       <div class="meta"><div class="nm">${esc(v.title)}</div><div class="note3" style="margin-top:3px">${v.y}・${fmt(v.len)}${inMusic(v.id) ? `・<span style="color:var(--ok)">${esc(W[ver(v.id).w].t)}（${ver(v.id).type}）</span>` : ''}</div></div>
       <div class="d3" data-a="ytMenu" data-id="${v.id}">⋮</div></div>`).join('')}`;
 }
@@ -474,23 +483,26 @@ function guess(v) {
   let by = named.slice();
   if (type === '翻唱') { const orig = work ? W[work].orig : named.slice(-1); by = by.filter(k => !orig.includes(k)); if (/小花/.test(t)) by.push('hana'); }
   if (!by.length && A[v.ch]) by = [v.ch];
+  if (/街頭藝人/.test(t)) { type = '清唱'; }
   const newOrig = type === '翻唱' ? named.slice(-1) : by.slice(0, 1);
-  const newNames = /告五人/.test(t + ch) && !Object.values(A).some(x => x.name === '告五人') ? ['告五人'] : [];
-  const why = `${{ 翻唱: '標題有「翻唱／cover」', 合唱: '標題有「x／合唱」', 清唱: '標題有「清唱」', Live: '標題有「Live／演唱會」', 演唱: '標題有 Official MV', 其他: '看不出來' }[type]}；歌名「${name}」${work ? '已經在音樂裡 → 加成它的新版本' : '是新歌'}`;
+  const newNames = /告五人/.test(t + ch) && !Object.values(A).some(x => x.name === '告五人') ? ['告五人'] : /街頭藝人/.test(t) ? ['街頭藝人'] : [];
+  const why = `${/街頭藝人/.test(t) ? '標題有「街頭藝人」→ 清唱、演唱者記「街頭藝人」' : {  翻唱: '標題有「翻唱／cover」', 合唱: '標題有「x／合唱」', 清唱: '標題有「清唱」', Live: '標題有「Live／演唱會」', 演唱: '標題有 Official MV', 其他: '看不出來' }[type]}；歌名「${name}」${work ? '已經在音樂裡 → 加成它的新版本' : '是新歌'}`;
   return { vid: v.id, v, work, name, type, by: [...new Set(by)], newNames, orig: work ? W[work].orig.slice() : newOrig, why };
 }
 function addSheet() {
   const d = S.draft, v = d.v, pool = Object.keys(A);
   const hits = Object.keys(W).filter(w => d.name && (W[w].t.includes(d.name) || d.name.includes(W[w].t)));
-  return `<b style="font-size:17px">加進音樂</b><div class="note3" style="margin-bottom:6px">會把影片資料抄一份到音樂裡，之後跟 YT 管理無關</div>
+  const others = Object.keys(W).filter(w => !hits.includes(w)).sort((a, b) => W[a].t.localeCompare(W[b].t, 'zh-Hant'));
+  return `<b style="font-size:17px">加到歌曲</b><div class="note3" style="margin-bottom:6px">像「添加到播放清單」：選一首歌（或新增），這部影片就抄一份存到那首歌底下，之後跟 YT 管理無關</div>
     <div class="vprev">${vcov({ ...v, by: [] }, '')}<div style="min-width:0"><div style="font-size:12.5px;font-weight:600">${esc(v.title)}</div><div class="note3">「${YCH[v.ch] ? YCH[v.ch].name : v.ch}」上傳・${v.y}・${fmt(v.len)}</div></div></div>
     <div class="auto">🤖 自動判斷：${esc(d.why)}。不對直接改</div>
-    <div class="lbl2">這是哪一首歌</div><div class="seg">${hits.map(w => `<span class="${d.work === w ? 'on' : ''}" data-a="dWork" data-w="${w}">${esc(W[w].t)}（已有 ${versOfWork(w).length} 版）</span>`).join('')}<span class="${!d.work ? 'on' : ''}" data-a="dWork" data-w="">＋ 新歌曲</span></div>
+    <div class="lbl2">加到哪一首歌</div><div class="seg">${hits.map(w => `<span class="${d.work === w ? 'on' : ''}" data-a="dWork" data-w="${w}">${esc(W[w].t)}（已有 ${versOfWork(w).length} 版）</span>`).join('')}<span class="${!d.work ? 'on' : ''}" data-a="dWork" data-w="">＋ 新歌曲</span></div>
+    ${S.showAllWorks ? `<div class="seg">${others.map(w => `<span class="${d.work === w ? 'on' : ''}" data-a="dWork" data-w="${w}">${esc(W[w].t)}</span>`).join('')}</div>` : `<div class="hint" data-a="allWorks" style="cursor:pointer;color:var(--accent)">不是這首？看全部 ${Object.keys(W).length} 首歌 ›</div>`}
     ${!d.work ? `<div class="field"><input id="dName" value="${esc(d.name)}" placeholder="歌名"></div>` : ''}
     <div class="lbl2">這一版是</div><div class="seg">${TYPES.map(t => `<span class="${d.type === t ? 'on' : ''}" data-a="dType" data-t="${t}">${t}</span>`).join('')}</div><div class="hint">${TYPE_HINT[d.type]}</div>
     <div class="lbl2">誰唱的（可以好幾個）</div><div class="seg">${pool.map(k => `<span class="${d.by.includes(k) ? 'on' : ''}" data-a="dBy" data-k="${k}">${A[k].name}</span>`).join('')}${d.newNames.map(n => `<span class="on" data-a="dNew" data-n="${esc(n)}">${esc(n)}（新歌手）✕</span>`).join('')}<span class="add" data-a="dAddName">＋ 新歌手</span></div>
     ${!d.work ? `<div class="lbl2">原唱</div><div class="seg">${pool.map(k => `<span class="${d.orig.includes(k) ? 'on' : ''}" data-a="dOrig" data-k="${k}">${A[k].name}</span>`).join('')}</div><div class="hint">新歌曲才要選；已經有的歌，原唱跟著那首</div>` : ''}
-    <button class="btn pink" data-a="dSave" style="width:100%;justify-content:center;margin-top:14px">加進音樂</button>`;
+    <button class="btn pink" data-a="dSave" style="width:100%;justify-content:center;margin-top:14px">加到${d.work ? '《' + esc(W[d.work].t) + '》' : '新歌曲'}</button>`;
 }
 function editSheet(id) {
   const v = ver(id), pool = Object.keys(A);
@@ -509,7 +521,7 @@ function sheetBody() {
     <div class="act" data-a="sheet" data-k="pickCh">▶　從 YT 管理挑<span class="sp"></span><span class="note3">你追蹤的頻道抓過的影片</span></div>
     <div class="act" data-a="pasteUrl">🔗　貼 YouTube 網址</div>
     ${k === 'add' ? `<div class="act" data-a="sheet" data-k="newArtist">🎤　新增歌手</div><div class="act" data-a="newList">≡＋ 新增歌單</div>` : ''}`;
-  if (k === 'pickCh') return `<b style="font-size:17px">從 YT 管理挑：選頻道</b>${Object.keys(YCH).map(c => `<div class="cand" data-a="sheet" data-k="pickVid" data-c="${c}" style="cursor:pointer">${chAvatar(c, 40)}<div class="meta"><div class="nm" style="font-size:14px">${YCH[c].name}</div><div class="note3">${YV.filter(v => v.ch === c && !inMusic(v.id)).length} 部還沒加</div></div><span class="note3">›</span></div>`).join('')}`;
+  if (k === 'pickCh') return `<b style="font-size:17px">從 YT 管理挑：選頻道</b><div class="note3">任何分類的頻道都行</div>${Object.keys(YCH).map(c => `<div class="cand" data-a="sheet" data-k="pickVid" data-c="${c}" style="cursor:pointer">${chAvatar(c, 40)}<div class="meta"><div class="nm" style="font-size:14px">${YCH[c].name}</div><div class="note3">${YCH[c].cat}・${YV.filter(v => v.ch === c && !inMusic(v.id)).length} 部還沒加</div></div><span class="note3">›</span></div>`).join('')}`;
   if (k === 'pickVid') { const c = S.sheet.c; return `<b style="font-size:17px">${YCH[c].name} 的影片</b><div class="note3" style="margin-bottom:4px">YT 管理的快取（不花配額）</div>${YV.filter(v => v.ch === c).map(candRow).join('')}`; }
   if (k === 'moreVer') { const w = S.sheet.w, t = W[w].t; const c = YV.filter(v => v.title.includes(t) && !inMusic(v.id));
     return `<b style="font-size:17px">《${esc(t)}》還有哪些版本</b><div class="note3" style="margin-bottom:4px">翻 YT 管理快取裡、標題有「${esc(t)}」的影片（不花配額）</div>${c.map(candRow).join('') || '<div class="note3" style="padding:14px 0">快取裡沒有別的了</div>'}
@@ -521,7 +533,7 @@ function sheetBody() {
     <div class="act" data-a="work" data-w="${v.w}">🎵　看這首歌的所有版本（${versOfWork(v.w).length}）</div>${v.by.map(k => `<div class="act" data-a="artist" data-k="${k}">🎤　去 ${A[k].name}</div>`).join('')}
     <div class="act" data-a="sheet" data-k="edit" data-id="${v.id}">✎　版本資訊（哪首歌、哪一種、誰唱）</div><div class="act">↗　在 YouTube 開啟</div>`; }
   if (k === 'ytMenu') { const v = YV.find(x => x.id === S.sheet.id);
-    return `<div class="note3" style="margin:2px 0 6px">${esc(v.title)}</div>${inMusic(v.id) ? `<div class="act" data-a="sheet" data-k="edit" data-id="${v.id}" style="color:var(--ok)">♪　已在音樂：${esc(W[ver(v.id).w].t)}（${ver(v.id).type}）・編輯</div>` : `<div class="act" data-a="startAdd" data-id="${v.id}" style="color:var(--pink)">♪　加進音樂</div>`}
+    return `<div class="note3" style="margin:2px 0 6px">${esc(v.title)}</div>${inMusic(v.id) ? `<div class="act" data-a="sheet" data-k="edit" data-id="${v.id}" style="color:var(--ok)">♪　已在《${esc(W[ver(v.id).w].t)}》（${ver(v.id).type}）・編輯</div>` : `<div class="act" data-a="startAdd" data-id="${v.id}" style="color:var(--pink)">♪　加到歌曲…</div>`}
       <div class="act">≡＋ 添加到播放清單</div><div class="act">🕘　開啟紀錄</div><div class="act">⊘　隱藏這部</div><div class="act">↗　在 YouTube 開啟</div>`; }
   if (k === 'artistMenu') { const a = A[S.sheet.ak]; return `<b>${a.name}</b><div class="act" data-a="toast" data-m="（示意）改名字、換頭像">✎　編輯歌手</div><div class="act" data-a="toast" data-m="（示意）把重複的歌手併成一個（例如 Jay Chou 跟 周杰倫）">⇆　跟另一個歌手合併</div>`; }
   if (k === 'workMenu') { const w = W[S.sheet.w]; return `<b>${esc(w.t)}</b><div class="act" data-a="toast" data-m="（示意）改歌名、改原唱、加別名（英文歌名）">✎　編輯歌曲（歌名、原唱、別名）</div><div class="act" data-a="toast" data-m="（示意）把重複的歌併成一首（例如「晴天」跟「晴天 Sunny Day」）">⇆　跟另一首合併</div>`; }
@@ -554,19 +566,21 @@ function notes() {
       <div>🎤 <b>歌手</b><small>名字、頭像。不一定要有 YT 頻道（例如翻唱的小花）。重複的可以合併。</small></div>
       <div>🎵 <b>歌曲</b><small>一首作品：歌名、原唱（可以好幾個）、別名。同一首歌所有人唱的版本都掛在它底下。</small></div>
       <div>▶ <b>版本</b><small>一部 YouTube 影片＝誰唱的哪一版：演唱／合唱／翻唱／Live／清唱／其他。<b>影片 id、標題、縮圖、長度、上傳頻道抄一份</b>，播放用影片 id。</small></div></div>
-    <h3>兩種看法（音樂庫上面的分頁）</h3><table><tr><th></th><th>依歌手</th><th>依歌曲</th></tr>
+    <h3>兩種看法（音樂庫的「歌手」「歌曲」）</h3><table><tr><th></th><th>歌手</th><th>歌曲</th></tr>
       <tr><td>列表</td><td>每個歌手、他有幾個版本（演唱 3・翻唱 1…）</td><td>每首歌、幾個版本、原唱是誰</td></tr>
-      <tr><td>點進去</td><td>他唱的全部版本，篩演唱／合唱／翻唱／Live／清唱；下面「他原唱的歌」</td><td>這首歌所有版本，照種類分段；「依序聽每個版本」「＋ 加版本」</td></tr></table>
-    <h3>怎麼加（YT 管理只是來源）</h3><ul>
-      <li><b>YT 管理</b>：影片往左滑第一顆「♪ 加進音樂」→ 跳「加進音樂」面板（自動判斷哪首歌、哪一種、誰唱）→ 按一下就抄進音樂。已經加過的縮圖標「♪ 在音樂」。</li>
+      <tr><td>點進去</td><td>第 1 版的大圖歌手頁＋熱門；多「他唱的」可篩演唱／合唱／翻唱／Live／清唱；「他原唱的歌」</td><td>這首歌所有版本，照種類分段；「依序聽每個版本」「＋ 加版本」</td></tr></table>
+    <h3>怎麼加（YT 管理只是來源，不分分類）</h3><ul>
+      <li><b>YT 管理任何分類、任何頻道的影片</b>（音樂、綜藝、翻唱、生活 vlog 都行）：往左滑第一顆／⋮ 第一個「<b>♪ 加到歌曲…</b>」→ 跟「添加到播放清單」一樣，<b>選一首歌（或新增）</b>→ 這部影片就抄一份存到那首歌底下。種類、誰唱會自動猜，不對再改。加過的縮圖標「♪ 歌名」。</li>
+      <li>所以 YT 那邊<b>不需要</b>「音樂分類才有的 ♪ 歌曲篩選」「標成歌手頻道」——歌曲本身就是一堆 YT 影片（各存一份）。</li>
       <li><b>音樂裡</b>：＋ → 從 YT 管理挑（選頻道 → 影片）、貼網址；歌曲頁「＋ 加版本」翻快取裡標題有這個歌名的；搜尋找不到也能直接加。</li>
       <li>加完就是音樂自己的：YT 那邊刪頻道、取消追蹤、換分類都不影響；音樂裡刪掉也不動 YT。</li></ul>
     <h3>跟上一版不同</h3><ul><li>上一版「♪ 歌曲」只是 YT 影片上的標記、音樂去 YT 讀；這版改成<b>音樂自己存</b>，YT 的 ♪ 只是「已在音樂」的提示。</li>
       <li>多了「<b>依歌曲</b>」：一首歌被很多人唱、cover，都收在同一首底下。</li><li>版本種類多「<b>清唱</b>」「<b>其他</b>」。</li></ul>
-    <div class="try">試試看：<br>① 音樂庫 →「依歌曲」→《晴天》：演唱、翻唱、Live 三段 →「依序聽每個版本」<br>
-      ② 「依歌手」→ 周杰倫：篩「合唱」「清唱」；拉到下面「他原唱的歌」→《安靜》看林俊傑的翻唱<br>
-      ③ 切到「YT 管理」→ 小花翻唱 →「【翻唱】告白氣球」⋮ → 加進音樂（自動判斷：翻唱、告白氣球已存在）→ 回音樂看《告白氣球》多一版<br>
-      ④ YT 管理 → 告五人 →「愛人錯過」加進音樂：新歌曲＋新歌手；再加五月天頻道的「五月天 x 告五人【愛人錯過】」→ 合唱<br>
+    <div class="try">試試看：<br>① 音樂庫 →「歌曲」→《晴天》：演唱、翻唱、Live 三段 →「依序聽每個版本」<br>
+      ② 「歌手」→ 周杰倫：篩「合唱」「清唱」；拉到下面「他原唱的歌」→《安靜》看林俊傑的翻唱<br>
+      ③ 切到「YT 管理」→ 小花翻唱 →「【翻唱】告白氣球」⋮ → 加到歌曲（自動選好《告白氣球》、翻唱）→ 回音樂看《告白氣球》多一版<br>
+      ③-2「阿明的生活」（生活 vlog 頻道）→「街頭藝人唱《晴天》」→ 加到《晴天》，種類清唱、演唱者「街頭藝人」<br>
+      ④ YT 管理 → 告五人 →「愛人錯過」加到歌曲：新歌曲＋新歌手；再加五月天頻道的「五月天 x 告五人【愛人錯過】」→ 選《愛人錯過》、合唱<br>
       ⑤ 播放器：歌名可以點進歌曲頁，下面列「這首歌的其他版本」</div>`;
 }
 function drawModes() {
@@ -587,6 +601,7 @@ phone.addEventListener('click', e => {
     case 'list': S.sub = { k: 'list', p: d.p }; paint(false); return;
     case 'back': S.sub = null; paint(false); return;
     case 'aFilter': S.aFilter = d.f; break;
+    case 'homeType': S.homeType = d.t; break;
     case 'wFilter': S.wFilter = d.f; break;
     case 'quick': S.search = d.q; break;
     case 'play': play(id, listOf(d.list)); S.sheet = null; break;
@@ -612,8 +627,9 @@ phone.addEventListener('click', e => {
     case 'ytCh': S.yt.ch = d.c; paint(false); return;
     case 'ytBack': S.yt.ch = null; paint(false); return;
     case 'ytMenu': S.sheet = { k: 'ytMenu', id }; break;
-    case 'startAdd': S.draft = guess(YV.find(v => v.id === id)); S.sheet = { k: 'addVer' }; break;
+    case 'startAdd': S.draft = guess(YV.find(v => v.id === id)); S.sheet = { k: 'addVer' }; S.showAllWorks = false; break;
     // 加進音樂面板
+    case 'allWorks': S.showAllWorks = true; break;
     case 'dWork': S.draft.work = d.w || null; if (d.w) S.draft.orig = W[d.w].orig.slice(); break;
     case 'dType': S.draft.type = d.t; break;
     case 'dBy': { const b = S.draft.by; S.draft.by = b.includes(d.k) ? b.filter(x => x !== d.k) : [...b, d.k]; break; }
