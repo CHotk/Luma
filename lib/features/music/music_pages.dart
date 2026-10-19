@@ -248,13 +248,57 @@ class _MusicHomePageState extends ConsumerState<MusicHomePage> {
             .length
             .compareTo(data.versionsOfWork(a.id).length),
       );
+    // 還沒有歌的（剛新增、等著加歌的）排最前面，新增完一回首頁就看得到；
+    // 其餘照歌多的在前。
     final artists = data.artists
-      ..sort(
-        (a, b) => data
-            .versionsOfArtist(b.id)
-            .length
-            .compareTo(data.versionsOfArtist(a.id).length),
-      );
+      ..sort((a, b) {
+        final na = data.versionsOfArtist(a.id).length;
+        final nb = data.versionsOfArtist(b.id).length;
+        if ((na == 0) != (nb == 0)) return na == 0 ? -1 : 1;
+        if (na == 0) return b.updatedAt.compareTo(a.updatedAt);
+        return nb.compareTo(na);
+      });
+    // 「你的歌手」一列：沒有任何歌時也要顯示（先新增歌手、再慢慢加歌）。
+    final artistSection = <Widget>[
+      _h2(
+        '你的歌手',
+        trailing: _more('全部 ›', () => context.go('/music/library?tab=歌手')),
+      ),
+      SizedBox(
+        height: 128,
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          children: [
+            for (final a in artists)
+              Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: GestureDetector(
+                  onTap: () => context.push('/music/artist/${a.id}'),
+                  child: SizedBox(
+                    width: 92,
+                    child: Column(
+                      children: [
+                        MusicArtistAvatar(a, size: 92),
+                        const SizedBox(height: 6),
+                        Text(
+                          a.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.ink,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    ];
     return MusicScaffold(
       child: ListView(
         padding: EdgeInsets.fromLTRB(
@@ -276,9 +320,10 @@ class _MusicHomePageState extends ConsumerState<MusicHomePage> {
               ),
             ],
           ),
-          if (data.versions.isEmpty)
-            const MusicEmpty()
-          else ...[
+          if (data.versions.isEmpty) ...[
+            const MusicEmpty(),
+            if (artists.isNotEmpty) ...artistSection,
+          ] else ...[
             const SizedBox(height: Gap.sm),
             _chips([
               _chip('全部', _type == null, () => setState(() => _type = null)),
@@ -384,47 +429,7 @@ class _MusicHomePageState extends ConsumerState<MusicHomePage> {
                 queue: [for (final x in quick) x.id],
                 from: '首頁・快速選曲',
               ),
-            _h2(
-              '你的歌手',
-              trailing: _more(
-                '全部 ›',
-                () => context.go('/music/library?tab=歌手'),
-              ),
-            ),
-            SizedBox(
-              height: 128,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                children: [
-                  for (final a in artists)
-                    Padding(
-                      padding: const EdgeInsets.only(right: 12),
-                      child: GestureDetector(
-                        onTap: () => context.push('/music/artist/${a.id}'),
-                        child: SizedBox(
-                          width: 92,
-                          child: Column(
-                            children: [
-                              MusicArtistAvatar(a, size: 92),
-                              const SizedBox(height: 6),
-                              Text(
-                                a.name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.ink,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
+            ...artistSection,
             if (hot.any((w) => data.versionsOfWork(w.id).length > 1)) ...[
               _h2('很多人唱過的歌'),
               for (final w

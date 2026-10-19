@@ -10,6 +10,7 @@ import '../features/crypto_watch/trade_report_page.dart';
 import '../features/smoking_log/smoking_page.dart';
 import '../features/smoking_log/smoking_stats_page.dart';
 import '../features/drinking_log/drinking_page.dart';
+import '../features/tally/tally_pages.dart';
 import '../features/drinking_log/drinking_stats_page.dart';
 import '../features/app_home/app_home_page.dart';
 
@@ -117,6 +118,13 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/drinking-log/stats',
       builder: (_, _) => const DrinkingStatsPage(),
+    ),
+    // 簡單記帳（2026-10-19）：帳本清單、一個帳本、異動紀錄。
+    GoRoute(path: '/tally', builder: (_, _) => const TallyHomePage()),
+    GoRoute(path: '/tally/log', builder: (_, _) => const TallyLogPage()),
+    GoRoute(
+      path: '/tally/:id',
+      builder: (_, s) => TallyBookPage(bookId: s.pathParameters['id']!),
     ),
     GoRoute(path: '/start', builder: (_, _) => const AppHomePage()),
     // 音樂功能（2026-10-19）：首頁／搜尋／音樂庫三格，歌手、歌曲、歌單疊上去。

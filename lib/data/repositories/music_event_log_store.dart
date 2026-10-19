@@ -71,7 +71,7 @@ class MusicEventLogStore {
   ];
 
   /// 聯集，舊到新。
-  static List<MusicEvent> merge(List<MusicEvent> a, List<MusicEvent> b) =>
-      {for (final e in [...a, ...b]) e.id: e}.values.toList()
-        ..sort((x, y) => x.at.compareTo(y.at));
+  static List<MusicEvent> merge(List<MusicEvent> a, List<MusicEvent> b) => {
+    for (final e in [...a, ...b]) e.id: e,
+  }.values.toList()..sort((x, y) => x.at.compareTo(y.at));
 }

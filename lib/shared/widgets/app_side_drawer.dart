@@ -67,6 +67,7 @@ class _AppSideDrawerState extends State<AppSideDrawer> {
     final isDebt = location.startsWith('/debt');
     final isSmoking = location.startsWith('/smoking-log');
     final isDrinking = location.startsWith('/drinking-log');
+    final isTally = location.startsWith('/tally');
     final isLanguage =
         !isHome &&
         !isDiary &&
@@ -79,7 +80,8 @@ class _AppSideDrawerState extends State<AppSideDrawer> {
         !isCryptoWatch &&
         !isDebt &&
         !isSmoking &&
-        !isDrinking;
+        !isDrinking &&
+        !isTally;
 
     return Drawer(
       width: 270,
@@ -238,6 +240,15 @@ class _AppSideDrawerState extends State<AppSideDrawer> {
                           onTap: () {
                             Navigator.of(context).pop();
                             if (!isDrinking) context.go('/drinking-log');
+                          },
+                        ),
+                        _NavItem(
+                          icon: Icons.receipt_long_rounded,
+                          label: '簡單記帳',
+                          active: isTally,
+                          onTap: () {
+                            Navigator.of(context).pop();
+                            if (!isTally) context.go('/tally');
                           },
                         ),
                         const Padding(

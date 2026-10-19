@@ -94,6 +94,27 @@ void main() {
     expect(find.text('音樂庫還是空的'), findsOneWidget);
   });
 
+  testWidgets('首頁：剛新增、還沒有歌的歌手排最前面；完全沒歌時也列出歌手', (tester) async {
+    final fresh = MusicArtist(
+      id: 'new',
+      name: '新歌手',
+      updatedAt: DateTime(2026, 10, 19),
+    );
+    await pump(tester, const MusicHomePage(), data: seed.putArtist(fresh));
+    expect(find.text('新歌手'), findsOneWidget);
+    final x = tester.getTopLeft(find.text('新歌手')).dx;
+    expect(x < tester.getTopLeft(find.text('周杰倫').last).dx, isTrue);
+
+    await pump(
+      tester,
+      const MusicHomePage(),
+      data: MusicData.empty.putArtist(fresh),
+    );
+    expect(find.text('音樂庫還是空的'), findsOneWidget);
+    expect(find.text('你的歌手'), findsOneWidget);
+    expect(find.text('新歌手'), findsOneWidget);
+  });
+
   testWidgets('加到音樂功能：已有的歌 → 加成新版本，存檔', (tester) async {
     late WidgetRef r;
     final c = await pump(

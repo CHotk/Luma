@@ -70,7 +70,11 @@ class MusicArtist implements MusicRecord {
     final urls = avatarUrls.where((u) => u.trim().isNotEmpty).toList();
     if (urls.isEmpty) return const [];
     final i = shownAvatar.clamp(0, urls.length - 1);
-    return [urls[i], for (var k = 0; k < urls.length; k++) if (k != i) urls[k]];
+    return [
+      urls[i],
+      for (var k = 0; k < urls.length; k++)
+        if (k != i) urls[k],
+    ];
   }
 
   /// 現在顯示的那張（沒有就是空字串）。
@@ -423,9 +427,8 @@ class MusicData {
         updatedAt: DateTime(2000),
       );
 
-  String artistNames(MusicVersion v) => [
-    for (final id in v.artistIds) artist(id)?.name ?? '?',
-  ].join('、');
+  String artistNames(MusicVersion v) =>
+      [for (final id in v.artistIds) artist(id)?.name ?? '?'].join('、');
 
   MusicData copyWith({
     Map<String, MusicArtist>? artistMap,
@@ -472,7 +475,10 @@ class MusicData {
 
   /// 兩邊合併：同一筆比改的時間，後改的贏（刪掉的墓碑也是一筆）。
   static MusicData merge(MusicData a, MusicData b) {
-    Map<String, T> m<T extends MusicRecord>(Map<String, T> x, Map<String, T> y) {
+    Map<String, T> m<T extends MusicRecord>(
+      Map<String, T> x,
+      Map<String, T> y,
+    ) {
       final out = {...x};
       for (final e in y.entries) {
         final mine = out[e.key];

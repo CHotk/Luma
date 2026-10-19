@@ -22,7 +22,8 @@ void main() {
       routes: [
         GoRoute(
           path: '/music',
-          builder: (_, _) => const Scaffold(drawer: AppSideDrawer(), body: SizedBox()),
+          builder: (_, _) =>
+              const Scaffold(drawer: AppSideDrawer(), body: SizedBox()),
         ),
       ],
     );
