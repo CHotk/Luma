@@ -14,6 +14,7 @@ import '../data/repositories/home_card_order_store.dart';
 import '../data/repositories/jp_home_ring_store.dart';
 import '../data/repositories/jp_light_style_store.dart';
 import '../data/repositories/yt_video_song_store.dart';
+import '../domain/models/music.dart';
 import '../data/repositories/kana_exam_repository.dart';
 import '../data/repositories/kana_practice_repository.dart';
 import '../data/repositories/settings_repository.dart';
@@ -202,6 +203,15 @@ final ytPlaylistsProvider = StateProvider<List<YtPlaylist>>(
 /// 隱藏，設定裡可以打開）。
 final jpShowProgressRingProvider = StateProvider<bool>(
   (ref) => JpHomeRingStore.defaultShow,
+);
+
+/// 音樂功能的全部資料（2026-10-19，見 [MusicData]）。改的時候用
+/// `MusicActions`，會一起存檔。
+final musicDataProvider = StateProvider<MusicData>((ref) => MusicData.empty);
+
+/// 音樂裡有的影片 id（YT 管理每一列看這份決定要不要標 ♫，查一下就知道）。
+final musicVideoIdsProvider = Provider<Set<String>>(
+  (ref) => ref.watch(musicDataProvider).videoIds,
 );
 
 /// 音樂分類裡標成「歌曲」的影片 id（2026-10-16，見 [YtVideoSongStore]）。

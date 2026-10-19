@@ -13,6 +13,7 @@ import '../../data/repositories/app_home_style_store.dart';
 import '../../data/repositories/jp_home_ring_store.dart';
 import '../../data/repositories/jp_light_style_store.dart';
 import '../../data/repositories/yt_video_song_store.dart';
+import '../../data/repositories/music_store.dart';
 import '../../data/repositories/yt_embed_player_style_store.dart';
 import '../../data/repositories/yt_search_recents_store.dart';
 import '../../data/repositories/yt_stats_refresh_setting_store.dart';
@@ -400,6 +401,14 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
               if (r.downloaded > 0) {
                 container.read(ytDisplayPrefsProvider.notifier).state =
                     await prefsStore.load();
+              }
+              return r;
+            }),
+            // 音樂功能（2026-10-19）跟 YT 一起同步。
+            service.syncMusic(MusicStore(kv)).then((r) async {
+              if (r.downloaded > 0) {
+                container.read(musicDataProvider.notifier).state =
+                    await MusicStore(kv).load();
               }
               return r;
             }),

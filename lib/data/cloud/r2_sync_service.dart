@@ -41,6 +41,8 @@ import '../repositories/stamped_setting_store.dart';
 import '../repositories/yt_display_prefs_store.dart';
 import '../repositories/yt_playlist_store.dart';
 import '../repositories/yt_video_song_store.dart';
+import '../repositories/music_store.dart';
+import '../../domain/models/music.dart';
 import '../storage/key_value_store.dart';
 import 'r2_client.dart';
 
@@ -943,6 +945,34 @@ class R2SyncService {
     final body = utf8.encode(jsonEncode(local.toJson()));
     await _writeMeta(key, body, fetched.etag);
     return (downloaded: 0, uploaded: 0);
+  }
+
+  /// 音樂功能（2026-10-19）：整份一個檔，一筆一筆比改的時間，後改的贏
+  /// （刪掉的留墓碑，見 [MusicData.merge]）。
+  Future<({int downloaded, int uploaded})> syncMusic(MusicStore store) async {
+    const key = MusicStore.cloudKey;
+    final local = await store.load();
+    List<int> encode(MusicData d) => utf8.encode(jsonEncode(d.toJson()));
+    if (await _canSkip(key, encode(local))) {
+      return (downloaded: 0, uploaded: 0);
+    }
+    final fetched = await _client.getObjectWithEtag(key);
+    final cloud = fetched.bytes == null
+        ? MusicData.empty
+        : MusicData.fromJson(
+            jsonDecode(utf8.decode(fetched.bytes!)) as Map<String, dynamic>,
+          );
+    final merged = MusicData.merge(local, cloud);
+    final downloaded = local.newerIn(merged);
+    final uploaded = cloud.newerIn(merged);
+    if (downloaded > 0) await store.save(merged);
+    final body = encode(merged);
+    var etag = fetched.etag;
+    if (uploaded > 0) {
+      etag = await _client.putObject(key, Uint8List.fromList(body));
+    }
+    await _writeMeta(key, body, etag);
+    return (downloaded: downloaded, uploaded: uploaded);
   }
 
   /// 音樂分類標成「歌曲」的影片（2026-10-16）：一部一部比改的時間，後改

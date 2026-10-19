@@ -56,6 +56,7 @@ class _AppSideDrawerState extends State<AppSideDrawer> {
     final isDiary = location.startsWith('/diary');
     final isYtTracker = location.startsWith('/yt-tracker');
     final isFitness = location.startsWith('/fitness');
+    final isMusic = location.startsWith('/music');
     final isDebugLog = location.startsWith('/debug-log');
     final isSync = location.startsWith('/sync');
     final isLocalStorage = location.startsWith('/local-storage');
@@ -170,6 +171,16 @@ class _AppSideDrawerState extends State<AppSideDrawer> {
                     onTap: () {
                       Navigator.of(context).pop();
                       if (!isYtTracker) context.go('/yt-tracker');
+                    },
+                  ),
+                  // 音樂（2026-10-19）。
+                  _NavItem(
+                    icon: Icons.library_music_rounded,
+                    label: '音樂',
+                    active: isMusic,
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      if (!isMusic) context.go('/music');
                     },
                   ),
                   _NavItem(

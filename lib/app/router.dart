@@ -3,6 +3,7 @@ import 'app_bottom_nav.dart';
 import 'package:go_router/go_router.dart';
 import '../features/crypto_watch/crypto_watch_page.dart';
 import '../features/jp_home/jp_log_page.dart';
+import '../features/music/music_pages.dart';
 import '../features/crypto_watch/trade_day_page.dart';
 import '../features/crypto_watch/trade_journal_page.dart';
 import '../features/crypto_watch/trade_report_page.dart';
@@ -118,6 +119,28 @@ final appRouter = GoRouter(
       builder: (_, _) => const DrinkingStatsPage(),
     ),
     GoRoute(path: '/start', builder: (_, _) => const AppHomePage()),
+    // 音樂功能（2026-10-19）：首頁／搜尋／音樂庫三格，歌手、歌曲、歌單疊上去。
+    GoRoute(path: '/music', builder: (_, _) => const MusicHomePage()),
+    GoRoute(path: '/music/search', builder: (_, _) => const MusicSearchPage()),
+    GoRoute(
+      path: '/music/library',
+      builder: (_, state) =>
+          MusicLibraryPage(initialTab: state.uri.queryParameters['tab']),
+    ),
+    GoRoute(
+      path: '/music/artist/:id',
+      builder: (_, state) =>
+          MusicArtistPage(artistId: state.pathParameters['id']!),
+    ),
+    GoRoute(
+      path: '/music/work/:id',
+      builder: (_, state) => MusicWorkPage(workId: state.pathParameters['id']!),
+    ),
+    GoRoute(
+      path: '/music/list/:id',
+      builder: (_, state) =>
+          MusicPlaylistPage(playlistId: state.pathParameters['id']!),
+    ),
     GoRoute(path: '/home', builder: (_, _) => const HomePage()),
     GoRoute(path: '/jp-home', builder: (_, _) => const JpHomePage()),
     GoRoute(path: '/jp-stats', builder: (_, _) => const JpStatsPage()),

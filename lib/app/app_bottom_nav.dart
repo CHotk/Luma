@@ -7,6 +7,8 @@ import '../data/repositories/nav_bar_prefs_store.dart';
 import '../features/yt_tracker/yt_playlist_actions.dart';
 import '../shared/nav_bar_hiders.dart';
 import '../shared/widgets/floating_tab_bar.dart';
+import '../features/music/music_player.dart';
+import '../features/music/music_player_layer.dart';
 import 'providers.dart';
 import 'router.dart';
 
@@ -124,6 +126,40 @@ class _AppBottomNavFrameState extends ConsumerState<AppBottomNavFrame> {
     ),
   ];
 
+  /// 音樂自己的分頁列（2026-10-19）：首頁／搜尋／音樂庫。
+  static const _musicTabs = [
+    FloatingTab(
+      icon: Icons.home_outlined,
+      selectedIcon: Icons.home_rounded,
+      label: '首頁',
+    ),
+    FloatingTab(
+      icon: Icons.search_rounded,
+      selectedIcon: Icons.saved_search_rounded,
+      label: '搜尋',
+    ),
+    FloatingTab(
+      icon: Icons.library_music_outlined,
+      selectedIcon: Icons.library_music_rounded,
+      label: '音樂庫',
+    ),
+  ];
+
+  _NavSpec _musicSpec(String path) {
+    final selected = path == '/music'
+        ? 0
+        : path.startsWith('/music/search')
+        ? 1
+        : path.startsWith('/music/library')
+        ? 2
+        : null;
+    return _NavSpec(_musicTabs, selected, (i) {
+      const targets = ['/music', '/music/search', '/music/library'];
+      if (path == targets[i]) return;
+      appRouter.go(targets[i]);
+    });
+  }
+
   static bool _isJp(String path) =>
       path.startsWith('/jp-') ||
       path.startsWith('/kana-practice') ||
@@ -154,6 +190,10 @@ class _AppBottomNavFrameState extends ConsumerState<AppBottomNavFrame> {
   _NavSpec? _spec(String path, NavBarMode mode, String videoChannelId) {
     final isYt =
         path.startsWith('/yt-tracker') || path.startsWith('/yt-playlists');
+    // 音樂一定用自己的（不然進不去搜尋、音樂庫），除非整條關掉。
+    if (path.startsWith('/music') && mode != NavBarMode.off) {
+      return _musicSpec(path);
+    }
     switch (mode) {
       case NavBarMode.off:
         return null;
@@ -283,9 +323,16 @@ class _AppBottomNavFrameState extends ConsumerState<AppBottomNavFrame> {
         // 浮在頁面上面，不佔一行（2026-10-14 使用者糾正）：頁面照樣排到最底，
         // 只是清單最後多留這麼高的空白（[FloatingNavInset]），最後一項才
         // 捲得上來、不被擋住。
-        final reserve = spec == null
-            ? 0.0
-            : barBottom + FloatingTabBar.height + 12 - mq.padding.bottom;
+        // 音樂在播：迷你播放列浮在分頁列上面，頁面再多留它的高度。
+        final musicOn = ref.watch(musicPlayerProvider).current != null;
+        final navTop = spec == null || hidden
+            ? barBottom
+            : barBottom + FloatingTabBar.height + 8;
+        final reserve =
+            (spec == null
+                ? 0.0
+                : barBottom + FloatingTabBar.height + 12 - mq.padding.bottom) +
+            (musicOn ? musicMiniHeight + 10 : 0);
         // 不管有沒有分頁列，結構都一樣，不然換頁時整個 App 會被重建。
         return Stack(
           children: [
@@ -326,6 +373,18 @@ class _AppBottomNavFrameState extends ConsumerState<AppBottomNavFrame> {
                     ),
                   ),
                 ),
+              ),
+            ),
+            // 音樂播放器（2026-10-19）：整個 App 一份，換頁不中斷。
+            Positioned.fill(
+              child: MusicPlayerLayer(
+                miniBottom: spec == null || hidden
+                    ? math.max(mq.padding.bottom + 8, 16.0)
+                    : navTop,
+                hideMini:
+                    keyboard ||
+                    navBarRouteObserver.popups.value > 0 ||
+                    navBarHiders.value > 0,
               ),
             ),
           ],

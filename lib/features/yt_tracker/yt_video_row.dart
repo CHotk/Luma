@@ -12,6 +12,7 @@ import '../../data/repositories/yt_embed_player_style_store.dart';
 import '../../data/repositories/yt_playlist_store.dart';
 import '../../data/repositories/yt_video_hidden_store.dart';
 import '../../data/repositories/yt_video_song_store.dart';
+import '../music/add_to_music_sheet.dart';
 import '../../data/repositories/yt_video_open_mode_store.dart';
 import '../../data/repositories/yt_video_tags.dart';
 import '../../data/repositories/yt_video_views.dart';
@@ -553,6 +554,11 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
                   _isSong
                       ? item('song', Icons.music_off_rounded, '取消歌曲')
                       : item('song', Icons.music_note_rounded, '標成歌曲'),
+                // 加到音樂功能（2026-10-19 使用者要求：任何分類都能加，抄一份
+                // 給音樂；已經加過的就是編輯）。
+                ref.read(musicVideoIdsProvider).contains(widget.video.videoId)
+                    ? item('music', Icons.queue_music_rounded, '在音樂功能裡・編輯')
+                    : item('music', Icons.queue_music_rounded, '加到音樂功能'),
                 item('save', Icons.playlist_add_rounded, '添加到播放清單'),
                 if (playlist != null) ...[
                   item('top', Icons.vertical_align_top_rounded, '移到最上面'),
@@ -603,6 +609,18 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
         await _unhide();
       case 'song':
         await _toggleSong();
+      case 'music':
+        final v = widget.video;
+        await showAddToMusicSheet(
+          context,
+          ref,
+          videoId: v.videoId,
+          videoTitle: v.title,
+          thumbnailUrl: v.thumbnailUrl,
+          channelName: widget.channelName ?? '',
+          publishedAt: v.publishedAt,
+          durationSec: v.duration?.inSeconds,
+        );
       case 'youtube':
         await openExternalUrl(context, widget.video.watchUrl);
     }
@@ -1046,6 +1064,17 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
                                             Icons.music_note_rounded,
                                             color: Color(0xFFFF8FB1),
                                             tooltip: '歌曲',
+                                          ),
+                                        // 在音樂功能裡（2026-10-19）：綠色 ♫。
+                                        // 看音樂自己那份資料，音樂裡刪掉這裡
+                                        // 就不見。
+                                        if (ref
+                                            .watch(musicVideoIdsProvider)
+                                            .contains(video.videoId))
+                                          const _StatusIcon(
+                                            Icons.queue_music_rounded,
+                                            color: Color(0xFF5FE08D),
+                                            tooltip: '在音樂功能裡',
                                           ),
                                         if (lists.isNotEmpty)
                                           _StatusIcon(

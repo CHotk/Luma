@@ -1,0 +1,260 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../app/providers.dart';
+import '../../app/theme/colors.dart';
+import '../../app/theme/typography.dart';
+import '../../data/repositories/yt_video_cache_store.dart';
+import '../../data/services/youtube_api_service.dart';
+import '../../domain/models/yt_tracker.dart';
+import 'add_to_music_sheet.dart';
+import 'music_widgets.dart';
+
+/// 音樂這邊按「＋」：從 YT 管理挑影片（2026-10-19）。先選頻道（任何分類都
+/// 行），再從那個頻道抓過的影片挑（YT 快取，不花配額）。[searchTitle] 有給
+/// （歌曲頁「加版本」）就直接列出所有頻道標題有這個歌名的影片。
+Future<void> showMusicAddFromYt(BuildContext context, {String? searchTitle}) =>
+    showMusicSheet<void>(
+      context,
+      (ctx) => SizedBox(
+        height: MediaQuery.of(ctx).size.height * 0.78,
+        child: _AddFromYt(searchTitle: searchTitle),
+      ),
+    );
+
+class _AddFromYt extends ConsumerStatefulWidget {
+  const _AddFromYt({this.searchTitle});
+
+  final String? searchTitle;
+
+  @override
+  ConsumerState<_AddFromYt> createState() => _AddFromYtState();
+}
+
+class _AddFromYtState extends ConsumerState<_AddFromYt> {
+  List<YtChannel>? _channels;
+  YtChannel? _channel;
+  List<YoutubeVideo>? _videos;
+
+  /// 歌名搜尋的結果：(影片, 頻道)。
+  List<(YoutubeVideo, YtChannel)>? _hits;
+  late final _q = TextEditingController(text: widget.searchTitle ?? '');
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _q.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    final all = await ref.read(ytTrackerRepositoryProvider).loadChannels();
+    final live = all.where((c) => c.deletedAt == null).toList()
+      ..sort((a, b) => a.name.compareTo(b.name));
+    if (!mounted) return;
+    setState(() => _channels = live);
+    if ((widget.searchTitle ?? '').isNotEmpty) _search();
+  }
+
+  Future<void> _open(YtChannel c) async {
+    setState(() {
+      _channel = c;
+      _videos = null;
+    });
+    final vs = await YtVideoCacheStore(
+      ref.read(keyValueStoreProvider),
+    ).load(c.id);
+    if (!mounted) return;
+    setState(() => _videos = vs);
+  }
+
+  /// 所有頻道的快取裡，標題有這幾個字的影片。
+  Future<void> _search() async {
+    final q = _q.text.trim().toLowerCase();
+    if (q.isEmpty || _channels == null) {
+      setState(() => _hits = null);
+      return;
+    }
+    final store = YtVideoCacheStore(ref.read(keyValueStoreProvider));
+    final out = <(YoutubeVideo, YtChannel)>[];
+    for (final c in _channels!) {
+      for (final v in await store.load(c.id)) {
+        if (v.title.toLowerCase().contains(q)) out.add((v, c));
+      }
+    }
+    out.sort((a, b) => b.$1.publishedAt.compareTo(a.$1.publishedAt));
+    if (mounted) setState(() => _hits = out);
+  }
+
+  Widget _videoRow(YoutubeVideo v, YtChannel c, Set<String> inMusic) {
+    final has = inMusic.contains(v.videoId);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          MusicCover(
+            url: v.thumbnailUrl,
+            fallback: v.title,
+            size: 80,
+            wide: true,
+            radius: 6,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  v.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 12.5, color: AppColors.ink),
+                ),
+                Text(
+                  '${c.name}・${v.publishedAt.year}',
+                  style: const TextStyle(fontSize: 11, color: AppColors.ink3),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 6),
+          has
+              ? const Text(
+                  '已在音樂',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF5FE08D),
+                  ),
+                )
+              : FilledButton(
+                  onPressed: () => showAddToMusicSheet(
+                    context,
+                    ref,
+                    videoId: v.videoId,
+                    videoTitle: v.title,
+                    thumbnailUrl: v.thumbnailUrl,
+                    channelName: c.name,
+                    channelAvatarUrl: c.avatarImageUrl,
+                    publishedAt: v.publishedAt,
+                    durationSec: v.duration?.inSeconds,
+                  ),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: musicPink,
+                    foregroundColor: const Color(0xFF2A0614),
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                  ),
+                  child: const Text('＋ 加'),
+                ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final inMusic = ref.watch(musicVideoIdsProvider);
+    final channels = _channels;
+    Widget body;
+    if (channels == null) {
+      body = const Center(child: CircularProgressIndicator.adaptive());
+    } else if (_hits != null && _channel == null) {
+      body = _hits!.isEmpty
+          ? Center(
+              child: Text(
+                'YT 快取裡沒有標題有「${_q.text.trim()}」的影片',
+                style: AppText.note,
+              ),
+            )
+          : ListView(
+              children: [for (final (v, c) in _hits!) _videoRow(v, c, inMusic)],
+            );
+    } else if (_channel == null) {
+      body = ListView(
+        children: [
+          for (final c in channels)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: CircleAvatar(
+                backgroundColor: AppColors.glassFill,
+                backgroundImage: c.avatarImageUrl.isEmpty
+                    ? null
+                    : NetworkImage(c.avatarImageUrl),
+                child: c.avatarImageUrl.isEmpty
+                    ? Text(c.name.characters.first)
+                    : null,
+              ),
+              title: Text(c.name, style: const TextStyle(color: AppColors.ink)),
+              trailing: const Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.ink3,
+              ),
+              onTap: () => _open(c),
+            ),
+        ],
+      );
+    } else if (_videos == null) {
+      body = const Center(child: CircularProgressIndicator.adaptive());
+    } else {
+      body = _videos!.isEmpty
+          ? Center(child: Text('這個頻道還沒抓過影片，先到 YT 管理打開它', style: AppText.note))
+          : ListView(
+              children: [
+                for (final v in _videos!) _videoRow(v, _channel!, inMusic),
+              ],
+            );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        musicSheetHandle(),
+        Row(
+          children: [
+            if (_channel != null)
+              IconButton(
+                onPressed: () => setState(() => _channel = null),
+                icon: const Icon(Icons.arrow_back_rounded),
+                color: AppColors.ink2,
+              ),
+            Expanded(
+              child: Text(
+                _channel?.name ?? '從 YT 管理挑',
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.ink,
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (_channel == null) ...[
+          const Text(
+            '任何分類的頻道都行；或打歌名，從所有頻道抓過的影片裡找',
+            style: TextStyle(fontSize: 11.5, color: AppColors.ink3),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _q,
+            onChanged: (_) => _search(),
+            style: const TextStyle(color: AppColors.ink),
+            decoration: musicInputDecoration('打歌名找影片（例如：晴天）').copyWith(
+              prefixIcon: const Icon(
+                Icons.search_rounded,
+                color: AppColors.ink3,
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+        ],
+        Expanded(child: body),
+      ],
+    );
+  }
+}
