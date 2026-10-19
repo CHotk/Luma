@@ -22,17 +22,17 @@ class MusicEvent {
 
   Map<String, dynamic> toJson() => {
     'id': id,
-    'at': at.toIso8601String(),
+    'at': at.toUtc().toIso8601String(),
     'text': text,
     if (versionId != null) 'v': versionId,
   };
 
   static MusicEvent? fromJson(Object? j) {
     if (j is! Map) return null;
-    final t = DateTime.tryParse(j['at'] as String? ?? '');
+    final t = DateTime.tryParse(j['at'] as String? ?? '')?.toLocal();
     if (t == null) return null;
     return MusicEvent(
-      id: j['id'] as String? ?? t.toIso8601String(),
+      id: j['id'] as String? ?? t.toUtc().toIso8601String(),
       at: t,
       text: j['text'] as String? ?? '',
       versionId: j['v'] as String?,

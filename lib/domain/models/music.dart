@@ -26,9 +26,13 @@ enum MusicVersionType {
       .firstWhere((t) => t.name == n, orElse: () => MusicVersionType.other);
 }
 
+// 時間存成 UTC、讀回來轉成這台裝置的時區（2026-10-19：以前存的是沒有時區的本地
+// 時間，兩台裝置時區不同就會差好幾小時，「後改的贏」會判錯）。舊資料沒有時區
+// 記號，照本地時間讀，不受影響。
 DateTime _date(Object? v) =>
-    DateTime.tryParse(v as String? ?? '') ?? DateTime(2000);
-DateTime? _dateOrNull(Object? v) => DateTime.tryParse(v as String? ?? '');
+    DateTime.tryParse(v as String? ?? '')?.toLocal() ?? DateTime(2000);
+DateTime? _dateOrNull(Object? v) =>
+    DateTime.tryParse(v as String? ?? '')?.toLocal();
 
 /// 同步用的共同欄位。
 abstract class MusicRecord {
@@ -101,8 +105,8 @@ class MusicArtist implements MusicRecord {
     'name': name,
     if (avatarUrls.isNotEmpty) 'avatars': avatarUrls,
     if (shownAvatar != 0) 'shown': shownAvatar,
-    'updatedAt': updatedAt.toIso8601String(),
-    if (deletedAt != null) 'deletedAt': deletedAt!.toIso8601String(),
+    'updatedAt': updatedAt.toUtc().toIso8601String(),
+    if (deletedAt != null) 'deletedAt': deletedAt!.toUtc().toIso8601String(),
   };
 
   factory MusicArtist.fromJson(Map<String, dynamic> j) => MusicArtist(
@@ -157,8 +161,8 @@ class MusicWork implements MusicRecord {
     'id': id,
     'title': title,
     'orig': originalArtistIds,
-    'updatedAt': updatedAt.toIso8601String(),
-    if (deletedAt != null) 'deletedAt': deletedAt!.toIso8601String(),
+    'updatedAt': updatedAt.toUtc().toIso8601String(),
+    if (deletedAt != null) 'deletedAt': deletedAt!.toUtc().toIso8601String(),
   };
 
   factory MusicWork.fromJson(Map<String, dynamic> j) => MusicWork(
@@ -264,11 +268,11 @@ class MusicVersion implements MusicRecord {
     'thumb': thumbnailUrl,
     'uploader': uploaderName,
     if (durationSec != null) 'dur': durationSec,
-    'publishedAt': publishedAt.toIso8601String(),
-    'addedAt': addedAt.toIso8601String(),
-    'updatedAt': updatedAt.toIso8601String(),
-    if (deletedAt != null) 'deletedAt': deletedAt!.toIso8601String(),
-    if (dislikedAt != null) 'dislikedAt': dislikedAt!.toIso8601String(),
+    'publishedAt': publishedAt.toUtc().toIso8601String(),
+    'addedAt': addedAt.toUtc().toIso8601String(),
+    'updatedAt': updatedAt.toUtc().toIso8601String(),
+    if (deletedAt != null) 'deletedAt': deletedAt!.toUtc().toIso8601String(),
+    if (dislikedAt != null) 'dislikedAt': dislikedAt!.toUtc().toIso8601String(),
   };
 
   factory MusicVersion.fromJson(Map<String, dynamic> j) => MusicVersion(
@@ -332,8 +336,8 @@ class MusicPlaylist implements MusicRecord {
     'id': id,
     'name': name,
     'ids': versionIds,
-    'updatedAt': updatedAt.toIso8601String(),
-    if (deletedAt != null) 'deletedAt': deletedAt!.toIso8601String(),
+    'updatedAt': updatedAt.toUtc().toIso8601String(),
+    if (deletedAt != null) 'deletedAt': deletedAt!.toUtc().toIso8601String(),
   };
 
   factory MusicPlaylist.fromJson(Map<String, dynamic> j) => MusicPlaylist(
@@ -494,6 +498,85 @@ class MusicData {
       workMap: m(a.workMap, b.workMap),
       versionMap: m(a.versionMap, b.versionMap),
       playlistMap: m(a.playlistMap, b.playlistMap),
+    ).mergeSameNameArtists();
+  }
+
+  /// 兩台裝置各自新增了同名的歌手（id 不一樣），同步合併後會變成兩個一模一樣的
+  /// 人。這裡把同名的合成一個：留 id 最小的（每台裝置算出來都一樣，不會互相
+  /// 打架），其他的標成刪除，歌／原唱裡指到它們的改指到留下的那個。改過的
+  /// 紀錄時間一律設成「這一群裡最晚的時間再 +1 毫秒」，才贏得過還沒合併的裝置
+  /// 送上來的舊版本，而且兩台算出來的時間也一樣。
+  MusicData mergeSameNameArtists() {
+    final groups = <String, List<MusicArtist>>{};
+    for (final a in artists) {
+      final n = a.name.trim();
+      if (n.isNotEmpty) (groups[n] ??= []).add(a);
+    }
+    final remap = <String, String>{};
+    final stamp = <String, DateTime>{};
+    final artistMap = {...this.artistMap};
+    for (final g in groups.values) {
+      if (g.length < 2) continue;
+      g.sort((x, y) => x.id.compareTo(y.id));
+      final keeper = g.first;
+      final t = g
+          .map((x) => x.updatedAt)
+          .reduce((x, y) => x.isAfter(y) ? x : y)
+          .add(const Duration(milliseconds: 1));
+      for (final dup in g.skip(1)) {
+        remap[dup.id] = keeper.id;
+        artistMap[dup.id] = dup.copyWith(updatedAt: t, deletedAt: t);
+        stamp[dup.id] = t;
+      }
+      // 留下的那個：沒有大頭貼就用重複那幾個的。
+      if (keeper.avatarUrls.isEmpty) {
+        final donor = g
+            .skip(1)
+            .where((x) => x.avatarUrls.isNotEmpty)
+            .firstOrNull;
+        if (donor != null) {
+          artistMap[keeper.id] = keeper.copyWith(
+            avatarUrls: donor.avatarUrls,
+            shownAvatar: donor.shownAvatar,
+            updatedAt: t,
+          );
+        }
+      }
+    }
+    if (remap.isEmpty) return this;
+    List<String> fix(List<String> ids) => [
+      ...{for (final id in ids) remap[id] ?? id},
+    ];
+    DateTime later(DateTime old) {
+      var best = old;
+      for (final t in stamp.values) {
+        if (t.isAfter(best)) best = t;
+      }
+      return best;
+    }
+
+    final workMap = {
+      for (final e in this.workMap.entries)
+        e.key: e.value.originalArtistIds.any(remap.containsKey)
+            ? e.value.copyWith(
+                originalArtistIds: fix(e.value.originalArtistIds),
+                updatedAt: later(e.value.updatedAt),
+              )
+            : e.value,
+    };
+    final versionMap = {
+      for (final e in this.versionMap.entries)
+        e.key: e.value.artistIds.any(remap.containsKey)
+            ? e.value.copyWith(
+                artistIds: fix(e.value.artistIds),
+                updatedAt: later(e.value.updatedAt),
+              )
+            : e.value,
+    };
+    return copyWith(
+      artistMap: artistMap,
+      workMap: workMap,
+      versionMap: versionMap,
     );
   }
 

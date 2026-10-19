@@ -24,7 +24,7 @@ class MusicPlay {
   String get key => '${at.toUtc().toIso8601String()}|$from|$mode';
 
   Map<String, dynamic> toJson() => {
-    'at': at.toIso8601String(),
+    'at': at.toUtc().toIso8601String(),
     if (from.isNotEmpty) 'from': from,
     if (mode.isNotEmpty) 'mode': mode,
   };
@@ -32,11 +32,11 @@ class MusicPlay {
   static MusicPlay? fromJson(Object? j) {
     // 2026-10-19 最早幾筆只存時間字串。
     if (j is String) {
-      final t = DateTime.tryParse(j);
+      final t = DateTime.tryParse(j)?.toLocal();
       return t == null ? null : MusicPlay(at: t);
     }
     if (j is! Map) return null;
-    final t = DateTime.tryParse(j['at'] as String? ?? '');
+    final t = DateTime.tryParse(j['at'] as String? ?? '')?.toLocal();
     if (t == null) return null;
     return MusicPlay(
       at: t,

@@ -6,7 +6,9 @@
 /// 刪除用墓碑標記，所有新增／修改／刪除另外記一筆 [TallyEvent]（一筆都不刪）。
 library;
 
-DateTime? _date(Object? v) => v == null ? null : DateTime.parse(v as String);
+// 時間存成 UTC、讀回來轉成這台裝置的時區，兩台裝置時區不同也不會錯。
+DateTime? _date(Object? v) =>
+    v == null ? null : DateTime.parse(v as String).toLocal();
 
 /// 一個帳本（通常就是一個朋友）。
 class TallyBook {
@@ -39,8 +41,8 @@ class TallyBook {
   Map<String, dynamic> toJson() => {
     'id': id,
     'name': name,
-    'createdAt': createdAt.toIso8601String(),
-    'updatedAt': updatedAt.toIso8601String(),
+    'createdAt': createdAt.toUtc().toIso8601String(),
+    'updatedAt': updatedAt.toUtc().toIso8601String(),
     'deletedAt': deletedAt?.toIso8601String(),
   };
 
@@ -113,9 +115,9 @@ class TallyItem {
     'plus': plus,
     'amount': amount,
     'note': note,
-    'at': at.toIso8601String(),
-    'createdAt': createdAt.toIso8601String(),
-    'updatedAt': updatedAt.toIso8601String(),
+    'at': at.toUtc().toIso8601String(),
+    'createdAt': createdAt.toUtc().toIso8601String(),
+    'updatedAt': updatedAt.toUtc().toIso8601String(),
     'deletedAt': deletedAt?.toIso8601String(),
   };
 
@@ -191,7 +193,7 @@ class TallyEvent {
 
   Map<String, dynamic> toJson() => {
     'id': id,
-    'at': at.toIso8601String(),
+    'at': at.toUtc().toIso8601String(),
     'action': action.code,
     'bookId': bookId,
     'bookName': bookName,

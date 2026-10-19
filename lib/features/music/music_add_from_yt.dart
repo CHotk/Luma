@@ -6,6 +6,8 @@ import '../../app/theme/colors.dart';
 import '../../app/theme/typography.dart';
 import '../../data/repositories/yt_video_cache_store.dart';
 import '../../data/services/youtube_api_service.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import '../../domain/models/yt_tracker.dart';
 import 'add_to_music_sheet.dart';
 import 'music_widgets.dart';
@@ -45,6 +47,15 @@ class _AddFromYtState extends ConsumerState<_AddFromYt> {
   List<(YoutubeVideo, YtChannel)>? _hits;
   late final _q = TextEditingController(text: widget.searchTitle ?? '');
 
+  /// 貼了 YouTube 網址：查到的那部影片（null＝還沒貼或抓不到）。
+  YoutubeVideo? _pasted;
+  String? _pastedChannel;
+  DateTime? _pastedAt;
+  int? _pastedDur;
+  String? _pastedNote;
+  bool _fetching = false;
+  final _url = TextEditingController();
+
   @override
   void initState() {
     super.initState();
@@ -54,6 +65,7 @@ class _AddFromYtState extends ConsumerState<_AddFromYt> {
   @override
   void dispose() {
     _q.dispose();
+    _url.dispose();
     super.dispose();
   }
 
@@ -78,6 +90,131 @@ class _AddFromYtState extends ConsumerState<_AddFromYt> {
     setState(() => _videos = vs);
   }
 
+  /// 貼網址：先用 YT API 金鑰查（有標題、頻道、時長）；沒有金鑰或查不到，
+  /// 退而用 YouTube 的 oEmbed（只有標題、頻道），再不行就只用縮圖加手動
+  /// 輸入歌名（加的視窗本來就能改歌名）。
+  Future<void> _onUrl(String text) async {
+    final id = YoutubeApiService.parseVideoId(text);
+    if (id == null) {
+      setState(() {
+        _pasted = null;
+        _pastedNote = text.trim().isEmpty ? null : '這不像 YouTube 影片網址';
+      });
+      return;
+    }
+    setState(() {
+      _fetching = true;
+      _pastedNote = null;
+    });
+    String title = '',
+        channel = '',
+        thumb = 'https://i.ytimg.com/vi/$id/mqdefault.jpg';
+    var at = DateTime.now();
+    int? dur;
+    String? note;
+    try {
+      final key = ref.read(ytApiKeyProvider);
+      if (key != null && key.isNotEmpty) {
+        final info = await YoutubeApiService(key).fetchVideoInfo(id);
+        if (info == null) {
+          note = '找不到這部影片（可能是私人或已刪除）';
+        } else {
+          title = info.title;
+          channel = info.channelName;
+          thumb = info.thumbnailUrl;
+          at = info.publishedAt;
+          dur = info.duration?.inSeconds;
+        }
+      } else {
+        final r = await http
+            .get(
+              Uri.https('www.youtube.com', '/oembed', {
+                'url': 'https://www.youtube.com/watch?v=$id',
+                'format': 'json',
+              }),
+            )
+            .timeout(const Duration(seconds: 12));
+        if (r.statusCode == 200) {
+          final j = jsonDecode(r.body) as Map<String, dynamic>;
+          title = j['title'] as String? ?? '';
+          channel = j['author_name'] as String? ?? '';
+        } else {
+          note = '查不到影片資料，歌名請自己打';
+        }
+      }
+    } catch (_) {
+      note = '查不到影片資料（網路或權限問題），歌名請自己打';
+    }
+    if (!mounted || YoutubeApiService.parseVideoId(_url.text) != id) return;
+    setState(() {
+      _fetching = false;
+      _pastedNote = note;
+      if (note != null && note.startsWith('找不到')) {
+        _pasted = null;
+        return;
+      }
+      _pasted = YoutubeVideo(
+        videoId: id,
+        title: title,
+        publishedAt: at,
+        thumbnailUrl: thumb,
+      );
+      _pastedChannel = channel;
+      _pastedAt = at;
+      _pastedDur = dur;
+    });
+  }
+
+  /// 貼網址查到的那部影片那一列（跟從 YT 管理挑的一樣長相、一樣按「＋ 加」）。
+  Widget _pastedBlock(Set<String> inMusic) {
+    final v = _pasted;
+    final ch = YtChannel(
+      id: '',
+      name: _pastedChannel ?? '',
+      categoryId: '',
+      addedAt: DateTime.now(),
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TextField(
+          controller: _url,
+          onChanged: _onUrl,
+          style: const TextStyle(color: AppColors.ink),
+          decoration: musicInputDecoration('貼 YouTube 影片網址').copyWith(
+            prefixIcon: const Icon(Icons.link_rounded, color: AppColors.ink3),
+            suffixIcon: _fetching
+                ? const Padding(
+                    padding: EdgeInsets.all(12),
+                    child: SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                : null,
+          ),
+        ),
+        if (_pastedNote != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(
+              _pastedNote!,
+              style: const TextStyle(fontSize: 12.5, color: AppColors.mid),
+            ),
+          ),
+        if (v != null)
+          _videoRow(
+            v,
+            ch,
+            inMusic,
+            publishedAt: _pastedAt,
+            durationSec: _pastedDur,
+          ),
+      ],
+    );
+  }
+
   /// 所有頻道的快取裡，標題有這幾個字的影片。
   Future<void> _search() async {
     final q = _q.text.trim().toLowerCase();
@@ -96,7 +233,13 @@ class _AddFromYtState extends ConsumerState<_AddFromYt> {
     if (mounted) setState(() => _hits = out);
   }
 
-  Widget _videoRow(YoutubeVideo v, YtChannel c, Set<String> inMusic) {
+  Widget _videoRow(
+    YoutubeVideo v,
+    YtChannel c,
+    Set<String> inMusic, {
+    DateTime? publishedAt,
+    int? durationSec,
+  }) {
     final has = inMusic.contains(v.videoId);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
@@ -115,7 +258,7 @@ class _AddFromYtState extends ConsumerState<_AddFromYt> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  v.title,
+                  v.title.isEmpty ? '（查不到標題，加的時候自己打歌名）' : v.title,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontSize: 12.5, color: AppColors.ink),
@@ -146,8 +289,8 @@ class _AddFromYtState extends ConsumerState<_AddFromYt> {
                     thumbnailUrl: v.thumbnailUrl,
                     channelName: c.name,
                     channelAvatarUrl: c.avatarImageUrl,
-                    publishedAt: v.publishedAt,
-                    durationSec: v.duration?.inSeconds,
+                    publishedAt: publishedAt ?? v.publishedAt,
+                    durationSec: durationSec ?? v.duration?.inSeconds,
                     artistId: widget.forArtistId,
                   ),
                   style: FilledButton.styleFrom(
@@ -244,8 +387,10 @@ class _AddFromYtState extends ConsumerState<_AddFromYt> {
           ],
         ),
         if (_channel == null) ...[
+          _pastedBlock(inMusic),
+          const SizedBox(height: 12),
           const Text(
-            '任何分類的頻道都行；或打歌名，從所有頻道抓過的影片裡找',
+            '或選頻道、打歌名，從 YT 管理抓過的影片裡找',
             style: TextStyle(fontSize: 11.5, color: AppColors.ink3),
           ),
           const SizedBox(height: 8),

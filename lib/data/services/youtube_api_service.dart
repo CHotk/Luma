@@ -486,6 +486,49 @@ class YoutubeApiService {
     );
   }
 
+  /// 查單一影片的基本資料（2026-10-19 音樂貼網址加歌用）：標題、頻道名稱、
+  /// 上傳時間、縮圖、時長。找不到（私人、已刪除）回 null。1 單位配額。
+  Future<
+    ({
+      String title,
+      String channelName,
+      DateTime publishedAt,
+      String thumbnailUrl,
+      Duration? duration,
+    })?
+  >
+  fetchVideoInfo(String videoId) async {
+    final items = await _videosList('snippet,contentDetails', [videoId]);
+    if (items.isEmpty) return null;
+    final sn = items.first['snippet'] as Map<String, dynamic>;
+    final th = (sn['thumbnails'] as Map<String, dynamic>?) ?? const {};
+    final thumb = (th['medium'] ?? th['high'] ?? th['default']) as Map?;
+    final dur = (items.first['contentDetails'] as Map?)?['duration'] as String?;
+    return (
+      title: sn['title'] as String? ?? '',
+      channelName: sn['channelTitle'] as String? ?? '',
+      publishedAt:
+          DateTime.tryParse(sn['publishedAt'] as String? ?? '') ??
+          DateTime.now(),
+      thumbnailUrl:
+          thumb?['url'] as String? ??
+          'https://i.ytimg.com/vi/$videoId/mqdefault.jpg',
+      duration: dur == null ? null : parseIso8601Duration(dur),
+    );
+  }
+
+  /// 從貼上的文字抓出 YouTube 影片 ID（watch?v=、youtu.be/、shorts/、embed/、
+  /// live/、music.youtube.com 都行，前後有別的字也行）。抓不到回 null。
+  static String? parseVideoId(String text) {
+    final t = text.trim();
+    final m = RegExp(
+      r'(?:youtu\.be/|[?&]v=|/(?:shorts|embed|live|v)/)([A-Za-z0-9_-]{11})',
+    ).firstMatch(t);
+    if (m != null) return m.group(1);
+    // 直接貼 11 碼 ID。
+    return RegExp(r'^[A-Za-z0-9_-]{11}$').hasMatch(t) ? t : null;
+  }
+
   /// 補影片長度——`videos.list` 一次最多吃 50 個 id，`videoIds` 超過 50
   /// 筆（統計圖抓全部歷史影片時很常見）就切成好幾批依序呼叫，每批
   /// 1 單位配額，跟一次呼叫的用量算法一樣，只是拆開打。
