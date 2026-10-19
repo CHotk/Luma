@@ -437,7 +437,7 @@ Future<T?> showMusicSheet<T>(
 Widget musicSheetHandle() => const SizedBox(height: 2);
 
 /// 新增／編輯歌手（2026-10-19 使用者要求）：打名字、直接貼大頭貼網址（最多
-/// 5 張，照順序是預設、備用 2～5），每張旁邊即時預覽；點「顯示這張」選要顯示
+/// 5 張，照順序是預設、大頭貼 2～5），每張旁邊即時預覽；點「顯示這張」選要顯示
 /// 哪一張，那張壞了就照順序換下一張。回傳 (名字, 網址們, 顯示第幾張)；取消是 null。
 Future<({String name, List<String> avatarUrls, int shownAvatar})?>
 promptMusicArtist(
@@ -452,7 +452,7 @@ promptMusicArtist(
       TextEditingController(text: u),
   ];
   var shown = shownAvatar.clamp(0, urlCs.length - 1);
-  String label(int i) => i == 0 ? '預設' : '備用 ${i + 1}';
+  String label(int i) => i == 0 ? '預設' : '大頭貼 ${i + 1}';
   return showMusicSheet<
     ({String name, List<String> avatarUrls, int shownAvatar})
   >(
@@ -498,7 +498,7 @@ promptMusicArtist(
               style: const TextStyle(color: AppColors.ink, fontSize: 15),
               decoration: musicInputDecoration('例如：周杰倫'),
             ),
-            musicFieldLabel('大頭貼網址（直接貼，最多 ${MusicArtist.maxAvatars} 張，照順序是備用）'),
+            musicFieldLabel('大頭貼網址（直接貼，最多 ${MusicArtist.maxAvatars} 張，壞了照順序換下一張）'),
             for (var i = 0; i < urlCs.length; i++)
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
@@ -590,7 +590,7 @@ promptMusicArtist(
                   onPressed: () =>
                       setS(() => urlCs.add(TextEditingController())),
                   icon: const Icon(Icons.add_rounded, size: 18),
-                  label: Text('再加一張（${label(urlCs.length)}）'),
+                  label: Text(label(urlCs.length)),
                 ),
               ),
             const SizedBox(height: 12),
