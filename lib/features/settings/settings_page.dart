@@ -15,6 +15,7 @@ import '../../domain/rules_config.dart';
 import 'all_settings_page.dart' show SettingsSection;
 import 'settings_anchor.dart';
 import 'settings_controller.dart';
+import '../../app/update_check.dart' show buildId;
 
 /// 英文學習的設定（設定頁「英文」那段，2026-10-15 全部功能併成一頁）。
 /// 改完立即生效，不用按確定。
@@ -353,7 +354,9 @@ class VersionFooter extends StatelessWidget {
         final info = snap.data;
         final label = info == null
             ? '讀取版本號中…'
-            : 'v${info.version}+${info.buildNumber}';
+            : 'v${info.version}+${info.buildNumber}'
+                  // 部署編號（2026-10-20）：看手機是不是最新版用，跟電腦對一下就知道
+                  '${buildId.isEmpty ? '' : '・版本 $buildId'}';
         return Center(child: Text(label, style: AppText.note));
       },
     );

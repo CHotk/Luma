@@ -28,7 +28,10 @@ import 'data/repositories/yt_video_open_mode_store.dart';
 import 'data/seed/app_defaults_loader.dart';
 import 'data/storage/platform_store.dart';
 import 'data/storage/retired_data_cleanup.dart';
+import 'app/router.dart' show rootNavigatorKey;
+import 'app/update_check.dart';
 import 'shared/debug/app_log.dart';
+import 'shared/widgets/app_notice.dart';
 
 /// 開機流程做兩件事：把要非同步準備的儲存後端先開好，
 /// 也把單字庫標籤排序這種讀資產檔的設定先讀好，再用 override 注進
@@ -127,6 +130,9 @@ Future<void> _start() async {
         child: const LumeApp(),
       ),
     );
+    // 有新版本就提醒（2026-10-20：手機加入主畫面的 Lume 常卡在舊版，同步來的資料
+    // 讀不懂，歌手大頭貼就是這樣「沒同步」）。開機後等一下再查，不搶開機。
+    _checkUpdateLater();
   } catch (e, stack) {
     AppLog.add('開機失敗：$e\n$stack', isError: true);
     runApp(_StartupErrorApp(message: '$e'));
@@ -211,4 +217,22 @@ void _wireAppLog() {
     AppLog.add('$error\n$stack', isError: true);
     return false;
   };
+}
+
+void _checkUpdateLater() {
+  Future<void>.delayed(const Duration(seconds: 4), () async {
+    if (!await hasNewerBuild()) return;
+    final nav = rootNavigatorKey.currentState;
+    final ctx = rootNavigatorKey.currentContext;
+    if (nav == null || ctx == null || !ctx.mounted) return;
+    showAppNotice(
+      ctx,
+      '有新版本',
+      detail: '點「更新」換成最新版（資料不會不見）',
+      overlay: nav.overlay,
+      duration: const Duration(seconds: 15),
+      actionLabel: '更新',
+      onAction: reloadToLatest,
+    );
+  });
 }
