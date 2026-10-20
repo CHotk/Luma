@@ -30,8 +30,6 @@ import '../repositories/smoking_repository.dart';
 import '../repositories/trade_repository.dart';
 import '../../domain/models/drinking_entry.dart';
 import '../repositories/drinking_repository.dart';
-import '../repositories/tally_repository.dart';
-import '../../domain/models/tally.dart';
 import '../repositories/fitness_repository.dart';
 import '../repositories/history_repository.dart';
 import '../repositories/kana_exam_repository.dart';
@@ -1196,41 +1194,6 @@ class R2SyncService {
     allForUpload: repo.allForUpload,
     onPhase: onPhase,
   );
-
-  /// 記帳（2026-10-19）：帳本、每一筆、異動紀錄三個檔，各自獨立一份。
-  Future<({int downloaded, int uploaded})> syncTally(
-    TallyRepository repo, {
-    void Function(SyncPhase phase)? onPhase,
-  }) async {
-    final books = await _syncRecords<TallyBook>(
-      key: 'tally_books.json',
-      fromJson: TallyBook.fromJson,
-      toJson: (e) => e.toJson(),
-      mergeFromCloud: repo.mergeBooksFromCloud,
-      allForUpload: repo.booksForUpload,
-      onPhase: onPhase,
-    );
-    final items = await _syncRecords<TallyItem>(
-      key: 'tally_items.json',
-      fromJson: TallyItem.fromJson,
-      toJson: (e) => e.toJson(),
-      mergeFromCloud: repo.mergeItemsFromCloud,
-      allForUpload: repo.itemsForUpload,
-      onPhase: onPhase,
-    );
-    final events = await _syncRecords<TallyEvent>(
-      key: 'tally_events.json',
-      fromJson: TallyEvent.fromJson,
-      toJson: (e) => e.toJson(),
-      mergeFromCloud: repo.mergeEventsFromCloud,
-      allForUpload: repo.eventsForUpload,
-      onPhase: onPhase,
-    );
-    return (
-      downloaded: books.downloaded + items.downloaded + events.downloaded,
-      uploaded: books.uploaded + items.uploaded + events.uploaded,
-    );
-  }
 
   /// 五十音／詞彙考試紀錄（`kana_exam.json`）。
   Future<({int downloaded, int uploaded})> syncKanaExam(

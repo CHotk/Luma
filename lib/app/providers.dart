@@ -5,7 +5,6 @@ import '../data/repositories/debt_repository.dart';
 import '../data/repositories/trade_repository.dart';
 import '../data/repositories/smoking_repository.dart';
 import '../data/repositories/drinking_repository.dart';
-import '../data/repositories/tally_repository.dart';
 import '../data/repositories/diary_repository.dart';
 import '../data/repositories/error_log_repository.dart';
 import '../data/repositories/fitness_repository.dart';
@@ -99,11 +98,6 @@ final smokingRepositoryProvider = Provider<SmokingRepository>(
 
 final drinkingRepositoryProvider = Provider<DrinkingRepository>(
   (ref) => DrinkingRepository(ref.watch(keyValueStoreProvider)),
-);
-
-/// 簡單記帳（2026-10-19）。
-final tallyRepositoryProvider = Provider<TallyRepository>(
-  (ref) => TallyRepository(ref.watch(keyValueStoreProvider)),
 );
 
 final fitnessRepositoryProvider = Provider<FitnessRepository>(

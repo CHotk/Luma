@@ -10,7 +10,7 @@ import '../features/crypto_watch/trade_report_page.dart';
 import '../features/smoking_log/smoking_page.dart';
 import '../features/smoking_log/smoking_stats_page.dart';
 import '../features/drinking_log/drinking_page.dart';
-import '../features/tally/tally_pages.dart';
+import '../shared/web/web_redirect.dart';
 import '../features/drinking_log/drinking_stats_page.dart';
 import '../features/app_home/app_home_page.dart';
 
@@ -119,16 +119,18 @@ final appRouter = GoRouter(
       path: '/drinking-log/stats',
       builder: (_, _) => const DrinkingStatsPage(),
     ),
-    // 記帳（2026-10-19）：沒有帳本概念，打開就是一本帳。
-    GoRoute(path: '/tally', builder: (_, _) => const TallyEntryPage()),
-    GoRoute(path: '/tally/log', builder: (_, _) => const TallyLogPage()),
-    // 分享給朋友的獨立網址：#/tally-solo（沒有返回、選單、設定、
-    // 異動紀錄入口）。
-    GoRoute(
-      path: '/tally-solo',
-      builder: (_, s) =>
-          const TallyEntryPage(solo: true),
-    ),
+    // 記帳 2026-10-20 搬出去成獨立 App（cen_tally）。舊網址（給朋友的
+    // #/tally-solo 等）直接轉過去，連結不會壞。
+    for (final p in ['/tally', '/tally/log', '/tally-solo'])
+      GoRoute(
+        path: p,
+        redirect: (_, _) {
+          redirectTo(
+            'https://chotk.github.io/cen_tally/${p == '/tally/log' ? '#/log' : ''}',
+          );
+          return '/start';
+        },
+      ),
     GoRoute(path: '/start', builder: (_, _) => const AppHomePage()),
     // 音樂功能（2026-10-19）：首頁／搜尋／音樂庫三格，歌手、歌曲、歌單疊上去。
     GoRoute(path: '/music', builder: (_, _) => const MusicHomePage()),

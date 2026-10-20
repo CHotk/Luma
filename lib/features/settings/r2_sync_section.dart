@@ -133,7 +133,6 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
     ('smoking', '抽菸記錄'),
     ('drinking', '喝酒記錄'),
     ('debt', '負債管理'),
-    ('tally', '記帳'),
   ];
   _FeaturePhase get _syncLogPhase => _ui.syncLog;
   set _syncLogPhase(_FeaturePhase v) => _ui.syncLog = v;
@@ -626,14 +625,6 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
           (p) => _habitPhases['drinking'] = p,
           (onPhase) => service.syncDrinking(
             container.read(drinkingRepositoryProvider),
-            onPhase: onPhase,
-          ),
-        ),
-        run(
-          '記帳',
-          (p) => _habitPhases['tally'] = p,
-          (onPhase) => service.syncTally(
-            container.read(tallyRepositoryProvider),
             onPhase: onPhase,
           ),
         ),
