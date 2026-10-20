@@ -1,0 +1,593 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>聖誕雪球</title>
+<!--
+  2026-10-20 使用者要求：Lume 也要一份雪球，是一個獨立功能叫「聖誕雪球」，Lume 版本功能豐富一點，
+  先給設計稿。延續 2026-10-20_3D聖誕雪球.html 那顆（Three.js），多了：四種場景、挑小動物、
+  點動物會跳、底座字牌自己打、音樂盒、聖誕倒數、存成圖片、搖手機搖雪球。
+  畫面照 Lume 的樣子（深色毛玻璃、上方標題列＋選單／設定、下方膠囊分頁）。
+-->
+<style>
+  :root { --bg: #0C0C13; --ink: #F3F2F8; --ink2: #A3A2B2; --ink3: #74738A; --edge: rgba(255,255,255,.14);
+    --glass: rgba(255,255,255,.07); --accent: #7EA6FF; --gold: #F2C46D; }
+  * { box-sizing: border-box; }
+  html { background: #05060b; }
+  body { margin: 0; min-height: 100%; color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+    background: radial-gradient(1000px 600px at 15% -10%, #1b2140, transparent 60%), radial-gradient(900px 600px at 110% 110%, #2a1a2a, transparent 60%), #05060b; }
+  .page { max-width: 1120px; margin: 0 auto; padding: 26px 20px 60px; display: flex; gap: 40px; flex-wrap: wrap; justify-content: center; align-items: flex-start; }
+  .intro { width: 100%; } .intro h1 { margin: 0; font-size: 24px; } .intro p { margin: 6px 0 0; color: var(--ink2); font-size: 14px; line-height: 1.6; }
+
+  .phone { flex-shrink: 0; width: 375px; height: 790px; min-height: 790px; border-radius: 46px; padding: 12px; background: #111;
+    box-shadow: 0 0 0 2px #2a2a33, 0 30px 80px rgba(0,0,0,.6); }
+  .screen { position: relative; width: 100%; height: 100%; border-radius: 36px; overflow: hidden; background: var(--bg); }
+  #c { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+
+  .top { position: absolute; left: 0; right: 0; top: 0; padding: 12px 14px 22px; pointer-events: none; z-index: 3;
+    /* 白天天空很亮：標題列後面墊一層由深到透明，字才看得清楚 */
+    background: linear-gradient(rgba(8,8,14,.62), rgba(8,8,14,.32) 65%, rgba(8,8,14,0)); }
+  .status { height: 20px; display: flex; justify-content: space-between; font-size: 12px; color: var(--ink2); padding: 0 8px; }
+  .bar { display: flex; align-items: center; gap: 6px; height: 44px; }
+  .ib { pointer-events: auto; width: 36px; height: 36px; border: 0; background: transparent; color: var(--ink2); font-size: 19px; cursor: pointer; border-radius: 10px; }
+  .ib:active { background: rgba(255,255,255,.08); }
+  .bar h2 { margin: 0; font-size: 19px; font-weight: 800; flex: 1; display: flex; align-items: center; gap: 6px; }
+  .bar h2 i { font-style: normal; font-size: 17px; }
+  .count { pointer-events: auto; margin: 4px 6px 0; display: inline-flex; align-items: center; gap: 8px; padding: 7px 12px; border-radius: 999px;
+    background: rgba(10,10,18,.5); border: 1px solid var(--edge); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); font-size: 13px; color: #d6d5e2; }
+  .count b { color: var(--gold); font-size: 15px; }
+
+  .fab { position: absolute; right: 16px; bottom: 104px; z-index: 4; border: 1px solid rgba(255,220,150,.6); cursor: pointer;
+    background: linear-gradient(180deg, rgba(242,196,109,.95), rgba(214,150,62,.95)); color: #2a1a05; font-weight: 800; font-size: 15px;
+    padding: 13px 18px; border-radius: 18px; box-shadow: 0 10px 24px rgba(0,0,0,.35); font-family: inherit; }
+  .fab:active { transform: scale(.96); }
+  .hint { position: absolute; left: 16px; bottom: 112px; z-index: 4; font-size: 12px; color: var(--ink2); background: rgba(0,0,0,.35);
+    padding: 6px 10px; border-radius: 999px; transition: opacity .6s; pointer-events: none; }
+
+  .tabs { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 5; display: flex; gap: 4px; padding: 6px;
+    border-radius: 999px; background: rgba(20,20,32,.55); border: 1px solid var(--edge); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+  .tab { border: 0; background: transparent; color: var(--ink2); font-family: inherit; font-size: 12px; cursor: pointer; padding: 6px 12px 5px; border-radius: 999px;
+    display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 62px; }
+  .tab span { font-size: 18px; line-height: 1; }
+  .tab.on { background: rgba(126,166,255,.18); color: var(--accent); }
+
+  .sheet { position: absolute; left: 10px; right: 10px; bottom: 84px; z-index: 6; border-radius: 24px; padding: 16px 16px 14px;
+    background: rgba(18,18,30,.78); border: 1px solid var(--edge); backdrop-filter: blur(22px); -webkit-backdrop-filter: blur(22px);
+    transform: translateY(20px); opacity: 0; pointer-events: none; transition: all .28s cubic-bezier(.2,.9,.3,1); max-height: 52%; overflow: auto; }
+  .sheet.show { transform: none; opacity: 1; pointer-events: auto; }
+  .sheet h3 { margin: 0 0 4px; font-size: 16px; display: flex; justify-content: space-between; align-items: center; }
+  .sheet h3 button { border: 0; background: rgba(255,255,255,.08); color: var(--ink2); width: 28px; height: 28px; border-radius: 9px; cursor: pointer; }
+  .sheet .sub { font-size: 12.5px; color: var(--ink3); margin-bottom: 12px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .opt { border: 1px solid var(--edge); background: rgba(255,255,255,.05); color: var(--ink); border-radius: 16px; padding: 12px; text-align: left;
+    font-family: inherit; cursor: pointer; display: flex; gap: 10px; align-items: center; font-size: 14px; }
+  .opt .sw { width: 38px; height: 38px; border-radius: 12px; flex-shrink: 0; display: grid; place-items: center; font-size: 20px; }
+  .opt small { display: block; color: var(--ink3); font-size: 11.5px; margin-top: 2px; }
+  .opt.on { border-color: rgba(242,196,109,.7); background: rgba(242,196,109,.12); }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { border: 1px solid var(--edge); background: rgba(255,255,255,.05); color: var(--ink2); border-radius: 999px; padding: 9px 14px; font-size: 14px; cursor: pointer; font-family: inherit; }
+  .chip.on { border-color: rgba(126,166,255,.6); background: rgba(126,166,255,.16); color: var(--ink); }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 2px; border-top: 1px solid rgba(255,255,255,.07); font-size: 14.5px; }
+  .row:first-of-type { border-top: 0; } .row small { display: block; color: var(--ink3); font-size: 12px; }
+  .tog { width: 46px; height: 28px; border-radius: 999px; background: rgba(255,255,255,.14); position: relative; cursor: pointer; flex-shrink: 0; border: 0; }
+  .tog::after { content: ''; position: absolute; left: 3px; top: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; transition: left .2s; }
+  .tog.on { background: #5FE08D; } .tog.on::after { left: 21px; }
+  .seg { display: flex; background: rgba(255,255,255,.06); border-radius: 12px; padding: 3px; }
+  .seg button { border: 0; background: transparent; color: var(--ink2); font-family: inherit; padding: 7px 10px; border-radius: 9px; font-size: 13px; cursor: pointer; }
+  .seg button.on { background: rgba(255,255,255,.14); color: var(--ink); }
+  input[type=range] { accent-color: var(--gold); width: 140px; }
+  .plaqueIn { width: 100%; padding: 13px 14px; border-radius: 14px; border: 1px solid var(--edge); background: rgba(255,255,255,.06); color: var(--ink);
+    font-size: 16px; font-family: inherit; outline: none; }
+  .plaqueIn:focus { border-color: var(--gold); }
+  .presets { margin-top: 10px; }
+  .btnRow { display: flex; gap: 10px; margin-top: 12px; }
+  .btn { flex: 1; border: 1px solid var(--edge); background: rgba(255,255,255,.07); color: var(--ink); border-radius: 14px; padding: 12px; font-size: 14.5px; font-weight: 700; cursor: pointer; font-family: inherit; }
+  .toast { position: absolute; left: 50%; top: 96px; transform: translate(-50%, -16px); opacity: 0; z-index: 9; background: rgba(30,30,44,.94);
+    border: 1px solid var(--edge); padding: 9px 14px; border-radius: 999px; font-size: 13px; transition: all .3s; white-space: nowrap; pointer-events: none; }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  .loading { position: absolute; inset: 0; z-index: 8; display: grid; place-items: center; background: var(--bg); color: var(--ink2); font-size: 13px; transition: opacity .5s; }
+  .loading.hide { opacity: 0; pointer-events: none; }
+  .spin { width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(255,255,255,.15); border-top-color: rgba(255,255,255,.7); animation: s .8s linear infinite; margin: 0 auto 10px; }
+  @keyframes s { to { transform: rotate(360deg); } }
+
+  aside { width: 400px; max-width: 100%; }
+  aside .card { border-radius: 20px; padding: 20px 22px; background: rgba(255,255,255,.06); border: 1px solid var(--edge); }
+  aside h2 { margin: 0 0 6px; font-size: 19px; } aside h3 { margin: 16px 0 6px; font-size: 14.5px; color: var(--gold); }
+  aside ul { margin: 0; padding-left: 18px; color: var(--ink2); font-size: 14px; line-height: 1.75; }
+  aside code { background: rgba(255,255,255,.08); padding: 1px 6px; border-radius: 6px; color: var(--ink); }
+  @media (max-width: 440px) { .page { padding: 16px 8px 40px; } .phone { width: 100%; height: 760px; min-height: 760px; padding: 8px; border-radius: 38px; } }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div class="page">
+  <div class="intro">
+    <h1>❄ 聖誕雪球・Lume 獨立功能設計稿</h1>
+    <p>左邊是 App 裡的畫面，可以直接玩：拖著轉、雙指／滾輪縮放、點空白處搖一搖、<b>點小動物牠會跳</b>。下面分頁切換「場景／動物／字牌／設定」。</p>
+  </div>
+
+  <div class="phone"><div class="screen" id="screen">
+    <canvas id="c"></canvas>
+    <div class="top">
+      <div class="status"><span>9:41</span><span>●●● 5G 🔋</span></div>
+      <div class="bar">
+        <button class="ib" title="選單">☰</button>
+        <h2><i>🎄</i>聖誕雪球</h2>
+        <button class="ib" id="saveBtn" title="存成圖片">⤓</button>
+        <button class="ib" title="設定">⚙</button>
+      </div>
+      <div class="count" id="count">🎅 距離聖誕節還有 <b id="days">-</b> 天</div>
+    </div>
+    <div class="hint" id="hint">點小動物牠會跳 🐾</div>
+    <button class="fab" id="shake">✨ 搖一搖</button>
+
+    <div class="sheet" id="sheet-scene">
+      <h3>場景 <button data-close>✕</button></h3>
+      <div class="sub">換整顆雪球裡的季節。雪會跟著換成花瓣、落葉、泡泡。</div>
+      <div class="grid" id="sceneGrid"></div>
+    </div>
+    <div class="sheet" id="sheet-pets">
+      <h3>小動物 <button data-close>✕</button></h3>
+      <div class="sub">挑誰住在雪球裡（最少一隻）。在雪球裡點牠，牠會跳起來。</div>
+      <div class="chips" id="petChips"></div>
+      <div class="row" style="margin-top:10px"><div>跑快一點<small>小動物跑步速度</small></div><input type="range" id="speed" min=".4" max="2" step=".1" value="1"></div>
+    </div>
+    <div class="sheet" id="sheet-plaque">
+      <h3>底座字牌 <button data-close>✕</button></h3>
+      <div class="sub">刻在木頭底座上的那排金字，最多 16 個字。</div>
+      <input class="plaqueIn" id="plaqueIn" maxlength="16" value="Merry Christmas">
+      <div class="chips presets" id="presets"></div>
+    </div>
+    <div class="sheet" id="sheet-set">
+      <h3>設定 <button data-close>✕</button></h3>
+      <div class="row"><div>白天／夜晚<small>「跟著時間」：晚上 6 點到早上 6 點是夜晚</small></div>
+        <div class="seg" id="dayseg"><button data-v="auto">跟著時間</button><button data-v="day">白天</button><button data-v="night">夜晚</button></div></div>
+      <div class="row"><div>自動旋轉</div><button class="tog on" id="togSpin"></button></div>
+      <div class="row"><div>雪量<small>花瓣、落葉、泡泡也是這個</small></div><input type="range" id="amount" min="200" max="2400" value="1300"></div>
+      <div class="row"><div>音樂盒<small>搖一搖時叮叮噹噹（手機要先點過畫面才會有聲音）</small></div><button class="tog on" id="togMusic"></button></div>
+      <div class="row"><div>搖手機也會搖<small>iPhone 第一次會問要不要給權限</small></div><button class="tog" id="togMotion"></button></div>
+      <div class="btnRow"><button class="btn" id="saveBtn2">⤓ 存成圖片</button></div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab" data-sheet="scene"><span>🏔</span>場景</button>
+      <button class="tab" data-sheet="pets"><span>🐾</span>動物</button>
+      <button class="tab" data-sheet="plaque"><span>🔤</span>字牌</button>
+      <button class="tab" data-sheet="set"><span>⚙️</span>設定</button>
+    </div>
+    <div class="toast" id="toast"></div>
+    <div class="loading" id="loading"><div><div class="spin"></div>雪球準備中…</div></div>
+  </div></div>
+
+  <aside><div class="card">
+    <h2>聖誕雪球（Lume 獨立功能）</h2>
+    <div style="color:var(--ink2);font-size:14px;line-height:1.6">功能選單多一項「聖誕雪球」，首頁格子也有。整頁就是一顆大雪球，下面四個分頁調它。</div>
+    <h3>玩法</h3><ul>
+      <li>拖著 360° 轉、雙指縮放，會自己慢慢轉（設定可關）。</li>
+      <li>點空白處或按「搖一搖」：整顆晃、雪捲起來慢慢落下，音樂盒叮叮噹噹。</li>
+      <li>點小動物：那隻跳起來。</li>
+      <li>開「搖手機也會搖」：拿起手機真的搖，雪球跟著搖。</li>
+    </ul>
+    <h3>四個分頁</h3><ul>
+      <li><b>場景</b>：聖誕小屋（下雪）／春天櫻花（飄花瓣）／秋天楓葉（掉落葉）／夏日海邊（冒泡泡）。</li>
+      <li><b>動物</b>：白色小圓熊、白兔、棕兔、企鵝、小貓、狐狸，挑誰住進去；可調跑步速度。</li>
+      <li><b>字牌</b>：底座金字自己打（名字、祝福），也有幾個現成的。</li>
+      <li><b>設定</b>：白天／夜晚／跟著時間、自動旋轉、雪量、音樂盒、搖手機。</li>
+    </ul>
+    <h3>上方</h3><ul><li>聖誕節倒數（過了就算明年的）。</li><li>⤓ 存成圖片：把現在這顆雪球存成 PNG（手機叫分享選單存相簿）。</li></ul>
+    <h3>同步</h3><ul><li>選的場景、動物、字牌、設定跟著 Lume 多裝置同步（新設定一律同步）。</li></ul>
+    <h3>做法</h3><ul>
+      <li>跟「我的記帳」那顆同一套：Three.js 打包在 App 裡、用 iframe 嵌進 Flutter，開過一次離線也有；3D 開不起來就顯示 2D 備用雪球。</li>
+      <li>狐狸模型：Khronos glTF Sample Assets「Fox」（CC0／CC-BY 4.0），其他都是程式畫的。</li>
+    </ul>
+  </div></aside>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+const $ = id => document.getElementById(id);
+const screenEl = $('screen'), canvas = $('c');
+const W = () => screenEl.clientWidth, H = () => screenEl.clientHeight;
+
+// ═════════ 基本 ═════════
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(W(), H(), false);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+const scene = new THREE.Scene();
+{ // 柔和環境反光（不用 RoomEnvironment，見 3D聖誕雪球.html）
+  const env = new THREE.Scene(), g = new THREE.SphereGeometry(10, 48, 24), col = [], p = g.attributes.position;
+  const top = new THREE.Color(0x26314f), mid = new THREE.Color(0x0d1020), bot = new THREE.Color(0x3a2618);
+  for (let i = 0; i < p.count; i++) { const k = p.getY(i) / 10, c = k > 0 ? mid.clone().lerp(top, k) : mid.clone().lerp(bot, -k); col.push(c.r, c.g, c.b); }
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  env.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide })));
+  const sc = document.createElement('canvas'); sc.width = sc.height = 128; const sg = sc.getContext('2d'), sr = sg.createRadialGradient(64, 64, 0, 64, 64, 64);
+  sr.addColorStop(0, '#fff'); sr.addColorStop(.35, 'rgba(255,255,255,.55)'); sr.addColorStop(1, 'rgba(255,255,255,0)'); sg.fillStyle = sr; sg.fillRect(0, 0, 128, 128);
+  const tex = new THREE.CanvasTexture(sc);
+  for (const [w, h, c, x, y, z] of [[7, 4.5, new THREE.Color(.95, .82, .66), 5, 6, 5], [5, 7, new THREE.Color(.35, .45, .7), -7, 2, -4]]) {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: c, map: tex, transparent: true, side: THREE.DoubleSide })); m.position.set(x, y, z); m.lookAt(0, 0, 0); env.add(m);
+  }
+  scene.environment = new THREE.PMREMGenerator(renderer).fromScene(env, .035).texture;
+}
+const camera = new THREE.PerspectiveCamera(32, W() / H(), .1, 100);
+camera.position.set(0, 2.7, 11.2);
+const controls = new OrbitControls(camera, canvas);
+controls.target.set(0, 1.25, 0); controls.enableDamping = true; controls.enablePan = false;
+controls.minDistance = 4.5; controls.maxDistance = 14; controls.minPolarAngle = .3; controls.maxPolarAngle = Math.PI * .56;
+controls.autoRotate = true; controls.autoRotateSpeed = .7;
+
+function sky(theme, night) {
+  const c = document.createElement('canvas'); c.width = 16; c.height = 512; const g = c.getContext('2d'), gr = g.createLinearGradient(0, 0, 0, 512);
+  const pal = {
+    xmas: night ? ['#060814', '#141a33', '#2a1d2c'] : ['#7fa6d6', '#c9d9ea', '#efe2d3'],
+    sakura: night ? ['#0d0a1c', '#2a1a33', '#3a2030'] : ['#f6c9d8', '#fbe3ea', '#fff4f0'],
+    autumn: night ? ['#0c0a14', '#2a1a1a', '#3a2414'] : ['#f2b880', '#f8d7a8', '#fbead2'],
+    beach: night ? ['#04101e', '#0b2840', '#123a4a'] : ['#5cc0ec', '#a8e2f2', '#f4ecd6'],
+  }[theme];
+  gr.addColorStop(0, pal[0]); gr.addColorStop(.6, pal[1]); gr.addColorStop(1, pal[2]); g.fillStyle = gr; g.fillRect(0, 0, 16, 512);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+const hemi = new THREE.HemisphereLight(0xbfd4ff, 0x3a2a22, .55); scene.add(hemi);
+const key = new THREE.DirectionalLight(0xffd9b0, 1.4); key.position.set(3.5, 6.5, 4); key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048); Object.assign(key.shadow.camera, { left: -3, right: 3, top: 3, bottom: -3 }); key.shadow.bias = -.0005; scene.add(key);
+const rim = new THREE.DirectionalLight(0x8fb4ff, .9); rim.position.set(-4, 3, -4); scene.add(rim);
+
+// ═════════ 雪球 ═════════
+const globe = new THREE.Group(); scene.add(globe);
+const R = 1.45, BASE_H = .62, CY = BASE_H + R * .72, GY = CY - R * .55, GROUND_R = Math.sqrt(R * R - (R * .55) ** 2) - .02;
+const mat = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: .55, ...o });
+const glow = (c, i = 2) => new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: i, roughness: .4 });
+const mesh = (geo, m, cast = true) => { const o = new THREE.Mesh(geo, m); o.castShadow = cast; o.receiveShadow = true; return o; };
+const hAt = (x, z) => { const r = Math.hypot(x, z) / GROUND_R, e = 1 - Math.pow(Math.min(r, 1), 4);
+  return .16 * (1 - r * r) + e * (.025 * Math.sin(x * 6 + 1) * Math.cos(z * 5) + .018 * Math.sin((x + z) * 9)); };
+const groundY = (x, z) => GY + hAt(x, z);
+
+{ // 底座＋金邊
+  const pts = [[0, 0], [1.62, 0], [1.66, .04], [1.66, .12], [1.6, .16], [1.52, .2], [1.5, .46], [1.42, .52], [1.36, .58], [1.3, BASE_H], [0, BASE_H]].map(([x, y]) => new THREE.Vector2(x, y));
+  globe.add(mesh(new THREE.LatheGeometry(pts, 128), new THREE.MeshPhysicalMaterial({ color: 0x5a3220, roughness: .38, clearcoat: .8, clearcoatRoughness: .25 })));
+  const gold = new THREE.MeshStandardMaterial({ color: 0xd9a74e, metalness: 1, roughness: .22 });
+  for (const [y, r, t] of [[.17, 1.56, .028], [.5, 1.47, .025]]) { const ring = new THREE.Mesh(new THREE.TorusGeometry(r, t, 16, 160), gold); ring.rotation.x = Math.PI / 2; ring.position.y = y; globe.add(ring); }
+}
+// 字牌（文字可改）
+const plaqueCanvas = document.createElement('canvas'); plaqueCanvas.width = 1024; plaqueCanvas.height = 128;
+const plaqueTex = new THREE.CanvasTexture(plaqueCanvas); plaqueTex.colorSpace = THREE.SRGBColorSpace;
+function drawPlaque(text) {
+  const g = plaqueCanvas.getContext('2d'), gr = g.createLinearGradient(0, 0, 0, 128);
+  gr.addColorStop(0, '#f6d58b'); gr.addColorStop(1, '#b98232'); g.fillStyle = gr; g.fillRect(0, 0, 1024, 128);
+  g.fillStyle = '#3b2408'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  let size = 64; do { g.font = `italic 700 ${size}px Georgia, "Noto Serif TC", "PingFang TC", serif`; size -= 2; } while (g.measureText(text).width > 940 && size > 24);
+  g.fillText(text, 512, 68); plaqueTex.needsUpdate = true;
+}
+{ const plaque = new THREE.Mesh(new THREE.CylinderGeometry(1.512, 1.512, .17, 96, 1, true, -.75, 1.5), new THREE.MeshStandardMaterial({ map: plaqueTex, metalness: .7, roughness: .3 }));
+  plaque.position.y = .33; plaque.rotation.y = Math.PI; globe.add(plaque); }
+// 玻璃
+const glass = new THREE.Mesh(new THREE.SphereGeometry(R, 128, 96), new THREE.MeshPhysicalMaterial({
+  color: 0xffffff, roughness: .02, transmission: 1, thickness: .35, ior: 1.33, clearcoat: .7, clearcoatRoughness: .16,
+  specularIntensity: .3, envMapIntensity: .9, attenuationColor: new THREE.Color(0xe8f3ff), attenuationDistance: 6 }));
+glass.material.depthWrite = false; glass.position.y = CY; glass.renderOrder = 2; globe.add(glass);
+// 地面
+const groundMat = new THREE.MeshPhysicalMaterial({ color: 0xf3f7ff, roughness: .85, sheen: 1, sheenColor: new THREE.Color(0xcfe0ff) });
+{ const rings = 30, segs = 140, pos = [], idx = []; pos.push(0, hAt(0, 0), 0);
+  for (let i = 1; i <= rings; i++) for (let j = 0; j < segs; j++) { const r = GROUND_R * i / rings, a = j / segs * Math.PI * 2, x = Math.cos(a) * r, z = Math.sin(a) * r; pos.push(x, hAt(x, z), z); }
+  for (let j = 0; j < segs; j++) idx.push(0, 1 + (j + 1) % segs, 1 + j);
+  for (let i = 1; i < rings; i++) { const a0 = 1 + (i - 1) * segs, a1 = 1 + i * segs; for (let j = 0; j < segs; j++) { const j1 = (j + 1) % segs; idx.push(a0 + j, a0 + j1, a1 + j, a0 + j1, a1 + j1, a1 + j); } }
+  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setIndex(idx); geo.computeVertexNormals();
+  const ground = mesh(geo, groundMat, false); ground.position.y = GY; globe.add(ground);
+  const skirt = new THREE.Mesh(new THREE.CylinderGeometry(GROUND_R, GROUND_R * .9, GY - BASE_H + .02, 96, 1, true), groundMat); skirt.position.y = (GY + BASE_H) / 2; globe.add(skirt); }
+
+// ═════════ 場景（換季節：換掉 decor 裡的東西） ═════════
+const decor = new THREE.Group(); globe.add(decor);
+const lampLights = [], twinkles = [];
+const put = (o, x, z, ry = 0) => { o.position.set(x, groundY(x, z), z); o.rotation.y = ry; decor.add(o); return o; };
+function house(wallC = 0x8a3a2c, roofC = 0xf6f9ff) {
+  const h = new THREE.Group(), wood = mat(wallC, { roughness: .7 }), roofM = mat(roofC, { roughness: .9 });
+  const body = mesh(new THREE.BoxGeometry(.42, .3, .36), wood); body.position.y = .15; h.add(body);
+  for (const s of [-1, 1]) { const r = mesh(new THREE.BoxGeometry(.5, .035, .29), roofM); r.position.set(0, .37, s * .1); r.rotation.x = s * .62; h.add(r); }
+  const gab = new THREE.Shape(); gab.moveTo(-.21, 0); gab.lineTo(.21, 0); gab.lineTo(0, .13); gab.closePath();
+  for (const s of [-1, 1]) { const g = mesh(new THREE.ExtrudeGeometry(gab, { depth: .01, bevelEnabled: false }), wood); g.rotation.y = s * Math.PI / 2; g.position.set(s * .21, .3, 0); h.add(g); }
+  const door = mesh(new THREE.BoxGeometry(.08, .14, .01), mat(0x4a2418)); door.position.set(0, .07, .182); h.add(door);
+  const win = glow(0xffc46b, 1.5); for (const x of [-.13, .13]) { const w = mesh(new THREE.BoxGeometry(.075, .07, .01), win, false); w.position.set(x, .17, .182); h.add(w); }
+  const pl = new THREE.PointLight(0xffb15c, .55, .9, 2); pl.position.set(0, .18, .32); h.add(pl); lampLights.push(pl);
+  return h;
+}
+function pine(s, lights) {
+  const t = new THREE.Group(), green = mat(0x1f5a3c, { roughness: .8 }), white = mat(0xf6f9ff, { roughness: .9 });
+  const tr = mesh(new THREE.CylinderGeometry(.025, .03, .08, 10), mat(0x5b3a26)); tr.position.y = .04; t.add(tr);
+  [[.15, .2, .14], [.12, .18, .26], [.085, .15, .36]].forEach(([r, h, y]) => { const c = mesh(new THREE.ConeGeometry(r, h, 18), green); c.position.y = y; t.add(c);
+    const cap = mesh(new THREE.ConeGeometry(r * .62, h * .38, 18), white); cap.position.y = y + h * .33; t.add(cap); });
+  if (lights) { const star = mesh(new THREE.OctahedronGeometry(.032), glow(0xffd36b, 4), false); star.position.y = .47; t.add(star); twinkles.push({ m: star.material, base: 4, sp: 2.2, ph: 0 });
+    const cols = [0xff5a5a, 0xffd36b, 0x6bc8ff, 0x7dff9a, 0xff8de1];
+    for (let i = 0; i < 26; i++) { const k = i / 26, y = .1 + k * .32, r = .15 * (1 - k * .78) + .008, a = k * Math.PI * 7, m = glow(cols[i % 5], 3);
+      const b = mesh(new THREE.SphereGeometry(.011, 8, 8), m, false); b.position.set(Math.cos(a) * r, y, Math.sin(a) * r); t.add(b); twinkles.push({ m, base: 3, sp: 1.5 + Math.random() * 3, ph: Math.random() * 6 }); } }
+  t.scale.setScalar(s); return t;
+}
+function roundTree(s, colors, trunkC = 0x6b4226) {   // 櫻花、楓樹：樹幹＋一團團球
+  const t = new THREE.Group(); const tr = mesh(new THREE.CylinderGeometry(.022, .034, .22, 10), mat(trunkC)); tr.position.y = .11; t.add(tr);
+  for (let i = 0; i < 9; i++) { const a = i / 9 * Math.PI * 2, r = i === 0 ? 0 : .08, y = .27 + (i === 0 ? .06 : Math.sin(i) * .03);
+    const b = mesh(new THREE.IcosahedronGeometry(.075 + (i % 3) * .012, 1), mat(colors[i % colors.length], { roughness: .7, flatShading: true }));
+    b.position.set(Math.cos(a) * r, y, Math.sin(a) * r); t.add(b); }
+  t.scale.setScalar(s); return t;
+}
+function palm(s) {
+  const t = new THREE.Group(); const bark = mat(0x8a6a44);
+  for (let i = 0; i < 6; i++) { const seg = mesh(new THREE.CylinderGeometry(.022, .026, .07, 8), bark); seg.position.set(i * .012, .035 + i * .065, 0); seg.rotation.z = -.12; t.add(seg); }
+  const leafM = mat(0x2f8f4e, { roughness: .6, side: THREE.DoubleSide });
+  for (let i = 0; i < 7; i++) { const leaf = mesh(new THREE.ConeGeometry(.03, .26, 4), leafM); const a = i / 7 * Math.PI * 2;
+    leaf.position.set(.07 + Math.cos(a) * .09, .41, Math.sin(a) * .09); leaf.rotation.set(Math.sin(a) * 1.2, 0, -Math.cos(a) * 1.2 - .2); t.add(leaf); }
+  for (let i = 0; i < 3; i++) { const c = mesh(new THREE.SphereGeometry(.022, 10, 8), mat(0x6b4a2a)); c.position.set(.07 + (i - 1) * .025, .38, .02); t.add(c); }
+  t.scale.setScalar(s); return t;
+}
+function snowman() {
+  const s = new THREE.Group(), w = mat(0xfafcff, { roughness: .85 });
+  const b1 = mesh(new THREE.SphereGeometry(.085, 20, 16), w); b1.position.y = .07; s.add(b1); const b2 = mesh(new THREE.SphereGeometry(.06, 20, 16), w); b2.position.y = .18; s.add(b2);
+  const sc = mesh(new THREE.TorusGeometry(.045, .014, 8, 20), mat(0xd23b3b)); sc.rotation.x = Math.PI / 2; sc.position.y = .145; s.add(sc);
+  const n = mesh(new THREE.ConeGeometry(.01, .045, 8), mat(0xff8a2b)); n.rotation.x = Math.PI / 2; n.position.set(0, .185, .075); s.add(n);
+  const br = mesh(new THREE.CylinderGeometry(.05, .05, .008, 16), mat(0x22252e)); br.position.y = .232; s.add(br); const tp = mesh(new THREE.CylinderGeometry(.033, .035, .05, 16), mat(0x22252e)); tp.position.y = .26; s.add(tp);
+  return s;
+}
+function lamp() {
+  const l = new THREE.Group(), iron = mat(0x23262e, { metalness: .6, roughness: .35 });
+  const pole = mesh(new THREE.CylinderGeometry(.008, .012, .34, 10), iron); pole.position.y = .17; l.add(pole);
+  const bulb = mesh(new THREE.SphereGeometry(.022, 16, 12), glow(0xffd28a, 4), false); bulb.position.y = .35; l.add(bulb);
+  const pl = new THREE.PointLight(0xffc77a, .55, .9, 2); pl.position.y = .33; l.add(pl); lampLights.push(pl); return l;
+}
+function torii() { const g = new THREE.Group(), red = mat(0xc8352b);
+  for (const x of [-.09, .09]) { const p = mesh(new THREE.CylinderGeometry(.012, .012, .24, 10), red); p.position.set(x, .12, 0); g.add(p); }
+  const top = mesh(new THREE.BoxGeometry(.28, .02, .03), mat(0x2a2a2a)); top.position.y = .245; g.add(top); const b = mesh(new THREE.BoxGeometry(.22, .016, .02), red); b.position.y = .2; g.add(b); return g; }
+function pumpkin() { const p = mesh(new THREE.SphereGeometry(.05, 16, 12), mat(0xf07a1a, { roughness: .6 })); p.scale.set(1.15, .8, 1.15); p.position.y = .04; const g = new THREE.Group(); g.add(p);
+  const st = mesh(new THREE.CylinderGeometry(.006, .008, .025, 6), mat(0x3e6b2a)); st.position.y = .085; g.add(st); return g; }
+function umbrella() { const g = new THREE.Group(); const pole = mesh(new THREE.CylinderGeometry(.006, .006, .3, 8), mat(0xeeeeee)); pole.position.y = .15; g.add(pole);
+  const top = mesh(new THREE.ConeGeometry(.16, .07, 12, 1, true), mat(0xff6b6b, { side: THREE.DoubleSide })); top.position.y = .3; g.add(top); return g; }
+
+const SCENES = {
+  xmas: { name: '聖誕小屋', sub: '下雪', icon: '🎄', bg: 'linear-gradient(135deg,#1f5a3c,#c8352b)', ground: 0xf3f7ff, sheen: 0xcfe0ff, flake: 0xdfe6f2, mode: 'snow',
+    build() { put(house(), 0, -.05); put(pine(1.12, true), -.86, -.72); put(pine(.9), .95, -.62); put(pine(.72), -1.1, .12); put(pine(.68), .66, -.95); put(pine(.7), 1.12, .1); put(pine(.66), -.42, -1.1); put(snowman(), .55, .78, -.5); put(lamp(), -.7, .62); } },
+  sakura: { name: '春天櫻花', sub: '飄花瓣', icon: '🌸', bg: 'linear-gradient(135deg,#f7b6c8,#9fd38a)', ground: 0xbfe0a4, sheen: 0xffe0ec, flake: 0xffb3cc, mode: 'petal',
+    build() { put(house(0xf3e2c8, 0x8a4a3a), 0, -.05); const pk = [0xffb7cf, 0xffc9d9, 0xff9fbe, 0xfff0f5];
+      put(roundTree(1.25, pk), -.86, -.68); put(roundTree(1.05, pk), .92, -.6); put(roundTree(.85, pk), -1.08, .16); put(roundTree(.8, pk), 1.1, .14); put(torii(), .55, .8, -.5); put(lamp(), -.7, .62); } },
+  autumn: { name: '秋天楓葉', sub: '掉落葉', icon: '🍁', bg: 'linear-gradient(135deg,#e2662a,#f2b04a)', ground: 0xd9b07a, sheen: 0xffd9a0, flake: 0xe8742e, mode: 'leaf',
+    build() { put(house(0x7a4a2c, 0x5a2a1c), 0, -.05); const mp = [0xe0522a, 0xf28a2a, 0xc8352b, 0xf2b04a];
+      put(roundTree(1.25, mp, 0x4a2a18), -.86, -.68); put(roundTree(1.05, mp, 0x4a2a18), .92, -.6); put(roundTree(.85, mp, 0x4a2a18), -1.08, .16); put(roundTree(.8, mp, 0x4a2a18), 1.1, .14);
+      put(pumpkin(), .55, .8); put(pumpkin(), .68, .7); put(lamp(), -.7, .62); } },
+  beach: { name: '夏日海邊', sub: '冒泡泡', icon: '🏖', bg: 'linear-gradient(135deg,#2a9fd6,#f4dca0)', ground: 0xf1dcaa, sheen: 0xfff3d0, flake: 0xd8f4ff, mode: 'bubble',
+    build() { put(house(0x4aa3c8, 0xf6f0e0), 0, -.05); put(palm(1.3), -.88, -.62); put(palm(1.1), .92, -.58); put(palm(.9), -1.1, .2); put(umbrella(), .6, .75); put(lamp(), -.7, .62); } },
+};
+let sceneId = 'xmas';
+function setScene(id) {
+  sceneId = id; const s = SCENES[id];
+  decor.clear(); lampLights.length = 0; twinkles.length = 0; s.build();
+  groundMat.color.set(s.ground); groundMat.sheenColor.set(s.sheen); fMat.color.set(s.flake);
+  fMat.size = s.mode === 'bubble' ? .05 : s.mode === 'snow' ? .034 : .05;
+  for (let i = 0; i < MAXF; i++) spawn(i, true);
+  applyDay(); renderSceneGrid();
+}
+
+// ═════════ 小動物 ═════════
+const blob = (r, m, sx = 1, sy = 1, sz = 1) => { const o = mesh(new THREE.SphereGeometry(r, 28, 20), m); o.scale.set(sx, sy, sz); return o; };
+const eye = (x, y, z, s = .011) => { const g = new THREE.Group(); g.add(mesh(new THREE.SphereGeometry(s, 14, 10), mat(0x14141a, { roughness: .2 }), false));
+  const hl = mesh(new THREE.SphereGeometry(s * .35, 6, 6), new THREE.MeshBasicMaterial({ color: 0xffffff }), false); hl.position.set(s * .35, s * .35, s * .75); g.add(hl); g.position.set(x, y, z); return g; };
+const pink = mat(0xffa3b8);
+function bear() { const g = new THREE.Group(), b = new THREE.Group(); g.add(b); const w = mat(0xfdfcf8, { roughness: .7 });
+  b.add(blob(.085, w, 1.12, .92, 1).translateY(.088));
+  for (const s of [-1, 1]) { b.add(blob(.026, w).translateX(s * .055).translateY(.162)); b.add(eye(s * .03, .1, .077)); b.add(blob(.016, pink, 1.2, .6, .35).translateX(s * .056).translateY(.078).translateZ(.068)); }
+  const limbs = []; for (const s of [-1, 1]) { const a = blob(.018, w); a.position.set(s * .088, .07, .02); b.add(a); limbs.push(a); const l = blob(.022, w, 1, .8, 1.1); l.position.set(s * .04, .016, 0); g.add(l); limbs.push(l); }
+  g.userData = { body: b, limbs }; return g; }
+function bunny(c) { const g = new THREE.Group(), b = new THREE.Group(); g.add(b); const w = mat(c, { roughness: .75 });
+  b.add(blob(.065, w, 1, .88, 1.25).translateY(.06)); const hd = blob(.05, w); hd.position.set(0, .12, .055); b.add(hd);
+  for (const s of [-1, 1]) { const e = blob(.026, w, .38, 1.7, .3); e.position.set(s * .022, .2, .04); e.rotation.z = s * -.18; b.add(e); b.add(eye(s * .026, .13, .096, .009)); }
+  b.add(blob(.022, mat(0xffffff)).translateY(.07).translateZ(-.08)); g.userData = { body: b }; return g; }
+function penguin() { const g = new THREE.Group(), b = new THREE.Group(); g.add(b);
+  b.add(blob(.07, mat(0x1d2330, { roughness: .45 }), 1, 1.38, .95).translateY(.098)); b.add(blob(.058, mat(0xfafafa), .86, 1.2, .62).translateY(.09).translateZ(.034));
+  for (const s of [-1, 1]) { b.add(eye(s * .022, .155, .06, .008)); const f = blob(.02, mat(0xffa12b), 1, .35, 1.4); f.position.set(s * .028, .006, .03); g.add(f); }
+  const bk = mesh(new THREE.ConeGeometry(.012, .03, 8), mat(0xffa12b)); bk.rotation.x = Math.PI / 2; bk.position.set(0, .14, .078); b.add(bk);
+  const sc = mesh(new THREE.TorusGeometry(.05, .012, 8, 20), mat(0xd23b3b)); sc.rotation.x = Math.PI / 2; sc.position.y = .12; b.add(sc); g.userData = { body: b }; return g; }
+function cat() { const g = new THREE.Group(), b = new THREE.Group(); g.add(b); const o = mat(0xf0a24a, { roughness: .7 }), w = mat(0xfff4e6);
+  b.add(blob(.06, o, 1, .85, 1.35).translateY(.06)); const hd = blob(.055, o); hd.position.set(0, .13, .06); b.add(hd);
+  b.add(blob(.035, w, 1.1, .7, .6).translateY(.115).translateZ(.095));
+  for (const s of [-1, 1]) { const ear = mesh(new THREE.ConeGeometry(.02, .04, 4), o); ear.position.set(s * .032, .185, .06); ear.rotation.z = s * -.25; b.add(ear); b.add(eye(s * .022, .14, .106, .009)); }
+  const tail = mesh(new THREE.CylinderGeometry(.01, .013, .12, 8), o); tail.position.set(0, .1, -.1); tail.rotation.x = -.7; b.add(tail);
+  g.userData = { body: b }; return g; }
+
+const PETS = [
+  { id: 'bear', name: '白色小圓熊', icon: '🐻‍❄️', make: bear, r: .62, speed: .55, ph: 0, kind: 'run' },
+  { id: 'bunnyW', name: '白兔', icon: '🐰', make: () => bunny(0xf2e9dc), r: .8, speed: .34, ph: 2.2, kind: 'hop' },
+  { id: 'bunnyB', name: '棕兔', icon: '🐇', make: () => bunny(0xbf9470), r: .72, speed: -.3, ph: 4.4, kind: 'hop' },
+  { id: 'penguin', name: '企鵝', icon: '🐧', make: penguin, r: .46, speed: .16, ph: 1, kind: 'waddle' },
+  { id: 'cat', name: '小貓', icon: '🐱', make: cat, r: .54, speed: -.42, ph: 3.3, kind: 'run' },
+  { id: 'fox', name: '狐狸', icon: '🦊', r: .93, kind: 'fox' },
+];
+const petOn = new Set(['bear', 'bunnyW', 'bunnyB', 'penguin', 'cat', 'fox']);
+for (const p of PETS) if (p.make) { p.o = p.make(); p.o.userData.petId = p.id; p.jumpUntil = 0; globe.add(p.o); }
+let fox = null, petSpeed = 1;
+new GLTFLoader().load('https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/Fox/glTF-Binary/Fox.glb', gltf => {
+  const o = gltf.scene; o.scale.setScalar(.0017); o.traverse(m => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; m.userData.petId = 'fox'; } });
+  const holder = new THREE.Group(); holder.add(o); holder.userData.petId = 'fox'; globe.add(holder);
+  const mixer = new THREE.AnimationMixer(o), clip = n => mixer.clipAction(gltf.animations.find(a => a.name === n));
+  fox = { holder, mixer, run: clip('Run'), look: clip('Survey'), th: 2.6, mode: 'run', until: 7, jumpUntil: 0 }; fox.run.play();
+  PETS.find(p => p.id === 'fox').o = holder; applyPets();
+}, undefined, () => {});
+function applyPets() { for (const p of PETS) if (p.o) p.o.visible = petOn.has(p.id); }
+
+// ═════════ 雪花／花瓣／落葉／泡泡 ═════════
+function flakeTexture() { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(.35, 'rgba(255,255,255,.85)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); }
+const MAXF = 2400, fP = new Float32Array(MAXF * 3), fV = new Float32Array(MAXF * 3), fR = new Float32Array(MAXF);
+const inside = (x, y, z, k = .92) => x * x + (y - CY) ** 2 + z * z < (R * k) ** 2;
+function spawn(i, any) {
+  const mode = SCENES[sceneId].mode;
+  for (;;) { const x = (Math.random() * 2 - 1) * R * .9, z = (Math.random() * 2 - 1) * R * .9;
+    const y = mode === 'bubble' ? (any ? GY + Math.random() * R * 1.4 : groundY(x, z) + .03) : any ? GY + Math.random() * R * 1.45 : CY + R * (.2 + Math.random() * .7);
+    if (inside(x, y, z) && y > groundY(x, z) + .02) { fP.set([x, y, z], i * 3); fV.set([0, mode === 'bubble' ? .05 : -.03, 0], i * 3); fR[i] = 0; return; } }
+}
+const fG = new THREE.BufferGeometry(); fG.setAttribute('position', new THREE.BufferAttribute(fP, 3));
+const fMat = new THREE.PointsMaterial({ size: .034, map: flakeTexture(), transparent: true, depthWrite: false, color: 0xdfe6f2 });
+const flakes = new THREE.Points(fG, fMat); flakes.renderOrder = 3; globe.add(flakes);
+let flakeCount = 1300; fG.setDrawRange(0, flakeCount);
+let swirl = 0, wobble = 0;
+function shake() {
+  swirl = 1.6; wobble = 1; const up = SCENES[sceneId].mode !== 'bubble';
+  for (let i = 0; i < MAXF; i++) { fR[i] = 0; fV[i * 3] = (Math.random() - .5) * 1.2; fV[i * 3 + 1] = up ? .6 + Math.random() * 1.3 : (Math.random() - .5) * .8; fV[i * 3 + 2] = (Math.random() - .5) * 1.2; }
+  if (music) playMusicBox(); $('hint').style.opacity = 0;
+}
+
+// ═════════ 音樂盒（Web Audio，叮叮噹前兩句） ═════════
+let actx = null, music = true;
+function playMusicBox() {
+  try { actx ??= new (window.AudioContext || window.webkitAudioContext)(); if (actx.state === 'suspended') actx.resume(); } catch (_) { return; }
+  const N = { E5: 659.3, G5: 784, C5: 523.3, D5: 587.3, F5: 698.5 };
+  const tune = [['E5', 1], ['E5', 1], ['E5', 2], ['E5', 1], ['E5', 1], ['E5', 2], ['E5', 1], ['G5', 1], ['C5', 1.5], ['D5', .5], ['E5', 4]];
+  let t = actx.currentTime + .05; const beat = .2;
+  for (const [n, d] of tune) {
+    for (const [mul, vol] of [[1, .22], [2, .06], [3, .025]]) {   // 音樂盒：基音＋泛音，敲一下就衰減
+      const o = actx.createOscillator(), g = actx.createGain(); o.type = 'sine'; o.frequency.value = N[n] * mul;
+      g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.0001, t + 1.1); o.connect(g).connect(actx.destination); o.start(t); o.stop(t + 1.2);
+    }
+    t += d * beat;
+  }
+}
+
+// ═════════ 後製 ═════════
+const composer = new EffectComposer(renderer); composer.addPass(new RenderPass(scene, camera));
+const bloom = new UnrealBloomPass(new THREE.Vector2(W(), H()), .45, .4, .96); composer.addPass(bloom); composer.addPass(new OutputPass());
+function resize() { renderer.setSize(W(), H(), false); composer.setSize(W(), H()); camera.aspect = W() / H(); camera.updateProjectionMatrix(); }
+new ResizeObserver(resize).observe(screenEl);
+
+// ═════════ 白天夜晚 ═════════
+let dayMode = 'auto';
+function isNight() { if (dayMode !== 'auto') return dayMode === 'night'; const h = new Date().getHours(); return h >= 18 || h < 6; }
+function applyDay() {
+  const n = isNight(); scene.background = sky(sceneId, n);
+  hemi.intensity = n ? .5 : 1.1; key.intensity = n ? 1.4 : 2.4; renderer.toneMappingExposure = n ? 1 : 1.08; bloom.strength = n ? .5 : .18;
+  lampLights.forEach(l => l.intensity = n ? .55 : .15);
+  document.querySelectorAll('#dayseg button').forEach(b => b.classList.toggle('on', b.dataset.v === dayMode));
+}
+
+// ═════════ 互動：點動物跳、點空白搖 ═════════
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+let x0 = 0, y0 = 0, t0 = 0;
+canvas.addEventListener('pointerdown', e => { x0 = e.clientX; y0 = e.clientY; t0 = performance.now(); });
+canvas.addEventListener('pointerup', e => {
+  if (Math.hypot(e.clientX - x0, e.clientY - y0) > 6 || performance.now() - t0 > 350) return;
+  const r = canvas.getBoundingClientRect(); ndc.set((e.clientX - r.left) / r.width * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ndc, camera);
+  const targets = PETS.filter(p => p.o && p.o.visible).map(p => p.o);
+  const hit = ray.intersectObjects(targets, true)[0];
+  if (hit) { let o = hit.object; while (o && !o.userData.petId) o = o.parent; const p = PETS.find(q => q.id === o?.userData.petId);
+    if (p) { if (p.id === 'fox' && fox) fox.jumpUntil = clock.elapsedTime + .7; else p.jumpUntil = clock.elapsedTime + .7; toast(`${p.icon} ${p.name}跳起來了`); return; } }
+  shake();
+});
+
+// ═════════ 動畫 ═════════
+const clock = new THREE.Clock();
+function frame() {
+  const dt = Math.min(clock.getDelta(), 1 / 30), t = clock.elapsedTime;
+  for (const p of PETS) {
+    if (!p.o || p.id === 'fox' || !p.o.visible) continue;
+    p.th = (p.th ?? p.ph) + dt * p.speed * petSpeed;
+    const x = Math.cos(p.th) * p.r, z = Math.sin(p.th) * p.r, dir = Math.sign(p.speed);
+    p.o.position.set(x, groundY(x, z), z); p.o.rotation.y = Math.atan2(-Math.sin(p.th) * dir, Math.cos(p.th) * dir);
+    const b = p.o.userData.body, jump = Math.max(0, p.jumpUntil - t);
+    if (jump > 0) { const k = 1 - jump / .7; b.position.y = Math.sin(k * Math.PI) * .22; b.rotation.y = k * Math.PI * 2; continue; } else b.rotation.y = 0;
+    if (p.kind === 'run') { const ph = t * 13 * petSpeed; b.position.y = Math.abs(Math.sin(ph)) * .028; p.o.userData.limbs?.forEach((l, i) => l.position.z = Math.sin(ph + (i % 2 ? Math.PI : 0) + (i > 1 ? Math.PI : 0)) * .025); }
+    else if (p.kind === 'hop') { const ph = (t * 1.9 * petSpeed + p.ph) % 1, up = Math.sin(ph * Math.PI); b.position.y = up * .11; const sq = ph < .12 || ph > .9 ? .82 : 1 + up * .08; b.scale.set(1 / Math.sqrt(sq), sq, 1 / Math.sqrt(sq)); }
+    else { b.rotation.z = Math.sin(t * 7) * .16; b.position.y = Math.abs(Math.sin(t * 7)) * .01; }
+  }
+  if (fox && fox.holder.visible) {
+    fox.mixer.update(dt * petSpeed);
+    if (t > fox.until) { const nx = fox.mode === 'run' ? 'look' : 'run'; fox[nx].reset().play(); fox[fox.mode].crossFadeTo(fox[nx], .35, false); fox.mode = nx; fox.until = t + (nx === 'run' ? 7 : 3); }
+    if (fox.mode === 'run') fox.th += dt * .5 * petSpeed;
+    const x = Math.cos(fox.th) * .93, z = Math.sin(fox.th) * .93, jump = Math.max(0, fox.jumpUntil - t);
+    fox.holder.position.set(x, groundY(x, z) + (jump > 0 ? Math.sin((1 - jump / .7) * Math.PI) * .25 : 0), z);
+    fox.holder.rotation.y = Math.atan2(-Math.sin(fox.th), Math.cos(fox.th));
+  }
+  for (const k of twinkles) k.m.emissiveIntensity = k.base * (.55 + .45 * Math.sin(t * k.sp + k.ph));
+
+  // 粒子
+  const mode = SCENES[sceneId].mode; swirl *= Math.pow(.35, dt);
+  for (let i = 0; i < flakeCount; i++) {
+    const j = i * 3;
+    if (fR[i] > 0) { fR[i] -= dt; if (fR[i] <= 0) spawn(i, false); continue; }
+    let x = fP[j], y = fP[j + 1], z = fP[j + 2], vx = fV[j], vy = fV[j + 1], vz = fV[j + 2];
+    const dr = Math.pow(.18, dt); vx *= dr; vz *= dr;
+    if (mode === 'bubble') { vy = Math.min(vy + .5 * dt, .18 + (i % 5) * .02); vx += Math.sin(t * 2 + i) * .02 * dt * 3; }
+    else { vy -= .9 * dt; const cap = mode === 'snow' ? -.09 - (i % 7) * .006 : -.06 - (i % 5) * .005; vy = Math.max(vy * dr, cap);
+      const sway = mode === 'snow' ? .02 : .09; vx += Math.sin(t * .9 + i) * sway * dt * 3; vz += Math.cos(t * .7 + i * 1.3) * sway * dt * 3; }
+    vx += -z * swirl * 1.4 * dt * 3; vz += x * swirl * 1.4 * dt * 3;
+    x += vx * dt; y += vy * dt; z += vz * dt;
+    const dy = y - CY, d = Math.sqrt(x * x + dy * dy + z * z), lim = R * .94;
+    if (d > lim) { if (mode === 'bubble' && dy > 0) { spawn(i, false); continue; }   // 泡泡碰到頂就破，從底下再冒
+      const k = lim / d; x *= k; z *= k; y = CY + dy * k; const nx = x / lim, ny = dy / lim, nz = z / lim, dot = vx * nx + vy * ny + vz * nz; if (dot > 0) { vx -= 1.6 * dot * nx; vy -= 1.6 * dot * ny; vz -= 1.6 * dot * nz; } }
+    const gy = groundY(x, z) + .008; if (y < gy) { y = gy; vx = vy = vz = 0; fR[i] = mode === 'bubble' ? .01 : 3 + Math.random() * 9; }
+    fP[j] = x; fP[j + 1] = y; fP[j + 2] = z; fV[j] = vx; fV[j + 1] = vy; fV[j + 2] = vz;
+  }
+  fG.attributes.position.needsUpdate = true;
+  wobble *= Math.pow(.02, dt); globe.position.x = Math.sin(t * 38) * .05 * wobble; globe.rotation.z = Math.sin(t * 31) * .03 * wobble;
+  controls.update(); composer.render(); requestAnimationFrame(frame);
+}
+
+// ═════════ 介面 ═════════
+function toast(m) { const el = $('toast'); el.textContent = m; el.classList.add('show'); clearTimeout(toast.h); toast.h = setTimeout(() => el.classList.remove('show'), 1500); }
+function renderSceneGrid() {
+  $('sceneGrid').innerHTML = Object.entries(SCENES).map(([id, s]) => `<button class="opt ${id === sceneId ? 'on' : ''}" data-scene="${id}">
+    <span class="sw" style="background:${s.bg}">${s.icon}</span><span>${s.name}<small>${s.sub}</small></span></button>`).join('');
+}
+$('sceneGrid').onclick = e => { const b = e.target.closest('[data-scene]'); if (b) { setScene(b.dataset.scene); toast(`${SCENES[b.dataset.scene].icon} 換成${SCENES[b.dataset.scene].name}`); } };
+function renderPets() { $('petChips').innerHTML = PETS.map(p => `<button class="chip ${petOn.has(p.id) ? 'on' : ''}" data-pet="${p.id}">${p.icon} ${p.name}</button>`).join(''); }
+$('petChips').onclick = e => { const b = e.target.closest('[data-pet]'); if (!b) return; const id = b.dataset.pet;
+  if (petOn.has(id)) { if (petOn.size === 1) { toast('最少留一隻'); return; } petOn.delete(id); } else petOn.add(id); applyPets(); renderPets(); };
+$('speed').oninput = e => petSpeed = +e.target.value;
+const PRESETS = ['Merry Christmas', 'Happy New Year', '岑 & 豪', '2026 冬天', 'Let it snow'];
+$('presets').innerHTML = PRESETS.map(p => `<button class="chip" data-p="${p}">${p}</button>`).join('');
+$('presets').onclick = e => { const b = e.target.closest('[data-p]'); if (b) { $('plaqueIn').value = b.dataset.p; drawPlaque(b.dataset.p); controls.autoRotate = false; $('togSpin').classList.remove('on'); faceFront(); } };
+$('plaqueIn').oninput = e => drawPlaque(e.target.value || ' ');
+$('plaqueIn').onfocus = () => { controls.autoRotate = false; $('togSpin').classList.remove('on'); faceFront(); };
+function faceFront() { const d = camera.position.clone().sub(controls.target); const len = Math.hypot(d.x, d.z); camera.position.set(controls.target.x, camera.position.y, controls.target.z + len); }
+document.querySelectorAll('#dayseg button').forEach(b => b.onclick = () => { dayMode = b.dataset.v; applyDay(); });
+$('togSpin').onclick = e => { controls.autoRotate = !controls.autoRotate; e.currentTarget.classList.toggle('on', controls.autoRotate); };
+$('togMusic').onclick = e => { music = !music; e.currentTarget.classList.toggle('on', music); if (music) playMusicBox(); };
+$('amount').oninput = e => { flakeCount = +e.target.value; fG.setDrawRange(0, flakeCount); };
+let motionOn = false, lastShakeAt = 0;
+function onMotion(e) { const a = e.accelerationIncludingGravity; if (!a) return; const m = Math.abs(a.x || 0) + Math.abs(a.y || 0) + Math.abs(a.z || 0);
+  if (m > 30 && performance.now() - lastShakeAt > 900) { lastShakeAt = performance.now(); shake(); } }
+$('togMotion').onclick = async e => {
+  const el = e.currentTarget;
+  if (motionOn) { motionOn = false; removeEventListener('devicemotion', onMotion); el.classList.remove('on'); return; }
+  try { if (typeof DeviceMotionEvent !== 'undefined' && DeviceMotionEvent.requestPermission) { const r = await DeviceMotionEvent.requestPermission(); if (r !== 'granted') { toast('沒給權限，搖手機不會動'); return; } } } catch (_) {}
+  motionOn = true; addEventListener('devicemotion', onMotion); el.classList.add('on'); toast('拿起手機搖搖看 📱');
+};
+function save() { composer.render(); const a = document.createElement('a'); a.href = canvas.toDataURL('image/png'); a.download = `聖誕雪球_${new Date().toISOString().slice(0, 10)}.png`; a.click(); toast('📸 已存成圖片'); }
+$('saveBtn').onclick = save; $('saveBtn2').onclick = save;
+$('shake').onclick = shake;
+document.querySelectorAll('.tab').forEach(tb => tb.onclick = () => {
+  const id = tb.dataset.sheet, el = $('sheet-' + id), open = el.classList.contains('show');
+  document.querySelectorAll('.sheet').forEach(s => s.classList.remove('show')); document.querySelectorAll('.tab').forEach(x => x.classList.remove('on'));
+  if (!open) { el.classList.add('show'); tb.classList.add('on'); }
+});
+document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => { document.querySelectorAll('.sheet').forEach(s => s.classList.remove('show')); document.querySelectorAll('.tab').forEach(x => x.classList.remove('on')); });
+{ const now = new Date(); let xmas = new Date(now.getFullYear(), 11, 25); if (now > new Date(now.getFullYear(), 11, 25, 23, 59)) xmas = new Date(now.getFullYear() + 1, 11, 25);
+  const days = Math.ceil((xmas - new Date(now.getFullYear(), now.getMonth(), now.getDate())) / 864e5);
+  $('days').textContent = days; if (days === 0) $('count').innerHTML = '🎄 <b>聖誕快樂！</b>'; }
+
+drawPlaque('Merry Christmas'); renderPets(); setScene('xmas'); applyPets();
+window.snowDemo = { setScene, shake, camera, controls, petOn, applyPets, renderPets };
+frame();
+$('loading').classList.add('hide');
+setTimeout(() => $('hint').style.opacity = 0, 7000);
+</script>
+</body>
+</html>
