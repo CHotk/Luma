@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>吉伊卡哇 3D</title>
+<!--
+  2026-10-20 使用者要求：用 Three.js 畫吉伊卡哇（參考「我的記帳」logo 那張）。
+  全部用程式組：身體是一條輪廓線轉一圈的「麻糬」形、卡通上色（MeshToonMaterial）＋反轉外殼做粗黑描邊，
+  臉上的眼睛、反光、眉毛、臉頰斜線、ω 嘴都是貼在身體表面的小零件。
+  ※ 吉伊卡哇是有版權的角色（nagano），這份只當私人設計練習／自己 App 用，不要拿去商用或公開散布。
+-->
+<style>
+  :root { --ink: #3a2a33; --pink: #ffb3c4; --bg1: #fff3f6; --bg2: #ffe0e8; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: radial-gradient(circle at 50% 40%, #fff9fb, #ffe3ea 70%, #f7cfdb);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif; color: var(--ink); }
+  canvas { display: block; width: 100vw; height: 100vh; touch-action: none; }
+  .title { position: fixed; left: 0; right: 0; top: 18px; text-align: center; pointer-events: none; }
+  .title h1 { margin: 0; font-size: 22px; letter-spacing: 1px; } .title p { margin: 4px 0 0; font-size: 13px; color: #8a6a76; }
+  .dock { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; width: min(560px, calc(100vw - 24px)); }
+  .dock button { border: 2px solid #3a2a33; background: #fff; color: #3a2a33; border-radius: 16px; padding: 10px 14px; font-size: 15px; font-weight: 800;
+    font-family: inherit; cursor: pointer; box-shadow: 0 4px 0 #3a2a33; transition: transform .08s, box-shadow .08s; }
+  .dock button:active { transform: translateY(3px); box-shadow: 0 1px 0 #3a2a33; }
+  .dock button.pink { background: #ffc2d1; }
+  .note { position: fixed; right: 14px; top: 14px; font-size: 11.5px; color: #a07f8b; max-width: 220px; text-align: right; line-height: 1.5; }
+</style>
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }
+</script>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="title"><h1>吉伊卡哇 3D</h1><p>拖著轉・滾輪縮放・點牠會跳</p></div>
+<div class="note">全部用 Three.js 程式組出來的（沒有用模型檔）。私人練習用，角色版權屬原作者。</div>
+<div class="dock">
+  <button class="pink" data-a="wave">👋 揮手</button>
+  <button data-a="jump">⤴ 跳</button>
+  <button data-a="spin">🔄 轉圈</button>
+  <button data-a="walk">🚶 走路</button>
+  <button data-a="cry">😢 哭哭</button>
+  <button data-a="happy">✨ 開心</button>
+</div>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(32, innerWidth / innerHeight, .1, 100);
+camera.position.set(0, 1.6, 7.5);
+const controls = new OrbitControls(camera, canvas);
+controls.target.set(0, 1.05, 0); controls.enableDamping = true; controls.enablePan = false;
+controls.minDistance = 3.5; controls.maxDistance = 12; controls.maxPolarAngle = Math.PI * .55;
+addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
+
+// 光：卡通上色只看主光方向，柔和一點
+scene.add(new THREE.AmbientLight(0xffffff, 1.35));
+const sun = new THREE.DirectionalLight(0xffffff, 1.35); sun.position.set(2.5, 5, 4); sun.castShadow = true;
+sun.shadow.mapSize.set(1024, 1024); Object.assign(sun.shadow.camera, { left: -3, right: 3, top: 3, bottom: -3 }); sun.shadow.radius = 6; scene.add(sun);
+
+// 地上的影子圈
+const ground = new THREE.Mesh(new THREE.CircleGeometry(3, 64), new THREE.ShadowMaterial({ opacity: .18 }));
+ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+
+// 卡通上色用的三階漸層（白→淡粉灰→粉灰），看起來像手繪上色
+const grad = (() => { const c = new Uint8Array([205, 250, 255]); const t = new THREE.DataTexture(c, 3, 1, THREE.RedFormat); t.minFilter = t.magFilter = THREE.NearestFilter; t.needsUpdate = true; return t; })();
+const toon = (color) => new THREE.MeshToonMaterial({ color, gradientMap: grad });
+const black = new THREE.MeshBasicMaterial({ color: 0x241a20 });
+const outlineMat = new THREE.MeshBasicMaterial({ color: 0x241a20, side: THREE.BackSide });
+// 粗黑描邊：同一個形狀放大一點、只畫背面（反轉外殼）
+function withOutline(mesh, k = 1.045) {
+  const o = new THREE.Mesh(mesh.geometry, outlineMat); o.scale.setScalar(k); mesh.add(o); mesh.castShadow = true; return mesh;
+}
+
+// ── 身體：麻糬形（下面寬、頭頂圓） ──
+// 大福形：上下都圓、兩側飽滿（超橢圓轉一圈），底部稍微壓平坐在地上
+const A = 1.12, B = .98, CY0 = .98, NE = 2.5;
+const pts = [];
+for (let i = 0; i <= 64; i++) {
+  const th = -Math.PI / 2 + Math.PI * i / 64, c = Math.cos(th), sn = Math.sin(th);
+  const x = A * Math.pow(Math.abs(c), 2 / NE), y = CY0 + B * Math.sign(sn) * Math.pow(Math.abs(sn), 2 / NE);
+  pts.push(new THREE.Vector2(Math.max(x, .001), Math.max(y, .03)));
+}
+const topY = x => CY0 + B * Math.pow(Math.max(0, 1 - Math.pow(Math.abs(x) / A, NE)), 1 / NE);
+pts[0].x = .001; pts[pts.length - 1].x = .001;
+const bodyGeo = new THREE.LatheGeometry(pts, 96); bodyGeo.computeVertexNormals();
+const R = y => { // 某高度的半徑（給臉上零件貼表面用）
+  const t = y / 1.9; for (let i = 1; i < pts.length; i++) if (pts[i].y >= y) { const a = pts[i - 1], b = pts[i]; return a.x + (b.x - a.x) * ((y - a.y) / (b.y - a.y)); } return .001; };
+const surf = (x, y, out = 0) => { const r = R(y); const z = Math.sqrt(Math.max(r * r - x * x, 0)); return new THREE.Vector3(x, y, z + out); };
+
+const chii = new THREE.Group(); scene.add(chii);
+const body = new THREE.Group(); chii.add(body);
+const bodyMesh = withOutline(new THREE.Mesh(bodyGeo, toon(0xfffdfb)), 1.035); body.add(bodyMesh);
+
+// 耳朵：頭頂兩個小圓
+for (const s of [-1, 1]) {
+  const ear = withOutline(new THREE.Mesh(new THREE.SphereGeometry(.2, 32, 24), toon(0xfffdfb)), 1.09);
+  // 黏在頭頂表面上（往裡埋一點）
+  ear.scale.set(1.05, .9, .85); ear.position.set(s * .5, topY(.5) - .02, .02); ear.rotation.z = s * -.4; body.add(ear);
+}
+
+// ── 臉 ──
+const face = new THREE.Group(); body.add(face);
+const eyes = [];
+for (const s of [-1, 1]) {
+  const p = surf(s * .34, 1.12, -.02);
+  const eye = new THREE.Mesh(new THREE.SphereGeometry(.13, 32, 24), black); eye.scale.set(.86, 1, .45); eye.position.copy(p);
+  eye.lookAt(p.clone().multiplyScalar(2).setY(p.y)); face.add(eye); eyes.push(eye);
+  const hl = new THREE.Mesh(new THREE.SphereGeometry(.045, 16, 12), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+  hl.position.set(.035, .045, .11); eye.add(hl);
+  const hl2 = new THREE.Mesh(new THREE.SphereGeometry(.02, 12, 10), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+  hl2.position.set(-.04, -.05, .11); eye.add(hl2);
+  // 眉毛：細細的弧線
+  const brow = new THREE.Mesh(new THREE.TorusGeometry(.14, .018, 8, 24, Math.PI * .7), black);
+  const bp = surf(s * .36, 1.36, .005); brow.position.copy(bp); brow.rotation.set(-.25, s * .32, Math.PI * .15 + (s < 0 ? 0 : .02)); face.add(brow);
+  // 臉頰：粉紅橢圓＋三條斜線
+  const cp = surf(s * .66, .92, .03); // 往外推，不然一半陷進身體變月牙
+  const cheek = new THREE.Mesh(new THREE.CircleGeometry(.17, 32), new THREE.MeshBasicMaterial({ color: 0xffa9bd, transparent: true, opacity: .92 }));
+  cheek.scale.set(1.35, .8, 1); cheek.position.copy(cp); cheek.lookAt(cp.clone().multiplyScalar(2).setY(cp.y)); face.add(cheek);
+  for (let k = -1; k <= 1; k++) {
+    const line = new THREE.Mesh(new THREE.CapsuleGeometry(.012, .09, 4, 8), black);
+    line.position.set(k * .085, 0, .003); line.rotation.z = -.5; cheek.add(line);
+  }
+}
+// 嘴：ω（兩個小弧）＋一點點舌頭
+{ const mp = surf(0, .92, .005);
+  const mouth = new THREE.Group(); mouth.position.copy(mp); mouth.scale.setScalar(1.7); face.add(mouth);
+  for (const s of [-1, 1]) { const arc = new THREE.Mesh(new THREE.TorusGeometry(.045, .012, 8, 20, Math.PI), black); arc.rotation.z = Math.PI; arc.position.x = s * .045; mouth.add(arc); }
+  const tongue = new THREE.Mesh(new THREE.SphereGeometry(.03, 12, 10), new THREE.MeshBasicMaterial({ color: 0xff7f98 })); tongue.scale.set(1, .7, .4); tongue.position.set(0, -.055, 0); mouth.add(tongue); }
+
+// 眼淚（哭哭時才出現）
+const tears = [];
+for (const s of [-1, 1]) { const t = new THREE.Mesh(new THREE.SphereGeometry(.06, 16, 12), new THREE.MeshToonMaterial({ color: 0x8fd3ff, gradientMap: grad, transparent: true, opacity: .9 }));
+  t.scale.set(.8, 1.2, .8); t.visible = false; face.add(t); tears.push({ m: t, s }); }
+
+// ── 手腳：小小圓圓 ──
+const armL = new THREE.Group(), armR = new THREE.Group();
+for (const [g, s] of [[armL, -1], [armR, 1]]) {
+  const p = surf(s * .98, .62, -.12); g.position.copy(p); body.add(g);
+  const hand = withOutline(new THREE.Mesh(new THREE.SphereGeometry(.17, 24, 18), toon(0xfffdfb)), 1.1); hand.scale.set(.85, 1, .85); hand.position.set(s * .06, -.04, .02); g.add(hand);
+}
+const legs = [];
+for (const s of [-1, 1]) { const leg = withOutline(new THREE.Mesh(new THREE.SphereGeometry(.2, 24, 18), toon(0xfffdfb)), 1.08); leg.scale.set(1, .55, 1.1); leg.position.set(s * .42, .06, .45); chii.add(leg); legs.push(leg); }
+
+// 頭頂的小星星（開心時轉）
+const sparkles = new THREE.Group(); chii.add(sparkles); sparkles.visible = false;
+for (let i = 0; i < 5; i++) { const st = new THREE.Mesh(new THREE.OctahedronGeometry(.09), new THREE.MeshBasicMaterial({ color: [0xffd36b, 0xff9fbe, 0x8fd3ff][i % 3] }));
+  const a = i / 5 * Math.PI * 2; st.position.set(Math.cos(a) * 1.25, 2.1 + Math.sin(i) * .15, Math.sin(a) * 1.25); sparkles.add(st); }
+
+// ── 動作 ──
+let action = 'idle', actT = 0, nextBlink = 2;
+function play(a) { action = a; actT = 0; tears.forEach(t => t.m.visible = a === 'cry'); sparkles.visible = a === 'happy'; }
+document.querySelectorAll('[data-a]').forEach(b => b.onclick = () => play(b.dataset.a));
+// 點牠會跳
+const ray = new THREE.Raycaster(), nd = new THREE.Vector2(); let x0 = 0, y0 = 0;
+canvas.addEventListener('pointerdown', e => { x0 = e.clientX; y0 = e.clientY; });
+canvas.addEventListener('pointerup', e => { if (Math.hypot(e.clientX - x0, e.clientY - y0) > 6) return;
+  nd.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(nd, camera);
+  if (ray.intersectObject(chii, true).length) play('jump'); });
+
+const clock = new THREE.Clock();
+function frame() {
+  const dt = Math.min(clock.getDelta(), 1 / 30), t = clock.elapsedTime; actT += dt;
+  // 呼吸
+  const breathe = 1 + Math.sin(t * 2.2) * .018;
+  body.scale.set(1 / Math.sqrt(breathe), breathe, 1 / Math.sqrt(breathe));
+  chii.position.y = 0; chii.rotation.set(0, chii.rotation.y, 0); armL.rotation.set(0, 0, 0); armR.rotation.set(0, 0, 0);
+  legs.forEach(l => { l.position.z = .45; l.position.y = .06; });
+  // 眨眼
+  if (t > nextBlink) { const k = (t - nextBlink) / .14; const sy = k < 1 ? Math.max(.08, Math.abs(1 - k * 2)) : 1; eyes.forEach(e => e.scale.y = sy); if (k >= 1) nextBlink = t + 2 + Math.random() * 3; }
+
+  if (action === 'wave') {
+    armR.rotation.z = 2.2 + Math.sin(actT * 14) * .45; armR.position.y = .9;
+    if (actT > 2.2) { armR.position.y = surf(.98, .62).y; play('idle'); }
+  } else if (action === 'jump') {
+    const k = actT / .8; if (k >= 1) play('idle');
+    else { const up = Math.sin(k * Math.PI); chii.position.y = up * 1.2; const sq = k < .15 ? 1 - k * 1.6 : k > .88 ? .8 : 1 + up * .1;
+      body.scale.set(1 / Math.sqrt(sq), sq, 1 / Math.sqrt(sq)); armL.rotation.z = -up * 1.6; armR.rotation.z = up * 1.6; }
+  } else if (action === 'spin') {
+    chii.rotation.y += dt * 9; chii.position.y = Math.abs(Math.sin(actT * 6)) * .15; if (actT > 1.4) { chii.rotation.y = 0; play('idle'); }
+  } else if (action === 'walk') {
+    const ph = actT * 9, R0 = 1.4; chii.position.x = Math.sin(actT * .9) * R0; chii.position.z = Math.cos(actT * .9) * R0 - R0;
+    chii.rotation.y = actT * .9 + Math.PI / 2; chii.position.y = Math.abs(Math.sin(ph)) * .06; body.rotation.z = Math.sin(ph) * .06;
+    legs[0].position.z = .45 + Math.sin(ph) * .18; legs[1].position.z = .45 - Math.sin(ph) * .18;
+    armL.rotation.x = Math.sin(ph) * .6; armR.rotation.x = -Math.sin(ph) * .6;
+    if (actT > Math.PI * 2 / .9) { chii.position.set(0, 0, 0); chii.rotation.y = 0; body.rotation.z = 0; play('idle'); }
+  } else if (action === 'cry') {
+    body.rotation.z = Math.sin(actT * 18) * .03; armL.rotation.z = -.4; armR.rotation.z = .4; armL.position.y = armR.position.y = .95;
+    tears.forEach(({ m, s }) => { const k = (actT * 1.4 + (s > 0 ? .5 : 0)) % 1; const p = surf(s * .4, 1.02 - k * .5, .02); m.position.copy(p); m.material.opacity = 1 - k; });
+    if (actT > 3) { armL.position.y = armR.position.y = surf(.98, .62).y; play('idle'); }
+  } else if (action === 'happy') {
+    chii.position.y = Math.abs(Math.sin(actT * 7)) * .25; armL.rotation.z = -2 - Math.sin(actT * 14) * .3; armR.rotation.z = 2 + Math.sin(actT * 14) * .3;
+    armL.position.y = armR.position.y = .95; sparkles.rotation.y += dt * 2; sparkles.children.forEach((s, i) => s.rotation.y += dt * 4);
+    if (actT > 2.6) { armL.position.y = armR.position.y = surf(.98, .62).y; play('idle'); }
+  } else { body.rotation.z = Math.sin(t * 1.3) * .02; }
+  controls.update(); renderer.render(scene, camera); requestAnimationFrame(frame);
+}
+frame();
+setTimeout(() => play('wave'), 600);
+</script>
+</body>
+</html>
