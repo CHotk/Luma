@@ -1095,7 +1095,7 @@ class _FeatureStatusRow extends StatelessWidget {
   final String label;
   final _FeaturePhase phase;
 
-  /// 只同步這一項（還沒同步、或上次失敗時，右邊顯示「同步」小標籤）。
+  /// 只同步這一項（右邊一直有「同步」小標籤，同步中那一項除外）。
   /// null＝這列不能單獨同步（除錯日誌、同步紀錄），或整體正在同步中。
   final VoidCallback? onSync;
 
@@ -1125,9 +1125,11 @@ class _FeatureStatusRow extends StatelessWidget {
             const SizedBox(width: 8),
           ],
           _buildStatus(),
+          // 同步完也一直在（2026-10-20 使用者：單獨同步的標籤要一直存在，隨時能再同步這一項）；
+          // 只有正在同步這一項時不顯示。
           if (onSync != null &&
-              (phase == _FeaturePhase.idle ||
-                  phase == _FeaturePhase.error)) ...[
+              phase != _FeaturePhase.downloading &&
+              phase != _FeaturePhase.uploading) ...[
             const SizedBox(width: 8),
             _SyncChip(onTap: onSync!),
           ],
