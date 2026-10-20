@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>YT 管理 GSAP</title>
+<!--
+  2026-10-20 使用者要求：Lume 的 YT 管理用 GSAP 產一個設計稿，UI 要好看。
+  結構照現在的 YT 管理：首頁（分類資料夾）→ 分類（頻道）→ 頻道詳情（分頁膠囊、影片列）→ 播放；
+  底部「頻道／影片／播放清單」膠囊。動畫全部用 GSAP（Flip、Draggable、ScrollTrigger）。
+  頻道、影片是假資料，縮圖用 picsum 隨機照片。
+-->
+<style>
+  :root { --bg: #0C0C13; --ink: #F3F2F8; --ink2: #A3A2B2; --ink3: #74738A; --edge: rgba(255,255,255,.12);
+    --glass: rgba(255,255,255,.07); --red: #FF4E5B; --red2: #FF8A6B; --accent: #7EA6FF; --ok: #5FE08D; --gold: #F2C46D; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html { background: #05060b; }
+  body { margin: 0; color: var(--ink); min-height: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+    background: radial-gradient(900px 600px at 10% -10%, #2a1420, transparent 60%), radial-gradient(900px 600px at 110% 110%, #14203a, transparent 60%), #05060b; }
+  .page { max-width: 1120px; margin: 0 auto; padding: 26px 20px 60px; display: flex; gap: 40px; flex-wrap: wrap; justify-content: center; align-items: flex-start; }
+  .intro { width: 100%; } .intro h1 { margin: 0; font-size: 24px; } .intro p { margin: 6px 0 0; color: var(--ink2); font-size: 14px; line-height: 1.6; }
+
+  .phone { flex-shrink: 0; width: 375px; height: 790px; min-height: 790px; border-radius: 46px; padding: 12px; background: #111;
+    box-shadow: 0 0 0 2px #2a2a33, 0 30px 80px rgba(0,0,0,.6); }
+  .screen { position: relative; width: 100%; height: 100%; border-radius: 36px; overflow: hidden; background: var(--bg); isolation: isolate; }
+  .amb { position: absolute; inset: 0; pointer-events: none; z-index: 0;
+    background: radial-gradient(240px 200px at 0% 0%, rgba(255,78,91,.28), transparent 70%), radial-gradient(260px 220px at 100% 30%, rgba(126,166,255,.2), transparent 70%),
+      radial-gradient(260px 240px at 90% 95%, rgba(242,196,109,.16), transparent 70%), radial-gradient(240px 240px at 0% 100%, rgba(140,80,255,.22), transparent 70%); }
+
+  .view { position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden; padding: 0 16px 110px; z-index: 1; scrollbar-width: none; }
+  .view::-webkit-scrollbar { display: none; }
+  .status { height: 34px; display: flex; justify-content: space-between; align-items: flex-end; font-size: 12px; color: var(--ink2); padding: 0 10px 4px; }
+  .bar { display: flex; align-items: center; gap: 6px; height: 46px; }
+  .bar h2 { margin: 0; font-size: 20px; font-weight: 800; flex: 1; display: flex; align-items: center; gap: 8px; }
+  .ib { width: 36px; height: 36px; border: 0; background: transparent; color: var(--ink2); font-size: 18px; border-radius: 12px; cursor: pointer; display: grid; place-items: center; }
+  .ib:active { background: rgba(255,255,255,.08); }
+  .yt { width: 26px; height: 18px; border-radius: 6px; background: linear-gradient(135deg, var(--red), #c81d3a); display: grid; place-items: center; font-size: 9px; color: #fff; box-shadow: 0 4px 14px rgba(255,78,91,.45); }
+
+  /* 首頁 */
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 8px 0 18px; }
+  .stat { border-radius: 18px; padding: 12px; background: var(--glass); border: 1px solid var(--edge); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+  .stat b { display: block; font-size: 24px; font-weight: 900; font-variant-numeric: tabular-nums; letter-spacing: -.5px; }
+  .stat span { font-size: 11.5px; color: var(--ink3); }
+  .stat:nth-child(1) b { color: var(--red2); } .stat:nth-child(2) b { color: var(--gold); } .stat:nth-child(3) b { color: var(--ok); }
+  .sec { display: flex; justify-content: space-between; align-items: baseline; margin: 6px 4px 10px; }
+  .sec b { font-size: 16px; } .sec span { font-size: 12.5px; color: var(--ink3); }
+  .rail { position: relative; overflow: hidden; margin: 0 -16px 20px; padding: 0 16px; }
+  .rail .track { display: flex; gap: 12px; width: max-content; cursor: grab; }
+  .rcard { width: 210px; flex-shrink: 0; }
+  .thumb { position: relative; border-radius: 16px; overflow: hidden; aspect-ratio: 16/9; background: #222 center/cover; box-shadow: 0 10px 24px rgba(0,0,0,.35); }
+  .thumb .dur { position: absolute; right: 6px; bottom: 6px; font-size: 10.5px; padding: 2px 5px; border-radius: 6px; background: rgba(0,0,0,.72); }
+  .thumb .new { position: absolute; left: 6px; top: 6px; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 6px; background: var(--red); }
+  .rcard .tt { margin-top: 8px; font-size: 13.5px; font-weight: 700; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .rcard .ch { font-size: 11.5px; color: var(--ink3); margin-top: 3px; }
+  .folders { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; perspective: 900px; }
+  .folder { position: relative; border-radius: 22px; padding: 14px; min-height: 128px; cursor: pointer; overflow: hidden; transform-style: preserve-3d;
+    background: var(--glass); border: 1px solid var(--edge); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+  .folder .glow { position: absolute; inset: auto -30% -50% auto; width: 140px; height: 140px; border-radius: 50%; filter: blur(30px); opacity: .55; }
+  .folder .ic { font-size: 26px; } .folder b { display: block; margin-top: 10px; font-size: 16px; } .folder span { font-size: 12px; color: var(--ink3); }
+  .folder .avs { position: absolute; right: 12px; top: 12px; display: flex; }
+  .folder .avs i { width: 22px; height: 22px; border-radius: 50%; border: 2px solid #15151f; margin-left: -7px; background-size: cover; }
+  .folder .badge { position: absolute; right: 12px; bottom: 12px; font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 999px; background: rgba(255,78,91,.18); color: var(--red2); border: 1px solid rgba(255,78,91,.35); }
+
+  /* 分類頁 */
+  .catHead { position: relative; border-radius: 26px; padding: 18px; min-height: 140px; overflow: hidden; background: var(--glass); border: 1px solid var(--edge); margin-top: 6px; }
+  .catHead .glow { position: absolute; right: -40px; bottom: -60px; width: 220px; height: 220px; border-radius: 50%; filter: blur(40px); opacity: .6; }
+  .catHead .ic { font-size: 34px; } .catHead b { display: block; font-size: 24px; margin-top: 8px; } .catHead span { color: var(--ink2); font-size: 13px; }
+  .chans { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px 10px; margin-top: 18px; }
+  .chan { text-align: center; cursor: pointer; position: relative; }
+  .chan .av { width: 74px; height: 74px; margin: 0 auto; border-radius: 50%; background-size: cover; background-position: center; box-shadow: 0 8px 20px rgba(0,0,0,.4); border: 2px solid rgba(255,255,255,.12); position: relative; }
+  .chan .av .n { position: absolute; right: -2px; top: -2px; min-width: 22px; height: 22px; border-radius: 999px; background: var(--red); font-size: 11px; font-weight: 800; display: grid; place-items: center; padding: 0 5px; border: 2px solid var(--bg); }
+  .chan b { display: block; font-size: 12.5px; margin-top: 7px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chan span { font-size: 11px; color: var(--ink3); }
+
+  /* 頻道頁 */
+  .hero { position: relative; height: 210px; margin: 0 -16px; overflow: hidden; }
+  .hero .banner { position: absolute; inset: -30px 0 0; background-size: cover; background-position: center; filter: saturate(1.1); }
+  .hero .shade { position: absolute; inset: 0; background: linear-gradient(rgba(12,12,19,.1), rgba(12,12,19,.35) 50%, var(--bg)); }
+  .hero .back { position: absolute; left: 12px; top: 40px; z-index: 2; background: rgba(0,0,0,.35); backdrop-filter: blur(10px); color: #fff; }
+  .chInfo { display: flex; gap: 14px; align-items: flex-end; margin-top: -52px; position: relative; z-index: 2; padding: 0 2px; }
+  .chInfo .av { width: 84px; height: 84px; border-radius: 50%; background-size: cover; border: 3px solid var(--bg); box-shadow: 0 10px 26px rgba(0,0,0,.5); flex-shrink: 0; }
+  .chInfo b { font-size: 21px; display: block; } .chInfo span { font-size: 12.5px; color: var(--ink2); }
+  .chStats { display: flex; gap: 8px; margin: 14px 0 12px; }
+  .chStats div { flex: 1; text-align: center; border-radius: 14px; padding: 9px 4px; background: var(--glass); border: 1px solid var(--edge); }
+  .chStats b { display: block; font-size: 16px; } .chStats span { font-size: 11px; color: var(--ink3); }
+  .tabs { position: sticky; top: 0; z-index: 5; display: flex; padding: 4px; border-radius: 999px; background: rgba(20,20,32,.72); border: 1px solid var(--edge);
+    backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); margin: 0 0 12px; }
+  .tabs .ind { position: absolute; top: 4px; bottom: 4px; left: 4px; border-radius: 999px; background: linear-gradient(135deg, rgba(255,78,91,.9), rgba(255,138,107,.85)); box-shadow: 0 6px 18px rgba(255,78,91,.35); z-index: 0; }
+  .tabs button { position: relative; z-index: 1; flex: 1; border: 0; background: transparent; color: var(--ink2); font-family: inherit; font-size: 13px; font-weight: 700; padding: 9px 0; cursor: pointer; transition: color .25s; }
+  .tabs button.on { color: #fff; }
+  .vrow { position: relative; border-radius: 18px; overflow: hidden; margin-bottom: 10px; }
+  .vrow .acts { position: absolute; inset: 0; display: flex; justify-content: flex-end; }
+  .vrow .acts button { width: 70px; border: 0; color: #fff; font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
+  .vrow .acts button i { font-style: normal; font-size: 18px; }
+  .a1 { background: #2f9e5b; } .a2 { background: #52525e; } .a3 { background: #b9488f; }
+  .vrow .body { position: relative; display: flex; gap: 12px; padding: 10px; background: #15151f; border: 1px solid var(--edge); border-radius: 18px; cursor: pointer; touch-action: pan-y; }
+  .vrow .thumb { width: 132px; flex-shrink: 0; border-radius: 12px; box-shadow: none; }
+  .vrow .meta { min-width: 0; flex: 1; display: flex; flex-direction: column; }
+  .vrow .meta b { font-size: 13.5px; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .vrow .meta span { font-size: 11.5px; color: var(--ink3); margin-top: 4px; }
+  .vrow .meta .tags { margin-top: auto; display: flex; gap: 5px; }
+  .tag { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 6px; background: rgba(255,255,255,.08); color: var(--ink2); }
+  .tag.w { background: rgba(95,224,141,.15); color: var(--ok); }
+  .vrow.watched .thumb::after { content: '看過'; position: absolute; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,.55); font-size: 12px; font-weight: 800; color: var(--ok); }
+
+  /* 播放器 */
+  .mini { position: absolute; left: 10px; right: 10px; bottom: 88px; z-index: 20; display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 18px;
+    background: rgba(26,26,38,.82); border: 1px solid var(--edge); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); cursor: pointer; visibility: hidden; }
+  .mini .thumb { width: 86px; border-radius: 10px; box-shadow: none; }
+  .mini b { font-size: 13px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .mini span { font-size: 11px; color: var(--ink3); }
+  .mini .prog { position: absolute; left: 12px; right: 12px; bottom: 3px; height: 2px; border-radius: 2px; background: rgba(255,255,255,.12); overflow: hidden; }
+  .mini .prog i { display: block; height: 100%; width: 0; background: var(--red); }
+  .mini .pp { width: 38px; height: 38px; border-radius: 50%; border: 0; background: rgba(255,255,255,.1); color: #fff; font-size: 15px; flex-shrink: 0; cursor: pointer; }
+  .full { position: absolute; inset: 0; z-index: 30; background: rgba(8,8,14,.96); display: flex; flex-direction: column; padding: 46px 16px 20px; visibility: hidden; }
+  .full .thumb { width: 100%; border-radius: 18px; }
+  .full .play { position: absolute; inset: 0; display: grid; place-items: center; }
+  .full .play i { width: 64px; height: 64px; border-radius: 50%; background: rgba(255,78,91,.9); display: grid; place-items: center; font-style: normal; font-size: 24px; box-shadow: 0 10px 30px rgba(255,78,91,.5); }
+  .full h3 { margin: 16px 2px 4px; font-size: 18px; line-height: 1.35; } .full .sub { color: var(--ink2); font-size: 13px; margin: 0 2px; }
+  .full .row { display: flex; gap: 8px; margin-top: 16px; }
+  .full .row button { flex: 1; border-radius: 14px; border: 1px solid var(--edge); background: var(--glass); color: var(--ink); font-family: inherit; font-size: 13px; font-weight: 700; padding: 12px 0; cursor: pointer; }
+  .full .close { position: absolute; right: 14px; top: 12px; }
+
+  /* 底部膠囊 */
+  .nav { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 25; display: flex; padding: 6px; border-radius: 999px;
+    background: rgba(20,20,32,.62); border: 1px solid var(--edge); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+  .nav .ind { position: absolute; top: 6px; bottom: 6px; left: 6px; width: 84px; border-radius: 999px; background: rgba(255,78,91,.18); border: 1px solid rgba(255,78,91,.4); }
+  .nav button { position: relative; width: 84px; border: 0; background: transparent; color: var(--ink2); font-family: inherit; font-size: 11.5px; padding: 6px 0 4px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .nav button span { font-size: 18px; line-height: 1; }
+  .nav button.on { color: var(--red2); }
+  .toast { position: absolute; left: 50%; top: 52px; transform: translateX(-50%); z-index: 40; background: rgba(30,30,44,.95); border: 1px solid var(--edge); padding: 9px 14px; border-radius: 999px; font-size: 13px; white-space: nowrap; opacity: 0; pointer-events: none; }
+
+  aside { width: 400px; max-width: 100%; }
+  aside .card { border-radius: 20px; padding: 20px 22px; background: rgba(255,255,255,.06); border: 1px solid var(--edge); }
+  aside h2 { margin: 0 0 6px; font-size: 19px; } aside h3 { margin: 16px 0 6px; font-size: 14.5px; color: var(--red2); }
+  aside ul { margin: 0; padding-left: 18px; color: var(--ink2); font-size: 14px; line-height: 1.75; }
+  .ctrl { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+  .ctrl button { border: 1px solid var(--edge); background: rgba(255,255,255,.06); color: var(--ink); border-radius: 12px; padding: 9px 12px; font-family: inherit; font-size: 13px; cursor: pointer; }
+  .ctrl button.on { border-color: rgba(255,78,91,.6); background: rgba(255,78,91,.14); }
+  @media (max-width: 440px) { .page { padding: 16px 8px 40px; } .phone { width: 100%; padding: 8px; border-radius: 38px; } }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/Flip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/Draggable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+</head>
+<body>
+<div class="page">
+  <div class="intro">
+    <h1>▶ YT 管理・GSAP 動態設計稿</h1>
+    <p>左邊整支可以點：首頁點分類 → 點頻道 → 點影片。影片列<b>往左滑</b>露出「看過／隱藏／歌曲」；「最新影片」那排可以<b>左右甩</b>；頻道頁往下捲頂部大圖有景深位移。右邊可以放慢動畫看細節。</p>
+  </div>
+
+  <div class="phone"><div class="screen" id="screen">
+    <div class="amb"></div>
+    <div id="views"></div>
+    <div class="mini" id="mini"><div class="thumb" id="miniThumb"></div><div style="flex:1;min-width:0"><b id="miniT"></b><span id="miniC"></span></div><button class="pp" id="pp">❚❚</button><div class="prog"><i id="prog"></i></div></div>
+    <div class="full" id="full"><button class="ib close" id="closeFull">✕</button>
+      <div class="thumb" id="fullThumb"><div class="play"><i>▶</i></div></div>
+      <h3 id="fullT"></h3><div class="sub" id="fullC"></div>
+      <div class="row"><button>👍 看過</button><button>♪ 標成歌曲</button><button>＋ 播放清單</button></div>
+    </div>
+    <div class="nav" id="nav"><div class="ind" id="navInd"></div>
+      <button class="on" data-nav="0"><span>▦</span>頻道</button><button data-nav="1"><span>▶</span>影片</button><button data-nav="2"><span>☰</span>播放清單</button></div>
+    <div class="toast" id="toast"></div>
+  </div></div>
+
+  <aside><div class="card">
+    <h2>YT 管理（GSAP 版）</h2>
+    <div style="color:var(--ink2);font-size:14px;line-height:1.6">畫面結構跟現在一樣，主打「每個動作都有順的動畫」，看起來更精緻、操作更有手感。</div>
+    <h3>首頁</h3><ul><li>三個統計數字從 0 跑上來。</li><li>「最新影片」一排可以甩，放手會滑一段再停（自己算的慣性）。</li><li>分類資料夾一張張彈進來，手指／滑鼠移上去會跟著傾斜（3D）。</li></ul>
+    <h3>分類 → 頻道</h3><ul><li>點資料夾：那張卡片直接變大成分類頁的標題（GSAP Flip），不是硬切。</li><li>頻道頭像一顆顆浮出來，有新影片的紅點會彈一下。</li></ul>
+    <h3>頻道詳情</h3><ul><li>頂部大圖往下捲會慢慢位移、變暗（ScrollTrigger）。</li><li>分頁膠囊：紅色那塊會滑到點的那一格，影片列逐列進場。</li><li>影片往左滑：露出看過／隱藏／歌曲；放手會彈回或停住（Draggable）。</li></ul>
+    <h3>播放</h3><ul><li>點影片：縮圖飛到下面變迷你播放器（Flip），進度條在跑。</li><li>點迷你播放器：展開成大播放器；✕ 收回去。</li></ul>
+    <h3>底部膠囊</h3><ul><li>選中的底色滑過去，有一點彈性。</li></ul>
+    <div class="ctrl"><button id="slow">🐢 放慢動畫看細節</button><button id="replay">↻ 回首頁重播</button></div>
+  </div></aside>
+</div>
+
+<script>
+gsap.registerPlugin(Flip, Draggable, ScrollTrigger);
+const $ = (s, el = document) => el.querySelector(s), $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const pic = (seed, w = 480, h = 270) => `https://picsum.photos/seed/${seed}/${w}/${h}`;
+
+// ───────── 假資料 ─────────
+const CATS = [
+  { id: 'music', name: '音樂', ic: '🎵', color: '#ff4e8a', chans: 18, newN: 9 },
+  { id: 'game', name: '遊戲', ic: '🎮', color: '#7e6bff', chans: 24, newN: 5 },
+  { id: 'cook', name: '料理', ic: '🍳', color: '#ffb547', chans: 11, newN: 3 },
+  { id: 'tech', name: '科技', ic: '💡', color: '#46c2ff', chans: 15, newN: 7 },
+  { id: 'vlog', name: '日常 Vlog', ic: '📷', color: '#5fe08d', chans: 21, newN: 2 },
+  { id: 'meh', name: '看過但不喜歡', ic: '🙈', color: '#8a8a99', chans: 6, newN: 0 },
+];
+const NAMES = ['晚安小雨', '星星電台', 'Lo-fi 咖啡廳', '吉他阿哲', '夜行鋼琴', '城市散步', '台北小廚房', '熊熊遊戲', '海邊日記', '貓咪頻道', '科技早報', '雨天錄音室'];
+const TITLES = ['【Live】深夜不插電，一首一首慢慢唱', '把整首歌改成鋼琴版，第二段大家都哭了', '我在京都待了七天，最喜歡的竟然是這間小店', '30 分鐘做出餐廳等級的蛋包飯', '新手機開箱：這次真的值得換嗎？', '雨聲＋lo-fi，讀書工作專用 2 小時', '第一次挑戰極限模式，結局太扯了', '陪我整理房間｜週末日常', '這首歌的和弦其實藏了一個小秘密', '台灣最美的海邊公路，騎車一圈', '把貓帶去露營，牠的反應…', '翻唱｜你給的溫柔'];
+const durs = ['12:48', '4:31', '18:06', '9:12', '1:02:33', '6:45', '23:10', '3:58', '15:27', '8:03', '11:11', '5:40'];
+
+// ───────── 共用 ─────────
+let speed = 1;
+const T = s => s / speed;   // 動畫時間（放慢用）
+const views = $('#views');
+function toast(m) { const t = $('#toast'); t.textContent = m; gsap.killTweensOf(t); gsap.fromTo(t, { y: -10, opacity: 0 }, { y: 0, opacity: 1, duration: T(.3) }); gsap.to(t, { opacity: 0, delay: T(1.5), duration: T(.3) }); }
+const topBar = (title, back) => `<div class="status"><span>9:41</span><span>●●● 5G 🔋</span></div>
+  <div class="bar">${back ? `<button class="ib" data-back>‹</button>` : `<button class="ib">☰</button>`}<h2>${back ? '' : '<span class="yt">▶</span>'}${title}</h2><button class="ib">🔍</button><button class="ib">⚙</button></div>`;
+
+function swapView(html, dir = 1, after) {
+  const old = $('.view', views);
+  const v = document.createElement('div'); v.className = 'view'; v.innerHTML = html; views.appendChild(v);
+  if (old) {
+    gsap.fromTo(v, { xPercent: 26 * dir, opacity: 0 }, { xPercent: 0, opacity: 1, duration: T(.45), ease: 'power3.out' });
+    gsap.to(old, { xPercent: -14 * dir, opacity: 0, scale: .97, duration: T(.4), ease: 'power2.in', onComplete: () => old.remove() });
+  }
+  after?.(v);
+  return v;
+}
+
+// ───────── 首頁 ─────────
+function home(dir = -1) {
+  const v = swapView(`${topBar('YT 管理')}
+    <div class="stats"><div class="stat"><b data-n="128">0</b><span>追蹤頻道</span></div><div class="stat"><b data-n="23">0</b><span>今天新影片</span></div><div class="stat"><b data-n="41">0</b><span>本週看過</span></div></div>
+    <div class="sec"><b>最新影片</b><span>左右甩甩看 →</span></div>
+    <div class="rail"><div class="track">${TITLES.slice(0, 8).map((t, i) => `<div class="rcard"><div class="thumb" style="background-image:url(${pic('v' + i)})"><span class="new">NEW</span><span class="dur">${durs[i]}</span></div><div class="tt">${t}</div><div class="ch">${NAMES[i]}・${i + 1} 小時前</div></div>`).join('')}</div></div>
+    <div class="sec"><b>分類</b><span>${CATS.length} 個</span></div>
+    <div class="folders">${CATS.map((c, i) => `<div class="folder" data-cat="${c.id}" data-flip-id="cat-${c.id}"><div class="glow" style="background:${c.color}"></div>
+      <div class="avs">${[0, 1, 2].map(k => `<i style="background-image:url(${pic('a' + (i * 3 + k), 60, 60)})"></i>`).join('')}</div>
+      <div class="ic">${c.ic}</div><b>${c.name}</b><span>${c.chans} 個頻道</span>${c.newN ? `<div class="badge">${c.newN} 新</div>` : ''}</div>`).join('')}</div>`, dir);
+
+  // 數字跑上來
+  $$('.stat b', v).forEach(b => { const o = { n: 0 }; gsap.to(o, { n: +b.dataset.n, duration: T(1.2), ease: 'power2.out', delay: T(.15), onUpdate: () => b.textContent = Math.round(o.n) }); });
+  gsap.from($$('.stat', v), { y: 16, opacity: 0, stagger: T(.07), duration: T(.5), ease: 'back.out(1.6)' });
+  gsap.from($$('.rcard', v), { x: 60, opacity: 0, stagger: T(.06), duration: T(.6), ease: 'power3.out', delay: T(.1) });
+  gsap.from($$('.folder', v), { y: 40, opacity: 0, scale: .92, stagger: T(.07), duration: T(.6), ease: 'back.out(1.5)', delay: T(.2) });
+
+  // 最新影片：左右甩（放手照速度再滑一段）
+  const track = $('.track', v), rail = $('.rail', v);
+  let vx = 0, lastX = 0, lastT = 0;
+  Draggable.create(track, { type: 'x', bounds: rail, edgeResistance: .8,
+    onPress() { gsap.killTweensOf(track); lastX = this.x; lastT = performance.now(); vx = 0; },
+    onDrag() { const now = performance.now(); vx = (this.x - lastX) / Math.max(1, now - lastT) * 1000; lastX = this.x; lastT = now; },
+    onRelease() { const minX = Math.min(0, rail.clientWidth - track.scrollWidth - 32); const to = gsap.utils.clamp(minX, 0, this.x + vx * .35);
+      gsap.to(track, { x: to, duration: T(.9), ease: 'power3.out' }); } });
+
+  // 資料夾：滑鼠／手指移上去 3D 傾斜
+  $$('.folder', v).forEach(f => {
+    f.addEventListener('pointermove', e => { const r = f.getBoundingClientRect(), px = (e.clientX - r.left) / r.width - .5, py = (e.clientY - r.top) / r.height - .5;
+      gsap.to(f, { rotateY: px * 14, rotateX: -py * 14, duration: T(.4), ease: 'power2.out' }); });
+    f.addEventListener('pointerleave', () => gsap.to(f, { rotateX: 0, rotateY: 0, duration: T(.6), ease: 'elastic.out(1, .5)' }));
+    f.addEventListener('click', () => category(CATS.find(c => c.id === f.dataset.cat), f));
+  });
+}
+
+// ───────── 分類頁（點的那張資料夾直接變成標題：Flip） ─────────
+function category(cat, fromEl) {
+  const state = Flip.getState(fromEl);
+  const v = swapView(`${topBar(cat.name, true)}
+    <div class="catHead" data-flip-id="cat-${cat.id}"><div class="glow" style="background:${cat.color}"></div><div class="ic">${cat.ic}</div><b>${cat.name}</b><span>${cat.chans} 個頻道・${cat.newN} 部新影片</span></div>
+    <div class="chans">${NAMES.map((n, i) => `<div class="chan" data-ch="${i}"><div class="av" style="background-image:url(${pic('a' + i, 160, 160)})">${i % 3 === 0 ? `<span class="n">${(i % 4) + 1}</span>` : ''}</div><b>${n}</b><span>${(i * 7 + 3) % 40 + 1} 萬訂閱</span></div>`).join('')}</div>`, 1);
+  const head = $('.catHead', v);
+  gsap.set(v, { xPercent: 0, opacity: 1 }); gsap.killTweensOf(v);
+  Flip.from(state, { targets: head, duration: T(.6), ease: 'power3.inOut', scale: true, absolute: true });
+  gsap.from($$('.chan', v), { y: 30, opacity: 0, scale: .8, stagger: { each: T(.045), from: 'start' }, duration: T(.5), ease: 'back.out(1.8)', delay: T(.35) });
+  gsap.from($$('.chan .n', v), { scale: 0, duration: T(.5), ease: 'elastic.out(1.2, .4)', delay: T(.9), stagger: T(.05) });
+  $('[data-back]', v).onclick = () => home(-1);
+  $$('.chan', v).forEach(c => c.onclick = () => channel(+c.dataset.ch, cat));
+}
+
+// ───────── 頻道詳情 ─────────
+const TABS = ['全部', '影片', 'Shorts', '直播', '簡介'];
+function channel(i, cat) {
+  const name = NAMES[i];
+  const v = swapView(`<div class="hero"><div class="banner" style="background-image:url(${pic('b' + i, 800, 450)})"></div><div class="shade"></div><button class="ib back" data-back>‹</button></div>
+    <div class="chInfo"><div class="av" style="background-image:url(${pic('a' + i, 200, 200)})"></div><div><b>${name}</b><span>@${['lofi', 'piano', 'yuki', 'tw'][i % 4]}${i}・${cat.name}</span></div></div>
+    <div class="chStats"><div><b>${(i * 7 + 3) % 40 + 1} 萬</b><span>訂閱</span></div><div><b>${312 + i * 9}</b><span>影片</span></div><div><b>${48 + i}</b><span>看過</span></div><div><b>每週 3</b><span>上片</span></div></div>
+    <div class="tabs" id="tabs"><div class="ind"></div>${TABS.map((t, k) => `<button class="${k ? '' : 'on'}" data-tab="${k}">${t}</button>`).join('')}</div>
+    <div id="vlist"></div>`, 1);
+  $('[data-back]', v).onclick = () => { ScrollTrigger.getAll().forEach(s => s.kill()); category(cat, $('.catHead') || $('.view')); };
+  // 頂部大圖：往下捲慢慢往上、變暗
+  gsap.to($('.banner', v), { yPercent: 18, scale: 1.08, ease: 'none', scrollTrigger: { trigger: $('.hero', v), scroller: v, start: 'top top', end: 'bottom top', scrub: true } });
+  gsap.from($('.chInfo .av', v), { scale: .3, opacity: 0, duration: T(.6), ease: 'back.out(1.8)', delay: T(.2) });
+  gsap.from([$('.chInfo > div:last-child', v), ...$$('.chStats div', v)], { y: 14, opacity: 0, stagger: T(.05), duration: T(.45), delay: T(.3) });
+  // 分頁膠囊
+  const tabs = $('#tabs', v), ind = $('.ind', tabs);
+  const moveInd = (b, instant) => gsap.to(ind, { x: b.offsetLeft - 4, width: b.offsetWidth, duration: instant ? 0 : T(.45), ease: 'back.out(1.4)' });
+  requestAnimationFrame(() => moveInd($('button', tabs), true));
+  $$('button', tabs).forEach(b => b.onclick = () => { $$('button', tabs).forEach(x => x.classList.toggle('on', x === b)); moveInd(b); renderList(v, +b.dataset.tab, i); });
+  renderList(v, 0, i);
+}
+
+function renderList(v, tab, ci) {
+  const list = $('#vlist', v);
+  const idx = TITLES.map((_, k) => k).filter(k => tab === 0 || (tab === 1 && k % 3 !== 2) || (tab === 2 && k % 3 === 2) || (tab === 3 && k % 4 === 0));
+  if (tab === 4) {
+    list.innerHTML = `<div class="stat" style="padding:16px;line-height:1.7;color:var(--ink2);font-size:14px">${NAMES[ci]} 的頻道簡介：每週上片、深夜直播、喜歡安靜的音樂。<br><br>最早一部：2019/03/14・最熱門：${TITLES[ci % 12]}</div>`;
+    gsap.from(list.children, { y: 20, opacity: 0, duration: T(.4) }); return;
+  }
+  list.innerHTML = idx.map(k => `<div class="vrow ${k === 3 ? 'watched' : ''}" data-v="${k}">
+      <div class="acts"><button class="a1" data-a="看過"><i>✓</i>看過</button><button class="a2" data-a="隱藏"><i>🙈</i>隱藏</button><button class="a3" data-a="歌曲"><i>♪</i>歌曲</button></div>
+      <div class="body"><div class="thumb" style="background-image:url(${pic('v' + (k + ci), 320, 180)})">${k < 2 ? '<span class="new">NEW</span>' : ''}<span class="dur">${tab === 2 ? '0:' + (20 + k) : durs[k]}</span></div>
+        <div class="meta"><b>${TITLES[k]}</b><span>${k + 1} 天前・${(k * 13 + 4) % 90 + 1} 萬次觀看</span><div class="tags">${tab === 2 || k % 3 === 2 ? '<span class="tag">Shorts</span>' : '<span class="tag">影片</span>'}${k === 3 ? '<span class="tag w">看過</span>' : ''}</div></div></div></div>`).join('');
+  gsap.from($$('.vrow', list), { y: 28, opacity: 0, stagger: T(.05), duration: T(.45), ease: 'power3.out' });
+  $$('.vrow', list).forEach(row => {
+    const body = $('.body', row);
+    let moved = false;
+    Draggable.create(body, { type: 'x', bounds: { minX: -210, maxX: 0 }, edgeResistance: .85, minimumMovement: 6, allowContextMenu: true,
+      onDragStart() { moved = true; },
+      onRelease() { gsap.to(body, { x: this.x < -90 ? -210 : 0, duration: T(.35), ease: 'power3.out' }); setTimeout(() => moved = false, 50); } });
+    body.addEventListener('click', () => { if (moved || gsap.getProperty(body, 'x') < -5) { gsap.to(body, { x: 0, duration: T(.3) }); return; } play(+row.dataset.v, ci, $('.thumb', body)); });
+    $$('.acts button', row).forEach(b => b.onclick = () => {
+      toast(b.dataset.a === '看過' ? '✓ 標成看過，從清單拿掉' : b.dataset.a === '隱藏' ? '🙈 已隱藏' : '♪ 標成歌曲');
+      gsap.to(body, { x: 0, duration: T(.25) });
+      if (b.dataset.a !== '歌曲') gsap.to(row, { height: 0, marginBottom: 0, opacity: 0, duration: T(.45), ease: 'power2.in', delay: T(.15), onComplete: () => row.remove() });
+    });
+  });
+}
+
+// ───────── 播放（縮圖飛到迷你播放器：Flip） ─────────
+let playing = null, progTween = null;
+function play(k, ci, thumbEl) {
+  const mini = $('#mini'), mt = $('#miniThumb');
+  $('#miniT').textContent = TITLES[k]; $('#miniC').textContent = NAMES[ci];
+  mt.style.backgroundImage = thumbEl.style.backgroundImage; $('#fullThumb').style.backgroundImage = thumbEl.style.backgroundImage.replace('320/180', '640/360');
+  $('#fullT').textContent = TITLES[k]; $('#fullC').textContent = `${NAMES[ci]}・${k + 1} 天前`;
+  // 從點的縮圖飛過去
+  const ghost = thumbEl.cloneNode(true); const r = thumbEl.getBoundingClientRect(), sr = $('#screen').getBoundingClientRect();
+  Object.assign(ghost.style, { position: 'absolute', left: r.left - sr.left + 'px', top: r.top - sr.top + 'px', width: r.width + 'px', margin: 0, zIndex: 50 });
+  $('#screen').appendChild(ghost);
+  gsap.set(mini, { visibility: 'visible' });
+  const wasHidden = !playing; playing = k;
+  if (wasHidden) gsap.from(mini, { y: 120, opacity: 0, duration: T(.5), ease: 'back.out(1.3)' });
+  const tr = mt.getBoundingClientRect();
+  gsap.to(ghost, { left: tr.left - sr.left, top: tr.top - sr.top, width: tr.width, duration: T(.6), ease: 'power3.inOut', onComplete: () => ghost.remove() });
+  gsap.from(mt, { opacity: 0, duration: T(.2), delay: T(.5) });
+  progTween?.kill(); progTween = gsap.fromTo('#prog', { width: '0%' }, { width: '100%', duration: 60, ease: 'none' });
+  $('#pp').textContent = '❚❚';
+}
+$('#pp').onclick = e => { e.stopPropagation(); if (progTween.paused()) { progTween.play(); $('#pp').textContent = '❚❚'; } else { progTween.pause(); $('#pp').textContent = '▶'; } };
+$('#mini').onclick = () => {
+  const full = $('#full'); const st = Flip.getState($('#miniThumb'));
+  gsap.set(full, { visibility: 'visible' }); gsap.fromTo(full, { opacity: 0 }, { opacity: 1, duration: T(.3) });
+  const r0 = $('#miniThumb').getBoundingClientRect(), r1 = $('#fullThumb').getBoundingClientRect();
+  gsap.fromTo('#fullThumb', { x: r0.left - r1.left, y: r0.top - r1.top, scaleX: r0.width / r1.width, scaleY: r0.height / r1.height, transformOrigin: 'top left' },
+    { x: 0, y: 0, scaleX: 1, scaleY: 1, duration: T(.55), ease: 'power3.inOut' });
+  gsap.from(['#fullT', '#fullC', '.full .row button'], { y: 20, opacity: 0, stagger: T(.06), duration: T(.4), delay: T(.3) });
+};
+$('#closeFull').onclick = () => gsap.to('#full', { opacity: 0, y: 40, duration: T(.3), onComplete: () => gsap.set('#full', { visibility: 'hidden', y: 0 }) });
+
+// ───────── 底部膠囊 ─────────
+$$('#nav button').forEach(b => b.onclick = () => {
+  $$('#nav button').forEach(x => x.classList.toggle('on', x === b));
+  gsap.to('#navInd', { x: b.offsetLeft - 6, duration: T(.5), ease: 'back.out(1.6)' });
+  gsap.fromTo($('span', b), { scale: .6, rotate: -20 }, { scale: 1, rotate: 0, duration: T(.5), ease: 'elastic.out(1.2, .5)' });
+  if (b.dataset.nav === '0') home(-1); else toast(b.dataset.nav === '1' ? '▶ 影片：開設定選的那個頻道' : '☰ 播放清單（設計稿先做到這）');
+});
+
+// ───────── 控制 ─────────
+$('#slow').onclick = e => { speed = speed === 1 ? .35 : 1; e.currentTarget.classList.toggle('on', speed !== 1); e.currentTarget.textContent = speed === 1 ? '🐢 放慢動畫看細節' : '🐇 恢復正常速度'; };
+$('#replay').onclick = () => { $$('.view').forEach(x => x.remove()); home(-1); };
+home(-1);
+</script>
+</body>
+</html>
