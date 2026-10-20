@@ -262,7 +262,7 @@ class TallyRepository {
     );
   }
 
-  /// 匯出圖片也記一筆（2026-10-19 使用者要求）：檔名、圖上有幾筆、當時結餘、
+  /// 匯出 PDF 也記一筆（2026-10-19 使用者要求）：檔名、圖上有幾筆、當時結餘、
   /// 怎麼存的（分享／下載）、有沒有成功。
   Future<void> logExport(
     String bookId, {
@@ -270,18 +270,20 @@ class TallyRepository {
     required int itemCount,
     required int balance,
     required bool ok,
+    int? pages,
     String? error,
   }) => _log(
-    TallyAction.exportImage,
+    TallyAction.exportPdf,
     bookId,
     ok
-        ? '匯出圖片 $filename（$itemCount 筆，結餘 ${tallySigned(balance)}）'
-        : '匯出圖片失敗：${error ?? '這個裝置不能存圖'}',
+        ? '匯出 PDF $filename（$itemCount 筆，結餘 ${tallySigned(balance)}）'
+        : '匯出 PDF 失敗：${error ?? '這個裝置不能存檔'}',
     balanceBefore: balance,
     balanceAfter: balance,
     extra: {
       'filename': filename,
       'itemCount': itemCount,
+      'pages': ?pages,
       'ok': ok,
       'error': ?error,
     },

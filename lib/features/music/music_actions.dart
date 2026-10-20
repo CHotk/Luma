@@ -59,7 +59,10 @@ class MusicActions {
     final urls = _clean(avatarUrls);
     final hit = data.artists.where((a) => a.name == n).firstOrNull;
     if (hit != null) {
-      if (hit.avatarUrls.isEmpty && urls.isNotEmpty) {
+      // 使用者特地貼了大頭貼網址：跟現有的不一樣就以這次為準（以前已經有大頭貼
+      // 就整個忽略，貼了沒存、也就不會同步）。
+      if (urls.isNotEmpty && urls.join('|') != hit.avatarUrls.join('|')) {
+        await _log('歌手「${hit.name}」大頭貼改成 ${urls.length} 張');
         await _set(
           data.putArtist(
             hit.copyWith(

@@ -142,7 +142,8 @@ enum TallyAction {
   itemCreate('item.create', '新增'),
   itemUpdate('item.update', '修改'),
   itemDelete('item.delete', '刪除'),
-  exportImage('export.image', '匯出圖片');
+  exportImage('export.image', '匯出圖片'),
+  exportPdf('export.pdf', '匯出 PDF');
 
   const TallyAction(this.code, this.label);
   final String code;

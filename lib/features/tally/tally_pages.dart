@@ -6,6 +6,8 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
 
 import '../../app/app_bottom_nav.dart' show FloatingNavInset;
 import '../../app/providers.dart';
@@ -26,23 +28,18 @@ import '../../shared/widgets/inline_empty_card.dart';
 /// 介面刻意陽春；紀錄要專業——每筆留新增／修改時間，所有異動（含匯出圖片）
 /// 都進異動紀錄，一筆都不刪。結果匯出成一張圖，直接傳給對方。
 const tallyAccent = Color(0xFFFFC857);
-const _plusColor = Color(0xFFFFB066);
-const _minusColor = AppColors.ok;
+const _plusColor = AppColors.ok;
+const _minusColor = Color(0xFFFFB066);
 
 String _two(int v) => v.toString().padLeft(2, '0');
 String _ymd(DateTime d) => '${d.year}/${_two(d.month)}/${_two(d.day)}';
 String _hm(DateTime d) => '${_two(d.hour)}:${_two(d.minute)}';
 String _full(DateTime d) => '${_ymd(d)} ${_hm(d)}:${_two(d.second)}';
 
-/// 結餘的說法：正的是「還欠」，0 是「已還清」，負的是「多還了」。
-String tallyStatus(int balance) => balance > 0
-    ? '還欠 ${tallyMoney(balance)}'
-    : balance == 0
-    ? '已還清'
-    : '多還了 ${tallyMoney(balance)}';
+/// 結餘的說法。
+String tallyStatus(int balance) => '結餘 ${tallySigned(balance)}';
 
-Color _statusColor(int b) =>
-    b > 0 ? _plusColor : (b == 0 ? AppColors.ok : AppColors.accent);
+Color _statusColor(int b) => b >= 0 ? AppColors.ok : _minusColor;
 
 Widget _page(
   BuildContext context, {
@@ -187,44 +184,6 @@ Widget _title(String t) => Padding(
   ),
 );
 
-Future<String?> _promptName(BuildContext context, {String name = ''}) {
-  final c = TextEditingController(text: name);
-  return _card<String>(
-    context,
-    (ctx) => Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _title(name.isEmpty ? '新帳本' : '帳本改名'),
-        TextField(
-          controller: c,
-          autofocus: true,
-          style: const TextStyle(color: AppColors.ink, fontSize: 17),
-          decoration: _input('跟誰的帳？例如：阿明'),
-          onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
-        ),
-        const SizedBox(height: 16),
-        FilledButton(
-          onPressed: () => Navigator.pop(ctx, c.text.trim()),
-          style: FilledButton.styleFrom(
-            backgroundColor: tallyAccent,
-            foregroundColor: Colors.black,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            textStyle: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          child: Text(name.isEmpty ? '建立' : '儲存'),
-        ),
-      ],
-    ),
-  );
-}
-
-/// 結餘的說法（欠／已還清／多還了）。
-String _statusWord(int b) => b > 0 ? '還欠' : (b == 0 ? '已還清' : '多還了');
-
 /// 底部固定列裡的毛玻璃大按鈕（帶顏色的玻璃，不用實心色塊）。
 class _GlassAction extends StatelessWidget {
   const _GlassAction({
@@ -289,15 +248,14 @@ class _GlassAction extends StatelessWidget {
 // ═══════════════════════ 一個帳本 ═══════════════════════
 
 /// 簡單記帳的入口（2026-10-19 使用者要求：沒有帳本概念，打開就是一本帳）。
-/// 這個瀏覽器裡沒有帳就自動建一本（標題用 [name]，沒給就「我的帳」）。
-/// [solo] 是分享給朋友的獨立網址 `#/tally-solo?name=標題`：沒有返回鍵、功能
+/// 這個瀏覽器裡沒有帳就自動建一本（標題固定「簡單記帳」，不能改）。
+/// [solo] 是分享給別人的獨立網址 `#/tally-solo`：沒有返回鍵、功能
 /// 選單、設定，也看不到任何異動紀錄的痕跡，不會跳到 App 其他功能；資料存在
-/// 朋友自己的瀏覽器，記完按匯出圖片傳回來。App 內的 `#/tally` 則是從功能
+/// 朋友自己的瀏覽器，記完按匯出 PDF 傳回來。App 內的 `#/tally` 則是從功能
 /// 選單進來，多一個異動紀錄入口。
 class TallyEntryPage extends ConsumerStatefulWidget {
-  const TallyEntryPage({super.key, this.name, this.solo = false});
+  const TallyEntryPage({super.key, this.solo = false});
 
-  final String? name;
   final bool solo;
 
   @override
@@ -315,12 +273,8 @@ class _TallyEntryPageState extends ConsumerState<TallyEntryPage> {
 
   Future<void> _open() async {
     final repo = ref.read(tallyRepositoryProvider);
-    final want = (widget.name ?? '').trim();
     final books = await repo.books();
-    final hit = want.isEmpty
-        ? books.lastOrNull
-        : books.where((b) => b.name == want).firstOrNull;
-    final book = hit ?? await repo.addBook(want.isEmpty ? '我的帳' : want);
+    final book = books.lastOrNull ?? await repo.addBook('記帳');
     if (mounted) setState(() => _id = book.id);
   }
 
@@ -428,34 +382,6 @@ class _TallyBookPageState extends ConsumerState<TallyBookPage> {
     }
   }
 
-  Future<void> _more() async {
-    final b = _book;
-    if (b == null) return;
-    final c = await _card<String>(
-      context,
-      (ctx) => Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _title(b.name),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.edit_rounded, color: AppColors.ink2),
-            title: const Text('改名', style: TextStyle(color: AppColors.ink)),
-            onTap: () => Navigator.pop(ctx, 'rename'),
-          ),
-        ],
-      ),
-    );
-    if (!mounted || c == null) return;
-    if (c == 'rename') {
-      final n = await _promptName(context, name: b.name);
-      if (n == null || n.isEmpty) return;
-      await ref.read(tallyRepositoryProvider).renameBook(b, n);
-      _load();
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final b = _book;
@@ -486,7 +412,7 @@ class _TallyBookPageState extends ConsumerState<TallyBookPage> {
     return _page(
       context,
       top: AppTopBar(
-        title: widget.solo ? b.name : '簡單記帳',
+        title: '簡單記帳',
         titleIcon: widget.solo ? null : Icons.receipt_long_rounded,
         titleIconColor: tallyAccent,
         showBack: false,
@@ -495,14 +421,13 @@ class _TallyBookPageState extends ConsumerState<TallyBookPage> {
         // 沒有設定、沒有返回，只能從功能選單點進來。
         standalone: true,
         actions: [
-          _iconAction(Icons.ios_share_rounded, '匯出圖片', () async {
+          _iconAction(Icons.ios_share_rounded, '匯出 PDF', () async {
             await showTallyExport(context, ref, b, _items);
           }),
           if (!widget.solo) ...[
             _iconAction(Icons.history_rounded, '異動紀錄', () {
               context.push('/tally/log');
             }),
-            _iconAction(Icons.edit_rounded, '改標題', _more),
           ],
         ],
       ),
@@ -513,12 +438,12 @@ class _TallyBookPageState extends ConsumerState<TallyBookPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '${b.name} 目前${_statusWord(bal)}',
+                '目前結餘',
                 style: const TextStyle(fontSize: 15, color: AppColors.ink2),
               ),
               const SizedBox(height: 4),
               Text(
-                bal == 0 ? '🎉 NT\$0' : tallyMoney(bal),
+                tallySigned(bal),
                 style: TextStyle(
                   fontSize: 42,
                   fontWeight: FontWeight.w900,
@@ -531,12 +456,12 @@ class _TallyBookPageState extends ConsumerState<TallyBookPage> {
               Row(
                 children: [
                   _Stat(
-                    label: '借出／代墊',
+                    label: '收入',
                     value: tallyMoney(plusSum),
                     color: _plusColor,
                   ),
                   _Stat(
-                    label: '已還',
+                    label: '支出',
                     value: tallyMoney(minusSum),
                     color: _minusColor,
                   ),
@@ -554,7 +479,7 @@ class _TallyBookPageState extends ConsumerState<TallyBookPage> {
         if (_items.isEmpty)
           const InlineEmptyCard(
             title: '還沒有記錄',
-            message: '借他錢、幫他付錢按「＋ 借出」；他還你錢按「− 還款」',
+            message: '有收入按「＋ 收入」，花了錢按「− 支出」',
           )
         else ...[
           const Padding(
@@ -593,7 +518,7 @@ class _TallyBookPageState extends ConsumerState<TallyBookPage> {
           Expanded(
             child: _GlassAction(
               icon: Icons.add_rounded,
-              label: '借出',
+              label: '收入',
               color: _plusColor,
               onTap: () => _edit(plus: true),
             ),
@@ -602,7 +527,7 @@ class _TallyBookPageState extends ConsumerState<TallyBookPage> {
           Expanded(
             child: _GlassAction(
               icon: Icons.remove_rounded,
-              label: '還款',
+              label: '支出',
               color: _minusColor,
               onTap: () => _edit(plus: false),
             ),
@@ -700,7 +625,7 @@ class _ItemRow extends StatelessWidget {
                 children: [
                   Text(
                     item.note.isEmpty
-                        ? (item.plus ? '借出／代墊' : '還款')
+                        ? (item.plus ? '收入' : '支出')
                         : item.note,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
@@ -714,7 +639,7 @@ class _ItemRow extends StatelessWidget {
                   Text(
                     item.edited && !solo
                         ? '✎ 改過・${item.updatedAt.month}/${item.updatedAt.day} ${_hm(item.updatedAt)}'
-                        : '${item.plus ? '借出' : '還款'}・${item.at.year}',
+                        : '${item.plus ? '收入' : '支出'}・${item.at.year}',
                     style: const TextStyle(
                       fontSize: 12.5,
                       color: AppColors.ink3,
@@ -738,7 +663,7 @@ class _ItemRow extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '欠 ${tallyMoney(after)}${after < 0 ? '（多還）' : ''}',
+                  '結餘 ${tallySigned(after)}',
                   style: const TextStyle(fontSize: 12.5, color: AppColors.ink3),
                 ),
               ],
@@ -791,7 +716,7 @@ class _ItemDetail extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _title('${item.plus ? '＋' : '−'} ${tallyMoney(item.amount)}'),
-        row('種類', item.plus ? '＋ 借出／代墊' : '− 還款'),
+        row('種類', item.plus ? '＋ 收入' : '− 支出'),
         row('備註', item.note.isEmpty ? '（沒寫）' : item.note),
         row('日期', _ymd(item.at)),
         if (!solo) ...[
@@ -903,8 +828,8 @@ Future<({bool plus, int amount, String note, DateTime at})?> showTallyItemForm(
             _title(old == null ? '記一筆' : '修改這一筆'),
             SegmentedButton<bool>(
               segments: const [
-                ButtonSegment(value: true, label: Text('＋ 借出／代墊')),
-                ButtonSegment(value: false, label: Text('− 還款')),
+                ButtonSegment(value: true, label: Text('＋ 收入')),
+                ButtonSegment(value: false, label: Text('− 支出')),
               ],
               selected: {p},
               showSelectedIcon: false,
@@ -994,21 +919,47 @@ Future<({bool plus, int amount, String note, DateTime at})?> showTallyItemForm(
   );
 }
 
-// ═══════════════════════ 匯出圖片 ═══════════════════════
+// ═══════════════════════ 匯出 PDF ═══════════════════════
 
-/// 先預覽要傳出去的那張圖，按「存成圖片」才存（手機叫分享選單、可以存
-/// 相簿；電腦直接下載 PNG）。成功、失敗都記進異動紀錄。
+/// 每一頁放幾筆（第一頁有結餘標題，放得少一點）。
+const _firstPageRows = 9;
+const _otherPageRows = 14;
+
+/// 把每一筆分頁：第一頁 9 筆，之後每頁 14 筆。
+List<List<TallyItem>> tallyPages(List<TallyItem> items) {
+  final pages = <List<TallyItem>>[];
+  var n = 0;
+  while (true) {
+    final take = pages.isEmpty ? _firstPageRows : _otherPageRows;
+    final end = (n + take).clamp(0, items.length);
+    pages.add(items.sublist(n, end));
+    n = end;
+    if (n >= items.length) break;
+  }
+  return pages;
+}
+
+/// 先預覽每一頁，按「存成 PDF」才存（手機叫分享選單、電腦直接下載）。
+/// 每一筆都會印出來，筆數多就自動分頁。成功、失敗都記進異動紀錄。
 Future<void> showTallyExport(
   BuildContext context,
   WidgetRef ref,
   TallyBook book,
   List<TallyItem> items,
 ) {
-  final key = GlobalKey();
   final now = DateTime.now();
   final bal = items.fold<int>(0, (s, i) => s + i.signed);
   final filename =
-      '${book.name}_帳目_${now.year}${_two(now.month)}${_two(now.day)}_${_two(now.hour)}${_two(now.minute)}.png';
+      '簡單記帳_${now.year}${_two(now.month)}${_two(now.day)}_${_two(now.hour)}${_two(now.minute)}.pdf';
+  final pages = tallyPages(items);
+  final keys = [for (final _ in pages) GlobalKey()];
+  // 每筆之後的累計結餘（舊到新）。
+  final running = <String, int>{};
+  var acc = 0;
+  for (final i in items) {
+    acc += i.signed;
+    running[i.id] = acc;
+  }
   var busy = false;
   return _card<void>(
     context,
@@ -1017,10 +968,34 @@ Future<void> showTallyExport(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _title('匯出圖片'),
-          RepaintBoundary(
-            key: key,
-            child: TallyReceipt(book: book, items: items, at: now),
+          _title('匯出 PDF'),
+          Text(
+            '共 ${items.length} 筆・${pages.length} 頁',
+            style: const TextStyle(fontSize: 14, color: AppColors.ink2),
+          ),
+          const SizedBox(height: 10),
+          Flexible(
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  for (final (n, p) in pages.indexed) ...[
+                    if (n > 0) const SizedBox(height: 12),
+                    RepaintBoundary(
+                      key: keys[n],
+                      child: TallyReceipt(
+                        items: p,
+                        running: running,
+                        balance: bal,
+                        at: now,
+                        page: n + 1,
+                        pageCount: pages.length,
+                        total: items.length,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
           ),
           const SizedBox(height: 16),
           FilledButton.icon(
@@ -1030,16 +1005,31 @@ Future<void> showTallyExport(
                     setS(() => busy = true);
                     final repo = ref.read(tallyRepositoryProvider);
                     try {
-                      final boundary =
-                          key.currentContext!.findRenderObject()!
-                              as RenderRepaintBoundary;
-                      final img = await boundary.toImage(pixelRatio: 3);
-                      final data = await img.toByteData(
-                        format: ui.ImageByteFormat.png,
-                      );
-                      final ok = await shareOrSaveImage(
+                      final doc = pw.Document();
+                      for (final k in keys) {
+                        final boundary =
+                            k.currentContext!.findRenderObject()!
+                                as RenderRepaintBoundary;
+                        final img = await boundary.toImage(pixelRatio: 3);
+                        final data = await img.toByteData(
+                          format: ui.ImageByteFormat.png,
+                        );
+                        final image = pw.MemoryImage(
+                          data!.buffer.asUint8List(),
+                        );
+                        doc.addPage(
+                          pw.Page(
+                            pageFormat: PdfPageFormat.a4,
+                            margin: pw.EdgeInsets.zero,
+                            build: (_) => pw.Image(image, fit: pw.BoxFit.fill),
+                          ),
+                        );
+                      }
+                      final bytes = await doc.save();
+                      final ok = await shareOrSaveFile(
                         filename,
-                        data!.buffer.asUint8List(),
+                        bytes,
+                        'application/pdf',
                       );
                       await repo.logExport(
                         book.id,
@@ -1047,12 +1037,13 @@ Future<void> showTallyExport(
                         itemCount: items.length,
                         balance: bal,
                         ok: ok,
+                        pages: pages.length,
                       );
                       if (ctx.mounted) {
                         Navigator.pop(ctx);
                         showAppNotice(
                           context,
-                          ok ? '📸 已存成圖片' : '這個裝置還不能存圖',
+                          ok ? '📄 已存成 PDF' : '這個裝置還不能存檔',
                           isError: !ok,
                         );
                       }
@@ -1063,16 +1054,17 @@ Future<void> showTallyExport(
                         itemCount: items.length,
                         balance: bal,
                         ok: false,
+                        pages: pages.length,
                         error: '$e',
                       );
                       if (ctx.mounted) {
                         setS(() => busy = false);
-                        showAppNotice(ctx, '存圖失敗：$e', isError: true);
+                        showAppNotice(ctx, '存 PDF 失敗：$e', isError: true);
                       }
                     }
                   },
-            icon: const Icon(Icons.download_rounded),
-            label: Text(busy ? '處理中…' : '存成圖片'),
+            icon: const Icon(Icons.picture_as_pdf_rounded),
+            label: Text(busy ? '處理中…' : '存成 PDF'),
             style: FilledButton.styleFrom(
               backgroundColor: tallyAccent,
               foregroundColor: Colors.black,
@@ -1085,101 +1077,134 @@ Future<void> showTallyExport(
   );
 }
 
-/// 匯出的那張圖：白底收據風，只放結果（結餘＋明細），傳給朋友看得懂就好。
+/// PDF 的其中一頁（A4 比例的白底頁）：第一頁最上面是結餘，每頁列出那一頁的
+/// 每一筆（日期、內容、金額、當時結餘），最後一行頁碼。
 class TallyReceipt extends StatelessWidget {
   const TallyReceipt({
     super.key,
-    required this.book,
     required this.items,
+    required this.running,
+    required this.balance,
     required this.at,
+    required this.page,
+    required this.pageCount,
+    required this.total,
   });
 
-  final TallyBook book;
   final List<TallyItem> items;
+  final Map<String, int> running;
+  final int balance;
   final DateTime at;
+  final int page;
+  final int pageCount;
+  final int total;
 
   @override
   Widget build(BuildContext context) {
     const ink = Color(0xFF1E1E28), dim = Color(0xFF7A7A88);
-    final bal = items.fold<int>(0, (s, i) => s + i.signed);
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
-      decoration: BoxDecoration(
+    const plus = Color(0xFF2B8A3E), minus = Color(0xFFD9480F);
+    return AspectRatio(
+      aspectRatio: 210 / 297,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
         color: const Color(0xFFFFFDF6),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: DefaultTextStyle(
-        style: const TextStyle(color: ink, fontSize: 13.5),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              '${book.name} 的帳',
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              tallyStatus(bal),
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 30,
-                fontWeight: FontWeight.w900,
-                color: bal > 0
-                    ? const Color(0xFFD9480F)
-                    : const Color(0xFF2B8A3E),
-              ),
-            ),
-            const SizedBox(height: 14),
-            const Divider(height: 1, color: Color(0xFFE5E1D5)),
-            const SizedBox(height: 6),
-            if (items.isEmpty)
-              const Padding(
-                padding: EdgeInsets.all(12),
-                child: Text(
-                  '沒有記錄',
+        child: DefaultTextStyle(
+          style: const TextStyle(color: ink, fontSize: 13.5),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (page == 1) ...[
+                const Text(
+                  '簡單記帳',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: dim),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
                 ),
-              ),
-            for (final i in items)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 5),
-                child: Row(
-                  children: [
-                    SizedBox(
-                      width: 78,
-                      child: Text(
-                        _ymd(i.at),
-                        style: const TextStyle(color: dim, fontSize: 12),
-                      ),
-                    ),
-                    Expanded(
-                      child: Text(
-                        i.note.isEmpty ? (i.plus ? '借出' : '還款') : i.note,
-                      ),
-                    ),
-                    Text(
-                      '${i.plus ? '+' : '−'}${tallyMoney(i.amount)}',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: i.plus
-                            ? const Color(0xFFD9480F)
-                            : const Color(0xFF2B8A3E),
-                      ),
-                    ),
-                  ],
+                const SizedBox(height: 8),
+                const Text(
+                  '目前結餘',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: dim, fontSize: 12),
                 ),
+                Text(
+                  tallyMoney(balance),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 30,
+                    fontWeight: FontWeight.w900,
+                    color: balance >= 0 ? plus : minus,
+                  ),
+                ),
+                const SizedBox(height: 10),
+              ] else
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    '簡單記帳（續）',
+                    style: TextStyle(color: dim, fontSize: 12),
+                  ),
+                ),
+              const Divider(height: 1, color: Color(0xFFE5E1D5)),
+              const SizedBox(height: 4),
+              if (items.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Text(
+                    '沒有記錄',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: dim),
+                  ),
+                ),
+              for (final i in items)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 5),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 66,
+                        child: Text(
+                          _ymd(i.at),
+                          style: const TextStyle(color: dim, fontSize: 11.5),
+                        ),
+                      ),
+                      Expanded(
+                        child: Text(
+                          i.note.isEmpty ? (i.plus ? '收入' : '支出') : i.note,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      SizedBox(
+                        width: 70,
+                        child: Text(
+                          '${i.plus ? '+' : '−'}${tallyMoney(i.amount)}',
+                          textAlign: TextAlign.right,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: i.plus ? plus : minus,
+                          ),
+                        ),
+                      ),
+                      SizedBox(
+                        width: 66,
+                        child: Text(
+                          tallySigned(running[i.id] ?? 0),
+                          textAlign: TextAlign.right,
+                          style: const TextStyle(color: dim, fontSize: 11.5),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              const Spacer(),
+              const Divider(height: 1, color: Color(0xFFE5E1D5)),
+              const SizedBox(height: 6),
+              Text(
+                '共 $total 筆・截至 ${_ymd(at)} ${_hm(at)}・第 $page／$pageCount 頁',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: dim, fontSize: 11),
               ),
-            const SizedBox(height: 6),
-            const Divider(height: 1, color: Color(0xFFE5E1D5)),
-            const SizedBox(height: 8),
-            Text(
-              '共 ${items.length} 筆・截至 ${_ymd(at)} ${_hm(at)}',
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: dim, fontSize: 11.5),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -1301,7 +1326,7 @@ class _TallyLogPageState extends ConsumerState<TallyLogPage> {
                 _action == null,
                 () => setState(() => _action = null),
               ),
-              for (final a in TallyAction.values)
+              for (final a in TallyAction.values.where((a) => a != TallyAction.exportImage))
                 if (all.any((e) => e.action == a))
                   _chip(
                     a.label,
@@ -1331,7 +1356,7 @@ Color _actionColor(TallyAction a) => switch (a) {
   TallyAction.itemCreate || TallyAction.bookCreate => AppColors.ok,
   TallyAction.itemUpdate || TallyAction.bookRename => AppColors.mid,
   TallyAction.itemDelete || TallyAction.bookDelete => AppColors.bad,
-  TallyAction.exportImage => AppColors.accent,
+  TallyAction.exportImage || TallyAction.exportPdf => AppColors.accent,
 };
 
 /// 動作種類的小標籤（新增綠、修改黃、刪除紅、匯出藍）。
@@ -1420,7 +1445,7 @@ class _EventRow extends StatelessWidget {
                     Text(
                       [
                         if (balChanged)
-                          '欠 ${tallySigned(e.balanceBefore!)} → ${tallySigned(e.balanceAfter!)}',
+                          '結餘 ${tallySigned(e.balanceBefore!)} → ${tallySigned(e.balanceAfter!)}',
                         if (e.device.isNotEmpty) e.device,
                       ].join('・'),
                       style: const TextStyle(

@@ -80,6 +80,71 @@ void main() {
     });
   });
 
+  test('大頭貼網址（好幾張、顯示第幾張）跟著歌手同步，改了再同步也到', () async {
+    final pcStore = MusicStore(pc);
+    final phoneStore = MusicStore(phone);
+    final t0 = DateTime(2026, 10, 18);
+    await pcStore.save(MusicData.empty.putArtist(artist('a1', '周杰倫', t0)));
+    await serviceFor(pc).syncMusic(pcStore);
+    await serviceFor(phone).syncMusic(phoneStore);
+
+    // 電腦替歌手加大頭貼，手機同步拿得到。
+    var d = await pcStore.load();
+    await pcStore.save(
+      d.putArtist(
+        d.artist('a1')!.copyWith(
+          avatarUrls: const ['https://x/1.jpg', 'https://x/2.jpg'],
+          shownAvatar: 1,
+          updatedAt: DateTime(2026, 10, 19, 10),
+        ),
+      ),
+    );
+    await serviceFor(pc).syncMusic(pcStore);
+    final r = await serviceFor(phone).syncMusic(phoneStore);
+    expect(r.downloaded, 1);
+    var a = (await phoneStore.load()).artist('a1')!;
+    expect(a.avatarUrls, ['https://x/1.jpg', 'https://x/2.jpg']);
+    expect(a.shownAvatar, 1);
+    expect(a.avatarUrl, 'https://x/2.jpg');
+
+    // 手機改網址，電腦拿得到。
+    d = await phoneStore.load();
+    await phoneStore.save(
+      d.putArtist(
+        d.artist('a1')!.copyWith(
+          avatarUrls: const ['https://x/3.jpg'],
+          shownAvatar: 0,
+          updatedAt: DateTime(2026, 10, 19, 11),
+        ),
+      ),
+    );
+    await serviceFor(phone).syncMusic(phoneStore);
+    await serviceFor(pc).syncMusic(pcStore);
+    a = (await pcStore.load()).artist('a1')!;
+    expect(a.avatarUrls, ['https://x/3.jpg']);
+  });
+
+  test('同名歌手合併時，兩台各自貼的大頭貼網址都留著', () {
+    final a = MusicArtist(
+      id: 'a1',
+      name: '周杰倫',
+      avatarUrls: const ['https://x/1.jpg'],
+      updatedAt: DateTime(2026, 10, 19, 9),
+    );
+    final b = MusicArtist(
+      id: 'a2',
+      name: '周杰倫',
+      avatarUrls: const ['https://x/2.jpg', 'https://x/1.jpg'],
+      updatedAt: DateTime(2026, 10, 19, 10),
+    );
+    final d = MusicData.merge(
+      MusicData.empty.putArtist(a),
+      MusicData.empty.putArtist(b),
+    );
+    expect(d.artists.length, 1);
+    expect(d.artists.single.avatarUrls, ['https://x/1.jpg', 'https://x/2.jpg']);
+  });
+
   test('兩台各自新增同名歌手：同步後合成一個，歌跟原唱改指到留下的那個，兩台結果一樣', () async {
     final pcStore = MusicStore(pc);
     final phoneStore = MusicStore(phone);

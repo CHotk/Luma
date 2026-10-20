@@ -528,19 +528,22 @@ class MusicData {
         artistMap[dup.id] = dup.copyWith(updatedAt: t, deletedAt: t);
         stamp[dup.id] = t;
       }
-      // 留下的那個：沒有大頭貼就用重複那幾個的。
-      if (keeper.avatarUrls.isEmpty) {
-        final donor = g
-            .skip(1)
-            .where((x) => x.avatarUrls.isNotEmpty)
-            .firstOrNull;
-        if (donor != null) {
-          artistMap[keeper.id] = keeper.copyWith(
-            avatarUrls: donor.avatarUrls,
-            shownAvatar: donor.shownAvatar,
-            updatedAt: t,
-          );
-        }
+      // 留下的那個：大頭貼把重複那幾個的也收進來（不重複的接在後面，最多
+      // 五張），任何一台貼的網址都不會不見；本來沒有的，連顯示第幾張也沿用。
+      final urls = [
+        ...keeper.avatarUrls,
+        for (final x in g.skip(1))
+          for (final u in x.avatarUrls)
+            if (u.trim().isNotEmpty) u,
+      ];
+      final uniq = <String>{...urls}.take(MusicArtist.maxAvatars).toList();
+      if (uniq.join('|') != keeper.avatarUrls.join('|')) {
+        final donor = g.skip(1).where((x) => x.avatarUrls.isNotEmpty).first;
+        artistMap[keeper.id] = keeper.copyWith(
+          avatarUrls: uniq,
+          shownAvatar: keeper.avatarUrls.isEmpty ? donor.shownAvatar : null,
+          updatedAt: t,
+        );
       }
     }
     if (remap.isEmpty) return this;

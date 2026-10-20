@@ -43,7 +43,7 @@ void main() {
 
     await repo.logExport(
       b.id,
-      filename: 'x.png',
+      filename: 'x.pdf',
       itemCount: 1,
       balance: -300,
       ok: true,
@@ -56,7 +56,7 @@ void main() {
       TallyAction.itemCreate,
       TallyAction.itemUpdate,
       TallyAction.itemDelete,
-      TallyAction.exportImage,
+      TallyAction.exportPdf,
     ]);
     final upd = es.firstWhere((e) => e.action == TallyAction.itemUpdate);
     expect(upd.before!['amount'], 1000);
@@ -66,7 +66,7 @@ void main() {
     expect(upd.device, '測試機');
     expect(upd.bookName, '阿明');
     final exp = es.first;
-    expect(exp.extra!['filename'], 'x.png');
+    expect(exp.extra!['filename'], 'x.pdf');
   });
 
   test('同步合併：異動紀錄聯集、內容一樣異動數是 0', () async {
@@ -81,44 +81,63 @@ void main() {
   });
 
   test('結餘說法', () {
-    expect(tallyStatus(500), '還欠 NT\$500');
-    expect(tallyStatus(0), '已還清');
-    expect(tallyStatus(-1234), '多還了 NT\$1,234');
+    expect(tallyStatus(500), r'結餘 +NT$500');
+    expect(tallyStatus(0), r'結餘 NT$0');
+    expect(tallyStatus(-1234), r'結餘 −NT$1,234');
   });
 
-  testWidgets('匯出圖片的收據畫得出來', (t) async {
+  test('匯出 PDF 依筆數分頁：第一頁 9 筆、之後每頁 14 筆', () {
     final now = DateTime(2026, 10, 19, 12);
+    List<TallyItem> n(int k) => [
+      for (var i = 0; i < k; i++)
+        TallyItem(
+          id: '$i',
+          bookId: 'b',
+          plus: true,
+          amount: 1,
+          note: '',
+          at: now,
+          createdAt: now,
+          updatedAt: now,
+        ),
+    ];
+    expect(tallyPages(n(0)).length, 1);
+    expect(tallyPages(n(9)).length, 1);
+    expect(tallyPages(n(10)).map((p) => p.length), [9, 1]);
+    expect(tallyPages(n(9 + 14 * 2 + 1)).map((p) => p.length), [9, 14, 14, 1]);
+  });
+
+  testWidgets('PDF 的一頁畫得出來', (t) async {
+    final now = DateTime(2026, 10, 19, 12);
+    final it = TallyItem(
+      id: 'i',
+      bookId: 'b',
+      plus: true,
+      amount: 500,
+      note: '車錢',
+      at: now,
+      createdAt: now,
+      updatedAt: now,
+    );
     await t.pumpWidget(
       MaterialApp(
         home: Scaffold(
           body: SingleChildScrollView(
             child: TallyReceipt(
-              book: TallyBook(
-                id: 'b',
-                name: '阿明',
-                createdAt: now,
-                updatedAt: now,
-              ),
-              items: [
-                TallyItem(
-                  id: 'i',
-                  bookId: 'b',
-                  plus: true,
-                  amount: 500,
-                  note: '車錢',
-                  at: now,
-                  createdAt: now,
-                  updatedAt: now,
-                ),
-              ],
+              items: [it],
+              running: {'i': 500},
+              balance: 500,
               at: now,
+              page: 1,
+              pageCount: 1,
+              total: 1,
             ),
           ),
         ),
       ),
     );
-    expect(find.text('還欠 NT\$500'), findsOneWidget);
     expect(find.text('車錢'), findsOneWidget);
+    expect(find.text(r'NT$500'), findsOneWidget);
   });
 }
 
@@ -136,7 +155,7 @@ class _MemoryStore implements KeyValueStore {
 }
 
 void soloTests() {
-  testWidgets('分享用獨立頁：自動用標題建一本帳；沒有返回、選單、設定、更多', (t) async {
+  testWidgets('分享用獨立頁：自動建一本帳；沒有返回、選單、設定、更多', (t) async {
     t.view.physicalSize = const Size(400, 860);
     t.view.devicePixelRatio = 1;
     addTearDown(t.view.reset);
@@ -148,21 +167,21 @@ void soloTests() {
     await t.pumpWidget(
       UncontrolledProviderScope(
         container: c,
-        child: const MaterialApp(
-          home: TallyEntryPage(name: '欠小明的錢', solo: true),
+        child: const MaterialApp(home: TallyEntryPage(solo: true),
         ),
       ),
     );
     await t.pumpAndSettle();
-    expect(find.text('欠小明的錢'), findsOneWidget);
+    expect(find.text('簡單記帳'), findsOneWidget);
     expect(find.byIcon(Icons.arrow_back), findsNothing);
     expect(find.byIcon(Icons.menu), findsNothing);
     expect(find.byTooltip('設定'), findsNothing);
     expect(find.byTooltip('改標題'), findsNothing);
     expect(find.byTooltip('異動紀錄'), findsNothing);
-    expect(find.byTooltip('匯出圖片'), findsOneWidget);
-    expect(find.text('借出'), findsOneWidget);
-    expect(find.text('還款'), findsOneWidget);
+    expect(find.byTooltip('匯出 PDF'), findsOneWidget);
+    expect(find.text('收入'), findsWidgets);
+    expect(find.text('支出'), findsWidgets);
+    expect(find.textContaining('欠'), findsNothing);
     // 再開一次，同標題不重複建。
     final repo = c.read(tallyRepositoryProvider);
     expect((await repo.books()).length, 1);
