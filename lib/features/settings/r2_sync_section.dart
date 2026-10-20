@@ -242,7 +242,10 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
     };
   }
 
-  Future<void> _syncNow() async {
+  /// [only] 有給就只同步那幾項（2026-10-20 使用者要求：各功能右邊點「同步」
+  /// 只同步那一項，不用全部跑很久），沒給就全部。
+  Future<void> _syncNow({Set<String>? only}) async {
+    bool want(String label) => only == null || only.contains(label);
     // 同步途中使用者可能已經離開設定頁（2026-10-08 使用者回報：點同步後
     // 跳去別的功能，上方通知沒出來）。頁面一卸載 `ref.read` 就會丟
     // StateError，後半段的同步紀錄、上次同步時間、通知全部跟著斷掉，
@@ -259,24 +262,25 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
     // 跑到哪了），見 [SyncProgressBanner]。
     final progress = container.read(syncProgressProvider.notifier);
     progress.state = const SyncProgress(total: 0, done: 0, running: []);
+    const go = _FeaturePhase.downloading;
     setState(() {
       _syncing = true;
-      _diaryPhase = _FeaturePhase.downloading;
-      _fitnessPhase = _FeaturePhase.downloading;
-      _ytPhase = _FeaturePhase.downloading;
-      _kanaPracticePhase = _FeaturePhase.downloading;
-      _kanaExamPhase = _FeaturePhase.downloading;
-      _englishPhase = _FeaturePhase.downloading;
-      _appHomePhase = _FeaturePhase.downloading;
-      _musicPhase = _FeaturePhase.downloading;
-      _habitPhases
-        ..clear()
-        ..addEntries(
-          _habitRows.map((r) => MapEntry(r.$1, _FeaturePhase.downloading)),
-        );
-      _syncLogPhase = _FeaturePhase.idle;
-      _errorLogPhase = _FeaturePhase.idle;
-      _results.clear();
+      if (want('日記')) _diaryPhase = go;
+      if (want('健身')) _fitnessPhase = go;
+      if (want('YT 頻道追蹤')) _ytPhase = go;
+      if (want('五十音練習')) _kanaPracticePhase = go;
+      if (want('五十音考試')) _kanaExamPhase = go;
+      if (want('英文單字紀錄')) _englishPhase = go;
+      if (want('首頁')) _appHomePhase = go;
+      if (want('音樂')) _musicPhase = go;
+      for (final (id, title) in _habitRows) {
+        if (want(title)) _habitPhases[id] = go;
+      }
+      if (only == null) {
+        _syncLogPhase = _FeaturePhase.idle;
+        _errorLogPhase = _FeaturePhase.idle;
+      }
+      _results.removeWhere((label, _) => want(label));
     });
     // 這次同步整體有沒有出過錯，寫進同步紀錄用；單一功能失敗不會擋住
     // 其他功能（2026-09-29 使用者要求：互不相關的功能要能同時做，不能
@@ -315,6 +319,7 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
         )
         task,
       ) async {
+        if (!want(label)) return; // 單項同步：其他的不跑
         // 這段在第一個 await 之前，Future.wait 一排開時就全部算進總數。
         final p0 = progress.state;
         if (p0 != null) {
@@ -659,29 +664,33 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
               ].join('；'),
             ),
           );
-      try {
-        // 除錯日誌先同步、同步紀錄最後才做（2026-09-29 使用者指出：同步
-        // 紀錄是這整次同步的「收據」，理論上該排在最後，不該夾在除錯
-        // 日誌前面）。除錯日誌本身也可能收到這次同步過程中任何功能失敗
-        // 寫進 AppLog 的錯誤（見上面 `run` 的 catch），所以放前面同步剛好
-        // 也比較新；同步紀錄墊底才是真的「這次同步全部做完」的最終記錄。
-        _errorLogPhase = _FeaturePhase.downloading;
-        _ui.changed();
-        final errorRepo = container.read(errorLogRepositoryProvider);
-        final errorResult = await service.syncErrorLog(errorRepo);
-        _record('除錯錯誤日誌', errorResult);
-        AppLog.restore(await errorRepo.loadAll());
-        _errorLogPhase = _FeaturePhase.done;
-        _syncLogPhase = _FeaturePhase.downloading;
-        _ui.changed();
-        final logResult = await service.syncLog(
-          container.read(syncLogRepositoryProvider),
-        );
-        _record('同步紀錄', logResult);
-        _syncLogPhase = _FeaturePhase.done;
-        _ui.changed();
-      } catch (_) {
-        // 紀錄上傳失敗不擋主流程：其他功能已經同步成功。
+      // 單項同步不帶除錯日誌跟同步紀錄的上傳（下次全部同步時會一起帶上），
+      // 才快；這次的同步紀錄照樣寫在本機。
+      if (only == null) {
+        try {
+          // 除錯日誌先同步、同步紀錄最後才做（2026-09-29 使用者指出：同步
+          // 紀錄是這整次同步的「收據」，理論上該排在最後，不該夾在除錯
+          // 日誌前面）。除錯日誌本身也可能收到這次同步過程中任何功能失敗
+          // 寫進 AppLog 的錯誤（見上面 `run` 的 catch），所以放前面同步剛好
+          // 也比較新；同步紀錄墊底才是真的「這次同步全部做完」的最終記錄。
+          _errorLogPhase = _FeaturePhase.downloading;
+          _ui.changed();
+          final errorRepo = container.read(errorLogRepositoryProvider);
+          final errorResult = await service.syncErrorLog(errorRepo);
+          _record('除錯錯誤日誌', errorResult);
+          AppLog.restore(await errorRepo.loadAll());
+          _errorLogPhase = _FeaturePhase.done;
+          _syncLogPhase = _FeaturePhase.downloading;
+          _ui.changed();
+          final logResult = await service.syncLog(
+            container.read(syncLogRepositoryProvider),
+          );
+          _record('同步紀錄', logResult);
+          _syncLogPhase = _FeaturePhase.done;
+          _ui.changed();
+        } catch (_) {
+          // 紀錄上傳失敗不擋主流程：其他功能已經同步成功。
+        }
       }
       if (mounted) widget.onLogged?.call();
       // 同步抓回來的資料要讓日記頁／健身頁（可能還留在導覽堆疊底下沒被
@@ -807,51 +816,24 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
           ),
         ),
         const SizedBox(height: Gap.sm),
-        _FeatureStatusRow(
-          label: '日記',
-          phase: _diaryPhase,
-          result: _results['日記'],
-        ),
-        _FeatureStatusRow(
-          label: '健身',
-          phase: _fitnessPhase,
-          result: _results['健身'],
-        ),
-        _FeatureStatusRow(
-          label: 'YT 頻道追蹤',
-          phase: _ytPhase,
-          result: _results['YT 頻道追蹤'],
-        ),
-        _FeatureStatusRow(
-          label: '音樂',
-          phase: _musicPhase,
-          result: _results['音樂'],
-        ),
-        _FeatureStatusRow(
-          label: '五十音練習',
-          phase: _kanaPracticePhase,
-          result: _results['五十音練習'],
-        ),
-        _FeatureStatusRow(
-          label: '五十音考試',
-          phase: _kanaExamPhase,
-          result: _results['五十音考試'],
-        ),
-        _FeatureStatusRow(
-          label: '英文單字紀錄',
-          phase: _englishPhase,
-          result: _results['英文單字紀錄'],
-        ),
-        _FeatureStatusRow(
-          label: '首頁',
-          phase: _appHomePhase,
-          result: _results['首頁'],
-        ),
-        for (final (id, title) in _habitRows)
+        for (final (label, phase) in [
+          ('日記', _diaryPhase),
+          ('健身', _fitnessPhase),
+          ('YT 頻道追蹤', _ytPhase),
+          ('音樂', _musicPhase),
+          ('五十音練習', _kanaPracticePhase),
+          ('五十音考試', _kanaExamPhase),
+          ('英文單字紀錄', _englishPhase),
+          ('首頁', _appHomePhase),
+          for (final (id, title) in _habitRows)
+            (title, _habitPhases[id] ?? _FeaturePhase.idle),
+        ])
           _FeatureStatusRow(
-            label: title,
-            phase: _habitPhases[id] ?? _FeaturePhase.idle,
-            result: _results[title],
+            label: label,
+            phase: phase,
+            result: _results[label],
+            // 沒在同步時才能點；同步中整排都不能點。
+            onSync: _syncing ? null : () => _syncNow(only: {label}),
           ),
         // 同步紀錄、錯誤日誌本身也是要同步的資料，一樣列出來
         // （2026-09-24 使用者要求）。除錯日誌在前、同步紀錄墊底——同步
@@ -1107,10 +1089,15 @@ class _FeatureStatusRow extends StatelessWidget {
     required this.label,
     required this.phase,
     this.result,
+    this.onSync,
   });
 
   final String label;
   final _FeaturePhase phase;
+
+  /// 只同步這一項（還沒同步、或上次失敗時，右邊顯示「同步」小標籤）。
+  /// null＝這列不能單獨同步（除錯日誌、同步紀錄），或整體正在同步中。
+  final VoidCallback? onSync;
 
   /// 這次同步的結果（↑上傳 ↓下載筆數），沒有就不顯示。
   final String? result;
@@ -1138,6 +1125,12 @@ class _FeatureStatusRow extends StatelessWidget {
             const SizedBox(width: 8),
           ],
           _buildStatus(),
+          if (onSync != null &&
+              (phase == _FeaturePhase.idle ||
+                  phase == _FeaturePhase.error)) ...[
+            const SizedBox(width: 8),
+            _SyncChip(onTap: onSync!),
+          ],
         ],
       ),
     );
@@ -1146,6 +1139,8 @@ class _FeatureStatusRow extends StatelessWidget {
   Widget _buildStatus() {
     switch (phase) {
       case _FeaturePhase.idle:
+        // 可以單獨同步時，右邊就是「同步」小標籤，不再多一個「待同步」。
+        if (onSync != null) return const SizedBox.shrink();
         return const Text(
           '待同步',
           style: TextStyle(fontSize: 11, color: AppColors.ink3),
@@ -1174,6 +1169,45 @@ class _FeatureStatusRow extends StatelessWidget {
         );
     }
   }
+}
+
+/// 每一列右邊的「同步」小標籤：點了只同步那一項。
+class _SyncChip extends StatelessWidget {
+  const _SyncChip({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: AppColors.accent.withValues(alpha: 0.14),
+    borderRadius: BorderRadius.circular(999),
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: AppColors.accent.withValues(alpha: 0.4)),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.sync_rounded, size: 12, color: AppColors.accent),
+            SizedBox(width: 3),
+            Text(
+              '同步',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: AppColors.accent,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 class _StatusSpinnerLabel extends StatelessWidget {

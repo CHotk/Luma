@@ -54,6 +54,10 @@ class _AddFromYtState extends ConsumerState<_AddFromYt> {
   int? _pastedDur;
   String? _pastedNote;
   bool _fetching = false;
+
+  /// 「從 YT 管理挑」（選頻道、打歌名找）展開了沒有。預設收起來，貼網址比較
+  /// 常用（2026-10-20 使用者要求）；帶了歌名進來（從歌曲頁找版本）就直接展開。
+  late bool _browse = (widget.searchTitle ?? '').trim().isNotEmpty;
   final _url = TextEditingController();
 
   @override
@@ -376,7 +380,7 @@ class _AddFromYtState extends ConsumerState<_AddFromYt> {
                 _channel?.name ??
                     (widget.forArtistId == null
                         ? '從 YT 管理挑'
-                        : '幫「${ref.read(musicDataProvider).artistMap[widget.forArtistId]?.name ?? ''}」加歌'),
+                        : '幫「${ref.read(musicDataProvider).artistMap[widget.forArtistId]?.name ?? ''}」添加歌曲'),
                 style: const TextStyle(
                   fontSize: 17,
                   fontWeight: FontWeight.w800,
@@ -387,27 +391,58 @@ class _AddFromYtState extends ConsumerState<_AddFromYt> {
           ],
         ),
         if (_channel == null) ...[
+          // 標題跟網址欄之間留空（2026-10-20 使用者回報太擠）。
+          const SizedBox(height: 14),
           _pastedBlock(inMusic),
-          const SizedBox(height: 12),
-          const Text(
-            '或選頻道、打歌名，從 YT 管理抓過的影片裡找',
-            style: TextStyle(fontSize: 11.5, color: AppColors.ink3),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _q,
-            onChanged: (_) => _search(),
-            style: const TextStyle(color: AppColors.ink),
-            decoration: musicInputDecoration('打歌名找影片（例如：晴天）').copyWith(
-              prefixIcon: const Icon(
-                Icons.search_rounded,
-                color: AppColors.ink3,
+          const SizedBox(height: 10),
+          InkWell(
+            onTap: () => setState(() => _browse = !_browse),
+            borderRadius: BorderRadius.circular(10),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.video_library_outlined,
+                    size: 18,
+                    color: AppColors.ink2,
+                  ),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      '或從 YT 管理挑（選頻道、打歌名找）',
+                      style: TextStyle(fontSize: 13.5, color: AppColors.ink2),
+                    ),
+                  ),
+                  Icon(
+                    _browse
+                        ? Icons.expand_less_rounded
+                        : Icons.expand_more_rounded,
+                    color: AppColors.ink2,
+                  ),
+                ],
               ),
             ),
           ),
-          const SizedBox(height: 6),
+          if (_browse) ...[
+            const SizedBox(height: 4),
+            TextField(
+              controller: _q,
+              onChanged: (_) => _search(),
+              style: const TextStyle(color: AppColors.ink),
+              decoration: musicInputDecoration('打歌名找影片（例如：晴天）').copyWith(
+                prefixIcon: const Icon(
+                  Icons.search_rounded,
+                  color: AppColors.ink3,
+                ),
+              ),
+            ),
+            const SizedBox(height: 6),
+          ],
         ],
-        Expanded(child: body),
+        Expanded(
+          child: _channel == null && !_browse ? const SizedBox.shrink() : body,
+        ),
       ],
     );
   }

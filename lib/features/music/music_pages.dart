@@ -928,7 +928,7 @@ class _MusicArtistPageState extends ConsumerState<MusicArtistPage> {
                         showMusicAddFromYt(context, forArtistId: a.id),
                     icon: const Icon(Icons.add_rounded),
                     color: Colors.white,
-                    tooltip: '幫${a.name}加歌',
+                    tooltip: '幫${a.name}添加歌曲',
                     style: IconButton.styleFrom(
                       backgroundColor: Colors.black38,
                     ),
@@ -1702,7 +1702,7 @@ Future<void> showMusicAddMenu(BuildContext context, WidgetRef ref) async {
         item(
           ctx,
           Icons.library_add_rounded,
-          '加歌',
+          '添加歌曲',
           '從 YT 管理挑影片（任何分類），或打歌名找',
           'song',
         ),
