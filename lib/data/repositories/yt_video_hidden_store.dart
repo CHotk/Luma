@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../storage/key_value_store.dart';
+import 'yt_video_marks_revision.dart';
 
 /// 使用者往左滑影片列選「隱藏」的影片 id 集合（2026-09-30 使用者要求：
 /// 不想看到的影片可以滑掉隱藏，不是刪除——影片本身是即時打 API 抓的，
@@ -27,12 +28,14 @@ class YtVideoHiddenStore {
     final all = await loadAll();
     if (!all.add(videoId)) return;
     await _store.write(_key, jsonEncode(all.toList()));
+    ytVideoMarksRevision.value++;
   }
 
   Future<void> unhide(String videoId) async {
     final all = await loadAll();
     if (!all.remove(videoId)) return;
     await _store.write(_key, jsonEncode(all.toList()));
+    ytVideoMarksRevision.value++;
   }
 
   /// 多裝置同步用：跟雲端的集合做聯集（隱藏是「只增」的個人偏好，
@@ -44,6 +47,7 @@ class YtVideoHiddenStore {
     final fresh = cloud.difference(local);
     if (fresh.isEmpty) return 0;
     await _store.write(_key, jsonEncode({...local, ...fresh}.toList()));
+    ytVideoMarksRevision.value++;
     return fresh.length;
   }
 }

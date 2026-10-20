@@ -15,6 +15,7 @@ import '../../data/repositories/yt_channel_log_store.dart';
 import '../../data/repositories/yt_display_prefs_store.dart';
 import '../../data/repositories/yt_search_recents_store.dart';
 import '../../data/repositories/yt_video_cache_store.dart';
+import '../../data/repositories/yt_video_marks_revision.dart';
 import '../../data/repositories/yt_video_hidden_store.dart';
 import '../../data/repositories/yt_video_views.dart';
 import '../../data/repositories/yt_video_watch_store.dart';
@@ -226,6 +227,8 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     _future = _load();
     _scroll.addListener(_onScroll);
     _loadVideoFilters();
+    // 別的頁面看了／隱藏了影片：重讀，看過的過濾掉（這頁可能一直疊著留著）。
+    ytVideoMarksRevision.addListener(_loadVideoFilters);
   }
 
   Future<void> _loadVideoFilters() async {
@@ -242,6 +245,7 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
 
   @override
   void dispose() {
+    ytVideoMarksRevision.removeListener(_loadVideoFilters);
     _search?.cancel();
     _search?.dispose();
     _searchCtrl.dispose();

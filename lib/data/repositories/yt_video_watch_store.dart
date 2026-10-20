@@ -3,6 +3,7 @@ import '../services/youtube_api_service.dart';
 
 import '../../domain/models/yt_video_watch.dart';
 import '../storage/key_value_store.dart';
+import 'yt_video_marks_revision.dart';
 
 /// 影片「看過了嗎」的記錄，全部塞進同一個 key 的一份 map（videoId →
 /// 記錄）——跟 `yt_subscriber_history_store.dart`（一個頻道一個 key）
@@ -34,10 +35,13 @@ class YtVideoWatchStore {
   Future<YtVideoWatchRecord?> get(String videoId) async =>
       (await loadAll())[videoId];
 
-  Future<void> _writeAll(Map<String, YtVideoWatchRecord> all) => _store.write(
-    _key,
-    jsonEncode(all.map((k, v) => MapEntry(k, v.toJson()))),
-  );
+  Future<void> _writeAll(Map<String, YtVideoWatchRecord> all) async {
+    await _store.write(
+      _key,
+      jsonEncode(all.map((k, v) => MapEntry(k, v.toJson()))),
+    );
+    ytVideoMarksRevision.value++;
+  }
 
   /// 標記一支影片被點開了：每一次點開都追加一筆時間戳，不是只記第一次
   /// 跟最近一次（2026-09-29 使用者糾正：每一次都該紀錄）。

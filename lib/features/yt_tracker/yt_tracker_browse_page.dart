@@ -11,6 +11,7 @@ import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
 import '../../data/repositories/yt_subscriber_history_store.dart';
+import '../../data/repositories/yt_video_marks_revision.dart';
 import '../../data/repositories/yt_video_cache_store.dart';
 import '../../data/repositories/yt_video_views.dart';
 import '../../data/repositories/yt_video_watch_store.dart';
@@ -144,6 +145,7 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
 
   @override
   void dispose() {
+    ytVideoMarksRevision.removeListener(_loadVideoMarks);
     _searchCtrl.dispose();
     _searchFocus.dispose();
     super.dispose();
@@ -373,6 +375,9 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
     super.initState();
     _future = _load();
     _loadVideoMarks();
+    ytVideoMarksRevision.addListener(
+      _loadVideoMarks,
+    ); // 見 yt_video_marks_revision.dart
   }
 
   Future<({List<YtCategory> categories, List<YtChannel> channels})>
