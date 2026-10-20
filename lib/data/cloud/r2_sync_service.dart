@@ -123,8 +123,12 @@ class R2SyncService {
   /// 動過，可以整段跳過，只花一次很輕的 `HEAD` 請求，不用整包 GET／PUT
   /// （2026-09-29 使用者要求：多裝置同步最常見的情境就是「兩邊都沒
   /// 動」，這種時候該幾乎是瞬間完成，不是跟真的有異動時一樣整包重傳）。
-  Future<bool> _canSkip(String key, List<int> currentLocalBytes) async {
-    final meta = await _readMeta(key);
+  Future<bool> _canSkip(
+    String key,
+    List<int> currentLocalBytes, {
+    String? metaKey,
+  }) async {
+    final meta = await _readMeta(metaKey ?? key);
     if (meta == null || meta.localHash != _fingerprint(currentLocalBytes)) {
       return false;
     }
@@ -954,7 +958,10 @@ class R2SyncService {
   Future<({int downloaded, int uploaded})> syncMusic(MusicStore store) async {
     const key = MusicStore.cloudKey;
     List<int> encode(MusicData d) => utf8.encode(jsonEncode(d.toJson()));
-    if (await _canSkip(key, encode(await store.load()))) {
+    // 「上次同步後兩邊都沒變就跳過」的紀錄換一個名字（2026-10-20）：修了「時間相同、
+    // 內容不同」的合併規則後，要讓每台裝置都真的重新比一次，不然手機會一直跳過。
+    const metaKey = '$key#2';
+    if (await _canSkip(key, encode(await store.load()), metaKey: metaKey)) {
       return (downloaded: 0, uploaded: 0);
     }
     final fetched = await _client.getObjectWithEtag(key);
@@ -976,7 +983,7 @@ class R2SyncService {
     if (uploaded > 0) {
       etag = await _client.putObject(key, Uint8List.fromList(body));
     }
-    await _writeMeta(key, body, etag);
+    await _writeMeta(metaKey, body, etag);
     return (downloaded: downloaded, uploaded: uploaded);
   }
 

@@ -25,7 +25,9 @@ Future<bool> hasNewerBuild() async {
 /// 更新到最新版：清掉離線快取程式（service worker）跟它存的檔案，再重新載入。
 Future<void> _clearAndReload() async {
   try {
-    final regs = await web.window.navigator.serviceWorker.getRegistrations().toDart;
+    final regs = await web.window.navigator.serviceWorker
+        .getRegistrations()
+        .toDart;
     for (final r in regs.toDart) {
       await r.unregister().toDart;
     }

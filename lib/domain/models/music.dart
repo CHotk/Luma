@@ -9,6 +9,8 @@
 /// （見 [MusicData.merge]）。
 library;
 
+import 'dart:convert';
+
 /// 版本的種類。
 enum MusicVersionType {
   sing('演唱', '歌手自己的正式版本（MV、錄音室）'),
@@ -40,6 +42,20 @@ abstract class MusicRecord {
   DateTime get updatedAt;
   DateTime? get deletedAt;
   Map<String, dynamic> toJson();
+}
+
+/// 同步時 [theirs] 要不要蓋掉 [mine]：後改的贏。改的時間一模一樣、內容卻不同時
+/// （2026-10-20 找到的 bug：手機用還沒更新的舊版 App 下載了電腦新增的歌手，舊版
+/// 不認得「好幾張大頭貼」的欄位，存起來就沒有大頭貼、時間卻跟雲端一樣；換新版後
+/// 兩邊時間相同，永遠判定「沒有比較新」，大頭貼一直下載不到），固定讓內容比較
+/// 多的那份贏（一樣多再比字串），每台裝置算出來都一樣，不會互相打架。
+bool musicRecordWins(MusicRecord theirs, MusicRecord? mine) {
+  if (mine == null) return true;
+  if (theirs.updatedAt.isAfter(mine.updatedAt)) return true;
+  if (!theirs.updatedAt.isAtSameMomentAs(mine.updatedAt)) return false;
+  final t = jsonEncode(theirs.toJson()), m = jsonEncode(mine.toJson());
+  if (t == m) return false;
+  return t.length != m.length ? t.length > m.length : t.compareTo(m) > 0;
 }
 
 class MusicArtist implements MusicRecord {
@@ -485,10 +501,7 @@ class MusicData {
     ) {
       final out = {...x};
       for (final e in y.entries) {
-        final mine = out[e.key];
-        if (mine == null || e.value.updatedAt.isAfter(mine.updatedAt)) {
-          out[e.key] = e.value;
-        }
+        if (musicRecordWins(e.value, out[e.key])) out[e.key] = e.value;
       }
       return out;
     }
@@ -587,11 +600,7 @@ class MusicData {
   int newerIn(MusicData other) {
     int c<T extends MusicRecord>(Map<String, T> mine, Map<String, T> theirs) =>
         theirs.entries
-            .where(
-              (e) =>
-                  mine[e.key] == null ||
-                  e.value.updatedAt.isAfter(mine[e.key]!.updatedAt),
-            )
+            .where((e) => musicRecordWins(e.value, mine[e.key]))
             .length;
     return c(artistMap, other.artistMap) +
         c(workMap, other.workMap) +
