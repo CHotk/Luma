@@ -73,11 +73,69 @@ class YtVideoCacheStore {
     return list;
   }
 
+  /// 只讀前面 [count] 部（2026-10-20 使用者回報：頻道詳情原本先秀快取、邊抓
+  /// 邊提示，變成要等抓到才顯示）。背景把整個頻道抓完之後，快取動輒幾千部，
+  /// 手機上解析整份比 YouTube 回應還慢。快取存的時候照發布時間新到舊排好
+  /// （見 [_writeVideos]），所以只要從頭掃到第 [count] 部結束的地方、只解析
+  /// 那一段，就是最新的幾部，幾乎是瞬間；整份再用 [load] 在背景讀。
+  /// 讀過整份（在記憶體裡）就直接從記憶體拿。
+  Future<List<YoutubeVideo>> loadHead(String channelId, int count) async {
+    final hit = _memory[channelId];
+    if (hit != null) return hit.take(count).toList();
+    final raw = await _store.read(_keyFor(channelId));
+    if (raw == null) return const [];
+    final end = _endOfNthObject(raw, count);
+    try {
+      final list =
+          (jsonDecode(end == null ? raw : '${raw.substring(0, end + 1)}]')
+                  as List)
+              .cast<Map<String, dynamic>>()
+              .map(YoutubeVideo.fromJson)
+              .toList()
+            // 舊的快取可能沒排過序：這一段先自己排（讀完整份會再換成正確的）。
+            ..sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
+      return list.take(count).toList();
+    } on FormatException {
+      return const [];
+    }
+  }
+
+  /// JSON 陣列 `[{…},{…},…]` 裡第 [n] 個物件的結尾 `}` 在哪（不夠 n 個回 null）。
+  /// 只掃到那裡為止，字串裡的括號、跳脫字元都有處理。
+  static int? _endOfNthObject(String s, int n) {
+    var depth = 0, count = 0;
+    var inStr = false, esc = false;
+    for (var i = 0; i < s.length; i++) {
+      final ch = s.codeUnitAt(i);
+      if (inStr) {
+        if (esc) {
+          esc = false;
+        } else if (ch == 0x5C) {
+          esc = true;
+        } else if (ch == 0x22) {
+          inStr = false;
+        }
+        continue;
+      }
+      if (ch == 0x22) {
+        inStr = true;
+      } else if (ch == 0x7B || ch == 0x5B) {
+        depth++;
+      } else if (ch == 0x7D || ch == 0x5D) {
+        depth--;
+        if (ch == 0x7D && depth == 1 && ++count == n) return i;
+      }
+    }
+    return null;
+  }
+
   Future<void> _writeVideos(
     String channelId,
     Iterable<YoutubeVideo> videos,
   ) async {
-    final list = videos.toList();
+    // 一律新到舊排好再存，[loadHead] 只讀前面一段才會是最新的。
+    final list = videos.toList()
+      ..sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
     _memory[channelId] = List.unmodifiable(list);
     YtVideoTags.publish(list);
     YtVideoViews.publish(list);

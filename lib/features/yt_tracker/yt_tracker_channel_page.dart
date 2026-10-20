@@ -111,6 +111,9 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
   /// 使用者要求）；補時長的 `videos.list` 一次也最多吃 50 個 id、同樣
   /// 1 單位，所以一批 50 部總共 2 單位。
   static const _loadMoreBatch = 50;
+
+  /// 進頻道時先從快取秀幾部（2026-10-20 使用者要求 200）。
+  static const _previewCount = 200;
   String? _uploadsId;
   String? _nextPageToken;
   List<YoutubeVideo> _firstPage = const [];
@@ -768,15 +771,20 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                 : channel.uploadsPlaylistId),
       );
     }, onError: (_) {});
-    YtVideoCacheStore(ref.read(keyValueStoreProvider)).load(channel.id).then((
-      cached,
-    ) {
+    // 先讀快取最前面 200 部馬上秀（2026-10-20 使用者要求），接著在背景讀
+    // 整份，讀完把畫面補上（看過幾部等數字也是整份算的）。
+    final cacheStore = YtVideoCacheStore(ref.read(keyValueStoreProvider));
+    cacheStore.loadHead(channel.id, _previewCount).then((head) {
       if (!mounted || _videosLoadedForChannelId != channel.id) return;
-      final sorted = [...cached]
-        ..sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
-      setState(() {
-        _cachePreview = sorted.take(_loadMoreBatch).toList();
-        _cachedChannelVideos = cached;
+      if (_cachePreview.isEmpty) setState(() => _cachePreview = head);
+      cacheStore.load(channel.id).then((cached) {
+        if (!mounted || _videosLoadedForChannelId != channel.id) return;
+        final sorted = [...cached]
+          ..sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
+        setState(() {
+          _cachePreview = sorted.take(_previewCount).toList();
+          _cachedChannelVideos = cached;
+        });
       });
     });
   }
