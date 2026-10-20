@@ -39,16 +39,9 @@ bool saveBytesFile(String filename, List<int> bytes, String mimeType) {
 /// 存一張圖片（2026-10-16 使用者要求「留個紀念」要真的存圖、不管作業系統）：
 /// 手機瀏覽器支援分享檔案就叫系統分享選單（iPhone 選「儲存影像」進照片、
 /// Android 存相簿）；不支援（電腦）或分享失敗就直接下載 PNG。
-Future<bool> shareOrSaveImage(String filename, List<int> png) =>
-    shareOrSaveFile(filename, png, 'image/png');
-
-/// 存任何檔（PDF 等）：手機叫系統分享選單，電腦直接下載。
-Future<bool> shareOrSaveFile(
-  String filename,
-  List<int> data,
-  String mimeType,
-) async {
-  final bytes = Uint8List.fromList(data);
+Future<bool> shareOrSaveImage(String filename, List<int> png) async {
+  const mimeType = 'image/png';
+  final bytes = Uint8List.fromList(png);
   final mobile = RegExp(
     'Mobi|Android|iPhone|iPad',
   ).hasMatch(web.window.navigator.userAgent);

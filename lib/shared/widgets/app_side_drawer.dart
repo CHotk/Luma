@@ -256,10 +256,6 @@ class _AppSideDrawerState extends State<AppSideDrawer> {
                           ),
                         ),
                         const _MockNavItem(
-                          icon: Icons.account_balance_wallet_rounded,
-                          label: '記帳',
-                        ),
-                        const _MockNavItem(
                           icon: Icons.event_note_rounded,
                           label: '行程表',
                         ),
@@ -556,7 +552,8 @@ class _NavItem extends StatelessWidget {
 /// （2026-09-22 使用者要求：先記錄 YT 頻道追蹤／記帳／行程表／
 /// 鬧鐘／碼錶／日記這六個構想，見 kana_exam_next_ideas 跟
 /// personal_app_feature_ideas 兩份記憶）。日記、YT 頻道追蹤後來做出來
-/// 了，移到上面變成真的可以點的項目，這裡只剩還沒開工的四個。
+/// 了，移到上面變成真的可以點的項目；記帳 2026-10-20 搬出去成獨立 App
+/// （cen_tally），佔位也拿掉，這裡只剩還沒開工的三個。
 class _MockNavItem extends StatelessWidget {
   const _MockNavItem({required this.icon, required this.label});
 
