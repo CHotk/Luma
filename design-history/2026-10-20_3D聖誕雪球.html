@@ -1,0 +1,741 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>3D 聖誕雪球</title>
+<!--
+  2026-10-20 使用者要求：3D 畫面、類似聖誕節下雪雪球、畫面可以轉動、球裡有小動物
+  在跑、要精緻，要能放進 Flutter。這份是設計展示（Three.js），之後放進 Flutter：
+  網頁版用 HtmlElementView 嵌 iframe，原生 App 用 webview_flutter（說明在頁面右上 ⓘ）。
+-->
+<style>
+  :root {
+    --ink: #F3F2F8; --ink2: #A3A2B2; --ink3: #74738A;
+    --glass: rgba(255,255,255,.08); --edge: rgba(255,255,255,.16);
+    --gold: #F2C46D;
+  }
+  html, body { margin: 0; height: 100%; background: #07080f; overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+    color: var(--ink); -webkit-tap-highlight-color: transparent; }
+  canvas { display: block; width: 100vw; height: 100vh; touch-action: none; outline: none; }
+
+  .top { position: fixed; left: 0; right: 0; top: 0; padding: 18px 18px 0;
+    display: flex; align-items: flex-start; justify-content: space-between; pointer-events: none; }
+  .title { pointer-events: none; }
+  .title h1 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: .5px;
+    text-shadow: 0 2px 18px rgba(0,0,0,.5); }
+  .title p { margin: 4px 0 0; font-size: 12.5px; color: var(--ink2); }
+  .iconbtn { pointer-events: auto; width: 40px; height: 40px; border-radius: 14px;
+    background: var(--glass); border: 1px solid var(--edge); color: var(--ink);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    font-size: 17px; cursor: pointer; display: grid; place-items: center; }
+
+  .dock { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
+    width: min(560px, calc(100vw - 32px)); box-sizing: border-box;
+    padding: 12px; border-radius: 22px; background: rgba(18,18,30,.45);
+    border: 1px solid var(--edge); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 10px; }
+  .btn { border: 1px solid var(--edge); background: var(--glass); color: var(--ink);
+    border-radius: 15px; padding: 13px 8px; font-size: 15px; font-weight: 700; cursor: pointer;
+    font-family: inherit; transition: transform .12s ease, background .2s ease; }
+  .btn:active { transform: scale(.96); }
+  .btn.primary { background: linear-gradient(180deg, rgba(242,196,109,.95), rgba(214,150,62,.95));
+    color: #2a1a05; border-color: rgba(255,220,150,.6); }
+  .btn.on { background: rgba(126,166,255,.22); border-color: rgba(126,166,255,.5); }
+  .slider { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px;
+    font-size: 13px; color: var(--ink2); padding: 2px 4px 0; }
+  .slider input { flex: 1; accent-color: var(--gold); }
+
+  .hint { position: fixed; left: 50%; bottom: 150px; transform: translateX(-50%);
+    font-size: 12.5px; color: var(--ink2); background: rgba(0,0,0,.35); padding: 7px 12px;
+    border-radius: 999px; border: 1px solid rgba(255,255,255,.08); white-space: nowrap;
+    transition: opacity .6s ease; pointer-events: none; }
+
+  .sheet { position: fixed; top: 70px; right: 16px; width: min(380px, calc(100vw - 32px));
+    max-height: calc(100vh - 250px); overflow: auto; box-sizing: border-box;
+    padding: 18px; border-radius: 20px; background: rgba(16,16,28,.82);
+    border: 1px solid var(--edge); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    font-size: 14px; line-height: 1.6; color: var(--ink2); display: none; }
+  .sheet.show { display: block; }
+  .sheet h3 { margin: 0 0 8px; color: var(--ink); font-size: 16px; }
+  .sheet h4 { margin: 14px 0 4px; color: var(--gold); font-size: 14px; }
+  .sheet code { background: rgba(255,255,255,.08); padding: 1px 6px; border-radius: 6px; color: var(--ink); }
+  .tag { display: inline-block; font-size: 11.5px; padding: 2px 8px; border-radius: 999px;
+    background: rgba(95,224,141,.15); color: #5FE08D; margin-left: 6px; }
+
+  .loading { position: fixed; inset: 0; display: grid; place-items: center; background: #07080f;
+    color: var(--ink2); font-size: 14px; transition: opacity .5s ease; z-index: 10; }
+  .loading.hide { opacity: 0; pointer-events: none; }
+  .spin { width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(255,255,255,.15);
+    border-top-color: rgba(255,255,255,.7); animation: s .8s linear infinite; margin: 0 auto 10px; }
+  @keyframes s { to { transform: rotate(360deg); } }
+  .err { color: #FF938B; max-width: 300px; text-align: center; line-height: 1.6; }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div class="top">
+  <div class="title">
+    <h1>❄ Snow Globe</h1>
+    <p>拖曳轉動・雙指／滾輪縮放・點兩下搖一搖</p>
+  </div>
+  <button class="iconbtn" id="infoBtn" title="怎麼放進 Flutter">ⓘ</button>
+</div>
+
+<div class="hint" id="hint">按「搖一搖」看雪花飛起來</div>
+
+<div class="dock">
+  <button class="btn primary" id="shake">✨ 搖一搖</button>
+  <button class="btn on" id="spin">自動旋轉</button>
+  <button class="btn" id="night">🌙 夜晚</button>
+  <label class="slider">雪量 <input type="range" id="amount" min="200" max="2400" value="1400"></label>
+</div>
+
+<div class="sheet" id="sheet">
+  <h3>怎麼放進 Flutter</h3>
+  <div>這份是用 <b>Three.js</b>（網頁 3D 引擎）做的，放進 Flutter 有三種做法：</div>
+  <h4>A. 嵌網頁 3D<span class="tag">推薦</span></h4>
+  <div>Lume／我的記帳都是 Flutter <b>網頁版</b>，用 <code>HtmlElementView</code> 把這個雪球當一塊 iframe 放進畫面，
+    效果跟這份展示一模一樣（玻璃折射、光暈、陰影都在）。以後做原生 App 就換成 <code>webview_flutter</code>。
+    Flutter 那邊可以傳指令進去（搖一搖、換白天夜晚、換小動物）。</div>
+  <h4>B. Flutter 原生 3D（flutter_scene）</h4>
+  <div>Flutter 官方的 3D（Flutter GPU），效能最好，但還在實驗階段、<b>網頁版不支援</b>，現在用不了。</div>
+  <h4>C. 純 Flutter 假 3D</h4>
+  <div>用 CustomPainter 畫：很輕，但做不出玻璃折射、真的轉動，精緻度差很多。</div>
+  <h4>素材來源</h4>
+  <div>狐狸模型：Khronos glTF Sample Assets「Fox」——模型 PixelMannen（CC0）、骨架動畫 tomkranis（CC-BY 4.0）、
+    glTF 轉檔 @AsoboStudio、@scurest（CC-BY 4.0）。其他（玻璃球、底座、小屋、樹、雪人、小熊、兔子、企鵝、雪花）都是程式畫的。</div>
+  <h4>這份展示裡有</h4>
+  <div>玻璃球（折射、反光）、木頭底座＋金邊、雪地、會發光的小木屋、聖誕樹（燈會閃）、雪人、路燈；
+    五隻小動物：狐狸（真的模型＋跑步動畫，偶爾停下來張望）、白色小圓熊在跑、兩隻兔子在跳、企鵝搖搖擺擺走；
+    球裡的雪會慢慢飄、落地堆著，搖一搖整個捲起來；球外面也有小雪。</div>
+</div>
+
+<div class="loading" id="loading"><div><div class="spin"></div>雪球準備中…</div></div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+// ───────────────── 基本場景 ─────────────────
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const scene = new THREE.Scene();
+const pmrem = new THREE.PMREMGenerator(renderer);
+// 自己做的柔和環境（玻璃反光用）：上冷下暖的漸層球，加一大一小兩塊柔光。
+// 不用 RoomEnvironment：它的燈箱在玻璃上會反射成一塊塊刺眼的白方塊。
+{
+  const env = new THREE.Scene();
+  const g = new THREE.SphereGeometry(10, 48, 24), col = [], p = g.attributes.position;
+  const top = new THREE.Color(0x26314f), mid = new THREE.Color(0x0d1020), bot = new THREE.Color(0x3a2618);
+  for (let i = 0; i < p.count; i++) {
+    const k = p.getY(i) / 10, c = k > 0 ? mid.clone().lerp(top, k) : mid.clone().lerp(bot, -k);
+    col.push(c.r, c.g, c.b);
+  }
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  env.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide })));
+  // 光斑用中間亮、往外淡掉的圓（反射在玻璃上才是柔和的亮點，不是方塊）。
+  const soft = document.createElement('canvas'); soft.width = soft.height = 128;
+  const sg = soft.getContext('2d'), sr = sg.createRadialGradient(64, 64, 0, 64, 64, 64);
+  sr.addColorStop(0, '#fff'); sr.addColorStop(.35, 'rgba(255,255,255,.55)'); sr.addColorStop(1, 'rgba(255,255,255,0)');
+  sg.fillStyle = sr; sg.fillRect(0, 0, 128, 128);
+  const softTex = new THREE.CanvasTexture(soft);
+  const panel = (w, h, c, x, y, z) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: c, map: softTex, transparent: true, side: THREE.DoubleSide }));
+    m.position.set(x, y, z); m.lookAt(0, 0, 0); env.add(m);
+  };
+  {
+  panel(7, 4.5, new THREE.Color(.95, .82, .66), 5, 6, 5);   // 暖色主光
+  panel(5, 7, new THREE.Color(.35, .45, .7), -7, 2, -4);     // 冷色輪廓
+  }
+  scene.environment = pmrem.fromScene(env, 0.035).texture;
+}
+
+const camera = new THREE.PerspectiveCamera(32, innerWidth / innerHeight, 0.1, 100);
+// 整顆雪球（寬約 3.5、高約 3.3）一定要放得下：照畫面寬高算鏡頭距離。
+function fitDistance() {
+  const v = THREE.MathUtils.degToRad(camera.fov) / 2, h = Math.atan(Math.tan(v) * camera.aspect);
+  return Math.max(1.85 / Math.tan(v), 1.85 / Math.tan(h)) + .6;
+}
+camera.position.set(0, 2.3, fitDistance());
+
+const controls = new OrbitControls(camera, canvas);
+controls.target.set(0, 1.55, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.enablePan = false;
+controls.minDistance = 3.6;
+controls.maxDistance = fitDistance() + 3;
+controls.minPolarAngle = 0.25;
+controls.maxPolarAngle = Math.PI * 0.56;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.7;
+
+// 背景：上下漸層＋星星（夜晚）／晴空（白天）
+function makeSky(night) {
+  const c = document.createElement('canvas'); c.width = 64; c.height = 1024;
+  const g = c.getContext('2d');
+  const gr = g.createLinearGradient(0, 0, 0, 1024);
+  if (night) { gr.addColorStop(0, '#060814'); gr.addColorStop(.55, '#141a33'); gr.addColorStop(1, '#2a1d2c'); }
+  else { gr.addColorStop(0, '#7fa6d6'); gr.addColorStop(.6, '#c9d9ea'); gr.addColorStop(1, '#efe2d3'); }
+  g.fillStyle = gr; g.fillRect(0, 0, 64, 1024);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+let night = true;
+scene.background = makeSky(true);
+
+// 光
+const hemi = new THREE.HemisphereLight(0xbfd4ff, 0x3a2a22, 0.55);
+scene.add(hemi);
+const key = new THREE.DirectionalLight(0xffe2c0, 1.6);
+key.position.set(3.5, 6.5, 4);
+key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048);
+key.shadow.camera.left = -3; key.shadow.camera.right = 3;
+key.shadow.camera.top = 3; key.shadow.camera.bottom = -3;
+key.shadow.camera.near = 1; key.shadow.camera.far = 15;
+key.shadow.bias = -0.0005; key.shadow.radius = 4;
+scene.add(key);
+const rim = new THREE.DirectionalLight(0x8fb4ff, 0.9);
+rim.position.set(-4, 3, -4);
+scene.add(rim);
+
+// 桌面（邊緣淡出）；白天換淺色木頭
+let table;
+{
+  const c = document.createElement('canvas'); c.width = c.height = 256;
+  const g = c.getContext('2d');
+  const gr = g.createRadialGradient(128, 128, 20, 128, 128, 128);
+  gr.addColorStop(0, '#fff'); gr.addColorStop(.6, '#888'); gr.addColorStop(1, '#000');
+  g.fillStyle = gr; g.fillRect(0, 0, 256, 256);
+  const alpha = new THREE.CanvasTexture(c);
+  table = new THREE.Mesh(
+    new THREE.CircleGeometry(6, 96),
+    new THREE.MeshStandardMaterial({ color: 0x2b1d17, roughness: .5, metalness: .05, alphaMap: alpha, transparent: true })
+  );
+  table.rotation.x = -Math.PI / 2;
+  table.receiveShadow = true;
+  scene.add(table);
+}
+
+// ───────────────── 雪球本體 ─────────────────
+const globe = new THREE.Group();   // 搖一搖時整顆一起晃
+scene.add(globe);
+
+const R = 1.45;                      // 玻璃球半徑
+const BASE_H = 0.62;
+const CY = BASE_H + R * 0.72;        // 球心高度（下緣埋進底座）
+const GY = CY - R * 0.55;            // 雪地的高度
+const GROUND_R = Math.sqrt(R * R - (R * 0.55) ** 2) - 0.02;
+
+// 木頭底座（旋轉出來的輪廓）＋金邊＋名牌
+{
+  const pts = [
+    [0, 0], [1.62, 0], [1.66, .04], [1.66, .12], [1.6, .16],
+    [1.52, .2], [1.5, .46], [1.42, .52], [1.36, .58], [1.3, BASE_H], [0, BASE_H],
+  ].map(([x, y]) => new THREE.Vector2(x, y));
+  const wood = new THREE.MeshPhysicalMaterial({ color: 0x5a3220, roughness: .38, clearcoat: .8, clearcoatRoughness: .25 });
+  const base = new THREE.Mesh(new THREE.LatheGeometry(pts, 128), wood);
+  base.castShadow = true; base.receiveShadow = true;
+  globe.add(base);
+
+  const gold = new THREE.MeshStandardMaterial({ color: 0xd9a74e, metalness: 1, roughness: .22 });
+  for (const [y, r, t] of [[.17, 1.56, .028], [.5, 1.47, .025]]) {
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(r, t, 16, 160), gold);
+    ring.rotation.x = Math.PI / 2; ring.position.y = y; globe.add(ring);
+  }
+  // 名牌
+  const c = document.createElement('canvas'); c.width = 512; c.height = 128;
+  const g = c.getContext('2d');
+  const gr = g.createLinearGradient(0, 0, 0, 128);
+  gr.addColorStop(0, '#f6d58b'); gr.addColorStop(1, '#b98232');
+  g.fillStyle = gr; g.fillRect(0, 0, 512, 128);
+  g.fillStyle = '#3b2408'; g.font = 'italic 700 58px Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText('Merry Christmas', 256, 68);
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+  const plaque = new THREE.Mesh(
+    new THREE.CylinderGeometry(1.512, 1.512, .17, 64, 1, true, -0.42, 0.84),
+    new THREE.MeshStandardMaterial({ map: tex, metalness: .7, roughness: .3 })
+  );
+  plaque.position.y = .33;
+  plaque.rotation.y = Math.PI; // 對著鏡頭（+z）
+  globe.add(plaque);
+}
+
+// 玻璃
+const glass = new THREE.Mesh(
+  new THREE.SphereGeometry(R, 128, 96),
+  new THREE.MeshPhysicalMaterial({
+    color: 0xffffff, metalness: 0, roughness: .02,
+    transmission: 1, thickness: .35, ior: 1.33,
+    // 燈打在太光滑的玻璃上，反光點會小到又尖又亮，被光暈放大成一塊方形；
+    // 鍍膜稍微霧一點、反光弱一點，燈的反光變成柔和的亮點。
+    clearcoat: .7, clearcoatRoughness: .16,
+    specularIntensity: .3, envMapIntensity: .9,
+    attenuationColor: new THREE.Color(0xe8f3ff), attenuationDistance: 6,
+  })
+);
+glass.material.depthWrite = false;   // 裡面的雪花才不會被玻璃擋住
+glass.position.y = CY;
+glass.renderOrder = 2;
+globe.add(glass);
+
+// ───────────────── 雪地 ─────────────────
+function hAt(x, z) {
+  const r = Math.hypot(x, z) / GROUND_R;
+  const edge = 1 - Math.pow(Math.min(r, 1), 4);
+  return 0.16 * (1 - r * r) + edge * (0.025 * Math.sin(x * 6 + 1) * Math.cos(z * 5) + 0.018 * Math.sin((x + z) * 9));
+}
+{
+  const rings = 30, segs = 140, pos = [], idx = [];
+  pos.push(0, hAt(0, 0), 0);
+  for (let i = 1; i <= rings; i++) {
+    const r = GROUND_R * i / rings;
+    for (let j = 0; j < segs; j++) {
+      const a = j / segs * Math.PI * 2, x = Math.cos(a) * r, z = Math.sin(a) * r;
+      pos.push(x, hAt(x, z), z);
+    }
+  }
+  for (let j = 0; j < segs; j++) idx.push(0, 1 + (j + 1) % segs, 1 + j);
+  for (let i = 1; i < rings; i++) {
+    const a0 = 1 + (i - 1) * segs, a1 = 1 + i * segs;
+    for (let j = 0; j < segs; j++) {
+      const j1 = (j + 1) % segs;
+      idx.push(a0 + j, a0 + j1, a1 + j, a0 + j1, a1 + j1, a1 + j);
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setIndex(idx); geo.computeVertexNormals();
+  const snow = new THREE.Mesh(geo, new THREE.MeshPhysicalMaterial({
+    color: 0xf3f7ff, roughness: .85, sheen: 1, sheenColor: new THREE.Color(0xcfe0ff), sheenRoughness: .6,
+  }));
+  snow.position.y = GY; snow.receiveShadow = true;
+  globe.add(snow);
+  // 雪地側邊（從玻璃看進去不會看到空心）
+  const skirt = new THREE.Mesh(
+    new THREE.CylinderGeometry(GROUND_R, GROUND_R * .9, GY - BASE_H + .02, 96, 1, true),
+    new THREE.MeshStandardMaterial({ color: 0xe9eef8, roughness: .9 })
+  );
+  skirt.position.y = (GY + BASE_H) / 2;
+  globe.add(skirt);
+}
+const groundY = (x, z) => GY + hAt(x, z);
+
+// ───────────────── 小東西們 ─────────────────
+const mat = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: .55, ...o });
+const glow = (c, i = 3) => new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: i, roughness: .4 });
+function mesh(geo, m, cast = true) { const o = new THREE.Mesh(geo, m); o.castShadow = cast; o.receiveShadow = true; return o; }
+function place(obj, x, z, rotY = 0) { obj.position.set(x, groundY(x, z), z); obj.rotation.y = rotY; globe.add(obj); return obj; }
+
+// 小木屋（中間），窗戶會發光
+const lampLights = [];
+{
+  const h = new THREE.Group();
+  const wood = mat(0x8a3a2c, { roughness: .7 });
+  const body = mesh(new THREE.BoxGeometry(.42, .3, .36), wood); body.position.y = .15; h.add(body);
+  const snowM = mat(0xf6f9ff, { roughness: .9 });
+  for (const s of [-1, 1]) {
+    const roof = mesh(new THREE.BoxGeometry(.5, .035, .29), snowM);
+    roof.position.set(0, .37, s * .1); roof.rotation.x = s * .62; h.add(roof);
+    const under = mesh(new THREE.BoxGeometry(.48, .02, .27), mat(0x4a2418));
+    under.position.set(0, .35, s * .095); under.rotation.x = s * .62; h.add(under);
+  }
+  const gable = new THREE.Shape(); gable.moveTo(-.21, 0); gable.lineTo(.21, 0); gable.lineTo(0, .13); gable.closePath();
+  for (const s of [-1, 1]) {
+    const g = mesh(new THREE.ExtrudeGeometry(gable, { depth: .01, bevelEnabled: false }), wood);
+    g.rotation.y = s > 0 ? Math.PI / 2 : -Math.PI / 2; g.position.set(s * .21, .3, 0); h.add(g);
+  }
+  const chim = mesh(new THREE.BoxGeometry(.06, .14, .06), mat(0x6b6f7a)); chim.position.set(.11, .43, -.06); h.add(chim);
+  const chimSnow = mesh(new THREE.BoxGeometry(.075, .02, .075), snowM); chimSnow.position.set(.11, .505, -.06); h.add(chimSnow);
+  const door = mesh(new THREE.BoxGeometry(.08, .14, .01), mat(0x4a2418)); door.position.set(0, .07, .182); h.add(door);
+  const win = glow(0xffc46b, 1.5);
+  for (const x of [-.13, .13]) {
+    const w = mesh(new THREE.BoxGeometry(.075, .07, .01), win, false); w.position.set(x, .17, .182); h.add(w);
+    const f = mesh(new THREE.BoxGeometry(.085, .01, .015), snowM); f.position.set(x, .13, .186); h.add(f);
+  }
+  const sideWin = mesh(new THREE.BoxGeometry(.01, .07, .07), win, false); sideWin.position.set(.212, .17, 0); h.add(sideWin);
+  const pl = new THREE.PointLight(0xffb15c, .55, .9, 2); pl.position.set(0, .18, .32); h.add(pl);
+  lampLights.push(pl);
+  h.scale.setScalar(1.05);
+  place(h, 0, -.05, 0);
+}
+
+// 聖誕樹（會閃的燈）
+const twinkles = [];
+function tree(x, z, s, lights) {
+  const t = new THREE.Group();
+  const trunk = mesh(new THREE.CylinderGeometry(.025, .03, .08, 12), mat(0x5b3a26)); trunk.position.y = .04; t.add(trunk);
+  const green = mat(0x1f5a3c, { roughness: .8 });
+  const white = mat(0xf6f9ff, { roughness: .9 });
+  [[.15, .2, .14], [.12, .18, .26], [.085, .15, .36]].forEach(([r, h, y]) => {
+    const c = mesh(new THREE.ConeGeometry(r, h, 18), green); c.position.y = y; t.add(c);
+    const cap = mesh(new THREE.ConeGeometry(r * .62, h * .38, 18), white); cap.position.y = y + h * .33; t.add(cap);
+  });
+  if (lights) {
+    const star = mesh(new THREE.OctahedronGeometry(.032), glow(0xffd36b, 4), false); star.position.y = .47; t.add(star);
+    twinkles.push({ m: star.material, base: 4, sp: 2.2, ph: 0 });
+    const cols = [0xff5a5a, 0xffd36b, 0x6bc8ff, 0x7dff9a, 0xff8de1];
+    for (let i = 0; i < 26; i++) {
+      const k = i / 26, y = .1 + k * .32, r = .15 * (1 - k * .78) + .008, a = k * Math.PI * 7;
+      const m = glow(cols[i % cols.length], 3);
+      const b = mesh(new THREE.SphereGeometry(.011, 8, 8), m, false);
+      b.position.set(Math.cos(a) * r, y, Math.sin(a) * r); t.add(b);
+      twinkles.push({ m, base: 3, sp: 1.5 + Math.random() * 3, ph: Math.random() * 6 });
+    }
+  }
+  t.scale.setScalar(s);
+  return place(t, x, z, Math.random() * 6);
+}
+tree(-.86, -.72, 1.12, true);
+tree(.95, -.62, .9, false);
+tree(-1.1, .12, .72, false);
+tree(.66, -.95, .68, false);
+tree(1.12, .1, .7, false);
+tree(-.42, -1.1, .66, false);
+
+// 雪人
+{
+  const s = new THREE.Group();
+  const w = mat(0xfafcff, { roughness: .85 });
+  const b1 = mesh(new THREE.SphereGeometry(.085, 24, 18), w); b1.position.y = .07; s.add(b1);
+  const b2 = mesh(new THREE.SphereGeometry(.06, 24, 18), w); b2.position.y = .18; s.add(b2);
+  const scarf = mesh(new THREE.TorusGeometry(.045, .014, 10, 24), mat(0xd23b3b)); scarf.rotation.x = Math.PI / 2; scarf.position.y = .145; s.add(scarf);
+  const tail = mesh(new THREE.BoxGeometry(.022, .06, .008), mat(0xd23b3b)); tail.position.set(.03, .12, .045); tail.rotation.z = .3; s.add(tail);
+  const nose = mesh(new THREE.ConeGeometry(.01, .045, 10), mat(0xff8a2b)); nose.rotation.x = Math.PI / 2; nose.position.set(0, .185, .075); s.add(nose);
+  for (const x of [-.02, .02]) { const e = mesh(new THREE.SphereGeometry(.007, 8, 8), mat(0x111111), false); e.position.set(x, .2, .053); s.add(e); }
+  const brim = mesh(new THREE.CylinderGeometry(.05, .05, .008, 20), mat(0x22252e)); brim.position.y = .232; s.add(brim);
+  const top = mesh(new THREE.CylinderGeometry(.033, .035, .05, 20), mat(0x22252e)); top.position.y = .26; s.add(top);
+  for (const sx of [-1, 1]) {
+    const arm = mesh(new THREE.CylinderGeometry(.004, .004, .09, 6), mat(0x5b3a26));
+    arm.position.set(sx * .085, .19, 0); arm.rotation.z = sx * -1.0; s.add(arm);
+  }
+  place(s, .55, .78, -.5);
+}
+
+// 路燈
+{
+  const l = new THREE.Group();
+  const iron = mat(0x23262e, { metalness: .6, roughness: .35 });
+  const pole = mesh(new THREE.CylinderGeometry(.008, .012, .34, 10), iron); pole.position.y = .17; l.add(pole);
+  const cap = mesh(new THREE.ConeGeometry(.035, .03, 6), iron); cap.position.y = .375; l.add(cap);
+  const bulb = mesh(new THREE.SphereGeometry(.022, 16, 12), glow(0xffd28a, 4), false); bulb.position.y = .35; l.add(bulb);
+  const pl = new THREE.PointLight(0xffc77a, .55, .9, 2); pl.position.y = .33; l.add(pl);
+  lampLights.push(pl);
+  place(l, -.7, .62, 0);
+}
+
+// ───────────────── 小動物 ─────────────────
+const blob = (r, m, sx = 1, sy = 1, sz = 1) => { const o = mesh(new THREE.SphereGeometry(r, 32, 24), m); o.scale.set(sx, sy, sz); return o; };
+const eye = (x, y, z, s = .011) => {
+  const g = new THREE.Group();
+  const e = mesh(new THREE.SphereGeometry(s, 16, 12), mat(0x14141a, { roughness: .2 }), false); g.add(e);
+  const hl = mesh(new THREE.SphereGeometry(s * .35, 8, 8), new THREE.MeshBasicMaterial({ color: 0xffffff }), false);
+  hl.position.set(s * .35, s * .35, s * .75); g.add(hl);
+  g.position.set(x, y, z); return g;
+};
+const pink = mat(0xffa3b8, { roughness: .6 });
+
+// 白色小圓熊（跑步）
+function makeBear() {
+  const g = new THREE.Group(), body = new THREE.Group(); g.add(body);
+  const w = mat(0xfdfcf8, { roughness: .7 });
+  body.add(blob(.085, w, 1.12, .92, 1).translateY(.088));
+  for (const s of [-1, 1]) {
+    body.add(blob(.026, w).translateX(s * .055).translateY(.162));
+    body.add(blob(.013, pink, 1, 1, .4).translateX(s * .055).translateY(.163).translateZ(.016));
+    body.add(eye(s * .03, .1, .077));
+    body.add(blob(.016, pink, 1.2, .6, .35).translateX(s * .056).translateY(.078).translateZ(.068));
+  }
+  body.add(blob(.006, mat(0x6b3a2a), 1.4, .8, .6).translateY(.082).translateZ(.083));
+  const limbs = [];
+  for (const s of [-1, 1]) {
+    const arm = blob(.018, w); arm.position.set(s * .088, .07, .02); body.add(arm); limbs.push(arm);
+    const leg = blob(.022, w, 1, .8, 1.1); leg.position.set(s * .04, .016, 0); g.add(leg); limbs.push(leg);
+  }
+  g.userData = { body, limbs };
+  return g;
+}
+// 兔子（跳）
+function makeBunny(color) {
+  const g = new THREE.Group(), body = new THREE.Group(); g.add(body);
+  const w = mat(color, { roughness: .75 });
+  body.add(blob(.065, w, 1, .88, 1.25).translateY(.06));
+  const head = blob(.05, w); head.position.set(0, .12, .055); body.add(head);
+  for (const s of [-1, 1]) {
+    const ear = blob(.026, w, .38, 1.7, .3); ear.position.set(s * .022, .2, .04); ear.rotation.z = s * -.18; body.add(ear);
+    const inner = blob(.018, pink, .3, 1.4, .2); inner.position.set(s * .022, .2, .047); inner.rotation.z = s * -.18; body.add(inner);
+    body.add(eye(s * .026, .13, .096, .009));
+  }
+  body.add(blob(.008, pink).translateY(.115).translateZ(.104));
+  body.add(blob(.022, mat(0xffffff)).translateY(.07).translateZ(-.08));
+  g.userData = { body };
+  return g;
+}
+// 企鵝（搖搖擺擺）
+function makePenguin() {
+  const g = new THREE.Group(), body = new THREE.Group(); g.add(body);
+  body.add(blob(.07, mat(0x1d2330, { roughness: .45 }), 1, 1.38, .95).translateY(.098));
+  body.add(blob(.058, mat(0xfafafa), .86, 1.2, .62).translateY(.09).translateZ(.034));
+  for (const s of [-1, 1]) {
+    body.add(eye(s * .022, .155, .06, .008));
+    const fl = blob(.03, mat(0x1d2330), .32, 1.1, .7); fl.position.set(s * .07, .095, 0); fl.rotation.z = s * .35; body.add(fl);
+    const ft = blob(.02, mat(0xffa12b), 1, .35, 1.4); ft.position.set(s * .028, .006, .03); g.add(ft);
+  }
+  const beak = mesh(new THREE.ConeGeometry(.012, .03, 10), mat(0xffa12b)); beak.rotation.x = Math.PI / 2; beak.position.set(0, .14, .078); body.add(beak);
+  const scarf = mesh(new THREE.TorusGeometry(.05, .012, 10, 24), mat(0xd23b3b)); scarf.rotation.x = Math.PI / 2; scarf.position.y = .12; scarf.scale.set(1, 1.1, 1); body.add(scarf);
+  g.userData = { body };
+  return g;
+}
+
+const animals = [
+  { o: makeBear(), r: .62, speed: .55, ph: 0, kind: 'run' },
+  { o: makeBunny(0xf2e9dc), r: .8, speed: .34, ph: 2.2, kind: 'hop' },
+  { o: makeBunny(0xbf9470), r: .72, speed: -.3, ph: 4.4, kind: 'hop' },
+  { o: makePenguin(), r: .46, speed: .16, ph: 1.0, kind: 'waddle' },
+];
+animals.forEach(a => globe.add(a.o));
+
+// 狐狸：Khronos glTF 官方範例模型（CC0／CC-BY 4.0，作者寫在 ⓘ 說明裡），
+// 有跑步、走路、張望三段動畫。跑一陣子會停下來張望再繼續跑。
+let fox = null;
+new GLTFLoader().load(
+  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/Fox/glTF-Binary/Fox.glb',
+  (gltf) => {
+    const o = gltf.scene;
+    o.scale.setScalar(.0017);
+    o.traverse(m => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } });
+    const holder = new THREE.Group(); holder.add(o); globe.add(holder);
+    const mixer = new THREE.AnimationMixer(o);
+    const clip = n => mixer.clipAction(gltf.animations.find(a => a.name === n));
+    fox = { holder, mixer, run: clip('Run'), look: clip('Survey'), walk: clip('Walk'), th: 2.6, mode: 'run', until: 7 };
+    fox.run.play();
+  },
+  undefined,
+  () => {} // 載不到就算了，其他小動物照樣跑
+);
+
+// ───────────────── 雪花 ─────────────────
+function flakeTexture() {
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const g = c.getContext('2d');
+  const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(.35, 'rgba(255,255,255,.85)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+  return new THREE.CanvasTexture(c);
+}
+const flakeTex = flakeTexture();
+
+// 球裡的雪：飄落、落地堆著一陣子、再從上面補；搖一搖全部捲起來
+const MAXF = 2400;
+const fPos = new Float32Array(MAXF * 3), fVel = new Float32Array(MAXF * 3), fRest = new Float32Array(MAXF);
+function spawnTop(i, anywhere) {
+  for (;;) {
+    const x = (Math.random() * 2 - 1) * R * .9, z = (Math.random() * 2 - 1) * R * .9;
+    const y = anywhere ? GY + Math.random() * (R * 1.45) : CY + R * (.2 + Math.random() * .7);
+    if ((x * x + (y - CY) ** 2 + z * z) < (R * .92) ** 2 && y > groundY(x, z) + .02) {
+      fPos.set([x, y, z], i * 3); fVel.set([0, -.02 - Math.random() * .03, 0], i * 3); fRest[i] = 0; return;
+    }
+  }
+}
+for (let i = 0; i < MAXF; i++) spawnTop(i, true);
+const fGeo = new THREE.BufferGeometry();
+fGeo.setAttribute('position', new THREE.BufferAttribute(fPos, 3));
+const flakes = new THREE.Points(fGeo, new THREE.PointsMaterial({
+  size: .034, map: flakeTex, transparent: true, depthWrite: false, color: 0xdfe6f2, sizeAttenuation: true,
+}));
+flakes.renderOrder = 3;
+globe.add(flakes);
+let flakeCount = 1400;
+fGeo.setDrawRange(0, flakeCount);
+
+let swirl = 0;
+function shake() {
+  swirl = 1.6; wobble = 1;
+  for (let i = 0; i < MAXF; i++) {
+    fRest[i] = 0;
+    fVel[i * 3] = (Math.random() - .5) * 1.2;
+    fVel[i * 3 + 1] = .6 + Math.random() * 1.3;
+    fVel[i * 3 + 2] = (Math.random() - .5) * 1.2;
+  }
+  hint.style.opacity = 0;
+}
+
+// 球外面的小雪
+const OUT = 700, oPos = new Float32Array(OUT * 3), oSp = new Float32Array(OUT);
+for (let i = 0; i < OUT; i++) {
+  oPos.set([(Math.random() - .5) * 18, Math.random() * 9, (Math.random() - .5) * 18 - 2], i * 3);
+  oSp[i] = .15 + Math.random() * .35;
+}
+const oGeo = new THREE.BufferGeometry(); oGeo.setAttribute('position', new THREE.BufferAttribute(oPos, 3));
+const outside = new THREE.Points(oGeo, new THREE.PointsMaterial({
+  size: .05, map: flakeTex, transparent: true, depthWrite: false, opacity: .55,
+}));
+scene.add(outside);
+
+// ───────────────── 後製（光暈） ─────────────────
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), .45, .4, .96);
+composer.addPass(bloom);
+composer.addPass(new OutputPass());
+
+// ───────────────── 介面 ─────────────────
+const hint = document.getElementById('hint');
+document.getElementById('shake').onclick = shake;
+canvas.addEventListener('dblclick', shake);
+let lastTap = 0;
+canvas.addEventListener('touchend', () => { const n = performance.now(); if (n - lastTap < 300) shake(); lastTap = n; });
+const spinBtn = document.getElementById('spin');
+spinBtn.onclick = () => { controls.autoRotate = !controls.autoRotate; spinBtn.classList.toggle('on', controls.autoRotate); };
+const nightBtn = document.getElementById('night');
+function setNight(v) {
+  night = v;
+  scene.background = makeSky(v);
+  hemi.intensity = v ? .5 : 1.1;
+  key.intensity = v ? 1.4 : 2.4;
+  key.color.set(v ? 0xffd9b0 : 0xfff3e6);
+  renderer.toneMappingExposure = v ? 1.0 : 1.08;
+  bloom.strength = v ? .5 : .18;
+  lampLights.forEach(l => l.intensity = v ? .55 : .15);
+  table.material.color.set(v ? 0x2b1d17 : 0xb89a80);
+  nightBtn.textContent = v ? '🌙 夜晚' : '☀️ 白天';
+}
+nightBtn.onclick = () => setNight(!night);
+setNight(true);
+document.getElementById('amount').oninput = e => { flakeCount = +e.target.value; fGeo.setDrawRange(0, flakeCount); };
+const sheet = document.getElementById('sheet');
+document.getElementById('infoBtn').onclick = () => sheet.classList.toggle('show');
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); controls.maxDistance = fitDistance() + 3;
+  renderer.setSize(innerWidth, innerHeight); composer.setSize(innerWidth, innerHeight);
+});
+
+// ───────────────── 動畫 ─────────────────
+const clock = new THREE.Clock();
+let wobble = 0;
+function animate() {
+  const dt = Math.min(clock.getDelta(), 1 / 30), t = clock.elapsedTime;
+
+  // 小動物沿著圈圈跑
+  for (const a of animals) {
+    const th = a.ph + t * a.speed;
+    const x = Math.cos(th) * a.r, z = Math.sin(th) * a.r;
+    const dir = Math.sign(a.speed);
+    a.o.position.set(x, groundY(x, z), z);
+    a.o.rotation.y = Math.atan2(-Math.sin(th) * dir, Math.cos(th) * dir);
+    const b = a.o.userData.body;
+    if (a.kind === 'run') {
+      const p = t * 13;
+      b.position.y = Math.abs(Math.sin(p)) * .028;
+      b.rotation.x = .12;
+      a.o.userData.limbs.forEach((l, i) => { l.position.z = Math.sin(p + (i % 2 ? Math.PI : 0) + (i > 1 ? Math.PI : 0)) * .025; });
+    } else if (a.kind === 'hop') {
+      const p = (t * 1.9 + a.ph) % 1;
+      const up = Math.sin(p * Math.PI);
+      b.position.y = up * .11;
+      const squash = p < .12 || p > .9 ? .82 : 1 + up * .08;
+      b.scale.set(1 / Math.sqrt(squash), squash, 1 / Math.sqrt(squash));
+      b.rotation.x = (p - .5) * -.5;
+    } else {
+      b.rotation.z = Math.sin(t * 7) * .16;
+      b.position.y = Math.abs(Math.sin(t * 7)) * .01;
+    }
+  }
+
+  // 狐狸：跑 7 秒 → 停下來張望 3 秒 → 再跑
+  if (fox) {
+    fox.mixer.update(dt);
+    if (t > fox.until) {
+      const next = fox.mode === 'run' ? 'look' : 'run';
+      fox[next].reset().play(); fox[fox.mode].crossFadeTo(fox[next], .35, false);
+      fox.mode = next; fox.until = t + (next === 'run' ? 6 + Math.random() * 4 : 3);
+    }
+    if (fox.mode === 'run') fox.th += dt * .5;
+    const r = .93, x = Math.cos(fox.th) * r, z = Math.sin(fox.th) * r;
+    fox.holder.position.set(x, groundY(x, z), z);
+    fox.holder.rotation.y = Math.atan2(-Math.sin(fox.th), Math.cos(fox.th));
+  }
+
+  // 聖誕燈閃爍
+  for (const k of twinkles) k.m.emissiveIntensity = k.base * (.55 + .45 * Math.sin(t * k.sp + k.ph));
+
+  // 球裡的雪
+  swirl *= Math.pow(.35, dt);
+  for (let i = 0; i < flakeCount; i++) {
+    const j = i * 3;
+    if (fRest[i] > 0) { fRest[i] -= dt; if (fRest[i] <= 0) spawnTop(i, false); continue; }
+    let x = fPos[j], y = fPos[j + 1], z = fPos[j + 2];
+    let vx = fVel[j], vy = fVel[j + 1], vz = fVel[j + 2];
+    vy -= .9 * dt;                                     // 重力
+    const drag = Math.pow(.18, dt);                    // 水的阻力
+    vx *= drag; vz *= drag; vy = Math.max(vy * drag, -.09 - (i % 7) * .006);
+    vx += (-z * swirl * 1.4 + Math.sin(t * .7 + i) * .02) * dt * 3;   // 漩渦＋飄
+    vz += (x * swirl * 1.4 + Math.cos(t * .6 + i * 1.3) * .02) * dt * 3;
+    x += vx * dt; y += vy * dt; z += vz * dt;
+    const dy = y - CY, d = Math.sqrt(x * x + dy * dy + z * z), lim = R * .94;
+    if (d > lim) {                                       // 碰到玻璃彈回來
+      const k = lim / d; x *= k; z *= k; y = CY + dy * k;
+      const nx = x / lim, ny = dy / lim, nz = z / lim, dot = vx * nx + vy * ny + vz * nz;
+      if (dot > 0) { vx -= 1.6 * dot * nx; vy -= 1.6 * dot * ny; vz -= 1.6 * dot * nz; }
+    }
+    const gy = groundY(x, z) + .008;
+    if (y < gy) { y = gy; vx = vy = vz = 0; fRest[i] = 3 + Math.random() * 9; }  // 落地堆一下
+    fPos[j] = x; fPos[j + 1] = y; fPos[j + 2] = z;
+    fVel[j] = vx; fVel[j + 1] = vy; fVel[j + 2] = vz;
+  }
+  fGeo.attributes.position.needsUpdate = true;
+
+  // 球外的雪
+  for (let i = 0; i < OUT; i++) {
+    const j = i * 3;
+    oPos[j + 1] -= oSp[i] * dt;
+    oPos[j] += Math.sin(t * .5 + i) * .002;
+    if (oPos[j + 1] < 0) oPos[j + 1] = 9;
+  }
+  oGeo.attributes.position.needsUpdate = true;
+
+  // 搖一搖時整顆晃一下
+  wobble *= Math.pow(.02, dt);
+  globe.position.x = Math.sin(t * 38) * .05 * wobble;
+  globe.rotation.z = Math.sin(t * 31) * .03 * wobble;
+
+  controls.update();
+  composer.render();
+  requestAnimationFrame(animate);
+}
+window.globeDebug = { camera, controls, fox: () => fox };
+animate();
+document.getElementById('loading').classList.add('hide');
+setTimeout(() => { hint.style.opacity = 0; }, 6000);
+</script>
+<script>
+  // 載不到 Three.js（沒網路）時給個說明，不要一片黑。
+  setTimeout(() => {
+    const l = document.getElementById('loading');
+    if (l && !l.classList.contains('hide')) l.innerHTML = '<div class="err">3D 引擎載不下來（需要網路連到 cdn.jsdelivr.net）。<br>連上網路後重新整理。</div>';
+  }, 15000);
+</script>
+</body>
+</html>
