@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>吉伊卡哇家族 3D</title>
+<!--
+  2026-10-20 使用者要求：吉伊卡哇裡面的人物系列都做一遍（延續 2026-10-20_吉伊卡哇3D.html）。
+  全部用 Three.js 程式組：每隻都是同一套「大福身體＋臉＋手腳」的做法，換參數（顏色、耳朵、花紋、嘴巴、配件）。
+  ※ 角色版權屬原作者（nagano），這份只當私人設計練習，不要商用或公開散布。
+-->
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; color: #3a2a33;
+    background: radial-gradient(circle at 50% 35%, #fffaf3, #ffe8ee 60%, #f6d3de);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif; }
+  canvas { display: block; width: 100vw; height: 100vh; touch-action: none; }
+  .title { position: fixed; left: 0; right: 0; top: 14px; text-align: center; pointer-events: none; }
+  .title h1 { margin: 0; font-size: 22px; letter-spacing: 1px; } .title p { margin: 4px 0 0; font-size: 13px; color: #8a6a76; }
+  .who { position: fixed; left: 50%; bottom: 82px; transform: translateX(-50%); display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; width: min(760px, calc(100vw - 20px)); }
+  .who button, .dock button { border: 2px solid #3a2a33; background: #fff; color: #3a2a33; border-radius: 14px; padding: 7px 11px; font-size: 14px; font-weight: 800;
+    font-family: inherit; cursor: pointer; box-shadow: 0 3px 0 #3a2a33; }
+  .who button.on { background: #ffd36b; }
+  .dock { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; width: min(640px, calc(100vw - 20px)); }
+  .dock button { background: #ffc2d1; }
+  .dock button:active, .who button:active { transform: translateY(2px); box-shadow: 0 1px 0 #3a2a33; }
+  .note { position: fixed; right: 14px; top: 14px; font-size: 11.5px; color: #a07f8b; max-width: 230px; text-align: right; line-height: 1.5; }
+  .name { position: fixed; pointer-events: none; font-size: 13px; font-weight: 800; padding: 3px 9px; border-radius: 999px; background: rgba(255,255,255,.85); border: 2px solid #3a2a33; transform: translate(-50%, 0); white-space: nowrap; }
+</style>
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }
+</script>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="title"><h1>吉伊卡哇家族 3D</h1><p>拖著轉・滾輪縮放・點誰就選誰（牠會跳一下）</p></div>
+<div class="note">全部用 Three.js 程式組出來的，沒有用模型檔。私人練習用，角色版權屬原作者。</div>
+<div id="labels"></div>
+<div class="who" id="who"></div>
+<div class="dock">
+  <button data-a="wave">👋 揮手</button><button data-a="jump">⤴ 跳</button><button data-a="spin">🔄 轉圈</button>
+  <button data-a="happy">✨ 開心</button><button data-a="cry">😢 哭哭</button><button data-a="dance">💃 一起跳舞</button>
+</div>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(30, innerWidth / innerHeight, .1, 200);
+const fitCam = () => { const w = Math.max(16, 16 / (innerWidth / innerHeight) * 1.25); camera.position.set(0, 3.2, w * 1.25); };
+fitCam();
+const controls = new OrbitControls(camera, canvas);
+controls.target.set(0, 1.1, 0); controls.enableDamping = true; controls.enablePan = false;
+controls.minDistance = 5; controls.maxDistance = 40; controls.maxPolarAngle = Math.PI * .52;
+addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
+
+scene.add(new THREE.AmbientLight(0xffffff, 1.35));
+const sun = new THREE.DirectionalLight(0xffffff, 1.3); sun.position.set(4, 8, 6); sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048); Object.assign(sun.shadow.camera, { left: -12, right: 12, top: 6, bottom: -6 }); sun.shadow.radius = 6; scene.add(sun);
+const ground = new THREE.Mesh(new THREE.CircleGeometry(16, 64), new THREE.ShadowMaterial({ opacity: .16 })); ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+
+const grad = (() => { const t = new THREE.DataTexture(new Uint8Array([205, 250, 255]), 3, 1, THREE.RedFormat); t.minFilter = t.magFilter = THREE.NearestFilter; t.needsUpdate = true; return t; })();
+const toon = (color, extra = {}) => new THREE.MeshToonMaterial({ color, gradientMap: grad, ...extra });
+const INK = 0x241a20;
+const black = new THREE.MeshBasicMaterial({ color: INK });
+const white = new THREE.MeshBasicMaterial({ color: 0xffffff });
+const outlineMat = new THREE.MeshBasicMaterial({ color: INK, side: THREE.BackSide });
+const outline = (m, k = 1.06) => { const o = new THREE.Mesh(m.geometry, outlineMat); o.scale.setScalar(k); m.add(o); m.castShadow = true; return m; };
+
+// ═══════ 一隻角色（同一套做法，換參數） ═══════
+function makeChar(sp) {
+  const A = sp.A ?? 1.12, B = sp.B ?? .98, NE = sp.NE ?? 2.5, CY0 = B;
+  const pts = [];
+  for (let i = 0; i <= 64; i++) { const th = -Math.PI / 2 + Math.PI * i / 64, c = Math.cos(th), sn = Math.sin(th);
+    pts.push(new THREE.Vector2(Math.max(A * Math.pow(Math.abs(c), 2 / NE), .001), Math.max(CY0 + B * Math.sign(sn) * Math.pow(Math.abs(sn), 2 / NE), .03))); }
+  pts[0].x = pts[pts.length - 1].x = .001;
+  const H = CY0 + B;
+  const R = y => { for (let i = 1; i < pts.length; i++) if (pts[i].y >= y) { const a = pts[i - 1], b = pts[i]; return a.x + (b.x - a.x) * ((y - a.y) / Math.max(1e-6, b.y - a.y)); } return .001; };
+  const surf = (x, y, out = 0) => { const r = R(y), z = Math.sqrt(Math.max(r * r - x * x, 0)); return new THREE.Vector3(x, y, z + out); };
+  const topY = x => CY0 + B * Math.pow(Math.max(0, 1 - Math.pow(Math.abs(x) / A, NE)), 1 / NE);
+
+  const geo = new THREE.LatheGeometry(pts, 96); geo.computeVertexNormals();
+  // 花紋：用頂點顏色畫（小八的頭頂、栗子饅頭的栗子帽、海獺的臉）
+  const base = new THREE.Color(sp.color), col = [], p = geo.attributes.position;
+  for (let i = 0; i < p.count; i++) { const c = sp.paint ? sp.paint(p.getX(i), p.getY(i), p.getZ(i), H) ?? base : base; col.push(c.r, c.g, c.b); }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+
+  const root = new THREE.Group(), body = new THREE.Group(); root.add(body);
+  body.add(outline(new THREE.Mesh(geo, toon(0xffffff, { vertexColors: true })), 1.035));
+
+  // 耳朵
+  const earMat = toon(sp.earColor ?? sp.color);
+  if (sp.ears === 'round') for (const s of [-1, 1]) { const e = outline(new THREE.Mesh(new THREE.SphereGeometry(.2 * (sp.earK ?? 1), 28, 20), earMat), 1.09);
+    e.scale.set(1.05, .9, .85); e.position.set(s * A * .45, topY(A * .45) - .02, .02); e.rotation.z = s * -.4; body.add(e); }
+  if (sp.ears === 'cat') for (const s of [-1, 1]) { const e = outline(new THREE.Mesh(new THREE.ConeGeometry(.26, .42, 4), earMat), 1.1);
+    e.position.set(s * A * .52, topY(A * .52) + .08, .05); e.rotation.set(0, Math.PI / 4, s * -.38); body.add(e); }
+  if (sp.ears === 'bunny') for (const s of [-1, 1]) { const e = outline(new THREE.Mesh(new THREE.CapsuleGeometry(.17, .95, 8, 18), earMat), 1.08);
+    e.position.set(s * .3, H + .5, -.02); e.rotation.z = s * -.1; body.add(e); }
+
+  // 臉
+  const face = new THREE.Group(); body.add(face);
+  const eyes = [], ey = sp.eyeY ?? CY0 + B * .14, ex = sp.eyeX ?? .34, es = sp.eyeK ?? 1;
+  for (const s of [-1, 1]) {
+    const pp = surf(s * ex, ey, -.02);
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(.13 * es, 28, 20), black); eye.scale.set(.86, 1, .45); eye.position.copy(pp);
+    eye.lookAt(pp.clone().multiplyScalar(2).setY(pp.y)); face.add(eye); eyes.push(eye);
+    const hl = new THREE.Mesh(new THREE.SphereGeometry(.045 * es, 14, 10), white); hl.position.set(.035 * es, .045 * es, .11 * es); eye.add(hl);
+    if (sp.sparkle) { const h2 = new THREE.Mesh(new THREE.SphereGeometry(.028 * es, 12, 10), white); h2.position.set(-.04 * es, -.05 * es, .11 * es); eye.add(h2); }
+    if (sp.brows) { const br = new THREE.Mesh(new THREE.TorusGeometry(.14, .018, 8, 24, Math.PI * .7), black); br.position.copy(surf(s * ex * 1.05, ey + .24, .005)); br.rotation.set(-.25, s * .32, Math.PI * .15); face.add(br); }
+    if (sp.cheeks !== false) { const cp = surf(s * (ex + .32), ey - .2, .03);
+      const ck = new THREE.Mesh(new THREE.CircleGeometry(.16, 28), new THREE.MeshBasicMaterial({ color: sp.cheekColor ?? 0xffa9bd, transparent: true, opacity: .9 }));
+      ck.scale.set(1.35, .8, 1); ck.position.copy(cp); ck.lookAt(cp.clone().multiplyScalar(2).setY(cp.y)); face.add(ck);
+      if (sp.cheekLines !== false) for (let k = -1; k <= 1; k++) { const l = new THREE.Mesh(new THREE.CapsuleGeometry(.012, .09, 4, 8), black); l.position.set(k * .085, 0, .003); l.rotation.z = -.5; ck.add(l); } }
+  }
+  { const mp = surf(0, ey - .22, .01), mouth = new THREE.Group(); mouth.position.copy(mp); mouth.lookAt(mp.clone().multiplyScalar(2).setY(mp.y)); face.add(mouth);
+    const t = sp.mouth ?? 'omega';
+    if (t === 'omega') { for (const s of [-1, 1]) { const a = new THREE.Mesh(new THREE.TorusGeometry(.075, .02, 8, 20, Math.PI), black); a.rotation.z = Math.PI; a.position.x = s * .075; mouth.add(a); }
+      const tg = new THREE.Mesh(new THREE.SphereGeometry(.05, 12, 10), new THREE.MeshBasicMaterial({ color: 0xff7f98 })); tg.scale.set(1, .7, .4); tg.position.y = -.09; mouth.add(tg); }
+    if (t === 'smile') { const m = new THREE.Mesh(new THREE.CircleGeometry(.13, 24, Math.PI, Math.PI), black); mouth.add(m);
+      const tg = new THREE.Mesh(new THREE.CircleGeometry(.07, 20, Math.PI, Math.PI), new THREE.MeshBasicMaterial({ color: 0xff7f98 })); tg.position.set(0, -.05, .003); mouth.add(tg); }
+    if (t === 'open') { const m = new THREE.Mesh(new THREE.CircleGeometry(.15, 24), black); m.scale.set(1, 1.15, 1); m.position.y = -.04; mouth.add(m);
+      const tg = new THREE.Mesh(new THREE.CircleGeometry(.08, 20), new THREE.MeshBasicMaterial({ color: 0xff6b86 })); tg.position.set(0, -.1, .003); mouth.add(tg); }
+    if (t === 'small') { const m = new THREE.Mesh(new THREE.TorusGeometry(.06, .02, 8, 20, Math.PI), black); m.rotation.z = Math.PI; mouth.add(m); }
+    if (t === 'cat') { for (const s of [-1, 1]) { const a = new THREE.Mesh(new THREE.TorusGeometry(.06, .018, 8, 20, Math.PI), black); a.rotation.z = Math.PI; a.position.x = s * .06; mouth.add(a); }
+      const n = new THREE.Mesh(new THREE.SphereGeometry(.04, 12, 10), new THREE.MeshBasicMaterial({ color: 0x5a3a2a })); n.scale.set(1.3, .8, .5); n.position.y = .08; mouth.add(n); }
+    if (sp.mustache) for (const s of [-1, 1]) { const m = new THREE.Mesh(new THREE.CapsuleGeometry(.03, .18, 6, 10), new THREE.MeshBasicMaterial({ color: 0x5b3a22 })); m.rotation.z = s * 1.2; m.position.set(s * .12, .05, .01); mouth.add(m); }
+  }
+  // 手腳
+  const arms = [];
+  for (const s of [-1, 1]) { const g = new THREE.Group(); g.position.copy(surf(s * (A - .14), CY0 * .62, -.12)); body.add(g);
+    const h = outline(new THREE.Mesh(new THREE.SphereGeometry(.17, 22, 16), toon(sp.handColor ?? sp.color)), 1.1); h.scale.set(.85, 1, .85); h.position.set(s * .06, -.04, .02); g.add(h); arms.push(g); }
+  const legs = [];
+  for (const s of [-1, 1]) { const l = outline(new THREE.Mesh(new THREE.SphereGeometry(.2, 22, 16), toon(sp.footColor ?? sp.handColor ?? sp.color)), 1.08); l.scale.set(1, .55, 1.1); l.position.set(s * A * .38, .06, A * .4); root.add(l); legs.push(l); }
+  sp.extra?.({ body, root, surf, topY, A, B, H, CY0, toon, outline });
+  // 眼淚、星星
+  const tears = [-1, 1].map(s => { const m = new THREE.Mesh(new THREE.SphereGeometry(.06, 14, 10), toon(0x8fd3ff, { transparent: true, opacity: .9 })); m.scale.set(.8, 1.2, .8); m.visible = false; face.add(m); return { m, s }; });
+  const stars = new THREE.Group(); stars.visible = false; root.add(stars);
+  for (let i = 0; i < 5; i++) { const st = new THREE.Mesh(new THREE.OctahedronGeometry(.09), new THREE.MeshBasicMaterial({ color: [0xffd36b, 0xff9fbe, 0x8fd3ff][i % 3] })); const a = i / 5 * Math.PI * 2; st.position.set(Math.cos(a) * (A + .15), H + .2, Math.sin(a) * (A + .15)); stars.add(st); }
+  root.traverse(o => { if (o.isMesh) o.userData.char = sp.id; });
+  const armY = arms[0].position.y;
+  return { sp, root, body, eyes, arms, legs, tears, stars, surf, armY, H, A, action: 'idle', t: 0, blink: 1 + Math.random() * 3, home: new THREE.Vector3() };
+}
+
+// ═══════ 角色們 ═══════
+const C = (h) => new THREE.Color(h);
+const CHARS = [
+  { id: 'chiikawa', name: '吉伊卡哇', color: 0xfffdfb, ears: 'round', brows: true, mouth: 'omega' },
+  { id: 'hachiware', name: '小八', color: 0xfffdfb, ears: 'cat', earColor: 0x5e7fc4, mouth: 'smile', cheekLines: false,
+    // 頭頂藍色，前面中間留一個「八」字形的白縫
+    paint: (x, y, z, H) => { if (y < H * .66) return null; const gap = z > 0 && Math.abs(x) < (H - y) * .55 + .04; return gap ? null : C(0x5e7fc4); } },
+  { id: 'usagi', name: '烏薩奇', color: 0xf8e7a6, ears: 'bunny', mouth: 'open', cheeks: false, eyeK: .85, B: 1.02 },
+  { id: 'momonga', name: '小桃（飛鼠）', color: 0xfffdfb, ears: 'round', earK: .8, mouth: 'small', eyeK: 1.35, sparkle: true, cheekLines: false, A: 1.02, B: .9,
+    extra: ({ root, toon, outline }) => { // 蓬蓬大尾巴
+      for (let i = 0; i < 6; i++) { const k = i / 5; const b = outline(new THREE.Mesh(new THREE.SphereGeometry(.34 - k * .08, 22, 16), toon(0xf4efe8)), 1.06);
+        b.position.set(.15 + Math.sin(k * 2.2) * .5, .45 + k * 1.3, -1 - Math.cos(k * 2.2) * .25); root.add(b); } } },
+  { id: 'kurimanju', name: '栗子饅頭', color: 0xf0d39a, ears: null, mouth: 'small', mustache: true, cheekLines: false, eyeK: .8, NE: 2.2, B: .92,
+    paint: (x, y, z, H) => y > H * .62 ? C(0x8f4f27) : null,
+    extra: ({ body, H, toon }) => { const tip = new THREE.Mesh(new THREE.ConeGeometry(.12, .18, 16), toon(0x6b3a1c)); tip.position.y = H + .06; body.add(tip); } },
+  { id: 'shisa', name: '獅薩', color: 0xf6c35a, ears: 'round', earK: .75, mouth: 'cat', cheekLines: false, cheekColor: 0xff9a7a,
+    extra: ({ body, surf, CY0, B, toon, outline }) => { // 一圈捲捲鬃毛
+      for (let i = 0; i < 14; i++) { const a = -Math.PI * .9 + i / 13 * Math.PI * 1.8; const r = .95; const y = CY0 + B * .1 + Math.sin(a) * .85;
+        const x = Math.cos(a) * r; const p = surf(x * .95, Math.max(.3, y), -.12);
+        const m = outline(new THREE.Mesh(new THREE.SphereGeometry(.17, 18, 12), toon(0xe2702e)), 1.08); m.position.copy(p); body.add(m); } } },
+  { id: 'rakko', name: '海獺', color: 0x9a6c4f, ears: 'round', earK: .7, mouth: 'cat', cheekLines: false, A: 1.3, B: 1.12, handColor: 0x7d533b,
+    paint: (x, y, z, H) => (z > .35 && y > H * .3 && y < H * .72 && Math.abs(x) < .85) ? C(0xf3e2c4) : null },
+];
+const chars = CHARS.map(makeChar);
+const N = chars.length, GAP = 2.75;
+chars.forEach((c, i) => { c.home.set((i - (N - 1) / 2) * GAP, 0, -Math.abs(i - (N - 1) / 2) * .35); c.root.position.copy(c.home); scene.add(c.root); });
+
+// 名牌（跟著角色）
+const labels = document.getElementById('labels');
+chars.forEach(c => { const d = document.createElement('div'); d.className = 'name'; d.textContent = c.sp.name; labels.appendChild(d); c.label = d; });
+
+// 選人
+let sel = 'all';
+const who = document.getElementById('who');
+who.innerHTML = `<button data-w="all" class="on">全部一起</button>` + chars.map(c => `<button data-w="${c.sp.id}">${c.sp.name}</button>`).join('');
+who.onclick = e => { const b = e.target.closest('[data-w]'); if (!b) return; sel = b.dataset.w; who.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); if (sel !== 'all') act(chars.find(c => c.sp.id === sel), 'jump'); };
+function act(c, a) { c.action = a; c.t = 0; c.tears.forEach(t => t.m.visible = a === 'cry'); c.stars.visible = a === 'happy'; }
+document.querySelectorAll('[data-a]').forEach(b => b.onclick = () => {
+  const a = b.dataset.a; const targets = sel === 'all' || a === 'dance' ? chars : chars.filter(c => c.sp.id === sel);
+  targets.forEach((c, i) => setTimeout(() => act(c, a), sel === 'all' || a === 'dance' ? i * 90 : 0));
+});
+const ray = new THREE.Raycaster(), nd = new THREE.Vector2(); let x0 = 0, y0 = 0;
+canvas.addEventListener('pointerdown', e => { x0 = e.clientX; y0 = e.clientY; });
+canvas.addEventListener('pointerup', e => { if (Math.hypot(e.clientX - x0, e.clientY - y0) > 6) return;
+  nd.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(nd, camera);
+  const hit = ray.intersectObjects(chars.map(c => c.root), true)[0]; if (!hit) return;
+  const c = chars.find(x => x.sp.id === hit.object.userData.char); if (!c) return;
+  sel = c.sp.id; who.querySelectorAll('button').forEach(x => x.classList.toggle('on', x.dataset.w === sel)); act(c, 'jump'); });
+
+// ═══════ 動畫 ═══════
+const clock = new THREE.Clock(), v3 = new THREE.Vector3();
+function frame() {
+  const dt = Math.min(clock.getDelta(), 1 / 30), T = clock.elapsedTime;
+  for (const c of chars) {
+    c.t += dt; const t = c.t;
+    const br = 1 + Math.sin(T * 2.2 + c.home.x) * .018;
+    c.body.scale.set(1 / Math.sqrt(br), br, 1 / Math.sqrt(br)); c.body.rotation.z = Math.sin(T * 1.3 + c.home.x) * .02;
+    c.root.position.copy(c.home); c.root.rotation.y = 0;
+    c.arms.forEach(a => { a.rotation.set(0, 0, 0); a.position.y = c.armY; });
+    if (T > c.blink) { const k = (T - c.blink) / .14; const sy = k < 1 ? Math.max(.08, Math.abs(1 - k * 2)) : 1; c.eyes.forEach(e => e.scale.y = sy); if (k >= 1) c.blink = T + 2 + Math.random() * 3; }
+    const [L, Rr] = c.arms;
+    switch (c.action) {
+      case 'wave': Rr.rotation.z = 2.2 + Math.sin(t * 14) * .45; Rr.position.y = c.armY + .3; if (t > 2.2) act(c, 'idle'); break;
+      case 'jump': { const k = t / .8; if (k >= 1) { act(c, 'idle'); break; } const up = Math.sin(k * Math.PI); c.root.position.y = up * 1.3;
+        const sq = k < .15 ? 1 - k * 1.6 : k > .88 ? .8 : 1 + up * .1; c.body.scale.set(1 / Math.sqrt(sq), sq, 1 / Math.sqrt(sq)); L.rotation.z = -up * 1.6; Rr.rotation.z = up * 1.6; break; }
+      case 'spin': c.root.rotation.y = t * 9; c.root.position.y = Math.abs(Math.sin(t * 6)) * .15; if (t > 1.4) act(c, 'idle'); break;
+      case 'happy': c.root.position.y = Math.abs(Math.sin(t * 7)) * .25; L.rotation.z = -2 - Math.sin(t * 14) * .3; Rr.rotation.z = 2 + Math.sin(t * 14) * .3;
+        L.position.y = Rr.position.y = c.armY + .3; c.stars.rotation.y += dt * 2; if (t > 2.6) act(c, 'idle'); break;
+      case 'cry': c.body.rotation.z = Math.sin(t * 18) * .03; L.rotation.z = -.4; Rr.rotation.z = .4; L.position.y = Rr.position.y = c.armY + .32;
+        c.tears.forEach(({ m, s }) => { const k = (t * 1.4 + (s > 0 ? .5 : 0)) % 1; const ey = (c.sp.eyeY ?? (c.sp.B ?? .98) * 1.14); m.position.copy(c.surf(s * (c.sp.eyeX ?? .34) * 1.1, ey - .08 - k * .5, .02)); m.material.opacity = 1 - k; });
+        if (t > 3) act(c, 'idle'); break;
+      case 'dance': { const ph = t * 6; c.root.position.y = Math.abs(Math.sin(ph)) * .3; c.root.rotation.y = Math.sin(t * 3) * .6; c.body.rotation.z = Math.sin(ph) * .12;
+        L.rotation.z = -1.4 - Math.sin(ph) * .8; Rr.rotation.z = 1.4 + Math.sin(ph + 1) * .8; L.position.y = Rr.position.y = c.armY + .25; if (t > 4.5) act(c, 'idle'); break; }
+    }
+    // 名牌位置
+    v3.set(c.root.position.x, c.root.position.y + c.H + (c.sp.ears === 'bunny' ? 1.25 : .55), c.root.position.z).project(camera);
+    c.label.style.left = (v3.x * .5 + .5) * innerWidth + 'px'; c.label.style.top = (-v3.y * .5 + .5) * innerHeight - 30 + 'px';
+    c.label.style.opacity = v3.z < 1 ? 1 : 0;
+  }
+  controls.update(); renderer.render(scene, camera); requestAnimationFrame(frame);
+}
+frame();
+setTimeout(() => chars.forEach((c, i) => setTimeout(() => act(c, 'wave'), i * 120)), 600);
+</script>
+</body>
+</html>
