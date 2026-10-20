@@ -26,6 +26,7 @@ const appHomeCards = <HomeCard>[
   (id: 'language', label: '語言學習'),
   (id: 'diary', label: '日記'),
   (id: 'yt', label: 'YT 頻道'),
+  (id: 'music', label: '音樂'),
   (id: 'fitness', label: '健身'),
   (id: 'crypto', label: '交易&自律'),
   (id: 'debt', label: '負債管理'),
@@ -79,6 +80,14 @@ class AppHomePage extends ConsumerWidget {
         imageAsset: 'assets/images/nav_icons/yt_tracker.png',
         color: AppColors.ytAccent,
         route: '/yt-tracker',
+      ),
+      // 音樂（2026-10-19 做好，2026-10-20 使用者回報首頁格子漏了它）。
+      const _HomeItem(
+        id: 'music',
+        label: '音樂',
+        icon: Icons.library_music_rounded,
+        color: Color(0xFFFF6FAE), // 跟音樂功能的粉紅（musicPink）一樣
+        route: '/music',
       ),
       const _HomeItem(
         id: 'fitness',
