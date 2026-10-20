@@ -316,9 +316,43 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
   bool _hidden = false;
   double _dragOffset = 0;
 
+  /// 現在哪一列的操作選單是打開的（2026-10-20 使用者：同時只能開一列，滑別列
+  /// 的時候之前那列要收起來）。
+  static final _openRow = ValueNotifier<Object?>(null);
+
+  /// 所在清單的捲動：一捲動就把打開的選單收起來（使用者：上下滑要收合）。
+  ScrollPosition? _scroll;
+
+  void _onOtherOpened() {
+    if (_openRow.value != this && _dragOffset != 0 && !_dragging) _closeSwipe();
+  }
+
+  void _onScrolled() {
+    if (_dragOffset != 0 && !_dragging) _closeSwipe();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final pos = Scrollable.maybeOf(context)?.position;
+    if (pos != _scroll) {
+      _scroll?.removeListener(_onScrolled);
+      _scroll = pos?..addListener(_onScrolled);
+    }
+  }
+
+  @override
+  void dispose() {
+    _scroll?.removeListener(_onScrolled);
+    _openRow.removeListener(_onOtherOpened);
+    if (_openRow.value == this) _openRow.value = null;
+    super.dispose();
+  }
+
   @override
   void initState() {
     super.initState();
+    _openRow.addListener(_onOtherOpened);
     final known = widget.known;
     if (known != null) {
       _watched = known.watched;
@@ -440,6 +474,7 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
   bool _openAtDragStart = false;
 
   void _onDragStart(DragStartDetails details) {
+    _openRow.value = this; // 開始滑這一列：別列打開的收起來
     setState(() {
       _dragging = true;
       _openAtDragStart = _dragOffset <= -_actionsWidth / 2;
