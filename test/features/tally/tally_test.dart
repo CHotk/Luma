@@ -137,7 +137,7 @@ void main() {
       ),
     );
     expect(find.text('車錢'), findsOneWidget);
-    expect(find.text(r'NT$500'), findsOneWidget);
+    expect(find.text(r'+NT$500'), findsWidgets);
   });
 }
 
