@@ -1121,12 +1121,12 @@ class TallyReceipt extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  '目前結餘',
+                  '目前支出',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: dim, fontSize: 12),
                 ),
                 Text(
-                  tallyMoney(balance),
+                  tallySigned(balance),
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 30,
