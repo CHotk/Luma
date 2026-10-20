@@ -119,7 +119,7 @@ final appRouter = GoRouter(
       path: '/drinking-log/stats',
       builder: (_, _) => const DrinkingStatsPage(),
     ),
-    // 簡單記帳（2026-10-19）：沒有帳本概念，打開就是一本帳。
+    // 記帳（2026-10-19）：沒有帳本概念，打開就是一本帳。
     GoRoute(path: '/tally', builder: (_, _) => const TallyEntryPage()),
     GoRoute(path: '/tally/log', builder: (_, _) => const TallyLogPage()),
     // 分享給朋友的獨立網址：#/tally-solo（沒有返回、選單、設定、

@@ -24,7 +24,7 @@ import '../../shared/widgets/app_top_bar.dart';
 import '../../shared/widgets/glass_card.dart';
 import '../../shared/widgets/inline_empty_card.dart';
 
-/// 簡單記帳（2026-10-19 使用者要求）：跟朋友算錢，一個帳本一個人，只有 ＋／−。
+/// 記帳（2026-10-19 使用者要求）：跟朋友算錢，一個帳本一個人，只有 ＋／−。
 /// 介面刻意陽春；紀錄要專業——每筆留新增／修改時間，所有異動（含匯出圖片）
 /// 都進異動紀錄，一筆都不刪。結果匯出成一張圖，直接傳給對方。
 const tallyAccent = Color(0xFFFFC857);
@@ -247,8 +247,8 @@ class _GlassAction extends StatelessWidget {
 
 // ═══════════════════════ 一個帳本 ═══════════════════════
 
-/// 簡單記帳的入口（2026-10-19 使用者要求：沒有帳本概念，打開就是一本帳）。
-/// 這個瀏覽器裡沒有帳就自動建一本（標題固定「簡單記帳」，不能改）。
+/// 記帳的入口（2026-10-19 使用者要求：沒有帳本概念，打開就是一本帳）。
+/// 這個瀏覽器裡沒有帳就自動建一本（標題固定「記帳」，不能改）。
 /// [solo] 是分享給別人的獨立網址 `#/tally-solo`：沒有返回鍵、功能
 /// 選單、設定，也看不到任何異動紀錄的痕跡，不會跳到 App 其他功能；資料存在
 /// 朋友自己的瀏覽器，記完按匯出 PDF 傳回來。App 內的 `#/tally` 則是從功能
@@ -393,7 +393,7 @@ class _TallyBookPageState extends ConsumerState<TallyBookPage> {
     if (b == null) {
       return _page(
         context,
-        top: const AppTopBar(title: '簡單記帳', showSettings: false),
+        top: const AppTopBar(title: '記帳', showSettings: false),
         children: const [InlineEmptyCard(title: '找不到這個帳本（可能已經刪掉了）')],
       );
     }
@@ -412,12 +412,12 @@ class _TallyBookPageState extends ConsumerState<TallyBookPage> {
     return _page(
       context,
       top: AppTopBar(
-        title: '簡單記帳',
+        title: '記帳',
         titleIcon: widget.solo ? null : Icons.receipt_long_rounded,
         titleIconColor: tallyAccent,
         showBack: false,
         showSettings: false,
-        // 整個簡單記帳都是獨立功能（2026-10-19 使用者要求）：沒有功能選單、
+        // 整個記帳都是獨立功能（2026-10-19 使用者要求）：沒有功能選單、
         // 沒有設定、沒有返回，只能從功能選單點進來。
         standalone: true,
         actions: [
@@ -950,7 +950,7 @@ Future<void> showTallyExport(
   final now = DateTime.now();
   final bal = items.fold<int>(0, (s, i) => s + i.signed);
   final filename =
-      '簡單記帳_${now.year}${_two(now.month)}${_two(now.day)}_${_two(now.hour)}${_two(now.minute)}.pdf';
+      '記帳_${now.year}${_two(now.month)}${_two(now.day)}_${_two(now.hour)}${_two(now.minute)}.pdf';
   final pages = tallyPages(items);
   final keys = [for (final _ in pages) GlobalKey()];
   // 每筆之後的累計結餘（舊到新）。
@@ -1115,7 +1115,7 @@ class TallyReceipt extends StatelessWidget {
             children: [
               if (page == 1) ...[
                 const Text(
-                  '簡單記帳',
+                  '記帳',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
                 ),
@@ -1139,7 +1139,7 @@ class TallyReceipt extends StatelessWidget {
                 const Padding(
                   padding: EdgeInsets.only(bottom: 8),
                   child: Text(
-                    '簡單記帳（續）',
+                    '記帳（續）',
                     style: TextStyle(color: dim, fontSize: 12),
                   ),
                 ),
@@ -1306,7 +1306,7 @@ class _TallyLogPageState extends ConsumerState<TallyLogPage> {
             ).convert([for (final e in shown) e.toJson()]);
             final n = DateTime.now();
             saveTextFile(
-              '簡單記帳異動紀錄_${n.year}${_two(n.month)}${_two(n.day)}.json',
+              '記帳異動紀錄_${n.year}${_two(n.month)}${_two(n.day)}.json',
               data,
             );
           }),

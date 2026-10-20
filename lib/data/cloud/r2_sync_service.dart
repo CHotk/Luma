@@ -1197,7 +1197,7 @@ class R2SyncService {
     onPhase: onPhase,
   );
 
-  /// 簡單記帳（2026-10-19）：帳本、每一筆、異動紀錄三個檔，各自獨立一份。
+  /// 記帳（2026-10-19）：帳本、每一筆、異動紀錄三個檔，各自獨立一份。
   Future<({int downloaded, int uploaded})> syncTally(
     TallyRepository repo, {
     void Function(SyncPhase phase)? onPhase,

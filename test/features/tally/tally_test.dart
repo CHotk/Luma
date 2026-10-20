@@ -172,7 +172,7 @@ void soloTests() {
       ),
     );
     await t.pumpAndSettle();
-    expect(find.text('簡單記帳'), findsOneWidget);
+    expect(find.text('記帳'), findsOneWidget);
     expect(find.byIcon(Icons.arrow_back), findsNothing);
     expect(find.byIcon(Icons.menu), findsNothing);
     expect(find.byTooltip('設定'), findsNothing);

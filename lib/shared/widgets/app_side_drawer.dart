@@ -244,7 +244,7 @@ class _AppSideDrawerState extends State<AppSideDrawer> {
                         ),
                         _NavItem(
                           icon: Icons.receipt_long_rounded,
-                          label: '簡單記帳',
+                          label: '記帳',
                           active: isTally,
                           onTap: () {
                             Navigator.of(context).pop();
