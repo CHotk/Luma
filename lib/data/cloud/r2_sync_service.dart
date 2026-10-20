@@ -953,9 +953,8 @@ class R2SyncService {
   /// （刪掉的留墓碑，見 [MusicData.merge]）。
   Future<({int downloaded, int uploaded})> syncMusic(MusicStore store) async {
     const key = MusicStore.cloudKey;
-    final local = await store.load();
     List<int> encode(MusicData d) => utf8.encode(jsonEncode(d.toJson()));
-    if (await _canSkip(key, encode(local))) {
+    if (await _canSkip(key, encode(await store.load()))) {
       return (downloaded: 0, uploaded: 0);
     }
     final fetched = await _client.getObjectWithEtag(key);
@@ -964,6 +963,10 @@ class R2SyncService {
         : MusicData.fromJson(
             jsonDecode(utf8.decode(fetched.bytes!)) as Map<String, dynamic>,
           );
+    // 下載完才讀本機（2026-10-20 審查找到的 bug）：原本是下載前讀，等網路
+    // 那幾秒裡改的東西（改歌手大頭貼、加歌…）合併時不在裡面，存回去就被
+    // 蓋掉、也不會上傳。現在讀完馬上合併、存檔，中間不再等網路。
+    final local = await store.load();
     final merged = MusicData.merge(local, cloud);
     final downloaded = local.newerIn(merged);
     final uploaded = cloud.newerIn(merged);
@@ -982,14 +985,18 @@ class R2SyncService {
     MusicPlayLogStore store,
   ) async {
     const key = MusicPlayLogStore.cloudKey;
-    final local = await store.load();
-    if (await _canSkip(key, utf8.encode(MusicPlayLogStore.encode(local)))) {
+    if (await _canSkip(
+      key,
+      utf8.encode(MusicPlayLogStore.encode(await store.load())),
+    )) {
       return (downloaded: 0, uploaded: 0);
     }
     final fetched = await _client.getObjectWithEtag(key);
     final cloud = fetched.bytes == null
         ? <String, List<MusicPlay>>{}
         : MusicPlayLogStore.decode(utf8.decode(fetched.bytes!));
+    // 下載完才讀本機：同步那幾秒裡剛播的歌才不會被蓋掉（見 [syncMusic]）。
+    final local = await store.load();
     final merged = MusicPlayLogStore.merge(local, cloud);
     final total = MusicPlayLogStore.count(merged);
     final downloaded = total - MusicPlayLogStore.count(local);
@@ -1009,14 +1016,18 @@ class R2SyncService {
     MusicEventLogStore store,
   ) async {
     const key = MusicEventLogStore.cloudKey;
-    final local = await store.load();
-    if (await _canSkip(key, utf8.encode(MusicEventLogStore.encode(local)))) {
+    if (await _canSkip(
+      key,
+      utf8.encode(MusicEventLogStore.encode(await store.load())),
+    )) {
       return (downloaded: 0, uploaded: 0);
     }
     final fetched = await _client.getObjectWithEtag(key);
     final cloud = fetched.bytes == null
         ? <MusicEvent>[]
         : MusicEventLogStore.decode(utf8.decode(fetched.bytes!));
+    // 下載完才讀本機（見 [syncMusic]）。
+    final local = await store.load();
     final merged = MusicEventLogStore.merge(local, cloud);
     final downloaded = merged.length - local.length;
     final uploaded = merged.length - cloud.length;

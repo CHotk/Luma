@@ -109,15 +109,18 @@ class _IndexedDbStore implements ListableKeyValueStore {
 
   @override
   Future<void> write(String key, String value) async {
-    await _put(key, value);
+    // 先更新記憶體再寫 IndexedDB（2026-10-20 音樂同步審查）：原本寫完才更新，
+    // 寫入那幾毫秒裡別人（例如同步）讀到的是舊的，合併完存回去就把剛改的
+    // 蓋掉。讀取一律走記憶體，所以先更新它，讀的人永遠拿到最新的。
     _cache[key] = value;
+    await _put(key, value);
   }
 
   @override
   Future<void> remove(String key) async {
+    _cache.remove(key); // 同 [write]：先改記憶體
     final txn = _db.transaction(_storeName, 'readwrite');
     txn.objectStore(_storeName).delete(key);
     await txn.completed;
-    _cache.remove(key);
   }
 }

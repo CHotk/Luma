@@ -145,6 +145,45 @@ void main() {
     expect(d.artists.single.avatarUrls, ['https://x/1.jpg', 'https://x/2.jpg']);
   });
 
+  test('同步下載途中改了歌手大頭貼：改的不會被蓋掉，下一次同步也送得上去', () async {
+    final pcStore = MusicStore(pc);
+    final phoneStore = MusicStore(phone);
+    final t0 = DateTime(2026, 10, 18);
+    await pcStore.save(MusicData.empty.putArtist(artist('a1', '周杰倫', t0)));
+    await serviceFor(pc).syncMusic(pcStore);
+    // 手機也先有一份，雲端再多一個別的歌手，讓電腦這次同步真的要下載。
+    await serviceFor(phone).syncMusic(phoneStore);
+    await phoneStore.save(
+      (await phoneStore.load()).putArtist(artist('a2', '五月天', t0)),
+    );
+    await serviceFor(phone).syncMusic(phoneStore);
+
+    // 電腦同步、下載到一半時，使用者改了大頭貼。
+    cloud.onGet = () async {
+      final d = await pcStore.load();
+      await pcStore.save(
+        d.putArtist(
+          d.artist('a1')!.copyWith(
+            avatarUrls: const ['https://x/new.jpg'],
+            updatedAt: DateTime(2026, 10, 20, 9),
+          ),
+        ),
+      );
+    };
+    final r = await serviceFor(pc).syncMusic(pcStore);
+    expect(r.downloaded, greaterThan(0));
+    final d = await pcStore.load();
+    expect(d.artist('a1')!.avatarUrls, ['https://x/new.jpg']);
+    expect(d.artist('a2'), isNotNull);
+
+    // 同一輪就送上雲端了（合併時已經包含），手機同步拿得到。
+    await serviceFor(phone).syncMusic(phoneStore);
+    expect(
+      (await phoneStore.load()).artist('a1')!.avatarUrls,
+      ['https://x/new.jpg'],
+    );
+  });
+
   test('兩台各自新增同名歌手：同步後合成一個，歌跟原唱改指到留下的那個，兩台結果一樣', () async {
     final pcStore = MusicStore(pc);
     final phoneStore = MusicStore(phone);
@@ -257,6 +296,9 @@ class _FakeR2Http extends http.BaseClient {
   final Map<String, String> _etags = {};
   int _etagSeq = 0;
 
+  /// 下載途中想做的事（模擬等網路那幾秒裡使用者改了資料）。
+  Future<void> Function()? onGet;
+
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
     final path = request.url.path;
@@ -271,6 +313,9 @@ class _FakeR2Http extends http.BaseClient {
           headers: {'etag': _etags[path]!},
         );
       case 'GET':
+        final hook = onGet;
+        onGet = null;
+        if (hook != null) await hook();
         final body = _objects[path];
         if (body == null) {
           return http.StreamedResponse(const Stream.empty(), 404);
