@@ -268,7 +268,7 @@ class _MusicHomePageState extends ConsumerState<MusicHomePage> {
     final artistSection = <Widget>[
       _h2(
         '你的歌手',
-        trailing: _more('全部 ›', () => context.go('/music/library?tab=歌手')),
+        trailing: _more('全部 ›', () => context.push('/music/library?tab=歌手')),
       ),
       for (final (row, label) in [
         (artists.where((a) => a.gender == 'm').toList(), '男'),
@@ -276,12 +276,36 @@ class _MusicHomePageState extends ConsumerState<MusicHomePage> {
         (artists.where((a) => a.gender == null).toList(), '還沒填性別（點進去編輯）'),
       ])
         if (row.isNotEmpty) ...[
-          Padding(
-            padding: const EdgeInsets.only(top: 4, bottom: 4),
-            child: Text(label, style: AppText.note),
+          Row(
+            children: [
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 4, bottom: 4),
+                  child: Text(
+                    label,
+                    style: AppText.note.copyWith(
+                      color: label == '男'
+                          ? musicGenderColor('m')
+                          : (label == '女' ? musicGenderColor('f') : null),
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () => context.push(
+                  '/music/library?tab=歌手${label == '男' ? '&g=m' : (label == '女' ? '&g=f' : '')}',
+                ),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.ink2,
+                  visualDensity: VisualDensity.compact,
+                ),
+                child: const Text('全部 ›'),
+              ),
+            ],
           ),
           SizedBox(
-            height: 128,
+            height: 106,
             child: ListView(
               scrollDirection: Axis.horizontal,
               children: [
@@ -291,10 +315,10 @@ class _MusicHomePageState extends ConsumerState<MusicHomePage> {
                     child: GestureDetector(
                       onTap: () => context.push('/music/artist/${a.id}'),
                       child: SizedBox(
-                        width: 92,
+                        width: 74,
                         child: Column(
                           children: [
-                            MusicArtistAvatar(a, size: 92),
+                            MusicArtistAvatar(a, size: 74),
                             const SizedBox(height: 6),
                             Text(
                               a.name,
@@ -597,9 +621,12 @@ class _MusicSearchPageState extends ConsumerState<MusicSearchPage> {
 // ═══════════════ 音樂庫 ═══════════════
 
 class MusicLibraryPage extends ConsumerStatefulWidget {
-  const MusicLibraryPage({super.key, this.initialTab});
+  const MusicLibraryPage({super.key, this.initialTab, this.initialGender});
 
   final String? initialTab;
+
+  /// 歌手那一頁先篩哪個性別（'m'／'f'，首頁男女兩排的「全部」帶過來）。
+  final String? initialGender;
 
   @override
   ConsumerState<MusicLibraryPage> createState() => _MusicLibraryPageState();
@@ -607,6 +634,9 @@ class MusicLibraryPage extends ConsumerStatefulWidget {
 
 class _MusicLibraryPageState extends ConsumerState<MusicLibraryPage> {
   static const _tabs = ['歌單', '喜歡的歌', '歌手', '歌曲', '不喜歡'];
+
+  /// 歌手篩性別：null 全部、'm' 男、'f' 女（2026-10-21 使用者要求）。
+  late String? _g = widget.initialGender;
   late String _tab = _tabs.contains(widget.initialTab)
       ? widget.initialTab!
       : '歌手';
@@ -701,8 +731,35 @@ class _MusicLibraryPageState extends ConsumerState<MusicLibraryPage> {
                 ],
         );
       case '歌手':
-        final artists = data.artists..sort((a, b) => a.name.compareTo(b.name));
+        final artists =
+            data.artists.where((a) => _g == null || a.gender == _g).toList()
+              ..sort((a, b) => a.name.compareTo(b.name));
         children.addAll([
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Wrap(
+              spacing: 6,
+              children: [
+                musicChoiceChip(
+                  '全部性別',
+                  _g == null,
+                  () => setState(() => _g = null),
+                ),
+                musicChoiceChip(
+                  '男',
+                  _g == 'm',
+                  () => setState(() => _g = 'm'),
+                  color: musicGenderColor('m'),
+                ),
+                musicChoiceChip(
+                  '女',
+                  _g == 'f',
+                  () => setState(() => _g = 'f'),
+                  color: musicGenderColor('f'),
+                ),
+              ],
+            ),
+          ),
           for (final a in artists) _ArtistTile(artist: a),
           ListTile(
             contentPadding: EdgeInsets.zero,
@@ -725,6 +782,7 @@ class _MusicLibraryPageState extends ConsumerState<MusicLibraryPage> {
                   avatarUrls: r.avatarUrls,
                   shownAvatar: r.shownAvatar,
                   gender: r.gender,
+                  crops: r.crops,
                 );
               }
             },
@@ -751,7 +809,9 @@ class _MusicLibraryPageState extends ConsumerState<MusicLibraryPage> {
         children: [
           AppTopBar(
             title: '音樂庫',
-            showBack: false,
+            // 音樂庫：左上角是返回（2026-10-21 使用者要求，不是選單）；沒有上一頁就回音樂首頁
+            onBack: () =>
+                context.canPop() ? context.pop() : context.go('/music'),
             actions: [
               IconButton(
                 onPressed: () => context.push('/music/log'),
@@ -1109,6 +1169,7 @@ class _MusicArtistPageState extends ConsumerState<MusicArtistPage> {
                               avatarUrls: a.avatarUrls,
                               shownAvatar: a.shownAvatar,
                               gender: a.gender,
+                              crops: a.crops,
                             );
                             if (r != null) {
                               await MusicActions(ref).updateArtist(
@@ -1117,6 +1178,7 @@ class _MusicArtistPageState extends ConsumerState<MusicArtistPage> {
                                 avatarUrls: r.avatarUrls,
                                 shownAvatar: r.shownAvatar,
                                 gender: r.gender,
+                                crops: r.crops,
                               );
                             }
                           },
@@ -1863,6 +1925,7 @@ Future<void> showMusicAddMenu(BuildContext context, WidgetRef ref) async {
         avatarUrls: r.avatarUrls,
         shownAvatar: r.shownAvatar,
         gender: r.gender,
+        crops: r.crops,
       );
       if (context.mounted) context.push('/music/artist/$id');
     case 'song':

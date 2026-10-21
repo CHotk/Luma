@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import '../../domain/simplified_to_traditional.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -56,6 +58,7 @@ class MusicActions {
     List<String> avatarUrls = const [],
     int shownAvatar = 0,
     String? gender,
+    Map<String, List<double>>? crops,
   }) async {
     final n = name.trim();
     final urls = _clean(avatarUrls);
@@ -90,6 +93,7 @@ class MusicActions {
       avatarUrls: urls,
       shownAvatar: shownAvatar.clamp(0, urls.isEmpty ? 0 : urls.length - 1),
       gender: gender,
+      crops: crops ?? const {},
       updatedAt: DateTime.now(),
     );
     await _set(data.putArtist(a));
@@ -105,6 +109,7 @@ class MusicActions {
     required List<String> avatarUrls,
     required int shownAvatar,
     String? gender,
+    Map<String, List<double>>? crops,
   }) async {
     final a = data.artist(id);
     final n = name.trim();
@@ -117,6 +122,7 @@ class MusicActions {
       if (urls.isNotEmpty && shown != a.shownAvatar) '改顯示第 ${shown + 1} 張大頭貼',
       if (gender != null && gender != a.gender)
         '性別改成${gender == 'm' ? '男' : '女'}',
+      if (crops != null && jsonEncode(crops) != jsonEncode(a.crops)) '調整大頭貼圓框',
     ];
     if (changes.isEmpty) return;
     await _set(
@@ -126,6 +132,7 @@ class MusicActions {
           avatarUrls: urls,
           shownAvatar: shown,
           gender: gender,
+          crops: crops,
           updatedAt: DateTime.now(),
         ),
       ),

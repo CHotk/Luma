@@ -28,6 +28,7 @@ class AppTopBar extends StatelessWidget {
     this.titleIconColor = AppColors.accent,
     this.titleLeading,
     this.showBack = true,
+    this.onBack,
     this.showSettings = true,
     this.actions = const [],
     this.marqueeTitle = false,
@@ -53,6 +54,9 @@ class AppTopBar extends StatelessWidget {
   /// 選單／首頁進來、退回去也沒地方好退的頁面才會是 false。
   final bool showBack;
 
+  /// 返回鍵按下去做什麼（沒給就是回上一頁）。
+  final VoidCallback? onBack;
+
   /// 設定頁自己不需要再顯示一顆連去設定的齒輪。
   final bool showSettings;
 
@@ -71,7 +75,7 @@ class AppTopBar extends StatelessWidget {
         // 返回鍵、選單三條線大一點（2026-10-15 使用者要求，原本 20）。
         if (showBack)
           IconButton(
-            onPressed: () => Navigator.of(context).maybePop(),
+            onPressed: onBack ?? () => Navigator.of(context).maybePop(),
             icon: const Icon(Icons.arrow_back, size: 23),
             color: AppColors.ink2,
             tooltip: '返回',

@@ -65,9 +65,17 @@ class MusicArtist implements MusicRecord {
     this.avatarUrls = const [],
     this.shownAvatar = 0,
     this.gender,
+    this.crops = const {},
     required this.updatedAt,
     this.deletedAt,
   });
+
+  /// 大頭貼的圓框位置：網址 → [左右偏移, 上下偏移, 放大倍數]（偏移是圓框寬的比例）。
+  /// 像交友軟體那樣自己拖、縮放（2026-10-21 使用者要求）。沒調過就是置中、不放大。
+  final Map<String, List<double>> crops;
+
+  /// 某張大頭貼的圓框（沒調過是 [0, 0, 1]）。
+  List<double> cropOf(String url) => crops[url] ?? const [0, 0, 1];
 
   @override
   final String id;
@@ -110,6 +118,7 @@ class MusicArtist implements MusicRecord {
     List<String>? avatarUrls,
     int? shownAvatar,
     String? gender,
+    Map<String, List<double>>? crops,
     DateTime? updatedAt,
     DateTime? deletedAt,
   }) => MusicArtist(
@@ -118,6 +127,7 @@ class MusicArtist implements MusicRecord {
     avatarUrls: avatarUrls ?? this.avatarUrls,
     shownAvatar: shownAvatar ?? this.shownAvatar,
     gender: gender ?? this.gender,
+    crops: crops ?? this.crops,
     updatedAt: updatedAt ?? this.updatedAt,
     deletedAt: deletedAt ?? this.deletedAt,
   );
@@ -129,6 +139,7 @@ class MusicArtist implements MusicRecord {
     if (avatarUrls.isNotEmpty) 'avatars': avatarUrls,
     if (shownAvatar != 0) 'shown': shownAvatar,
     if (gender != null) 'gender': gender,
+    if (crops.isNotEmpty) 'crops': crops,
     'updatedAt': updatedAt.toUtc().toIso8601String(),
     if (deletedAt != null) 'deletedAt': deletedAt!.toUtc().toIso8601String(),
   };
@@ -144,6 +155,10 @@ class MusicArtist implements MusicRecord {
     ],
     shownAvatar: (j['shown'] as num?)?.toInt() ?? 0,
     gender: j['gender'] as String?,
+    crops: {
+      for (final e in ((j['crops'] as Map?) ?? const {}).entries)
+        '${e.key}': [for (final x in (e.value as List)) (x as num).toDouble()],
+    },
     updatedAt: _date(j['updatedAt']),
     deletedAt: _dateOrNull(j['deletedAt']),
   );

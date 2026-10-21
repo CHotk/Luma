@@ -138,8 +138,10 @@ final appRouter = GoRouter(
     GoRoute(path: '/music/log', builder: (_, _) => const MusicEventLogPage()),
     GoRoute(
       path: '/music/library',
-      builder: (_, state) =>
-          MusicLibraryPage(initialTab: state.uri.queryParameters['tab']),
+      builder: (_, state) => MusicLibraryPage(
+        initialTab: state.uri.queryParameters['tab'],
+        initialGender: state.uri.queryParameters['g'],
+      ),
     ),
     GoRoute(
       path: '/music/artist/:id',

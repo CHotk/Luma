@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -144,21 +145,185 @@ class MusicArtistAvatar extends StatelessWidget {
     final urls = artist.avatarOrder;
     Widget chain(int i) => i >= urls.length
         ? fallback
-        : Image.network(
+        : musicCroppedImage(
             urls[i],
-            key: ValueKey(urls[i]),
-            width: size,
-            height: size,
-            fit: BoxFit.cover,
-            // 別的網站的圖常常不給跨網域讀，被擋就改用瀏覽器原生的 <img>
-            // 顯示（不然大頭貼網址幾乎都會失敗）。
-            webHtmlElementStrategy: WebHtmlElementStrategy.fallback,
+            artist.cropOf(urls[i]),
+            size,
             errorBuilder: (_, _, _) => chain(i + 1),
           );
-    return ClipOval(
+    final ring = musicGenderColor(artist.gender);
+    final pic = ClipOval(
       child: SizedBox(width: size, height: size, child: chain(0)),
     );
+    if (ring == null || size < 30) return pic;
+    // 外圈：男藍、女粉（2026-10-21 使用者要求）
+    return Container(
+      padding: EdgeInsets.all(size >= 80 ? 3 : 2),
+      decoration: BoxDecoration(shape: BoxShape.circle, color: ring),
+      child: pic,
+    );
   }
+}
+
+/// 性別的顏色：男藍、女粉（沒填是 null）。
+Color? musicGenderColor(String? g) => g == 'm'
+    ? const Color(0xFF5AA9FF)
+    : (g == 'f' ? const Color(0xFFFF7EB6) : null);
+
+/// 照圓框位置（[左右, 上下, 放大]）畫一張大頭貼。
+Widget musicCroppedImage(
+  String url,
+  List<double> crop,
+  double size, {
+  ImageErrorWidgetBuilder? errorBuilder,
+}) => Transform.translate(
+  offset: Offset(crop[0] * size, crop[1] * size),
+  child: Transform.scale(
+    scale: crop[2],
+    child: Image.network(
+      url,
+      key: ValueKey(url),
+      width: size,
+      height: size,
+      fit: BoxFit.cover,
+      // 別的網站的圖常常不給跨網域讀，被擋就改用瀏覽器原生的 <img>
+      // 顯示（不然大頭貼網址幾乎都會失敗）。
+      webHtmlElementStrategy: WebHtmlElementStrategy.fallback,
+      errorBuilder: errorBuilder,
+    ),
+  ),
+);
+
+/// 調整大頭貼的圓框（像交友軟體）：拖動、兩指縮放（電腦用滾輪或下面的滑桿），回傳 [左右, 上下, 放大]。
+Future<List<double>?> showMusicAvatarCropper(
+  BuildContext context,
+  String url,
+  List<double> crop,
+) {
+  const box = 260.0;
+  var dx = crop[0] * box, dy = crop[1] * box, z = crop[2];
+  double z0 = 1;
+  Offset p0 = Offset.zero, d0 = Offset.zero;
+  return showDialog<List<double>>(
+    context: context,
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setS) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A24),
+        title: const Text(
+          '調整大頭貼',
+          style: TextStyle(color: AppColors.ink, fontSize: 16),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('拖動移位置、兩指縮放', style: AppText.note),
+            const SizedBox(height: 10),
+            Listener(
+              onPointerSignal: (e) {
+                if (e is PointerScrollEvent) {
+                  setS(
+                    () => z = (z * (e.scrollDelta.dy > 0 ? .95 : 1.05)).clamp(
+                      1.0,
+                      4.0,
+                    ),
+                  );
+                }
+              },
+              child: GestureDetector(
+                onScaleStart: (d) {
+                  z0 = z;
+                  p0 = d.focalPoint;
+                  d0 = Offset(dx, dy);
+                },
+                onScaleUpdate: (d) => setS(() {
+                  z = (z0 * d.scale).clamp(1.0, 4.0);
+                  final o = d0 + (d.focalPoint - p0);
+                  final lim = box * (z - 1) / 2 + box * .25;
+                  dx = o.dx.clamp(-lim, lim);
+                  dy = o.dy.clamp(-lim, lim);
+                }),
+                child: SizedBox(
+                  width: box,
+                  height: box,
+                  child: Stack(
+                    children: [
+                      // 圓框外面變暗，看得出最後顯示的範圍
+                      ClipRect(
+                        child: musicCroppedImage(url, [
+                          dx / box,
+                          dy / box,
+                          z,
+                        ], box),
+                      ),
+                      IgnorePointer(
+                        child: CustomPaint(
+                          size: const Size(box, box),
+                          painter: _CircleMask(),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Slider(
+              value: z,
+              min: 1,
+              max: 4,
+              onChanged: (v) => setS(() => z = v),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => setS(() {
+              dx = 0;
+              dy = 0;
+              z = 1;
+            }),
+            child: const Text('重設'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, [dx / box, dy / box, z]),
+            style: FilledButton.styleFrom(
+              backgroundColor: musicPink,
+              foregroundColor: const Color(0xFF2A0614),
+            ),
+            child: const Text('好'),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _CircleMask extends CustomPainter {
+  @override
+  void paint(Canvas c, Size s) {
+    final r = Rect.fromLTWH(0, 0, s.width, s.height);
+    c.drawPath(
+      Path.combine(
+        PathOperation.difference,
+        Path()..addRect(r),
+        Path()..addOval(r.deflate(4)),
+      ),
+      Paint()..color = const Color(0xAA000000),
+    );
+    c.drawOval(
+      r.deflate(4),
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2
+        ..color = Colors.white,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_) => false;
 }
 
 /// 熱門那一排的卡片（左右滑，2026-10-21）：大封面、排名、歌名、播放幾次。
@@ -500,27 +665,33 @@ Future<T?> showMusicSheet<T>(
               maxWidth: 480,
               maxHeight: (mq.size.height - mq.viewInsets.bottom) * 0.86,
             ),
-            child: Material(
-              color: musicSheetBg,
-              borderRadius: BorderRadius.circular(24),
-              clipBehavior: Clip.antiAlias,
-              child: Stack(
-                children: [
-                  SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
-                    child: builder(ctx),
-                  ),
-                  Positioned(
-                    top: 6,
-                    right: 6,
-                    child: IconButton(
-                      onPressed: () => Navigator.of(ctx).pop(),
-                      icon: const Icon(Icons.close_rounded, size: 20),
-                      color: AppColors.ink3,
-                      tooltip: '關閉',
+            child: _SwipeDownToClose(
+              child: Material(
+                color: musicSheetBg,
+                borderRadius: BorderRadius.circular(24),
+                clipBehavior: Clip.antiAlias,
+                child: Stack(
+                  children: [
+                    SingleChildScrollView(
+                      // 拉到最上面還往下拉＝關掉（見 _SwipeDownToClose）
+                      physics: const AlwaysScrollableScrollPhysics(
+                        parent: ClampingScrollPhysics(),
+                      ),
+                      padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+                      child: builder(ctx),
                     ),
-                  ),
-                ],
+                    Positioned(
+                      top: 6,
+                      right: 6,
+                      child: IconButton(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        icon: const Icon(Icons.close_rounded, size: 20),
+                        color: AppColors.ink3,
+                        tooltip: '關閉',
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -530,6 +701,59 @@ Future<T?> showMusicSheet<T>(
   },
 );
 
+/// 往下滑關掉面板（2026-10-21 使用者要求：新增歌手、新增歌曲的視窗要能往下滑取消）。
+/// 面板內容已經捲在最上面還繼續往下拉，卡片就跟著手指往下，拉超過 110 放開就關，不夠就彈回去。
+class _SwipeDownToClose extends StatefulWidget {
+  const _SwipeDownToClose({required this.child});
+  final Widget child;
+  @override
+  State<_SwipeDownToClose> createState() => _SwipeDownToCloseState();
+}
+
+class _SwipeDownToCloseState extends State<_SwipeDownToClose> {
+  double _dy = 0;
+  bool _dragging = false;
+
+  void _end() {
+    if (_dy > 110) {
+      Navigator.of(context).maybePop();
+    } else {
+      setState(() => _dy = 0);
+    }
+    _dragging = false;
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      NotificationListener<ScrollNotification>(
+        onNotification: (n) {
+          if (n is OverscrollNotification &&
+              n.overscroll < 0 &&
+              n.dragDetails != null) {
+            _dragging = true;
+            setState(() => _dy = (_dy - n.overscroll).clamp(0, 400));
+          } else if (n is ScrollUpdateNotification &&
+              _dragging &&
+              n.dragDetails != null &&
+              (n.scrollDelta ?? 0) > 0 &&
+              _dy > 0) {
+            setState(() => _dy = (_dy - n.scrollDelta!).clamp(0, 400));
+          } else if (n is ScrollEndNotification && _dragging) {
+            _end();
+          }
+          return false;
+        },
+        child: AnimatedContainer(
+          duration: Duration(milliseconds: _dragging ? 0 : 180),
+          transform: Matrix4.translationValues(0, _dy, 0),
+          child: Opacity(
+            opacity: (1 - _dy / 500).clamp(.3, 1),
+            child: widget.child,
+          ),
+        ),
+      );
+}
+
 /// 面板最上面留給 ✕ 的空間（原本是底部面板的拉把）。
 Widget musicSheetHandle() => const SizedBox(height: 2);
 
@@ -537,7 +761,13 @@ Widget musicSheetHandle() => const SizedBox(height: 2);
 /// 5 張，照順序是預設、大頭貼 2～5），每張旁邊即時預覽；點「顯示這張」選要顯示
 /// 哪一張，那張壞了就照順序換下一張。回傳 (名字, 網址們, 顯示第幾張)；取消是 null。
 Future<
-  ({String name, List<String> avatarUrls, int shownAvatar, String? gender})?
+  ({
+    String name,
+    List<String> avatarUrls,
+    int shownAvatar,
+    String? gender,
+    Map<String, List<double>> crops,
+  })?
 >
 promptMusicArtist(
   BuildContext context, {
@@ -545,8 +775,10 @@ promptMusicArtist(
   List<String> avatarUrls = const [],
   int shownAvatar = 0,
   String? gender,
+  Map<String, List<double>> crops = const {},
 }) {
   var g = gender;
+  final cropMap = Map<String, List<double>>.of(crops);
   final nameC = TextEditingController(text: name);
   final urlCs = [
     for (final u in (avatarUrls.isEmpty ? const [''] : avatarUrls))
@@ -555,7 +787,13 @@ promptMusicArtist(
   var shown = shownAvatar.clamp(0, urlCs.length - 1);
   String label(int i) => i == 0 ? '預設' : '大頭貼 ${i + 1}';
   return showMusicSheet<
-    ({String name, List<String> avatarUrls, int shownAvatar, String? gender})
+    ({
+      String name,
+      List<String> avatarUrls,
+      int shownAvatar,
+      String? gender,
+      Map<String, List<double>> crops,
+    })
   >(
     context,
     (ctx) => StatefulBuilder(
@@ -566,6 +804,8 @@ promptMusicArtist(
           name: nameC.text.trim().isEmpty ? '?' : nameC.text.trim(),
           avatarUrls: urls,
           shownAvatar: shown,
+          gender: g,
+          crops: cropMap,
           updatedAt: DateTime(2000),
         );
         return Column(
@@ -604,8 +844,18 @@ promptMusicArtist(
             Wrap(
               spacing: 6,
               children: [
-                musicChoiceChip('男', g == 'm', () => setS(() => g = 'm')),
-                musicChoiceChip('女', g == 'f', () => setS(() => g = 'f')),
+                musicChoiceChip(
+                  '男',
+                  g == 'm',
+                  () => setS(() => g = 'm'),
+                  color: musicGenderColor('m'),
+                ),
+                musicChoiceChip(
+                  '女',
+                  g == 'f',
+                  () => setS(() => g = 'f'),
+                  color: musicGenderColor('f'),
+                ),
               ],
             ),
             musicFieldLabel(
@@ -633,6 +883,7 @@ promptMusicArtist(
                             id: '',
                             name: '${i + 1}',
                             avatarUrls: [urls[i]],
+                            crops: cropMap,
                             updatedAt: DateTime(2000),
                           ),
                           size: 40,
@@ -662,6 +913,7 @@ promptMusicArtist(
                           onTap: () => setS(() => shown = i),
                           child: Text(
                             shown == i ? '● 顯示' : '○ 顯示',
+                            key: ValueKey('show$i'),
                             style: TextStyle(
                               fontSize: 11.5,
                               fontWeight: FontWeight.w700,
@@ -669,6 +921,28 @@ promptMusicArtist(
                             ),
                           ),
                         ),
+                        if (urls[i].isNotEmpty)
+                          GestureDetector(
+                            onTap: () async {
+                              final c = await showMusicAvatarCropper(
+                                ctx,
+                                urls[i],
+                                cropMap[urls[i]] ?? const [0, 0, 1],
+                              );
+                              if (c != null) setS(() => cropMap[urls[i]] = c);
+                            },
+                            child: const Padding(
+                              padding: EdgeInsets.only(top: 4),
+                              child: Text(
+                                '調整',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF8FD3FF),
+                                ),
+                              ),
+                            ),
+                          ),
                         if (urlCs.length > 1)
                           GestureDetector(
                             onTap: () => setS(() {
@@ -730,6 +1004,10 @@ promptMusicArtist(
                   avatarUrls: keep,
                   shownAvatar: shownOut,
                   gender: g,
+                  crops: {
+                    for (final u in keep)
+                      if (cropMap[u] != null) u: cropMap[u]!,
+                  },
                 ));
               },
               style: FilledButton.styleFrom(
@@ -961,6 +1239,7 @@ class MusicArtistPicker extends ConsumerWidget {
               avatarUrls: r.avatarUrls,
               shownAvatar: r.shownAvatar,
               gender: r.gender,
+              crops: r.crops,
             );
             onChanged([...selected, id]);
           }, dashed: true),
@@ -974,16 +1253,21 @@ Widget musicChoiceChip(
   bool on,
   VoidCallback onTap, {
   bool dashed = false,
+  Color? color,
 }) => GestureDetector(
   onTap: onTap,
   child: Container(
     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
     decoration: BoxDecoration(
       color: on
-          ? Colors.white
+          ? (color ?? Colors.white)
           : (dashed ? null : Colors.white.withValues(alpha: 0.08)),
       borderRadius: BorderRadius.circular(99),
-      border: dashed ? Border.all(color: AppColors.ink3) : null,
+      border: dashed
+          ? Border.all(color: AppColors.ink3)
+          : (color != null && !on
+                ? Border.all(color: color.withValues(alpha: .6))
+                : null),
     ),
     child: Text(
       label,
