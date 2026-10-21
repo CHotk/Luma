@@ -960,7 +960,7 @@ class R2SyncService {
     List<int> encode(MusicData d) => utf8.encode(jsonEncode(d.toJson()));
     // 「上次同步後兩邊都沒變就跳過」的紀錄換一個名字（2026-10-20）：修了「時間相同、
     // 內容不同」的合併規則後，要讓每台裝置都真的重新比一次，不然手機會一直跳過。
-    const metaKey = '$key#2';
+    const metaKey = '$key#3'; // #3：2026-10-21 歌手加了性別、大頭貼圓框，舊版會讀掉，換名字讓每台重新比一次
     if (await _canSkip(key, encode(await store.load()), metaKey: metaKey)) {
       return (downloaded: 0, uploaded: 0);
     }

@@ -57,6 +57,31 @@ class MusicTypeBadge extends StatelessWidget {
   }
 }
 
+/// 年份小標籤（發行年份，沒填就是上傳年份）。
+class MusicYearBadge extends StatelessWidget {
+  const MusicYearBadge(this.year, {super.key});
+
+  final int year;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    margin: const EdgeInsets.only(right: 5),
+    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+    decoration: BoxDecoration(
+      color: Colors.white.withValues(alpha: 0.1),
+      borderRadius: BorderRadius.circular(5),
+    ),
+    child: Text(
+      '$year',
+      style: const TextStyle(
+        fontSize: 9.5,
+        fontWeight: FontWeight.w800,
+        color: AppColors.ink2,
+      ),
+    ),
+  );
+}
+
 /// 縮圖（方的裁中間；寬的 16:9）。抓不到圖就用歌名第一個字。
 class MusicCover extends StatelessWidget {
   const MusicCover({
@@ -455,7 +480,6 @@ class MusicVersionTile extends ConsumerWidget {
         if (v.note.isNotEmpty) v.note,
         if (!names.contains(v.uploaderName) && v.uploaderName.isNotEmpty)
           '在「${v.uploaderName}」',
-        '${v.year}',
       ] else ...[
         names,
         if (v.type == MusicVersionType.cover && origNames.isNotEmpty)
@@ -510,6 +534,8 @@ class MusicVersionTile extends ConsumerWidget {
                   Row(
                     children: [
                       MusicTypeBadge(v.type),
+                      // 年份小標籤（2026-10-21 使用者要求）
+                      MusicYearBadge(v.year),
                       Expanded(
                         child: Text(
                           parts.where((p) => p.isNotEmpty).join('・'),

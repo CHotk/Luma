@@ -223,6 +223,44 @@ class MusicHomePage extends ConsumerStatefulWidget {
 
 class _MusicHomePageState extends ConsumerState<MusicHomePage> {
   MusicVersionType? _type;
+  final _q = TextEditingController();
+
+  @override
+  void dispose() {
+    _q.dispose();
+    super.dispose();
+  }
+
+  /// 首頁搜尋（2026-10-21 使用者要求）：打字就在這裡列出符合的歌手、歌（歌名、影片標題、備註、誰唱的）。
+  List<Widget> _searchResults(MusicData data) {
+    final q = _q.text.trim().toLowerCase();
+    final artists = data.artists
+        .where((a) => a.name.toLowerCase().contains(q))
+        .toList();
+    final songs = [
+      for (final v in data.versions)
+        if (!v.disliked &&
+            ((data.work(v.workId)?.title ?? '').toLowerCase().contains(q) ||
+                v.videoTitle.toLowerCase().contains(q) ||
+                v.note.toLowerCase().contains(q) ||
+                data.artistNames(v).toLowerCase().contains(q)))
+          v,
+    ]..sort((a, b) => b.year.compareTo(a.year));
+    return [
+      if (artists.isNotEmpty) ...[
+        _h2('歌手・${artists.length}'),
+        for (final a in artists) _ArtistTile(artist: a),
+      ],
+      _h2('歌・${songs.length}'),
+      if (songs.isEmpty) Text('沒有「${_q.text.trim()}」', style: AppText.note),
+      for (final v in songs)
+        MusicVersionTile(
+          version: v,
+          queue: [for (final x in songs) x.id],
+          from: '首頁・搜尋',
+        ),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -361,7 +399,28 @@ class _MusicHomePageState extends ConsumerState<MusicHomePage> {
               ),
             ],
           ),
-          if (data.versions.isEmpty) ...[
+          const SizedBox(height: Gap.sm),
+          TextField(
+            controller: _q,
+            onChanged: (_) => setState(() {}),
+            style: const TextStyle(color: AppColors.ink),
+            decoration: musicInputDecoration('搜歌名、歌手').copyWith(
+              prefixIcon: const Icon(
+                Icons.search_rounded,
+                color: AppColors.ink3,
+              ),
+              suffixIcon: _q.text.isEmpty
+                  ? null
+                  : IconButton(
+                      onPressed: () => setState(_q.clear),
+                      icon: const Icon(Icons.cancel_rounded),
+                      color: AppColors.ink3,
+                    ),
+            ),
+          ),
+          if (_q.text.trim().isNotEmpty)
+            ..._searchResults(data)
+          else if (data.versions.isEmpty) ...[
             const MusicEmpty(),
             if (artists.isNotEmpty) ...artistSection,
           ] else ...[
@@ -954,7 +1013,9 @@ class _MusicArtistPageState extends ConsumerState<MusicArtistPage> {
     }
     final everything = data.versionsOfArtist(a.id);
     // 不喜歡的放最下面那一區，不排進播放（2026-10-19）。
-    final vs = everything.where((v) => !v.disliked).toList();
+    // 照年份排，新的在上面（2026-10-21 使用者要求）
+    final vs = everything.where((v) => !v.disliked).toList()
+      ..sort((a, b) => b.year.compareTo(a.year));
     final bad = everything.where((v) => v.disliked).toList();
     final ids = [for (final v in vs) v.id];
     // 熱門：照播放次數（播放紀錄），一樣多的話按過喜歡的先、再來新加的
@@ -1320,7 +1381,9 @@ class _MusicWorkPageState extends ConsumerState<MusicWorkPage> {
       );
     }
     final everything = data.versionsOfWork(w.id);
-    final vs = everything.where((v) => !v.disliked).toList();
+    // 照年份排，新的在上面（2026-10-21 使用者要求）
+    final vs = everything.where((v) => !v.disliked).toList()
+      ..sort((a, b) => b.year.compareTo(a.year));
     final bad = everything.where((v) => v.disliked).toList();
     final shown = _type == null
         ? vs
