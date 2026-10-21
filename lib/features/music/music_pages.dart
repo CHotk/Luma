@@ -869,6 +869,13 @@ class MusicArtistPage extends ConsumerStatefulWidget {
 
 class _MusicArtistPageState extends ConsumerState<MusicArtistPage> {
   MusicVersionType? _type;
+  final _q = TextEditingController();
+
+  @override
+  void dispose() {
+    _q.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -911,226 +918,308 @@ class _MusicArtistPageState extends ConsumerState<MusicArtistPage> {
         : vs.where((v) => v.type == _type).toList();
     final own = data.worksByOriginal(a.id);
     final hero = everything.where((v) => v.thumbnailUrl.isNotEmpty).firstOrNull;
+    // 搜尋（2026-10-21 使用者要求）：先找這個歌手的歌；他沒有的話，也列出其他歌手的，照歌手分段
+    final q = _q.text.trim().toLowerCase();
+    bool hit(MusicVersion v) =>
+        (data.work(v.workId)?.title ?? '').toLowerCase().contains(q) ||
+        v.videoTitle.toLowerCase().contains(q) ||
+        v.note.toLowerCase().contains(q);
+    final mine = q.isEmpty ? <MusicVersion>[] : vs.where(hit).toList();
+    final others = <MusicArtist, List<MusicVersion>>{};
+    if (q.isNotEmpty) {
+      for (final o in data.artists) {
+        if (o.id == a.id) continue;
+        final l = data
+            .versionsOfArtist(o.id)
+            .where((v) => !v.disliked && !v.artistIds.contains(a.id) && hit(v))
+            .toList();
+        if (l.isNotEmpty) others[o] = l;
+      }
+    }
     return MusicScaffold(
       showDrawer: false,
-      child: ListView(
-        padding: EdgeInsets.only(bottom: musicBottomInset(context)),
+      child: Stack(
         children: [
-          // 大圖（第 1 版的歌手頁）：用他第一首歌的縮圖。
-          SizedBox(
-            height: 270,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                if (hero != null)
-                  Image.network(
-                    hero.thumbnailUrl.replaceAll('mqdefault', 'hqdefault'),
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => const SizedBox.shrink(),
-                  ),
-                const DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [Colors.transparent, Color(0xFF0E0E16)],
-                      stops: [0.35, 1],
-                    ),
-                  ),
-                ),
-                Positioned(
-                  left: 8,
-                  top: 4,
-                  child: IconButton(
-                    onPressed: () => Navigator.of(context).maybePop(),
-                    icon: const Icon(Icons.arrow_back_rounded),
-                    color: Colors.white,
-                    style: IconButton.styleFrom(
-                      backgroundColor: Colors.black38,
-                    ),
-                  ),
-                ),
-                // 幫這個歌手加歌（2026-10-19 使用者要求）：加的時候歌手直接選好他。
-                Positioned(
-                  right: 8,
-                  top: 4,
-                  child: IconButton(
-                    onPressed: () =>
-                        showMusicAddFromYt(context, forArtistId: a.id),
-                    icon: const Icon(Icons.add_rounded),
-                    color: Colors.white,
-                    tooltip: '幫${a.name}添加歌曲',
-                    style: IconButton.styleFrom(
-                      backgroundColor: Colors.black38,
-                    ),
-                  ),
-                ),
-                Positioned(
-                  left: 18,
-                  bottom: 14,
-                  right: 18,
-                  child: Row(
-                    children: [
-                      MusicArtistAvatar(a, size: 56),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              a.name,
-                              style: const TextStyle(
-                                fontSize: 30,
-                                fontWeight: FontWeight.w900,
-                                color: Colors.white,
-                              ),
-                            ),
-                            Text(
-                              '${vs.length} 首・原唱 ${own.length} 首',
-                              style: AppText.note,
-                            ),
-                          ],
+          ListView(
+            padding: EdgeInsets.only(bottom: musicBottomInset(context)),
+            children: [
+              // 大圖（第 1 版的歌手頁）：用他第一首歌的縮圖。
+              SizedBox(
+                height: 270,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (hero != null)
+                      Image.network(
+                        hero.thumbnailUrl.replaceAll('mqdefault', 'hqdefault'),
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                      ),
+                    const DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [Colors.transparent, Color(0xFF0E0E16)],
+                          stops: [0.35, 1],
                         ),
                       ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: Gap.screenSide),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    FilledButton.icon(
-                      onPressed: vs.isEmpty
-                          ? null
-                          : () => musicPlay(
-                              context,
-                              ref,
-                              ids,
-                              ids.first,
-                              shuffle: true,
-                              from: '歌手頁「${a.name}」',
-                            ),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: musicPink,
-                        foregroundColor: const Color(0xFF2A0614),
+                    ),
+                    Positioned(
+                      left: 8,
+                      top: 4,
+                      child: IconButton(
+                        onPressed: () => Navigator.of(context).maybePop(),
+                        icon: const Icon(Icons.arrow_back_rounded),
+                        color: Colors.white,
+                        style: IconButton.styleFrom(
+                          backgroundColor: Colors.black38,
+                        ),
                       ),
-                      icon: const Icon(Icons.shuffle_rounded),
-                      label: const Text('隨機播放'),
                     ),
-                    const SizedBox(width: 8),
-                    FilledButton.icon(
-                      style: musicGhostButton,
-                      onPressed: vs.isEmpty
-                          ? null
-                          : () => musicPlay(
-                              context,
-                              ref,
-                              ids,
-                              ids.first,
-                              from: '歌手頁「${a.name}」・播放',
+                    Positioned(
+                      left: 18,
+                      bottom: 14,
+                      right: 18,
+                      child: Row(
+                        children: [
+                          MusicArtistAvatar(a, size: 56),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  a.name,
+                                  style: const TextStyle(
+                                    fontSize: 30,
+                                    fontWeight: FontWeight.w900,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                Text(
+                                  '${vs.length} 首・原唱 ${own.length} 首',
+                                  style: AppText.note,
+                                ),
+                              ],
                             ),
-                      icon: const Icon(Icons.play_arrow_rounded),
-                      label: const Text('播放'),
-                    ),
-                    const Spacer(),
-                    IconButton(
-                      onPressed: () async {
-                        final r = await promptMusicArtist(
-                          context,
-                          name: a.name,
-                          avatarUrls: a.avatarUrls,
-                          shownAvatar: a.shownAvatar,
-                          gender: a.gender,
-                        );
-                        if (r != null) {
-                          await MusicActions(ref).updateArtist(
-                            a.id,
-                            name: r.name,
-                            avatarUrls: r.avatarUrls,
-                            shownAvatar: r.shownAvatar,
-                            gender: r.gender,
-                          );
-                        }
-                      },
-                      icon: const Icon(Icons.edit_rounded),
-                      color: AppColors.ink2,
-                      tooltip: '編輯',
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
-                if (vs.isNotEmpty) ...[
-                  _h2('熱門'),
-                  // 左右滑（2026-10-21 使用者：一整排往下太長，看不到下面）
-                  SizedBox(
-                    height: 168,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: math.min(10, hot.length),
-                      separatorBuilder: (_, _) => const SizedBox(width: 12),
-                      itemBuilder: (_, i) => MusicHotCard(
-                        version: hot[i],
-                        rank: i + 1,
-                        plays: plays[hot[i].id]?.length ?? 0,
-                        queue: [for (final v in hot) v.id],
-                        from: '歌手頁「${a.name}」・熱門',
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: Gap.screenSide),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _q,
+                      onChanged: (_) => setState(() {}),
+                      style: const TextStyle(color: AppColors.ink),
+                      decoration: musicInputDecoration('搜${a.name}的歌').copyWith(
+                        prefixIcon: const Icon(
+                          Icons.search_rounded,
+                          color: AppColors.ink3,
+                        ),
+                        suffixIcon: _q.text.isEmpty
+                            ? null
+                            : IconButton(
+                                onPressed: () => setState(_q.clear),
+                                icon: const Icon(Icons.cancel_rounded),
+                                color: AppColors.ink3,
+                              ),
                       ),
                     ),
-                  ),
-                  _h2('他唱的・全部 ${vs.length}'),
-                  _chips([
-                    _chip(
-                      '全部 ${vs.length}',
-                      _type == null,
-                      () => setState(() => _type = null),
-                    ),
-                    for (final t in MusicVersionType.values)
-                      if (vs.any((v) => v.type == t))
-                        _chip(
-                          '${t.label} ${vs.where((v) => v.type == t).length}',
-                          _type == t,
-                          () => setState(() => _type = t),
+                    if (q.isNotEmpty) ...[
+                      _h2('${a.name}・${mine.length} 首'),
+                      if (mine.isEmpty)
+                        Text(
+                          '${a.name}沒有「${_q.text.trim()}」',
+                          style: AppText.note,
                         ),
-                  ]),
-                  const SizedBox(height: 6),
-                  for (final v in shown)
-                    MusicVersionTile(
-                      bigCover: true,
-                      version: v,
-                      queue: [for (final x in shown) x.id],
-                      from: '歌手頁「${a.name}」',
+                      for (final v in mine)
+                        MusicVersionTile(
+                          bigCover: true,
+                          version: v,
+                          queue: [for (final x in mine) x.id],
+                          from: '歌手頁「${a.name}」・搜尋',
+                        ),
+                      for (final e in others.entries) ...[
+                        _h2('其他歌手：${e.key.name}・${e.value.length} 首'),
+                        for (final v in e.value)
+                          MusicVersionTile(
+                            bigCover: true,
+                            version: v,
+                            queue: [for (final x in e.value) x.id],
+                            from: '歌手頁「${a.name}」・搜尋其他歌手',
+                          ),
+                      ],
+                      if (mine.isEmpty && others.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Text('其他歌手也沒有', style: AppText.note),
+                        ),
+                      const Divider(height: 28, color: Color(0x22FFFFFF)),
+                    ],
+                    Row(
+                      children: [
+                        FilledButton.icon(
+                          onPressed: vs.isEmpty
+                              ? null
+                              : () => musicPlay(
+                                  context,
+                                  ref,
+                                  ids,
+                                  ids.first,
+                                  shuffle: true,
+                                  from: '歌手頁「${a.name}」',
+                                ),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: musicPink,
+                            foregroundColor: const Color(0xFF2A0614),
+                          ),
+                          icon: const Icon(Icons.shuffle_rounded),
+                          label: const Text('隨機播放'),
+                        ),
+                        const SizedBox(width: 8),
+                        FilledButton.icon(
+                          style: musicGhostButton,
+                          onPressed: vs.isEmpty
+                              ? null
+                              : () => musicPlay(
+                                  context,
+                                  ref,
+                                  ids,
+                                  ids.first,
+                                  from: '歌手頁「${a.name}」・播放',
+                                ),
+                          icon: const Icon(Icons.play_arrow_rounded),
+                          label: const Text('播放'),
+                        ),
+                        const Spacer(),
+                        IconButton(
+                          onPressed: () async {
+                            final r = await promptMusicArtist(
+                              context,
+                              name: a.name,
+                              avatarUrls: a.avatarUrls,
+                              shownAvatar: a.shownAvatar,
+                              gender: a.gender,
+                            );
+                            if (r != null) {
+                              await MusicActions(ref).updateArtist(
+                                a.id,
+                                name: r.name,
+                                avatarUrls: r.avatarUrls,
+                                shownAvatar: r.shownAvatar,
+                                gender: r.gender,
+                              );
+                            }
+                          },
+                          icon: const Icon(Icons.edit_rounded),
+                          color: AppColors.ink2,
+                          tooltip: '編輯',
+                        ),
+                      ],
                     ),
-                ] else
-                  Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Text(
-                      '還沒有歌：到 YT 管理按 ⋮ →「加到音樂功能」',
-                      style: AppText.note,
-                      textAlign: TextAlign.center,
+                    if (vs.isNotEmpty) ...[
+                      _h2('熱門'),
+                      // 左右滑（2026-10-21 使用者：一整排往下太長，看不到下面）
+                      SizedBox(
+                        height: 168,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: math.min(10, hot.length),
+                          separatorBuilder: (_, _) => const SizedBox(width: 12),
+                          itemBuilder: (_, i) => MusicHotCard(
+                            version: hot[i],
+                            rank: i + 1,
+                            plays: plays[hot[i].id]?.length ?? 0,
+                            queue: [for (final v in hot) v.id],
+                            from: '歌手頁「${a.name}」・熱門',
+                          ),
+                        ),
+                      ),
+                      _h2('他唱的・全部 ${vs.length}'),
+                      _chips([
+                        _chip(
+                          '全部 ${vs.length}',
+                          _type == null,
+                          () => setState(() => _type = null),
+                        ),
+                        for (final t in MusicVersionType.values)
+                          if (vs.any((v) => v.type == t))
+                            _chip(
+                              '${t.label} ${vs.where((v) => v.type == t).length}',
+                              _type == t,
+                              () => setState(() => _type = t),
+                            ),
+                      ]),
+                      const SizedBox(height: 6),
+                      for (final v in shown)
+                        MusicVersionTile(
+                          bigCover: true,
+                          version: v,
+                          queue: [for (final x in shown) x.id],
+                          from: '歌手頁「${a.name}」',
+                        ),
+                    ] else
+                      Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Text(
+                          '還沒有歌：到 YT 管理按 ⋮ →「加到音樂功能」',
+                          style: AppText.note,
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    if (own.isNotEmpty) ...[
+                      _h2('他原唱的歌'),
+                      Text('點進去看還有誰唱過', style: AppText.note),
+                      for (final w in own) MusicWorkTile(work: w),
+                    ],
+                    if (bad.isNotEmpty) ...[
+                      _h2('不喜歡 ${bad.length}'),
+                      Text('記著他有這些歌，但不會被排進播放；⋮ 可以取消', style: AppText.note),
+                      for (final v in bad)
+                        MusicVersionTile(
+                          version: v,
+                          queue: [v.id],
+                          from: '歌手頁「${a.name}」・不喜歡',
+                        ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+          // 幫這個歌手加歌：固定在右上角、不跟著捲走，大一點好按（2026-10-21 使用者要求）
+          Positioned(
+            right: 12,
+            top: 8,
+            child: Material(
+              color: musicPink,
+              shape: const CircleBorder(),
+              elevation: 4,
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: () => showMusicAddFromYt(context, forArtistId: a.id),
+                child: Tooltip(
+                  message: '幫${a.name}添加歌曲',
+                  child: const SizedBox(
+                    width: 56,
+                    height: 56,
+                    child: Icon(
+                      Icons.add_rounded,
+                      size: 34,
+                      color: Color(0xFF2A0614),
                     ),
                   ),
-                if (own.isNotEmpty) ...[
-                  _h2('他原唱的歌'),
-                  Text('點進去看還有誰唱過', style: AppText.note),
-                  for (final w in own) MusicWorkTile(work: w),
-                ],
-                if (bad.isNotEmpty) ...[
-                  _h2('不喜歡 ${bad.length}'),
-                  Text('記著他有這些歌，但不會被排進播放；⋮ 可以取消', style: AppText.note),
-                  for (final v in bad)
-                    MusicVersionTile(
-                      version: v,
-                      queue: [v.id],
-                      from: '歌手頁「${a.name}」・不喜歡',
-                    ),
-                ],
-              ],
+                ),
+              ),
             ),
           ),
         ],
