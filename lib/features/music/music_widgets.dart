@@ -5,7 +5,7 @@ import '../../app/providers.dart';
 import '../../app/router.dart' show appRouter, rootNavigatorKey;
 import '../../app/theme/colors.dart';
 import '../../app/theme/typography.dart';
-import '../yt_tracker/yt_video_row.dart' show openExternalUrl;
+import '../../data/external_link.dart';
 import '../../data/repositories/music_play_mode_store.dart';
 import '../../data/repositories/music_play_log_store.dart';
 import '../../domain/models/music.dart';
@@ -161,6 +161,91 @@ class MusicArtistAvatar extends StatelessWidget {
   }
 }
 
+/// 熱門那一排的卡片（左右滑，2026-10-21）：大封面、排名、歌名、播放幾次。
+class MusicHotCard extends ConsumerWidget {
+  const MusicHotCard({
+    super.key,
+    required this.version,
+    required this.rank,
+    required this.plays,
+    required this.queue,
+    this.from = '',
+  });
+
+  final MusicVersion version;
+  final int rank;
+  final int plays;
+  final List<String> queue;
+  final String from;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final data = ref.watch(musicDataProvider);
+    final v = version;
+    final title = data.work(v.workId)?.title ?? v.videoTitle;
+    return SizedBox(
+      width: 168,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: () => musicPlay(context, ref, queue, v.id, from: from),
+        onLongPress: () => showMusicVersionMenu(context, ref, v.id),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Stack(
+              children: [
+                MusicCover(
+                  url: v.thumbnailUrl,
+                  fallback: title,
+                  size: 168,
+                  wide: true,
+                  radius: 10,
+                ),
+                Positioned(
+                  left: 6,
+                  top: 6,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 7,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xCC000000),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '$rank',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w700,
+                color: AppColors.ink,
+              ),
+            ),
+            Text(
+              plays == 0 ? '還沒播過' : '播過 $plays 次',
+              style: const TextStyle(fontSize: 11.5, color: AppColors.ink3),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// 一列版本。[byWho]：在歌曲頁時主字是誰唱的，不然主字是歌名。
 class MusicVersionTile extends ConsumerWidget {
   const MusicVersionTile({
@@ -170,10 +255,14 @@ class MusicVersionTile extends ConsumerWidget {
     this.byWho = false,
     this.rank,
     this.from = '',
+    this.bigCover = false,
   });
 
   /// 從哪裡點的（記進播放紀錄，例如「歌手頁」「首頁・快速選曲」）。
   final String from;
+
+  /// 封面大張（16:9、跟 YT 管理的影片列一樣大）：歌手頁用（2026-10-21 使用者要求）。
+  final bool bigCover;
 
   final MusicVersion version;
 
@@ -201,7 +290,7 @@ class MusicVersionTile extends ConsumerWidget {
         if (v.note.isNotEmpty) v.note,
         if (!names.contains(v.uploaderName) && v.uploaderName.isNotEmpty)
           '在「${v.uploaderName}」',
-        '${v.publishedAt.year}',
+        '${v.year}',
       ] else ...[
         names,
         if (v.type == MusicVersionType.cover && origNames.isNotEmpty)
@@ -228,7 +317,15 @@ class MusicVersionTile extends ConsumerWidget {
                   ),
                 ),
               ),
-            MusicCover(url: v.thumbnailUrl, fallback: title),
+            bigCover
+                ? MusicCover(
+                    url: v.thumbnailUrl,
+                    fallback: title,
+                    size: 128,
+                    wide: true,
+                    radius: 8,
+                  )
+                : MusicCover(url: v.thumbnailUrl, fallback: title),
             const SizedBox(width: 11),
             Expanded(
               child: Column(
@@ -439,13 +536,17 @@ Widget musicSheetHandle() => const SizedBox(height: 2);
 /// 新增／編輯歌手（2026-10-19 使用者要求）：打名字、直接貼大頭貼網址（最多
 /// 5 張，照順序是預設、大頭貼 2～5），每張旁邊即時預覽；點「顯示這張」選要顯示
 /// 哪一張，那張壞了就照順序換下一張。回傳 (名字, 網址們, 顯示第幾張)；取消是 null。
-Future<({String name, List<String> avatarUrls, int shownAvatar})?>
+Future<
+  ({String name, List<String> avatarUrls, int shownAvatar, String? gender})?
+>
 promptMusicArtist(
   BuildContext context, {
   String name = '',
   List<String> avatarUrls = const [],
   int shownAvatar = 0,
+  String? gender,
 }) {
+  var g = gender;
   final nameC = TextEditingController(text: name);
   final urlCs = [
     for (final u in (avatarUrls.isEmpty ? const [''] : avatarUrls))
@@ -454,7 +555,7 @@ promptMusicArtist(
   var shown = shownAvatar.clamp(0, urlCs.length - 1);
   String label(int i) => i == 0 ? '預設' : '大頭貼 ${i + 1}';
   return showMusicSheet<
-    ({String name, List<String> avatarUrls, int shownAvatar})
+    ({String name, List<String> avatarUrls, int shownAvatar, String? gender})
   >(
     context,
     (ctx) => StatefulBuilder(
@@ -497,6 +598,15 @@ promptMusicArtist(
               onChanged: (_) => setS(() {}),
               style: const TextStyle(color: AppColors.ink, fontSize: 15),
               decoration: musicInputDecoration('例如：周杰倫'),
+            ),
+            // 性別：首頁歌手分兩排（上男下女），新增時一定要選
+            musicFieldLabel(name.isEmpty ? '性別（必填）' : '性別'),
+            Wrap(
+              spacing: 6,
+              children: [
+                musicChoiceChip('男', g == 'm', () => setS(() => g = 'm')),
+                musicChoiceChip('女', g == 'f', () => setS(() => g = 'f')),
+              ],
             ),
             musicFieldLabel(
               '大頭貼網址（直接貼，最多 ${MusicArtist.maxAvatars} 張，壞了照順序換下一張）',
@@ -602,6 +712,10 @@ promptMusicArtist(
                   showAppNotice(ctx, '名字不能空白', isError: true);
                   return;
                 }
+                if (g == null) {
+                  showAppNotice(ctx, '請選性別（男／女）', isError: true);
+                  return;
+                }
                 // 空白的欄位不算；顯示的那張跟著移到對的位置。
                 final keep = <String>[];
                 var shownOut = 0;
@@ -615,6 +729,7 @@ promptMusicArtist(
                   name: nameC.text.trim(),
                   avatarUrls: keep,
                   shownAvatar: shownOut,
+                  gender: g,
                 ));
               },
               style: FilledButton.styleFrom(
@@ -753,7 +868,11 @@ Future<void> showMusicVersionMenu(
         _menuItem(
           Icons.open_in_new_rounded,
           '在 YouTube 開啟',
-          () => Navigator.pop(ctx, 'yt'),
+          // 點下去當下就開（等選單關掉再開，手機瀏覽器會擋）
+          () {
+            openExternalUrlSync('https://www.youtube.com/watch?v=$id');
+            Navigator.pop(ctx, 'yt');
+          },
         ),
         // 音樂不做刪除（2026-10-19 使用者要求：本意是記這個歌手有哪些歌），
         // 不想聽的放「不喜歡」。
@@ -786,7 +905,7 @@ Future<void> showMusicVersionMenu(
       player.setExpanded(false);
       appRouter.push('/music/work/${v.workId}');
     case 'yt':
-      await openExternalUrl(context, 'https://www.youtube.com/watch?v=$id');
+      break;
     case 'dislike':
       await MusicActions(ref).toggleDislike(id);
       if (context.mounted) {
@@ -841,6 +960,7 @@ class MusicArtistPicker extends ConsumerWidget {
               r.name,
               avatarUrls: r.avatarUrls,
               shownAvatar: r.shownAvatar,
+              gender: r.gender,
             );
             onChanged([...selected, id]);
           }, dashed: true),
@@ -949,6 +1069,7 @@ Future<void> showMusicEditVersionSheet(
   final work = data.work(v.workId);
   final titleC = TextEditingController(text: work?.title ?? '');
   final noteC = TextEditingController(text: v.note);
+  final yearC = TextEditingController(text: '${v.year}');
   var type = v.type;
   var artists = List<String>.of(v.artistIds);
   final saved = await showMusicSheet<bool>(
@@ -984,6 +1105,13 @@ Future<void> showMusicEditVersionSheet(
               '改成別首的歌名＝搬到那首歌底下（同名的會自動併在一起）',
               style: TextStyle(fontSize: 11, color: AppColors.ink3),
             ),
+          ),
+          musicFieldLabel('發行年份'),
+          TextField(
+            controller: yearC,
+            keyboardType: TextInputType.number,
+            style: const TextStyle(color: AppColors.ink),
+            decoration: musicInputDecoration('例如：2003'),
           ),
           musicFieldLabel('備註（選填）'),
           TextField(
@@ -1032,7 +1160,15 @@ Future<void> showMusicEditVersionSheet(
   if (saved != true) return;
   final actions = MusicActions(ref);
   final ids = [...artists];
-  await actions.editVersion(id, type: type, artistIds: ids, note: noteC.text);
+  final y = int.tryParse(yearC.text.trim());
+  await actions.editVersion(
+    id,
+    type: type,
+    artistIds: ids,
+    note: noteC.text,
+    releaseYear: y == v.publishedAt.year ? null : y,
+    setYear: true,
+  );
   final t = titleC.text.trim();
   if (t.isNotEmpty && t != work?.title) {
     // 這首歌只有這一個版本：直接改歌名；有別的版本：搬到新歌名（或併到同名的）。

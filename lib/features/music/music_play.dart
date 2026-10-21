@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/providers.dart';
 import '../../data/repositories/music_play_log_store.dart';
 import '../../data/repositories/music_play_mode_store.dart';
+import '../../data/external_link.dart';
 import '../yt_tracker/yt_video_row.dart' show openExternalUrl;
 import 'music_player.dart';
 
@@ -59,10 +60,12 @@ Future<void> musicPlay(
           ...q.take(math.max(0, q.indexOf(id))),
         ];
   if (order.isEmpty) order = [id];
-  await recordMusicPlay(ref.read, order.first, from: src, mode: 'youtube');
-  if (!context.mounted) return;
   final url = order.length == 1
       ? 'https://www.youtube.com/watch?v=${order.first}'
       : 'https://www.youtube.com/watch_videos?video_ids=${order.take(50).join(',')}';
-  await openExternalUrl(context, url);
+  // 先開、再記：手機瀏覽器只放行「點下去當下同步」開的分頁，先 await 寫紀錄就會被擋
+  // （2026-10-21 使用者回報：音樂點影片都沒跳到 YT）。
+  final opened = openExternalUrlSync(url);
+  await recordMusicPlay(ref.read, order.first, from: src, mode: 'youtube');
+  if (!opened && context.mounted) await openExternalUrl(context, url);
 }

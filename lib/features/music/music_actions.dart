@@ -1,3 +1,4 @@
+import '../../domain/simplified_to_traditional.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
@@ -54,6 +55,7 @@ class MusicActions {
     String name, {
     List<String> avatarUrls = const [],
     int shownAvatar = 0,
+    String? gender,
   }) async {
     final n = name.trim();
     final urls = _clean(avatarUrls);
@@ -61,6 +63,13 @@ class MusicActions {
     if (hit != null) {
       // 使用者特地貼了大頭貼網址：跟現有的不一樣就以這次為準（以前已經有大頭貼
       // 就整個忽略，貼了沒存、也就不會同步）。
+      if (gender != null && gender != hit.gender) {
+        await _set(
+          data.putArtist(
+            hit.copyWith(gender: gender, updatedAt: DateTime.now()),
+          ),
+        );
+      }
       if (urls.isNotEmpty && urls.join('|') != hit.avatarUrls.join('|')) {
         await _log('歌手「${hit.name}」大頭貼改成 ${urls.length} 張');
         await _set(
@@ -80,6 +89,7 @@ class MusicActions {
       name: n,
       avatarUrls: urls,
       shownAvatar: shownAvatar.clamp(0, urls.isEmpty ? 0 : urls.length - 1),
+      gender: gender,
       updatedAt: DateTime.now(),
     );
     await _set(data.putArtist(a));
@@ -94,6 +104,7 @@ class MusicActions {
     required String name,
     required List<String> avatarUrls,
     required int shownAvatar,
+    String? gender,
   }) async {
     final a = data.artist(id);
     final n = name.trim();
@@ -104,6 +115,8 @@ class MusicActions {
       if (n != a.name) '名字「${a.name}」→「$n」',
       if (urls.join('|') != a.avatarUrls.join('|')) '大頭貼改成 ${urls.length} 張',
       if (urls.isNotEmpty && shown != a.shownAvatar) '改顯示第 ${shown + 1} 張大頭貼',
+      if (gender != null && gender != a.gender)
+        '性別改成${gender == 'm' ? '男' : '女'}',
     ];
     if (changes.isEmpty) return;
     await _set(
@@ -112,6 +125,7 @@ class MusicActions {
           name: n,
           avatarUrls: urls,
           shownAvatar: shown,
+          gender: gender,
           updatedAt: DateTime.now(),
         ),
       ),
@@ -171,6 +185,7 @@ class MusicActions {
     required MusicVersionType type,
     required List<String> artistIds,
     String note = '',
+    int? releaseYear,
   }) async {
     final now = DateTime.now();
     var d = data;
@@ -199,6 +214,7 @@ class MusicActions {
       thumbnailUrl: thumbnailUrl,
       uploaderName: uploaderName,
       durationSec: durationSec,
+      releaseYear: releaseYear,
       publishedAt: publishedAt,
       addedAt: now,
       updatedAt: now,
@@ -220,15 +236,19 @@ class MusicActions {
     List<String>? artistIds,
     String? workId,
     String? note,
+    int? releaseYear,
+    bool setYear = false,
   }) async {
     final v = data.version(id);
     if (v == null) return;
     final n = note?.trim();
+    final yearChanged = setYear && releaseYear != v.releaseYear;
     final changes = <String>[
       if (type != null && type != v.type) '種類 ${v.type.label} → ${type.label}',
       if (artistIds != null && _names(artistIds) != _names(v.artistIds))
         '誰唱 ${_names(v.artistIds)} → ${_names(artistIds)}',
       if (n != null && n != v.note) '備註「${_orNone(v.note)}」→「${_orNone(n)}」',
+      if (yearChanged) '發行年份 ${v.releaseYear ?? '—'} → ${releaseYear ?? '—'}',
     ];
     if (changes.isEmpty && workId == null) return;
     await _set(
@@ -238,6 +258,8 @@ class MusicActions {
           artistIds: artistIds,
           workId: workId,
           note: n,
+          releaseYear: yearChanged ? releaseYear : null,
+          clearReleaseYear: yearChanged && releaseYear == null,
           updatedAt: DateTime.now(),
         ),
       ),
@@ -445,7 +467,8 @@ class MusicGuess {
     required String videoTitle,
     required String channelName,
   }) {
-    final t = videoTitle;
+    // 簡體標題先轉繁體再猜歌名（2026-10-21 使用者要求）
+    final t = toTraditional(videoTitle);
     final type = guessType(t);
     final named = [
       for (final a in data.artists)

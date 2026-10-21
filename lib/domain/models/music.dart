@@ -64,6 +64,7 @@ class MusicArtist implements MusicRecord {
     required this.name,
     this.avatarUrls = const [],
     this.shownAvatar = 0,
+    this.gender,
     required this.updatedAt,
     this.deletedAt,
   });
@@ -71,6 +72,10 @@ class MusicArtist implements MusicRecord {
   @override
   final String id;
   final String name;
+
+  /// 性別：'m' 男、'f' 女（音樂首頁歌手分兩排：上排男、下排女；2026-10-21 使用者要求，新增時必填）。
+  /// 舊資料沒有就是 null。
+  final String? gender;
 
   /// 大頭貼網址，照順序：預設、備用 2、3、4、5（2026-10-19 使用者要求：可以
   /// 放好幾張，選要顯示哪一張；那張壞了就照順序換下一張）。
@@ -104,6 +109,7 @@ class MusicArtist implements MusicRecord {
     String? name,
     List<String>? avatarUrls,
     int? shownAvatar,
+    String? gender,
     DateTime? updatedAt,
     DateTime? deletedAt,
   }) => MusicArtist(
@@ -111,6 +117,7 @@ class MusicArtist implements MusicRecord {
     name: name ?? this.name,
     avatarUrls: avatarUrls ?? this.avatarUrls,
     shownAvatar: shownAvatar ?? this.shownAvatar,
+    gender: gender ?? this.gender,
     updatedAt: updatedAt ?? this.updatedAt,
     deletedAt: deletedAt ?? this.deletedAt,
   );
@@ -121,6 +128,7 @@ class MusicArtist implements MusicRecord {
     'name': name,
     if (avatarUrls.isNotEmpty) 'avatars': avatarUrls,
     if (shownAvatar != 0) 'shown': shownAvatar,
+    if (gender != null) 'gender': gender,
     'updatedAt': updatedAt.toUtc().toIso8601String(),
     if (deletedAt != null) 'deletedAt': deletedAt!.toUtc().toIso8601String(),
   };
@@ -135,6 +143,7 @@ class MusicArtist implements MusicRecord {
         j['avatarUrl'] as String,
     ],
     shownAvatar: (j['shown'] as num?)?.toInt() ?? 0,
+    gender: j['gender'] as String?,
     updatedAt: _date(j['updatedAt']),
     deletedAt: _dateOrNull(j['deletedAt']),
   );
@@ -206,6 +215,7 @@ class MusicVersion implements MusicRecord {
     required this.uploaderName,
     this.durationSec,
     required this.publishedAt,
+    this.releaseYear,
     required this.addedAt,
     required this.updatedAt,
     this.deletedAt,
@@ -231,6 +241,12 @@ class MusicVersion implements MusicRecord {
   final String uploaderName;
   final int? durationSec;
   final DateTime publishedAt;
+
+  /// 發行年份（使用者自己填；2026-10-21 使用者要求）。沒填就看 YouTube 上傳年份 [year]。
+  final int? releaseYear;
+
+  /// 顯示用的年份：有填發行年份用它，沒有就用上傳年份。
+  int get year => releaseYear ?? publishedAt.year;
   final DateTime addedAt;
   @override
   final DateTime updatedAt;
@@ -251,6 +267,8 @@ class MusicVersion implements MusicRecord {
     MusicVersionType? type,
     List<String>? artistIds,
     String? note,
+    int? releaseYear,
+    bool clearReleaseYear = false,
     bool? disliked,
     DateTime? updatedAt,
     DateTime? deletedAt,
@@ -265,6 +283,7 @@ class MusicVersion implements MusicRecord {
     uploaderName: uploaderName,
     durationSec: durationSec,
     publishedAt: publishedAt,
+    releaseYear: clearReleaseYear ? null : (releaseYear ?? this.releaseYear),
     addedAt: addedAt,
     updatedAt: updatedAt ?? this.updatedAt,
     deletedAt: deletedAt ?? this.deletedAt,
@@ -285,6 +304,7 @@ class MusicVersion implements MusicRecord {
     'uploader': uploaderName,
     if (durationSec != null) 'dur': durationSec,
     'publishedAt': publishedAt.toUtc().toIso8601String(),
+    if (releaseYear != null) 'year': releaseYear,
     'addedAt': addedAt.toUtc().toIso8601String(),
     'updatedAt': updatedAt.toUtc().toIso8601String(),
     if (deletedAt != null) 'deletedAt': deletedAt!.toUtc().toIso8601String(),
@@ -304,6 +324,7 @@ class MusicVersion implements MusicRecord {
     uploaderName: j['uploader'] as String? ?? '',
     durationSec: (j['dur'] as num?)?.toInt(),
     publishedAt: _date(j['publishedAt']),
+    releaseYear: (j['year'] as num?)?.toInt(),
     addedAt: _date(j['addedAt']),
     updatedAt: _date(j['updatedAt']),
     deletedAt: _dateOrNull(j['deletedAt']),

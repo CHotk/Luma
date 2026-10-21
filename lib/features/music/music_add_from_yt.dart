@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
@@ -9,6 +10,7 @@ import '../../data/services/youtube_api_service.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../../domain/models/yt_tracker.dart';
+import '../yt_tracker/yt_channel_avatar.dart';
 import 'add_to_music_sheet.dart';
 import 'music_widgets.dart';
 
@@ -16,23 +18,47 @@ import 'music_widgets.dart';
 /// 行），再從那個頻道抓過的影片挑（YT 快取，不花配額）。[searchTitle] 有給
 /// （歌曲頁「加版本」）就直接列出所有頻道標題有這個歌名的影片。[forArtistId]
 /// 有給（歌手頁右上角 ＋）就是幫那個歌手加歌：加的時候歌手直接選好他。
+///
+/// 剪貼簿：一定要在「點下去的那一刻」就讀（iOS 只准使用者點擊當下讀，系統會跳一次「貼上」），
+/// 所以這個函式要在點擊處理裡直接呼叫；已經隔了一層選單的，在選單那一下先讀好傳 [clip] 進來
+/// （2026-10-21 使用者：先問要不要貼、再按貼上、iOS 又問一次，太多步）。
 Future<void> showMusicAddFromYt(
   BuildContext context, {
   String? searchTitle,
   String? forArtistId,
-}) => showMusicSheet<void>(
-  context,
-  (ctx) => SizedBox(
-    height: MediaQuery.of(ctx).size.height * 0.78,
-    child: _AddFromYt(searchTitle: searchTitle, forArtistId: forArtistId),
-  ),
-);
+  Future<String?>? clip,
+}) {
+  final c = (searchTitle ?? '').trim().isNotEmpty
+      ? null
+      : (clip ?? readClipboardText());
+  return showMusicSheet<void>(
+    context,
+    (ctx) => SizedBox(
+      height: MediaQuery.of(ctx).size.height * 0.78,
+      child: _AddFromYt(
+        searchTitle: searchTitle,
+        forArtistId: forArtistId,
+        clip: c,
+      ),
+    ),
+  );
+}
+
+/// 讀剪貼簿的文字（讀不到、不允許就是 null）。
+Future<String?> readClipboardText() async {
+  try {
+    return (await Clipboard.getData(Clipboard.kTextPlain))?.text;
+  } catch (_) {
+    return null;
+  }
+}
 
 class _AddFromYt extends ConsumerStatefulWidget {
-  const _AddFromYt({this.searchTitle, this.forArtistId});
+  const _AddFromYt({this.searchTitle, this.forArtistId, this.clip});
 
   final String? searchTitle;
   final String? forArtistId;
+  final Future<String?>? clip;
 
   @override
   ConsumerState<_AddFromYt> createState() => _AddFromYtState();
@@ -40,6 +66,10 @@ class _AddFromYt extends ConsumerStatefulWidget {
 
 class _AddFromYtState extends ConsumerState<_AddFromYt> {
   List<YtChannel>? _channels;
+  List<YtCategory> _cats = const [];
+
+  /// 「從 YT 管理挑」目前看哪個分類（2026-10-21 使用者：幾百個頻道要能分類、照置頂／一般／冷藏排）。
+  String? _cat;
   YtChannel? _channel;
   List<YoutubeVideo>? _videos;
 
@@ -64,6 +94,36 @@ class _AddFromYtState extends ConsumerState<_AddFromYt> {
   void initState() {
     super.initState();
     _load();
+    // 點「添加歌曲」那一下讀的剪貼簿：是 YouTube 網址就直接貼進來
+    widget.clip?.then((t) {
+      final x = t?.trim() ?? '';
+      if (!mounted || x.isEmpty || _url.text.isNotEmpty) return;
+      if (YoutubeApiService.parseVideoId(x) == null) return;
+      _url.text = x;
+      _onUrl(x);
+    });
+  }
+
+  /// 讀剪貼簿貼進網址欄（網頁版第一次會跳瀏覽器的允許詢問）。
+  Future<void> _paste() async {
+    final d = await Clipboard.getData(Clipboard.kTextPlain);
+    final t = d?.text?.trim() ?? '';
+    if (!mounted) return;
+    if (t.isEmpty) {
+      setState(() => _pastedNote = '剪貼簿是空的（或瀏覽器沒允許讀取）');
+      return;
+    }
+    _url.text = t;
+    _onUrl(t);
+  }
+
+  void _clearUrl() {
+    _url.clear();
+    setState(() {
+      _pasted = null;
+      _pastedNote = null;
+      _fetching = false;
+    });
   }
 
   @override
@@ -74,11 +134,17 @@ class _AddFromYtState extends ConsumerState<_AddFromYt> {
   }
 
   Future<void> _load() async {
-    final all = await ref.read(ytTrackerRepositoryProvider).loadChannels();
+    final repo = ref.read(ytTrackerRepositoryProvider);
+    final all = await repo.loadChannels();
+    final cats = await repo.loadCategories();
     final live = all.where((c) => c.deletedAt == null).toList()
       ..sort((a, b) => a.name.compareTo(b.name));
     if (!mounted) return;
-    setState(() => _channels = live);
+    setState(() {
+      _channels = live;
+      _cats = cats;
+      _cat = _catTabs.isEmpty ? null : _catTabs.first.$1;
+    });
     if ((widget.searchTitle ?? '').isNotEmpty) _search();
   }
 
@@ -187,16 +253,34 @@ class _AddFromYtState extends ConsumerState<_AddFromYt> {
           style: const TextStyle(color: AppColors.ink),
           decoration: musicInputDecoration('貼 YouTube 影片網址').copyWith(
             prefixIcon: const Icon(Icons.link_rounded, color: AppColors.ink3),
-            suffixIcon: _fetching
-                ? const Padding(
-                    padding: EdgeInsets.all(12),
+            // 右邊：轉圈（查詢中）、清空的小叉叉、貼上（2026-10-21 使用者要求）
+            suffixIcon: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_fetching)
+                  const Padding(
+                    padding: EdgeInsets.all(8),
                     child: SizedBox(
-                      width: 18,
-                      height: 18,
+                      width: 16,
+                      height: 16,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     ),
-                  )
-                : null,
+                  ),
+                if (_url.text.isNotEmpty)
+                  IconButton(
+                    onPressed: _clearUrl,
+                    icon: const Icon(Icons.cancel_rounded, size: 20),
+                    color: AppColors.ink3,
+                    tooltip: '清空',
+                  ),
+                TextButton.icon(
+                  onPressed: _paste,
+                  icon: const Icon(Icons.content_paste_rounded, size: 18),
+                  label: const Text('貼上'),
+                  style: TextButton.styleFrom(foregroundColor: musicPink),
+                ),
+              ],
+            ),
           ),
         ),
         if (_pastedNote != null)
@@ -217,6 +301,65 @@ class _AddFromYtState extends ConsumerState<_AddFromYt> {
           ),
       ],
     );
+  }
+
+  /// 有頻道的分類（照 YT 管理的分類順序），沒分類的放最後。
+  List<(String, String)> get _catTabs {
+    final ch = _channels ?? const <YtChannel>[];
+    return [
+      for (final c in _cats)
+        if (ch.any((x) => x.categoryId == c.id)) (c.id, c.name),
+      if (ch.any((x) => x.categoryId == null)) (ytUncategorizedId, '未分類'),
+    ];
+  }
+
+  Widget _channelTile(YtChannel c) => ListTile(
+    contentPadding: EdgeInsets.zero,
+    leading: YtChannelAvatar(channel: c, radius: 20),
+    title: Text(c.name, style: const TextStyle(color: AppColors.ink)),
+    trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.ink3),
+    onTap: () => _open(c),
+  );
+
+  /// 這個分類的頻道，跟 YT 管理一樣分四層：置頂、一般、冷藏、待評鑑。
+  List<Widget> _tiers() {
+    final inCat = (_channels ?? const <YtChannel>[])
+        .where((c) => (c.categoryId ?? ytUncategorizedId) == _cat)
+        .toList();
+    final pinned = inCat.where((c) => c.pinnedAt != null).toList()
+      ..sort((a, b) => b.pinnedAt!.compareTo(a.pinnedAt!));
+    final normal = inCat
+        .where(
+          (c) => c.pinnedAt == null && c.coldAt == null && !c.pendingReview,
+        )
+        .toList();
+    final cold = inCat
+        .where(
+          (c) => c.pinnedAt == null && c.coldAt != null && !c.pendingReview,
+        )
+        .toList();
+    final pending = inCat
+        .where((c) => c.pinnedAt == null && c.pendingReview)
+        .toList();
+    Widget head(String t, int n) => Padding(
+      padding: const EdgeInsets.only(top: 10, bottom: 2),
+      child: Text(
+        '$t · $n',
+        style: AppText.note.copyWith(fontWeight: FontWeight.w700),
+      ),
+    );
+    return [
+      for (final (t, l) in [
+        ('置頂', pinned),
+        ('一般', normal),
+        ('冷藏', cold),
+        ('待評鑑', pending),
+      ])
+        if (l.isNotEmpty) ...[
+          head(t, l.length),
+          for (final c in l) _channelTile(c),
+        ],
+    ];
   }
 
   /// 所有頻道的快取裡，標題有這幾個字的影片。
@@ -285,25 +428,36 @@ class _AddFromYtState extends ConsumerState<_AddFromYt> {
                   ),
                 )
               : FilledButton(
-                  onPressed: () => showAddToMusicSheet(
-                    context,
-                    ref,
-                    videoId: v.videoId,
-                    videoTitle: v.title,
-                    thumbnailUrl: v.thumbnailUrl,
-                    channelName: c.name,
-                    channelAvatarUrl: c.avatarImageUrl,
-                    publishedAt: publishedAt ?? v.publishedAt,
-                    durationSec: durationSec ?? v.duration?.inSeconds,
-                    artistId: widget.forArtistId,
-                  ),
+                  onPressed: () async {
+                    await showAddToMusicSheet(
+                      context,
+                      ref,
+                      videoId: v.videoId,
+                      videoTitle: v.title,
+                      thumbnailUrl: v.thumbnailUrl,
+                      channelName: c.name,
+                      channelAvatarUrl: c.avatarImageUrl,
+                      publishedAt: publishedAt ?? v.publishedAt,
+                      durationSec: durationSec ?? v.duration?.inSeconds,
+                      artistId: widget.forArtistId,
+                    );
+                    // 加好了：網址欄清空，準備貼下一首（2026-10-21 使用者要求）
+                    if (mounted &&
+                        _pasted?.videoId == v.videoId &&
+                        ref.read(musicVideoIdsProvider).contains(v.videoId)) {
+                      _clearUrl();
+                    }
+                  },
                   style: FilledButton.styleFrom(
                     backgroundColor: musicPink,
                     foregroundColor: const Color(0xFF2A0614),
                     visualDensity: VisualDensity.compact,
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                   ),
-                  child: const Text('＋ 加'),
+                  child: const Text(
+                    '＋',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                  ),
                 ),
         ],
       ),
@@ -329,27 +483,28 @@ class _AddFromYtState extends ConsumerState<_AddFromYt> {
               children: [for (final (v, c) in _hits!) _videoRow(v, c, inMusic)],
             );
     } else if (_channel == null) {
-      body = ListView(
+      final tabs = _catTabs;
+      body = Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          for (final c in channels)
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: CircleAvatar(
-                backgroundColor: AppColors.glassFill,
-                backgroundImage: c.avatarImageUrl.isEmpty
-                    ? null
-                    : NetworkImage(c.avatarImageUrl),
-                child: c.avatarImageUrl.isEmpty
-                    ? Text(c.name.characters.first)
-                    : null,
-              ),
-              title: Text(c.name, style: const TextStyle(color: AppColors.ink)),
-              trailing: const Icon(
-                Icons.chevron_right_rounded,
-                color: AppColors.ink3,
-              ),
-              onTap: () => _open(c),
+          SizedBox(
+            height: 40,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: [
+                for (final (id, name) in tabs)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: musicChoiceChip(
+                      name,
+                      _cat == id,
+                      () => setState(() => _cat = id),
+                    ),
+                  ),
+              ],
             ),
+          ),
+          Expanded(child: ListView(children: _tiers())),
         ],
       );
     } else if (_videos == null) {

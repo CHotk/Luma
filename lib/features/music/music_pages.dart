@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -268,40 +270,51 @@ class _MusicHomePageState extends ConsumerState<MusicHomePage> {
         '你的歌手',
         trailing: _more('全部 ›', () => context.go('/music/library?tab=歌手')),
       ),
-      SizedBox(
-        height: 128,
-        child: ListView(
-          scrollDirection: Axis.horizontal,
-          children: [
-            for (final a in artists)
-              Padding(
-                padding: const EdgeInsets.only(right: 12),
-                child: GestureDetector(
-                  onTap: () => context.push('/music/artist/${a.id}'),
-                  child: SizedBox(
-                    width: 92,
-                    child: Column(
-                      children: [
-                        MusicArtistAvatar(a, size: 92),
-                        const SizedBox(height: 6),
-                        Text(
-                          a.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.ink,
-                          ),
+      for (final (row, label) in [
+        (artists.where((a) => a.gender == 'm').toList(), '男'),
+        (artists.where((a) => a.gender == 'f').toList(), '女'),
+        (artists.where((a) => a.gender == null).toList(), '還沒填性別（點進去編輯）'),
+      ])
+        if (row.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.only(top: 4, bottom: 4),
+            child: Text(label, style: AppText.note),
+          ),
+          SizedBox(
+            height: 128,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: [
+                for (final a in row)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: GestureDetector(
+                      onTap: () => context.push('/music/artist/${a.id}'),
+                      child: SizedBox(
+                        width: 92,
+                        child: Column(
+                          children: [
+                            MusicArtistAvatar(a, size: 92),
+                            const SizedBox(height: 6),
+                            Text(
+                              a.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.ink,
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
                   ),
-                ),
-              ),
-          ],
-        ),
-      ),
+              ],
+            ),
+          ),
+        ],
     ];
     return MusicScaffold(
       child: ListView(
@@ -329,6 +342,8 @@ class _MusicHomePageState extends ConsumerState<MusicHomePage> {
             if (artists.isNotEmpty) ...artistSection,
           ] else ...[
             const SizedBox(height: Gap.sm),
+            // 歌手放第一排（2026-10-21 使用者要求）
+            ...artistSection,
             _chips([
               _chip('全部', _type == null, () => setState(() => _type = null)),
               for (final t in MusicVersionType.values)
@@ -433,7 +448,6 @@ class _MusicHomePageState extends ConsumerState<MusicHomePage> {
                 queue: [for (final x in quick) x.id],
                 from: '首頁・快速選曲',
               ),
-            ...artistSection,
             if (hot.any((w) => data.versionsOfWork(w.id).length > 1)) ...[
               _h2('很多人唱過的歌'),
               for (final w
@@ -710,6 +724,7 @@ class _MusicLibraryPageState extends ConsumerState<MusicLibraryPage> {
                   r.name,
                   avatarUrls: r.avatarUrls,
                   shownAvatar: r.shownAvatar,
+                  gender: r.gender,
                 );
               }
             },
@@ -875,6 +890,22 @@ class _MusicArtistPageState extends ConsumerState<MusicArtistPage> {
     final vs = everything.where((v) => !v.disliked).toList();
     final bad = everything.where((v) => v.disliked).toList();
     final ids = [for (final v in vs) v.id];
+    // 熱門：照播放次數（播放紀錄），一樣多的話按過喜歡的先、再來新加的
+    // （2026-10-21 使用者：熱門沒照播放次數排——原本只是照加進來的順序取前五）。
+    final plays = ref.watch(musicPlayLogProvider);
+    final likedIds = data.liked.versionIds.toSet();
+    final hot = [...vs]
+      ..sort((x, y) {
+        final c = (plays[y.id]?.length ?? 0).compareTo(
+          plays[x.id]?.length ?? 0,
+        );
+        if (c != 0) return c;
+        final l =
+            (likedIds.contains(y.id) ? 1 : 0) -
+            (likedIds.contains(x.id) ? 1 : 0);
+        if (l != 0) return l;
+        return y.addedAt.compareTo(x.addedAt);
+      });
     final shown = _type == null
         ? vs
         : vs.where((v) => v.type == _type).toList();
@@ -1016,6 +1047,7 @@ class _MusicArtistPageState extends ConsumerState<MusicArtistPage> {
                           name: a.name,
                           avatarUrls: a.avatarUrls,
                           shownAvatar: a.shownAvatar,
+                          gender: a.gender,
                         );
                         if (r != null) {
                           await MusicActions(ref).updateArtist(
@@ -1023,6 +1055,7 @@ class _MusicArtistPageState extends ConsumerState<MusicArtistPage> {
                             name: r.name,
                             avatarUrls: r.avatarUrls,
                             shownAvatar: r.shownAvatar,
+                            gender: r.gender,
                           );
                         }
                       },
@@ -1034,13 +1067,22 @@ class _MusicArtistPageState extends ConsumerState<MusicArtistPage> {
                 ),
                 if (vs.isNotEmpty) ...[
                   _h2('熱門'),
-                  for (var i = 0; i < vs.length && i < 5; i++)
-                    MusicVersionTile(
-                      version: vs[i],
-                      queue: ids,
-                      rank: i + 1,
-                      from: '歌手頁「${a.name}」・熱門',
+                  // 左右滑（2026-10-21 使用者：一整排往下太長，看不到下面）
+                  SizedBox(
+                    height: 168,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: math.min(10, hot.length),
+                      separatorBuilder: (_, _) => const SizedBox(width: 12),
+                      itemBuilder: (_, i) => MusicHotCard(
+                        version: hot[i],
+                        rank: i + 1,
+                        plays: plays[hot[i].id]?.length ?? 0,
+                        queue: [for (final v in hot) v.id],
+                        from: '歌手頁「${a.name}」・熱門',
+                      ),
                     ),
+                  ),
                   _h2('他唱的・全部 ${vs.length}'),
                   _chips([
                     _chip(
@@ -1059,6 +1101,7 @@ class _MusicArtistPageState extends ConsumerState<MusicArtistPage> {
                   const SizedBox(height: 6),
                   for (final v in shown)
                     MusicVersionTile(
+                      bigCover: true,
                       version: v,
                       queue: [for (final x in shown) x.id],
                       from: '歌手頁「${a.name}」',
@@ -1659,6 +1702,7 @@ class MusicEventLogPage extends ConsumerWidget {
 /// 音樂右上角「＋」（2026-10-19 使用者要求：要能直接新增歌手，不是只能去
 /// 搜影片）：新增歌手／加歌（從 YT 管理挑）／新增歌單。
 Future<void> showMusicAddMenu(BuildContext context, WidgetRef ref) async {
+  Future<String?>? clip;
   Widget item(
     BuildContext ctx,
     IconData icon,
@@ -1676,7 +1720,11 @@ Future<void> showMusicAddMenu(BuildContext context, WidgetRef ref) async {
       style: const TextStyle(color: AppColors.ink, fontWeight: FontWeight.w700),
     ),
     subtitle: Text(sub, style: AppText.note),
-    onTap: () => Navigator.pop(ctx, v),
+    onTap: () {
+      // 添加歌曲：點這一下就讀剪貼簿（iOS 只准點擊當下讀）
+      if (v == 'song') clip = readClipboardText();
+      Navigator.pop(ctx, v);
+    },
   );
   final c = await showMusicSheet<String>(
     context,
@@ -1725,10 +1773,11 @@ Future<void> showMusicAddMenu(BuildContext context, WidgetRef ref) async {
         r.name,
         avatarUrls: r.avatarUrls,
         shownAvatar: r.shownAvatar,
+        gender: r.gender,
       );
       if (context.mounted) context.push('/music/artist/$id');
     case 'song':
-      await showMusicAddFromYt(context);
+      await showMusicAddFromYt(context, clip: clip);
     case 'list':
       final n = await promptMusicText(context, title: '新歌單的名字');
       if (n == null || n.isEmpty) return;

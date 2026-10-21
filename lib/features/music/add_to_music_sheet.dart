@@ -36,10 +36,15 @@ Future<void> showAddToMusicSheet(
   );
   final titleC = TextEditingController(text: g.title);
   final noteC = TextEditingController();
-  var type = g.type;
+  // 預設「演唱」（2026-10-21 使用者要求）；標題看得出是翻唱、Live、合唱、清唱的才照猜的
+  var type = g.type == MusicVersionType.other ? MusicVersionType.sing : g.type;
+  final yearC = TextEditingController(text: '${publishedAt.year}');
   // 從歌手頁加的：誰唱的就是那個歌手（還是可以再改）。
   var artists = artistId == null ? List<String>.of(g.artistIds) : [artistId];
-  var orig = List<String>.of(g.originalArtistIds);
+  // 從歌手頁加的：原唱也預設是他（2026-10-21 使用者要求，可以改）
+  var orig = artistId == null
+      ? List<String>.of(g.originalArtistIds)
+      : [artistId];
   final saved = await showMusicSheet<bool>(
     context,
     (ctx) => StatefulBuilder(
@@ -132,6 +137,13 @@ Future<void> showAddToMusicSheet(
                 ],
               ),
             ],
+            musicFieldLabel('發行年份（預設 YouTube 上傳那年，可以改）'),
+            TextField(
+              controller: yearC,
+              keyboardType: TextInputType.number,
+              style: const TextStyle(color: AppColors.ink),
+              decoration: musicInputDecoration('例如：2003'),
+            ),
             musicFieldLabel('備註（選填）'),
             TextField(
               controller: noteC,
@@ -226,6 +238,9 @@ Future<void> showAddToMusicSheet(
     type: type,
     artistIds: ids,
     note: noteC.text,
+    releaseYear: int.tryParse(yearC.text.trim()) == publishedAt.year
+        ? null
+        : int.tryParse(yearC.text.trim()),
   );
   if (!context.mounted) return;
   final work = ref.read(musicDataProvider).work(v.workId);
