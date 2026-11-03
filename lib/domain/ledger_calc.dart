@@ -19,6 +19,7 @@ const ledgerExpenseCats = <String, (String, int)>{
   '帳單': ('🧾', 0xFF7EA6FF),
   '醫療': ('💊', 0xFFFF7A9A),
   '雲端服務': ('☁️', 0xFF9ADBFF),
+  '創業魔物童話': ('🐉', 0xFFE08FD0),
   '未分類': ('❔', 0xFF8A8A9A),
 };
 
