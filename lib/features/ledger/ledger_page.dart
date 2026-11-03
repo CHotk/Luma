@@ -940,7 +940,7 @@ class LedgerPage extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      a.isCard ? '可刷卡餘額' : 'App 推算餘額',
+                      a.isCard ? '可刷額' : 'App 推算餘額',
                       style: AppText.note.copyWith(fontSize: 10.5),
                     ),
                     Text(

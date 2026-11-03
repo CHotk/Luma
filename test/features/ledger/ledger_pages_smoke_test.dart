@@ -215,7 +215,7 @@ void main() {
     final book = await tester.runAsync(
       () => LedgerRepository(store).loadBook(),
     );
-    expect(book!.accounts.map((a) => a.name), ['中信活存', '中信信用卡', '現金']);
+    expect(book!.accounts.map((a) => a.name), ['中信活存', '中信卡', '現金']);
     expect(book.checkpoints, isEmpty);
     // 記一筆，不填任何餘額。
     await tester.pumpAndSettle();

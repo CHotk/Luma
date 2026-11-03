@@ -376,7 +376,7 @@ class _Setup extends StatefulWidget {
 class _SetupState extends State<_Setup> {
   final _rows = [
     _SetupRow(LedgerAccountType.bank, '中信活存'),
-    _SetupRow(LedgerAccountType.creditCard, '中信信用卡'),
+    _SetupRow(LedgerAccountType.creditCard, '中信卡'),
     _SetupRow(LedgerAccountType.cash, '現金'),
   ];
 
@@ -594,10 +594,10 @@ class _AccountFormState extends State<_AccountForm> {
         _label('名稱'),
         TextField(
           controller: _name,
-          decoration: _input(_card ? '例如 中信信用卡' : '例如 郵局'),
+          decoration: _input(_card ? '例如 中信卡' : '例如 郵局'),
         ),
         if (edit == null) ...[
-          _label(_card ? '現在的可刷卡餘額' : '現在有多少', trailing: '選填'),
+          _label(_card ? '現在的可刷額' : '現在有多少', trailing: '選填'),
           TextField(
             controller: _opening,
             keyboardType: TextInputType.number,
@@ -1045,7 +1045,7 @@ class _TxFormState extends State<_TxForm> {
     return [
       _label(
         card
-            ? '這筆刷完後可刷卡餘額'
+            ? '這筆刷完後可刷額'
             : a.type == LedgerAccountType.cash
             ? '這筆之後皮包餘額'
             : '這筆之後的餘額',
@@ -1340,7 +1340,7 @@ class _TxFormState extends State<_TxForm> {
                     (v) => setState(() => _account = v),
                   ),
                   _note([
-                    const TextSpan(text: '退款會從原本那筆的分類扣回來；退回信用卡的話，可刷卡餘額也會跟著變多。'),
+                    const TextSpan(text: '退款會從原本那筆的分類扣回來；退回信用卡的話，可刷額也會跟著變多。'),
                   ]),
                 ],
         );
@@ -1684,7 +1684,7 @@ class _TxDetail extends StatelessWidget {
       for (final a in book.accounts)
         if (LedgerBook.delta(t, a) case final d when d != 0)
           a.isCard
-              ? '${a.name}可刷卡餘額 ${d > 0 ? '−' : '+'}${lInt(d.abs())}'
+              ? '${a.name}可刷額 ${d > 0 ? '−' : '+'}${lInt(d.abs())}'
               : '${a.name} ${d > 0 ? '+' : '−'}${lInt(d.abs())}',
     ].join('\n');
     final counts = switch (t.type) {
@@ -2002,7 +2002,7 @@ class _ReconState extends State<_Recon> {
   Widget build(BuildContext context) {
     final a = widget.account, s = _s, book = widget.book;
     final first = s == null;
-    // 信用卡一律寫「可用額度（可刷卡餘額）」，不提總額度、已占用。
+    // 信用卡一律寫「可用額度（可刷額）」，不提總額度、已占用。
     final noLimit = _card;
     final since = s == null
         ? const <int>[]
@@ -2091,12 +2091,12 @@ class _ReconState extends State<_Recon> {
                   : '+${lInt(plus)}／−${lInt(minus)}',
             ),
             if (noLimit)
-              _kv('App 推算可刷卡餘額', lMoney(s.available))
+              _kv('App 推算可刷額', lMoney(s.available))
             else
               _kv(_card ? 'App 推算已占用' : 'App 推算現在', lMoney(s.now)),
           ]),
         if (_card) ...[
-          _label('現在可刷卡餘額（可用額度）'),
+          _label('現在可刷額（可用額度）'),
           TextField(
             controller: _value,
             autofocus: true,
@@ -2127,7 +2127,7 @@ class _ReconState extends State<_Recon> {
         else
           _box([
             if (noLimit) ...[
-              _kv('實際可刷卡餘額', lMoney(_int(_value) ?? 0)),
+              _kv('實際可刷額', lMoney(_int(_value) ?? 0)),
               _kv('App 推算', lMoney(s.available)),
             ] else ...[
               if (_card)
@@ -2162,7 +2162,7 @@ class _ReconState extends State<_Recon> {
           Padding(
             padding: const EdgeInsets.only(top: 8),
             child: Text(
-              '可刷卡餘額比算的少：可能有刷卡沒記，或是預授權（飯店、加油站）先占了額度。',
+              '可刷額比算的少：可能有刷卡沒記，或是預授權（飯店、加油站）先占了額度。',
               style: AppText.note.copyWith(color: AppColors.ink3),
             ),
           ),
@@ -2252,7 +2252,7 @@ Widget _resultBanner(AccountState s, {int? thisMiss}) {
           ok
               ? '${a.name}從第一次填餘額到現在都沒有漏記'
               : '${thisMiss != null && thisMiss != 0 ? '這次差 ${lMoney(thisMiss.abs())}・' : ''}'
-                    '${s.miss > 0 ? (a.isCard ? '可刷卡餘額比 App 算的少，可能有刷卡沒記到' : '實際比 App 算的少，可能有支出沒記到') : '實際比 App 算的多，可能有收入或退款沒記到'}',
+                    '${s.miss > 0 ? (a.isCard ? '可刷額比 App 算的少，可能有刷卡沒記到' : '實際比 App 算的少，可能有支出沒記到') : '實際比 App 算的多，可能有收入或退款沒記到'}',
           textAlign: TextAlign.center,
           style: AppText.note,
         ),
@@ -2362,7 +2362,7 @@ class _AccountDetail extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    a.isCard ? 'App 推算可刷卡餘額' : 'App 推算餘額',
+                    a.isCard ? 'App 推算可刷額' : 'App 推算餘額',
                     style: AppText.note,
                   ),
                   Text(
@@ -2417,7 +2417,7 @@ class _AccountDetail extends StatelessWidget {
                           : '當時差 ${lMoney(d.miss.abs())}'}',
                       color: first || d.miss == 0 ? null : AppColors.mid,
                       sub:
-                          '${a.isCard ? '可刷卡餘額 ${lInt(c.available ?? 0)}' : '實際餘額'}'
+                          '${a.isCard ? '可刷額 ${lInt(c.available ?? 0)}' : '實際餘額'}'
                           '${fixes.isEmpty ? '' : '・已${fixes.first.type == LedgerTxType.adjustment ? '調整' : '補記'} ${lMoney(fixes.fold(0, (x, t) => x + t.amount))}'}',
                     ),
                   );

@@ -53,7 +53,7 @@ class LedgerRepository {
   /// 合併成同一個、不會變兩份。
   static const _defaults = [
     ('default_bank', '中信活存', LedgerAccountType.bank),
-    ('default_card', '中信信用卡', LedgerAccountType.creditCard),
+    ('default_card', '中信卡', LedgerAccountType.creditCard),
     ('default_cash', '現金', LedgerAccountType.cash),
   ];
 
@@ -334,7 +334,7 @@ class LedgerRepository {
     if (oldVal != value) {
       await _log(
         '填餘額（記一筆時）',
-        isCard ? '可刷卡餘額 \$$value' : '餘額 \$$value',
+        isCard ? '可刷額 \$$value' : '餘額 \$$value',
         detail: oldVal == null ? '' : '$oldVal → $value',
         refId: txId,
       );
@@ -351,7 +351,7 @@ class LedgerRepository {
     final name = await _acctName();
     await _log(
       '對帳／填餘額',
-      '${name(c.accountId)}：${c.available != null ? '可刷卡餘額 \$${c.available}' : '餘額 \$${c.balance}'}',
+      '${name(c.accountId)}：${c.available != null ? '可刷額 \$${c.available}' : '餘額 \$${c.balance}'}',
       refId: c.id,
     );
   }
