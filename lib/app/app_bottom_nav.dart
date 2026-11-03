@@ -160,6 +160,44 @@ class _AppBottomNavFrameState extends ConsumerState<AppBottomNavFrame> {
     });
   }
 
+  /// 記帳自己的分頁列（2026-11-03 設計稿版本 1）：首頁／明細／統計／帳戶。
+  static const _ledgerTabs = [
+    FloatingTab(
+      icon: Icons.home_outlined,
+      selectedIcon: Icons.home_rounded,
+      label: '首頁',
+    ),
+    FloatingTab(
+      icon: Icons.receipt_long_outlined,
+      selectedIcon: Icons.receipt_long_rounded,
+      label: '明細',
+    ),
+    FloatingTab(
+      icon: Icons.pie_chart_outline_rounded,
+      selectedIcon: Icons.pie_chart_rounded,
+      label: '統計',
+    ),
+    FloatingTab(
+      icon: Icons.account_balance_outlined,
+      selectedIcon: Icons.account_balance_rounded,
+      label: '帳戶',
+    ),
+  ];
+
+  _NavSpec _ledgerSpec(String path) {
+    const targets = [
+      '/ledger',
+      '/ledger/list',
+      '/ledger/stats',
+      '/ledger/accounts',
+    ];
+    final i = targets.indexOf(path);
+    return _NavSpec(_ledgerTabs, i < 0 ? null : i, (t) {
+      if (path == targets[t]) return;
+      appRouter.go(targets[t]);
+    });
+  }
+
   static bool _isJp(String path) =>
       path.startsWith('/jp-') ||
       path.startsWith('/kana-practice') ||
@@ -194,6 +232,8 @@ class _AppBottomNavFrameState extends ConsumerState<AppBottomNavFrame> {
     if (path.startsWith('/music') && mode != NavBarMode.off) {
       return _musicSpec(path);
     }
+    // 記帳的四個分頁只能從這條切，所以就算整條關掉也照樣顯示。
+    if (path.startsWith('/ledger')) return _ledgerSpec(path);
     switch (mode) {
       case NavBarMode.off:
         return null;

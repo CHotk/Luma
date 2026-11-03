@@ -1,0 +1,905 @@
+import 'dart:math' as math;
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../app/app_bottom_nav.dart';
+import '../../app/theme/colors.dart';
+import '../../app/theme/spacing.dart';
+import '../../app/theme/typography.dart';
+import '../../domain/ledger_calc.dart';
+import '../../shared/widgets/ambient_background.dart';
+import '../../shared/widgets/app_side_drawer.dart';
+import '../../shared/widgets/app_top_bar.dart';
+import '../../shared/widgets/glass_card.dart';
+import '../../shared/widgets/inline_empty_card.dart';
+import 'ledger_data.dart';
+import 'ledger_ui.dart';
+
+/// 記帳（Lume 自己用的，2026-11-03 使用者從
+/// `design-history/記帳功能設計/2026-11-03_記帳（帳戶＋對帳）五種設計.html`
+/// 挑了版本 1「分頁式記帳 App（主流）」）。下方膠囊四個分頁：首頁／明細／
+/// 統計／帳戶（各自一個網址，分頁列在 `app_bottom_nav.dart`），右下角 ＋
+/// 記一筆。算法照 `docs/記帳功能構想.md`。
+enum LedgerTab {
+  home('/ledger', '記帳'),
+  list('/ledger/list', '明細'),
+  stats('/ledger/stats', '統計'),
+  accounts('/ledger/accounts', '帳戶');
+
+  const LedgerTab(this.path, this.title);
+
+  final String path;
+  final String title;
+}
+
+/// 看哪個月（四個分頁共用，切分頁不會跳回這個月）。
+final ledgerMonthProvider = StateProvider<DateTime>(
+  (_) => DateTime(DateTime.now().year, DateTime.now().month),
+);
+
+/// 明細的篩選：只看 🚩、只看某個帳戶。
+final ledgerFilterProvider = StateProvider<({bool flagged, String? accountId})>(
+  (_) => (flagged: false, accountId: null),
+);
+
+class LedgerPage extends ConsumerWidget {
+  const LedgerPage({super.key, required this.tab});
+
+  final LedgerTab tab;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final book = ref.watch(ledgerBookProvider).valueOrNull;
+    final inset = FloatingNavInset.of(context);
+    return Scaffold(
+      drawer: const AppSideDrawer(),
+      floatingActionButton: book == null || !book.isSetUp
+          ? null
+          : Padding(
+              padding: EdgeInsets.only(bottom: inset),
+              child: FloatingActionButton(
+                onPressed: () => txFormFlow(context, ref),
+                tooltip: '記一筆',
+                backgroundColor: ledgerAccent,
+                foregroundColor: const Color(0xFF08130E),
+                child: const Icon(Icons.add_rounded),
+              ),
+            ),
+      body: AmbientBackground(
+        child: SafeArea(
+          bottom: false,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: Gap.screenSide),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: Gap.sm),
+                AppTopBar(
+                  title: tab.title,
+                  titleIcon: Icons.receipt_long_outlined,
+                  titleIconColor: ledgerAccent,
+                  showBack: false,
+                ),
+                const SizedBox(height: Gap.sm),
+                Expanded(
+                  child: book == null
+                      ? const Center(
+                          child: CircularProgressIndicator.adaptive(),
+                        )
+                      : ListView(
+                          padding: EdgeInsets.only(bottom: 96 + inset),
+                          children: !book.isSetUp
+                              ? _notSetUp(context, ref)
+                              : switch (tab) {
+                                  LedgerTab.home => _home(context, ref, book),
+                                  LedgerTab.list => _list(context, ref, book),
+                                  LedgerTab.stats => _stats(context, ref, book),
+                                  LedgerTab.accounts => _accounts(
+                                    context,
+                                    ref,
+                                    book,
+                                  ),
+                                },
+                        ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _notSetUp(BuildContext context, WidgetRef ref) => [
+    InlineEmptyCard(
+      title: '還沒開始記帳',
+      message:
+          '選一天當起始日，填當天活存、信用卡可用額度、現金各有多少就能開始。'
+          '不用補以前的紀錄。',
+      actions: [EmptyAction('開始記帳', () => setupFlow(context, ref))],
+    ),
+  ];
+
+  // ── 共用小區塊 ───────────────────────────────────────────
+
+  Widget _monthBar(WidgetRef ref) {
+    final m = ref.watch(ledgerMonthProvider);
+    void go(int d) => ref.read(ledgerMonthProvider.notifier).state = DateTime(
+      m.year,
+      m.month + d,
+    );
+    return Row(
+      children: [
+        IconButton(
+          onPressed: () => go(-1),
+          icon: const Icon(Icons.chevron_left_rounded),
+          color: AppColors.ink2,
+          tooltip: '上個月',
+        ),
+        Expanded(
+          child: Text(
+            '${m.year} 年 ${m.month} 月',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+              color: AppColors.ink,
+            ),
+          ),
+        ),
+        IconButton(
+          onPressed: () => go(1),
+          icon: const Icon(Icons.chevron_right_rounded),
+          color: AppColors.ink2,
+          tooltip: '下個月',
+        ),
+      ],
+    );
+  }
+
+  Widget _spendCard(
+    BuildContext context,
+    WidgetRef ref,
+    LedgerBook book,
+    DateTime m,
+  ) {
+    final st = book.monthStats(m.year, m.month);
+    final bud = book.budgetOf(m.year, m.month);
+    final left = bud.total - st.spend;
+    final now = DateTime.now();
+    final isCur = now.year == m.year && now.month == m.month;
+    final daysLeft = DateTime(m.year, m.month + 1, 0).day - now.day + 1;
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Text('💰 控制開銷・${m.month} 月', style: AppText.note),
+              const Spacer(),
+              InkWell(
+                onTap: () => budgetFlow(context, ref, m.year, m.month),
+                child: Text(
+                  bud.total == 0 ? '設定預算 ✎' : '編輯預算 ✎',
+                  style: AppText.note.copyWith(color: ledgerAccent),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(bud.total == 0 ? '本月消費' : '剩餘可花', style: AppText.note),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        lMoney(bud.total == 0 ? st.spend : left),
+                        style: TextStyle(
+                          fontSize: 30,
+                          fontWeight: FontWeight.w800,
+                          color: left < 0 && bud.total > 0
+                              ? ledgerBad
+                              : AppColors.ink,
+                          fontFeatures: lTabular,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (bud.total > 0)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text('本月消費', style: AppText.note),
+                    Text(
+                      lMoney(st.spend),
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.ink,
+                        fontFeatures: lTabular,
+                      ),
+                    ),
+                    Text(
+                      '預算 ${lMoney(bud.total)}${bud.carriedFrom == null ? '' : '（沿用）'}',
+                      style: AppText.note.copyWith(color: AppColors.ink3),
+                    ),
+                  ],
+                ),
+            ],
+          ),
+          if (bud.total > 0) ...[
+            const SizedBox(height: 10),
+            LedgerBar(
+              st.spend / bud.total,
+              color: left < 0 ? ledgerBad : ledgerAccent,
+            ),
+          ],
+          const SizedBox(height: 7),
+          Text(
+            '${isCur && left > 0 && bud.total > 0 ? '還有 $daysLeft 天，平均每天可花 ${lMoney(left ~/ daysLeft)}・' : ''}'
+            '轉帳、繳卡費、幫別人付的不算',
+            style: AppText.note.copyWith(color: AppColors.ink3),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _completeness(BuildContext context, WidgetRef ref, LedgerBook book) {
+    final states = book.states;
+    final bad = states.where((s) => s.miss != 0).length;
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Text('🧾 記帳完整度', style: AppText.note),
+              const SizedBox(width: 6),
+              bad > 0
+                  ? LedgerPill('$bad 個帳戶對不上', color: AppColors.mid)
+                  : const LedgerPill('全部對上', color: AppColors.ok),
+              const Spacer(),
+              InkWell(
+                onTap: () => reconAllFlow(context, ref),
+                child: Text(
+                  '一次對帳 ›',
+                  style: AppText.note.copyWith(color: ledgerAccent),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          for (final s in states)
+            AccountStatusRow(
+              state: s,
+              onTap: () => accountFlow(context, ref, s.account),
+            ),
+          const SizedBox(height: 4),
+          Text(
+            '這裡只看「有沒有漏記」，跟上面「剩餘可花」是兩回事。',
+            style: AppText.note.copyWith(color: AppColors.ink3, fontSize: 10.5),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _mini(BuildContext context, WidgetRef ref, LedgerBook book) {
+    final owes = book.owes;
+    Widget box(String top, String value, String sub, Color c, VoidCallback f) =>
+        Expanded(
+          child: GlassCard(
+            onTap: f,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(top, style: AppText.note.copyWith(fontSize: 10.5)),
+                const SizedBox(height: 3),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: c,
+                    fontFeatures: lTabular,
+                  ),
+                ),
+                Text(
+                  sub,
+                  style: AppText.note.copyWith(
+                    fontSize: 10.5,
+                    color: AppColors.ink3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+    return Row(
+      children: [
+        box(
+          '🤝 別人還欠你',
+          lMoney(book.oweTotal),
+          '${owes.length} 筆幫付還沒還清',
+          ledgerPaidFor,
+          () => oweFlow(context, ref),
+        ),
+        const SizedBox(width: 8),
+        box(
+          '🚩 標記要注意',
+          '${book.flagged.length} 筆',
+          '點開只看這些',
+          AppColors.ink,
+          () => flagsFlow(context, ref),
+        ),
+      ],
+    );
+  }
+
+  // ── 首頁 ─────────────────────────────────────────────────
+
+  List<Widget> _home(BuildContext context, WidgetRef ref, LedgerBook book) {
+    final m = ref.watch(ledgerMonthProvider);
+    final recent = book.txs.take(6).toList();
+    return [
+      _monthBar(ref),
+      _spendCard(context, ref, book, m),
+      const SizedBox(height: Gap.md),
+      _completeness(context, ref, book),
+      const SizedBox(height: Gap.md),
+      _mini(context, ref, book),
+      ledgerSection(
+        '最近記的',
+        action: '全部明細 ›',
+        onAction: () => context.go(LedgerTab.list.path),
+      ),
+      if (recent.isEmpty)
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Text('還沒有紀錄，按右下角 ＋ 記第一筆', style: AppText.bodyDim),
+        ),
+      for (final t in recent)
+        TxTile(
+          book: book,
+          tx: t,
+          showDate: true,
+          onTap: () => txDetailFlow(context, ref, t.id),
+        ),
+    ];
+  }
+
+  // ── 明細 ─────────────────────────────────────────────────
+
+  List<Widget> _list(BuildContext context, WidgetRef ref, LedgerBook book) {
+    final m = ref.watch(ledgerMonthProvider);
+    final f = ref.watch(ledgerFilterProvider);
+    void set(({bool flagged, String? accountId}) v) =>
+        ref.read(ledgerFilterProvider.notifier).state = v;
+    final inM = book.txs.where(LedgerBook.inMonth(m.year, m.month)).toList();
+    final shown = inM
+        .where(
+          (t) =>
+              (!f.flagged || t.flagged) &&
+              (f.accountId == null ||
+                  t.accountId == f.accountId ||
+                  t.toAccountId == f.accountId),
+        )
+        .toList();
+    final st = book.statsWhere(shown.contains);
+    final any = f.flagged || f.accountId != null;
+    return [
+      _monthBar(ref),
+      SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            ChoiceChip(
+              label: const Text('全部'),
+              selected: !any,
+              showCheckmark: false,
+              onSelected: (_) => set((flagged: false, accountId: null)),
+            ),
+            const SizedBox(width: 6),
+            ChoiceChip(
+              label: Text('🚩 要注意 ${inM.where((t) => t.flagged).length}'),
+              selected: f.flagged,
+              showCheckmark: false,
+              onSelected: (_) =>
+                  set((flagged: !f.flagged, accountId: f.accountId)),
+            ),
+            for (final a in book.accounts) ...[
+              const SizedBox(width: 6),
+              ChoiceChip(
+                label: Text('${a.type.emoji} ${a.name}'),
+                selected: f.accountId == a.id,
+                showCheckmark: false,
+                onSelected: (_) => set((
+                  flagged: f.flagged,
+                  accountId: f.accountId == a.id ? null : a.id,
+                )),
+              ),
+            ],
+          ],
+        ),
+      ),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(4, 8, 4, 0),
+        child: Text(
+          '${shown.length} 筆・消費 ${lMoney(st.spend)}・收入 ${lMoney(st.income)}'
+          '${any ? '（篩選中）' : ''}',
+          style: AppText.note.copyWith(color: AppColors.ink3),
+        ),
+      ),
+      if (shown.isEmpty)
+        Padding(
+          padding: const EdgeInsets.only(top: Gap.md),
+          child: InlineEmptyCard(
+            title: any ? '沒有符合的紀錄' : '這個月還沒有紀錄',
+            message: any ? '換個篩選看看' : '按右下角 ＋ 記一筆，或到「帳戶」貼上刷卡紀錄匯入',
+            actions: [
+              if (any)
+                EmptyAction(
+                  '看全部',
+                  () => set((flagged: false, accountId: null)),
+                ),
+            ],
+          ),
+        )
+      else
+        ...groupedTxList(book, shown, (t) => txDetailFlow(context, ref, t.id)),
+    ];
+  }
+
+  // ── 統計 ─────────────────────────────────────────────────
+
+  List<Widget> _stats(BuildContext context, WidgetRef ref, LedgerBook book) {
+    final m = ref.watch(ledgerMonthProvider);
+    final st = book.monthStats(m.year, m.month);
+    final bud = book.budgetOf(m.year, m.month);
+    final left = bud.total - st.spend;
+    final cats = st.byCategory.entries.where((e) => e.value > 0).toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final total = cats.fold(0, (s, e) => s + e.value);
+    final rows =
+        {
+          ...st.byCategory.keys.where((c) => (st.byCategory[c] ?? 0) != 0),
+          ...bud.byCategory.keys,
+        }.toList()..sort(
+          (a, b) => (st.byCategory[b] ?? 0).compareTo(st.byCategory[a] ?? 0),
+        );
+    Widget kpi(String v, String label, {Color? color, VoidCallback? onTap}) =>
+        Expanded(
+          child: GlassCard(
+            onTap: onTap,
+            padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 4),
+            child: Column(
+              children: [
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    v,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: color ?? AppColors.ink,
+                      fontFeatures: lTabular,
+                    ),
+                  ),
+                ),
+                Text(label, style: AppText.note.copyWith(fontSize: 10)),
+              ],
+            ),
+          ),
+        );
+    return [
+      _monthBar(ref),
+      Row(
+        children: [
+          kpi(lMoney(st.spend), '本月消費'),
+          const SizedBox(width: 6),
+          kpi(lMoney(st.income), '本月收入', color: AppColors.ok),
+          const SizedBox(width: 6),
+          kpi(
+            bud.total == 0 ? '設定' : lMoney(left),
+            '剩餘可花 ✎',
+            color: bud.total > 0 && left < 0 ? ledgerBad : null,
+            onTap: () => budgetFlow(context, ref, m.year, m.month),
+          ),
+        ],
+      ),
+      const SizedBox(height: Gap.md),
+      GlassCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('📊 分類佔比', style: AppText.note),
+            const SizedBox(height: 10),
+            Center(
+              child: SizedBox(
+                width: 170,
+                height: 170,
+                child: CustomPaint(
+                  painter: _DonutPainter([
+                    for (final e in cats) (e.value, catLook(e.key).$2),
+                  ]),
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('本月消費', style: AppText.note),
+                        Text(
+                          lMoney(st.spend),
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.ink,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            if (cats.isEmpty)
+              Center(child: Text('這個月還沒有消費', style: AppText.bodyDim))
+            else
+              Wrap(
+                spacing: 14,
+                runSpacing: 6,
+                children: [
+                  for (final e in cats)
+                    InkWell(
+                      onTap: () =>
+                          categoryFlow(context, ref, e.key, m.year, m.month),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 9,
+                            height: 9,
+                            decoration: BoxDecoration(
+                              color: catLook(e.key).$2,
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            '${e.key} ${(e.value / total * 100).round()}%',
+                            style: AppText.note,
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+          ],
+        ),
+      ),
+      ledgerSection(
+        '分類與預算',
+        action: '編輯預算 ✎',
+        onAction: () => budgetFlow(context, ref, m.year, m.month),
+      ),
+      if (rows.isEmpty)
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Text('這個月還沒有消費', style: AppText.bodyDim),
+        )
+      else
+        GlassCard(
+          child: Column(
+            children: [
+              for (final c in rows)
+                _catRow(
+                  context,
+                  ref,
+                  c,
+                  st.byCategory[c] ?? 0,
+                  bud.byCategory[c],
+                  st.spend,
+                  m,
+                ),
+            ],
+          ),
+        ),
+    ];
+  }
+
+  Widget _catRow(
+    BuildContext context,
+    WidgetRef ref,
+    String cat,
+    int v,
+    int? budget,
+    int spend,
+    DateTime m,
+  ) {
+    final over = budget != null && v > budget;
+    final (emoji, color) = catLook(cat);
+    return InkWell(
+      onTap: () => categoryFlow(context, ref, cat, m.year, m.month),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Wrap(
+                    spacing: 6,
+                    runSpacing: 2,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text(
+                        '$emoji $cat',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.ink,
+                        ),
+                      ),
+                      if (over)
+                        LedgerPill(
+                          '超支 ${lMoney(v - budget)}',
+                          color: ledgerBad,
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '${lMoney(v)}${budget == null ? '' : ' / ${lMoney(budget)}'}',
+                  style: AppText.note.copyWith(fontFeatures: lTabular),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            LedgerBar(
+              budget != null
+                  ? v / budget
+                  : spend <= 0
+                  ? 0
+                  : v / spend,
+              color: over ? ledgerBad : color,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── 帳戶 ─────────────────────────────────────────────────
+
+  List<Widget> _accounts(BuildContext context, WidgetRef ref, LedgerBook book) {
+    Widget tool(IconData icon, String title, String sub, VoidCallback onTap) =>
+        Padding(
+          padding: const EdgeInsets.only(bottom: 6),
+          child: Material(
+            color: ledgerTileBg,
+            borderRadius: BorderRadius.circular(14),
+            clipBehavior: Clip.antiAlias,
+            child: ListTile(
+              onTap: onTap,
+              leading: Icon(icon, color: AppColors.ink2),
+              title: Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.ink,
+                ),
+              ),
+              subtitle: Text(sub, style: AppText.note.copyWith(fontSize: 11)),
+              trailing: const Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.ink3,
+              ),
+            ),
+          ),
+        );
+    final m = ref.watch(ledgerMonthProvider);
+    return [
+      ledgerSection(
+        '我的帳戶',
+        action: '一次對完 ›',
+        onAction: () => reconAllFlow(context, ref),
+      ),
+      for (final s in book.states) _accountCard(context, ref, s),
+      OutlinedButton.icon(
+        onPressed: () => addAccountFlow(context, ref),
+        icon: const Icon(Icons.add_rounded, size: 18),
+        label: const Text('新增帳戶'),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.ink,
+          side: const BorderSide(color: AppColors.glassEdge),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+        ),
+      ),
+      ledgerSection('工具'),
+      tool(
+        Icons.content_paste_rounded,
+        '貼上文字匯入',
+        '銀行｜日期時間｜分類｜商家｜金額，一行一筆',
+        () => importFlow(context, ref),
+      ),
+      tool(
+        Icons.handshake_outlined,
+        '別人還欠你',
+        '幫別人付、記還款、標記已還清',
+        () => oweFlow(context, ref),
+      ),
+      tool(
+        Icons.flag_outlined,
+        '標記要注意的',
+        '只看被標記的那幾筆',
+        () => flagsFlow(context, ref),
+      ),
+      tool(
+        Icons.track_changes_rounded,
+        '預算',
+        '${m.month} 月的整月總額＋各分類',
+        () => budgetFlow(context, ref, m.year, m.month),
+      ),
+      tool(
+        Icons.event_rounded,
+        '起始日與期初值',
+        '起始日 ${book.startDate == null ? '—' : lYmd(book.startDate!)}，對帳從這天開始算',
+        () => startFlow(context, ref),
+      ),
+    ];
+  }
+
+  Widget _accountCard(BuildContext context, WidgetRef ref, AccountState s) {
+    final a = s.account;
+    final color = accountColor(a.type);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Gap.md),
+      child: GlassCard(
+        onTap: () => accountFlow(context, ref, a),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                LedgerIcon(a.type.emoji, color),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        a.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.ink,
+                        ),
+                      ),
+                      Text(
+                        '${a.type.label}${s.checked ? '・上次對帳 ${lMd(s.last.at)} ${lHm(s.last.at)}' : ''}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppText.note.copyWith(
+                          fontSize: 10.5,
+                          color: AppColors.ink3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      a.isCard ? '已占用' : 'App 推算餘額',
+                      style: AppText.note.copyWith(fontSize: 10.5),
+                    ),
+                    Text(
+                      lMoney(s.now),
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.ink,
+                        fontFeatures: lTabular,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            if (a.isCard) ...[
+              const SizedBox(height: 10),
+              LedgerBar(s.limit <= 0 ? 0 : s.now / s.limit, color: color),
+              const SizedBox(height: 5),
+              Text(
+                '可用 ${lMoney(s.available)} / 額度 ${lMoney(s.limit)}',
+                style: AppText.note.copyWith(color: AppColors.ink3),
+              ),
+            ],
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                !s.checked
+                    ? const LedgerPill('還沒對帳')
+                    : s.miss == 0
+                    ? const LedgerPill('✓ 對上了', color: AppColors.ok)
+                    : LedgerPill(
+                        '⚠ 差 ${lMoney(s.miss.abs())}・${s.miss > 0 ? '可能漏記' : '多出來'}',
+                        color: AppColors.mid,
+                      ),
+                const Spacer(),
+                FilledButton(
+                  onPressed: () => reconFlow(context, ref, a),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: ledgerAccent,
+                    foregroundColor: const Color(0xFF08130E),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  child: const Text('對帳'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 分類佔比的甜甜圈。
+class _DonutPainter extends CustomPainter {
+  _DonutPainter(this.parts);
+
+  final List<(int, Color)> parts;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const stroke = 24.0;
+    final rect = Rect.fromLTWH(
+      stroke / 2,
+      stroke / 2,
+      size.width - stroke,
+      size.height - stroke,
+    );
+    final total = parts.fold(0, (s, p) => s + p.$1);
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke;
+    if (total <= 0) {
+      canvas.drawArc(
+        rect,
+        0,
+        math.pi * 2,
+        false,
+        paint..color = const Color(0xFF1E1E2E),
+      );
+      return;
+    }
+    var start = -math.pi / 2;
+    for (final (v, c) in parts) {
+      final sweep = v / total * math.pi * 2;
+      canvas.drawArc(rect, start, sweep, false, paint..color = c);
+      start += sweep;
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DonutPainter old) => true;
+}

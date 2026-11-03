@@ -1,0 +1,435 @@
+import 'dart:math';
+
+/// 記帳（Lume 自己用的，2026-11-03）：帳戶＋交易＋對帳。資料格式照
+/// `docs/記帳功能構想.md`「資料格式（定案）」，四個檔各自一個清單、各自同步：
+/// 帳戶、交易、對帳點、預算。
+///
+/// 規矩（文件「實作時要守住的規則」）：金額用整數（新台幣到元）、金額永遠
+/// 是正數（方向看 type 跟帳戶）、時間帶時區、id 用 32 個十六進位字元、
+/// 只存事實不存算出來的數字、刪除用墓碑。
+///
+/// 跟給朋友用的 cen_tally（另一個 repo）是兩回事，不共用任何東西。
+
+final _rand = Random.secure();
+
+/// 32 個十六進位字元、不加連字號的隨機 id（v4 UUID 的寫法，文件規則 4）。
+/// 每個字元各抽一次 0–15，不用位元運算（網頁版整數位元運算只有 32 位）。
+String ledgerId() =>
+    List.generate(32, (_) => '0123456789abcdef'[_rand.nextInt(16)]).join();
+
+/// 帶時區的 ISO 時間（`2026-10-24T21:08:00.000+08:00`），跨裝置、跨午夜才不會
+/// 算錯月份（文件規則 3）。留到毫秒：同步比 updatedAt 誰新，只到秒的話同一秒
+/// 內的兩次修改會平手，新的那次可能被舊的蓋掉。
+String ledgerTime(DateTime t) {
+  final l = t.toLocal();
+  String p(int n, [int w = 2]) => n.toString().padLeft(w, '0');
+  final off = l.timeZoneOffset;
+  final sign = off.isNegative ? '-' : '+';
+  final m = off.inMinutes.abs();
+  return '${p(l.year, 4)}-${p(l.month)}-${p(l.day)}T${p(l.hour)}:${p(l.minute)}'
+      ':${p(l.second)}.${p(l.millisecond, 3)}$sign${p(m ~/ 60)}:${p(m % 60)}';
+}
+
+DateTime? _t(Object? v) =>
+    v == null ? null : DateTime.parse(v as String).toLocal();
+
+enum LedgerAccountType {
+  bank('bank', '銀行', '🏦'),
+  creditCard('credit_card', '信用卡', '💳'),
+  cash('cash', '現金', '👛');
+
+  const LedgerAccountType(this.json, this.label, this.emoji);
+
+  final String json;
+  final String label;
+  final String emoji;
+
+  static LedgerAccountType parse(String? s) =>
+      values.firstWhere((t) => t.json == s, orElse: () => bank);
+}
+
+/// 一個帳戶（中信活存、中信信用卡、現金⋯）。信用卡多一個總額度。
+class LedgerAccount {
+  const LedgerAccount({
+    required this.id,
+    required this.name,
+    required this.type,
+    this.creditLimit,
+    this.order = 0,
+    this.createdAt,
+    this.updatedAt,
+    this.deletedAt,
+  });
+
+  final String id;
+  final String name;
+  final LedgerAccountType type;
+  final int? creditLimit;
+  final int order;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+  final DateTime? deletedAt;
+
+  bool get isCard => type == LedgerAccountType.creditCard;
+  DateTime get syncedAt => updatedAt ?? createdAt ?? DateTime(2000);
+
+  LedgerAccount copyWith({
+    String? name,
+    int? creditLimit,
+    int? order,
+    DateTime? updatedAt,
+    DateTime? deletedAt,
+  }) => LedgerAccount(
+    id: id,
+    name: name ?? this.name,
+    type: type,
+    creditLimit: creditLimit ?? this.creditLimit,
+    order: order ?? this.order,
+    createdAt: createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt ?? this.deletedAt,
+  );
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'type': type.json,
+    'creditLimit': creditLimit,
+    'order': order,
+    'createdAt': createdAt == null ? null : ledgerTime(createdAt!),
+    'updatedAt': updatedAt == null ? null : ledgerTime(updatedAt!),
+    'deletedAt': deletedAt == null ? null : ledgerTime(deletedAt!),
+  };
+
+  factory LedgerAccount.fromJson(Map<String, dynamic> j) => LedgerAccount(
+    id: j['id'] as String,
+    name: j['name'] as String? ?? '',
+    type: LedgerAccountType.parse(j['type'] as String?),
+    creditLimit: (j['creditLimit'] as num?)?.toInt(),
+    order: (j['order'] as num?)?.toInt() ?? 0,
+    createdAt: _t(j['createdAt']),
+    updatedAt: _t(j['updatedAt']),
+    deletedAt: _t(j['deletedAt']),
+  );
+}
+
+enum LedgerTxType {
+  expense('支出'),
+  income('收入'),
+
+  /// 帳戶之間搬錢（ATM 提款、繳卡費），不算支出。
+  transfer('轉帳'),
+
+  /// 退款，[LedgerTx.linkedId] 指回原本那筆支出。
+  refund('退款'),
+
+  /// 別人還你錢，[LedgerTx.linkedId] 指回當初幫人付的那筆；不算收入。
+  repayment('別人還錢'),
+
+  /// 對帳調整：差額想不起來是什麼，直接調成一筆未分類。
+  adjustment('對帳調整');
+
+  const LedgerTxType(this.label);
+
+  final String label;
+
+  static LedgerTxType parse(String? s) =>
+      values.firstWhere((t) => t.name == s, orElse: () => expense);
+}
+
+/// 幫別人付的部分（2026-10-02 使用者要求）：帳戶照整筆算，本月消費只算
+/// 自己的（整筆 − [amount]）。
+class PaidFor {
+  const PaidFor({
+    required this.amount,
+    required this.people,
+    this.settled = false,
+  });
+
+  final int amount;
+  final String people;
+  final bool settled;
+
+  PaidFor copyWith({bool? settled}) =>
+      PaidFor(amount: amount, people: people, settled: settled ?? this.settled);
+
+  Map<String, dynamic> toJson() => {
+    'amount': amount,
+    'people': people,
+    'settled': settled,
+  };
+
+  factory PaidFor.fromJson(Map<String, dynamic> j) => PaidFor(
+    amount: (j['amount'] as num).toInt(),
+    people: j['people'] as String? ?? '',
+    settled: j['settled'] as bool? ?? false,
+  );
+}
+
+/// 一筆交易。金額永遠是正數，方向由 [type] 跟帳戶決定。
+class LedgerTx {
+  const LedgerTx({
+    required this.id,
+    required this.type,
+    required this.occurredAt,
+    required this.amount,
+    required this.accountId,
+    this.toAccountId,
+    this.category,
+    this.merchant = '',
+    this.note = '',
+    this.linkedId,
+    this.flagged = false,
+    this.paidFor,
+    this.source = 'manual',
+    this.raw,
+    this.dir,
+    this.cpId,
+    this.createdAt,
+    this.updatedAt,
+    this.deletedAt,
+  });
+
+  final String id;
+  final LedgerTxType type;
+  final DateTime occurredAt;
+  final int amount;
+  final String accountId;
+
+  /// 轉帳的轉入帳戶；其他類型是 null。
+  final String? toAccountId;
+  final String? category;
+  final String merchant;
+  final String note;
+
+  /// 退款、還錢指回原本那筆。
+  final String? linkedId;
+
+  /// 標記要注意：單純標註、不影響任何計算。
+  final bool flagged;
+  final PaidFor? paidFor;
+
+  /// `manual` 手動／`paste` 貼上匯入／`adjust` 對帳產生。
+  final String source;
+
+  /// 貼上匯入時的原始那行，查來源用。
+  final String? raw;
+
+  /// 只有對帳調整用：`out`（少了錢，算未分類支出）或 `in`（多出來的錢）。
+  final String? dir;
+
+  /// 對帳補記／調整的那筆是哪次對帳產生的。
+  final String? cpId;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+  final DateTime? deletedAt;
+
+  DateTime get syncedAt => updatedAt ?? createdAt ?? occurredAt;
+
+  /// 這筆算不算「花錢」：支出、少了錢的對帳調整。
+  bool get isOut => type == LedgerTxType.expense || isAdjustOut;
+  bool get isAdjustOut => type == LedgerTxType.adjustment && dir != 'in';
+
+  /// 算進本月消費的金額（幫別人付的扣掉）。
+  int get ownSpend => type == LedgerTxType.expense
+      ? amount - (paidFor?.amount ?? 0)
+      : isAdjustOut
+      ? amount
+      : 0;
+
+  LedgerTx copyWith({
+    LedgerTxType? type,
+    DateTime? occurredAt,
+    int? amount,
+    String? accountId,
+    String? Function()? toAccountId,
+    String? Function()? category,
+    String? merchant,
+    String? note,
+    String? Function()? linkedId,
+    bool? flagged,
+    PaidFor? Function()? paidFor,
+    DateTime? updatedAt,
+    DateTime? deletedAt,
+  }) => LedgerTx(
+    id: id,
+    type: type ?? this.type,
+    occurredAt: occurredAt ?? this.occurredAt,
+    amount: amount ?? this.amount,
+    accountId: accountId ?? this.accountId,
+    toAccountId: toAccountId == null ? this.toAccountId : toAccountId(),
+    category: category == null ? this.category : category(),
+    merchant: merchant ?? this.merchant,
+    note: note ?? this.note,
+    linkedId: linkedId == null ? this.linkedId : linkedId(),
+    flagged: flagged ?? this.flagged,
+    paidFor: paidFor == null ? this.paidFor : paidFor(),
+    source: source,
+    raw: raw,
+    dir: dir,
+    cpId: cpId,
+    createdAt: createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt ?? this.deletedAt,
+  );
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'type': type.name,
+    'occurredAt': ledgerTime(occurredAt),
+    'amount': amount,
+    'accountId': accountId,
+    'toAccountId': toAccountId,
+    'category': category,
+    'merchant': merchant,
+    'note': note,
+    'linkedId': linkedId,
+    'flagged': flagged,
+    'paidFor': paidFor?.toJson(),
+    'source': source,
+    'raw': raw,
+    if (dir != null) 'dir': dir,
+    if (cpId != null) 'cpId': cpId,
+    'createdAt': createdAt == null ? null : ledgerTime(createdAt!),
+    'updatedAt': updatedAt == null ? null : ledgerTime(updatedAt!),
+    'deletedAt': deletedAt == null ? null : ledgerTime(deletedAt!),
+  };
+
+  factory LedgerTx.fromJson(Map<String, dynamic> j) => LedgerTx(
+    id: j['id'] as String,
+    type: LedgerTxType.parse(j['type'] as String?),
+    occurredAt: _t(j['occurredAt'])!,
+    amount: (j['amount'] as num).toInt(),
+    accountId: j['accountId'] as String,
+    toAccountId: j['toAccountId'] as String?,
+    category: j['category'] as String?,
+    merchant: j['merchant'] as String? ?? '',
+    note: j['note'] as String? ?? '',
+    linkedId: j['linkedId'] as String?,
+    flagged: j['flagged'] as bool? ?? false,
+    paidFor: j['paidFor'] == null
+        ? null
+        : PaidFor.fromJson((j['paidFor'] as Map).cast<String, dynamic>()),
+    source: j['source'] as String? ?? 'manual',
+    raw: j['raw'] as String?,
+    dir: j['dir'] as String?,
+    cpId: j['cpId'] as String?,
+    createdAt: _t(j['createdAt']),
+    updatedAt: _t(j['updatedAt']),
+    deletedAt: _t(j['deletedAt']),
+  );
+}
+
+/// 對帳點：使用者輸入的實際值。銀行／現金填 [balance]；信用卡填
+/// [creditLimit]＋[available]（已占用＝兩者相減）。每個帳戶最早的那個
+/// 對帳點就是起始日的期初值。
+class LedgerCheckpoint {
+  const LedgerCheckpoint({
+    required this.id,
+    required this.accountId,
+    required this.at,
+    this.balance,
+    this.creditLimit,
+    this.available,
+    this.note = '',
+    this.updatedAt,
+    this.deletedAt,
+  });
+
+  final String id;
+  final String accountId;
+  final DateTime at;
+  final int? balance;
+  final int? creditLimit;
+  final int? available;
+  final String note;
+  final DateTime? updatedAt;
+  final DateTime? deletedAt;
+
+  DateTime get syncedAt => updatedAt ?? at;
+
+  LedgerCheckpoint copyWith({
+    DateTime? at,
+    int? balance,
+    int? creditLimit,
+    int? available,
+    DateTime? updatedAt,
+    DateTime? deletedAt,
+  }) => LedgerCheckpoint(
+    id: id,
+    accountId: accountId,
+    at: at ?? this.at,
+    balance: balance ?? this.balance,
+    creditLimit: creditLimit ?? this.creditLimit,
+    available: available ?? this.available,
+    note: note,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt ?? this.deletedAt,
+  );
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'accountId': accountId,
+    'at': ledgerTime(at),
+    'balance': balance,
+    'creditLimit': creditLimit,
+    'available': available,
+    'note': note,
+    'updatedAt': updatedAt == null ? null : ledgerTime(updatedAt!),
+    'deletedAt': deletedAt == null ? null : ledgerTime(deletedAt!),
+  };
+
+  factory LedgerCheckpoint.fromJson(Map<String, dynamic> j) => LedgerCheckpoint(
+    id: j['id'] as String,
+    accountId: j['accountId'] as String,
+    at: _t(j['at'])!,
+    balance: (j['balance'] as num?)?.toInt(),
+    creditLimit: (j['creditLimit'] as num?)?.toInt(),
+    available: (j['available'] as num?)?.toInt(),
+    note: j['note'] as String? ?? '',
+    updatedAt: _t(j['updatedAt']),
+    deletedAt: _t(j['deletedAt']),
+  );
+}
+
+/// 預算：[category] 是 null 代表整月總預算。id 固定是「月份|分類」，兩台
+/// 裝置設同一個月同一個分類會合併成同一筆（後改的贏）。
+class LedgerBudget {
+  const LedgerBudget({
+    required this.month,
+    required this.category,
+    required this.amount,
+    this.updatedAt,
+    this.deletedAt,
+  });
+
+  /// `2026-10`。
+  final String month;
+  final String? category;
+  final int amount;
+  final DateTime? updatedAt;
+  final DateTime? deletedAt;
+
+  String get id => budgetId(month, category);
+  DateTime get syncedAt => updatedAt ?? DateTime(2000);
+
+  static String budgetId(String month, String? category) =>
+      '$month|${category ?? ''}';
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'month': month,
+    'category': category,
+    'amount': amount,
+    'updatedAt': updatedAt == null ? null : ledgerTime(updatedAt!),
+    'deletedAt': deletedAt == null ? null : ledgerTime(deletedAt!),
+  };
+
+  factory LedgerBudget.fromJson(Map<String, dynamic> j) => LedgerBudget(
+    month: j['month'] as String,
+    category: j['category'] as String?,
+    amount: (j['amount'] as num).toInt(),
+    updatedAt: _t(j['updatedAt']),
+    deletedAt: _t(j['deletedAt']),
+  );
+}

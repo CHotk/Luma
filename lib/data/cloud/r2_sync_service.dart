@@ -26,6 +26,8 @@ import '../../domain/models/debt.dart';
 import '../../domain/models/smoking_entry.dart';
 import '../../domain/models/trade_entry.dart';
 import '../repositories/debt_repository.dart';
+import '../../domain/models/ledger.dart';
+import '../repositories/ledger_repository.dart';
 import '../repositories/smoking_repository.dart';
 import '../repositories/trade_repository.dart';
 import '../../domain/models/drinking_entry.dart';
@@ -1197,6 +1199,49 @@ class R2SyncService {
     return (
       downloaded: debts.downloaded + pays.downloaded + settings.downloaded,
       uploaded: debts.uploaded + pays.uploaded + settings.uploaded,
+    );
+  }
+
+  /// 記帳（2026-11-03）：帳戶（`ledger_accounts.json`）、交易
+  /// （`ledger_transactions.json`）、對帳點（`ledger_checkpoints.json`）、
+  /// 預算（`ledger_budgets.json`）四個檔各自比對、各自跳過，筆數加總。
+  Future<({int downloaded, int uploaded})> syncLedger(
+    LedgerRepository repo, {
+    void Function(SyncPhase phase)? onPhase,
+  }) async {
+    final accounts = await _syncRecords<LedgerAccount>(
+      key: 'ledger_accounts.json',
+      fromJson: LedgerAccount.fromJson,
+      toJson: (e) => e.toJson(),
+      mergeFromCloud: repo.mergeAccountsFromCloud,
+      allForUpload: repo.accountsForUpload,
+      onPhase: onPhase,
+    );
+    final txs = await _syncRecords<LedgerTx>(
+      key: 'ledger_transactions.json',
+      fromJson: LedgerTx.fromJson,
+      toJson: (e) => e.toJson(),
+      mergeFromCloud: repo.mergeTransactionsFromCloud,
+      allForUpload: repo.transactionsForUpload,
+    );
+    final cps = await _syncRecords<LedgerCheckpoint>(
+      key: 'ledger_checkpoints.json',
+      fromJson: LedgerCheckpoint.fromJson,
+      toJson: (e) => e.toJson(),
+      mergeFromCloud: repo.mergeCheckpointsFromCloud,
+      allForUpload: repo.checkpointsForUpload,
+    );
+    final budgets = await _syncRecords<LedgerBudget>(
+      key: 'ledger_budgets.json',
+      fromJson: LedgerBudget.fromJson,
+      toJson: (e) => e.toJson(),
+      mergeFromCloud: repo.mergeBudgetsFromCloud,
+      allForUpload: repo.budgetsForUpload,
+    );
+    final all = [accounts, txs, cps, budgets];
+    return (
+      downloaded: all.fold(0, (s, r) => s + r.downloaded),
+      uploaded: all.fold(0, (s, r) => s + r.uploaded),
     );
   }
 

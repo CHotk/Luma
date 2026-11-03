@@ -253,6 +253,7 @@ class AppHomeDashboard extends ConsumerWidget {
               ('音樂', '/music'),
               ('交易&自律', '/crypto-watch'),
               ('負債管理', '/debt'),
+              ('記帳', '/ledger'),
               ('抽菸記錄', '/smoking-log'),
               ('喝酒記錄', '/drinking-log'),
               ('本機儲存', '/local-storage'),

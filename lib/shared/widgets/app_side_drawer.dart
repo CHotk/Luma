@@ -65,6 +65,7 @@ class _AppSideDrawerState extends State<AppSideDrawer> {
     final isLocalStorage = location.startsWith('/local-storage');
     final isCryptoWatch = location.startsWith('/crypto-watch');
     final isDebt = location.startsWith('/debt');
+    final isLedger = location.startsWith('/ledger');
     final isSmoking = location.startsWith('/smoking-log');
     final isDrinking = location.startsWith('/drinking-log');
     final isLanguage =
@@ -78,6 +79,7 @@ class _AppSideDrawerState extends State<AppSideDrawer> {
         !isSync &&
         !isCryptoWatch &&
         !isDebt &&
+        !isLedger &&
         !isSmoking &&
         !isDrinking;
 
@@ -220,6 +222,15 @@ class _AppSideDrawerState extends State<AppSideDrawer> {
                           onTap: () {
                             Navigator.of(context).pop();
                             if (!isDebt) context.go('/debt');
+                          },
+                        ),
+                        _NavItem(
+                          icon: Icons.receipt_long_outlined,
+                          label: '記帳',
+                          active: isLedger,
+                          onTap: () {
+                            Navigator.of(context).pop();
+                            if (!isLedger) context.go('/ledger');
                           },
                         ),
                         _NavItem(

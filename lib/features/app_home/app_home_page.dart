@@ -30,6 +30,7 @@ const appHomeCards = <HomeCard>[
   (id: 'fitness', label: '健身'),
   (id: 'crypto', label: '交易&自律'),
   (id: 'debt', label: '負債管理'),
+  (id: 'ledger', label: '記帳'),
   (id: 'smoking', label: '抽菸記錄'),
   (id: 'drinking', label: '喝酒記錄'),
   (id: 'sync', label: '多裝置同步'),
@@ -110,6 +111,13 @@ class AppHomePage extends ConsumerWidget {
         icon: Icons.account_balance_wallet_outlined,
         color: Color(0xFFFF9F7A),
         route: '/debt',
+      ),
+      const _HomeItem(
+        id: 'ledger',
+        label: '記帳',
+        icon: Icons.receipt_long_outlined,
+        color: Color(0xFF5FE0A8),
+        route: '/ledger',
       ),
       const _HomeItem(
         id: 'smoking',

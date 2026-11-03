@@ -24,6 +24,7 @@ import '../features/history/history_page.dart';
 import '../features/history/round_detail_page.dart';
 import '../features/home/home_page.dart';
 import '../features/jp_home/jp_home_page.dart';
+import '../features/ledger/ledger_page.dart';
 import '../features/jp_home/jp_stats_page.dart';
 import '../features/jp_light/jp_light_page.dart';
 import '../features/kana_exam/kana_exam_light_select_page.dart';
@@ -109,6 +110,13 @@ final appRouter = GoRouter(
       builder: (_, _) =>
           const DebtLockGate(title: '還款月曆', child: DebtCalendarPage()),
     ),
+    // 記帳（2026-11-03，設計稿版本 1）：四個分頁各一個網址，下方膠囊分頁
+    // 列見 app_bottom_nav.dart。舊的 /tally 是給朋友的 cen_tally，不一樣。
+    for (final t in LedgerTab.values)
+      GoRoute(
+        path: t.path,
+        builder: (_, _) => LedgerPage(tab: t),
+      ),
     GoRoute(path: '/smoking-log', builder: (_, _) => const SmokingPage()),
     GoRoute(
       path: '/smoking-log/stats',

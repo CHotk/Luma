@@ -1,0 +1,529 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../app/providers.dart';
+import '../../domain/ledger_calc.dart';
+import '../../domain/models/ledger.dart';
+import '../../shared/widgets/app_confirm_dialog.dart';
+import '../../shared/widgets/app_notice.dart';
+import 'ledger_sheets.dart';
+import 'ledger_ui.dart';
+
+/// 記帳的資料跟每個動作的流程：表單回傳之後在這裡存、通知、開下一張
+/// （例如對帳 → 結果 → 補記 → 回到結果 → 下一個帳戶）。
+
+/// 看 [dataRevisionProvider]：任何改動後 bump，各分頁一起重算；雲端同步
+/// 帶回資料也會 bump。
+final ledgerBookProvider = FutureProvider.autoDispose<LedgerBook>((ref) async {
+  ref.watch(dataRevisionProvider);
+  return ref.read(ledgerRepositoryProvider).loadBook();
+});
+
+void _bump(WidgetRef ref) => ref.read(dataRevisionProvider.notifier).state++;
+
+Future<LedgerBook> _fresh(WidgetRef ref) =>
+    ref.read(ledgerRepositoryProvider).loadBook();
+
+/// 第一次打開：起始日＋三個帳戶的期初值。
+Future<void> setupFlow(BuildContext context, WidgetRef ref) async {
+  final r = await showSetupSheet(context);
+  if (r == null) return;
+  final repo = ref.read(ledgerRepositoryProvider);
+  for (final a in r.accounts) {
+    await repo.addAccount(
+      name: a.name,
+      type: a.type,
+      opening: a.opening,
+      openingAt: r.start,
+      creditLimit: a.limit,
+    );
+  }
+  _bump(ref);
+  if (context.mounted) {
+    showAppNotice(context, '開始記帳了', detail: '起始日 ${lYmd(r.start)}');
+  }
+}
+
+Future<void> addAccountFlow(BuildContext context, WidgetRef ref) async {
+  final r = await showAccountFormSheet(context);
+  if (r == null) return;
+  await ref
+      .read(ledgerRepositoryProvider)
+      .addAccount(
+        name: r.name,
+        type: r.type,
+        opening: r.opening,
+        openingAt: DateTime.now(),
+        creditLimit: r.limit,
+      );
+  _bump(ref);
+  if (context.mounted) showAppNotice(context, '已新增帳戶：${r.name}');
+}
+
+/// 記一筆（或編輯）。[wizardNext] 有值＝這是一次對帳流程中的補記，存完回到
+/// 對帳結果。
+Future<void> txFormFlow(
+  BuildContext context,
+  WidgetRef ref, {
+  LedgerTx? edit,
+  TxPrefill prefill = const TxPrefill(),
+  bool inWizard = false,
+}) async {
+  final book = await _fresh(ref);
+  if (!context.mounted) return;
+  if (!book.isSetUp) return setupFlow(context, ref);
+  final r = await showTxFormSheet(context, book, edit: edit, prefill: prefill);
+  if (r == null) return;
+  final repo = ref.read(ledgerRepositoryProvider);
+  if (edit == null) {
+    await repo.addTransaction(r.tx);
+  } else {
+    await repo.updateTransaction(r.tx);
+  }
+  if (r.settleLinked) {
+    final o = book.tx(r.tx.linkedId);
+    if (o?.paidFor != null) {
+      await repo.updateTransaction(
+        o!.copyWith(paidFor: () => o.paidFor!.copyWith(settled: true)),
+      );
+    }
+  }
+  _bump(ref);
+  if (!context.mounted) return;
+  final cp = prefill.cpId;
+  if (cp != null) {
+    final after = await _fresh(ref);
+    final acc = after.account(r.tx.accountId);
+    final s = acc == null ? null : after.stateOf(acc);
+    if (!context.mounted) return;
+    showAppNotice(
+      context,
+      s?.miss == 0 ? '✓ 差額補上了，帳對了' : '已補記',
+      detail: s == null || s.miss == 0 ? null : '還差 ${lMoney(s.miss.abs())}',
+    );
+    if (inWizard && acc != null) {
+      await reconResultFlow(context, ref, acc, wizard: true);
+    }
+    return;
+  }
+  showAppNotice(
+    context,
+    edit != null
+        ? '已更新'
+        : r.tx.type == LedgerTxType.repayment
+        ? '🤝 已記還款（不算收入）'
+        : '已記一筆',
+    detail: edit != null
+        ? null
+        : '${r.tx.merchant.isEmpty ? r.tx.type.label : r.tx.merchant} ${lMoney(r.tx.amount)}',
+  );
+}
+
+/// 點一筆交易：看明細，按了哪個動作就去做。
+Future<void> txDetailFlow(
+  BuildContext context,
+  WidgetRef ref,
+  String txId,
+) async {
+  final book = await _fresh(ref);
+  final t = book.tx(txId);
+  if (t == null || !context.mounted) return;
+  final a = await showTxDetailSheet(context, book, t);
+  if (a == null || !context.mounted) return;
+  final repo = ref.read(ledgerRepositoryProvider);
+  switch (a.kind) {
+    case 'open':
+      await txDetailFlow(context, ref, a.id!);
+    case 'flag':
+      await repo.updateTransaction(t.copyWith(flagged: !t.flagged));
+      _bump(ref);
+      if (context.mounted) {
+        showAppNotice(context, t.flagged ? '已取消標記' : '🚩 已標記要注意');
+      }
+    case 'edit':
+      await txFormFlow(context, ref, edit: t);
+    case 'refund':
+      await txFormFlow(
+        context,
+        ref,
+        prefill: TxPrefill(type: LedgerTxType.refund, linkedId: t.id),
+      );
+    case 'repay':
+      await txFormFlow(
+        context,
+        ref,
+        prefill: TxPrefill(type: LedgerTxType.repayment, linkedId: t.id),
+      );
+    case 'settle':
+      await settleFlow(context, ref, t, true);
+    case 'unsettle':
+      await settleFlow(context, ref, t, false);
+    case 'delete':
+      final ok = await showAppConfirmDialog(
+        context,
+        title: '刪除這筆？',
+        message:
+            '${t.merchant.isEmpty ? t.type.label : t.merchant} ${lMoney(t.amount)}，'
+            '刪除後不算進消費跟對帳。',
+        confirmLabel: '刪除',
+      );
+      if (!ok) return;
+      await repo.deleteTransaction(t.id);
+      _bump(ref);
+      if (context.mounted) showAppNotice(context, '已刪除');
+  }
+}
+
+Future<void> settleFlow(
+  BuildContext context,
+  WidgetRef ref,
+  LedgerTx t,
+  bool settled,
+) async {
+  final pf = t.paidFor;
+  if (pf == null) return;
+  if (settled) {
+    final ok = await showAppConfirmDialog(
+      context,
+      title: '標記已還清？',
+      message: '${pf.people} 的 ${lMoney(pf.amount)} 不再算進「別人還欠你」。',
+      confirmLabel: '已還清',
+      destructive: false,
+    );
+    if (!ok) return;
+  }
+  await ref
+      .read(ledgerRepositoryProvider)
+      .updateTransaction(
+        t.copyWith(paidFor: () => pf.copyWith(settled: settled)),
+      );
+  _bump(ref);
+  if (context.mounted) {
+    showAppNotice(context, settled ? '🤝 已標記還清' : '已改回還沒還清');
+  }
+}
+
+// ── 對帳 ─────────────────────────────────────────────────
+
+/// 對一個帳戶。[wizard]＝一次對帳（三個帳戶依序對完）。
+Future<void> reconFlow(
+  BuildContext context,
+  WidgetRef ref,
+  LedgerAccount account, {
+  bool wizard = false,
+}) async {
+  final book = await _fresh(ref);
+  final acc = book.account(account.id);
+  if (acc == null || !context.mounted) return;
+  final before = book.stateOf(acc);
+  if (before == null) return;
+  final i = book.accounts.indexWhere((a) => a.id == acc.id);
+  final cp = await showReconSheet(
+    context,
+    book,
+    acc,
+    step: wizard ? (i + 1, book.accounts.length) : null,
+  );
+  if (cp == null) return;
+  final repo = ref.read(ledgerRepositoryProvider);
+  await repo.addCheckpoint(cp);
+  if (acc.isCard &&
+      cp.creditLimit != null &&
+      cp.creditLimit != acc.creditLimit) {
+    await repo.updateAccount(acc.copyWith(creditLimit: cp.creditLimit));
+  }
+  _bump(ref);
+  final thisMiss = LedgerBook.missOf(
+    acc,
+    LedgerBook.checkpointValue(acc, cp),
+    before.now,
+  );
+  if (!context.mounted) return;
+  await reconResultFlow(context, ref, acc, wizard: wizard, thisMiss: thisMiss);
+}
+
+Future<void> reconAllFlow(BuildContext context, WidgetRef ref) async {
+  final book = await _fresh(ref);
+  if (!context.mounted || book.accounts.isEmpty) return;
+  await reconFlow(context, ref, book.accounts.first, wizard: true);
+}
+
+Future<void> reconResultFlow(
+  BuildContext context,
+  WidgetRef ref,
+  LedgerAccount account, {
+  bool wizard = false,
+  int? thisMiss,
+}) async {
+  final book = await _fresh(ref);
+  if (!context.mounted) return;
+  final i = book.accounts.indexWhere((a) => a.id == account.id);
+  final next = wizard && i >= 0 && i + 1 < book.accounts.length
+      ? book.accounts[i + 1]
+      : null;
+  final a = await showReconResultSheet(
+    context,
+    book,
+    account,
+    thisMiss: thisMiss,
+    next: next,
+  );
+  if (a == null || !context.mounted) return;
+  switch (a.kind) {
+    case 'next':
+      await reconFlow(context, ref, next!, wizard: true);
+    case 'fixAdd':
+      await fixAddFlow(context, ref, account, inWizard: wizard);
+    case 'fixAdjust':
+      await fixAdjustFlow(context, ref, account);
+      if (context.mounted) {
+        await reconResultFlow(context, ref, account, wizard: wizard);
+      }
+    case 'leave':
+      if (next != null) await reconFlow(context, ref, next, wizard: true);
+  }
+}
+
+/// 補記一筆：金額先填差額、時間設在最後一次對帳前一分鐘。
+Future<void> fixAddFlow(
+  BuildContext context,
+  WidgetRef ref,
+  LedgerAccount account, {
+  bool inWizard = false,
+}) async {
+  final book = await _fresh(ref);
+  final s = book.stateOf(account);
+  if (s == null || s.miss == 0 || !context.mounted) return;
+  await txFormFlow(
+    context,
+    ref,
+    inWizard: inWizard,
+    prefill: TxPrefill(
+      type: s.miss > 0 ? LedgerTxType.expense : LedgerTxType.income,
+      amount: s.miss.abs(),
+      accountId: account.id,
+      category: s.miss > 0 ? ledgerUncategorized : '其他收入',
+      at: s.last.at.subtract(const Duration(minutes: 1)),
+      cpId: s.last.id,
+    ),
+  );
+}
+
+/// 直接調成一筆未分類（少了錢＝未分類支出；多出來＝調整進來）。
+Future<void> fixAdjustFlow(
+  BuildContext context,
+  WidgetRef ref,
+  LedgerAccount account,
+) async {
+  final book = await _fresh(ref);
+  final s = book.stateOf(account);
+  if (s == null || s.miss == 0) return;
+  await ref
+      .read(ledgerRepositoryProvider)
+      .addTransaction(
+        LedgerTx(
+          id: ledgerId(),
+          type: LedgerTxType.adjustment,
+          dir: s.miss > 0 ? 'out' : 'in',
+          occurredAt: s.last.at.subtract(const Duration(minutes: 1)),
+          amount: s.miss.abs(),
+          accountId: account.id,
+          category: ledgerUncategorized,
+          merchant: '${account.name}對帳差額',
+          note: s.miss > 0 ? '想不起來是什麼，直接調成未分類' : '多出來的錢，直接調整',
+          source: 'adjust',
+          cpId: s.last.id,
+        ),
+      );
+  _bump(ref);
+  if (context.mounted) showAppNotice(context, '⚖️ 已調整，帳對了');
+}
+
+/// 點帳戶：明細、對帳紀錄、差額處理、改名、刪除。
+Future<void> accountFlow(
+  BuildContext context,
+  WidgetRef ref,
+  LedgerAccount account,
+) async {
+  final book = await _fresh(ref);
+  final acc = book.account(account.id);
+  if (acc == null || book.stateOf(acc) == null || !context.mounted) return;
+  final a = await showAccountSheet(context, book, acc);
+  if (a == null || !context.mounted) return;
+  final repo = ref.read(ledgerRepositoryProvider);
+  switch (a.kind) {
+    case 'recon':
+      await reconFlow(context, ref, acc);
+    case 'fixAdd':
+      await fixAddFlow(context, ref, acc);
+    case 'fixAdjust':
+      await fixAdjustFlow(context, ref, acc);
+    case 'open':
+      await txDetailFlow(context, ref, a.id!);
+    case 'edit':
+      final r = await showAccountFormSheet(context, edit: acc);
+      if (r == null) return;
+      await repo.updateAccount(
+        acc.copyWith(name: r.name, creditLimit: r.limit ?? acc.creditLimit),
+      );
+      _bump(ref);
+    case 'deleteCp':
+      final ok = await showAppConfirmDialog(
+        context,
+        title: '刪掉這次對帳？',
+        message: '輸入錯了才刪；刪掉之後差額會照上一次對帳重算。',
+        confirmLabel: '刪除',
+      );
+      if (!ok) return;
+      await repo.deleteCheckpoint(a.id!);
+      _bump(ref);
+      if (context.mounted) showAppNotice(context, '已刪掉這次對帳');
+    case 'delete':
+      final ok = await showAppConfirmDialog(
+        context,
+        title: '刪除帳戶「${acc.name}」？',
+        message: '帳戶跟它的對帳紀錄會刪掉；記過的交易還留著，帳戶名稱會顯示「已刪除」。',
+        confirmLabel: '刪除',
+      );
+      if (!ok) return;
+      await repo.deleteAccount(acc.id);
+      _bump(ref);
+      if (context.mounted) showAppNotice(context, '已刪除帳戶：${acc.name}');
+  }
+}
+
+// ── 其他 ─────────────────────────────────────────────────
+
+Future<void> budgetFlow(
+  BuildContext context,
+  WidgetRef ref,
+  int year,
+  int month,
+) async {
+  final book = await _fresh(ref);
+  if (!context.mounted) return;
+  final r = await showBudgetSheet(context, book, year, month);
+  if (r == null) return;
+  await ref
+      .read(ledgerRepositoryProvider)
+      .setBudgets(monthKey(year, month), r.total, r.byCategory);
+  _bump(ref);
+  if (context.mounted) showAppNotice(context, '🎯 $month 月預算已更新');
+}
+
+Future<void> importFlow(BuildContext context, WidgetRef ref) async {
+  final book = await _fresh(ref);
+  if (!context.mounted) return;
+  if (!book.isSetUp) return setupFlow(context, ref);
+  final before = {for (final s in book.states) s.account.id: s.miss};
+  final txs = await showImportSheet(context, book);
+  if (txs == null || txs.isEmpty) return;
+  await ref.read(ledgerRepositoryProvider).addTransactions(txs);
+  _bump(ref);
+  final after = await _fresh(ref);
+  final fixed = [
+    for (final s in after.states)
+      if ((before[s.account.id] ?? 0) != 0 && s.miss == 0) s.account.name,
+  ];
+  if (context.mounted) {
+    showAppNotice(
+      context,
+      '📋 匯入 ${txs.length} 筆',
+      detail: fixed.isEmpty ? null : '${fixed.join('、')}的差額補上了 ✓',
+    );
+  }
+}
+
+Future<void> startFlow(BuildContext context, WidgetRef ref) async {
+  final book = await _fresh(ref);
+  if (!context.mounted || !book.isSetUp) return;
+  final r = await showStartSheet(context, book);
+  if (r == null) return;
+  final repo = ref.read(ledgerRepositoryProvider);
+  for (final c in r.openings) {
+    await repo.updateCheckpoint(c);
+    final acc = book.account(c.accountId);
+    if (acc != null && acc.isCard && c.creditLimit != acc.creditLimit) {
+      await repo.updateAccount(acc.copyWith(creditLimit: c.creditLimit));
+    }
+  }
+  _bump(ref);
+  if (context.mounted) {
+    showAppNotice(context, '📅 起始日與期初值已更新', detail: lYmd(r.start));
+  }
+}
+
+Future<void> oweFlow(BuildContext context, WidgetRef ref) async {
+  final book = await _fresh(ref);
+  if (!context.mounted) return;
+  final a = await showOweSheet(context, book);
+  if (a == null || !context.mounted) return;
+  switch (a.kind) {
+    case 'open':
+      await txDetailFlow(context, ref, a.id!);
+    case 'repay':
+      await txFormFlow(
+        context,
+        ref,
+        prefill: TxPrefill(type: LedgerTxType.repayment, linkedId: a.id),
+      );
+    case 'settle':
+      final t = book.tx(a.id);
+      if (t != null) await settleFlow(context, ref, t, true);
+    case 'addPaidFor':
+      await txFormFlow(context, ref, prefill: const TxPrefill(paidFor: true));
+  }
+}
+
+Future<void> flagsFlow(BuildContext context, WidgetRef ref) async {
+  final book = await _fresh(ref);
+  if (!context.mounted) return;
+  final a = await showTxListSheet(
+    context,
+    book,
+    title: '🚩 標記要注意',
+    txs: book.flagged,
+    emptyText: '沒有標記的紀錄',
+  );
+  if (a?.kind == 'open' && context.mounted) {
+    await txDetailFlow(context, ref, a!.id!);
+  }
+}
+
+Future<void> categoryFlow(
+  BuildContext context,
+  WidgetRef ref,
+  String cat,
+  int year,
+  int month,
+) async {
+  final book = await _fresh(ref);
+  if (!context.mounted) return;
+  final inM = LedgerBook.inMonth(year, month);
+  final txs = book.txs.where(inM).where((t) {
+    if (t.type == LedgerTxType.expense) return t.category == cat;
+    if (t.type == LedgerTxType.adjustment) {
+      return cat == ledgerUncategorized && t.isAdjustOut;
+    }
+    if (t.type == LedgerTxType.refund) {
+      return (book.tx(t.linkedId)?.category ?? ledgerUncategorized) == cat;
+    }
+    return false;
+  }).toList();
+  final spent = book.monthStats(year, month).byCategory[cat] ?? 0;
+  final budget = book.budgetOf(year, month).byCategory[cat];
+  final a = await showTxListSheet(
+    context,
+    book,
+    title: '${catLook(cat).$1} $cat・$month 月',
+    txs: txs,
+    header: budgetHeader(spent, budget),
+    footerLabel: '調整預算',
+  );
+  if (a == null || !context.mounted) return;
+  if (a.kind == 'open') {
+    await txDetailFlow(context, ref, a.id!);
+  } else if (a.kind == 'footer') {
+    await budgetFlow(context, ref, year, month);
+  }
+}
