@@ -424,6 +424,43 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('記一筆跟別人一起：當下就能勾「對方已經給我了」，存下來就是已給', (tester) async {
+    final store = await seeded();
+    await pump(tester, const LedgerPage(tab: LedgerTab.home), store);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(FloatingActionButton));
+    await settle(tester);
+    await tester.enterText(find.byType(TextField).at(1), '1000');
+    await tester.enterText(find.byType(TextField).at(2), '聚餐');
+    await tester.pump();
+    final pf = find.text('👥 跟別人一起（對方要給我錢）');
+    await tester.scrollUntilVisible(
+      pf,
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.tap(pf);
+    await tester.pump();
+    final done = find.text('✓ 對方已經給我了');
+    await tester.scrollUntilVisible(
+      done,
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.tap(done);
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, '記下來'));
+    await settle(tester);
+    expect(tester.takeException(), isNull);
+    final book = await tester.runAsync(
+      () => LedgerRepository(store).loadBook(),
+    );
+    final t = book!.txs.firstWhere((t) => t.merchant == '聚餐');
+    expect(t.paidFor!.settled, isTrue);
+    expect(t.ownSpend, 500, reason: '預設對方要給一半');
+    expect(book.owes.where((o) => o.tx.id == t.id), isEmpty);
+  });
+
   testWidgets('跟別人一起：按「他給了 ✓」→ 標記就好，就不再列在別人還欠你', (tester) async {
     final store = await seeded();
     await pump(tester, const LedgerPage(tab: LedgerTab.home), store);

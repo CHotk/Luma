@@ -704,6 +704,7 @@ class _TxFormState extends State<_TxForm> {
   late DateTime _at;
   late bool _flagged;
   late bool _pf;
+  bool _pfSettled = false;
   late final TextEditingController _pfAmount;
   late final TextEditingController _pfPeople;
 
@@ -737,6 +738,7 @@ class _TxFormState extends State<_TxForm> {
     _at = e?.occurredAt ?? p.at ?? DateTime.now();
     _flagged = e?.flagged ?? false;
     _pf = e?.paidFor != null || p.paidFor;
+    _pfSettled = e?.paidFor?.settled ?? false;
     _pfAmount = TextEditingController(
       text: e?.paidFor?.amount.toString() ?? '',
     );
@@ -876,6 +878,7 @@ class _TxFormState extends State<_TxForm> {
       _at = t.occurredAt;
       final pf = t.paidFor;
       _pf = pf != null;
+      _pfSettled = pf?.settled ?? false;
       _pfAmount.text = pf == null ? '' : '${pf.amount}';
       _pfPeople.text = pf?.people ?? '';
       _after.text = l.after == null ? '' : '${l.after}';
@@ -938,7 +941,7 @@ class _TxFormState extends State<_TxForm> {
             people: _pfPeople.text.trim().isEmpty
                 ? '朋友'
                 : _pfPeople.text.trim(),
-            settled: e?.paidFor?.settled ?? false,
+            settled: _pfSettled,
           )
         : null;
     final hasCat = ty == LedgerTxType.expense || ty == LedgerTxType.income;
@@ -1453,6 +1456,13 @@ class _TxFormState extends State<_TxForm> {
               ],
             ),
           ],
+          // 記的當下就能勾「對方已經給我了」（2026-11-03 使用者），不用再進去補。
+          _toggle(
+            '✓ 對方已經給我了',
+            '打開就不會列在「別人還欠你」，標籤會顯示已給',
+            _pfSettled,
+            (v) => setState(() => _pfSettled = v),
+          ),
           _note(
             amt > 0 && pfAmt > 0 && pfAmt <= amt
                 ? [
