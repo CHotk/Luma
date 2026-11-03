@@ -174,10 +174,8 @@ void main() {
     await tester.tap(find.byTooltip('關閉'));
     await settle(tester);
 
-    // 最近記的在最下面：捲到底（多捲一點，不要被右下角 ＋ 擋住）再點。
-    await show(tester, find.textContaining('鼎泰豐').first);
-    await tester.drag(find.byType(Scrollable).first, const Offset(0, -300));
-    await settle(tester);
+    // 看紀錄走底部的「明細」分頁（首頁不重複放列表）：換到明細再點那一筆。
+    await pump(tester, const LedgerPage(tab: LedgerTab.list), store);
     await tester.tap(find.textContaining('鼎泰豐').first);
     await settle(tester);
     expect(find.text('支出明細'), findsOneWidget);
@@ -356,6 +354,24 @@ void main() {
     expect(t.note, '補貨');
     expect(t.occurredAt, DateTime(2026, 11, 5, 15));
     expect(book.accountName(t.accountId), '現金');
+  });
+
+  testWidgets('明細頂部搜尋：輸入後每個欄位都搜（不管月份），清除就回來', (tester) async {
+    final store = await seeded();
+    await pump(tester, const LedgerPage(tab: LedgerTab.list), store);
+    expect(find.byIcon(Icons.search_rounded), findsOneWidget);
+    // 備註、商家、金額都搜得到：seeded 有一筆商家含「鼎泰豐」。
+    await tester.enterText(find.byType(TextField).first, '鼎泰豐');
+    await tester.pump();
+    expect(find.textContaining('搜尋「鼎泰豐」'), findsOneWidget);
+    expect(find.textContaining('1 筆'), findsOneWidget);
+    await tester.enterText(find.byType(TextField).first, '完全找不到的字');
+    await tester.pump();
+    expect(find.text('沒有符合的紀錄'), findsOneWidget);
+    await tester.tap(find.byTooltip('清除搜尋'));
+    await tester.pump();
+    expect(find.textContaining('搜尋「'), findsNothing);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('跟別人一起：按「他給了 ✓」→ 標記就好，就不再列在別人還欠你', (tester) async {

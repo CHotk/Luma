@@ -668,11 +668,22 @@ Future<({LedgerTx tx, bool settleLinked, int? after})?> showTxFormSheet(
   LedgerBook book, {
   LedgerTx? edit,
   TxPrefill prefill = const TxPrefill(),
-}) => _sheet(context, _TxForm(book: book, edit: edit, prefill: prefill));
+  int? initialAfter,
+}) => _sheet(
+  context,
+  _TxForm(book: book, edit: edit, prefill: prefill, initialAfter: initialAfter),
+);
 
 class _TxForm extends StatefulWidget {
-  const _TxForm({required this.book, this.edit, required this.prefill});
+  const _TxForm({
+    required this.book,
+    this.edit,
+    required this.prefill,
+    this.initialAfter,
+  });
 
+  /// 匯入預覽編輯時，原本那行的「這筆之後餘額」（還沒存、查不到對帳點）。
+  final int? initialAfter;
   final LedgerBook book;
   final LedgerTx? edit;
   final TxPrefill prefill;
@@ -733,7 +744,9 @@ class _TxFormState extends State<_TxForm> {
     final oldCp = e == null ? null : book.checkpointOfTx(e.id);
     _after = TextEditingController(
       text:
-          (oldCp == null ? null : (oldCp.available ?? oldCp.balance))
+          (oldCp == null
+                  ? widget.initialAfter
+                  : (oldCp.available ?? oldCp.balance))
               ?.toString() ??
           '',
     );
@@ -2397,11 +2410,30 @@ class _ImportState extends State<_Import> {
   /// 勾了「算支出」的轉帳那幾行（key＝第幾行｜原文）：錢是轉給別人的。
   final _asSpend = <String>{};
 
+  /// 預覽裡點一行編輯過的結果（key 同上）：匯入時用這個。
+  final _over = <String, ({LedgerTx tx, int? after})>{};
+
+  LedgerTx _txOf(int i, ImportLine l) => _over[_key(i, l)]?.tx ?? l.tx!;
+  int? _afterOf(int i, ImportLine l) =>
+      _over.containsKey(_key(i, l)) ? _over[_key(i, l)]!.after : l.after;
+
+  /// 點一行：開跟普通記帳一樣的編輯表單（欄位先填好），改完回預覽。
+  Future<void> _editRow(int i, ImportLine l) async {
+    final r = await showTxFormSheet(
+      context,
+      widget.book,
+      edit: _txOf(i, l),
+      initialAfter: _afterOf(i, l),
+    );
+    if (r == null || !mounted) return;
+    setState(() => _over[_key(i, l)] = (tx: r.tx, after: r.after));
+  }
+
   static String _key(int i, ImportLine l) => '$i|${l.line}';
 
   /// 匯入時套用「算支出」：轉帳改成一筆未分類支出。
   LedgerTx _final(int i, ImportLine l) {
-    final t = l.tx!;
+    final t = _txOf(i, l);
     if (t.type != LedgerTxType.transfer || !_asSpend.contains(_key(i, l))) {
       return t;
     }
@@ -2445,8 +2477,9 @@ class _ImportState extends State<_Import> {
                       '「${l.tx!.merchant}」跟${l.duplicateOf}相同',
                 ],
                 afters: {
-                  for (final l in lines)
-                    if (l.willImport && l.after != null) l.tx!.id: l.after!,
+                  for (final (i, l) in lines.indexed)
+                    if (l.willImport && _afterOf(i, l) != null)
+                      _final(i, l).id: _afterOf(i, l)!,
                 },
               )),
       ),
@@ -2526,7 +2559,7 @@ class _ImportState extends State<_Import> {
   }
 
   Widget _importRow(int i, ImportLine l) {
-    final t = l.tx;
+    final t = l.tx == null ? null : _txOf(i, l);
     if (t == null) {
       return Padding(
         padding: const EdgeInsets.only(bottom: 8),
@@ -2554,98 +2587,102 @@ class _ImportState extends State<_Import> {
       opacity: l.duplicate ? 0.45 : 1,
       child: Padding(
         padding: const EdgeInsets.only(bottom: 8),
-        child: Row(
-          children: [
-            LedgerIcon(emoji, color, size: 30),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        child: InkWell(
+          onTap: () => _editRow(i, l),
+          borderRadius: BorderRadius.circular(10),
+          child: Row(
+            children: [
+              LedgerIcon(emoji, color, size: 30),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${t.merchant}・${lMd(t.occurredAt)} ${lHm(t.occurredAt)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.ink,
+                      ),
+                    ),
+                    if (t.type == LedgerTxType.transfer && !l.duplicate)
+                      InkWell(
+                        onTap: () => setState(() {
+                          final k = _key(i, l);
+                          if (!_asSpend.remove(k)) _asSpend.add(k);
+                        }),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 2),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                _asSpend.contains(_key(i, l))
+                                    ? Icons.check_box_rounded
+                                    : Icons.check_box_outline_blank_rounded,
+                                size: 18,
+                                color: _asSpend.contains(_key(i, l))
+                                    ? ledgerAccent
+                                    : AppColors.ink3,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '算支出（錢是給別人的）',
+                                style: AppText.note.copyWith(fontSize: 11),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    Text(
+                      t.type == LedgerTxType.transfer
+                          ? _asSpend.contains(_key(i, l))
+                                ? '支出・${book.accountName(t.accountId)}・未分類（轉給別人）'
+                                : '轉帳 ${book.accountName(t.accountId)} → ${book.accountName(t.toAccountId)}（不算支出）'
+                          : '支出・${book.accountName(t.accountId)}・${t.category}'
+                                '${t.paidFor == null ? '' : '・${t.paidFor!.people} ${t.paidFor!.settled ? '已給' : '要給'} ${lMoney(t.paidFor!.amount)}'}',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppText.note.copyWith(
+                        fontSize: 10.5,
+                        color: AppColors.ink3,
+                      ),
+                    ),
+                    if (l.duplicateOf != null)
+                      Text(
+                        '跟${l.duplicateOf}相同（同帳戶、同一分鐘、同金額），不會加',
+                        style: AppText.note.copyWith(
+                          fontSize: 10.5,
+                          color: AppColors.mid,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 6),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    '${t.merchant}・${lMd(t.occurredAt)} ${lHm(t.occurredAt)}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    lMoney(t.amount),
                     style: const TextStyle(
                       fontSize: 13,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w800,
                       color: AppColors.ink,
                     ),
                   ),
-                  if (t.type == LedgerTxType.transfer && !l.duplicate)
-                    InkWell(
-                      onTap: () => setState(() {
-                        final k = _key(i, l);
-                        if (!_asSpend.remove(k)) _asSpend.add(k);
-                      }),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 2),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              _asSpend.contains(_key(i, l))
-                                  ? Icons.check_box_rounded
-                                  : Icons.check_box_outline_blank_rounded,
-                              size: 18,
-                              color: _asSpend.contains(_key(i, l))
-                                  ? ledgerAccent
-                                  : AppColors.ink3,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              '算支出（錢是給別人的）',
-                              style: AppText.note.copyWith(fontSize: 11),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  Text(
-                    t.type == LedgerTxType.transfer
-                        ? _asSpend.contains(_key(i, l))
-                              ? '支出・${book.accountName(t.accountId)}・未分類（轉給別人）'
-                              : '轉帳 ${book.accountName(t.accountId)} → ${book.accountName(t.toAccountId)}（不算支出）'
-                        : '支出・${book.accountName(t.accountId)}・${t.category}'
-                              '${t.paidFor == null ? '' : '・${t.paidFor!.people} ${t.paidFor!.settled ? '已給' : '要給'} ${lMoney(t.paidFor!.amount)}'}',
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppText.note.copyWith(
-                      fontSize: 10.5,
-                      color: AppColors.ink3,
-                    ),
-                  ),
-                  if (l.duplicateOf != null)
-                    Text(
-                      '跟${l.duplicateOf}相同（同帳戶、同一分鐘、同金額），不會加',
-                      style: AppText.note.copyWith(
-                        fontSize: 10.5,
-                        color: AppColors.mid,
-                      ),
-                    ),
+                  l.duplicate
+                      ? const LedgerPill('重複', color: AppColors.mid)
+                      : l.beforeStart
+                      ? const LedgerPill('只看消費')
+                      : const LedgerPill('會匯入', color: AppColors.ok),
                 ],
               ),
-            ),
-            const SizedBox(width: 6),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  lMoney(t.amount),
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.ink,
-                  ),
-                ),
-                l.duplicate
-                    ? const LedgerPill('重複', color: AppColors.mid)
-                    : l.beforeStart
-                    ? const LedgerPill('只看消費')
-                    : const LedgerPill('會匯入', color: AppColors.ok),
-              ],
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

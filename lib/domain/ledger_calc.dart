@@ -21,6 +21,7 @@ const ledgerExpenseCats = <String, (String, int)>{
   '雲端服務': ('☁️', 0xFF9ADBFF),
   '創業魔物童話': ('🐉', 0xFFE08FD0),
   '寵物': ('🐾', 0xFFF0B27A),
+  '菸酒': ('🍺', 0xFFD9A066),
   '未分類': ('❔', 0xFF8A8A9A),
 };
 
@@ -429,6 +430,43 @@ class LedgerBook {
   ];
 
   List<LedgerTx> get flagged => txs.where((t) => t.flagged).toList();
+
+  /// 搜尋（2026-11-03 使用者：輸入後每個欄位都會搜）。用空白隔開多個關鍵字，每個
+  /// 都要找得到（且）；大小寫不分。搜的欄位：商家、備註、分類、類型、帳戶名稱
+  /// （轉帳含轉入）、跟誰、金額（有沒有逗號都行）、日期（11/2、2026/11/02、
+  /// 11月）、時間、貼上匯入的原始文字。
+  bool matches(LedgerTx t, String query) {
+    final terms = query
+        .toLowerCase()
+        .split(RegExp(r'\s+'))
+        .where((s) => s.isNotEmpty)
+        .toList();
+    if (terms.isEmpty) return true;
+    String p(int n) => n.toString().padLeft(2, '0');
+    final d = t.occurredAt;
+    final amount = t.amount.toString();
+    final hay = [
+      t.merchant,
+      t.note,
+      t.category ?? '',
+      t.type.label,
+      accountName(t.accountId),
+      if (t.toAccountId != null) accountName(t.toAccountId),
+      t.paidFor?.people ?? '',
+      if (t.paidFor != null) t.paidFor!.settled ? '已給 給了' : '還沒給 要給',
+      if (t.flagged) '要注意 標記 旗',
+      amount,
+      LedgerBook.describe(t),
+      '${d.month}/${d.day}',
+      '${d.year}/${p(d.month)}/${p(d.day)}',
+      '${d.year}-${p(d.month)}-${p(d.day)}',
+      '${d.month}月${d.day}日',
+      '${d.month}月',
+      '${p(d.hour)}:${p(d.minute)}',
+      t.raw ?? '',
+    ].join('\n').toLowerCase();
+    return terms.every((q) => hay.contains(q.replaceAll(',', '')));
+  }
 
   /// 同一個帳戶、同一分鐘、同金額的那筆（2026-11-03 使用者：刷卡要防重複，
   /// 同日期到分鐘、同金額就不行）。[exceptId] 是編輯中的那筆自己。

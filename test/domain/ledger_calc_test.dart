@@ -117,6 +117,29 @@ void main() {
     expect(b.owes.single.left, 350);
   });
 
+  test('幫別人全額刷 500：不算我的消費，但可刷卡餘額照扣；他給了（只標記）卡的餘額不變', () {
+    final swipe = tx(
+      LedgerTxType.expense,
+      9,
+      500,
+      'card',
+      id: 'allForHim',
+      paidFor: const PaidFor(amount: 500, people: '小美'),
+    );
+    var b = book([swipe]);
+    expect(b.monthStats(2026, 10).spend, 0, reason: '不算我的消費');
+    expect(b.stateOf(card)!.now, 12400 + 500, reason: '卡的占用照加');
+    expect(b.stateOf(card)!.available, 100000 - 12400 - 500, reason: '可刷卡餘額照扣');
+    expect(b.oweTotal, 500);
+    // 他給了：只標記，卡的可刷卡餘額不變（他的錢怎麼給你、你怎麼繳卡費是另一回事）。
+    b = book([
+      swipe.copyWith(paidFor: () => swipe.paidFor!.copyWith(settled: true)),
+    ]);
+    expect(b.stateOf(card)!.available, 100000 - 12400 - 500);
+    expect(b.oweTotal, 0);
+    expect(b.monthStats(2026, 10).spend, 0);
+  });
+
   test('標記已還清就不算進「別人還欠你」', () {
     final b = book([
       tx(
@@ -552,13 +575,13 @@ void main() {
     expect(noted.single.tx!.category, '寵物');
     expect(noted.single.tx!.note, '補貨');
     // 備註最多 100 字，超過那一行擋下來。
-    final ok100 = book([]).parseImport(
-      '現金｜2026/11/05 15:00｜寵物｜飼料｜650｜｜｜｜｜${'字' * 100}',
-    );
+    final ok100 = book(
+      [],
+    ).parseImport('現金｜2026/11/05 15:00｜寵物｜飼料｜650｜｜｜｜｜${'字' * 100}');
     expect(ok100.single.error, isNull);
-    final long = book([]).parseImport(
-      '現金｜2026/11/05 15:00｜寵物｜飼料｜650｜｜｜｜｜${'字' * 101}',
-    );
+    final long = book(
+      [],
+    ).parseImport('現金｜2026/11/05 15:00｜寵物｜飼料｜650｜｜｜｜｜${'字' * 101}');
     expect(long.single.error, contains('100'));
   });
 
@@ -575,6 +598,46 @@ void main() {
     expect(lines[1].tx!.merchant, '轉給 小美');
     expect(lines[1].tx!.ownSpend, 800);
     expect(lines[2].error, isNotNull);
+  });
+
+  test('搜尋：每個欄位都搜、空白隔開多個詞都要符合、金額有沒有逗號都行', () {
+    final t = LedgerTx(
+      id: 's',
+      type: LedgerTxType.expense,
+      occurredAt: DateTime(2026, 11, 5, 15, 30),
+      amount: 1650,
+      accountId: 'cash',
+      category: '寵物',
+      merchant: '寵物店',
+      note: '貓罐頭 補貨',
+      paidFor: const PaidFor(amount: 800, people: '小美'),
+      flagged: true,
+    );
+    final b = book([t]);
+    for (final q in [
+      '寵物店', // 商家
+      '貓罐頭', // 備註
+      '寵物', // 分類
+      '現金', // 帳戶
+      '小美', // 跟誰
+      '1650', '1,650', // 金額
+      '11/5', '2026/11/05', '11月', // 日期
+      '15:30', // 時間
+      '支出', // 類型
+      '要注意', // 旗
+      '寵物 小美 15:30', // 多個詞都要找得到
+      '',
+    ]) {
+      expect(b.matches(t, q), isTrue, reason: q);
+    }
+    for (final q in ['麥當勞', '寵物 麥當勞', '9999', '12/5']) {
+      expect(b.matches(t, q), isFalse, reason: q);
+    }
+  });
+
+  test('分類有寵物、菸酒；備註在 100 字內', () {
+    expect(ledgerExpenseCats.keys, containsAll(['寵物', '菸酒', '創業魔物童話']));
+    expect(ledgerNoteMax, 100);
   });
 
   test('沒填餘額的帳戶：不算餘額、不參與對帳，但交易照樣算消費', () {

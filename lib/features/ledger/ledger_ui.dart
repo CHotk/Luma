@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 
 import '../../app/theme/colors.dart';
@@ -188,123 +190,147 @@ class TxTile extends StatelessWidget {
     final pf = t.paidFor;
     final gap = book.gapOfTx(t.id);
     final cp = book.checkpointOfTx(t.id);
+    // 毛玻璃（2026-11-03 使用者）：背後模糊＋半透明填色＋邊線，跟 GlassCard 同一套
+    // 做法；對帳調整那種用黃色邊線。
+    final shape = BorderRadius.circular(16);
     return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Material(
-        color: ledgerTileBg,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-          side: BorderSide(
-            color: t.type == LedgerTxType.adjustment
-                ? AppColors.mid.withValues(alpha: 0.3)
-                : Colors.white.withValues(alpha: 0.05),
-          ),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            child: Row(
-              children: [
-                LedgerIcon(emoji, color),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Flexible(
-                            child: Text(
-                              t.merchant.isEmpty ? t.type.label : t.merchant,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.ink,
-                              ),
-                            ),
-                          ),
-                          if (t.flagged) const Text(' 🚩'),
-                        ],
-                      ),
-                      // 標籤排在名稱下一行，名字長也不會擠爆。
-                      if (pf != null ||
-                          t.source == 'paste' ||
-                          gap != null ||
-                          cp != null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 3),
-                          child: Wrap(
-                            spacing: 5,
-                            runSpacing: 3,
+      padding: const EdgeInsets.only(bottom: 8),
+      child: ClipRRect(
+        borderRadius: shape,
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: shape,
+              gradient: const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0x1FFFFFFF), Color(0x0DFFFFFF)],
+              ),
+              border: Border.all(
+                color: t.type == LedgerTxType.adjustment
+                    ? AppColors.mid.withValues(alpha: 0.45)
+                    : AppColors.glassEdge,
+              ),
+            ),
+            child: Material(
+              type: MaterialType.transparency,
+              child: InkWell(
+                child: InkWell(
+                  onTap: onTap,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    child: Row(
+                      children: [
+                        LedgerIcon(emoji, color),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              if (pf != null)
-                                LedgerPill(
-                                  pf.settled
-                                      ? '${pf.people} 給了'
-                                      : '${pf.people} 要給 ${lMoney(pf.amount)}',
-                                  color: pf.settled
-                                      ? AppColors.ok
-                                      : ledgerPaidFor,
+                              Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      t.merchant.isEmpty
+                                          ? t.type.label
+                                          : t.merchant,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.ink,
+                                      ),
+                                    ),
+                                  ),
+                                  if (t.flagged) const Text(' 🚩'),
+                                ],
+                              ),
+                              // 標籤排在名稱下一行，名字長也不會擠爆。
+                              if (pf != null ||
+                                  t.source == 'paste' ||
+                                  gap != null ||
+                                  cp != null)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 3),
+                                  child: Wrap(
+                                    spacing: 5,
+                                    runSpacing: 3,
+                                    children: [
+                                      if (pf != null)
+                                        LedgerPill(
+                                          // 他給了之後標籤保留「誰要給多少」，只是變綠、
+                                          // 後面多一個 ✓（2026-11-03 使用者）。
+                                          '${pf.people} 要給 ${lMoney(pf.amount)}'
+                                          '${pf.settled ? ' ✓已給' : ''}',
+                                          color: pf.settled
+                                              ? AppColors.ok
+                                              : ledgerPaidFor,
+                                        ),
+                                      if (gap != null)
+                                        LedgerPill(
+                                          gap.miss > 0
+                                              ? '⚠ 漏記 ${lMoney(gap.miss)}'
+                                              : '⚠ 多出 ${lMoney(-gap.miss)}',
+                                          color: AppColors.mid,
+                                        )
+                                      else if (cp != null)
+                                        LedgerPill(
+                                          cp.available != null
+                                              ? '可用 ${lMoney(cp.available!)}'
+                                              : '餘額 ${lMoney(cp.balance ?? 0)}',
+                                        ),
+                                      if (t.source == 'paste')
+                                        const LedgerPill('匯入'),
+                                    ],
+                                  ),
                                 ),
-                              if (gap != null)
-                                LedgerPill(
-                                  gap.miss > 0
-                                      ? '⚠ 漏記 ${lMoney(gap.miss)}'
-                                      : '⚠ 多出 ${lMoney(-gap.miss)}',
-                                  color: AppColors.mid,
-                                )
-                              else if (cp != null)
-                                LedgerPill(
-                                  cp.available != null
-                                      ? '可用 ${lMoney(cp.available!)}'
-                                      : '餘額 ${lMoney(cp.balance ?? 0)}',
+                              const SizedBox(height: 2),
+                              Text(
+                                sub.toString(),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppText.note.copyWith(
+                                  fontSize: 10.5,
+                                  color: AppColors.ink3,
                                 ),
-                              if (t.source == 'paste') const LedgerPill('匯入'),
+                              ),
                             ],
                           ),
                         ),
-                      const SizedBox(height: 2),
-                      Text(
-                        sub.toString(),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppText.note.copyWith(
-                          fontSize: 10.5,
-                          color: AppColors.ink3,
+                        const SizedBox(width: 8),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              amt,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                                color: amtColor,
+                                fontFeatures: lTabular,
+                              ),
+                            ),
+                            if (small != null)
+                              Text(
+                                small,
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  color: AppColors.ink3,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                          ],
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      amt,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                        color: amtColor,
-                        fontFeatures: lTabular,
-                      ),
-                    ),
-                    if (small != null)
-                      Text(
-                        small,
-                        style: const TextStyle(
-                          fontSize: 10,
-                          color: AppColors.ink3,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                  ],
-                ),
-              ],
+              ),
             ),
           ),
         ),
@@ -446,22 +472,33 @@ List<Widget> groupedTxList(
   for (final t in txs) {
     final d = t.occurredAt;
     if (cur == null || !lSameDay(cur, d)) {
+      // 每一天之間有分隔（2026-11-03 使用者）：日期＋一條線＋當天花多少，
+      // 前一天跟這一天中間多留一點空白。
+      final first = cur == null;
       cur = d;
       final s = book.statsWhere(LedgerBook.onDay(d));
       out.add(
         Padding(
-          padding: const EdgeInsets.fromLTRB(4, 14, 4, 6),
+          padding: EdgeInsets.fromLTRB(4, first ? 10 : 22, 4, 10),
           child: Row(
             children: [
               Text(
                 '${lMdw(d)}${lSameDay(d, DateTime.now()) ? '・今天' : ''}',
                 style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.ink2,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.ink,
                 ),
               ),
-              const Spacer(),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: Color(0x33FFFFFF),
+                ),
+              ),
+              const SizedBox(width: 10),
               Text(
                 [
                   if (s.spend != 0) '花 ${lMoney(s.spend)}',

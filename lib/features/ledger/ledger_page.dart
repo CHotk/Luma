@@ -2,7 +2,6 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../app/app_bottom_nav.dart';
 import '../../app/theme/colors.dart';
@@ -44,6 +43,9 @@ final ledgerMonthProvider = StateProvider<DateTime>(
 final ledgerFilterProvider = StateProvider<({bool flagged, String? accountId})>(
   (_) => (flagged: false, accountId: null),
 );
+
+/// 明細頂部的搜尋字（2026-11-03 使用者）：有字的時候搜全部月份、每個欄位都搜。
+final ledgerSearchProvider = StateProvider<String>((_) => '');
 
 class LedgerPage extends ConsumerWidget {
   const LedgerPage({super.key, required this.tab});
@@ -373,7 +375,6 @@ class LedgerPage extends ConsumerWidget {
 
   List<Widget> _home(BuildContext context, WidgetRef ref, LedgerBook book) {
     final m = ref.watch(ledgerMonthProvider);
-    final recent = book.txs.take(6).toList();
     return [
       _monthBar(ref),
       _spendCard(context, ref, book, m),
@@ -381,23 +382,6 @@ class LedgerPage extends ConsumerWidget {
       _completeness(context, ref, book),
       const SizedBox(height: Gap.md),
       _mini(context, ref, book),
-      ledgerSection(
-        '最近記的',
-        action: '全部明細 ›',
-        onAction: () => context.go(LedgerTab.list.path),
-      ),
-      if (recent.isEmpty)
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-          child: Text('還沒有紀錄，按右下角 ＋ 記第一筆', style: AppText.bodyDim),
-        ),
-      for (final t in recent)
-        TxTile(
-          book: book,
-          tx: t,
-          showDate: true,
-          onTap: () => txDetailFlow(context, ref, t.id),
-        ),
     ];
   }
 
@@ -408,10 +392,16 @@ class LedgerPage extends ConsumerWidget {
     final f = ref.watch(ledgerFilterProvider);
     void set(({bool flagged, String? accountId}) v) =>
         ref.read(ledgerFilterProvider.notifier).state = v;
-    final inM = book.txs.where(LedgerBook.inMonth(m.year, m.month)).toList();
+    final q = ref.watch(ledgerSearchProvider).trim();
+    final searching = q.isNotEmpty;
+    // 搜尋時不管月份，全部紀錄都找。
+    final inM = searching
+        ? book.txs
+        : book.txs.where(LedgerBook.inMonth(m.year, m.month)).toList();
     final shown = inM
         .where(
           (t) =>
+              (!searching || book.matches(t, q)) &&
               (!f.flagged || t.flagged) &&
               (f.accountId == null ||
                   t.accountId == f.accountId ||
@@ -421,7 +411,8 @@ class LedgerPage extends ConsumerWidget {
     final st = book.statsWhere(shown.contains);
     final any = f.flagged || f.accountId != null;
     return [
-      _monthBar(ref),
+      const _SearchBox(),
+      if (!searching) _monthBar(ref),
       SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
@@ -459,7 +450,11 @@ class LedgerPage extends ConsumerWidget {
         padding: const EdgeInsets.fromLTRB(4, 8, 4, 0),
         child: Text(
           '${shown.length} 筆・消費 ${lMoney(st.spend)}・收入 ${lMoney(st.income)}'
-          '${any ? '（篩選中）' : ''}',
+          '${searching
+              ? '（搜尋「$q」，全部月份）'
+              : any
+              ? '（篩選中）'
+              : ''}',
           style: AppText.note.copyWith(color: AppColors.ink3),
         ),
       ),
@@ -467,8 +462,10 @@ class LedgerPage extends ConsumerWidget {
         Padding(
           padding: const EdgeInsets.only(top: Gap.md),
           child: InlineEmptyCard(
-            title: any ? '沒有符合的紀錄' : '這個月還沒有紀錄',
-            message: any ? '換個篩選看看' : '按右下角 ＋ 記一筆，或按右上角的貼上圖示匯入刷卡紀錄',
+            title: any || searching ? '沒有符合的紀錄' : '這個月還沒有紀錄',
+            message: any || searching
+                ? '換個關鍵字或篩選看看'
+                : '按右下角 ＋ 記一筆，或按右上角的貼上圖示匯入刷卡紀錄',
             actions: [
               if (any)
                 EmptyAction(
@@ -960,4 +957,63 @@ class _DonutPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_DonutPainter old) => true;
+}
+
+/// 明細頂部的搜尋框：輸入後馬上搜，右邊有清除。
+class _SearchBox extends ConsumerStatefulWidget {
+  const _SearchBox();
+
+  @override
+  ConsumerState<_SearchBox> createState() => _SearchBoxState();
+}
+
+class _SearchBoxState extends ConsumerState<_SearchBox> {
+  late final _c = TextEditingController(text: ref.read(ledgerSearchProvider));
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 8),
+    child: TextField(
+      controller: _c,
+      onChanged: (v) {
+        ref.read(ledgerSearchProvider.notifier).state = v;
+        setState(() {}); // 清除鈕跟著有沒有字出現或消失
+      },
+      textInputAction: TextInputAction.search,
+      decoration: InputDecoration(
+        hintText: '搜尋：商家、備註、分類、帳戶、金額、日期⋯（空白隔開多個詞）',
+        hintStyle: const TextStyle(fontSize: 12.5),
+        prefixIcon: const Icon(Icons.search_rounded, size: 20),
+        suffixIcon: _c.text.isEmpty
+            ? null
+            : IconButton(
+                tooltip: '清除搜尋',
+                icon: const Icon(Icons.close_rounded, size: 18),
+                onPressed: () {
+                  _c.clear();
+                  ref.read(ledgerSearchProvider.notifier).state = '';
+                  setState(() {});
+                },
+              ),
+        isDense: true,
+        filled: true,
+        fillColor: AppColors.glassFill,
+        contentPadding: const EdgeInsets.symmetric(vertical: 11),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.glassEdge),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.glassEdge),
+        ),
+      ),
+    ),
+  );
 }
