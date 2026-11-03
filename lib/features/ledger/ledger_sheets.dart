@@ -749,6 +749,7 @@ class _TxFormState extends State<_TxForm> {
     for (final c in [_amount, _merchant, _memo, _pfAmount, _pfPeople, _after]) {
       c.dispose();
     }
+    _paste.dispose();
     super.dispose();
   }
 
@@ -820,6 +821,53 @@ class _TxFormState extends State<_TxForm> {
       case LedgerTxType.adjustment:
         break;
     }
+  }
+
+  // ── 上方貼一行文字，下面自動填 ───────────────────────────
+
+  final _paste = TextEditingController();
+
+  /// 貼上的那行讀得懂嗎：null＝還沒貼、'ok'＝填好了、其他＝錯誤說明。
+  String? _pasteMsg;
+
+  /// 貼一行匯入格式（`帳戶｜日期時間｜分類｜商家｜金額［｜跟誰｜對方要給｜已給｜餘額｜備註］`），
+  /// 照匯入同一套解析，把表單各欄自動填好（2026-11-03 使用者）。多行請用右上角的匯入。
+  void _applyPaste(String text) {
+    final raw = text.trim();
+    if (raw.isEmpty) {
+      setState(() => _pasteMsg = null);
+      return;
+    }
+    final lines = book.parseImport(raw);
+    if (lines.length > 1) {
+      setState(() => _pasteMsg = '有 ${lines.length} 行：一次貼很多行請用右上角的匯入');
+      return;
+    }
+    final l = lines.single;
+    final t = l.tx;
+    if (t == null) {
+      setState(() => _pasteMsg = l.error);
+      return;
+    }
+    setState(() {
+      _type = t.type == LedgerTxType.transfer
+          ? LedgerTxType.transfer
+          : LedgerTxType.expense;
+      _toOther = false;
+      _amount.text = '${t.amount}';
+      _account = t.accountId;
+      _to = t.toAccountId;
+      if (t.category != null) _category = t.category!;
+      _merchant.text = t.merchant;
+      _memo.text = t.note;
+      _at = t.occurredAt;
+      final pf = t.paidFor;
+      _pf = pf != null;
+      _pfAmount.text = pf == null ? '' : '${pf.amount}';
+      _pfPeople.text = pf?.people ?? '';
+      _after.text = l.after == null ? '' : '${l.after}';
+      _pasteMsg = l.duplicate ? 'dup:${l.duplicateOf}' : 'ok';
+    });
   }
 
   void _setType(LedgerTxType t) => setState(() {
@@ -1000,6 +1048,43 @@ class _TxFormState extends State<_TxForm> {
     final pfAmt = _int(_pfAmount) ?? 0;
     final t = _type;
     final children = <Widget>[
+      if (e == null && p.cpId == null) ...[
+        TextField(
+          controller: _paste,
+          minLines: 1,
+          maxLines: 3,
+          onChanged: _applyPaste,
+          style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
+          decoration: _input('貼上一行文字，下面自動填（選填）').copyWith(
+            suffixIcon: IconButton(
+              tooltip: '從剪貼簿貼上',
+              icon: const Icon(Icons.content_paste_rounded, size: 20),
+              onPressed: () async {
+                final d = await Clipboard.getData(Clipboard.kTextPlain);
+                if (d?.text == null) return;
+                _paste.text = d!.text!;
+                _applyPaste(d.text!);
+              },
+            ),
+          ),
+        ),
+        if (_pasteMsg != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6, bottom: 4),
+            child: Text(
+              _pasteMsg == 'ok'
+                  ? '✓ 讀懂了，下面已經填好，確認一下再按「記下來」'
+                  : _pasteMsg!.startsWith('dup:')
+                  ? '⚠ 讀懂了，但跟${_pasteMsg!.substring(4)}相同（同帳戶、同一分鐘、同金額），按記下來也不會加'
+                  : '✕ $_pasteMsg',
+              style: TextStyle(
+                fontSize: 11.5,
+                color: _pasteMsg == 'ok' ? AppColors.ok : AppColors.mid,
+              ),
+            ),
+          ),
+        const SizedBox(height: 8),
+      ],
       if (e == null && p.cpId == null)
         Wrap(
           spacing: 6,

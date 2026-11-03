@@ -215,7 +215,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byType(FloatingActionButton));
     await settle(tester);
-    await tester.enterText(find.byType(TextField).first, '120');
+    await tester.enterText(find.byType(TextField).at(1), '120');
     await tester.pump();
     await tester.tap(find.widgetWithText(FilledButton, '記下來'));
     await settle(tester);
@@ -281,7 +281,7 @@ void main() {
     await settle(tester);
     await tester.tap(find.text('轉帳'));
     await tester.pump();
-    await tester.enterText(find.byType(TextField).first, '800');
+    await tester.enterText(find.byType(TextField).at(1), '800');
     await tester.tap(find.text('轉給別人（算支出）'));
     await tester.pump();
     expect(find.text('買什麼（分類）'), findsOneWidget);
@@ -330,6 +330,32 @@ void main() {
     expect(find.text('貼上文字匯入'), findsWidgets);
     expect(find.textContaining('帳戶｜日期時間｜分類｜商家｜金額'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('記一筆上方貼一行文字 → 下面自動填好，記下來就存進去', (tester) async {
+    final store = await seeded();
+    await pump(tester, const LedgerPage(tab: LedgerTab.home), store);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(FloatingActionButton));
+    await settle(tester);
+    await tester.enterText(
+      find.byType(TextField).first,
+      '現金｜2026/11/05 15:00｜寵物｜飼料｜650｜｜｜｜｜補貨',
+    );
+    await tester.pump();
+    expect(find.textContaining('讀懂了'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, '記下來'));
+    await settle(tester);
+    expect(tester.takeException(), isNull);
+    final book = await tester.runAsync(
+      () => LedgerRepository(store).loadBook(),
+    );
+    final t = book!.txs.firstWhere((t) => t.amount == 650);
+    expect(t.category, '寵物');
+    expect(t.merchant, '飼料');
+    expect(t.note, '補貨');
+    expect(t.occurredAt, DateTime(2026, 11, 5, 15));
+    expect(book.accountName(t.accountId), '現金');
   });
 
   testWidgets('跟別人一起：按「他給了 ✓」→ 標記就好，就不再列在別人還欠你', (tester) async {
