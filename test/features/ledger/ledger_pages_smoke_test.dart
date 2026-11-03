@@ -543,8 +543,13 @@ void main() {
     container.read(ledgerMonthProvider.notifier).state = DateTime(2026, 11);
     await tester.pump();
     expect(find.textContaining('1 筆'), findsOneWidget); // 只有 11 月那筆
-    await tester.tap(find.text('📅 全部時間'));
-    await tester.pump();
+    // 「查看時間」按鈕 → 選單 → 全部時間。
+    expect(find.textContaining('查看時間：'), findsOneWidget);
+    await tester.tap(find.textContaining('查看時間：'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('有紀錄的月份'), findsOneWidget);
+    await tester.tap(find.textContaining('全部時間（'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('🍺 菸酒'));
     await tester.pump();
     // 三個月加起來 300+500+200 = 1000。

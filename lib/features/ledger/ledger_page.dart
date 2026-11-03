@@ -48,8 +48,13 @@ final ledgerFilterProvider =
 /// 明細頂部的搜尋字（2026-11-03 使用者）：有字的時候搜全部月份、每個欄位都搜。
 final ledgerSearchProvider = StateProvider<String>((_) => '');
 
-/// 明細看全部時間（2026-11-03 使用者：才能看菸酒之類總共花多少）。
-final ledgerAllTimeProvider = StateProvider<bool>((_) => false);
+/// 明細查看的時間範圍（2026-11-03 使用者：要能選全部，才能看菸酒之類總共花多少）：
+/// 單一個月（用 [ledgerMonthProvider]）、整年、全部時間。
+enum LedgerRange { month, year, all }
+
+final ledgerRangeProvider = StateProvider<LedgerRange>(
+  (_) => LedgerRange.month,
+);
 
 class LedgerPage extends ConsumerWidget {
   const LedgerPage({super.key, required this.tab});
@@ -402,12 +407,14 @@ class LedgerPage extends ConsumerWidget {
     void set(({bool flagged, String? accountId, String? category}) v) =>
         ref.read(ledgerFilterProvider.notifier).state = v;
     final q = ref.watch(ledgerSearchProvider).trim();
-    final allTime = ref.watch(ledgerAllTimeProvider);
+    final range = ref.watch(ledgerRangeProvider);
     final searching = q.isNotEmpty;
-    // 搜尋、或打開「全部時間」時不管月份，全部紀錄都算。
-    final wide = searching || allTime;
-    final inM = wide
+    // 搜尋、或選了「整年／全部時間」時不是只看一個月。
+    final wide = searching || range != LedgerRange.month;
+    final inM = searching || range == LedgerRange.all
         ? book.txs
+        : range == LedgerRange.year
+        ? book.txs.where((t) => t.occurredAt.year == m.year).toList()
         : book.txs.where(LedgerBook.inMonth(m.year, m.month)).toList();
     final shown = inM
         .where(
@@ -425,20 +432,7 @@ class LedgerPage extends ConsumerWidget {
     final any = f.flagged || f.accountId != null || f.category != null;
     return [
       const _SearchBox(),
-      Padding(
-        padding: const EdgeInsets.only(bottom: 4),
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: FilterChip(
-            label: const Text('📅 全部時間'),
-            selected: wide,
-            showCheckmark: false,
-            onSelected: searching
-                ? null
-                : (v) => ref.read(ledgerAllTimeProvider.notifier).state = v,
-          ),
-        ),
-      ),
+      _RangeButton(book: book, searching: searching),
       if (!wide) _monthBar(ref),
       // 2026 年 11 月以前的資料不準確（只是記錄下來）：看那些月份，或搜尋結果裡有
       // 那些月份的紀錄時，明細上方標註。
@@ -522,8 +516,10 @@ class LedgerPage extends ConsumerWidget {
           '${f.category == null ? '・收入 ${lMoney(st.income)}' : ''}'
           '${searching
               ? '（搜尋「$q」，全部時間）'
-              : allTime
+              : range == LedgerRange.all
               ? '（全部時間）'
+              : range == LedgerRange.year
+              ? '（${m.year} 年）'
               : any
               ? '（篩選中）'
               : ''}',
@@ -1088,4 +1084,141 @@ class _SearchBoxState extends ConsumerState<_SearchBox> {
       ),
     ),
   );
+}
+
+/// 「查看時間」按鈕（明細頂部）：點開選全部時間、今年、本月、上個月，或有紀錄的某個月。
+class _RangeButton extends ConsumerWidget {
+  const _RangeButton({required this.book, required this.searching});
+
+  final LedgerBook book;
+  final bool searching;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final range = ref.watch(ledgerRangeProvider);
+    final m = ref.watch(ledgerMonthProvider);
+    final label = searching
+        ? '全部時間（搜尋中）'
+        : switch (range) {
+            LedgerRange.all => '全部時間',
+            LedgerRange.year => '${m.year} 年',
+            LedgerRange.month => '${m.year} 年 ${m.month} 月',
+          };
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: OutlinedButton.icon(
+          onPressed: searching ? null : () => _open(context, ref),
+          icon: const Icon(Icons.calendar_month_rounded, size: 18),
+          label: Text('查看時間：$label  ▾'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.ink,
+            side: const BorderSide(color: AppColors.glassEdge),
+            visualDensity: VisualDensity.compact,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _open(BuildContext context, WidgetRef ref) async {
+    final now = DateTime.now();
+    // 有紀錄的月份（新的在前）跟每個月幾筆。
+    final counts = <DateTime, int>{};
+    for (final t in book.txs) {
+      final k = DateTime(t.occurredAt.year, t.occurredAt.month);
+      counts[k] = (counts[k] ?? 0) + 1;
+    }
+    final months = counts.keys.toList()..sort((a, b) => b.compareTo(a));
+    void pick(LedgerRange r, [DateTime? month]) {
+      ref.read(ledgerRangeProvider.notifier).state = r;
+      if (month != null) {
+        ref.read(ledgerMonthProvider.notifier).state = month;
+      }
+      Navigator.pop(context);
+    }
+
+    await showModalBottomSheet<void>(
+      context: context,
+      useSafeArea: true,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF1A1A27),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (c) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 14, 18, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '查看時間',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.ink,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  ActionChip(
+                    label: Text('全部時間（${book.txs.length} 筆）'),
+                    onPressed: () => pick(LedgerRange.all),
+                  ),
+                  ActionChip(
+                    label: Text('今年（${now.year}）'),
+                    onPressed: () =>
+                        pick(LedgerRange.year, DateTime(now.year, now.month)),
+                  ),
+                  ActionChip(
+                    label: const Text('本月'),
+                    onPressed: () =>
+                        pick(LedgerRange.month, DateTime(now.year, now.month)),
+                  ),
+                  ActionChip(
+                    label: const Text('上個月'),
+                    onPressed: () => pick(
+                      LedgerRange.month,
+                      DateTime(now.year, now.month - 1),
+                    ),
+                  ),
+                ],
+              ),
+              if (months.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                const Text('有紀錄的月份', style: TextStyle(color: AppColors.ink2)),
+                const SizedBox(height: 8),
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(c).size.height * 0.4,
+                  ),
+                  child: SingleChildScrollView(
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (final k in months)
+                          ActionChip(
+                            label: Text(
+                              '${k.year}/${k.month.toString().padLeft(2, '0')}（${counts[k]}）',
+                            ),
+                            onPressed: () => pick(LedgerRange.month, k),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

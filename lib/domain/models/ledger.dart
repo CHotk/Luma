@@ -472,3 +472,55 @@ class LedgerBudget {
     deletedAt: _t(j['deletedAt']),
   );
 }
+
+/// 記帳的操作紀錄（2026-11-03 使用者：每個動作都存一份 log，只會變大、永遠不刪）。
+///
+/// 只增不改不刪：沒有墓碑、不裁剪，上限只能是畫面顯示上的。多裝置同步時兩邊的
+/// 紀錄直接聯集（照 id）。[detail] 放這次動作的細節（改了哪些欄位、舊值→新值）。
+class LedgerLogEntry {
+  const LedgerLogEntry({
+    required this.id,
+    required this.at,
+    required this.action,
+    required this.summary,
+    this.detail = '',
+    this.refId,
+    this.device = '',
+  });
+
+  final String id;
+  final DateTime at;
+
+  /// 動作名稱：新增、編輯、刪除、標記、他給了、對帳、匯入、預算、帳戶⋯。
+  final String action;
+  final String summary;
+  final String detail;
+
+  /// 動到哪一筆（交易、帳戶、對帳點的 id），沒有就是 null。
+  final String? refId;
+
+  /// 哪台裝置做的（空＝舊資料）。
+  final String device;
+
+  DateTime get syncedAt => at;
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'at': ledgerTime(at),
+    'action': action,
+    'summary': summary,
+    'detail': detail,
+    'refId': refId,
+    'device': device,
+  };
+
+  factory LedgerLogEntry.fromJson(Map<String, dynamic> j) => LedgerLogEntry(
+    id: j['id'] as String,
+    at: _t(j['at'])!,
+    action: j['action'] as String? ?? '',
+    summary: j['summary'] as String? ?? '',
+    detail: j['detail'] as String? ?? '',
+    refId: j['refId'] as String?,
+    device: j['device'] as String? ?? '',
+  );
+}
