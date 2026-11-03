@@ -585,6 +585,50 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('拆分的大筆：預設一個大項（已拆）；選分類只顯示那個分類的子項', (tester) async {
+    final store = _MemoryStore();
+    final repo = LedgerRepository(store);
+    final b0 = await tester.runAsync(() => repo.loadBook());
+    final cash = b0!.accounts.firstWhere(
+      (a) => a.type == LedgerAccountType.cash,
+    );
+    await tester.runAsync(
+      () => repo.addTransaction(
+        LedgerTx(
+          id: ledgerId(),
+          type: LedgerTxType.expense,
+          occurredAt: DateTime.now(),
+          amount: 1000,
+          accountId: cash.id,
+          category: '生活',
+          merchant: '家樂福',
+          splits: const [
+            LedgerSplit(category: '生活', amount: 600),
+            LedgerSplit(category: '餐飲', amount: 400),
+          ],
+        ),
+      ),
+    );
+    await pump(tester, const LedgerPage(tab: LedgerTab.list), store);
+    // 預設：一個大項，金額是整筆，標「已拆 2 份」。
+    expect(find.text('−\$1,000'), findsOneWidget);
+    expect(find.text('已拆 2 份'), findsOneWidget);
+    // 選分類「餐飲」：只顯示那一份 400，旁邊寫拆分自 1,000。
+    await tester.tap(find.text('🍜 餐飲'));
+    await tester.pump();
+    expect(find.text('−\$400'), findsOneWidget);
+    expect(find.text('拆分自 \$1,000'), findsOneWidget);
+    expect(find.text('−\$1,000'), findsNothing);
+    expect(find.textContaining('餐飲 \$400'), findsOneWidget); // 上面統計也是 400
+    // 換成「生活」：600。
+    await tester.tap(find.text('🍜 餐飲'));
+    await tester.pump();
+    await tester.tap(find.text('🏡 生活'));
+    await tester.pump();
+    expect(find.text('−\$600'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('跟別人一起：按「他給了 ✓」→ 標記就好，就不再列在別人還欠你', (tester) async {
     final store = await seeded();
     await pump(tester, const LedgerPage(tab: LedgerTab.home), store);

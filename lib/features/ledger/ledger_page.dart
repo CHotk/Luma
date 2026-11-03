@@ -544,7 +544,12 @@ class LedgerPage extends ConsumerWidget {
           ),
         )
       else
-        ...groupedTxList(book, shown, (t) => txDetailFlow(context, ref, t.id)),
+        ...groupedTxList(
+          book,
+          shown,
+          (t) => txDetailFlow(context, ref, t.id),
+          partCategory: f.category,
+        ),
     ];
   }
 

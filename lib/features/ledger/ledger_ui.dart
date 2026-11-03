@@ -145,12 +145,17 @@ class TxTile extends StatelessWidget {
     required this.tx,
     required this.onTap,
     this.showDate = false,
+    this.partCategory,
   });
 
   final LedgerBook book;
   final LedgerTx tx;
   final VoidCallback onTap;
   final bool showDate;
+
+  /// 明細選了某個分類時，拆分的消費只顯示那個分類的子項（金額是那一份，旁邊寫
+  /// 「拆分自 $整筆」），點下去還是開整筆（2026-11-03 使用者）。
+  final String? partCategory;
 
   @override
   Widget build(BuildContext context) {
@@ -182,11 +187,21 @@ class TxTile extends StatelessWidget {
       }
     }
     if (t.note.isNotEmpty) sub.write('・${t.note}');
+    // 選了分類又是拆分的：只顯示那個分類的子項金額。
+    final part = partCategory != null && t.isSplit
+        ? t.splits
+              .where((x) => x.category == partCategory)
+              .fold<int>(0, (a, x) => a + x.amount)
+        : null;
     final (amt, amtColor, small) = switch (t.type) {
       LedgerTxType.expense => (
-        '−${lMoney(t.amount)}',
+        '−${lMoney(part ?? t.amount)}',
         AppColors.ink,
-        t.paidFor == null ? null : '自己 ${lMoney(t.ownSpend)}',
+        part != null
+            ? '拆分自 ${lMoney(t.amount)}'
+            : t.paidFor == null
+            ? null
+            : '自己 ${lMoney(t.ownSpend)}',
       ),
       LedgerTxType.income => ('+${lMoney(t.amount)}', AppColors.ok, null),
       LedgerTxType.refund => ('+${lMoney(t.amount)}', AppColors.ok, '退款'),
@@ -263,6 +278,7 @@ class TxTile extends StatelessWidget {
                               ),
                               // 標籤排在名稱下一行，名字長也不會擠爆。
                               if (pf != null ||
+                                  t.isSplit ||
                                   t.source == 'paste' ||
                                   gap != null ||
                                   cp != null)
@@ -294,6 +310,13 @@ class TxTile extends StatelessWidget {
                                           cp.available != null
                                               ? '可用 ${lMoney(cp.available!)}'
                                               : '餘額 ${lMoney(cp.balance ?? 0)}',
+                                        ),
+                                      if (t.isSplit)
+                                        LedgerPill(
+                                          part != null
+                                              ? '拆分・$partCategory'
+                                              : '已拆 ${t.splits.length} 份',
+                                          color: const Color(0xFFB79CFF),
                                         ),
                                       if (t.source == 'paste')
                                         const LedgerPill('匯入'),
@@ -486,8 +509,9 @@ Widget ledgerSection(String title, {String? action, VoidCallback? onAction}) =>
 List<Widget> groupedTxList(
   LedgerBook book,
   List<LedgerTx> txs,
-  void Function(LedgerTx) onTap,
-) {
+  void Function(LedgerTx) onTap, {
+  String? partCategory,
+}) {
   final out = <Widget>[];
   DateTime? cur;
   for (final t in txs) {
@@ -532,7 +556,14 @@ List<Widget> groupedTxList(
         ),
       );
     }
-    out.add(TxTile(book: book, tx: t, onTap: () => onTap(t)));
+    out.add(
+      TxTile(
+        book: book,
+        tx: t,
+        partCategory: partCategory,
+        onTap: () => onTap(t),
+      ),
+    );
   }
   return out;
 }
