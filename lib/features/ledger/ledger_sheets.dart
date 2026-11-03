@@ -1379,8 +1379,8 @@ class _TxFormState extends State<_TxForm> {
         style: _outline,
       ),
       ..._afterField(err == null ? _build() : null),
-      _label('備註（為什麼買）', trailing: '選填'),
-      TextField(controller: _memo, decoration: _input('例如：請客、補貨、生日禮物')),
+      _label('備註', trailing: '選填'),
+      TextField(controller: _memo, decoration: _input('想寫什麼都可以')),
       _toggle(
         '🚩 標記要注意',
         '單純標註，不影響任何計算；列表上會有小旗子',
@@ -2456,7 +2456,7 @@ class _ImportState extends State<_Import> {
             text:
                 '（選填：填跟誰、對方要給就是跟別人一起；他已經給了就再加「｜已給」）。\n'
                 '最後可以再加一欄「｜餘額」＝這筆之後帳戶剩多少（信用卡填可用額度），用來抓漏記；'
-                '最後一欄「備註」是為什麼買；中間沒有的欄位留空，例如 ……｜1000｜｜｜｜48500｜請客。\n',
+                '最後一欄是「備註」，想寫什麼都可以；中間沒有的欄位留空，例如 ……｜1000｜｜｜｜48500｜請客。\n',
           ),
           const TextSpan(
             text:

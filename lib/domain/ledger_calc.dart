@@ -521,7 +521,7 @@ class LedgerBook {
       final afterV = p.length >= 9
           ? int.tryParse(p[8].replaceAll(RegExp(r'[^\d]'), ''))
           : null;
-      // 第 10 欄選填：備註（為什麼買）。
+      // 第 10 欄選填：備註（想寫什麼都可以）。
       final noteV = p.length >= 10 ? p[9] : '';
       if (amount <= 0) {
         out.add(ImportLine(line, error: '看不懂金額'));
