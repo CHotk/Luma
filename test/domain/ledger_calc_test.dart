@@ -335,6 +335,100 @@ void main() {
     expect(lines[2].duplicate, isTrue, reason: '同一次貼的兩行同分鐘同金額');
   });
 
+  test('餘額附在交易上：下一筆餘額對不上就掛漏記，補上中間那筆標籤就消失', () {
+    LedgerTx spend(String id, int day, int amount) => LedgerTx(
+      id: id,
+      type: LedgerTxType.expense,
+      occurredAt: DateTime(2026, 11, day, 12),
+      amount: amount,
+      accountId: 'bank',
+      category: '餐飲',
+    );
+    LedgerCheckpoint after(String txId, int day, int balance) =>
+        LedgerCheckpoint(
+          id: 'cp$txId',
+          accountId: 'bank',
+          at: DateTime(2026, 11, day, 12),
+          balance: balance,
+          txId: txId,
+        );
+    LedgerBook make(List<LedgerTx> txs, List<LedgerCheckpoint> cps) =>
+        LedgerBook(
+          accounts: const [bank],
+          txs: txs,
+          checkpoints: cps,
+          budgets: const [],
+        );
+    final t1 = spend('a', 1, 100), t2 = spend('b', 2, 100);
+    // 第一筆餘額 1000 是起點；第二筆花 100 餘額卻剩 400 → 漏記 500。
+    var b = make([t1, t2], [after('a', 1, 1000), after('b', 2, 400)]);
+    expect(b.gapOfTx('a'), isNull, reason: '第一個餘額是起點');
+    expect(b.gapOfTx('b')!.miss, 500);
+    // 補上中間漏掉的 500（時間放在兩個餘額中間）：標籤消失。
+    final fix = LedgerTx(
+      id: 'fix',
+      type: LedgerTxType.expense,
+      occurredAt: b.fixTimeFor(b.checkpointOfTx('b')!),
+      amount: 500,
+      accountId: 'bank',
+      category: '未分類',
+    );
+    expect(fix.occurredAt.isAfter(DateTime(2026, 11, 1, 12)), isTrue);
+    expect(fix.occurredAt.isBefore(DateTime(2026, 11, 2, 12)), isTrue);
+    b = make([t1, t2, fix], [after('a', 1, 1000), after('b', 2, 400)]);
+    expect(b.gapOfTx('b'), isNull);
+    // 前面的缺失不會污染後面：第三筆照第二筆的實際餘額算，對得上就沒標籤。
+    final t3 = spend('c', 3, 50);
+    b = make(
+      [t1, t2, t3],
+      [after('a', 1, 1000), after('b', 2, 400), after('c', 3, 350)],
+    );
+    expect(b.gapOfTx('b')!.miss, 500);
+    expect(b.gapOfTx('c'), isNull);
+    // 沒填餘額的交易沒有標籤。
+    expect(make([t1], [after('a', 1, 1000)]).gapOfTx('zzz'), isNull);
+  });
+
+  test('信用卡餘額附在交易上：刷卡後可用額度對不上＝漏記刷卡', () {
+    LedgerTx swipe(String id, int day, int amount) => LedgerTx(
+      id: id,
+      type: LedgerTxType.expense,
+      occurredAt: DateTime(2026, 11, day, 12),
+      amount: amount,
+      accountId: 'card',
+      category: '餐飲',
+    );
+    LedgerCheckpoint avail(String txId, int day, int a) => LedgerCheckpoint(
+      id: 'cp$txId',
+      accountId: 'card',
+      at: DateTime(2026, 11, day, 12),
+      creditLimit: 100000,
+      available: a,
+      txId: txId,
+    );
+    final b = LedgerBook(
+      accounts: const [card],
+      txs: [swipe('a', 1, 100), swipe('b', 2, 100)],
+      checkpoints: [avail('a', 1, 99900), avail('b', 2, 99300)],
+      budgets: const [],
+    );
+    // 第二筆刷 100，可用額度卻少 600 → 漏記 500 的刷卡。
+    expect(b.gapOfTx('b')!.miss, 500);
+  });
+
+  test('貼上匯入第 9 欄：這筆之後的餘額；跟誰留空也行', () {
+    final lines = book([]).parseImport('''
+中信銀行｜2026/11/04 12:00｜餐飲｜麥當勞｜189｜｜｜｜86000
+現金｜2026/11/04 13:00｜餐飲｜便當｜120｜｜｜｜1880
+中信銀行｜2026/11/04 14:00｜餐飲｜咖啡｜100
+''');
+    expect(lines[0].error, isNull);
+    expect(lines[0].tx!.paidFor, isNull);
+    expect(lines[0].after, 86000);
+    expect(lines[1].after, 1880);
+    expect(lines[2].after, isNull);
+  });
+
   test('貼上匯入「轉帳」：轉到自己的帳戶不算支出；轉給別人算支出', () {
     final lines = book([]).parseImport('''
 中信活存｜2026/11/01 11:00｜轉帳｜現金｜5000

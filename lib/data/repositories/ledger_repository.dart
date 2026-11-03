@@ -46,12 +46,43 @@ class LedgerRepository {
   Future<List<LedgerBudget>> budgetsForUpload() =>
       _load(_budgetKey, LedgerBudget.fromJson);
 
-  Future<LedgerBook> loadBook() async => LedgerBook(
-    accounts: await accountsForUpload(),
-    txs: await transactionsForUpload(),
-    checkpoints: await checkpointsForUpload(),
-    budgets: await budgetsForUpload(),
-  );
+  /// 預設三個帳戶用固定 id：兩台裝置各自第一次打開都會自己建，同步時才會
+  /// 合併成同一個、不會變兩份。
+  static const _defaults = [
+    ('default_bank', '中信活存', LedgerAccountType.bank),
+    ('default_card', '中信信用卡', LedgerAccountType.creditCard),
+    ('default_cash', '現金', LedgerAccountType.cash),
+  ];
+
+  /// 一次都沒有過帳戶（連刪掉的都沒有）就自動建預設的三個（2026-11-03 使用者：
+  /// 記帳就是我這個人的一整本，不用先「開始記帳」建帳戶，也不用填任何餘額；
+  /// 不同的卡只是「用哪張付」）。餘額、額度都是之後想對帳才填。
+  Future<void> ensureDefaultAccounts() async {
+    final all = await accountsForUpload();
+    if (all.isNotEmpty) return;
+    final now = DateTime.now();
+    await _save(_accountsKey, [
+      for (final (i, d) in _defaults.indexed)
+        LedgerAccount(
+          id: d.$1,
+          name: d.$2,
+          type: d.$3,
+          order: i + 1,
+          createdAt: now,
+          updatedAt: now,
+        ),
+    ], (e) => e.toJson());
+  }
+
+  Future<LedgerBook> loadBook() async {
+    await ensureDefaultAccounts();
+    return LedgerBook(
+      accounts: await accountsForUpload(),
+      txs: await transactionsForUpload(),
+      checkpoints: await checkpointsForUpload(),
+      budgets: await budgetsForUpload(),
+    );
+  }
 
   // ── 帳戶 ─────────────────────────────────────────────────
 
@@ -152,6 +183,54 @@ class LedgerRepository {
       for (final t in all)
         t.id == id ? t.copyWith(updatedAt: now, deletedAt: now) : t,
     ], (e) => e.toJson());
+    // 附在這筆上的餘額也一起刪（不然會留下一個沒有交易的對帳點）。
+    await setTxCheckpoint(
+      txId: id,
+      accountId: '',
+      at: now,
+      value: null,
+      creditLimit: null,
+    );
+  }
+
+  /// 設定／更新／清掉「這筆交易之後帳戶剩多少」（附在交易上的對帳點）。
+  /// [value] 是銀行／現金的餘額，信用卡是可用額度（要有 [creditLimit]）；
+  /// null＝清掉。時間跟著交易 [at]。
+  Future<void> setTxCheckpoint({
+    required String txId,
+    required String accountId,
+    required DateTime at,
+    required int? value,
+    required int? creditLimit,
+    bool isCard = false,
+  }) async {
+    final now = DateTime.now();
+    final all = await checkpointsForUpload();
+    final i = all.indexWhere((c) => c.txId == txId && c.deletedAt == null);
+    if (value == null) {
+      if (i >= 0) {
+        all[i] = all[i].copyWith(updatedAt: now, deletedAt: now);
+        await _save(_cpKey, all, (e) => e.toJson());
+      }
+      return;
+    }
+    final c = LedgerCheckpoint(
+      id: i >= 0 ? all[i].id : ledgerId(),
+      accountId: accountId,
+      at: at,
+      balance: isCard ? null : value,
+      creditLimit: isCard ? creditLimit : null,
+      available: isCard ? value : null,
+      note: '記帳時填的餘額',
+      txId: txId,
+      updatedAt: now,
+    );
+    if (i >= 0) {
+      all[i] = c;
+    } else {
+      all.add(c);
+    }
+    await _save(_cpKey, all, (e) => e.toJson());
   }
 
   // ── 對帳點 ───────────────────────────────────────────────

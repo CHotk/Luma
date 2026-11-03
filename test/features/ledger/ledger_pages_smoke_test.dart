@@ -130,7 +130,6 @@ void main() {
         final store = empty ? _MemoryStore() : await seeded();
         await pump(tester, LedgerPage(tab: tab), store);
         expect(tester.takeException(), isNull);
-        if (empty) expect(find.text('還沒開始記帳'), findsOneWidget);
       });
     }
   }
@@ -202,26 +201,76 @@ void main() {
     }
   });
 
-  testWidgets('沒資料時按「開始記帳」：只建帳戶、餘額不用填、可以多加戶頭', (tester) async {
+  testWidgets('完全沒資料也能直接記：自動有預設三個帳戶、不跳開始記帳、餘額都不用填', (tester) async {
     final store = _MemoryStore();
     await pump(tester, const LedgerPage(tab: LedgerTab.home), store);
-    await tester.tap(find.text('開始記帳').last);
-    await settle(tester);
-    expect(find.text('起始日'), findsNothing);
-    await tester.tap(find.text('再加一個銀行戶頭'));
-    await tester.pump();
-    await tester.enterText(find.byType(TextField).at(2), '郵局');
-    await tester.pump();
-    await tester.tap(find.widgetWithText(FilledButton, '開始'));
-    await settle(tester);
-    expect(tester.takeException(), isNull);
+    expect(find.text('開始記帳'), findsNothing);
+    expect(find.text('沒填餘額'), findsNWidgets(3));
     final book = await tester.runAsync(
       () => LedgerRepository(store).loadBook(),
     );
-    expect(book!.accounts.map((a) => a.name), ['中信活存', '郵局', '中信信用卡', '現金']);
-    // 都沒填餘額：沒有對帳點，帳戶只記交易。
+    expect(book!.accounts.map((a) => a.name), ['中信活存', '中信信用卡', '現金']);
     expect(book.checkpoints, isEmpty);
-    expect(find.text('沒填餘額'), findsNWidgets(4));
+    // 記一筆，不填任何餘額。
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(FloatingActionButton));
+    await settle(tester);
+    await tester.enterText(find.byType(TextField).first, '120');
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, '記下來'));
+    await settle(tester);
+    expect(tester.takeException(), isNull);
+    final after = await tester.runAsync(
+      () => LedgerRepository(store).loadBook(),
+    );
+    expect(after!.txs.single.amount, 120);
+  });
+
+  testWidgets('記一筆時填「這筆之後的餘額」→ 附在這筆上；下一筆餘額對不上就掛漏記標籤', (tester) async {
+    final store = _MemoryStore();
+    final repo = LedgerRepository(store);
+    final book0 = await tester.runAsync(() => repo.loadBook());
+    final bank = book0!.accounts.first;
+    await tester.runAsync(() async {
+      final t1 = LedgerTx(
+        id: ledgerId(),
+        type: LedgerTxType.expense,
+        occurredAt: DateTime(2026, 11, 2, 10),
+        amount: 100,
+        accountId: bank.id,
+        category: '餐飲',
+        merchant: '早餐',
+      );
+      await repo.addTransaction(t1);
+      await repo.setTxCheckpoint(
+        txId: t1.id,
+        accountId: bank.id,
+        at: t1.occurredAt,
+        value: 1000,
+        creditLimit: null,
+      );
+      // 下一筆花 100，餘額卻少了 600：中間漏記 500。
+      final t2 = LedgerTx(
+        id: ledgerId(),
+        type: LedgerTxType.expense,
+        occurredAt: DateTime(2026, 11, 3, 10),
+        amount: 100,
+        accountId: bank.id,
+        category: '餐飲',
+        merchant: '午餐',
+      );
+      await repo.addTransaction(t2);
+      await repo.setTxCheckpoint(
+        txId: t2.id,
+        accountId: bank.id,
+        at: t2.occurredAt,
+        value: 400,
+        creditLimit: null,
+      );
+    });
+    await pump(tester, const LedgerPage(tab: LedgerTab.list), store);
+    expect(find.text('⚠ 漏記 \$500'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('轉帳打開「轉給別人（算支出）」→ 存成一筆支出', (tester) async {

@@ -186,6 +186,8 @@ class TxTile extends StatelessWidget {
       ),
     };
     final pf = t.paidFor;
+    final gap = book.gapOfTx(t.id);
+    final cp = book.checkpointOfTx(t.id);
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: Material(
@@ -229,7 +231,10 @@ class TxTile extends StatelessWidget {
                         ],
                       ),
                       // 標籤排在名稱下一行，名字長也不會擠爆。
-                      if (pf != null || t.source == 'paste')
+                      if (pf != null ||
+                          t.source == 'paste' ||
+                          gap != null ||
+                          cp != null)
                         Padding(
                           padding: const EdgeInsets.only(top: 3),
                           child: Wrap(
@@ -244,6 +249,19 @@ class TxTile extends StatelessWidget {
                                   color: pf.settled
                                       ? AppColors.ok
                                       : ledgerPaidFor,
+                                ),
+                              if (gap != null)
+                                LedgerPill(
+                                  gap.miss > 0
+                                      ? '⚠ 漏記 ${lMoney(gap.miss)}'
+                                      : '⚠ 多出 ${lMoney(-gap.miss)}',
+                                  color: AppColors.mid,
+                                )
+                              else if (cp != null)
+                                LedgerPill(
+                                  cp.available != null
+                                      ? '可用 ${lMoney(cp.available!)}'
+                                      : '餘額 ${lMoney(cp.balance ?? 0)}',
                                 ),
                               if (t.source == 'paste') const LedgerPill('匯入'),
                             ],

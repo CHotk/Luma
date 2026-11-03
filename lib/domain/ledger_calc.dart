@@ -106,6 +106,7 @@ class ImportLine {
     this.duplicateOf,
     this.beforeStart = false,
     this.unknownCategory,
+    this.after,
   });
 
   final String line;
@@ -117,6 +118,9 @@ class ImportLine {
   bool get duplicate => duplicateOf != null;
   final bool beforeStart;
   final String? unknownCategory;
+
+  /// 選填第 9 欄：這筆之後帳戶剩多少（信用卡是可用額度），匯入時附在這筆上。
+  final int? after;
 
   bool get willImport => tx != null && !duplicate;
 }
@@ -246,6 +250,36 @@ class LedgerBook {
     final pred = checkpointValue(a, p) + sumBetween(a, p.at, c.at);
     final actual = checkpointValue(a, c);
     return (predicted: pred, actual: actual, miss: missOf(a, actual, pred));
+  }
+
+  /// 附在某筆交易上的對帳點（這筆記下來時帳戶剩多少）；沒填就是 null。
+  LedgerCheckpoint? checkpointOfTx(String txId) =>
+      checkpoints.where((c) => c.txId == txId).firstOrNull;
+
+  /// 這筆交易記的餘額，跟「上一個有填餘額的點 ＋ 中間記到的交易」推算出來的
+  /// 差多少。正的＝少了錢（中間有支出沒記）、負的＝多出錢；0 或這筆沒填餘額、
+  /// 或它是這個帳戶第一個餘額（起點）＝null。補上漏記的交易（時間落在兩個
+  /// 餘額之間）之後差額歸零，標籤自己消失（2026-11-03 使用者）。
+  ({LedgerCheckpoint cp, int miss})? gapOfTx(String txId) {
+    final c = checkpointOfTx(txId);
+    final a = c == null ? null : account(c.accountId);
+    if (c == null || a == null) return null;
+    final d = checkpointDiff(a, c);
+    if (d == null || d.miss == 0) return null;
+    return (cp: c, miss: d.miss);
+  }
+
+  /// 補記漏掉的那筆要放的時間：兩個餘額中間，盡量貼近後面那個（前一分鐘）。
+  DateTime fixTimeFor(LedgerCheckpoint c) {
+    final list = checkpointsOf(c.accountId);
+    final i = list.indexWhere((x) => x.id == c.id);
+    final oneBefore = c.at.subtract(const Duration(minutes: 1));
+    if (i <= 0) return oneBefore;
+    final prev = list[i - 1].at;
+    if (oneBefore.isAfter(prev)) return oneBefore;
+    return prev.add(
+      Duration(milliseconds: c.at.difference(prev).inMilliseconds ~/ 2),
+    );
   }
 
   // ── 消費統計 ─────────────────────────────────────────────
@@ -434,6 +468,10 @@ class LedgerBook {
         int.parse(m[5]!),
       );
       final amount = int.tryParse(p[4].replaceAll(RegExp(r'[^\d]'), '')) ?? 0;
+      // 第 9 欄選填：這筆之後帳戶剩多少（信用卡填可用額度）。
+      final afterV = p.length >= 9
+          ? int.tryParse(p[8].replaceAll(RegExp(r'[^\d]'), ''))
+          : null;
       if (amount <= 0) {
         out.add(ImportLine(line, error: '看不懂金額'));
         continue;
@@ -468,6 +506,7 @@ class LedgerBook {
           ImportLine(
             line,
             tx: tx,
+            after: afterV,
             duplicateOf: dupOf(tx, lineNo),
             beforeStart: start != null && at.isBefore(start),
           ),
@@ -495,7 +534,7 @@ class LedgerBook {
       // 選填第 6、7 欄：跟誰一起、對方要給多少（2026-11-03 使用者要求）。
       PaidFor? paidFor;
       // 填了「對方要給」或「已給」卻沒填跟誰：不要悄悄當一般消費，報錯提醒。
-      final hasExtra = p.skip(6).any((s) => s.isNotEmpty);
+      final hasExtra = p.skip(6).take(2).any((s) => s.isNotEmpty);
       if (!withdraw && (p.length < 6 || p[5].isEmpty) && hasExtra) {
         out.add(ImportLine(line, error: '填了對方要給／已給，第 6 欄「跟誰」也要填'));
         continue;
@@ -538,6 +577,7 @@ class LedgerBook {
         ImportLine(
           line,
           tx: tx,
+          after: afterV,
           duplicateOf: dup,
           beforeStart: start != null && at.isBefore(start),
           unknownCategory: withdraw || known ? null : p[2],

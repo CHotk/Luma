@@ -332,6 +332,7 @@ class LedgerCheckpoint {
     this.creditLimit,
     this.available,
     this.note = '',
+    this.txId,
     this.updatedAt,
     this.deletedAt,
   });
@@ -339,6 +340,12 @@ class LedgerCheckpoint {
   final String id;
   final String accountId;
   final DateTime at;
+
+  /// 這個對帳點是「某一筆交易記下來時，帳戶當下剩多少」（2026-11-03 使用者：
+  /// 起始附加在某筆交易上，下一筆餘額對不上就是中間漏記）。有值＝附在那筆
+  /// 交易上，時間就是那筆交易的時間，交易編輯、刪除時跟著動；手動「填餘額」
+  /// 的對帳是 null。
+  final String? txId;
   final int? balance;
   final int? creditLimit;
   final int? available;
@@ -363,6 +370,7 @@ class LedgerCheckpoint {
     creditLimit: creditLimit ?? this.creditLimit,
     available: available ?? this.available,
     note: note,
+    txId: txId,
     updatedAt: updatedAt ?? this.updatedAt,
     deletedAt: deletedAt ?? this.deletedAt,
   );
@@ -375,6 +383,7 @@ class LedgerCheckpoint {
     'creditLimit': creditLimit,
     'available': available,
     'note': note,
+    if (txId != null) 'txId': txId,
     'updatedAt': updatedAt == null ? null : ledgerTime(updatedAt!),
     'deletedAt': deletedAt == null ? null : ledgerTime(deletedAt!),
   };
@@ -387,6 +396,7 @@ class LedgerCheckpoint {
     creditLimit: (j['creditLimit'] as num?)?.toInt(),
     available: (j['available'] as num?)?.toInt(),
     note: j['note'] as String? ?? '',
+    txId: j['txId'] as String?,
     updatedAt: _t(j['updatedAt']),
     deletedAt: _t(j['deletedAt']),
   );

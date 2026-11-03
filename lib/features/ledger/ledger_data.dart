@@ -97,6 +97,24 @@ Future<void> txFormFlow(
   } else {
     await repo.updateTransaction(r.tx);
   }
+  // 這筆之後帳戶剩多少（選填）：附一個對帳點在這筆上；清空就拿掉。
+  final accOf = book.account(r.tx.accountId);
+  if (accOf != null) {
+    // 這張卡第一次填的總額度記在帳戶上，之後不用再填。
+    var limit = accOf.creditLimit ?? book.stateOf(accOf)?.limit;
+    if (accOf.isCard && (limit ?? 0) <= 0 && (r.limit ?? 0) > 0) {
+      limit = r.limit;
+      await repo.updateAccount(accOf.copyWith(creditLimit: limit));
+    }
+    await repo.setTxCheckpoint(
+      txId: r.tx.id,
+      accountId: accOf.id,
+      at: r.tx.occurredAt,
+      value: r.after,
+      creditLimit: limit,
+      isCard: accOf.isCard,
+    );
+  }
   if (r.settleLinked) {
     final o = book.tx(r.tx.linkedId);
     if (o?.paidFor != null) {
@@ -123,14 +141,21 @@ Future<void> txFormFlow(
     }
     return;
   }
+  // 填了餘額的話，看這筆跟上一個餘額比有沒有缺（漏記）。
+  final gap = r.after == null ? null : (await _fresh(ref)).gapOfTx(r.tx.id);
+  if (!context.mounted) return;
   showAppNotice(
     context,
-    edit != null
+    gap != null
+        ? '⚠ 這筆掛上「${gap.miss > 0 ? '漏記' : '多出'} ${lMoney(gap.miss.abs())}」'
+        : edit != null
         ? '已更新'
         : r.tx.type == LedgerTxType.repayment
         ? '🤝 已記還款（不算收入）'
         : '已記一筆',
-    detail: edit != null
+    detail: gap != null
+        ? '跟上一個餘額對不上，補上漏掉的那筆標籤就會消失'
+        : edit != null
         ? null
         : '${r.tx.merchant.isEmpty ? r.tx.type.label : r.tx.merchant} ${lMoney(r.tx.amount)}',
   );
@@ -175,6 +200,16 @@ Future<void> txDetailFlow(
       await settleFlow(context, ref, t, true);
     case 'unsettle':
       await settleFlow(context, ref, t, false);
+    case 'fixAddCp':
+    case 'fixAdjustCp':
+      // 這筆記餘額時對不上：補記漏掉的那筆，或直接調成未分類。
+      final acc = book.account(t.accountId);
+      if (acc == null) return;
+      if (a.kind == 'fixAddCp') {
+        await fixAddFlow(context, ref, acc, cpId: a.id);
+      } else {
+        await fixAdjustFlow(context, ref, acc, cpId: a.id);
+      }
     case 'delete':
       final ok = await showAppConfirmDialog(
         context,
@@ -329,27 +364,50 @@ Future<void> reconResultFlow(
   }
 }
 
-/// 補記一筆：金額先填差額、時間設在最後一次對帳前一分鐘。
+/// 要補哪個差額：預設是帳戶最後一次對帳；給 [cpId] 就是那個餘額點（記一筆時
+/// 附在交易上的那種，2026-11-03），時間放在它跟上一個餘額中間。
+({LedgerCheckpoint cp, int miss, DateTime at})? _fixTarget(
+  LedgerBook book,
+  LedgerAccount account,
+  String? cpId,
+) {
+  if (cpId != null) {
+    final c = book.checkpoints.where((x) => x.id == cpId).firstOrNull;
+    final d = c == null ? null : book.checkpointDiff(account, c);
+    if (c == null || d == null || d.miss == 0) return null;
+    return (cp: c, miss: d.miss, at: book.fixTimeFor(c));
+  }
+  final s = book.stateOf(account);
+  if (s == null || s.miss == 0) return null;
+  return (
+    cp: s.last,
+    miss: s.miss,
+    at: s.last.at.subtract(const Duration(minutes: 1)),
+  );
+}
+
+/// 補記一筆：金額先填差額、時間設在對帳（餘額）之前。
 Future<void> fixAddFlow(
   BuildContext context,
   WidgetRef ref,
   LedgerAccount account, {
   bool inWizard = false,
+  String? cpId,
 }) async {
   final book = await _fresh(ref);
-  final s = book.stateOf(account);
-  if (s == null || s.miss == 0 || !context.mounted) return;
+  final t = _fixTarget(book, account, cpId);
+  if (t == null || !context.mounted) return;
   await txFormFlow(
     context,
     ref,
     inWizard: inWizard,
     prefill: TxPrefill(
-      type: s.miss > 0 ? LedgerTxType.expense : LedgerTxType.income,
-      amount: s.miss.abs(),
+      type: t.miss > 0 ? LedgerTxType.expense : LedgerTxType.income,
+      amount: t.miss.abs(),
       accountId: account.id,
-      category: s.miss > 0 ? ledgerUncategorized : '其他收入',
-      at: s.last.at.subtract(const Duration(minutes: 1)),
-      cpId: s.last.id,
+      category: t.miss > 0 ? ledgerUncategorized : '其他收入',
+      at: t.at,
+      cpId: t.cp.id,
     ),
   );
 }
@@ -358,26 +416,27 @@ Future<void> fixAddFlow(
 Future<void> fixAdjustFlow(
   BuildContext context,
   WidgetRef ref,
-  LedgerAccount account,
-) async {
+  LedgerAccount account, {
+  String? cpId,
+}) async {
   final book = await _fresh(ref);
-  final s = book.stateOf(account);
-  if (s == null || s.miss == 0) return;
+  final t = _fixTarget(book, account, cpId);
+  if (t == null) return;
   await ref
       .read(ledgerRepositoryProvider)
       .addTransaction(
         LedgerTx(
           id: ledgerId(),
           type: LedgerTxType.adjustment,
-          dir: s.miss > 0 ? 'out' : 'in',
-          occurredAt: s.last.at.subtract(const Duration(minutes: 1)),
-          amount: s.miss.abs(),
+          dir: t.miss > 0 ? 'out' : 'in',
+          occurredAt: t.at,
+          amount: t.miss.abs(),
           accountId: account.id,
           category: ledgerUncategorized,
           merchant: '${account.name}對帳差額',
-          note: s.miss > 0 ? '想不起來是什麼，直接調成未分類' : '多出來的錢，直接調整',
+          note: t.miss > 0 ? '想不起來是什麼，直接調成未分類' : '多出來的錢，直接調整',
           source: 'adjust',
-          cpId: s.last.id,
+          cpId: t.cp.id,
         ),
       );
   _bump(ref);
@@ -463,13 +522,36 @@ Future<void> importFlow(BuildContext context, WidgetRef ref) async {
   final before = {for (final s in book.states) s.account.id: s.miss};
   final r = await showImportSheet(context, book);
   if (r == null || r.txs.isEmpty) return;
-  await ref.read(ledgerRepositoryProvider).addTransactions(r.txs);
+  final repo = ref.read(ledgerRepositoryProvider);
+  await repo.addTransactions(r.txs);
+  // 第 9 欄的「這筆之後餘額」：附在那筆交易上。
+  var noLimit = 0;
+  for (final t in r.txs) {
+    final v = r.afters[t.id];
+    final acc = book.account(t.accountId);
+    if (v == null || acc == null) continue;
+    final limit = acc.creditLimit ?? book.stateOf(acc)?.limit;
+    // 信用卡還不知道總額度就算不出已占用，先不記這個餘額。
+    if (acc.isCard && (limit ?? 0) <= 0) {
+      noLimit++;
+      continue;
+    }
+    await repo.setTxCheckpoint(
+      txId: t.id,
+      accountId: acc.id,
+      at: t.occurredAt,
+      value: v,
+      creditLimit: limit,
+      isCard: acc.isCard,
+    );
+  }
   _bump(ref);
   final after = await _fresh(ref);
   final fixed = [
     for (final s in after.states)
       if ((before[s.account.id] ?? 0) != 0 && s.miss == 0) s.account.name,
   ];
+  final gaps = r.txs.where((t) => after.gapOfTx(t.id) != null).length;
   if (context.mounted) {
     // 重複的沒有加，要講清楚是跟哪一筆相同（2026-11-03 使用者）。
     showAppNotice(
@@ -480,6 +562,8 @@ Future<void> importFlow(BuildContext context, WidgetRef ref) async {
         ...r.skipped.take(3),
         if (r.skipped.length > 3) '還有 ${r.skipped.length - 3} 筆',
         if (fixed.isNotEmpty) '${fixed.join('、')}的差額補上了 ✓',
+        if (noLimit > 0) '$noLimit 筆信用卡餘額沒記：還不知道這張卡的總額度，先在記一筆填一次',
+        if (gaps > 0) '⚠ $gaps 筆餘額對不上，標了「漏記」，補上就消失',
       ].join('\n').ifEmptyNull,
     );
   }

@@ -674,7 +674,10 @@ class TxPrefill {
   final bool paidFor;
 }
 
-Future<({LedgerTx tx, bool settleLinked})?> showTxFormSheet(
+/// 回傳記好的交易、是否順便標記對方給了，跟選填的「這筆之後帳戶剩多少」
+/// （[after]，null＝沒填或清掉）。
+Future<({LedgerTx tx, bool settleLinked, int? after, int? limit})?>
+showTxFormSheet(
   BuildContext context,
   LedgerBook book, {
   LedgerTx? edit,
@@ -706,6 +709,12 @@ class _TxFormState extends State<_TxForm> {
   late bool _pf;
   late final TextEditingController _pfAmount;
   late final TextEditingController _pfPeople;
+
+  /// 這筆之後帳戶剩多少（信用卡是可用額度），選填；有填就附一個對帳點在這筆上。
+  late final TextEditingController _after;
+
+  /// 這張信用卡還不知道總額度時，在這裡填一次（之後記在帳戶上，不用再填）。
+  final _limit = TextEditingController();
   String? _linked;
   bool _settle = false;
 
@@ -737,16 +746,39 @@ class _TxFormState extends State<_TxForm> {
       text: e?.paidFor?.amount.toString() ?? '',
     );
     _pfPeople = TextEditingController(text: e?.paidFor?.people ?? '');
+    final oldCp = e == null ? null : book.checkpointOfTx(e.id);
+    _after = TextEditingController(
+      text:
+          (oldCp == null ? null : (oldCp.available ?? oldCp.balance))
+              ?.toString() ??
+          '',
+    );
     _linked = e?.linkedId ?? p.linkedId;
     _applyDefaults(fillAmount: e == null && p.amount == null);
-    for (final c in [_amount, _merchant, _memo, _pfAmount, _pfPeople]) {
+    for (final c in [
+      _amount,
+      _merchant,
+      _memo,
+      _pfAmount,
+      _pfPeople,
+      _after,
+      _limit,
+    ]) {
       c.addListener(() => setState(() {}));
     }
   }
 
   @override
   void dispose() {
-    for (final c in [_amount, _merchant, _memo, _pfAmount, _pfPeople]) {
+    for (final c in [
+      _amount,
+      _merchant,
+      _memo,
+      _pfAmount,
+      _pfPeople,
+      _after,
+      _limit,
+    ]) {
       c.dispose();
     }
     super.dispose();
@@ -831,6 +863,14 @@ class _TxFormState extends State<_TxForm> {
     final amt = _int(_amount) ?? 0;
     if (amt <= 0) return '金額要填';
     if (book.account(_account) == null) return '要選帳戶';
+    // 填了可用額度、這張卡又還不知道總額度：總額度也要填。
+    final acc = book.account(_account)!;
+    if (acc.isCard &&
+        _int(_after) != null &&
+        (book.stateOf(acc)?.limit ?? acc.creditLimit ?? 0) <= 0 &&
+        (_int(_limit) ?? 0) <= 0) {
+      return '填了可用額度，這張卡的總額度也要填一次';
+    }
     if (_effType == LedgerTxType.transfer) {
       if (book.account(_to) == null) return '要選轉到哪個帳戶';
       if (_to == _account) return '轉出跟轉入不能是同一個帳戶';
@@ -907,6 +947,70 @@ class _TxFormState extends State<_TxForm> {
       paidFor: pf,
       cpId: widget.prefill.cpId,
     );
+  }
+
+  /// 選填：這筆記下來之後，帳戶剩多少（信用卡是可用額度）。下一筆也有填的話，
+  /// App 就能用「上次餘額 − 中間記到的」跟這次比，對不上就是中間漏記
+  /// （2026-11-03 使用者）。
+  List<Widget> _afterField(LedgerTx? draft) {
+    final a = book.account(_account);
+    if (a == null) return const [];
+    final s = book.stateOf(a);
+    final card = a.isCard;
+    final knownLimit = s?.limit ?? a.creditLimit ?? 0;
+    final needLimit = card && knownLimit <= 0;
+    // 照目前記到的推算「這筆之後應該剩多少」當提示（編輯舊的不推算）。
+    int? guess;
+    if (s != null && draft != null && widget.edit == null) {
+      final occupied = s.now + LedgerBook.delta(draft, a);
+      guess = card ? s.limit - occupied : occupied;
+    }
+    final got = _int(_after);
+    return [
+      _label(card ? '這筆刷完後的可用額度' : '這筆之後的餘額', trailing: '選填・用來抓漏記'),
+      if (needLimit) ...[
+        TextField(
+          controller: _limit,
+          keyboardType: TextInputType.number,
+          inputFormatters: _digits,
+          decoration: _input('這張卡的總額度（只要填這一次）', prefix: '\$'),
+        ),
+        const SizedBox(height: 8),
+      ],
+      TextField(
+        controller: _after,
+        keyboardType: TextInputType.number,
+        inputFormatters: _digits,
+        decoration: _input(card ? '看銀行 App 的可刷卡額度' : '帳戶現在剩多少', prefix: '\$'),
+      ),
+      if (guess != null)
+        Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: Text(
+            got == null
+                ? 'App 照記到的推算，這筆之後應該是 ${lMoney(guess)}'
+                : got == guess
+                ? '✓ 跟 App 推算的一樣'
+                : '⚠ App 推算是 ${lMoney(guess)}，差 ${lMoney((guess - got).abs())}'
+                      '${card ? (got < guess ? '（可能有刷卡沒記）' : '') : (got < guess ? '（可能有支出沒記）' : '')}'
+                      '，記下來後這筆會掛「漏記」標籤，補上就消失',
+            style: AppText.note.copyWith(
+              fontSize: 11,
+              color: got == null || got == guess
+                  ? AppColors.ink3
+                  : AppColors.mid,
+            ),
+          ),
+        )
+      else if (s == null && got != null)
+        Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: Text(
+            '這是 ${a.name} 第一個餘額，從這筆開始算；下一筆再填餘額就會幫你比對',
+            style: AppText.note.copyWith(fontSize: 11, color: AppColors.ink3),
+          ),
+        ),
+    ];
   }
 
   Widget _toggle(String title, String sub, bool v, ValueChanged<bool> on) =>
@@ -1240,6 +1344,7 @@ class _TxFormState extends State<_TxForm> {
         label: Text('${lYmd(_at)} ${lHm(_at)}'),
         style: _outline,
       ),
+      ..._afterField(err == null ? _build() : null),
       _label('備註', trailing: '選填'),
       TextField(controller: _memo, decoration: _input('要注意的原因也可以寫這裡')),
       _toggle(
@@ -1335,6 +1440,8 @@ class _TxFormState extends State<_TxForm> {
                 ? () => Navigator.pop(context, (
                     tx: _build(),
                     settleLinked: _type == LedgerTxType.repayment && _settle,
+                    after: _int(_after),
+                    limit: _int(_limit),
                   ))
                 : null,
           ),
@@ -1387,6 +1494,8 @@ class _TxDetail extends StatelessWidget {
         : '+';
     final pf = t.paidFor;
     final linked = book.linkedTo(t.id);
+    final txCp = book.checkpointOfTx(t.id);
+    final txGap = book.gapOfTx(t.id);
     final origin = book.tx(t.linkedId);
     final cp = t.cpId == null
         ? null
@@ -1497,6 +1606,49 @@ class _TxDetail extends StatelessWidget {
               ),
             ),
         ]),
+        if (txCp != null) ...[
+          ledgerSection(txCp.available != null ? '刷完後的可用額度' : '這筆之後的餘額'),
+          _box([
+            _kv(
+              txCp.available != null ? '可用額度' : '餘額',
+              lMoney(txCp.available ?? txCp.balance ?? 0),
+            ),
+            if (txGap == null)
+              _kv(
+                '跟上一個餘額比',
+                book.checkpointDiff(book.account(txCp.accountId)!, txCp) == null
+                    ? '這是第一個餘額，從這裡開始算'
+                    : '✓ 對得上',
+                color: AppColors.ok,
+              )
+            else
+              _kv(
+                txGap.miss > 0 ? '漏記' : '多出',
+                lMoney(txGap.miss.abs()),
+                color: AppColors.mid,
+                sub: txGap.miss > 0
+                    ? '跟上一個餘額比，中間可能有支出沒記'
+                    : '跟上一個餘額比，中間可能有收入或退款沒記',
+              ),
+          ]),
+          if (txGap != null) ...[
+            const SizedBox(height: 8),
+            _option(
+              context,
+              '✏️',
+              '補記漏掉的那筆',
+              '時間會放在上一個餘額跟這筆中間，記完這個標籤自己消失',
+              () => pop('fixAddCp', txCp.id),
+            ),
+            _option(
+              context,
+              '⚖️',
+              '想不起來，直接調成未分類',
+              '記一筆未分類的調整把差額補平，標籤也會消失',
+              () => pop('fixAdjustCp', txCp.id),
+            ),
+          ],
+        ],
         if (pf != null) ...[
           ledgerSection('👥 跟 ${pf.people} 一起'),
           _box([
@@ -2186,10 +2338,9 @@ class _BudgetState extends State<_Budget> {
 // ── 貼上匯入 ─────────────────────────────────────────────
 
 /// 回傳要匯入的交易，跟因為重複沒加的那幾行說明。
-Future<({List<LedgerTx> txs, List<String> skipped})?> showImportSheet(
-  BuildContext context,
-  LedgerBook book,
-) => _sheet(context, _Import(book: book));
+Future<({List<LedgerTx> txs, List<String> skipped, Map<String, int> afters})?>
+showImportSheet(BuildContext context, LedgerBook book) =>
+    _sheet(context, _Import(book: book));
 
 class _Import extends StatefulWidget {
   const _Import({required this.book});
@@ -2253,6 +2404,10 @@ class _ImportState extends State<_Import> {
                     if (l.duplicateOf != null)
                       '「${l.tx!.merchant}」跟${l.duplicateOf}相同',
                 ],
+                afters: {
+                  for (final l in lines)
+                    if (l.willImport && l.after != null) l.tx!.id: l.after!,
+                },
               )),
       ),
       children: [
@@ -2261,7 +2416,12 @@ class _ImportState extends State<_Import> {
           _b('帳戶｜日期時間｜分類｜商家｜金額'),
           const TextSpan(text: '，後面可以再加'),
           _b('｜跟誰｜對方要給｜已給'),
-          const TextSpan(text: '（選填：填跟誰、對方要給就是跟別人一起；他已經給了就再加「｜已給」）。\n'),
+          const TextSpan(
+            text:
+                '（選填：填跟誰、對方要給就是跟別人一起；他已經給了就再加「｜已給」）。\n'
+                '最後可以再加一欄「｜餘額」＝這筆之後帳戶剩多少（信用卡填可用額度），用來抓漏記；'
+                '前面三欄沒有就留空，例如 ……｜1000｜｜｜｜48500。\n',
+          ),
           const TextSpan(
             text:
                 '帳戶寫帳戶名稱（現金、郵局）就記在那裡；寫銀行名稱（中信銀行）'
@@ -2281,6 +2441,7 @@ class _ImportState extends State<_Import> {
                 '範例：\n'
                 '中信銀行｜2026/11/02 19:30｜餐飲｜鼎泰豐｜1000｜小美｜700\n'
                 '中信銀行｜2026/11/01 20:00｜餐飲｜火鍋｜900｜小美｜450｜已給\n'
+                '中信銀行｜2026/11/04 12:00｜餐飲｜麥當勞｜189｜｜｜｜86000\n'
                 '現金｜2026/11/03 12:30｜餐飲｜便當｜120\n'
                 '中信活存｜2026/11/01 10:00｜提款｜ATM提款｜3000\n'
                 '中信活存｜2026/11/01 11:00｜轉帳｜郵局｜5000\n'
