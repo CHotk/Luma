@@ -270,6 +270,34 @@ void main() {
     expect(lines[5].error, isNotNull);
   });
 
+  test('貼上匯入：第一欄寫帳戶名稱就記那裡；第 6、7 欄是跟誰、對方要給', () {
+    final lines = book([]).parseImport('''
+現金｜2026/11/03 12:30｜餐飲｜便當｜120
+中信銀行｜2026/11/02 19:30｜餐飲｜鼎泰豐｜1000｜小美｜700
+中信活存｜2026/11/01 09:00｜帳單｜中華電信｜599
+中信銀行｜2026/11/02 20:00｜餐飲｜火鍋｜500｜小美｜900
+''');
+    expect(lines[0].tx!.accountId, 'cash');
+    expect(lines[1].tx!.accountId, 'card');
+    expect(lines[1].tx!.paidFor!.people, '小美');
+    expect(lines[1].tx!.paidFor!.amount, 700);
+    expect(lines[1].tx!.ownSpend, 300);
+    expect(lines[2].tx!.accountId, 'bank');
+    expect(lines[3].error, isNotNull, reason: '對方要給不能超過整筆');
+  });
+
+  test('沒填餘額的帳戶：不算餘額、不參與對帳，但交易照樣算消費', () {
+    final b = LedgerBook(
+      accounts: const [bank],
+      txs: [tx(LedgerTxType.expense, 3, 200, 'bank')],
+      checkpoints: const [],
+      budgets: const [],
+    );
+    expect(b.stateOf(bank), isNull);
+    expect(b.states, isEmpty);
+    expect(b.monthStats(2026, 10).spend, 200);
+  });
+
   test('起始日前匯入的紀錄只算消費，不影響對帳', () {
     final b = book([
       LedgerTx(

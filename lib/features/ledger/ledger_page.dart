@@ -9,6 +9,7 @@ import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
 import '../../domain/ledger_calc.dart';
+import '../../domain/models/ledger.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
@@ -116,7 +117,8 @@ class LedgerPage extends ConsumerWidget {
     InlineEmptyCard(
       title: '還沒開始記帳',
       message:
-          '選一天當起始日，填當天活存、信用卡可用額度、現金各有多少就能開始。'
+          '先建要用的帳戶（中信活存、中信信用卡、現金，可以再多加戶頭）就能開始。'
+          '餘額都可以先不填。'
           '不用補以前的紀錄。',
       actions: [EmptyAction('開始記帳', () => setupFlow(context, ref))],
     ),
@@ -280,14 +282,17 @@ class LedgerPage extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 4),
-          for (final s in states)
+          for (final a in book.accounts)
             AccountStatusRow(
-              state: s,
-              onTap: () => accountFlow(context, ref, s.account),
+              account: a,
+              state: book.stateOf(a),
+              onTap: () => accountFlow(context, ref, a),
             ),
           const SizedBox(height: 4),
           Text(
-            '這裡只看「有沒有漏記」，跟上面「剩餘可花」是兩回事。',
+            states.isEmpty
+                ? '餘額都沒填也能記帳；想抓漏記再到帳戶填一次現在的餘額。'
+                : '這裡只看「有沒有漏記」，跟上面「剩餘可花」是兩回事。',
             style: AppText.note.copyWith(color: AppColors.ink3, fontSize: 10.5),
           ),
         ],
@@ -332,7 +337,7 @@ class LedgerPage extends ConsumerWidget {
         box(
           '🤝 別人還欠你',
           lMoney(book.oweTotal),
-          '${owes.length} 筆幫付還沒還清',
+          '${owes.length} 筆還沒給',
           ledgerPaidFor,
           () => oweFlow(context, ref),
         ),
@@ -719,7 +724,11 @@ class LedgerPage extends ConsumerWidget {
         action: '一次對完 ›',
         onAction: () => reconAllFlow(context, ref),
       ),
-      for (final s in book.states) _accountCard(context, ref, s),
+      for (final a in book.accounts)
+        if (book.stateOf(a) case final s?)
+          _accountCard(context, ref, s)
+        else
+          _noBalanceCard(context, ref, a),
       OutlinedButton.icon(
         onPressed: () => addAccountFlow(context, ref),
         icon: const Icon(Icons.add_rounded, size: 18),
@@ -738,9 +747,9 @@ class LedgerPage extends ConsumerWidget {
         () => importFlow(context, ref),
       ),
       tool(
-        Icons.handshake_outlined,
+        Icons.group_outlined,
         '別人還欠你',
-        '幫別人付、記還款、標記已還清',
+        '跟別人一起付的，誰還沒給、按「他給了」',
         () => oweFlow(context, ref),
       ),
       tool(
@@ -755,14 +764,56 @@ class LedgerPage extends ConsumerWidget {
         '${m.month} 月的整月總額＋各分類',
         () => budgetFlow(context, ref, m.year, m.month),
       ),
-      tool(
-        Icons.event_rounded,
-        '起始日與期初值',
-        '起始日 ${book.startDate == null ? '—' : lYmd(book.startDate!)}，對帳從這天開始算',
-        () => startFlow(context, ref),
-      ),
     ];
   }
+
+  /// 還沒填餘額的帳戶：只記交易，按「填餘額」才開始算。
+  Widget _noBalanceCard(BuildContext context, WidgetRef ref, LedgerAccount a) =>
+      Padding(
+        padding: const EdgeInsets.only(bottom: Gap.md),
+        child: GlassCard(
+          onTap: () => accountFlow(context, ref, a),
+          child: Row(
+            children: [
+              LedgerIcon(a.type.emoji, accountColor(a.type)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      a.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.ink,
+                      ),
+                    ),
+                    Text(
+                      '${a.type.label}・沒填餘額，只記交易',
+                      style: AppText.note.copyWith(
+                        fontSize: 10.5,
+                        color: AppColors.ink3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              OutlinedButton(
+                onPressed: () => reconFlow(context, ref, a),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.ink,
+                  side: const BorderSide(color: AppColors.glassEdge),
+                  visualDensity: VisualDensity.compact,
+                ),
+                child: Text(a.isCard ? '填額度' : '填餘額'),
+              ),
+            ],
+          ),
+        ),
+      );
 
   Widget _accountCard(BuildContext context, WidgetRef ref, AccountState s) {
     final a = s.account;

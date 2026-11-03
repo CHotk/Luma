@@ -24,23 +24,22 @@ void _bump(WidgetRef ref) => ref.read(dataRevisionProvider.notifier).state++;
 Future<LedgerBook> _fresh(WidgetRef ref) =>
     ref.read(ledgerRepositoryProvider).loadBook();
 
-/// 第一次打開：起始日＋三個帳戶的期初值。
+/// 第一次打開：建帳戶（餘額選填，2026-11-03 使用者拿掉起始日）。
 Future<void> setupFlow(BuildContext context, WidgetRef ref) async {
   final r = await showSetupSheet(context);
   if (r == null) return;
   final repo = ref.read(ledgerRepositoryProvider);
-  for (final a in r.accounts) {
+  for (final a in r) {
     await repo.addAccount(
       name: a.name,
       type: a.type,
       opening: a.opening,
-      openingAt: r.start,
       creditLimit: a.limit,
     );
   }
   _bump(ref);
   if (context.mounted) {
-    showAppNotice(context, '開始記帳了', detail: '起始日 ${lYmd(r.start)}');
+    showAppNotice(context, '開始記帳了', detail: '${r.length} 個帳戶，按右下角 ＋ 記第一筆');
   }
 }
 
@@ -53,7 +52,6 @@ Future<void> addAccountFlow(BuildContext context, WidgetRef ref) async {
         name: r.name,
         type: r.type,
         opening: r.opening,
-        openingAt: DateTime.now(),
         creditLimit: r.limit,
       );
   _bump(ref);
@@ -182,24 +180,43 @@ Future<void> settleFlow(
 ) async {
   final pf = t.paidFor;
   if (pf == null) return;
+  final repo = ref.read(ledgerRepositoryProvider);
+  // 「他給了」：只標記，或順便記錢進哪個戶頭（要對帳的戶頭才需要）。
+  String? depositTo, depositName;
   if (settled) {
-    final ok = await showAppConfirmDialog(
-      context,
-      title: '標記已還清？',
-      message: '${pf.people} 的 ${lMoney(pf.amount)} 不再算進「別人還欠你」。',
-      confirmLabel: '已還清',
-      destructive: false,
-    );
-    if (!ok) return;
-  }
-  await ref
-      .read(ledgerRepositoryProvider)
-      .updateTransaction(
-        t.copyWith(paidFor: () => pf.copyWith(settled: settled)),
+    final book = await _fresh(ref);
+    if (!context.mounted) return;
+    final a = await showSettleSheet(context, book, t);
+    if (a == null) return;
+    if (a.kind == 'deposit') {
+      depositTo = a.id;
+      depositName = book.accountName(depositTo);
+    }
+    final left = pf.amount - book.repaidOf(t.id);
+    if (depositTo != null && left > 0) {
+      await repo.addTransaction(
+        LedgerTx(
+          id: ledgerId(),
+          type: LedgerTxType.repayment,
+          occurredAt: DateTime.now(),
+          amount: left,
+          accountId: depositTo,
+          linkedId: t.id,
+          merchant: '${pf.people} 給錢',
+        ),
       );
+    }
+  }
+  await repo.updateTransaction(
+    t.copyWith(paidFor: () => pf.copyWith(settled: settled)),
+  );
   _bump(ref);
   if (context.mounted) {
-    showAppNotice(context, settled ? '🤝 已標記還清' : '已改回還沒還清');
+    showAppNotice(
+      context,
+      settled ? '👥 ${pf.people} 給了 ✓' : '已改回還沒給',
+      detail: depositName == null ? null : '記進 $depositName（不算收入）',
+    );
   }
 }
 
@@ -215,8 +232,8 @@ Future<void> reconFlow(
   final book = await _fresh(ref);
   final acc = book.account(account.id);
   if (acc == null || !context.mounted) return;
+  // null＝還沒填過餘額，這次是第一次填（從現在開始算）。
   final before = book.stateOf(acc);
-  if (before == null) return;
   final i = book.accounts.indexWhere((a) => a.id == acc.id);
   final cp = await showReconSheet(
     context,
@@ -233,6 +250,15 @@ Future<void> reconFlow(
     await repo.updateAccount(acc.copyWith(creditLimit: cp.creditLimit));
   }
   _bump(ref);
+  if (before == null) {
+    if (!context.mounted) return;
+    showAppNotice(context, '已記下${acc.name}的餘額', detail: '從現在開始幫你算');
+    final next = wizard && i + 1 < book.accounts.length
+        ? book.accounts[i + 1]
+        : null;
+    if (next != null) await reconFlow(context, ref, next, wizard: true);
+    return;
+  }
   final thisMiss = LedgerBook.missOf(
     acc,
     LedgerBook.checkpointValue(acc, cp),
@@ -347,7 +373,7 @@ Future<void> accountFlow(
 ) async {
   final book = await _fresh(ref);
   final acc = book.account(account.id);
-  if (acc == null || book.stateOf(acc) == null || !context.mounted) return;
+  if (acc == null || !context.mounted) return;
   final a = await showAccountSheet(context, book, acc);
   if (a == null || !context.mounted) return;
   final repo = ref.read(ledgerRepositoryProvider);
@@ -431,25 +457,6 @@ Future<void> importFlow(BuildContext context, WidgetRef ref) async {
       '📋 匯入 ${txs.length} 筆',
       detail: fixed.isEmpty ? null : '${fixed.join('、')}的差額補上了 ✓',
     );
-  }
-}
-
-Future<void> startFlow(BuildContext context, WidgetRef ref) async {
-  final book = await _fresh(ref);
-  if (!context.mounted || !book.isSetUp) return;
-  final r = await showStartSheet(context, book);
-  if (r == null) return;
-  final repo = ref.read(ledgerRepositoryProvider);
-  for (final c in r.openings) {
-    await repo.updateCheckpoint(c);
-    final acc = book.account(c.accountId);
-    if (acc != null && acc.isCard && c.creditLimit != acc.creditLimit) {
-      await repo.updateAccount(acc.copyWith(creditLimit: c.creditLimit));
-    }
-  }
-  _bump(ref);
-  if (context.mounted) {
-    showAppNotice(context, '📅 起始日與期初值已更新', detail: lYmd(r.start));
   }
 }
 

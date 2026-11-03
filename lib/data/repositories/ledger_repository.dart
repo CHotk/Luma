@@ -55,13 +55,14 @@ class LedgerRepository {
 
   // ── 帳戶 ─────────────────────────────────────────────────
 
-  /// 新增帳戶，順便在 [openingAt] 存一個期初值的對帳點（銀行／現金是
-  /// [opening] 餘額；信用卡是 [creditLimit] 跟當天的 [opening] 可用額度）。
+  /// 新增帳戶。有給 [opening] 才在 [openingAt] 存一個期初值的對帳點（銀行／
+  /// 現金是餘額；信用卡是可用額度，要有 [creditLimit]）；沒給就先不算餘額，
+  /// 之後第一次「填餘額」才開始算（2026-11-03 使用者：戶頭餘額先不用強制填）。
   Future<LedgerAccount> addAccount({
     required String name,
     required LedgerAccountType type,
-    required int opening,
-    required DateTime openingAt,
+    int? opening,
+    DateTime? openingAt,
     int? creditLimit,
   }) async {
     final now = DateTime.now();
@@ -77,15 +78,16 @@ class LedgerRepository {
       updatedAt: now,
     );
     await _save(_accountsKey, [...all, a], (e) => e.toJson());
+    if (opening == null || (a.isCard && (creditLimit ?? 0) <= 0)) return a;
     await addCheckpoint(
       LedgerCheckpoint(
         id: ledgerId(),
         accountId: a.id,
-        at: openingAt,
+        at: openingAt ?? now,
         balance: a.isCard ? null : opening,
         creditLimit: a.isCard ? creditLimit : null,
         available: a.isCard ? opening : null,
-        note: '起始日期初值',
+        note: '第一次填的餘額',
         updatedAt: now,
       ),
     );

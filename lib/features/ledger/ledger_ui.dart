@@ -226,19 +226,29 @@ class TxTile extends StatelessWidget {
                             ),
                           ),
                           if (t.flagged) const Text(' 🚩'),
-                          if (pf != null) ...[
-                            const SizedBox(width: 5),
-                            LedgerPill(
-                              pf.settled ? '幫付已還清' : '幫付 ${lMoney(pf.amount)}',
-                              color: pf.settled ? AppColors.ok : ledgerPaidFor,
-                            ),
-                          ],
-                          if (t.source == 'paste') ...[
-                            const SizedBox(width: 5),
-                            const LedgerPill('匯入'),
-                          ],
                         ],
                       ),
+                      // 標籤排在名稱下一行，名字長也不會擠爆。
+                      if (pf != null || t.source == 'paste')
+                        Padding(
+                          padding: const EdgeInsets.only(top: 3),
+                          child: Wrap(
+                            spacing: 5,
+                            runSpacing: 3,
+                            children: [
+                              if (pf != null)
+                                LedgerPill(
+                                  pf.settled
+                                      ? '${pf.people} 給了'
+                                      : '${pf.people} 要給 ${lMoney(pf.amount)}',
+                                  color: pf.settled
+                                      ? AppColors.ok
+                                      : ledgerPaidFor,
+                                ),
+                              if (t.source == 'paste') const LedgerPill('匯入'),
+                            ],
+                          ),
+                        ),
                       const SizedBox(height: 2),
                       Text(
                         sub.toString(),
@@ -287,15 +297,25 @@ class TxTile extends StatelessWidget {
 
 /// 一個帳戶的對帳狀態（記帳完整度卡片裡的一列）。
 class AccountStatusRow extends StatelessWidget {
-  const AccountStatusRow({super.key, required this.state, required this.onTap});
+  const AccountStatusRow({
+    super.key,
+    required this.account,
+    required this.state,
+    required this.onTap,
+  });
 
-  final AccountState state;
+  final LedgerAccount account;
+
+  /// null＝還沒填過餘額。
+  final AccountState? state;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final s = state, a = s.account;
-    final (String top, Color topColor, String bottom) = !s.checked
+    final s = state, a = account;
+    final (String top, Color topColor, String bottom) = s == null
+        ? ('沒填餘額', AppColors.ink3, '要對帳再填')
+        : !s.checked
         ? ('還沒對帳', AppColors.ink3, '點這裡對第一次')
         : s.miss == 0
         ? ('✓ 已對帳', AppColors.ok, lAgo(s.last.at))
@@ -327,7 +347,9 @@ class AccountStatusRow extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    a.isCard
+                    s == null
+                        ? '只記交易'
+                        : a.isCard
                         ? 'App 推算已占用 ${lMoney(s.now)}'
                         : 'App 推算餘額 ${lMoney(s.now)}',
                     style: AppText.note.copyWith(

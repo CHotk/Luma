@@ -346,8 +346,10 @@ class LedgerBook {
 
   // ── 貼上匯入 ─────────────────────────────────────────────
 
-  /// 一行一筆：`銀行｜日期時間｜分類｜商家｜金額`。刷卡記在第一張信用卡；
-  /// 分類「提款」變成轉帳（第一個銀行帳戶 → 第一個現金帳戶），不算支出。
+  /// 一行一筆：`帳戶｜日期時間｜分類｜商家｜金額［｜跟誰｜對方要給］`。
+  /// 帳戶寫帳戶名稱（現金、郵局）就記在那裡，其他（中信銀行刷卡紀錄）記在第一張
+  /// 信用卡；分類「提款」變成轉帳（銀行 → 第一個現金帳戶），不算支出；後兩欄選填，
+  /// 填了就是「跟別人一起」。
   List<ImportLine> parseImport(String text) {
     final card = accounts.where((a) => a.isCard).firstOrNull;
     final bank = accounts
@@ -387,12 +389,32 @@ class LedgerBook {
         continue;
       }
       final withdraw = p[2] == '提款';
-      final from = withdraw ? bank : card;
+      // 第一欄是帳戶名稱就記在那個帳戶（現金、郵局⋯）；寫「現金」記第一個
+      // 現金帳戶；其他（例如「中信銀行」刷卡紀錄）記在第一張信用卡。
+      final named = accounts.where((a) => a.name == p[0]).firstOrNull;
+      final from = withdraw
+          ? (named != null && named.type == LedgerAccountType.bank
+                ? named
+                : bank)
+          : named ?? (p[0].contains('現金') ? cash : card);
       if (from == null || (withdraw && cash == null)) {
         out.add(
-          ImportLine(line, error: withdraw ? '要先有銀行跟現金帳戶' : '要先有一張信用卡帳戶'),
+          ImportLine(
+            line,
+            error: withdraw ? '要先有銀行跟現金帳戶' : '找不到帳戶「${p[0]}」，也沒有信用卡帳戶',
+          ),
         );
         continue;
+      }
+      // 選填第 6、7 欄：跟誰一起、對方要給多少（2026-11-03 使用者要求）。
+      PaidFor? paidFor;
+      if (!withdraw && p.length >= 7 && p[5].isNotEmpty) {
+        final owe = int.tryParse(p[6].replaceAll(RegExp(r'[^\d]'), '')) ?? 0;
+        if (owe <= 0 || owe > amount) {
+          out.add(ImportLine(line, error: '對方要給的金額要大於 0、不能超過整筆'));
+          continue;
+        }
+        paidFor = PaidFor(amount: owe, people: p[5]);
       }
       final known = ledgerExpenseCats.containsKey(p[2]);
       final merchant = p[3];
@@ -405,6 +427,7 @@ class LedgerBook {
         toAccountId: withdraw ? cash!.id : null,
         category: withdraw ? null : (known ? p[2] : ledgerUncategorized),
         merchant: merchant,
+        paidFor: paidFor,
         source: 'paste',
         raw: line,
       );

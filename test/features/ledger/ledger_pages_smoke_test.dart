@@ -169,7 +169,7 @@ void main() {
     await show(tester, find.textContaining('別人還欠你').first);
     await tester.tap(find.textContaining('別人還欠你').first);
     await settle(tester);
-    expect(find.text('記一筆還款'), findsOneWidget);
+    expect(find.text('他給了 ✓'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.tap(find.byTooltip('關閉'));
     await settle(tester);
@@ -181,17 +181,17 @@ void main() {
     await tester.tap(find.textContaining('鼎泰豐').first);
     await settle(tester);
     expect(find.text('支出明細'), findsOneWidget);
-    expect(find.textContaining('幫別人付'), findsWidgets);
+    expect(find.textContaining('跟 阿明、小華 一起'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('帳戶分頁：貼上匯入、預算、起始日抽屜都打得開', (tester) async {
+  testWidgets('帳戶分頁：貼上匯入、預算抽屜都打得開', (tester) async {
     await pump(
       tester,
       const LedgerPage(tab: LedgerTab.accounts),
       await seeded(),
     );
-    for (final title in ['貼上文字匯入', '起始日與期初值']) {
+    for (final title in ['貼上文字匯入', '預算']) {
       await tester.scrollUntilVisible(find.text(title), 200);
       await tester.tap(find.text(title));
       await settle(tester);
@@ -201,12 +201,73 @@ void main() {
     }
   });
 
-  testWidgets('沒資料時按「開始記帳」打得開設定表單', (tester) async {
-    await pump(tester, const LedgerPage(tab: LedgerTab.home), _MemoryStore());
+  testWidgets('沒資料時按「開始記帳」：只建帳戶、餘額不用填、可以多加戶頭', (tester) async {
+    final store = _MemoryStore();
+    await pump(tester, const LedgerPage(tab: LedgerTab.home), store);
     await tester.tap(find.text('開始記帳').last);
     await settle(tester);
-    expect(find.text('起始日'), findsOneWidget);
+    expect(find.text('起始日'), findsNothing);
+    await tester.tap(find.text('再加一個銀行戶頭'));
+    await tester.pump();
+    await tester.enterText(find.byType(TextField).at(2), '郵局');
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, '開始'));
+    await settle(tester);
     expect(tester.takeException(), isNull);
+    final book = await tester.runAsync(
+      () => LedgerRepository(store).loadBook(),
+    );
+    expect(book!.accounts.map((a) => a.name), ['中信活存', '郵局', '中信信用卡', '現金']);
+    // 都沒填餘額：沒有對帳點，帳戶只記交易。
+    expect(book.checkpoints, isEmpty);
+    expect(find.text('沒填餘額'), findsNWidgets(4));
+  });
+
+  testWidgets('沒填餘額的帳戶在帳戶分頁可以「填餘額」', (tester) async {
+    final store = _MemoryStore();
+    await tester.runAsync(
+      () => LedgerRepository(
+        store,
+      ).addAccount(name: '郵局', type: LedgerAccountType.bank),
+    );
+    await pump(tester, const LedgerPage(tab: LedgerTab.accounts), store);
+    expect(find.textContaining('沒填餘額'), findsOneWidget);
+    await tester.tap(find.text('填餘額'));
+    await settle(tester);
+    expect(find.text('填餘額：郵局'), findsOneWidget);
+    await tester.enterText(find.byType(TextField).last, '12000');
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, '記下來'));
+    await settle(tester);
+    expect(tester.takeException(), isNull);
+    final book = await tester.runAsync(
+      () => LedgerRepository(store).loadBook(),
+    );
+    expect(book!.stateOf(book.accounts.single)!.now, 12000);
+  });
+
+  testWidgets('跟別人一起：按「他給了 ✓」→ 標記就好，就不再列在別人還欠你', (tester) async {
+    final store = await seeded();
+    await pump(tester, const LedgerPage(tab: LedgerTab.home), store);
+    await tester.pumpAndSettle();
+    await show(tester, find.textContaining('別人還欠你').first);
+    await tester.tap(find.textContaining('別人還欠你').first);
+    await settle(tester);
+    expect(find.text('阿明、小華 要給 \$600'), findsOneWidget);
+    await tester.tap(find.text('他給了 ✓').first);
+    await settle(tester);
+    await tester.tap(find.text('標記他給了就好'));
+    await settle(tester);
+    expect(tester.takeException(), isNull);
+    final book = await tester.runAsync(
+      () => LedgerRepository(store).loadBook(),
+    );
+    expect(book!.owes, isEmpty);
+    // 只是標記：沒有多記一筆還錢。
+    expect(
+      book.txs.where((t) => t.type == LedgerTxType.repayment),
+      hasLength(1),
+    );
   });
 }
 

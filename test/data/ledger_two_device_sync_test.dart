@@ -54,7 +54,10 @@ void main() {
     Future<void> sync(_MemoryStore s) =>
         service(s).syncLedger(LedgerRepository(s));
 
-    // 手機：開始記帳（活存＋信用卡）、記兩筆、對一次帳、設預算。
+    // 手機：開始記帳（活存＋信用卡，另一個戶頭沒填餘額）、記兩筆、對一次帳、設預算。
+    await LedgerRepository(
+      phone,
+    ).addAccount(name: '郵局', type: LedgerAccountType.bank);
     final start = DateTime(2026, 10, 1);
     final repo = LedgerRepository(phone);
     final bank = await repo.addAccount(
@@ -103,7 +106,8 @@ void main() {
     // 電腦：同步後全部都有、算出來一樣。
     await sync(pc);
     var b = await LedgerRepository(pc).loadBook();
-    expect(b.accounts.map((a) => a.name), ['中信活存', '中信信用卡']);
+    expect(b.accounts.map((a) => a.name), ['郵局', '中信活存', '中信信用卡']);
+    expect(b.stateOf(b.accounts.first), isNull);
     expect(b.txs, hasLength(2));
     expect(b.stateOf(b.account(bank.id)!)!.miss, 630);
     expect(b.monthStats(2026, 10).spend, 12400);
