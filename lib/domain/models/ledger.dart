@@ -139,6 +139,22 @@ enum LedgerTxType {
 
 /// 幫別人付的部分（2026-10-02 使用者要求）：帳戶照整筆算，本月消費只算
 /// 自己的（整筆 − [amount]）。
+/// 一筆消費拆成多個分類時的其中一份（2026-11-03 使用者：1000 元家樂福，500 生活用品＋
+/// 500 餐飲，就不是 1000 購物，方便產報表）。所有份加起來一定要剛好等於整筆金額。
+class LedgerSplit {
+  const LedgerSplit({required this.category, required this.amount});
+
+  final String category;
+  final int amount;
+
+  Map<String, dynamic> toJson() => {'category': category, 'amount': amount};
+
+  factory LedgerSplit.fromJson(Map<String, dynamic> j) => LedgerSplit(
+    category: j['category'] as String? ?? '未分類',
+    amount: (j['amount'] as num).toInt(),
+  );
+}
+
 class PaidFor {
   const PaidFor({
     required this.amount,
@@ -181,6 +197,7 @@ class LedgerTx {
     this.linkedId,
     this.flagged = false,
     this.paidFor,
+    this.splits = const [],
     this.source = 'manual',
     this.raw,
     this.dir,
@@ -208,6 +225,11 @@ class LedgerTx {
   /// 標記要注意：單純標註、不影響任何計算。
   final bool flagged;
   final PaidFor? paidFor;
+
+  /// 拆分（空＝沒拆）。有拆的話統計、報表照這裡的分類算，不看 [category]；
+  /// [category] 這時放金額最大的那份當代表。
+  final List<LedgerSplit> splits;
+  bool get isSplit => splits.length >= 2;
 
   /// `manual` 手動／`paste` 貼上匯入／`adjust` 對帳產生。
   final String source;
@@ -249,6 +271,7 @@ class LedgerTx {
     String? Function()? linkedId,
     bool? flagged,
     PaidFor? Function()? paidFor,
+    List<LedgerSplit>? splits,
     DateTime? updatedAt,
     DateTime? deletedAt,
   }) => LedgerTx(
@@ -264,6 +287,7 @@ class LedgerTx {
     linkedId: linkedId == null ? this.linkedId : linkedId(),
     flagged: flagged ?? this.flagged,
     paidFor: paidFor == null ? this.paidFor : paidFor(),
+    splits: splits ?? this.splits,
     source: source,
     raw: raw,
     dir: dir,
@@ -286,6 +310,7 @@ class LedgerTx {
     'linkedId': linkedId,
     'flagged': flagged,
     'paidFor': paidFor?.toJson(),
+    if (splits.isNotEmpty) 'splits': [for (final x in splits) x.toJson()],
     'source': source,
     'raw': raw,
     if (dir != null) 'dir': dir,
@@ -310,6 +335,10 @@ class LedgerTx {
     paidFor: j['paidFor'] == null
         ? null
         : PaidFor.fromJson((j['paidFor'] as Map).cast<String, dynamic>()),
+    splits: [
+      for (final x in (j['splits'] as List? ?? const []))
+        LedgerSplit.fromJson((x as Map).cast<String, dynamic>()),
+    ],
     source: j['source'] as String? ?? 'manual',
     raw: j['raw'] as String?,
     dir: j['dir'] as String?,

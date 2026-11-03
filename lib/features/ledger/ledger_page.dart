@@ -405,7 +405,8 @@ class LedgerPage extends ConsumerWidget {
           (t) =>
               (!searching || book.matches(t, q)) &&
               (!f.flagged || t.flagged) &&
-              (f.category == null || _catOf(book, t) == f.category) &&
+              (f.category == null ||
+                  book.categoriesOf(t).contains(f.category)) &&
               (f.accountId == null ||
                   t.accountId == f.accountId ||
                   t.toAccountId == f.accountId),
@@ -469,12 +470,13 @@ class LedgerPage extends ConsumerWidget {
         child: Row(
           children: [
             for (final c
-                in {for (final t in inM) ?_catOf(book, t)}.toList()..sort(
-                  (a, b) => ledgerExpenseCats.keys
-                      .toList()
-                      .indexOf(a)
-                      .compareTo(ledgerExpenseCats.keys.toList().indexOf(b)),
-                )) ...[
+                in {for (final t in inM) ...book.categoriesOf(t)}.toList()
+                  ..sort(
+                    (a, b) => ledgerExpenseCats.keys
+                        .toList()
+                        .indexOf(a)
+                        .compareTo(ledgerExpenseCats.keys.toList().indexOf(b)),
+                  )) ...[
               ChoiceChip(
                 label: Text('${catLook(c).$1} $c'),
                 selected: f.category == c,
@@ -1061,7 +1063,3 @@ class _SearchBoxState extends ConsumerState<_SearchBox> {
     ),
   );
 }
-
-/// 這筆算哪個分類（退款算原本那筆的分類；轉帳、還錢沒有分類）。
-String? _catOf(LedgerBook book, LedgerTx t) =>
-    t.type == LedgerTxType.refund ? book.tx(t.linkedId)?.category : t.category;

@@ -461,6 +461,54 @@ void main() {
     expect(book.owes.where((o) => o.tx.id == t.id), isEmpty);
   });
 
+  testWidgets('拆分：一定要拆滿整筆才能存，存下來統計照拆分算', (tester) async {
+    final store = await seeded();
+    await pump(tester, const LedgerPage(tab: LedgerTab.home), store);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(FloatingActionButton));
+    await settle(tester);
+    await tester.enterText(find.byType(TextField).at(1), '1000');
+    await tester.enterText(find.byType(TextField).at(2), '家樂福');
+    await tester.pump();
+    final split = find.text('拆分（一筆裡有不同分類）');
+    await tester.scrollUntilVisible(
+      split,
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.tap(split);
+    await tester.pump();
+    expect(find.textContaining('拆分（加起來要剛好等於整筆）'), findsOneWidget);
+    // 第一份自動帶整筆 1000，第二份空 → 不能存。
+    expect(find.textContaining('每一份都要填金額'), findsOneWidget);
+    expect(
+      tester
+          .widget<FilledButton>(find.widgetWithText(FilledButton, '記下來'))
+          .onPressed,
+      isNull,
+    );
+    // TextField 順序：貼上(0)、整筆金額(1)、拆分第一份(2)、第二份(3)，商家在分類之後。
+    await tester.enterText(find.byType(TextField).at(2), '500');
+    await tester.enterText(find.byType(TextField).at(3), '500');
+    await tester.pump();
+    expect(find.textContaining('剛好拆滿'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, '記下來'));
+    await settle(tester);
+    expect(tester.takeException(), isNull);
+    final book = await tester.runAsync(
+      () => LedgerRepository(store).loadBook(),
+    );
+    final t = book!.txs.firstWhere((t) => t.merchant == '家樂福');
+    expect(t.isSplit, isTrue);
+    expect(t.splits.map((s) => s.amount), [500, 500]);
+    expect(t.splits.map((s) => s.category), containsAll(['生活']));
+    final now = DateTime.now();
+    final st = book.statsWhere((x) => x.id == t.id);
+    expect(st.spend, 1000);
+    expect(st.byCategory.values.fold(0, (a, c) => a + c), 1000);
+    expect(now.year, greaterThan(2000));
+  });
+
   testWidgets('跟別人一起：按「他給了 ✓」→ 標記就好，就不再列在別人還欠你', (tester) async {
     final store = await seeded();
     await pump(tester, const LedgerPage(tab: LedgerTab.home), store);

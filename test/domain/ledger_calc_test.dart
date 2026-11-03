@@ -600,6 +600,76 @@ void main() {
     expect(lines[2].error, isNotNull);
   });
 
+  test('拆分：1000 元家樂福拆成生活用品 500＋餐飲 500，就不算 1000 購物；退款、幫別人付照比例', () {
+    final t = LedgerTx(
+      id: 'carrefour',
+      type: LedgerTxType.expense,
+      occurredAt: DateTime(2026, 11, 5, 12),
+      amount: 1000,
+      accountId: 'card',
+      category: '生活', // 代表（金額最大的那份）
+      merchant: '家樂福',
+      splits: const [
+        LedgerSplit(category: '生活', amount: 500),
+        LedgerSplit(category: '餐飲', amount: 500),
+      ],
+    );
+    var b = book([t]);
+    var st = b.monthStats(2026, 11);
+    expect(st.spend, 1000);
+    expect(st.byCategory, {'生活': 500, '餐飲': 500});
+    expect(st.byCategory.containsKey('購物'), isFalse);
+    // 帳戶照整筆算。
+    expect(b.stateOf(card)!.now, 12400 + 1000);
+    // 分類篩選、搜尋兩個分類都找得到。
+    expect(b.categoriesOf(t), ['生活', '餐飲']);
+    expect(b.matches(t, '餐飲'), isTrue);
+    // 退款 200：照拆分比例從兩個分類扣回（各 100）。
+    final refund = LedgerTx(
+      id: 'r',
+      type: LedgerTxType.refund,
+      occurredAt: DateTime(2026, 11, 6),
+      amount: 200,
+      accountId: 'card',
+      linkedId: 'carrefour',
+    );
+    b = book([t, refund]);
+    st = b.monthStats(2026, 11);
+    expect(st.byCategory, {'生活': 400, '餐飲': 400});
+    expect(st.spend, 800);
+    // 幫別人付 400：自己那份 600，照比例（各 300）。
+    b = book([
+      t.copyWith(paidFor: () => const PaidFor(amount: 400, people: '小美')),
+    ]);
+    st = b.monthStats(2026, 11);
+    expect(st.byCategory, {'生活': 300, '餐飲': 300});
+    expect(st.spend, 600);
+    // 加起來永遠剛好等於該付的（除不盡的差額補在最後一份）。
+    final odd = LedgerTx(
+      id: 'odd',
+      type: LedgerTxType.expense,
+      occurredAt: DateTime(2026, 11, 7),
+      amount: 100,
+      accountId: 'card',
+      category: '購物',
+      splits: const [
+        LedgerSplit(category: '購物', amount: 33),
+        LedgerSplit(category: '生活', amount: 33),
+        LedgerSplit(category: '餐飲', amount: 34),
+      ],
+    );
+    final shares = book([]).categoryShares(odd, 77);
+    expect(shares.values.fold(0, (a, c) => a + c), 77);
+    // JSON 來回保留拆分；沒拆的不寫 splits。
+    final back = LedgerTx.fromJson(t.toJson());
+    expect(back.isSplit, isTrue);
+    expect(back.splits.map((s) => s.amount), [500, 500]);
+    expect(
+      (t.copyWith(splits: const []).toJson()).containsKey('splits'),
+      isFalse,
+    );
+  });
+
   test('搜尋：每個欄位都搜、空白隔開多個詞都要符合、金額有沒有逗號都行', () {
     final t = LedgerTx(
       id: 's',

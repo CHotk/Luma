@@ -167,7 +167,11 @@ class TxTile extends StatelessWidget {
     } else {
       sub.write(book.accountName(t.accountId));
       if (t.category != null && t.type != LedgerTxType.adjustment) {
-        sub.write('・${t.category}');
+        sub.write(
+          t.isSplit
+              ? '・拆分 ${t.splits.map((s) => '${s.category}${lInt(s.amount)}').join('、')}'
+              : '・${t.category}',
+        );
       }
     }
     if (t.note.isNotEmpty) sub.write('・${t.note}');

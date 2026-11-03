@@ -646,12 +646,15 @@ Future<void> categoryFlow(
   if (!context.mounted) return;
   final inM = LedgerBook.inMonth(year, month);
   final txs = book.txs.where(inM).where((t) {
-    if (t.type == LedgerTxType.expense) return t.category == cat;
+    if (t.type == LedgerTxType.expense) {
+      return book.categoriesOf(t).contains(cat);
+    }
     if (t.type == LedgerTxType.adjustment) {
       return cat == ledgerUncategorized && t.isAdjustOut;
     }
     if (t.type == LedgerTxType.refund) {
-      return (book.tx(t.linkedId)?.category ?? ledgerUncategorized) == cat;
+      return book.categoriesOf(t).contains(cat) ||
+          (book.tx(t.linkedId) == null && cat == ledgerUncategorized);
     }
     return false;
   }).toList();

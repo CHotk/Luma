@@ -705,6 +705,28 @@ class _TxFormState extends State<_TxForm> {
   late bool _flagged;
   late bool _pf;
   bool _pfSettled = false;
+
+  /// 拆分（2026-11-03 使用者）：一筆消費拆成多個分類，加起來要剛好等於整筆金額。
+  bool _split = false;
+  final _splitRows = <_SplitRow>[];
+
+  _SplitRow _newSplitRow(String category, String amount) {
+    final r = _SplitRow(category, TextEditingController(text: amount));
+    r.amount.addListener(() => setState(() {}));
+    return r;
+  }
+
+  void _toggleSplit(bool on) => setState(() {
+    _split = on;
+    if (on && _splitRows.isEmpty) {
+      final all = _int(_amount) ?? 0;
+      _splitRows
+        ..add(_newSplitRow(_category, all > 0 ? '$all' : ''))
+        ..add(_newSplitRow('生活', ''));
+    }
+  });
+
+  int get _splitSum => _splitRows.fold(0, (s, r) => s + (_int(r.amount) ?? 0));
   late final TextEditingController _pfAmount;
   late final TextEditingController _pfPeople;
 
@@ -739,6 +761,12 @@ class _TxFormState extends State<_TxForm> {
     _flagged = e?.flagged ?? false;
     _pf = e?.paidFor != null || p.paidFor;
     _pfSettled = e?.paidFor?.settled ?? false;
+    if (e != null && e.isSplit) {
+      _split = true;
+      for (final x in e.splits) {
+        _splitRows.add(_newSplitRow(x.category, '${x.amount}'));
+      }
+    }
     _pfAmount = TextEditingController(
       text: e?.paidFor?.amount.toString() ?? '',
     );
@@ -765,6 +793,9 @@ class _TxFormState extends State<_TxForm> {
       c.dispose();
     }
     _paste.dispose();
+    for (final r in _splitRows) {
+      r.amount.dispose();
+    }
     super.dispose();
   }
 
@@ -879,6 +910,11 @@ class _TxFormState extends State<_TxForm> {
       final pf = t.paidFor;
       _pf = pf != null;
       _pfSettled = pf?.settled ?? false;
+      _split = false; // 貼上的一行不帶拆分
+      for (final r in _splitRows) {
+        r.amount.dispose();
+      }
+      _splitRows.clear();
       _pfAmount.text = pf == null ? '' : '${pf.amount}';
       _pfPeople.text = pf?.people ?? '';
       _after.text = l.after == null ? '' : '${l.after}';
@@ -914,6 +950,18 @@ class _TxFormState extends State<_TxForm> {
     if (_type == LedgerTxType.repayment && book.tx(_linked) == null) {
       return '要選還哪一筆';
     }
+    if (_type == LedgerTxType.expense && _split) {
+      final amtAll = _int(_amount) ?? 0;
+      if (_splitRows.length < 2) return '拆分至少要兩份';
+      if (_splitRows.any((r) => (_int(r.amount) ?? 0) <= 0)) {
+        return '每一份都要填金額（不要的份請按刪除）';
+      }
+      if (_splitSum != amtAll) {
+        final d = amtAll - _splitSum;
+        return '拆分加起來要剛好等於整筆 ${lMoney(amtAll)}，'
+            '${d > 0 ? '還差' : '多了'} ${lMoney(d.abs())}';
+      }
+    }
     if (_type == LedgerTxType.expense && _pf) {
       final p = _int(_pfAmount) ?? 0;
       if (p <= 0) return '對方要給多少要填';
@@ -946,6 +994,18 @@ class _TxFormState extends State<_TxForm> {
         : null;
     final hasCat = ty == LedgerTxType.expense || ty == LedgerTxType.income;
     final linked = ty == LedgerTxType.refund || ty == LedgerTxType.repayment;
+    // 拆分：category 放金額最大的那份當代表，統計照 splits 算。
+    final splits = ty == LedgerTxType.expense && _split
+        ? [
+            for (final r in _splitRows)
+              LedgerSplit(category: r.category, amount: _int(r.amount) ?? 0),
+          ]
+        : const <LedgerSplit>[];
+    final mainCat = splits.isEmpty
+        ? _category
+        : (splits.toList()..sort((a, b) => b.amount.compareTo(a.amount)))
+              .first
+              .category;
     if (e != null) {
       return e.copyWith(
         type: ty,
@@ -954,7 +1014,7 @@ class _TxFormState extends State<_TxForm> {
         accountId: _account,
         toAccountId: () => ty == LedgerTxType.transfer ? _to : null,
         category: () => hasCat
-            ? _category
+            ? mainCat
             : ty == LedgerTxType.adjustment
             ? ledgerUncategorized
             : null,
@@ -963,6 +1023,7 @@ class _TxFormState extends State<_TxForm> {
         linkedId: () => linked ? _linked : null,
         flagged: _flagged,
         paidFor: () => pf,
+        splits: splits,
       );
     }
     return LedgerTx(
@@ -972,12 +1033,13 @@ class _TxFormState extends State<_TxForm> {
       amount: amt,
       accountId: _account!,
       toAccountId: ty == LedgerTxType.transfer ? _to : null,
-      category: hasCat ? _category : null,
+      category: hasCat ? mainCat : null,
       merchant: merchant,
       note: _memo.text.trim(),
       linkedId: linked ? _linked : null,
       flagged: _flagged,
       paidFor: pf,
+      splits: splits,
       cpId: widget.prefill.cpId,
     );
   }
@@ -1073,6 +1135,27 @@ class _TxFormState extends State<_TxForm> {
     final pfAmt = _int(_pfAmount) ?? 0;
     final t = _type;
     final children = <Widget>[
+      if (e == null && p.cpId == null)
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            for (final x in [
+              LedgerTxType.expense,
+              LedgerTxType.income,
+              LedgerTxType.transfer,
+              LedgerTxType.refund,
+              LedgerTxType.repayment,
+            ])
+              ChoiceChip(
+                label: Text(x.label),
+                selected: t == x,
+                showCheckmark: false,
+                onSelected: (_) => _setType(x),
+              ),
+          ],
+        ),
+      if (e == null && p.cpId == null) const SizedBox(height: 10),
       if (e == null && p.cpId == null) ...[
         TextField(
           controller: _paste,
@@ -1110,33 +1193,25 @@ class _TxFormState extends State<_TxForm> {
           ),
         const SizedBox(height: 8),
       ],
-      if (e == null && p.cpId == null)
-        Wrap(
-          spacing: 6,
-          runSpacing: 6,
-          children: [
-            for (final x in [
-              LedgerTxType.expense,
-              LedgerTxType.income,
-              LedgerTxType.transfer,
-              LedgerTxType.refund,
-              LedgerTxType.repayment,
-            ])
-              ChoiceChip(
-                label: Text(x.label),
-                selected: t == x,
-                showCheckmark: false,
-                onSelected: (_) => _setType(x),
-              ),
-          ],
-        ),
       if (cp != null)
         _note([
           const TextSpan(text: '補記對帳差額：時間先設在 '),
           _b('${lMd(cp.at)} ${lHm(cp.at)} 對帳之前'),
           const TextSpan(text: '，選好分類、填商家就好，記完差額會自動消失。'),
         ], color: AppColors.mid),
+      // 填寫順序：先時間、再金額（2026-11-03 使用者）。
       const SizedBox(height: 12),
+      _label('時間'),
+      OutlinedButton.icon(
+        onPressed: () async {
+          final v = await _pickDateTime(context, _at);
+          if (v != null && mounted) setState(() => _at = v);
+        },
+        icon: const Icon(Icons.schedule_rounded, size: 18),
+        label: Text('${lYmd(_at)} ${lHm(_at)}'),
+        style: _outline,
+      ),
+      _label('金額'),
       TextField(
         controller: _amount,
         keyboardType: TextInputType.number,
@@ -1357,20 +1432,109 @@ class _TxFormState extends State<_TxForm> {
             (v) => setState(() => _account = v),
             only: t == LedgerTxType.income ? (a) => !a.isCard : null,
           ),
-          _label('分類'),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              for (final c in cats.entries)
-                ChoiceChip(
-                  label: Text('${c.value.$1} ${c.key}'),
-                  selected: _category == c.key,
-                  showCheckmark: false,
-                  onSelected: (_) => setState(() => _category = c.key),
+          _label(_split && t == LedgerTxType.expense ? '拆分（加起來要剛好等於整筆）' : '分類'),
+          if (_split && t == LedgerTxType.expense) ...[
+            for (final (i, r) in _splitRows.indexed)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      flex: 5,
+                      child: DropdownButtonFormField<String>(
+                        initialValue: r.category,
+                        isExpanded: true,
+                        decoration: _input(''),
+                        items: [
+                          for (final c in ledgerExpenseCats.entries)
+                            DropdownMenuItem(
+                              value: c.key,
+                              child: Text('${c.value.$1} ${c.key}'),
+                            ),
+                        ],
+                        onChanged: (v) =>
+                            setState(() => r.category = v ?? r.category),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      flex: 4,
+                      child: TextField(
+                        controller: r.amount,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: _digits,
+                        decoration: _input('', prefix: '\$'),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: '刪掉這一份',
+                      onPressed: _splitRows.length <= 2
+                          ? null
+                          : () => setState(() {
+                              _splitRows.removeAt(i).amount.dispose();
+                            }),
+                      icon: const Icon(Icons.remove_circle_outline_rounded),
+                      color: AppColors.ink3,
+                    ),
+                  ],
                 ),
-            ],
-          ),
+              ),
+            Row(
+              children: [
+                TextButton.icon(
+                  onPressed: () =>
+                      setState(() => _splitRows.add(_newSplitRow('生活', ''))),
+                  icon: const Icon(Icons.add_rounded, size: 18),
+                  label: const Text('再加一份'),
+                ),
+                const Spacer(),
+                Text(
+                  () {
+                    final d = (_int(_amount) ?? 0) - _splitSum;
+                    return d == 0
+                        ? '✓ 剛好拆滿 ${lMoney(_int(_amount) ?? 0)}'
+                        : d > 0
+                        ? '還差 ${lMoney(d)}'
+                        : '多了 ${lMoney(-d)}';
+                  }(),
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: (_int(_amount) ?? 0) - _splitSum == 0
+                        ? AppColors.ok
+                        : AppColors.mid,
+                  ),
+                ),
+              ],
+            ),
+            TextButton(
+              onPressed: () => _toggleSplit(false),
+              child: const Text('取消拆分，改回單一分類'),
+            ),
+          ] else ...[
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final c in cats.entries)
+                  ChoiceChip(
+                    label: Text('${c.value.$1} ${c.key}'),
+                    selected: _category == c.key,
+                    showCheckmark: false,
+                    onSelected: (_) => setState(() => _category = c.key),
+                  ),
+              ],
+            ),
+            if (t == LedgerTxType.expense)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () => _toggleSplit(true),
+                  icon: const Icon(Icons.call_split_rounded, size: 18),
+                  label: const Text('拆分（一筆裡有不同分類）'),
+                ),
+              ),
+          ],
         ]);
     }
 
@@ -1389,16 +1553,6 @@ class _TxFormState extends State<_TxForm> {
       ]);
     }
     children.addAll([
-      _label('時間'),
-      OutlinedButton.icon(
-        onPressed: () async {
-          final v = await _pickDateTime(context, _at);
-          if (v != null && mounted) setState(() => _at = v);
-        },
-        icon: const Icon(Icons.schedule_rounded, size: 18),
-        label: Text('${lYmd(_at)} ${lHm(_at)}'),
-        style: _outline,
-      ),
       ..._afterField(err == null ? _build() : null),
       _label('備註', trailing: '選填・最多 100 字'),
       TextField(
@@ -1544,7 +1698,10 @@ class _TxDetail extends StatelessWidget {
               : '${a.name} ${d > 0 ? '+' : '−'}${lInt(d.abs())}',
     ].join('\n');
     final counts = switch (t.type) {
-      LedgerTxType.expense => '算進本月消費 ${lMoney(t.ownSpend)}（${t.category}）',
+      LedgerTxType.expense =>
+        t.isSplit
+            ? '算進本月消費 ${lMoney(t.ownSpend)}，照拆分分到各分類'
+            : '算進本月消費 ${lMoney(t.ownSpend)}（${t.category}）',
       LedgerTxType.income => '算進本月收入',
       LedgerTxType.transfer => '不算支出，只是換個地方放',
       LedgerTxType.refund =>
@@ -1640,7 +1797,14 @@ class _TxDetail extends StatelessWidget {
                 ? '${book.accountName(t.accountId)} → ${book.accountName(t.toAccountId)}'
                 : book.accountName(t.accountId),
           ),
-          if (t.category != null && t.type != LedgerTxType.transfer)
+          if (t.isSplit)
+            _kv(
+              '拆分',
+              t.splits
+                  .map((s) => '${s.category} ${lMoney(s.amount)}')
+                  .join('\n'),
+            )
+          else if (t.category != null && t.type != LedgerTxType.transfer)
             _kv('分類', t.category!),
           _kv('名稱', t.merchant.isEmpty ? '—' : t.merchant),
           if (t.note.isNotEmpty) _kv('備註', t.note),
@@ -3008,3 +3172,11 @@ Widget budgetHeader(int spent, int? budget) => Container(
     ],
   ),
 );
+
+/// 拆分表單的一份：分類＋金額輸入。
+class _SplitRow {
+  _SplitRow(this.category, this.amount);
+
+  String category;
+  final TextEditingController amount;
+}

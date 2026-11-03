@@ -22,6 +22,7 @@ const ledgerExpenseCats = <String, (String, int)>{
   '創業魔物童話': ('🐉', 0xFFE08FD0),
   '創業交友APP': ('💘', 0xFFFF8FB1),
   '寵物': ('🐾', 0xFFF0B27A),
+  '生活': ('🏡', 0xFF8FD1A8),
   '菸酒': ('🍺', 0xFFD9A066),
   '未分類': ('❔', 0xFF8A8A9A),
 };
@@ -338,22 +339,56 @@ class LedgerBook {
 
   // ── 消費統計 ─────────────────────────────────────────────
 
+  /// 把 [value] 這麼多錢分到這筆的各個分類：沒拆就全給它的分類；有拆就照每份佔整筆
+  /// 的比例分（整數四捨五入，最後一份補齊差額，加起來一定剛好是 [value]）。
+  /// 幫別人付時 [value] 是自己那份，所以對方要給的部分也是照比例從各分類扣。
+  Map<String, int> categoryShares(LedgerTx t, int value) {
+    final base = t.category ?? ledgerUncategorized;
+    if (!t.isSplit || t.amount <= 0) return {base: value};
+    final out = <String, int>{};
+    var left = value;
+    for (var i = 0; i < t.splits.length; i++) {
+      final s = t.splits[i];
+      final part = i == t.splits.length - 1
+          ? left
+          : (value * s.amount / t.amount).round();
+      out[s.category] = (out[s.category] ?? 0) + part;
+      left -= part;
+    }
+    return out;
+  }
+
+  /// 這筆（或它原本的支出，退款時）算哪些分類。
+  List<String> categoriesOf(LedgerTx t) {
+    final src = t.type == LedgerTxType.refund ? tx(t.linkedId) : t;
+    if (src == null) return const [];
+    if (src.isSplit) return [for (final s in src.splits) s.category];
+    return [if (src.category != null) src.category!];
+  }
+
   SpendStats statsWhere(bool Function(LedgerTx) test) {
     final cat = <String, int>{};
     var spend = 0, income = 0;
-    void add(String c, int v) {
-      cat[c] = (cat[c] ?? 0) + v;
-      spend += v;
+    void addShares(Map<String, int> shares) {
+      shares.forEach((c, v) {
+        cat[c] = (cat[c] ?? 0) + v;
+        spend += v;
+      });
     }
 
     for (final t in txs.where(test)) {
       switch (t.type) {
         case LedgerTxType.expense:
-          add(t.category ?? ledgerUncategorized, t.ownSpend);
+          addShares(categoryShares(t, t.ownSpend));
         case LedgerTxType.adjustment:
-          if (t.isAdjustOut) add(ledgerUncategorized, t.amount);
+          if (t.isAdjustOut) addShares({ledgerUncategorized: t.amount});
         case LedgerTxType.refund:
-          add(tx(t.linkedId)?.category ?? ledgerUncategorized, -t.amount);
+          final o = tx(t.linkedId);
+          addShares(
+            o == null
+                ? {ledgerUncategorized: -t.amount}
+                : categoryShares(o, -t.amount),
+          );
         case LedgerTxType.income:
           income += t.amount;
         case LedgerTxType.transfer:
@@ -450,6 +485,7 @@ class LedgerBook {
       t.merchant,
       t.note,
       t.category ?? '',
+      for (final s in t.splits) s.category,
       t.type.label,
       accountName(t.accountId),
       if (t.toAccountId != null) accountName(t.toAccountId),
