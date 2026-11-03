@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lume/app/providers.dart';
 import 'package:lume/data/repositories/ledger_repository.dart';
 import 'package:lume/data/storage/key_value_store.dart';
+import 'package:lume/domain/ledger_calc.dart';
 import 'package:lume/domain/models/ledger.dart';
 import 'package:lume/features/ledger/ledger_page.dart';
 
@@ -221,6 +222,30 @@ void main() {
     // 都沒填餘額：沒有對帳點，帳戶只記交易。
     expect(book.checkpoints, isEmpty);
     expect(find.text('沒填餘額'), findsNWidgets(4));
+  });
+
+  testWidgets('轉帳打開「轉給別人（算支出）」→ 存成一筆支出', (tester) async {
+    final store = await seeded();
+    await pump(tester, const LedgerPage(tab: LedgerTab.home), store);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(FloatingActionButton));
+    await settle(tester);
+    await tester.tap(find.text('轉帳'));
+    await tester.pump();
+    await tester.enterText(find.byType(TextField).first, '800');
+    await tester.tap(find.text('轉給別人（算支出）'));
+    await tester.pump();
+    expect(find.text('買什麼（分類）'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, '記下來'));
+    await settle(tester);
+    expect(tester.takeException(), isNull);
+    final book = await tester.runAsync(
+      () => LedgerRepository(store).loadBook(),
+    );
+    final t = book!.txs.firstWhere((t) => t.amount == 800);
+    expect(t.type, LedgerTxType.expense);
+    expect(t.toAccountId, isNull);
+    expect(ledgerExpenseCats.containsKey(t.category), isTrue);
   });
 
   testWidgets('沒填餘額的帳戶在帳戶分頁可以「填餘額」', (tester) async {

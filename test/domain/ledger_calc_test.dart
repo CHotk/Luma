@@ -286,6 +286,54 @@ void main() {
     expect(lines[3].error, isNotNull, reason: '對方要給不能超過整筆');
   });
 
+  test('防重複：同一個帳戶、同一分鐘、同金額就算重複，商家不一樣也是', () {
+    final b = book([
+      LedgerTx(
+        id: 'a',
+        type: LedgerTxType.expense,
+        occurredAt: DateTime(2026, 11, 2, 19, 30, 12),
+        amount: 1000,
+        accountId: 'card',
+        category: '餐飲',
+        merchant: '鼎泰豐',
+      ),
+    ]);
+    expect(
+      b.sameMinute('card', DateTime(2026, 11, 2, 19, 30, 50), 1000),
+      isNotNull,
+    );
+    expect(b.sameMinute('card', DateTime(2026, 11, 2, 19, 31), 1000), isNull);
+    expect(b.sameMinute('card', DateTime(2026, 11, 2, 19, 30), 999), isNull);
+    expect(b.sameMinute('cash', DateTime(2026, 11, 2, 19, 30), 1000), isNull);
+    expect(
+      b.sameMinute('card', DateTime(2026, 11, 2, 19, 30), 1000, exceptId: 'a'),
+      isNull,
+    );
+    final lines = b.parseImport('''
+中信銀行｜2026/11/02 19:30｜餐飲｜DIN TAI FUNG｜NT\$1,000
+中信銀行｜2026/11/02 19:45｜餐飲｜甜點｜NT\$200
+中信銀行｜2026/11/02 19:45｜購物｜另一家｜NT\$200
+''');
+    expect(lines[0].duplicate, isTrue, reason: '跟已經記的同分鐘同金額');
+    expect(lines[1].duplicate, isFalse);
+    expect(lines[2].duplicate, isTrue, reason: '同一次貼的兩行同分鐘同金額');
+  });
+
+  test('貼上匯入「轉帳」：轉到自己的帳戶不算支出；轉給別人算支出', () {
+    final lines = book([]).parseImport('''
+中信活存｜2026/11/01 11:00｜轉帳｜現金｜5000
+中信活存｜2026/11/01 12:00｜轉帳｜小美｜800
+中信活存｜2026/11/01 13:00｜轉帳｜中信活存｜100
+''');
+    expect(lines[0].tx!.type, LedgerTxType.transfer);
+    expect(lines[0].tx!.accountId, 'bank');
+    expect(lines[0].tx!.toAccountId, 'cash');
+    expect(lines[1].tx!.type, LedgerTxType.expense);
+    expect(lines[1].tx!.merchant, '轉給 小美');
+    expect(lines[1].tx!.ownSpend, 800);
+    expect(lines[2].error, isNotNull);
+  });
+
   test('沒填餘額的帳戶：不算餘額、不參與對帳，但交易照樣算消費', () {
     final b = LedgerBook(
       accounts: const [bank],

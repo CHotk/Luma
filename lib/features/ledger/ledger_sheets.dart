@@ -709,6 +709,14 @@ class _TxFormState extends State<_TxForm> {
   String? _linked;
   bool _settle = false;
 
+  /// 轉帳但錢是轉給別人（例如請朋友幫忙買東西）：存成一筆支出（2026-11-03
+  /// 使用者：應該要可以勾選算支出）。
+  bool _toOther = false;
+
+  /// 實際要存的類型。
+  LedgerTxType get _effType =>
+      _type == LedgerTxType.transfer && _toOther ? LedgerTxType.expense : _type;
+
   @override
   void initState() {
     super.initState();
@@ -823,7 +831,7 @@ class _TxFormState extends State<_TxForm> {
     final amt = _int(_amount) ?? 0;
     if (amt <= 0) return '金額要填';
     if (book.account(_account) == null) return '要選帳戶';
-    if (_type == LedgerTxType.transfer) {
+    if (_effType == LedgerTxType.transfer) {
       if (book.account(_to) == null) return '要選轉到哪個帳戶';
       if (_to == _account) return '轉出跟轉入不能是同一個帳戶';
     }
@@ -843,14 +851,15 @@ class _TxFormState extends State<_TxForm> {
 
   LedgerTx _build() {
     final e = widget.edit;
+    final ty = _effType;
     final amt = _int(_amount)!;
     var merchant = _merchant.text.trim();
-    if (merchant.isEmpty && _type == LedgerTxType.refund) {
+    if (merchant.isEmpty && ty == LedgerTxType.refund) {
       final o = book.tx(_linked);
       merchant =
           '${o?.merchant.isNotEmpty == true ? o!.merchant : o?.category ?? ''} 退款';
     }
-    if (merchant.isEmpty && _type == LedgerTxType.repayment) {
+    if (merchant.isEmpty && ty == LedgerTxType.repayment) {
       merchant = '${book.tx(_linked)?.paidFor?.people ?? ''} 還錢';
     }
     final pf = _type == LedgerTxType.expense && _pf
@@ -862,20 +871,18 @@ class _TxFormState extends State<_TxForm> {
             settled: e?.paidFor?.settled ?? false,
           )
         : null;
-    final hasCat =
-        _type == LedgerTxType.expense || _type == LedgerTxType.income;
-    final linked =
-        _type == LedgerTxType.refund || _type == LedgerTxType.repayment;
+    final hasCat = ty == LedgerTxType.expense || ty == LedgerTxType.income;
+    final linked = ty == LedgerTxType.refund || ty == LedgerTxType.repayment;
     if (e != null) {
       return e.copyWith(
-        type: _type,
+        type: ty,
         occurredAt: _at,
         amount: amt,
         accountId: _account,
-        toAccountId: () => _type == LedgerTxType.transfer ? _to : null,
+        toAccountId: () => ty == LedgerTxType.transfer ? _to : null,
         category: () => hasCat
             ? _category
-            : _type == LedgerTxType.adjustment
+            : ty == LedgerTxType.adjustment
             ? ledgerUncategorized
             : null,
         merchant: merchant,
@@ -887,11 +894,11 @@ class _TxFormState extends State<_TxForm> {
     }
     return LedgerTx(
       id: ledgerId(),
-      type: _type,
+      type: ty,
       occurredAt: _at,
       amount: amt,
       accountId: _account!,
-      toAccountId: _type == LedgerTxType.transfer ? _to : null,
+      toAccountId: ty == LedgerTxType.transfer ? _to : null,
       category: hasCat ? _category : null,
       merchant: merchant,
       note: _memo.text.trim(),
@@ -982,8 +989,42 @@ class _TxFormState extends State<_TxForm> {
     ];
 
     switch (t) {
+      case LedgerTxType.transfer when _toOther:
+        children.addAll([
+          _toggle(
+            '轉給別人（算支出）',
+            '例如轉錢給朋友請他幫你買東西：錢離開你的帳戶，算這個月的消費',
+            true,
+            (v) => setState(() => _toOther = v),
+          ),
+          _label('從哪個帳戶'),
+          _accountChips(book, _account, (v) => setState(() => _account = v)),
+          _label('買什麼（分類）'),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              for (final c in ledgerExpenseCats.entries)
+                ChoiceChip(
+                  label: Text('${c.value.$1} ${c.key}'),
+                  selected: _category == c.key,
+                  showCheckmark: false,
+                  onSelected: (_) => setState(() => _category = c.key),
+                ),
+            ],
+          ),
+        ]);
       case LedgerTxType.transfer:
         children.addAll([
+          _toggle(
+            '轉給別人（算支出）',
+            '錢不是轉到自己的帳戶、是給別人的（例如請朋友幫你買東西）就打開',
+            false,
+            (v) => setState(() {
+              _toOther = v;
+              if (!ledgerExpenseCats.containsKey(_category)) _category = '購物';
+            }),
+          ),
           _label('從哪個帳戶'),
           _accountChips(
             book,
@@ -1176,7 +1217,7 @@ class _TxFormState extends State<_TxForm> {
           t == LedgerTxType.income
               ? '來源'
               : t == LedgerTxType.transfer
-              ? '名稱'
+              ? (_toOther ? '轉給誰／買什麼' : '名稱')
               : '商家／名稱',
           trailing: '選填',
         ),
@@ -2144,7 +2185,8 @@ class _BudgetState extends State<_Budget> {
 
 // ── 貼上匯入 ─────────────────────────────────────────────
 
-Future<List<LedgerTx>?> showImportSheet(
+/// 回傳要匯入的交易，跟因為重複沒加的那幾行說明。
+Future<({List<LedgerTx> txs, List<String> skipped})?> showImportSheet(
   BuildContext context,
   LedgerBook book,
 ) => _sheet(context, _Import(book: book));
@@ -2160,6 +2202,24 @@ class _Import extends StatefulWidget {
 
 class _ImportState extends State<_Import> {
   final _text = TextEditingController();
+
+  /// 勾了「算支出」的轉帳那幾行（key＝第幾行｜原文）：錢是轉給別人的。
+  final _asSpend = <String>{};
+
+  static String _key(int i, ImportLine l) => '$i|${l.line}';
+
+  /// 匯入時套用「算支出」：轉帳改成一筆未分類支出。
+  LedgerTx _final(int i, ImportLine l) {
+    final t = l.tx!;
+    if (t.type != LedgerTxType.transfer || !_asSpend.contains(_key(i, l))) {
+      return t;
+    }
+    return t.copyWith(
+      type: LedgerTxType.expense,
+      toAccountId: () => null,
+      category: () => ledgerUncategorized,
+    );
+  }
 
   @override
   void initState() {
@@ -2183,10 +2243,17 @@ class _ImportState extends State<_Import> {
         n == 0 ? '沒有可以匯入的' : '匯入 $n 筆',
         n == 0
             ? null
-            : () => Navigator.pop(context, [
-                for (final l in lines)
-                  if (l.willImport) l.tx!,
-              ]),
+            : () => Navigator.pop(context, (
+                txs: [
+                  for (final (i, l) in lines.indexed)
+                    if (l.willImport) _final(i, l),
+                ],
+                skipped: [
+                  for (final l in lines)
+                    if (l.duplicateOf != null)
+                      '「${l.tx!.merchant}」跟${l.duplicateOf}相同',
+                ],
+              )),
       ),
       children: [
         _note([
@@ -2201,7 +2268,12 @@ class _ImportState extends State<_Import> {
                 '當刷卡記在信用卡。分類是「提款」的會變成',
           ),
           _b('轉帳（銀行 → 現金）'),
-          const TextSpan(text: '、不算支出；一樣的紀錄會跳過。原始那行會留在明細裡。'),
+          const TextSpan(
+            text:
+                '、不算支出。分類寫「轉帳」：商家那欄寫自己的帳戶名稱（郵局）就是轉帳，'
+                '寫別人（小美）就當轉給別人、算支出；轉帳那幾行也可以在預覽勾「算支出」。'
+                '一樣的紀錄會跳過，原始那行會留在明細裡。',
+          ),
         ]),
         _note([
           const TextSpan(
@@ -2209,7 +2281,9 @@ class _ImportState extends State<_Import> {
                 '範例：\n'
                 '中信銀行｜2026/11/02 19:30｜餐飲｜鼎泰豐｜1000｜小美｜700\n'
                 '現金｜2026/11/03 12:30｜餐飲｜便當｜120\n'
-                '中信銀行｜2026/11/01 10:00｜提款｜ATM提款｜3000',
+                '中信活存｜2026/11/01 10:00｜提款｜ATM提款｜3000\n'
+                '中信活存｜2026/11/01 11:00｜轉帳｜郵局｜5000\n'
+                '中信活存｜2026/11/01 12:00｜轉帳｜小美｜800',
             style: TextStyle(fontFamily: 'monospace', fontSize: 11),
           ),
         ]),
@@ -2243,12 +2317,12 @@ class _ImportState extends State<_Import> {
         if (lines.isEmpty)
           Text('貼上之後這裡會列出每一行會變成什麼', style: AppText.bodyDim)
         else
-          for (final l in lines) _importRow(l),
+          for (final (i, l) in lines.indexed) _importRow(i, l),
       ],
     );
   }
 
-  Widget _importRow(ImportLine l) {
+  Widget _importRow(int i, ImportLine l) {
     final t = l.tx;
     if (t == null) {
       return Padding(
@@ -2295,9 +2369,40 @@ class _ImportState extends State<_Import> {
                       color: AppColors.ink,
                     ),
                   ),
+                  if (t.type == LedgerTxType.transfer && !l.duplicate)
+                    InkWell(
+                      onTap: () => setState(() {
+                        final k = _key(i, l);
+                        if (!_asSpend.remove(k)) _asSpend.add(k);
+                      }),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 2),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              _asSpend.contains(_key(i, l))
+                                  ? Icons.check_box_rounded
+                                  : Icons.check_box_outline_blank_rounded,
+                              size: 18,
+                              color: _asSpend.contains(_key(i, l))
+                                  ? ledgerAccent
+                                  : AppColors.ink3,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '算支出（錢是給別人的）',
+                              style: AppText.note.copyWith(fontSize: 11),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   Text(
                     t.type == LedgerTxType.transfer
-                        ? '轉帳 ${book.accountName(t.accountId)} → ${book.accountName(t.toAccountId)}（不算支出）'
+                        ? _asSpend.contains(_key(i, l))
+                              ? '支出・${book.accountName(t.accountId)}・未分類（轉給別人）'
+                              : '轉帳 ${book.accountName(t.accountId)} → ${book.accountName(t.toAccountId)}（不算支出）'
                         : '支出・${book.accountName(t.accountId)}・${t.category}'
                               '${l.unknownCategory == null ? '' : '（沒有「${l.unknownCategory}」分類，先放未分類）'}'
                               '${t.paidFor == null ? '' : '・${t.paidFor!.people} 要給 ${lMoney(t.paidFor!.amount)}'}',
@@ -2308,6 +2413,14 @@ class _ImportState extends State<_Import> {
                       color: AppColors.ink3,
                     ),
                   ),
+                  if (l.duplicateOf != null)
+                    Text(
+                      '跟${l.duplicateOf}相同（同帳戶、同一分鐘、同金額），不會加',
+                      style: AppText.note.copyWith(
+                        fontSize: 10.5,
+                        color: AppColors.mid,
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -2324,7 +2437,7 @@ class _ImportState extends State<_Import> {
                   ),
                 ),
                 l.duplicate
-                    ? const LedgerPill('重複・跳過')
+                    ? const LedgerPill('重複', color: AppColors.mid)
                     : l.beforeStart
                     ? const LedgerPill('只看消費')
                     : const LedgerPill('會匯入', color: AppColors.ok),

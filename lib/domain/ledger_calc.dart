@@ -102,7 +102,7 @@ class ImportLine {
     this.line, {
     this.tx,
     this.error,
-    this.duplicate = false,
+    this.duplicateOf,
     this.beforeStart = false,
     this.unknownCategory,
   });
@@ -110,7 +110,10 @@ class ImportLine {
   final String line;
   final LedgerTx? tx;
   final String? error;
-  final bool duplicate;
+
+  /// 跟哪一筆重複（同帳戶、同分鐘、同金額）；null＝不重複。
+  final String? duplicateOf;
+  bool get duplicate => duplicateOf != null;
   final bool beforeStart;
   final String? unknownCategory;
 
@@ -340,6 +343,38 @@ class LedgerBook {
 
   List<LedgerTx> get flagged => txs.where((t) => t.flagged).toList();
 
+  /// 同一個帳戶、同一分鐘、同金額的那筆（2026-11-03 使用者：刷卡要防重複，
+  /// 同日期到分鐘、同金額就不行）。[exceptId] 是編輯中的那筆自己。
+  LedgerTx? sameMinute(
+    String accountId,
+    DateTime at,
+    int amount, {
+    String? exceptId,
+  }) => txs
+      .where(
+        (x) =>
+            x.id != exceptId &&
+            x.accountId == accountId &&
+            x.amount == amount &&
+            _minuteOf(x.occurredAt) == _minuteOf(at),
+      )
+      .firstOrNull;
+
+  /// 「11/2 19:30 鼎泰豐 $1,000」，提示重複用。
+  static String describe(LedgerTx t) {
+    String p(int n) => n.toString().padLeft(2, '0');
+    final d = t.occurredAt;
+    final money = t.amount.toString().replaceAllMapped(
+      RegExp(r'\B(?=(\d{3})+(?!\d))'),
+      (_) => ',',
+    );
+    final name = t.merchant.isEmpty ? (t.category ?? t.type.label) : t.merchant;
+    return '${d.month}/${d.day} ${p(d.hour)}:${p(d.minute)} $name \$$money';
+  }
+
+  static String _minuteOf(DateTime t) =>
+      '${t.year}-${t.month}-${t.day} ${t.hour}:${t.minute}';
+
   /// 連到這筆的（退款、還款、對帳補記）。
   List<LedgerTx> linkedTo(String id) =>
       txs.where((t) => t.linkedId == id).toList();
@@ -360,10 +395,24 @@ class LedgerBook {
         .firstOrNull;
     final start = startDate;
     final out = <ImportLine>[];
-    final seen = <String>{};
+    // 同一個帳戶、同一分鐘、同金額＝重複（已經記過的、或這次貼了兩行）。
+    // 回傳跟哪一筆重複的說明，不重複是 null。
+    final seenAt = <String, int>{};
+    String? dupOf(LedgerTx t, int lineNo) {
+      final k = '${t.accountId}|${_minuteOf(t.occurredAt)}|${t.amount}';
+      final old = sameMinute(t.accountId, t.occurredAt, t.amount);
+      if (old != null) return '已經記過的「${describe(old)}」';
+      final prev = seenAt[k];
+      if (prev != null) return '這次貼的第 $prev 行';
+      seenAt[k] = lineNo;
+      return null;
+    }
+
+    var lineNo = 0;
     for (final raw in text.split('\n')) {
       final line = raw.trim();
       if (line.isEmpty) continue;
+      lineNo++;
       final p = line.split(RegExp('[｜|]')).map((s) => s.trim()).toList();
       if (p.length < 5) {
         out.add(ImportLine(line, error: '欄位不夠（要 5 欄：銀行｜日期時間｜分類｜商家｜金額）'));
@@ -386,6 +435,42 @@ class LedgerBook {
       final amount = int.tryParse(p[4].replaceAll(RegExp(r'[^\d]'), '')) ?? 0;
       if (amount <= 0) {
         out.add(ImportLine(line, error: '看不懂金額'));
+        continue;
+      }
+      // 分類「轉帳」：第 4 欄是自己的帳戶名稱就是轉帳（不算支出）；不是自己的
+      // 帳戶＝轉給別人，當一筆支出（2026-11-03 使用者：轉錢給別人幫我買東西）。
+      if (p[2] == '轉帳') {
+        final named = accounts.where((a) => a.name == p[0]).firstOrNull;
+        final from = named ?? bank;
+        final target = accounts.where((a) => a.name == p[3]).firstOrNull;
+        if (from == null) {
+          out.add(ImportLine(line, error: '找不到轉出的帳戶「${p[0]}」'));
+          continue;
+        }
+        if (target != null && target.id == from.id) {
+          out.add(ImportLine(line, error: '轉出跟轉入是同一個帳戶'));
+          continue;
+        }
+        final tx = LedgerTx(
+          id: ledgerId(),
+          type: target == null ? LedgerTxType.expense : LedgerTxType.transfer,
+          occurredAt: at,
+          amount: amount,
+          accountId: from.id,
+          toAccountId: target?.id,
+          category: target == null ? ledgerUncategorized : null,
+          merchant: target == null ? '轉給 ${p[3]}' : '轉到 ${p[3]}',
+          source: 'paste',
+          raw: line,
+        );
+        out.add(
+          ImportLine(
+            line,
+            tx: tx,
+            duplicateOf: dupOf(tx, lineNo),
+            beforeStart: start != null && at.isBefore(start),
+          ),
+        );
         continue;
       }
       final withdraw = p[2] == '提款';
@@ -431,21 +516,14 @@ class LedgerBook {
         source: 'paste',
         raw: line,
       );
-      // 已經記過的、或同一次貼了兩行一樣的，都當重複跳過。
-      final key = '${at.toIso8601String()}|$amount|$merchant';
-      final dup =
-          !seen.add(key) ||
-          txs.any(
-            (x) =>
-                x.occurredAt == at &&
-                x.amount == amount &&
-                x.merchant == merchant,
-          );
+      // 已經記過的、或同一次貼了兩行一樣的，都當重複跳過：同一個帳戶、
+      // 同一分鐘、同金額就算（不看商家）。
+      final dup = dupOf(tx, lineNo);
       out.add(
         ImportLine(
           line,
           tx: tx,
-          duplicate: dup,
+          duplicateOf: dup,
           beforeStart: start != null && at.isBefore(start),
           unknownCategory: withdraw || known ? null : p[2],
         ),

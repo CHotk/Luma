@@ -72,6 +72,25 @@ Future<void> txFormFlow(
   if (!book.isSetUp) return setupFlow(context, ref);
   final r = await showTxFormSheet(context, book, edit: edit, prefill: prefill);
   if (r == null) return;
+  // 防重複（2026-11-03 使用者）：同帳戶、同一分鐘、同金額的已經有了，就提示
+  // 跟哪一筆相同、不新增。
+  final dup = book.sameMinute(
+    r.tx.accountId,
+    r.tx.occurredAt,
+    r.tx.amount,
+    exceptId: edit?.id,
+  );
+  if (dup != null) {
+    if (context.mounted) {
+      showAppNotice(
+        context,
+        '跟「${LedgerBook.describe(dup)}」相同，${edit == null ? '沒有新增' : '沒有儲存'}',
+        detail: '同帳戶、同一分鐘、同金額；真的是兩筆就把時間改一分鐘',
+        isError: true,
+      );
+    }
+    return;
+  }
   final repo = ref.read(ledgerRepositoryProvider);
   if (edit == null) {
     await repo.addTransaction(r.tx);
@@ -442,9 +461,9 @@ Future<void> importFlow(BuildContext context, WidgetRef ref) async {
   if (!context.mounted) return;
   if (!book.isSetUp) return setupFlow(context, ref);
   final before = {for (final s in book.states) s.account.id: s.miss};
-  final txs = await showImportSheet(context, book);
-  if (txs == null || txs.isEmpty) return;
-  await ref.read(ledgerRepositoryProvider).addTransactions(txs);
+  final r = await showImportSheet(context, book);
+  if (r == null || r.txs.isEmpty) return;
+  await ref.read(ledgerRepositoryProvider).addTransactions(r.txs);
   _bump(ref);
   final after = await _fresh(ref);
   final fixed = [
@@ -452,12 +471,22 @@ Future<void> importFlow(BuildContext context, WidgetRef ref) async {
       if ((before[s.account.id] ?? 0) != 0 && s.miss == 0) s.account.name,
   ];
   if (context.mounted) {
+    // 重複的沒有加，要講清楚是跟哪一筆相同（2026-11-03 使用者）。
     showAppNotice(
       context,
-      '📋 匯入 ${txs.length} 筆',
-      detail: fixed.isEmpty ? null : '${fixed.join('、')}的差額補上了 ✓',
+      '📋 匯入 ${r.txs.length} 筆'
+      '${r.skipped.isEmpty ? '' : '，${r.skipped.length} 筆重複沒有加'}',
+      detail: [
+        ...r.skipped.take(3),
+        if (r.skipped.length > 3) '還有 ${r.skipped.length - 3} 筆',
+        if (fixed.isNotEmpty) '${fixed.join('、')}的差額補上了 ✓',
+      ].join('\n').ifEmptyNull,
     );
   }
+}
+
+extension on String {
+  String? get ifEmptyNull => isEmpty ? null : this;
 }
 
 Future<void> oweFlow(BuildContext context, WidgetRef ref) async {
