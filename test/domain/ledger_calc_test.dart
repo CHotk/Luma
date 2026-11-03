@@ -284,6 +284,22 @@ void main() {
     expect(lines[1].tx!.ownSpend, 300);
     expect(lines[2].tx!.accountId, 'bank');
     expect(lines[3].error, isNotNull, reason: '對方要給不能超過整筆');
+    expect(lines[1].tx!.paidFor!.settled, isFalse);
+    final given = book(
+      [],
+    ).parseImport('中信銀行｜2026/11/01 20:00｜餐飲｜火鍋｜900｜小美｜450｜已給');
+    expect(given.single.tx!.paidFor!.settled, isTrue);
+    expect(given.single.tx!.ownSpend, 450);
+    final bad = book([]).parseImport('''
+中信銀行｜2026/11/02 19:30｜餐飲｜鼎泰豐｜1000｜|｜已給
+中信銀行｜2026/11/02 19:40｜餐飲｜鼎泰豐｜1000｜｜700
+中信銀行｜2026/11/02 19:50｜餐飲｜鼎泰豐｜1000｜小美
+中信銀行｜2026/11/02 20:00｜餐飲｜鼎泰豐｜1000｜｜
+''');
+    expect(bad[0].error, isNotNull);
+    expect(bad[1].error, isNotNull);
+    expect(bad[2].error, isNotNull);
+    expect(bad[3].tx!.paidFor, isNull, reason: '後面欄位全空就是一般消費');
   });
 
   test('防重複：同一個帳戶、同一分鐘、同金額就算重複，商家不一樣也是', () {

@@ -2260,8 +2260,8 @@ class _ImportState extends State<_Import> {
           const TextSpan(text: '一行一筆：'),
           _b('帳戶｜日期時間｜分類｜商家｜金額'),
           const TextSpan(text: '，後面可以再加'),
-          _b('｜跟誰｜對方要給'),
-          const TextSpan(text: '（選填，填了就是跟別人一起）。\n'),
+          _b('｜跟誰｜對方要給｜已給'),
+          const TextSpan(text: '（選填：填跟誰、對方要給就是跟別人一起；他已經給了就再加「｜已給」）。\n'),
           const TextSpan(
             text:
                 '帳戶寫帳戶名稱（現金、郵局）就記在那裡；寫銀行名稱（中信銀行）'
@@ -2280,6 +2280,7 @@ class _ImportState extends State<_Import> {
             text:
                 '範例：\n'
                 '中信銀行｜2026/11/02 19:30｜餐飲｜鼎泰豐｜1000｜小美｜700\n'
+                '中信銀行｜2026/11/01 20:00｜餐飲｜火鍋｜900｜小美｜450｜已給\n'
                 '現金｜2026/11/03 12:30｜餐飲｜便當｜120\n'
                 '中信活存｜2026/11/01 10:00｜提款｜ATM提款｜3000\n'
                 '中信活存｜2026/11/01 11:00｜轉帳｜郵局｜5000\n'
@@ -2405,7 +2406,7 @@ class _ImportState extends State<_Import> {
                               : '轉帳 ${book.accountName(t.accountId)} → ${book.accountName(t.toAccountId)}（不算支出）'
                         : '支出・${book.accountName(t.accountId)}・${t.category}'
                               '${l.unknownCategory == null ? '' : '（沒有「${l.unknownCategory}」分類，先放未分類）'}'
-                              '${t.paidFor == null ? '' : '・${t.paidFor!.people} 要給 ${lMoney(t.paidFor!.amount)}'}',
+                              '${t.paidFor == null ? '' : '・${t.paidFor!.people} ${t.paidFor!.settled ? '已給' : '要給'} ${lMoney(t.paidFor!.amount)}'}',
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: AppText.note.copyWith(

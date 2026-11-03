@@ -381,10 +381,10 @@ class LedgerBook {
 
   // ── 貼上匯入 ─────────────────────────────────────────────
 
-  /// 一行一筆：`帳戶｜日期時間｜分類｜商家｜金額［｜跟誰｜對方要給］`。
+  /// 一行一筆：`帳戶｜日期時間｜分類｜商家｜金額［｜跟誰｜對方要給［｜已給］］`。
   /// 帳戶寫帳戶名稱（現金、郵局）就記在那裡，其他（中信銀行刷卡紀錄）記在第一張
   /// 信用卡；分類「提款」變成轉帳（銀行 → 第一個現金帳戶），不算支出；後兩欄選填，
-  /// 填了就是「跟別人一起」。
+  /// 填了就是「跟別人一起」；第 8 欄寫「已給」＝他已經給了。
   List<ImportLine> parseImport(String text) {
     final card = accounts.where((a) => a.isCard).firstOrNull;
     final bank = accounts
@@ -493,13 +493,27 @@ class LedgerBook {
       }
       // 選填第 6、7 欄：跟誰一起、對方要給多少（2026-11-03 使用者要求）。
       PaidFor? paidFor;
-      if (!withdraw && p.length >= 7 && p[5].isNotEmpty) {
+      // 填了「對方要給」或「已給」卻沒填跟誰：不要悄悄當一般消費，報錯提醒。
+      final hasExtra = p.skip(6).any((s) => s.isNotEmpty);
+      if (!withdraw && (p.length < 6 || p[5].isEmpty) && hasExtra) {
+        out.add(ImportLine(line, error: '填了對方要給／已給，第 6 欄「跟誰」也要填'));
+        continue;
+      }
+      if (!withdraw && p.length >= 6 && p[5].isNotEmpty) {
+        if (p.length < 7) {
+          out.add(ImportLine(line, error: '填了跟誰，第 7 欄「對方要給多少」也要填'));
+          continue;
+        }
         final owe = int.tryParse(p[6].replaceAll(RegExp(r'[^\d]'), '')) ?? 0;
         if (owe <= 0 || owe > amount) {
           out.add(ImportLine(line, error: '對方要給的金額要大於 0、不能超過整筆'));
           continue;
         }
-        paidFor = PaidFor(amount: owe, people: p[5]);
+        // 第 8 欄選填：「已給」＝他已經給了（2026-11-03 使用者）。
+        final given =
+            p.length >= 8 &&
+            const {'已給', '給了', 'Y', 'y', '✓', 'V', 'v'}.contains(p[7]);
+        paidFor = PaidFor(amount: owe, people: p[5], settled: given);
       }
       final known = ledgerExpenseCats.containsKey(p[2]);
       final merchant = p[3];
