@@ -88,6 +88,16 @@ class MonthBudget {
   final String? carriedFrom;
 }
 
+enum GapHintKind { wrongTime, wrongAccount, refund }
+
+/// 缺的數字剛好對得上的一筆交易，跟可能的原因。
+class GapHint {
+  const GapHint(this.kind, this.tx);
+
+  final GapHintKind kind;
+  final LedgerTx tx;
+}
+
 /// 幫別人付、還沒還清的一筆。
 class Owe {
   const Owe(this.tx, this.repaid);
@@ -265,6 +275,46 @@ class LedgerBook {
     final d = checkpointDiff(a, c);
     if (d == null || d.miss == 0) return null;
     return (cp: c, miss: d.miss);
+  }
+
+  /// 缺的數字剛好對得上哪一筆已經記的交易（2026-11-03 使用者：自動偵測少多少、
+  /// 有沒有剛好符合這數字的消費）。三種原因：
+  /// - [GapHintKind.wrongTime]：缺正數，同帳戶有一筆同金額的支出但時間落在這個
+  ///   餘額之後（或上一個餘額之前）→ 時間可能記錯，沒被算進這一段；
+  /// - [GapHintKind.wrongAccount]：缺正數，這一段裡有一筆同金額的支出但記在別的
+  ///   帳戶 → 可能刷錯卡、記錯帳戶；
+  /// - [GapHintKind.refund]：多出（缺負數），同帳戶有一筆同金額、還沒退款的支出
+  ///   → 可能是退款原路退回、忘了記。
+  List<GapHint> gapHints(LedgerCheckpoint c) {
+    final a = account(c.accountId);
+    final d = a == null ? null : checkpointDiff(a, c);
+    if (a == null || d == null || d.miss == 0) return const [];
+    final list = checkpointsOf(c.accountId);
+    final prevAt = list[list.indexWhere((x) => x.id == c.id) - 1].at;
+    final m = d.miss.abs();
+    bool inside(LedgerTx t) =>
+        t.occurredAt.isAfter(prevAt) && !t.occurredAt.isAfter(c.at);
+    final out = <GapHint>[];
+    if (d.miss > 0) {
+      for (final t in txs) {
+        if (t.id == c.txId || !t.isOut || t.amount != m) continue;
+        if (t.accountId == c.accountId && !inside(t)) {
+          out.add(GapHint(GapHintKind.wrongTime, t));
+        } else if (t.accountId != c.accountId && inside(t)) {
+          out.add(GapHint(GapHintKind.wrongAccount, t));
+        }
+      }
+    } else {
+      for (final t in txs) {
+        if (t.accountId == c.accountId &&
+            t.type == LedgerTxType.expense &&
+            t.amount == m &&
+            refundedOf(t.id) < t.amount) {
+          out.add(GapHint(GapHintKind.refund, t));
+        }
+      }
+    }
+    return out;
   }
 
   /// 補記漏掉的那筆要放的時間：兩個餘額中間，盡量貼近後面那個（前一分鐘）。

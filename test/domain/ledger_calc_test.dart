@@ -417,6 +417,124 @@ void main() {
     expect(b.gapOfTx('b')!.miss, 500);
   });
 
+  test('信用卡不用總額度：只填可用額度也能抓漏記；退款原路退回算進推算', () {
+    LedgerTx swipe(String id, int day, int amount, {String acc = 'card'}) =>
+        LedgerTx(
+          id: id,
+          type: LedgerTxType.expense,
+          occurredAt: DateTime(2026, 11, day, 12),
+          amount: amount,
+          accountId: acc,
+          category: '購物',
+        );
+    LedgerCheckpoint avail(String txId, int day, int a) => LedgerCheckpoint(
+      id: 'cp$txId',
+      accountId: 'card',
+      at: DateTime(2026, 11, day, 12),
+      available: a, // 沒有 creditLimit
+      txId: txId,
+    );
+    LedgerBook make(List<LedgerTx> txs, List<LedgerCheckpoint> cps) =>
+        LedgerBook(
+          accounts: const [
+            LedgerAccount(
+              id: 'card',
+              name: '卡',
+              type: LedgerAccountType.creditCard,
+            ),
+            bank,
+          ],
+          txs: txs,
+          checkpoints: cps,
+          budgets: const [],
+        );
+    final a = swipe('a', 1, 1000), b = swipe('b', 2, 200);
+    // 刷 1000 後可用 50000；刷 200 後該是 49800。
+    expect(
+      make([a, b], [avail('a', 1, 50000), avail('b', 2, 49800)]).gapOfTx('b'),
+      isNull,
+    );
+    // 中間有 1290 的刷卡被退款原路退回但沒記：可用額度多出來 → 缺負數＝多出 1290。
+    final shop = swipe('shop', 1, 1290);
+    var bk = make(
+      [a, shop, b],
+      [avail('a', 1, 50000), avail('b', 2, 49800 + 1290)],
+    );
+    // shop 時間在 a 同一天 12:00，同分鐘同帳戶同金額規則不影響這裡的推算。
+    expect(bk.gapOfTx('b'), isNotNull);
+    // 實際上沒有 shop 這筆，只是退款沒記：多出 1290，提示「是不是退款沒記」。
+    bk = make([a, b], [avail('a', 1, 50000), avail('b', 2, 49800 + 1290)]);
+    expect(bk.gapOfTx('b')!.miss, -1290);
+    final refund = LedgerTx(
+      id: 'r',
+      type: LedgerTxType.refund,
+      occurredAt: DateTime(2026, 11, 2, 11),
+      amount: 1290,
+      accountId: 'card',
+      linkedId: 'shop',
+    );
+    // 有記退款：額度推算回來，標籤消失。
+    bk = make(
+      [a, shop.copyWith(occurredAt: DateTime(2026, 10, 30)), b, refund],
+      [avail('a', 1, 50000), avail('b', 2, 49800 + 1290)],
+    );
+    expect(bk.gapOfTx('b'), isNull);
+  });
+
+  test('缺的數字剛好對得上某筆：時間記錯、記錯帳戶、退款沒記，各自提示', () {
+    LedgerTx spend(String id, DateTime at, int amount, String acc) => LedgerTx(
+      id: id,
+      type: LedgerTxType.expense,
+      occurredAt: at,
+      amount: amount,
+      accountId: acc,
+      category: '餐飲',
+    );
+    LedgerCheckpoint cp(String txId, int day, int bal) => LedgerCheckpoint(
+      id: 'cp$txId',
+      accountId: 'bank',
+      at: DateTime(2026, 11, day, 12),
+      balance: bal,
+      txId: txId,
+    );
+    LedgerBook make(List<LedgerTx> txs, List<LedgerCheckpoint> cps) =>
+        LedgerBook(
+          accounts: const [bank, cash],
+          txs: txs,
+          checkpoints: cps,
+          budgets: const [],
+        );
+    final a = spend('a', DateTime(2026, 11, 1, 12), 100, 'bank');
+    final b = spend('b', DateTime(2026, 11, 3, 12), 100, 'bank');
+    // 缺 500：同帳戶有一筆 500 但時間在 11/5（餘額之後）→ 時間可能記錯。
+    var bk = make(
+      [a, b, spend('late', DateTime(2026, 11, 5), 500, 'bank')],
+      [cp('a', 1, 1000), cp('b', 3, 400)],
+    );
+    expect(
+      bk.gapHints(bk.checkpointOfTx('b')!).single.kind,
+      GapHintKind.wrongTime,
+    );
+    // 缺 500：中間有一筆 500 記在現金 → 記錯帳戶。
+    bk = make(
+      [a, b, spend('cash', DateTime(2026, 11, 2), 500, 'cash')],
+      [cp('a', 1, 1000), cp('b', 3, 400)],
+    );
+    expect(
+      bk.gapHints(bk.checkpointOfTx('b')!).single.kind,
+      GapHintKind.wrongAccount,
+    );
+    // 多出 300：同帳戶有一筆 300 還沒退款 → 退款沒記。
+    bk = make(
+      [a, b, spend('x', DateTime(2026, 10, 1), 300, 'bank')],
+      [cp('a', 1, 1000), cp('b', 3, 900 + 300)],
+    );
+    expect(
+      bk.gapHints(bk.checkpointOfTx('b')!).single.kind,
+      GapHintKind.refund,
+    );
+  });
+
   test('貼上匯入第 9 欄：這筆之後的餘額；跟誰留空也行', () {
     final lines = book([]).parseImport('''
 中信銀行｜2026/11/04 12:00｜餐飲｜麥當勞｜189｜｜｜｜86000

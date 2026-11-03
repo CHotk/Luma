@@ -676,7 +676,7 @@ class TxPrefill {
 
 /// 回傳記好的交易、是否順便標記對方給了，跟選填的「這筆之後帳戶剩多少」
 /// （[after]，null＝沒填或清掉）。
-Future<({LedgerTx tx, bool settleLinked, int? after, int? limit})?>
+Future<({LedgerTx tx, bool settleLinked, int? after})?>
 showTxFormSheet(
   BuildContext context,
   LedgerBook book, {
@@ -713,8 +713,6 @@ class _TxFormState extends State<_TxForm> {
   /// 這筆之後帳戶剩多少（信用卡是可用額度），選填；有填就附一個對帳點在這筆上。
   late final TextEditingController _after;
 
-  /// 這張信用卡還不知道總額度時，在這裡填一次（之後記在帳戶上，不用再填）。
-  final _limit = TextEditingController();
   String? _linked;
   bool _settle = false;
 
@@ -762,7 +760,6 @@ class _TxFormState extends State<_TxForm> {
       _pfAmount,
       _pfPeople,
       _after,
-      _limit,
     ]) {
       c.addListener(() => setState(() {}));
     }
@@ -777,7 +774,6 @@ class _TxFormState extends State<_TxForm> {
       _pfAmount,
       _pfPeople,
       _after,
-      _limit,
     ]) {
       c.dispose();
     }
@@ -863,14 +859,6 @@ class _TxFormState extends State<_TxForm> {
     final amt = _int(_amount) ?? 0;
     if (amt <= 0) return '金額要填';
     if (book.account(_account) == null) return '要選帳戶';
-    // 填了可用額度、這張卡又還不知道總額度：總額度也要填。
-    final acc = book.account(_account)!;
-    if (acc.isCard &&
-        _int(_after) != null &&
-        (book.stateOf(acc)?.limit ?? acc.creditLimit ?? 0) <= 0 &&
-        (_int(_limit) ?? 0) <= 0) {
-      return '填了可用額度，這張卡的總額度也要填一次';
-    }
     if (_effType == LedgerTxType.transfer) {
       if (book.account(_to) == null) return '要選轉到哪個帳戶';
       if (_to == _account) return '轉出跟轉入不能是同一個帳戶';
@@ -957,8 +945,6 @@ class _TxFormState extends State<_TxForm> {
     if (a == null) return const [];
     final s = book.stateOf(a);
     final card = a.isCard;
-    final knownLimit = s?.limit ?? a.creditLimit ?? 0;
-    final needLimit = card && knownLimit <= 0;
     // 照目前記到的推算「這筆之後應該剩多少」當提示（編輯舊的不推算）。
     int? guess;
     if (s != null && draft != null && widget.edit == null) {
@@ -968,15 +954,6 @@ class _TxFormState extends State<_TxForm> {
     final got = _int(_after);
     return [
       _label(card ? '這筆刷完後的可用額度' : '這筆之後的餘額', trailing: '選填・用來抓漏記'),
-      if (needLimit) ...[
-        TextField(
-          controller: _limit,
-          keyboardType: TextInputType.number,
-          inputFormatters: _digits,
-          decoration: _input('這張卡的總額度（只要填這一次）', prefix: '\$'),
-        ),
-        const SizedBox(height: 8),
-      ],
       TextField(
         controller: _after,
         keyboardType: TextInputType.number,
@@ -1441,7 +1418,6 @@ class _TxFormState extends State<_TxForm> {
                     tx: _build(),
                     settleLinked: _type == LedgerTxType.repayment && _settle,
                     after: _int(_after),
-                    limit: _int(_limit),
                   ))
                 : null,
           ),
@@ -1633,6 +1609,31 @@ class _TxDetail extends StatelessWidget {
           ]),
           if (txGap != null) ...[
             const SizedBox(height: 8),
+            // 缺的數字剛好對得上哪一筆已經記的：先提示可能的原因。
+            for (final h in book.gapHints(txCp))
+              _option(
+                context,
+                '💡',
+                switch (h.kind) {
+                  GapHintKind.wrongTime =>
+                    '「${LedgerBook.describe(h.tx)}」剛好是缺的數字，但時間在這兩個餘額之外',
+                  GapHintKind.wrongAccount =>
+                    '「${LedgerBook.describe(h.tx)}」剛好是缺的數字，但記在「${book.accountName(h.tx.accountId)}」',
+                  GapHintKind.refund =>
+                    '「${LedgerBook.describe(h.tx)}」剛好是多出的數字，是不是退款沒記？',
+                },
+                switch (h.kind) {
+                  GapHintKind.wrongTime => '點一下把它的時間改到這兩個餘額中間',
+                  GapHintKind.wrongAccount =>
+                    '點一下改成記在「${book.accountName(txCp.accountId)}」',
+                  GapHintKind.refund => '點一下記一筆退款（原路退回這張卡）',
+                },
+                () => pop(switch (h.kind) {
+                  GapHintKind.wrongTime => 'hintMove',
+                  GapHintKind.wrongAccount => 'hintAccount',
+                  GapHintKind.refund => 'hintRefund',
+                }, '${h.tx.id}|${txCp.id}'),
+              ),
             _option(
               context,
               '✏️',
@@ -1753,14 +1754,16 @@ class _ReconState extends State<_Recon> {
     final v = _int(_value);
     if (v == null) return null;
     if (!_card) return v;
-    final l = _int(_limit);
-    return l == null ? null : l - v;
+    // 總額度不知道就當 0：只看「可用額度」互相比，總額度會抵掉，不影響抓漏記。
+    return (_int(_limit) ?? 0) - v;
   }
 
   @override
   Widget build(BuildContext context) {
     final a = widget.account, s = _s, book = widget.book;
     final first = s == null;
+    // 沒填總額度：畫面改寫「可用額度」，不寫已占用。
+    final noLimit = _card && (_int(_limit) ?? 0) <= 0;
     final since = s == null
         ? const <int>[]
         : book.txs
@@ -1836,7 +1839,9 @@ class _ReconState extends State<_Recon> {
           _box([
             _kv(
               '上次確認',
-              lMoney(LedgerBook.checkpointValue(a, s.last)),
+              noLimit
+                  ? lMoney(s.last.available ?? 0)
+                  : lMoney(LedgerBook.checkpointValue(a, s.last)),
               sub: '${lYmd(s.last.at)} ${lHm(s.last.at)}',
             ),
             _kv(
@@ -1845,7 +1850,10 @@ class _ReconState extends State<_Recon> {
                   ? '+${lInt(plus)} 刷卡／−${lInt(minus)} 繳款退款'
                   : '+${lInt(plus)}／−${lInt(minus)}',
             ),
-            _kv(_card ? 'App 推算已占用' : 'App 推算現在', lMoney(s.now)),
+            if (noLimit)
+              _kv('App 推算可用額度', lMoney(s.available))
+            else
+              _kv(_card ? 'App 推算已占用' : 'App 推算現在', lMoney(s.now)),
           ]),
         if (_card)
           Row(
@@ -1854,7 +1862,7 @@ class _ReconState extends State<_Recon> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _label('總額度'),
+                    _label('總額度', trailing: '選填'),
                     TextField(
                       controller: _limit,
                       keyboardType: TextInputType.number,
@@ -1904,11 +1912,16 @@ class _ReconState extends State<_Recon> {
           )
         else
           _box([
-            if (_card)
-              _kv('實際已占用＝額度 − 可用', lMoney(actual))
-            else
-              _kv('實際', lMoney(actual)),
-            _kv('App 推算', lMoney(s.now)),
+            if (noLimit) ...[
+              _kv('實際可用額度', lMoney(_int(_value) ?? 0)),
+              _kv('App 推算', lMoney(s.available)),
+            ] else ...[
+              if (_card)
+                _kv('實際已占用＝額度 − 可用', lMoney(actual))
+              else
+                _kv('實際', lMoney(actual)),
+              _kv('App 推算', lMoney(s.now)),
+            ],
             _kv(
               '這次差額',
               miss == 0
