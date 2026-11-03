@@ -236,7 +236,7 @@ void main() {
     expect(b.stateOf(card)!.miss, 0);
   });
 
-  test('貼上匯入：提款變轉帳、重複的跳過、起始日前標出來、看不懂的報錯', () {
+  test('貼上匯入：提款變轉帳、重複的跳過、起始日前標出來、不認得的分類跟看不懂的報錯', () {
     final b = book([
       LedgerTx(
         id: 'ktv',
@@ -264,8 +264,9 @@ void main() {
     expect(lines[2].tx!.accountId, 'bank');
     expect(lines[2].tx!.toAccountId, 'cash');
     expect(lines[2].beforeStart, isTrue);
-    expect(lines[3].tx!.category, '未分類');
-    expect(lines[3].unknownCategory, '奇怪分類');
+    expect(lines[3].tx, isNull, reason: 'App 沒有的分類要擋下來');
+    expect(lines[3].error, contains('奇怪分類'));
+    expect(lines[3].error, contains('創業魔物童話'), reason: '要列出可用的分類');
     expect(lines[4].duplicate, isTrue, reason: '同一次貼兩行一樣的');
     expect(lines[5].error, isNotNull);
   });

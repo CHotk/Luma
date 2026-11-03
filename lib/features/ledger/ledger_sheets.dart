@@ -2566,7 +2566,6 @@ class _ImportState extends State<_Import> {
                               ? '支出・${book.accountName(t.accountId)}・未分類（轉給別人）'
                               : '轉帳 ${book.accountName(t.accountId)} → ${book.accountName(t.toAccountId)}（不算支出）'
                         : '支出・${book.accountName(t.accountId)}・${t.category}'
-                              '${l.unknownCategory == null ? '' : '（沒有「${l.unknownCategory}」分類，先放未分類）'}'
                               '${t.paidFor == null ? '' : '・${t.paidFor!.people} ${t.paidFor!.settled ? '已給' : '要給'} ${lMoney(t.paidFor!.amount)}'}',
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,

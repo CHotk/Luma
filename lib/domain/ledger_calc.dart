@@ -105,7 +105,6 @@ class ImportLine {
     this.error,
     this.duplicateOf,
     this.beforeStart = false,
-    this.unknownCategory,
     this.after,
   });
 
@@ -117,7 +116,6 @@ class ImportLine {
   final String? duplicateOf;
   bool get duplicate => duplicateOf != null;
   final bool beforeStart;
-  final String? unknownCategory;
 
   /// 選填第 9 欄：這筆之後帳戶剩多少（信用卡是可用額度），匯入時附在這筆上。
   final int? after;
@@ -514,6 +512,20 @@ class LedgerBook {
         continue;
       }
       final withdraw = p[2] == '提款';
+      // 分類要是 App 有的才行，不認得就擋下這一行（2026-11-03 使用者：不要悄悄放進
+      // 未分類），其他行照樣匯入。
+      if (!withdraw && !ledgerExpenseCats.containsKey(p[2])) {
+        out.add(
+          ImportLine(
+            line,
+            error:
+                '第 $lineNo 行：分類「${p[2]}」App 沒有這個分類。可用：'
+                '${ledgerExpenseCats.keys.join("、")}'
+                '（另外可寫「提款」「轉帳」）',
+          ),
+        );
+        continue;
+      }
       // 第一欄是帳戶名稱就記在那個帳戶（現金、郵局⋯）；寫「現金」記第一個
       // 現金帳戶；其他（例如「中信銀行」刷卡紀錄）記在第一張信用卡。
       final named = accounts.where((a) => a.name == p[0]).firstOrNull;
@@ -555,7 +567,6 @@ class LedgerBook {
             const {'已給', '給了', 'Y', 'y', '✓', 'V', 'v'}.contains(p[7]);
         paidFor = PaidFor(amount: owe, people: p[5], settled: given);
       }
-      final known = ledgerExpenseCats.containsKey(p[2]);
       final merchant = p[3];
       final tx = LedgerTx(
         id: ledgerId(),
@@ -564,7 +575,7 @@ class LedgerBook {
         amount: amount,
         accountId: from.id,
         toAccountId: withdraw ? cash!.id : null,
-        category: withdraw ? null : (known ? p[2] : ledgerUncategorized),
+        category: withdraw ? null : p[2],
         merchant: merchant,
         paidFor: paidFor,
         source: 'paste',
@@ -580,7 +591,6 @@ class LedgerBook {
           after: afterV,
           duplicateOf: dup,
           beforeStart: start != null && at.isBefore(start),
-          unknownCategory: withdraw || known ? null : p[2],
         ),
       );
     }
