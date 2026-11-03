@@ -27,6 +27,8 @@ import '../../domain/models/smoking_entry.dart';
 import '../../domain/models/trade_entry.dart';
 import '../repositories/debt_repository.dart';
 import '../../domain/models/ledger.dart';
+import '../../domain/models/i88.dart';
+import '../repositories/i88_repository.dart';
 import '../repositories/ledger_repository.dart';
 import '../repositories/smoking_repository.dart';
 import '../repositories/trade_repository.dart';
@@ -1199,6 +1201,32 @@ class R2SyncService {
     return (
       downloaded: debts.downloaded + pays.downloaded + settings.downloaded,
       uploaded: debts.uploaded + pays.uploaded + settings.uploaded,
+    );
+  }
+
+  /// i88（2026-11-03）：紀錄（`i88_entries.json`）、每月目標（`i88_settings.json`）。
+  Future<({int downloaded, int uploaded})> syncI88(
+    I88Repository repo, {
+    void Function(SyncPhase phase)? onPhase,
+  }) async {
+    final entries = await _syncRecords<I88Entry>(
+      key: 'i88_entries.json',
+      fromJson: I88Entry.fromJson,
+      toJson: (e) => e.toJson(),
+      mergeFromCloud: repo.mergeEntriesFromCloud,
+      allForUpload: repo.entriesForUpload,
+      onPhase: onPhase,
+    );
+    final settings = await _syncRecords<I88Setting>(
+      key: 'i88_settings.json',
+      fromJson: I88Setting.fromJson,
+      toJson: (e) => e.toJson(),
+      mergeFromCloud: repo.mergeSettingsFromCloud,
+      allForUpload: repo.settingsForUpload,
+    );
+    return (
+      downloaded: entries.downloaded + settings.downloaded,
+      uploaded: entries.uploaded + settings.uploaded,
     );
   }
 

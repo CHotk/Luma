@@ -254,6 +254,7 @@ class AppHomeDashboard extends ConsumerWidget {
               ('交易&自律', '/crypto-watch'),
               ('負債管理', '/debt'),
               ('記帳', '/ledger'),
+              ('i88', '/i88'),
               ('抽菸記錄', '/smoking-log'),
               ('喝酒記錄', '/drinking-log'),
               ('本機儲存', '/local-storage'),

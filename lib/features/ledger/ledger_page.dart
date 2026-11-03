@@ -82,6 +82,22 @@ class LedgerPage extends ConsumerWidget {
                   titleIcon: Icons.receipt_long_outlined,
                   titleIconColor: ledgerAccent,
                   showBack: false,
+                  // 貼上文字匯入放在每個分頁右上角（原本藏在「帳戶」最下面的
+                  // 工具裡，使用者找不到）。
+                  actions: [
+                    IconButton(
+                      onPressed: () => importFlow(context, ref),
+                      icon: const Icon(Icons.content_paste_rounded, size: 22),
+                      color: AppColors.ink2,
+                      tooltip: '貼上文字匯入',
+                      padding: EdgeInsets.zero,
+                      visualDensity: VisualDensity.compact,
+                      constraints: const BoxConstraints(
+                        minWidth: 36,
+                        minHeight: 32,
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: Gap.sm),
                 Expanded(
@@ -452,7 +468,7 @@ class LedgerPage extends ConsumerWidget {
           padding: const EdgeInsets.only(top: Gap.md),
           child: InlineEmptyCard(
             title: any ? '沒有符合的紀錄' : '這個月還沒有紀錄',
-            message: any ? '換個篩選看看' : '按右下角 ＋ 記一筆，或到「帳戶」貼上刷卡紀錄匯入',
+            message: any ? '換個篩選看看' : '按右下角 ＋ 記一筆，或按右上角的貼上圖示匯入刷卡紀錄',
             actions: [
               if (any)
                 EmptyAction(
@@ -859,11 +875,11 @@ class LedgerPage extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      a.isCard ? '已占用' : 'App 推算餘額',
+                      a.isCard ? '可刷卡餘額' : 'App 推算餘額',
                       style: AppText.note.copyWith(fontSize: 10.5),
                     ),
                     Text(
-                      lMoney(s.now),
+                      lMoney(a.isCard ? s.available : s.now),
                       style: const TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.w800,
@@ -875,15 +891,6 @@ class LedgerPage extends ConsumerWidget {
                 ),
               ],
             ),
-            if (a.isCard) ...[
-              const SizedBox(height: 10),
-              LedgerBar(s.limit <= 0 ? 0 : s.now / s.limit, color: color),
-              const SizedBox(height: 5),
-              Text(
-                '可用 ${lMoney(s.available)} / 額度 ${lMoney(s.limit)}',
-                style: AppText.note.copyWith(color: AppColors.ink3),
-              ),
-            ],
             const SizedBox(height: 10),
             Row(
               children: [

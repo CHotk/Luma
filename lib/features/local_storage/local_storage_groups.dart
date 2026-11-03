@@ -58,6 +58,7 @@ const _rules = <(String prefix, String label, Color color)>[
   ('drinking.', '喝酒記錄', Color(0xFFE0607E)),
   ('debt.', '負債管理', Color(0xFFFF9F7A)),
   ('ledger.', '記帳', Color(0xFF5FE0A8)),
+  ('i88.', 'i88', Color(0xFFE08F5F)),
   ('r2_sync.log', '同步紀錄', Color(0xFF7ED6D0)),
   ('r2_sync.meta.', '同步比對資料', Color(0xFF7ED6D0)),
   ('r2_sync.', '雲端同步設定', Color(0xFF7ED6D0)),

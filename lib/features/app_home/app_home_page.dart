@@ -31,6 +31,7 @@ const appHomeCards = <HomeCard>[
   (id: 'crypto', label: '交易&自律'),
   (id: 'debt', label: '負債管理'),
   (id: 'ledger', label: '記帳'),
+  (id: 'i88', label: 'i88'),
   (id: 'smoking', label: '抽菸記錄'),
   (id: 'drinking', label: '喝酒記錄'),
   (id: 'sync', label: '多裝置同步'),
@@ -118,6 +119,13 @@ class AppHomePage extends ConsumerWidget {
         icon: Icons.receipt_long_outlined,
         color: Color(0xFF5FE0A8),
         route: '/ledger',
+      ),
+      const _HomeItem(
+        id: 'i88',
+        label: 'i88',
+        icon: Icons.casino_outlined,
+        color: Color(0xFFE08F5F),
+        route: '/i88',
       ),
       const _HomeItem(
         id: 'smoking',

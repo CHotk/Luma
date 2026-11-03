@@ -66,6 +66,7 @@ class _AppSideDrawerState extends State<AppSideDrawer> {
     final isCryptoWatch = location.startsWith('/crypto-watch');
     final isDebt = location.startsWith('/debt');
     final isLedger = location.startsWith('/ledger');
+    final isI88 = location.startsWith('/i88');
     final isSmoking = location.startsWith('/smoking-log');
     final isDrinking = location.startsWith('/drinking-log');
     final isLanguage =
@@ -80,6 +81,7 @@ class _AppSideDrawerState extends State<AppSideDrawer> {
         !isCryptoWatch &&
         !isDebt &&
         !isLedger &&
+        !isI88 &&
         !isSmoking &&
         !isDrinking;
 
@@ -231,6 +233,15 @@ class _AppSideDrawerState extends State<AppSideDrawer> {
                           onTap: () {
                             Navigator.of(context).pop();
                             if (!isLedger) context.go('/ledger');
+                          },
+                        ),
+                        _NavItem(
+                          icon: Icons.casino_outlined,
+                          label: 'i88',
+                          active: isI88,
+                          onTap: () {
+                            Navigator.of(context).pop();
+                            if (!isI88) context.go('/i88');
                           },
                         ),
                         _NavItem(

@@ -58,6 +58,8 @@ SettingsSection settingsSectionFor(String? location) {
     '/fitness',
     '/smoking-log',
     '/drinking-log',
+    '/i88',
+    '/ledger',
     '/debug-log',
     '/local-storage',
   ])) {

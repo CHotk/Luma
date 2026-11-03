@@ -368,7 +368,7 @@ class AccountStatusRow extends StatelessWidget {
                     s == null
                         ? '只記交易'
                         : a.isCard
-                        ? 'App 推算已占用 ${lMoney(s.now)}'
+                        ? 'App 推算可刷卡餘額 ${lMoney(s.available)}'
                         : 'App 推算餘額 ${lMoney(s.now)}',
                     style: AppText.note.copyWith(
                       fontSize: 10.5,

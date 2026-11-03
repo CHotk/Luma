@@ -24,6 +24,7 @@ import '../features/history/history_page.dart';
 import '../features/history/round_detail_page.dart';
 import '../features/home/home_page.dart';
 import '../features/jp_home/jp_home_page.dart';
+import '../features/i88/i88_page.dart';
 import '../features/ledger/ledger_page.dart';
 import '../features/jp_home/jp_stats_page.dart';
 import '../features/jp_light/jp_light_page.dart';
@@ -117,6 +118,8 @@ final appRouter = GoRouter(
         path: t.path,
         builder: (_, _) => LedgerPage(tab: t),
       ),
+    // i88（2026-11-03）：單純記輸贏、月曆卡看每月達標，跟交易分開。
+    GoRoute(path: '/i88', builder: (_, _) => const I88Page()),
     GoRoute(path: '/smoking-log', builder: (_, _) => const SmokingPage()),
     GoRoute(
       path: '/smoking-log/stats',

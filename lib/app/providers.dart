@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/cloud/r2_client.dart';
 import '../data/repositories/debt_repository.dart';
+import '../data/repositories/i88_repository.dart';
 import '../data/repositories/ledger_repository.dart';
 import '../data/repositories/trade_repository.dart';
 import '../data/repositories/smoking_repository.dart';
@@ -91,6 +92,11 @@ final tradeRepositoryProvider = Provider<TradeRepository>(
 /// 負債每月還款表（2026-10-08）：債務、繳款紀錄、月收入。
 final debtRepositoryProvider = Provider<DebtRepository>(
   (ref) => DebtRepository(ref.watch(keyValueStoreProvider)),
+);
+
+/// i88（2026-11-03）：每筆輸贏、每月目標。
+final i88RepositoryProvider = Provider<I88Repository>(
+  (ref) => I88Repository(ref.watch(keyValueStoreProvider)),
 );
 
 /// 記帳（2026-11-03）：帳戶、交易、對帳點、預算。

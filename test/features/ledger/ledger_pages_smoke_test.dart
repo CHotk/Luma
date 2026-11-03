@@ -320,6 +320,18 @@ void main() {
     expect(book!.stateOf(book.accounts.single)!.now, 12000);
   });
 
+  testWidgets('每個分頁右上角都有「貼上文字匯入」，點了打得開', (tester) async {
+    for (final tab in LedgerTab.values) {
+      await pump(tester, LedgerPage(tab: tab), await seeded());
+      expect(find.byTooltip('貼上文字匯入'), findsOneWidget, reason: tab.title);
+    }
+    await tester.tap(find.byTooltip('貼上文字匯入'));
+    await settle(tester);
+    expect(find.text('貼上文字匯入'), findsWidgets);
+    expect(find.textContaining('帳戶｜日期時間｜分類｜商家｜金額'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('跟別人一起：按「他給了 ✓」→ 標記就好，就不再列在別人還欠你', (tester) async {
     final store = await seeded();
     await pump(tester, const LedgerPage(tab: LedgerTab.home), store);
