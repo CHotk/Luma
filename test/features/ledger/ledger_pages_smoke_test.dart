@@ -509,6 +509,43 @@ void main() {
     expect(now.year, greaterThan(2000));
   });
 
+  testWidgets('明細「全部時間」：不管月份，選分類就看那個分類總共花多少', (tester) async {
+    final store = _MemoryStore();
+    final repo = LedgerRepository(store);
+    final book0 = await tester.runAsync(() => repo.loadBook());
+    final card = book0!.accounts.firstWhere((a) => a.isCard);
+    await tester.runAsync(() async {
+      for (final (m, amt) in [(9, 300), (10, 500), (11, 200)]) {
+        await repo.addTransaction(
+          LedgerTx(
+            id: ledgerId(),
+            type: LedgerTxType.expense,
+            occurredAt: DateTime(2026, m, 5, 12),
+            amount: amt,
+            accountId: card.id,
+            category: '菸酒',
+            merchant: '菸酒$m月',
+          ),
+        );
+      }
+    });
+    await pump(tester, const LedgerPage(tab: LedgerTab.list), store);
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(LedgerPage)),
+    );
+    container.read(ledgerMonthProvider.notifier).state = DateTime(2026, 11);
+    await tester.pump();
+    expect(find.textContaining('1 筆'), findsOneWidget); // 只有 11 月那筆
+    await tester.tap(find.text('📅 全部時間'));
+    await tester.pump();
+    await tester.tap(find.text('🍺 菸酒'));
+    await tester.pump();
+    // 三個月加起來 300+500+200 = 1000。
+    expect(find.textContaining('3 筆・菸酒 \$1,000'), findsOneWidget);
+    expect(find.textContaining('全部時間）'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('跟別人一起：按「他給了 ✓」→ 標記就好，就不再列在別人還欠你', (tester) async {
     final store = await seeded();
     await pump(tester, const LedgerPage(tab: LedgerTab.home), store);

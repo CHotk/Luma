@@ -121,6 +121,7 @@ class ImportLine {
     this.tx,
     this.error,
     this.duplicateOf,
+    this.sameDayOf,
     this.beforeStart = false,
     this.after,
   });
@@ -132,6 +133,9 @@ class ImportLine {
   /// 跟哪一筆重複（同帳戶、同分鐘、同金額）；null＝不重複。
   final String? duplicateOf;
   bool get duplicate => duplicateOf != null;
+
+  /// 當天已經有相同金額的其他筆（不看帳戶；只提醒、不擋下）。
+  final String? sameDayOf;
   final bool beforeStart;
 
   /// 選填第 9 欄：這筆之後帳戶剩多少（信用卡是可用額度），匯入時附在這筆上。
@@ -505,6 +509,23 @@ class LedgerBook {
     return terms.every((q) => hay.contains(q.replaceAll(',', '')));
   }
 
+  /// 當天已經有相同金額的其他筆（2026-11-03 使用者：不管刷卡還是現金、不看帳戶，
+  /// 只要金額相同又是同一天，就提醒一下；只提醒、不擋下。同帳戶同一分鐘同金額
+  /// 才是擋下來的重複，見 [sameMinute]）。金額 0 不提醒。
+  List<LedgerTx> sameDayAmount(DateTime at, int amount, {String? exceptId}) {
+    if (amount <= 0) return const [];
+    return txs
+        .where(
+          (x) =>
+              x.id != exceptId &&
+              x.amount == amount &&
+              x.occurredAt.year == at.year &&
+              x.occurredAt.month == at.month &&
+              x.occurredAt.day == at.day,
+        )
+        .toList();
+  }
+
   /// 同一個帳戶、同一分鐘、同金額的那筆（2026-11-03 使用者：刷卡要防重複，
   /// 同日期到分鐘、同金額就不行）。[exceptId] 是編輯中的那筆自己。
   LedgerTx? sameMinute(
@@ -560,6 +581,20 @@ class LedgerBook {
     // 同一個帳戶、同一分鐘、同金額＝重複（已經記過的、或這次貼了兩行）。
     // 回傳跟哪一筆重複的說明，不重複是 null。
     final seenAt = <String, int>{};
+    // 當天相同金額（不看帳戶）：已經記過的、或這次貼的前面幾行；只提醒。
+    final seenDay = <String, int>{};
+    String? sameDayWarn(LedgerTx t, int lineNo) {
+      if (t.amount <= 0) return null;
+      final k =
+          '${t.occurredAt.year}-${t.occurredAt.month}-${t.occurredAt.day}|${t.amount}';
+      final old = sameDayAmount(t.occurredAt, t.amount);
+      final prev = seenDay[k];
+      seenDay.putIfAbsent(k, () => lineNo);
+      if (old.isNotEmpty) return '已經記過的「${describe(old.first)}」';
+      if (prev != null) return '這次貼的第 $prev 行';
+      return null;
+    }
+
     String? dupOf(LedgerTx t, int lineNo) {
       final k = '${t.accountId}|${_minuteOf(t.occurredAt)}|${t.amount}';
       final old = sameMinute(t.accountId, t.occurredAt, t.amount);
@@ -663,6 +698,7 @@ class LedgerBook {
             tx: tx,
             after: afterV,
             duplicateOf: dupOf(tx, lineNo),
+            sameDayOf: sameDayWarn(tx, lineNo),
             beforeStart: start != null && at.isBefore(start),
           ),
         );
@@ -748,6 +784,7 @@ class LedgerBook {
           tx: tx,
           after: afterV,
           duplicateOf: dup,
+          sameDayOf: sameDayWarn(tx, lineNo),
           beforeStart: start != null && at.isBefore(start),
         ),
       );

@@ -670,6 +670,43 @@ void main() {
     );
   });
 
+  test('當天相同金額只提醒不擋下：不看帳戶；同帳戶同分鐘同金額才擋', () {
+    final cardSwipe = LedgerTx(
+      id: 'a',
+      type: LedgerTxType.expense,
+      occurredAt: DateTime(2026, 11, 5, 12, 0),
+      amount: 300,
+      accountId: 'card',
+      category: '餐飲',
+      merchant: '便當',
+    );
+    final b = book([cardSwipe]);
+    // 另一個帳戶（現金）、同一天、不同時間、同金額：提醒，但不擋。
+    final cash = DateTime(2026, 11, 5, 18, 30);
+    expect(b.sameDayAmount(cash, 300).map((t) => t.id), ['a']);
+    expect(b.sameMinute('cash', cash, 300), isNull, reason: '不擋下');
+    // 不同天、不同金額、0 元都不提醒。
+    expect(b.sameDayAmount(DateTime(2026, 11, 6), 300), isEmpty);
+    expect(b.sameDayAmount(cash, 301), isEmpty);
+    expect(b.sameDayAmount(cash, 0), isEmpty);
+    // 同帳戶同一分鐘同金額＝原本的擋下規則照舊。
+    expect(
+      b.sameMinute('card', DateTime(2026, 11, 5, 12, 0, 40), 300),
+      isNotNull,
+    );
+    // 匯入：現金那行不重複（照匯入），但標出當天有相同金額。
+    final lines = b.parseImport('''
+現金｜2026/11/05 18:30｜餐飲｜小吃｜300
+現金｜2026/11/05 19:30｜餐飲｜飲料｜300
+中信銀行｜2026/11/05 12:00｜餐飲｜便當｜300
+''');
+    expect(lines[0].duplicate, isFalse);
+    expect(lines[0].sameDayOf, contains('便當'));
+    expect(lines[1].duplicate, isFalse);
+    expect(lines[1].sameDayOf, isNotNull);
+    expect(lines[2].duplicate, isTrue, reason: '同帳戶同分鐘同金額擋下');
+  });
+
   test('搜尋：每個欄位都搜、空白隔開多個詞都要符合、金額有沒有逗號都行', () {
     final t = LedgerTx(
       id: 's',

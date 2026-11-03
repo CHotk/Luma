@@ -139,21 +139,35 @@ Future<void> txFormFlow(
   }
   // 填了餘額的話，看這筆跟上一個餘額比有沒有缺（漏記）。
   final gap = r.after == null ? null : (await _fresh(ref)).gapOfTx(r.tx.id);
+  // 當天已經有相同金額的其他筆（不看帳戶）：只提醒、不擋下（2026-11-03 使用者）。
+  final same = book.sameDayAmount(
+    r.tx.occurredAt,
+    r.tx.amount,
+    exceptId: r.tx.id,
+  );
   if (!context.mounted) return;
+  final sameNote = same.isEmpty
+      ? null
+      : '提醒：當天已經有 ${same.length} 筆一樣是 ${lMoney(r.tx.amount)}：'
+            '${same.take(2).map(LedgerBook.describe).join('、')}'
+            '${same.length > 2 ? '⋯' : ''}，確認不是重複記的';
   showAppNotice(
     context,
     gap != null
         ? '⚠ 這筆掛上「${gap.miss > 0 ? '漏記' : '多出'} ${lMoney(gap.miss.abs())}」'
+        : sameNote != null
+        ? '⚠ 已記，但當天有相同金額的一筆'
         : edit != null
         ? '已更新'
         : r.tx.type == LedgerTxType.repayment
         ? '🤝 已記還款（不算收入）'
         : '已記一筆',
-    detail: gap != null
-        ? '跟上一個餘額對不上，補上漏掉的那筆標籤就會消失'
-        : edit != null
-        ? null
-        : '${r.tx.merchant.isEmpty ? r.tx.type.label : r.tx.merchant} ${lMoney(r.tx.amount)}',
+    detail: [
+      if (gap != null) '跟上一個餘額對不上，補上漏掉的那筆標籤就會消失',
+      ?sameNote,
+      if (gap == null && sameNote == null && edit == null)
+        '${r.tx.merchant.isEmpty ? r.tx.type.label : r.tx.merchant} ${lMoney(r.tx.amount)}',
+    ].join('\n').ifEmptyNull,
   );
 }
 
@@ -586,6 +600,8 @@ Future<void> importFlow(BuildContext context, WidgetRef ref) async {
       '${r.skipped.isEmpty ? '' : '，${r.skipped.length} 筆重複沒有加'}',
       detail: [
         ...r.skipped.take(3),
+        if (r.sameDay.isNotEmpty)
+          '⚠ ${r.sameDay.length} 筆當天有相同金額（已匯入，請確認）：${r.sameDay.take(2).join('、')}',
         if (r.skipped.length > 3) '還有 ${r.skipped.length - 3} 筆',
         if (fixed.isNotEmpty) '${fixed.join('、')}的差額補上了 ✓',
         if (gaps > 0) '⚠ $gaps 筆餘額對不上，標了「漏記」，補上就消失',

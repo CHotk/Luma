@@ -2570,7 +2570,14 @@ class _BudgetState extends State<_Budget> {
 // ── 貼上匯入 ─────────────────────────────────────────────
 
 /// 回傳要匯入的交易，跟因為重複沒加的那幾行說明。
-Future<({List<LedgerTx> txs, List<String> skipped, Map<String, int> afters})?>
+Future<
+  ({
+    List<LedgerTx> txs,
+    List<String> skipped,
+    List<String> sameDay,
+    Map<String, int> afters,
+  })?
+>
 showImportSheet(BuildContext context, LedgerBook book) =>
     _sheet(context, _Import(book: book));
 
@@ -2654,6 +2661,11 @@ class _ImportState extends State<_Import> {
                   for (final l in lines)
                     if (l.duplicateOf != null)
                       '「${l.tx!.merchant}」跟${l.duplicateOf}相同',
+                ],
+                sameDay: [
+                  for (final (i, l) in lines.indexed)
+                    if (l.willImport && l.sameDayOf != null)
+                      '「${_txOf(i, l).merchant}」跟${l.sameDayOf}金額相同',
                 ],
                 afters: {
                   for (final (i, l) in lines.indexed)
@@ -2834,6 +2846,14 @@ class _ImportState extends State<_Import> {
                     if (l.duplicateOf != null)
                       Text(
                         '跟${l.duplicateOf}相同（同帳戶、同一分鐘、同金額），不會加',
+                        style: AppText.note.copyWith(
+                          fontSize: 10.5,
+                          color: AppColors.mid,
+                        ),
+                      ),
+                    if (l.sameDayOf != null && !l.duplicate)
+                      Text(
+                        '⚠ 當天已經有相同金額：${l.sameDayOf}（只提醒，還是會匯入）',
                         style: AppText.note.copyWith(
                           fontSize: 10.5,
                           color: AppColors.mid,

@@ -48,6 +48,9 @@ final ledgerFilterProvider =
 /// 明細頂部的搜尋字（2026-11-03 使用者）：有字的時候搜全部月份、每個欄位都搜。
 final ledgerSearchProvider = StateProvider<String>((_) => '');
 
+/// 明細看全部時間（2026-11-03 使用者：才能看菸酒之類總共花多少）。
+final ledgerAllTimeProvider = StateProvider<bool>((_) => false);
+
 class LedgerPage extends ConsumerWidget {
   const LedgerPage({super.key, required this.tab});
 
@@ -395,9 +398,11 @@ class LedgerPage extends ConsumerWidget {
     void set(({bool flagged, String? accountId, String? category}) v) =>
         ref.read(ledgerFilterProvider.notifier).state = v;
     final q = ref.watch(ledgerSearchProvider).trim();
+    final allTime = ref.watch(ledgerAllTimeProvider);
     final searching = q.isNotEmpty;
-    // 搜尋時不管月份，全部紀錄都找。
-    final inM = searching
+    // 搜尋、或打開「全部時間」時不管月份，全部紀錄都算。
+    final wide = searching || allTime;
+    final inM = wide
         ? book.txs
         : book.txs.where(LedgerBook.inMonth(m.year, m.month)).toList();
     final shown = inM
@@ -416,10 +421,24 @@ class LedgerPage extends ConsumerWidget {
     final any = f.flagged || f.accountId != null || f.category != null;
     return [
       const _SearchBox(),
-      if (!searching) _monthBar(ref),
+      Padding(
+        padding: const EdgeInsets.only(bottom: 4),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: FilterChip(
+            label: const Text('📅 全部時間'),
+            selected: wide,
+            showCheckmark: false,
+            onSelected: searching
+                ? null
+                : (v) => ref.read(ledgerAllTimeProvider.notifier).state = v,
+          ),
+        ),
+      ),
+      if (!wide) _monthBar(ref),
       // 2026 年 11 月以前的資料不準確（只是記錄下來）：看那些月份，或搜尋結果裡有
       // 那些月份的紀錄時，明細上方標註。
-      if (searching
+      if (wide
           ? shown.any(
               (t) => isBeforeAccurate(t.occurredAt.year, t.occurredAt.month),
             )
@@ -495,9 +514,12 @@ class LedgerPage extends ConsumerWidget {
       Padding(
         padding: const EdgeInsets.fromLTRB(4, 8, 4, 0),
         child: Text(
-          '${shown.length} 筆・消費 ${lMoney(st.spend)}・收入 ${lMoney(st.income)}'
+          '${shown.length} 筆・${f.category == null ? '消費' : '${f.category}'} ${lMoney(f.category == null ? st.spend : (st.byCategory[f.category] ?? 0))}'
+          '${f.category == null ? '・收入 ${lMoney(st.income)}' : ''}'
           '${searching
-              ? '（搜尋「$q」，全部月份）'
+              ? '（搜尋「$q」，全部時間）'
+              : allTime
+              ? '（全部時間）'
               : any
               ? '（篩選中）'
               : ''}',
