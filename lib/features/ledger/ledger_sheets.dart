@@ -1558,7 +1558,7 @@ class _TxFormState extends State<_TxForm> {
       TextField(
         controller: _memo,
         maxLength: ledgerNoteMax,
-        decoration: _input('想寫什麼都可以'),
+        decoration: _input(''),
       ),
       _toggle(
         '🚩 標記要注意',

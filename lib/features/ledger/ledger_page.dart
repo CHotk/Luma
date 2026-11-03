@@ -201,7 +201,10 @@ class LedgerPage extends ConsumerWidget {
         children: [
           Row(
             children: [
-              Text('💰 控制開銷・${m.month} 月', style: AppText.note),
+              Text(
+                '💰 控制開銷・${m.month} 月・已記錄 ${book.txs.where(LedgerBook.inMonth(m.year, m.month)).length} 筆',
+                style: AppText.note,
+              ),
               const Spacer(),
               InkWell(
                 onTap: () => budgetFlow(context, ref, m.year, m.month),
@@ -271,7 +274,7 @@ class LedgerPage extends ConsumerWidget {
           const SizedBox(height: 7),
           Text(
             '${isCur && left > 0 && bud.total > 0 ? '還有 $daysLeft 天，平均每天可花 ${lMoney(left ~/ daysLeft)}・' : ''}'
-            '轉帳、繳卡費、幫別人付的不算',
+            '繳卡費、提款請用「轉帳」記（不算消費）；幫別人付的只算自己那份',
             style: AppText.note.copyWith(color: AppColors.ink3),
           ),
         ],

@@ -139,6 +139,9 @@ void main() {
     await pump(tester, const LedgerPage(tab: LedgerTab.home), await seeded());
     expect(find.textContaining('控制開銷'), findsOneWidget);
     expect(find.textContaining('記帳完整度'), findsOneWidget);
+    // 首頁顯示當月已記錄幾筆（seeded 本月有 3 筆）；繳卡費要用「轉帳」記的說明也寫清楚。
+    expect(find.textContaining('已記錄 3 筆'), findsOneWidget);
+    expect(find.textContaining('請用「轉帳」記'), findsOneWidget);
     expect(find.text('⚠ 差 \$630'), findsOneWidget);
     // 本月消費只算自己的 1,200（幫付 1,200 不算、提款不算）。
     expect(find.text('\$1,200'), findsWidgets);
