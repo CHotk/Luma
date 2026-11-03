@@ -7,6 +7,7 @@ import 'package:lume/data/storage/key_value_store.dart';
 import 'package:lume/domain/ledger_calc.dart';
 import 'package:lume/domain/models/ledger.dart';
 import 'package:lume/features/ledger/ledger_page.dart';
+import 'package:lume/features/ledger/ledger_ui.dart';
 
 /// 記帳四個分頁在手機寬度（360）畫得出來、不爆版，有資料跟沒資料都要；
 /// 記一筆、對帳、貼上匯入、帳戶明細這些抽屜也要打得開。
@@ -387,6 +388,27 @@ void main() {
     await tester.tap(find.text('全部'));
     await tester.pump();
     expect(find.textContaining('篩選中'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('2026 年 11 月以前的月份：首頁卡片跟明細上方標註資料不準確', (tester) async {
+    expect(isBeforeAccurate(2026, 10), isTrue);
+    expect(isBeforeAccurate(2026, 11), isFalse);
+    expect(isBeforeAccurate(2027, 1), isFalse);
+    final store = await seeded();
+    for (final tab in [LedgerTab.home, LedgerTab.list]) {
+      await pump(tester, LedgerPage(tab: tab), store);
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(LedgerPage)),
+      );
+      // 切到 2026/10：有提示；切到 2026/11：沒有。
+      container.read(ledgerMonthProvider.notifier).state = DateTime(2026, 10);
+      await tester.pump();
+      expect(find.textContaining('資料不準確'), findsOneWidget, reason: tab.title);
+      container.read(ledgerMonthProvider.notifier).state = DateTime(2026, 11);
+      await tester.pump();
+      expect(find.textContaining('資料不準確'), findsNothing, reason: tab.title);
+    }
     expect(tester.takeException(), isNull);
   });
 

@@ -378,6 +378,7 @@ class LedgerPage extends ConsumerWidget {
     final m = ref.watch(ledgerMonthProvider);
     return [
       _monthBar(ref),
+      if (isBeforeAccurate(m.year, m.month)) const OldDataBanner(),
       _spendCard(context, ref, book, m),
       const SizedBox(height: Gap.md),
       _completeness(context, ref, book),
@@ -415,6 +416,14 @@ class LedgerPage extends ConsumerWidget {
     return [
       const _SearchBox(),
       if (!searching) _monthBar(ref),
+      // 2026 年 11 月以前的資料不準確（只是記錄下來）：看那些月份，或搜尋結果裡有
+      // 那些月份的紀錄時，明細上方標註。
+      if (searching
+          ? shown.any(
+              (t) => isBeforeAccurate(t.occurredAt.year, t.occurredAt.month),
+            )
+          : isBeforeAccurate(m.year, m.month))
+        const OldDataBanner(),
       SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(

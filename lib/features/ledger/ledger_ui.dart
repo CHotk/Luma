@@ -515,3 +515,42 @@ List<Widget> groupedTxList(
   }
   return out;
 }
+
+/// 這天之前的資料不準確、只是記錄下來（2026-11-03 使用者：2026 年 11 月以前的首頁
+/// 卡片跟明細上方都要標註）。
+final ledgerAccurateFrom = DateTime(2026, 11, 1);
+
+bool isBeforeAccurate(int year, int month) =>
+    DateTime(year, month).isBefore(ledgerAccurateFrom);
+
+/// 「資料不準確，只是記錄下來」的提示條。
+class OldDataBanner extends StatelessWidget {
+  const OldDataBanner({super.key});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    margin: const EdgeInsets.only(bottom: 10),
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+    decoration: BoxDecoration(
+      color: AppColors.mid.withValues(alpha: 0.10),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: AppColors.mid.withValues(alpha: 0.4)),
+    ),
+    child: const Row(
+      children: [
+        Text('⚠️', style: TextStyle(fontSize: 14)),
+        SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            '2026 年 11 月以前的資料不準確，只是記錄下來',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: AppColors.mid,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
