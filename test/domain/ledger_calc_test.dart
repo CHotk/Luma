@@ -546,6 +546,11 @@ void main() {
     expect(lines[0].after, 86000);
     expect(lines[1].after, 1880);
     expect(lines[2].after, isNull);
+    // 第 10 欄備註、新分類「寵物」。
+    final noted = book([]).parseImport('現金｜2026/11/05 15:00｜寵物｜飼料｜650｜｜｜｜｜補貨');
+    expect(noted.single.error, isNull);
+    expect(noted.single.tx!.category, '寵物');
+    expect(noted.single.tx!.note, '補貨');
   });
 
   test('貼上匯入「轉帳」：轉到自己的帳戶不算支出；轉給別人算支出', () {

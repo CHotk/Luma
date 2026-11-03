@@ -20,6 +20,7 @@ const ledgerExpenseCats = <String, (String, int)>{
   '醫療': ('💊', 0xFFFF7A9A),
   '雲端服務': ('☁️', 0xFF9ADBFF),
   '創業魔物童話': ('🐉', 0xFFE08FD0),
+  '寵物': ('🐾', 0xFFF0B27A),
   '未分類': ('❔', 0xFF8A8A9A),
 };
 
@@ -520,6 +521,8 @@ class LedgerBook {
       final afterV = p.length >= 9
           ? int.tryParse(p[8].replaceAll(RegExp(r'[^\d]'), ''))
           : null;
+      // 第 10 欄選填：備註（為什麼買）。
+      final noteV = p.length >= 10 ? p[9] : '';
       if (amount <= 0) {
         out.add(ImportLine(line, error: '看不懂金額'));
         continue;
@@ -547,6 +550,7 @@ class LedgerBook {
           toAccountId: target?.id,
           category: target == null ? ledgerUncategorized : null,
           merchant: target == null ? '轉給 ${p[3]}' : '轉到 ${p[3]}',
+          note: p.length >= 10 ? p[9] : '',
           source: 'paste',
           raw: line,
         );
@@ -627,6 +631,7 @@ class LedgerBook {
         toAccountId: withdraw ? cash!.id : null,
         category: withdraw ? null : p[2],
         merchant: merchant,
+        note: noteV,
         paidFor: paidFor,
         source: 'paste',
         raw: line,
