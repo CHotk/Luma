@@ -1266,7 +1266,15 @@ class R2SyncService {
       mergeFromCloud: repo.mergeBudgetsFromCloud,
       allForUpload: repo.budgetsForUpload,
     );
-    final all = [accounts, txs, cps, budgets];
+    // 操作紀錄：只增不刪，兩邊聯集。
+    final log = await _syncRecords<LedgerLogEntry>(
+      key: 'ledger_log.json',
+      fromJson: LedgerLogEntry.fromJson,
+      toJson: (e) => e.toJson(),
+      mergeFromCloud: repo.mergeLogFromCloud,
+      allForUpload: repo.logForUpload,
+    );
+    final all = [accounts, txs, cps, budgets, log];
     return (
       downloaded: all.fold(0, (s, r) => s + r.downloaded),
       uploaded: all.fold(0, (s, r) => s + r.uploaded),

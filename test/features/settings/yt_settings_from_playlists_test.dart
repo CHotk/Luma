@@ -41,6 +41,10 @@ void main() {
     expect(settingsSectionFor('/kana-practice'), SettingsSection.jp);
     expect(settingsSectionFor('/crypto-watch'), SettingsSection.trade);
     expect(settingsSectionFor('/debt'), SettingsSection.lock);
+    // 記帳有自己的設定分頁（操作紀錄），四個分頁跟操作紀錄頁都算。
+    expect(settingsSectionFor('/ledger'), SettingsSection.ledger);
+    expect(settingsSectionFor('/ledger/stats'), SettingsSection.ledger);
+    expect(settingsSectionFor('/ledger/log'), SettingsSection.ledger);
     expect(settingsSectionFor('/start'), SettingsSection.app);
     expect(settingsSectionFor('/home'), SettingsSection.english);
     expect(settingsSectionFor(null), SettingsSection.english);

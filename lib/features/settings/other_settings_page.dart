@@ -22,6 +22,7 @@ import 'settings_page.dart' show AppLogoSettingsCard;
 import 'all_settings_page.dart' show SettingsSection;
 import 'settings_anchor.dart';
 import '../crypto_watch/trade_ui.dart' show oneDecimalInput, round1;
+import '../ledger/ledger_log_page.dart' show ledgerLogProvider;
 import '../yt_tracker/yt_api_key_dialog.dart';
 import '../yt_tracker/yt_playlist_actions.dart';
 import '../yt_tracker/yt_tracker_browse_page.dart'
@@ -1540,6 +1541,59 @@ class _VideoTabChannelRow extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// 記帳自己的設定分頁（2026-11-03 使用者：打開設定應該是記帳自己的分頁，不是空的）。
+/// 目前放「操作紀錄」：每個動作都記一份，只增不刪、會同步。
+class LedgerSettingsSection extends ConsumerWidget {
+  const LedgerSettingsSection({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final count = ref.watch(ledgerLogProvider).valueOrNull?.length;
+    return SettingsBlock(
+      section: SettingsSection.ledger,
+      children: [
+        SettingAnchor(
+          id: 'ledger.log',
+          child: SettingsRowCard(
+            child: InkWell(
+              onTap: () => context.push('/ledger/log'),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          '操作紀錄',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.ink,
+                          ),
+                        ),
+                        Text(
+                          '記帳的每個動作（新增、編輯、刪除、標記、他給了、對帳、匯入、預算、帳戶）'
+                          '都會記一筆，只會變多、不會被刪，同步時會帶到其他裝置'
+                          '${count == null ? '' : '・目前 $count 筆'}',
+                          style: AppText.note,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: AppColors.ink3,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

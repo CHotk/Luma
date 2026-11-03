@@ -1,6 +1,8 @@
 import 'dart:convert';
 
 import '../../domain/ledger_calc.dart';
+import '../../domain/ledger_log.dart';
+import '../export/device_label.dart';
 import '../../domain/models/ledger.dart';
 import '../seed/seed_merge.dart';
 import '../storage/key_value_store.dart';
@@ -16,6 +18,7 @@ class LedgerRepository {
   static const _txKey = 'ledger.transactions.v1';
   static const _cpKey = 'ledger.checkpoints.v1';
   static const _budgetKey = 'ledger.budgets.v1';
+  static const _logKey = 'ledger.log.v1';
 
   final KeyValueStore _store;
 
@@ -74,6 +77,42 @@ class LedgerRepository {
     ], (e) => e.toJson());
   }
 
+  // ── 操作紀錄（2026-11-03 使用者：每個動作都存一份 log，只增不減、永遠不刪）──
+
+  Future<List<LedgerLogEntry>> logForUpload() =>
+      _load(_logKey, LedgerLogEntry.fromJson);
+
+  /// 給畫面用：新的在前。
+  Future<List<LedgerLogEntry>> loadLog() async =>
+      (await logForUpload())..sort((a, b) => b.at.compareTo(a.at));
+
+  /// 記一筆操作。只往後加，沒有任何刪除或裁剪的路。
+  Future<void> _log(
+    String action,
+    String summary, {
+    String detail = '',
+    String? refId,
+  }) async {
+    await _save(_logKey, [
+      ...await logForUpload(),
+      LedgerLogEntry(
+        id: ledgerId(),
+        at: DateTime.now(),
+        action: action,
+        summary: summary,
+        detail: detail,
+        refId: refId,
+        device: currentDeviceLabel(),
+      ),
+    ], (e) => e.toJson());
+  }
+
+  /// 帳戶 id → 名稱（log 用；已刪除的帳戶也找得到）。
+  Future<String Function(String?)> _acctName() async {
+    final m = {for (final a in await accountsForUpload()) a.id: a.name};
+    return (id) => id == null ? '無' : (m[id] ?? '（已刪除的帳戶）');
+  }
+
   Future<LedgerBook> loadBook() async {
     await ensureDefaultAccounts();
     return LedgerBook(
@@ -109,6 +148,7 @@ class LedgerRepository {
       updatedAt: now,
     );
     await _save(_accountsKey, [...all, a], (e) => e.toJson());
+    await _log('新增帳戶', '${a.type.label}「${a.name}」', refId: a.id);
     if (opening == null || (a.isCard && (creditLimit ?? 0) <= 0)) return a;
     await addCheckpoint(
       LedgerCheckpoint(
@@ -129,14 +169,26 @@ class LedgerRepository {
     final all = await accountsForUpload();
     final i = all.indexWhere((e) => e.id == a.id);
     if (i < 0) return;
+    final old = all[i];
     all[i] = a.copyWith(updatedAt: DateTime.now());
     await _save(_accountsKey, all, (e) => e.toJson());
+    await _log(
+      '改帳戶',
+      '「${old.name}」',
+      detail: [
+        if (old.name != a.name) '名稱：${old.name} → ${a.name}',
+        if (old.creditLimit != a.creditLimit)
+          '額度：${old.creditLimit} → ${a.creditLimit}',
+      ].join('\n'),
+      refId: a.id,
+    );
   }
 
   /// 刪帳戶：帳戶跟它的對帳點蓋墓碑；交易留著（帳戶名稱顯示「已刪除」）。
   Future<void> deleteAccount(String id) async {
     final now = DateTime.now();
     final all = await accountsForUpload();
+    final name = all.where((a) => a.id == id).firstOrNull?.name ?? id;
     await _save(_accountsKey, [
       for (final a in all)
         a.id == id ? a.copyWith(updatedAt: now, deletedAt: now) : a,
@@ -148,6 +200,7 @@ class LedgerRepository {
             ? c.copyWith(updatedAt: now, deletedAt: now)
             : c,
     ], (e) => e.toJson());
+    await _log('刪除帳戶', '「$name」（連同它的對帳點）', refId: id);
   }
 
   // ── 交易 ─────────────────────────────────────────────────
@@ -164,6 +217,25 @@ class LedgerRepository {
           'updatedAt': ledgerTime(now),
         }),
     ], (e) => e.toJson());
+    final name = await _acctName();
+    for (final t in txs) {
+      await _log(
+        t.source == 'paste'
+            ? '匯入'
+            : t.source == 'adjust'
+            ? '對帳調整'
+            : '新增',
+        logTx(t, name),
+        detail: [
+          if (t.category != null) '分類：${t.category}',
+          if (t.isSplit)
+            '拆分：${t.splits.map((x) => '${x.category}\$${x.amount}').join('＋')}',
+          if (t.note.isNotEmpty) '備註：${t.note}',
+          if (t.raw != null) '原文：${t.raw}',
+        ].join('\n'),
+        refId: t.id,
+      );
+    }
   }
 
   Future<void> addTransaction(LedgerTx t) => addTransactions([t]);
@@ -172,13 +244,36 @@ class LedgerRepository {
     final all = await transactionsForUpload();
     final i = all.indexWhere((e) => e.id == t.id);
     if (i < 0) return;
+    final old = all[i];
     all[i] = t.copyWith(updatedAt: DateTime.now());
     await _save(_txKey, all, (e) => e.toJson());
+    final name = await _acctName();
+    final diff = logDiffTx(old, t, name);
+    if (diff.isEmpty) return;
+    // 只動標記、或只動「他給了」的，用比較白話的動作名稱。
+    final onlyFlag = diff.length == 1 && diff.first.startsWith('標記要注意');
+    final onlySettle =
+        diff.length == 1 &&
+        diff.first.startsWith('跟別人一起') &&
+        old.paidFor != null &&
+        t.paidFor != null &&
+        old.paidFor!.settled != t.paidFor!.settled;
+    await _log(
+      onlyFlag
+          ? (t.flagged ? '標記要注意' : '取消標記')
+          : onlySettle
+          ? (t.paidFor!.settled ? '他給了' : '改回還沒給')
+          : '編輯',
+      logTx(t, name),
+      detail: diff.join('\n'),
+      refId: t.id,
+    );
   }
 
   Future<void> deleteTransaction(String id) async {
     final now = DateTime.now();
     final all = await transactionsForUpload();
+    final old = all.where((t) => t.id == id).firstOrNull;
     await _save(_txKey, [
       for (final t in all)
         t.id == id ? t.copyWith(updatedAt: now, deletedAt: now) : t,
@@ -191,6 +286,9 @@ class LedgerRepository {
       value: null,
       creditLimit: null,
     );
+    if (old != null) {
+      await _log('刪除', logTx(old, await _acctName()), refId: id);
+    }
   }
 
   /// 設定／更新／清掉「這筆交易之後帳戶剩多少」（附在交易上的對帳點）。
@@ -207,10 +305,12 @@ class LedgerRepository {
     final now = DateTime.now();
     final all = await checkpointsForUpload();
     final i = all.indexWhere((c) => c.txId == txId && c.deletedAt == null);
+    final oldVal = i < 0 ? null : (all[i].available ?? all[i].balance);
     if (value == null) {
       if (i >= 0) {
         all[i] = all[i].copyWith(updatedAt: now, deletedAt: now);
         await _save(_cpKey, all, (e) => e.toJson());
+        await _log('清掉餘額', '附在交易上的餘額 $oldVal', refId: txId);
       }
       return;
     }
@@ -231,14 +331,30 @@ class LedgerRepository {
       all.add(c);
     }
     await _save(_cpKey, all, (e) => e.toJson());
+    if (oldVal != value) {
+      await _log(
+        '填餘額（記一筆時）',
+        isCard ? '可刷卡餘額 \$$value' : '餘額 \$$value',
+        detail: oldVal == null ? '' : '$oldVal → $value',
+        refId: txId,
+      );
+    }
   }
 
   // ── 對帳點 ───────────────────────────────────────────────
 
-  Future<void> addCheckpoint(LedgerCheckpoint c) async => _save(_cpKey, [
-    ...await checkpointsForUpload(),
-    c.copyWith(updatedAt: DateTime.now()),
-  ], (e) => e.toJson());
+  Future<void> addCheckpoint(LedgerCheckpoint c) async {
+    await _save(_cpKey, [
+      ...await checkpointsForUpload(),
+      c.copyWith(updatedAt: DateTime.now()),
+    ], (e) => e.toJson());
+    final name = await _acctName();
+    await _log(
+      '對帳／填餘額',
+      '${name(c.accountId)}：${c.available != null ? '可刷卡餘額 \$${c.available}' : '餘額 \$${c.balance}'}',
+      refId: c.id,
+    );
+  }
 
   Future<void> updateCheckpoint(LedgerCheckpoint c) async {
     final all = await checkpointsForUpload();
@@ -246,16 +362,21 @@ class LedgerRepository {
     if (i < 0) return;
     all[i] = c.copyWith(updatedAt: DateTime.now());
     await _save(_cpKey, all, (e) => e.toJson());
+    await _log('改對帳點', (await _acctName())(c.accountId), refId: c.id);
   }
 
   /// 刪掉一次對帳（輸入錯了）；起始日那筆不能刪。
   Future<void> deleteCheckpoint(String id) async {
     final now = DateTime.now();
     final all = await checkpointsForUpload();
+    final old = all.where((c) => c.id == id).firstOrNull;
     await _save(_cpKey, [
       for (final c in all)
         c.id == id ? c.copyWith(updatedAt: now, deletedAt: now) : c,
     ], (e) => e.toJson());
+    if (old != null) {
+      await _log('刪除對帳', (await _acctName())(old.accountId), refId: id);
+    }
   }
 
   // ── 預算 ─────────────────────────────────────────────────
@@ -271,12 +392,14 @@ class LedgerRepository {
   ) async {
     final now = DateTime.now();
     final all = {for (final b in await budgetsForUpload()) b.id: b};
+    final changes = <String>[];
     void put(String? cat, int v) {
       final id = LedgerBudget.budgetId(month, cat);
       final old = all[id];
       final amount = v < 0 ? 0 : v;
       if (old == null && amount == 0 && cat != null) return;
       if (old != null && old.amount == amount) return;
+      changes.add('${cat ?? '整月總額'}：${old?.amount ?? 0} → $amount');
       all[id] = LedgerBudget(
         month: month,
         category: cat,
@@ -291,6 +414,9 @@ class LedgerRepository {
       put(c, byCategory[c] ?? 0);
     }
     await _save(_budgetKey, all.values.toList(), (e) => e.toJson());
+    if (changes.isNotEmpty) {
+      await _log('預算', month, detail: changes.join('\n'));
+    }
   }
 
   // ── 同步：把雲端的併回本機，回傳實際異動幾筆 ─────────────
@@ -351,6 +477,17 @@ class LedgerRepository {
         (e) => e.syncedAt,
         (e) => e.deletedAt,
       );
+
+  /// 操作紀錄：兩邊直接聯集（照 id），不刪、不裁。
+  Future<int> mergeLogFromCloud(List<LedgerLogEntry> incoming) => _merge(
+    _logKey,
+    incoming,
+    LedgerLogEntry.fromJson,
+    (e) => e.toJson(),
+    (e) => e.id,
+    (e) => e.syncedAt,
+    (e) => null,
+  );
 
   Future<int> mergeBudgetsFromCloud(List<LedgerBudget> incoming) => _merge(
     _budgetKey,
