@@ -216,6 +216,15 @@ void main() {
     await settle(tester);
     await tester.enterText(find.byType(TextField).at(1), '120');
     await tester.pump();
+    // 商家名稱必填：沒填按鈕按不了。
+    expect(
+      tester
+          .widget<FilledButton>(find.widgetWithText(FilledButton, '記下來'))
+          .onPressed,
+      isNull,
+    );
+    await tester.enterText(find.byType(TextField).at(2), '早餐');
+    await tester.pump();
     await tester.tap(find.widgetWithText(FilledButton, '記下來'));
     await settle(tester);
     expect(tester.takeException(), isNull);
@@ -281,9 +290,12 @@ void main() {
     await tester.tap(find.text('轉帳'));
     await tester.pump();
     await tester.enterText(find.byType(TextField).at(1), '800');
+    await tester.pump();
     await tester.tap(find.text('轉給別人（算支出）'));
     await tester.pump();
     expect(find.text('買什麼（分類）'), findsOneWidget);
+    await tester.enterText(find.byType(TextField).at(2), '小美代買');
+    await tester.pump();
     await tester.tap(find.widgetWithText(FilledButton, '記下來'));
     await settle(tester);
     expect(tester.takeException(), isNull);

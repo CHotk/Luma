@@ -657,6 +657,15 @@ void main() {
     expect(b.monthStats(2026, 11).spend, 0);
   });
 
+  test('匯入：商家名稱（第 4 欄）必填', () {
+    final lines = book([]).parseImport('''
+中信銀行｜2026/11/05 15:00｜餐飲｜｜100
+中信銀行｜2026/11/05 16:00｜餐飲｜便當｜100
+''');
+    expect(lines[0].error, contains('商家'));
+    expect(lines[1].error, isNull);
+  });
+
   test('沒填餘額的帳戶：不算餘額、不參與對帳，但交易照樣算消費', () {
     final b = LedgerBook(
       accounts: const [bank],

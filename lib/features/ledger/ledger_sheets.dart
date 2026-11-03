@@ -888,9 +888,18 @@ class _TxFormState extends State<_TxForm> {
     _applyDefaults(fillAmount: true);
   });
 
+  /// 商家名稱必填：支出、收入、轉帳（退款、還錢會自動帶名稱，補記對帳差額也照樣要填）。
+  bool get _merchantRequired =>
+      _effType == LedgerTxType.expense ||
+      _effType == LedgerTxType.income ||
+      _effType == LedgerTxType.transfer;
+
   String? get _error {
     final amt = _int(_amount) ?? 0;
     if (_amount.text.trim().isEmpty) return '金額要填（折扣折抵到 0 就填 0）';
+    if (_merchantRequired && _merchant.text.trim().isEmpty) {
+      return '商家名稱要填';
+    }
     if (book.account(_account) == null) return '要選帳戶';
     if (_effType == LedgerTxType.transfer) {
       if (book.account(_to) == null) return '要選轉到哪個帳戶';
@@ -1370,14 +1379,10 @@ class _TxFormState extends State<_TxForm> {
               : t == LedgerTxType.transfer
               ? (_toOther ? '轉給誰／買什麼' : '名稱')
               : '商家／名稱',
-          trailing: '選填',
+          trailing: _merchantRequired ? '必填' : '選填',
         ),
-        TextField(
-          controller: _merchant,
-          decoration: _input(
-            t == LedgerTxType.income ? '例如 公司薪水' : '例如 foodpanda',
-          ),
-        ),
+        // 商家名稱不放提示字（2026-11-03 使用者），記支出、收入、轉帳一定要填。
+        TextField(controller: _merchant, decoration: _input('')),
       ]);
     }
     children.addAll([

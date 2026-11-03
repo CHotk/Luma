@@ -576,6 +576,11 @@ class LedgerBook {
         );
         continue;
       }
+      // 商家名稱必填（2026-11-03 使用者）。
+      if (p[3].isEmpty) {
+        out.add(ImportLine(line, error: '第 4 欄商家名稱要填'));
+        continue;
+      }
       if (amountV == null) {
         out.add(ImportLine(line, error: '看不懂金額'));
         continue;
