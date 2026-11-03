@@ -10,6 +10,9 @@ void main() {
   });
 
   test('猜歌名時簡體先轉繁體', () {
-    expect(MusicGuess.guessTitle(toTraditional('【后来】刘若英 官方MV'), const []), '後來');
+    expect(
+      MusicGuess.guessTitle(toTraditional('【后来】刘若英 官方MV'), const []),
+      '後來',
+    );
   });
 }

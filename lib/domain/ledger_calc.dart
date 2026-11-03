@@ -32,6 +32,9 @@ const ledgerIncomeCats = <String, (String, int)>{
 
 const ledgerUncategorized = '未分類';
 
+/// 備註最多幾個字（2026-11-03 使用者：上限 100 字）。
+const ledgerNoteMax = 100;
+
 /// 某個帳戶現在的對帳狀況。
 class AccountState {
   const AccountState({
@@ -523,6 +526,15 @@ class LedgerBook {
           : null;
       // 第 10 欄選填：備註（想寫什麼都可以）。
       final noteV = p.length >= 10 ? p[9] : '';
+      if (noteV.length > ledgerNoteMax) {
+        out.add(
+          ImportLine(
+            line,
+            error: '備註太長（${noteV.length} 字），最多 $ledgerNoteMax 字',
+          ),
+        );
+        continue;
+      }
       if (amount <= 0) {
         out.add(ImportLine(line, error: '看不懂金額'));
         continue;
@@ -530,6 +542,15 @@ class LedgerBook {
       // 分類「轉帳」：第 4 欄是自己的帳戶名稱就是轉帳（不算支出）；不是自己的
       // 帳戶＝轉給別人，當一筆支出（2026-11-03 使用者：轉錢給別人幫我買東西）。
       if (p[2] == '轉帳') {
+        if (p.length >= 10 && p[9].length > ledgerNoteMax) {
+          out.add(
+            ImportLine(
+              line,
+              error: '備註太長（${p[9].length} 字），最多 $ledgerNoteMax 字',
+            ),
+          );
+          continue;
+        }
         final named = accounts.where((a) => a.name == p[0]).firstOrNull;
         final from = named ?? bank;
         final target = accounts.where((a) => a.name == p[3]).firstOrNull;

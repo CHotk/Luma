@@ -1379,8 +1379,12 @@ class _TxFormState extends State<_TxForm> {
         style: _outline,
       ),
       ..._afterField(err == null ? _build() : null),
-      _label('備註', trailing: '選填'),
-      TextField(controller: _memo, decoration: _input('想寫什麼都可以')),
+      _label('備註', trailing: '選填・最多 100 字'),
+      TextField(
+        controller: _memo,
+        maxLength: ledgerNoteMax,
+        decoration: _input('想寫什麼都可以'),
+      ),
       _toggle(
         '🚩 標記要注意',
         '單純標註，不影響任何計算；列表上會有小旗子',
