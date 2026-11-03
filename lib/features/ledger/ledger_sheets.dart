@@ -2484,6 +2484,38 @@ class _ImportState extends State<_Import> {
               )),
       ),
       children: [
+        const SizedBox(height: 10),
+        TextField(
+          controller: _text,
+          minLines: 5,
+          maxLines: 10,
+          style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
+          decoration: _input('把文字貼在這裡'),
+        ),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            ActionChip(
+              label: const Text('📋 從剪貼簿貼上'),
+              onPressed: () async {
+                final d = await Clipboard.getData(Clipboard.kTextPlain);
+                if (d?.text != null && mounted) _text.text = d!.text!;
+              },
+            ),
+            const SizedBox(width: 6),
+            if (_text.text.isNotEmpty)
+              ActionChip(
+                label: const Text('清空'),
+                onPressed: () => _text.clear(),
+              ),
+          ],
+        ),
+        ledgerSection('預覽'),
+        if (lines.isEmpty)
+          Text('貼上之後這裡會列出每一行會變成什麼', style: AppText.bodyDim)
+        else
+          for (final (i, l) in lines.indexed) _importRow(i, l),
+        ledgerSection('格式說明'),
         _note([
           const TextSpan(text: '一行一筆：'),
           _b('帳戶｜日期時間｜分類｜商家｜金額'),
@@ -2523,37 +2555,6 @@ class _ImportState extends State<_Import> {
             style: TextStyle(fontFamily: 'monospace', fontSize: 11),
           ),
         ]),
-        const SizedBox(height: 10),
-        TextField(
-          controller: _text,
-          minLines: 5,
-          maxLines: 10,
-          style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
-          decoration: _input('把文字貼在這裡'),
-        ),
-        const SizedBox(height: 6),
-        Row(
-          children: [
-            ActionChip(
-              label: const Text('📋 從剪貼簿貼上'),
-              onPressed: () async {
-                final d = await Clipboard.getData(Clipboard.kTextPlain);
-                if (d?.text != null && mounted) _text.text = d!.text!;
-              },
-            ),
-            const SizedBox(width: 6),
-            if (_text.text.isNotEmpty)
-              ActionChip(
-                label: const Text('清空'),
-                onPressed: () => _text.clear(),
-              ),
-          ],
-        ),
-        ledgerSection('預覽'),
-        if (lines.isEmpty)
-          Text('貼上之後這裡會列出每一行會變成什麼', style: AppText.bodyDim)
-        else
-          for (final (i, l) in lines.indexed) _importRow(i, l),
       ],
     );
   }
