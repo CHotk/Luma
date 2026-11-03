@@ -155,7 +155,14 @@ class TxTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = tx;
-    final (emoji, color) = txLook(t);
+    // 圖示看付款方式（2026-11-03 使用者）：現金＝鈔票、刷卡＝信用卡、銀行＝銀行；
+    // 轉帳、退款、還錢、調整照原本的符號。
+    final acct = book.account(t.accountId);
+    final (emoji, color) =
+        (t.type == LedgerTxType.expense || t.type == LedgerTxType.income) &&
+            acct != null
+        ? (acct.type.emoji, accountColor(acct.type))
+        : txLook(t);
     final sub = StringBuffer();
     if (showDate) sub.write('${lMd(t.occurredAt)} ');
     sub.write(lHm(t.occurredAt));

@@ -36,7 +36,7 @@ DateTime? _t(Object? v) =>
 enum LedgerAccountType {
   bank('bank', '銀行', '🏦'),
   creditCard('credit_card', '信用卡', '💳'),
-  cash('cash', '現金', '👛');
+  cash('cash', '現金', '💵');
 
   const LedgerAccountType(this.json, this.label, this.emoji);
 
