@@ -40,9 +40,10 @@ final ledgerMonthProvider = StateProvider<DateTime>(
 );
 
 /// 明細的篩選：只看 🚩、只看某個帳戶。
-final ledgerFilterProvider = StateProvider<({bool flagged, String? accountId})>(
-  (_) => (flagged: false, accountId: null),
-);
+final ledgerFilterProvider =
+    StateProvider<({bool flagged, String? accountId, String? category})>(
+      (_) => (flagged: false, accountId: null, category: null),
+    );
 
 /// 明細頂部的搜尋字（2026-11-03 使用者）：有字的時候搜全部月份、每個欄位都搜。
 final ledgerSearchProvider = StateProvider<String>((_) => '');
@@ -390,7 +391,7 @@ class LedgerPage extends ConsumerWidget {
   List<Widget> _list(BuildContext context, WidgetRef ref, LedgerBook book) {
     final m = ref.watch(ledgerMonthProvider);
     final f = ref.watch(ledgerFilterProvider);
-    void set(({bool flagged, String? accountId}) v) =>
+    void set(({bool flagged, String? accountId, String? category}) v) =>
         ref.read(ledgerFilterProvider.notifier).state = v;
     final q = ref.watch(ledgerSearchProvider).trim();
     final searching = q.isNotEmpty;
@@ -403,13 +404,14 @@ class LedgerPage extends ConsumerWidget {
           (t) =>
               (!searching || book.matches(t, q)) &&
               (!f.flagged || t.flagged) &&
+              (f.category == null || _catOf(book, t) == f.category) &&
               (f.accountId == null ||
                   t.accountId == f.accountId ||
                   t.toAccountId == f.accountId),
         )
         .toList();
     final st = book.statsWhere(shown.contains);
-    final any = f.flagged || f.accountId != null;
+    final any = f.flagged || f.accountId != null || f.category != null;
     return [
       const _SearchBox(),
       if (!searching) _monthBar(ref),
@@ -421,15 +423,19 @@ class LedgerPage extends ConsumerWidget {
               label: const Text('全部'),
               selected: !any,
               showCheckmark: false,
-              onSelected: (_) => set((flagged: false, accountId: null)),
+              onSelected: (_) =>
+                  set((flagged: false, accountId: null, category: null)),
             ),
             const SizedBox(width: 6),
             ChoiceChip(
               label: Text('🚩 要注意 ${inM.where((t) => t.flagged).length}'),
               selected: f.flagged,
               showCheckmark: false,
-              onSelected: (_) =>
-                  set((flagged: !f.flagged, accountId: f.accountId)),
+              onSelected: (_) => set((
+                flagged: !f.flagged,
+                accountId: f.accountId,
+                category: f.category,
+              )),
             ),
             for (final a in book.accounts) ...[
               const SizedBox(width: 6),
@@ -440,8 +446,37 @@ class LedgerPage extends ConsumerWidget {
                 onSelected: (_) => set((
                   flagged: f.flagged,
                   accountId: f.accountId == a.id ? null : a.id,
+                  category: f.category,
                 )),
               ),
+            ],
+          ],
+        ),
+      ),
+      // 分類篩選（2026-11-03 使用者）：只列目前範圍裡有出現的分類。
+      const SizedBox(height: 6),
+      SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            for (final c
+                in {for (final t in inM) ?_catOf(book, t)}.toList()..sort(
+                  (a, b) => ledgerExpenseCats.keys
+                      .toList()
+                      .indexOf(a)
+                      .compareTo(ledgerExpenseCats.keys.toList().indexOf(b)),
+                )) ...[
+              ChoiceChip(
+                label: Text('${catLook(c).$1} $c'),
+                selected: f.category == c,
+                showCheckmark: false,
+                onSelected: (_) => set((
+                  flagged: f.flagged,
+                  accountId: f.accountId,
+                  category: f.category == c ? null : c,
+                )),
+              ),
+              const SizedBox(width: 6),
             ],
           ],
         ),
@@ -470,7 +505,7 @@ class LedgerPage extends ConsumerWidget {
               if (any)
                 EmptyAction(
                   '看全部',
-                  () => set((flagged: false, accountId: null)),
+                  () => set((flagged: false, accountId: null, category: null)),
                 ),
             ],
           ),
@@ -1017,3 +1052,7 @@ class _SearchBoxState extends ConsumerState<_SearchBox> {
     ),
   );
 }
+
+/// 這筆算哪個分類（退款算原本那筆的分類；轉帳、還錢沒有分類）。
+String? _catOf(LedgerBook book, LedgerTx t) =>
+    t.type == LedgerTxType.refund ? book.tx(t.linkedId)?.category : t.category;

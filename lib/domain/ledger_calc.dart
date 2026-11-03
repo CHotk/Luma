@@ -20,6 +20,7 @@ const ledgerExpenseCats = <String, (String, int)>{
   '醫療': ('💊', 0xFFFF7A9A),
   '雲端服務': ('☁️', 0xFF9ADBFF),
   '創業魔物童話': ('🐉', 0xFFE08FD0),
+  '創業交友APP': ('💘', 0xFFFF8FB1),
   '寵物': ('🐾', 0xFFF0B27A),
   '菸酒': ('🍺', 0xFFD9A066),
   '未分類': ('❔', 0xFF8A8A9A),

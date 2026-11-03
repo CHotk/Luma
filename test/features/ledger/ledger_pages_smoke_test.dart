@@ -374,6 +374,22 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('明細可以篩分類：只列出有出現的分類，點了只剩那個分類', (tester) async {
+    final store = await seeded();
+    await pump(tester, const LedgerPage(tab: LedgerTab.list), store);
+    // seeded 只有「餐飲」那一筆支出（鼎泰豐）。
+    expect(find.text('🍜 餐飲'), findsOneWidget);
+    expect(find.text('🐾 寵物'), findsNothing);
+    await tester.tap(find.text('🍜 餐飲'));
+    await tester.pump();
+    expect(find.textContaining('鼎泰豐'), findsWidgets);
+    expect(find.textContaining('篩選中'), findsOneWidget);
+    await tester.tap(find.text('全部'));
+    await tester.pump();
+    expect(find.textContaining('篩選中'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('跟別人一起：按「他給了 ✓」→ 標記就好，就不再列在別人還欠你', (tester) async {
     final store = await seeded();
     await pump(tester, const LedgerPage(tab: LedgerTab.home), store);
