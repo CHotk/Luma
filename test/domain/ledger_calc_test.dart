@@ -551,6 +551,15 @@ void main() {
     expect(noted.single.error, isNull);
     expect(noted.single.tx!.category, '寵物');
     expect(noted.single.tx!.note, '補貨');
+    // 備註最多 100 字，超過那一行擋下來。
+    final ok100 = book([]).parseImport(
+      '現金｜2026/11/05 15:00｜寵物｜飼料｜650｜｜｜｜｜${'字' * 100}',
+    );
+    expect(ok100.single.error, isNull);
+    final long = book([]).parseImport(
+      '現金｜2026/11/05 15:00｜寵物｜飼料｜650｜｜｜｜｜${'字' * 101}',
+    );
+    expect(long.single.error, contains('100'));
   });
 
   test('貼上匯入「轉帳」：轉到自己的帳戶不算支出；轉給別人算支出', () {
