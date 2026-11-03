@@ -207,7 +207,11 @@ void main() {
     final store = _MemoryStore();
     await pump(tester, const LedgerPage(tab: LedgerTab.home), store);
     expect(find.text('開始記帳'), findsNothing);
-    expect(find.text('沒填餘額'), findsNWidgets(3));
+    // 記帳完整度：還沒對過的帳戶不寫「還沒對帳」之類的狀態，只有一顆「對帳」按鈕。
+    expect(find.text('對帳'), findsNWidgets(3));
+    expect(find.text('沒填餘額'), findsNothing);
+    expect(find.text('還沒對帳'), findsNothing);
+    expect(find.text('全部對上'), findsNothing);
     final book = await tester.runAsync(
       () => LedgerRepository(store).loadBook(),
     );

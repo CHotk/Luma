@@ -361,10 +361,10 @@ class AccountStatusRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = state, a = account;
-    final (String top, Color topColor, String bottom) = s == null
-        ? ('沒填餘額', AppColors.ink3, '要對帳再填')
-        : !s.checked
-        ? ('還沒對帳', AppColors.ink3, '點這裡對第一次')
+    // 還沒對過就不寫狀態，只放一顆「對帳」按鈕（2026-11-03 使用者）；對過才顯示結果。
+    final (String top, Color topColor, String bottom)? status =
+        s == null || !s.checked
+        ? null
         : s.miss == 0
         ? ('✓ 已對帳', AppColors.ok, lAgo(s.last.at))
         : (
@@ -394,40 +394,50 @@ class AccountStatusRow extends StatelessWidget {
                       color: AppColors.ink,
                     ),
                   ),
+                  if (s != null)
+                    Text(
+                      a.isCard
+                          ? 'App 推算可刷卡餘額 ${lMoney(s.available)}'
+                          : 'App 推算餘額 ${lMoney(s.now)}',
+                      style: AppText.note.copyWith(
+                        fontSize: 10.5,
+                        color: AppColors.ink3,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            if (status != null)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
                   Text(
-                    s == null
-                        ? '只記交易'
-                        : a.isCard
-                        ? 'App 推算可刷卡餘額 ${lMoney(s.available)}'
-                        : 'App 推算餘額 ${lMoney(s.now)}',
+                    status.$1,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: status.$2,
+                    ),
+                  ),
+                  Text(
+                    status.$3,
                     style: AppText.note.copyWith(
-                      fontSize: 10.5,
+                      fontSize: 10,
                       color: AppColors.ink3,
                     ),
                   ),
                 ],
+              )
+            else
+              OutlinedButton(
+                onPressed: onTap,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.ink,
+                  side: const BorderSide(color: AppColors.glassEdge),
+                  visualDensity: VisualDensity.compact,
+                ),
+                child: const Text('對帳'),
               ),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  top,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                    color: topColor,
-                  ),
-                ),
-                Text(
-                  bottom,
-                  style: AppText.note.copyWith(
-                    fontSize: 10,
-                    color: AppColors.ink3,
-                  ),
-                ),
-              ],
-            ),
           ],
         ),
       ),

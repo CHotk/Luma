@@ -293,9 +293,10 @@ class LedgerPage extends ConsumerWidget {
             children: [
               Text('🧾 記帳完整度', style: AppText.note),
               const SizedBox(width: 6),
-              bad > 0
-                  ? LedgerPill('$bad 個帳戶對不上', color: AppColors.mid)
-                  : const LedgerPill('全部對上', color: AppColors.ok),
+              if (bad > 0)
+                LedgerPill('$bad 個帳戶對不上', color: AppColors.mid)
+              else if (states.any((s) => s.checked))
+                const LedgerPill('全部對上', color: AppColors.ok),
               const Spacer(),
               InkWell(
                 onTap: () => reconAllFlow(context, ref),

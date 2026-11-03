@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
+import '../../shared/widgets/date_time_wheel.dart';
 import '../../domain/ledger_calc.dart';
 import '../../domain/models/ledger.dart';
 import 'ledger_ui.dart';
@@ -312,26 +313,8 @@ Widget _filled(String text, VoidCallback? onPressed) => FilledButton(
   child: Text(text),
 );
 
-Future<DateTime?> _pickDateTime(BuildContext context, DateTime initial) async {
-  final d = await showDatePicker(
-    context: context,
-    initialDate: initial,
-    firstDate: DateTime(2000),
-    lastDate: DateTime(2100),
-  );
-  if (d == null || !context.mounted) return null;
-  final t = await showTimePicker(
-    context: context,
-    initialTime: TimeOfDay.fromDateTime(initial),
-  );
-  return DateTime(
-    d.year,
-    d.month,
-    d.day,
-    t?.hour ?? initial.hour,
-    t?.minute ?? initial.minute,
-  );
-}
+Future<DateTime?> _pickDateTime(BuildContext context, DateTime initial) =>
+    showDateTimeWheel(context, initial);
 
 Widget _accountChips(
   LedgerBook book,
@@ -1060,12 +1043,19 @@ class _TxFormState extends State<_TxForm> {
     }
     final got = _int(_after);
     return [
-      _label(card ? '這筆刷完後的可用額度' : '這筆之後的餘額', trailing: '選填・用來抓漏記'),
+      _label(
+        card
+            ? '這筆刷完後可刷卡餘額'
+            : a.type == LedgerAccountType.cash
+            ? '這筆之後皮包餘額'
+            : '這筆之後的餘額',
+        trailing: '選填・用來抓漏記',
+      ),
       TextField(
         controller: _after,
         keyboardType: TextInputType.number,
         inputFormatters: _digits,
-        decoration: _input(card ? '看銀行 App 的可刷卡額度' : '帳戶現在剩多少', prefix: '\$'),
+        decoration: _input('', prefix: '\$'),
       ),
       if (guess != null)
         Padding(
@@ -2112,7 +2102,7 @@ class _ReconState extends State<_Recon> {
             autofocus: true,
             keyboardType: TextInputType.number,
             inputFormatters: _digits,
-            decoration: _input('看銀行 App 的可刷卡額度', prefix: '\$'),
+            decoration: _input('', prefix: '\$'),
           ),
         ] else ...[
           _label(a.type == LedgerAccountType.cash ? '錢包實際有多少' : '實際餘額'),

@@ -8,6 +8,7 @@ import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
 import '../../domain/models/i88.dart';
 import '../../shared/widgets/ambient_background.dart';
+import '../../shared/widgets/date_time_wheel.dart';
 import '../../shared/widgets/app_confirm_dialog.dart';
 import '../../shared/widgets/app_notice.dart';
 import '../../shared/widgets/app_side_drawer.dart';
@@ -614,26 +615,8 @@ class _FormState extends State<_Form> {
           const SizedBox(height: 10),
           OutlinedButton.icon(
             onPressed: () async {
-              final d = await showDatePicker(
-                context: context,
-                initialDate: _at,
-                firstDate: DateTime(2020),
-                lastDate: DateTime(2100),
-              );
-              if (d == null || !context.mounted) return;
-              final t = await showTimePicker(
-                context: context,
-                initialTime: TimeOfDay.fromDateTime(_at),
-              );
-              setState(
-                () => _at = DateTime(
-                  d.year,
-                  d.month,
-                  d.day,
-                  t?.hour ?? _at.hour,
-                  t?.minute ?? _at.minute,
-                ),
-              );
+              final v = await showDateTimeWheel(context, _at);
+              if (v != null && mounted) setState(() => _at = v);
             },
             icon: const Icon(Icons.schedule_rounded, size: 18),
             label: Text(
