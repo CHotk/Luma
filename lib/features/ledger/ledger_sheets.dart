@@ -890,7 +890,7 @@ class _TxFormState extends State<_TxForm> {
 
   String? get _error {
     final amt = _int(_amount) ?? 0;
-    if (amt <= 0) return '金額要填';
+    if (_amount.text.trim().isEmpty) return '金額要填（折扣折抵到 0 就填 0）';
     if (book.account(_account) == null) return '要選帳戶';
     if (_effType == LedgerTxType.transfer) {
       if (book.account(_to) == null) return '要選轉到哪個帳戶';

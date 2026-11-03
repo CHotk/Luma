@@ -640,6 +640,23 @@ void main() {
     expect(ledgerNoteMax, 100);
   });
 
+  test('匯入金額可以是 0（折扣、折抵）；空的或看不懂的才報錯', () {
+    final lines = book([]).parseImport('''
+中信銀行｜2026/11/05 15:00｜餐飲｜折抵後免費｜0｜｜｜｜｜折價券
+中信銀行｜2026/11/05 16:00｜餐飲｜便當｜NT\$0
+中信銀行｜2026/11/05 17:00｜餐飲｜便當｜
+中信銀行｜2026/11/05 18:00｜餐飲｜便當｜abc
+''');
+    expect(lines[0].error, isNull);
+    expect(lines[0].tx!.amount, 0);
+    expect(lines[0].tx!.note, '折價券');
+    expect(lines[1].tx!.amount, 0);
+    expect(lines[2].error, isNotNull);
+    expect(lines[3].error, isNotNull);
+    final b = book([lines[0].tx!]);
+    expect(b.monthStats(2026, 11).spend, 0);
+  });
+
   test('沒填餘額的帳戶：不算餘額、不參與對帳，但交易照樣算消費', () {
     final b = LedgerBook(
       accounts: const [bank],

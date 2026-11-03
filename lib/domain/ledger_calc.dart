@@ -557,7 +557,9 @@ class LedgerBook {
         int.parse(m[4]!),
         int.parse(m[5]!),
       );
-      final amount = int.tryParse(p[4].replaceAll(RegExp(r'[^\d]'), '')) ?? 0;
+      // 金額可以是 0（折扣、折抵後免費；不另外做折扣系統，使用者 2026-11-03）。
+      final amountV = int.tryParse(p[4].replaceAll(RegExp(r'[^\d]'), ''));
+      final amount = amountV ?? 0;
       // 第 9 欄選填：這筆之後帳戶剩多少（信用卡填可用額度）。
       final afterV = p.length >= 9
           ? int.tryParse(p[8].replaceAll(RegExp(r'[^\d]'), ''))
@@ -573,7 +575,7 @@ class LedgerBook {
         );
         continue;
       }
-      if (amount <= 0) {
+      if (amountV == null) {
         out.add(ImportLine(line, error: '看不懂金額'));
         continue;
       }
