@@ -435,6 +435,44 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('設定可以選不顯示備註：關掉後明細每一條不再顯示備註', (tester) async {
+    final store = _MemoryStore();
+    final repo = LedgerRepository(store);
+    final book0 = await tester.runAsync(() => repo.loadBook());
+    await tester.runAsync(
+      () => repo.addTransaction(
+        LedgerTx(
+          id: ledgerId(),
+          type: LedgerTxType.expense,
+          occurredAt: DateTime.now(),
+          amount: 90,
+          accountId: book0!.accounts.first.id,
+          category: '餐飲',
+          merchant: '早餐店',
+          note: '蛋餅加豆漿',
+        ),
+      ),
+    );
+    await pump(tester, const LedgerPage(tab: LedgerTab.list), store);
+    expect(find.textContaining('蛋餅加豆漿'), findsOneWidget);
+    ProviderScope.containerOf(
+          tester.element(find.byType(LedgerPage)),
+        ).read(ledgerShowNoteProvider.notifier).state =
+        false;
+    await tester.pump();
+    expect(find.textContaining('蛋餅加豆漿'), findsNothing);
+    expect(find.textContaining('早餐店'), findsOneWidget);
+  });
+
+  testWidgets('明細：查看時間跟篩選放同一行，一個左一個右', (tester) async {
+    final store = await seeded();
+    await pump(tester, const LedgerPage(tab: LedgerTab.list), store);
+    final range = tester.getCenter(find.textContaining('查看時間'));
+    final filter = tester.getCenter(find.textContaining('篩選：'));
+    expect((range.dy - filter.dy).abs() < 4, isTrue);
+    expect(range.dx < filter.dx, isTrue);
+  });
+
   testWidgets('首頁本月花費底下有「平均每天花多少」小字', (tester) async {
     final store = await seeded();
     await pump(tester, const LedgerPage(tab: LedgerTab.home), store);

@@ -17,6 +17,7 @@ import '../data/repositories/jp_home_ring_store.dart';
 import '../data/repositories/jp_light_style_store.dart';
 import '../data/repositories/yt_video_song_store.dart';
 import '../data/repositories/music_play_mode_store.dart';
+import '../data/repositories/ledger_show_note_store.dart';
 import '../data/repositories/music_event_log_store.dart';
 import '../data/repositories/music_play_log_store.dart';
 import '../domain/models/music.dart';
@@ -223,6 +224,12 @@ final jpShowProgressRingProvider = StateProvider<bool>(
 /// 音樂功能的全部資料（2026-10-19，見 [MusicData]）。改的時候用
 /// `MusicActions`，會一起存檔。
 final musicDataProvider = StateProvider<MusicData>((ref) => MusicData.empty);
+
+/// 記帳的最近記帳、明細每一條要不要顯示備註（2026-11-04，預設顯示），見
+/// [LedgerShowNoteStore]。
+final ledgerShowNoteProvider = StateProvider<bool>(
+  (ref) => LedgerShowNoteStore.defaultValue,
+);
 
 /// 音樂點歌怎麼播（2026-10-19，預設轉到 YouTube），見 [MusicPlayModeStore]。
 final musicPlayModeProvider = StateProvider<MusicPlayMode>(

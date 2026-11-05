@@ -1,7 +1,9 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/typography.dart';
 import '../../domain/ledger_calc.dart';
@@ -138,7 +140,7 @@ class LedgerBar extends StatelessWidget {
 const lTabular = [FontFeature.tabularFigures()];
 
 /// 一筆交易：圖示、名稱（🚩、幫付、匯入標籤）、時間帳戶分類、金額。
-class TxTile extends StatelessWidget {
+class TxTile extends ConsumerWidget {
   const TxTile({
     super.key,
     required this.book,
@@ -158,7 +160,9 @@ class TxTile extends StatelessWidget {
   final String? partCategory;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // 設定→記帳可以選不顯示備註。
+    final showNote = ref.watch(ledgerShowNoteProvider);
     final t = tx;
     // 圖示看付款方式（2026-11-03 使用者）：現金＝鈔票、刷卡＝信用卡、銀行＝銀行；
     // 轉帳、退款、還錢、調整照原本的符號。
@@ -186,7 +190,7 @@ class TxTile extends StatelessWidget {
         );
       }
     }
-    if (t.note.isNotEmpty) sub.write('・${t.note}');
+    if (showNote && t.note.isNotEmpty) sub.write('・${t.note}');
     // 選了分類又是拆分的：只顯示那個分類的子項金額。
     final part = partCategory != null && t.isSplit
         ? t.splits

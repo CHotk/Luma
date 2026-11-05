@@ -468,7 +468,18 @@ class LedgerPage extends ConsumerWidget {
       // 選月份那一行（左右切換）放在搜尋框上面（2026-11-03 使用者）。
       if (!wide) _monthBar(ref),
       const _SearchBox(),
-      _RangeButton(book: book, searching: searching),
+      // 查看時間在左、篩選在右，同一行（2026-11-04 使用者）；篩選是毛玻璃下拉選單。
+      Row(
+        children: [
+          Flexible(
+            child: _RangeButton(book: book, searching: searching),
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: _FilterButton(book: book, inM: inM),
+          ),
+        ],
+      ),
       // 2026 年 11 月以前的資料不準確（只是記錄下來）：看那些月份，或搜尋結果裡有
       // 那些月份的紀錄時，明細上方標註。
       if (wide
@@ -477,8 +488,6 @@ class LedgerPage extends ConsumerWidget {
             )
           : isBeforeAccurate(m.year, m.month))
         const OldDataBanner(),
-      // 全部／注意／帳戶／分類 的篩選收成一個毛玻璃下拉選單（2026-11-03 使用者）。
-      _FilterButton(book: book, inM: inM),
       Padding(
         padding: const EdgeInsets.fromLTRB(4, 8, 4, 0),
         child: Text(
@@ -1024,7 +1033,7 @@ class _SearchBoxState extends ConsumerState<_SearchBox> {
       },
       textInputAction: TextInputAction.search,
       decoration: InputDecoration(
-        hintText: '搜尋：商家、備註、分類、帳戶、金額、日期⋯（空白隔開多個詞）',
+        hintText: '商家、備註、分類、帳戶、金額、日期⋯（多詞以空白間格）',
         hintStyle: const TextStyle(fontSize: 12.5),
         prefixIcon: const Icon(Icons.search_rounded, size: 20),
         suffixIcon: _c.text.isEmpty
@@ -1080,7 +1089,11 @@ class _RangeButton extends ConsumerWidget {
         child: OutlinedButton.icon(
           onPressed: searching ? null : () => _open(context, ref),
           icon: const Icon(Icons.calendar_month_rounded, size: 18),
-          label: Text('查看時間：$label  ▾'),
+          label: Text(
+            '查看時間：$label  ▾',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
           style: OutlinedButton.styleFrom(
             foregroundColor: AppColors.ink,
             side: const BorderSide(color: AppColors.glassEdge),
@@ -1226,7 +1239,7 @@ class _FilterButton extends ConsumerWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
       child: Align(
-        alignment: Alignment.centerLeft,
+        alignment: Alignment.centerRight,
         child: Builder(
           builder: (btn) => OutlinedButton.icon(
             onPressed: () async {
@@ -1234,7 +1247,6 @@ class _FilterButton extends ConsumerWidget {
                 btn,
                 width: 230,
                 maxHeight: MediaQuery.sizeOf(context).height * 0.6,
-                alignLeft: true,
                 selectedValues: {
                   if (!any) 'all',
                   if (f.flagged) 'flag',
@@ -1306,7 +1318,11 @@ class _FilterButton extends ConsumerWidget {
               }
             },
             icon: const Icon(Icons.filter_list_rounded, size: 18),
-            label: Text('篩選：${any ? parts.join('・') : '全部'}  ▾'),
+            label: Text(
+              '篩選：${any ? parts.join('・') : '全部'}  ▾',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.ink,
               side: const BorderSide(color: AppColors.glassEdge),

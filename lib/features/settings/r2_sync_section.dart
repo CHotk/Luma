@@ -17,6 +17,7 @@ import '../../data/repositories/music_store.dart';
 import '../../data/repositories/music_play_log_store.dart';
 import '../../data/repositories/music_event_log_store.dart';
 import '../../data/repositories/music_play_mode_store.dart';
+import '../../data/repositories/ledger_show_note_store.dart';
 import '../../data/repositories/yt_embed_player_style_store.dart';
 import '../../data/repositories/yt_search_recents_store.dart';
 import '../../data/repositories/yt_stats_refresh_setting_store.dart';
@@ -651,14 +652,25 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
             onPhase: onPhase,
           ),
         ),
-        run(
-          '記帳',
-          (p) => _habitPhases['ledger'] = p,
-          (onPhase) => service.syncLedger(
+        run('記帳', (p) => _habitPhases['ledger'] = p, (onPhase) async {
+          final r = await service.syncLedger(
             container.read(ledgerRepositoryProvider),
             onPhase: onPhase,
-          ),
-        ),
+          );
+          // 記帳的顯示設定（備註要不要顯示）也跟著同步。
+          final kv = container.read(keyValueStoreProvider);
+          final s = await service.syncStampedSetting(
+            LedgerShowNoteStore(kv).record,
+          );
+          if (s.downloaded > 0) {
+            container.read(ledgerShowNoteProvider.notifier).state =
+                await LedgerShowNoteStore(kv).load();
+          }
+          return (
+            downloaded: r.downloaded + s.downloaded,
+            uploaded: r.uploaded + s.uploaded,
+          );
+        }),
       ]);
 
       // 同步紀錄本身這筆內容就是「這次同步的結果」，一定要等上面全部
