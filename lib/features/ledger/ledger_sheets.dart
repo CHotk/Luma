@@ -736,13 +736,20 @@ class _TxFormState extends State<_TxForm> {
     (s, r) => r.forOther ? s + (_int(r.amount) ?? 0) : s,
   );
   int get _pfValue => _split ? _pfSum : (_int(_pfAmount) ?? 0);
-  String _rowPeople(_SplitRow r) =>
-      r.people.text.trim().isEmpty ? '朋友' : r.people.text.trim();
+  /// 幫誰沒填時的預設：快選列的第一個（最近幫過的人）；從來沒幫過人才寫「朋友」
+  /// （2026-11-05 使用者：不要直接給我寫「朋友」）。
+  String get _defaultPerson => _pfPeopleOptions.firstOrNull ?? '';
+
+  String _rowPeople(_SplitRow r) => r.people.text.trim().isNotEmpty
+      ? r.people.text.trim()
+      : (_defaultPerson.isEmpty ? '朋友' : _defaultPerson);
 
   /// 整筆的「幫誰」：拆分時是各份幫的人（不重複，用「、」接起來）。
   String get _pfPeopleText {
     if (!_split) {
-      return _pfPeople.text.trim().isEmpty ? '朋友' : _pfPeople.text.trim();
+      return _pfPeople.text.trim().isNotEmpty
+          ? _pfPeople.text.trim()
+          : (_defaultPerson.isEmpty ? '朋友' : _defaultPerson);
     }
     final names = <String>[];
     for (final r in _splitRows) {
@@ -833,6 +840,10 @@ class _TxFormState extends State<_TxForm> {
       text: e?.paidFor?.amount.toString() ?? '',
     );
     _pfPeople = TextEditingController(text: e?.paidFor?.people ?? '');
+    // 一開始就是「跟別人一起」（例如貼上匯入）又沒寫幫誰：預設快選列的第一個。
+    if (e == null && _pf && _pfPeople.text.isEmpty) {
+      _pfPeople.text = _defaultPerson;
+    }
     final oldCp = e == null
         ? null
         : book.checkpointOfTx(e.id, accountId: e.accountId);
@@ -1672,7 +1683,7 @@ class _TxFormState extends State<_TxForm> {
                                         x.people.text.trim().isNotEmpty,
                                   )
                                   .map((x) => x.people.text.trim())
-                                  .firstOrNull ?? '';
+                                  .firstOrNull ?? _defaultPerson;
                             }
                           }),
                         ),
@@ -1803,6 +1814,10 @@ class _TxFormState extends State<_TxForm> {
               _pf = v;
               if (v && _pfAmount.text.isEmpty && amt > 0) {
                 _pfAmount.text = '${amt ~/ 2}';
+              }
+              // 幫誰預設填快選列的第一個，不用再點（2026-11-05 使用者）。
+              if (v && _pfPeople.text.trim().isEmpty) {
+                _pfPeople.text = _defaultPerson;
               }
             }),
           ),

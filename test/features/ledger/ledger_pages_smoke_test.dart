@@ -510,6 +510,13 @@ void main() {
     expect(find.text('跟誰'), findsNothing);
     await tester.ensureVisible(find.widgetWithText(ChoiceChip, '阿明、小華'));
     await tester.pump();
+    // 一打開，幫誰就預設填快選列的第一個，不是寫「朋友」。
+    expect(
+      tester
+          .widget<ChoiceChip>(find.widgetWithText(ChoiceChip, '阿明、小華'))
+          .selected,
+      isTrue,
+    );
     await tester.tap(find.widgetWithText(ChoiceChip, '阿明、小華'));
     await tester.pump();
     expect(
@@ -812,6 +819,14 @@ void main() {
     await tester.tap(find.widgetWithText(FilterChip, '✓ 已給'));
     await tester.pump();
     await tester.ensureVisible(find.byKey(const ValueKey('splitPeople1')));
+    // 標幫人付時，幫誰預設是快選列的第一個（最近幫過的人），不是「朋友」。
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const ValueKey('splitPeople1')))
+          .controller!
+          .text,
+      '阿明、小華',
+    );
     await tester.enterText(find.byKey(const ValueKey('splitPeople1')), 'Cen');
     await tester.pump();
     await tester.ensureVisible(find.widgetWithText(FilledButton, '新增'));
