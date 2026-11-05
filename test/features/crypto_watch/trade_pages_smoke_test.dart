@@ -12,6 +12,7 @@ import 'package:lume/features/crypto_watch/trade_journal_page.dart';
 import 'package:lume/features/crypto_watch/trade_report_page.dart';
 import 'package:lume/features/crypto_watch/trade_ticket_widgets.dart';
 import 'package:lume/features/crypto_watch/trade_ui.dart';
+import 'package:lume/shared/widgets/glass_card.dart';
 
 /// 交易&自律四頁在手機寬度（360）畫得出來、不爆版，有資料跟沒資料都要。
 void main() {
@@ -87,6 +88,29 @@ void main() {
       expect(find.text('交易&自律'), findsOneWidget);
       // 最上面是當月損益卡，看盤卡片跟看盤次數都拿掉了。
       expect(find.text('${DateTime.now().month} 月已實現損益'), findsOneWidget);
+      // 賺多少跟起始資金中間有一條細水平線分隔（2026-11-05 使用者）。
+      final card = find.ancestor(
+        of: find.text('${DateTime.now().month} 月已實現損益'),
+        matching: find.byType(GlassCard),
+      );
+      final line = find.descendant(of: card, matching: find.byType(Divider));
+      expect(line, findsOneWidget);
+      final capText = find.descendant(
+        of: card,
+        matching: find.textContaining('起始資金', findRichText: true),
+      );
+      expect(
+        tester.getTopLeft(line).dy,
+        lessThan(tester.getTopLeft(capText.first).dy),
+      );
+      expect(
+        tester.getTopLeft(line).dy,
+        greaterThan(
+          tester
+              .getTopLeft(find.text('${DateTime.now().month} 月已實現損益'))
+              .dy,
+        ),
+      );
       expect(find.text('距離上次看盤'), findsNothing);
       expect(find.textContaining('👁'), findsNothing);
       // 舊資料有兩位小數，顯示一律四捨五入到小數第一位。

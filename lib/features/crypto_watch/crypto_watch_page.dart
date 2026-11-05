@@ -933,8 +933,13 @@ class _MonthPnlCard extends ConsumerWidget {
                 ),
               ),
             ),
+          // 賺多少跟起始資金中間畫一條 Notion 那種細水平線分隔，不然兩塊數字混在
+          // 一起不好看（2026-11-05 使用者）。
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Divider(height: 1, thickness: 1, color: Color(0x33FFFFFF)),
+          ),
           // 第四、五行：起始資金（藍色、大一點）＋台幣換算。自動算，不用填。
-          const SizedBox(height: 8),
           Center(
             child: Text.rich(
               TextSpan(
