@@ -1224,9 +1224,17 @@ class R2SyncService {
       mergeFromCloud: repo.mergeSettingsFromCloud,
       allForUpload: repo.settingsForUpload,
     );
+    // 操作紀錄（2026-11-04）：只增不刪，兩邊聯集。
+    final log = await _syncRecords<I88LogEntry>(
+      key: 'i88_log.json',
+      fromJson: I88LogEntry.fromJson,
+      toJson: (e) => e.toJson(),
+      mergeFromCloud: repo.mergeLogFromCloud,
+      allForUpload: repo.logForUpload,
+    );
     return (
-      downloaded: entries.downloaded + settings.downloaded,
-      uploaded: entries.uploaded + settings.uploaded,
+      downloaded: entries.downloaded + settings.downloaded + log.downloaded,
+      uploaded: entries.uploaded + settings.uploaded + log.uploaded,
     );
   }
 

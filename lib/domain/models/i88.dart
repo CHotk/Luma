@@ -89,3 +89,53 @@ String i88Id() =>
     List.generate(32, (_) => '0123456789abcdef'[_rand.nextInt(16)]).join();
 
 DateTime? _d(Object? v) => v == null ? null : DateTime.parse(v as String);
+
+/// i88 的操作紀錄（2026-11-04 使用者）：新增、編輯、刪除、改每月目標，每個動作自動記一筆。
+/// 只增不改不刪不裁剪，同步時兩邊直接聯集。跟記帳的操作紀錄各自獨立一份。
+class I88LogEntry {
+  const I88LogEntry({
+    required this.id,
+    required this.at,
+    required this.action,
+    required this.summary,
+    this.detail = '',
+    this.refId,
+    this.device = '',
+  });
+
+  final String id;
+  final DateTime at;
+
+  /// 動作名稱：新增、編輯、刪除、改目標。
+  final String action;
+  final String summary;
+  final String detail;
+
+  /// 動到哪一筆輸贏的 id（改目標就沒有）。
+  final String? refId;
+
+  /// 哪台裝置做的。
+  final String device;
+
+  DateTime get syncedAt => at;
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'at': at.toUtc().toIso8601String(),
+    'action': action,
+    'summary': summary,
+    'detail': detail,
+    'refId': refId,
+    'device': device,
+  };
+
+  factory I88LogEntry.fromJson(Map<String, dynamic> j) => I88LogEntry(
+    id: j['id'] as String,
+    at: DateTime.parse(j['at'] as String).toLocal(),
+    action: j['action'] as String? ?? '',
+    summary: j['summary'] as String? ?? '',
+    detail: j['detail'] as String? ?? '',
+    refId: j['refId'] as String?,
+    device: j['device'] as String? ?? '',
+  );
+}

@@ -85,6 +85,14 @@ void main() {
     expect(list.map((e) => e.id), [win.id]);
     expect(list.single.amount, 1500);
     expect(await p.loadTarget(), 40000);
+
+    // 操作紀錄：兩邊動作都在（新增 2、改目標 2、編輯 1、刪除 1），而且兩台一樣多、一筆都沒少。
+    await sync(pc);
+    final logP = await p.loadLog(), logC = await c.loadLog();
+    expect(logP.length, 6);
+    expect(logC.map((e) => e.id).toSet(), logP.map((e) => e.id).toSet());
+    expect(logP.map((e) => e.action).where((a) => a == '新增').length, 2);
+    expect(logP.any((e) => e.action == '刪除'), isTrue);
   });
 }
 

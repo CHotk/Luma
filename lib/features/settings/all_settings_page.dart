@@ -29,6 +29,7 @@ enum SettingsSection {
   music('音樂', Color(0xFFFF6FAE), icon: Icons.library_music_rounded),
   trade('交易&自律', Color(0xFF30B0C7), text: '₮'),
   ledger('記帳', Color(0xFF5FE0A8), icon: Icons.receipt_long_rounded),
+  i88('i88', Color(0xFFE08F5F), icon: Icons.casino_outlined),
   lock('日記／負債', Color(0xFF5E5CE6), icon: Icons.lock_rounded),
   sync('雲端同步', Color(0xFF0A84FF), icon: Icons.cloud_rounded);
 
@@ -53,6 +54,7 @@ SettingsSection settingsSectionFor(String? location) {
   if (any(['/jp', '/kana'])) return SettingsSection.jp;
   if (any(['/crypto-watch'])) return SettingsSection.trade;
   if (any(['/ledger'])) return SettingsSection.ledger;
+  if (any(['/i88'])) return SettingsSection.i88;
   if (any(['/diary', '/debt'])) return SettingsSection.lock;
   if (any(['/sync'])) return SettingsSection.sync;
   if (any([
@@ -60,7 +62,6 @@ SettingsSection settingsSectionFor(String? location) {
     '/fitness',
     '/smoking-log',
     '/drinking-log',
-    '/i88',
     '/debug-log',
     '/local-storage',
   ])) {
@@ -138,6 +139,7 @@ const settingIndex = [
   SettingEntry(SettingsSection.yt, 'yt.purged', '永久刪除的頻道'),
   SettingEntry(SettingsSection.trade, 'trade.rate', 'USDT 換台幣匯率', '匯率 台幣'),
   SettingEntry(SettingsSection.ledger, 'ledger.log', '記帳操作紀錄', '操作 紀錄 log 記帳'),
+  SettingEntry(SettingsSection.i88, 'i88.log', 'i88 操作紀錄', '操作 紀錄 log i88'),
   SettingEntry(SettingsSection.lock, 'lock.pw', '日記／負債密碼', '密碼'),
   SettingEntry(
     SettingsSection.sync,
@@ -245,6 +247,7 @@ class _AllSettingsPageState extends ConsumerState<AllSettingsPage>
     SettingsSection.music => const MusicSettingsSection(),
     SettingsSection.trade => const TradeSettingsSection(),
     SettingsSection.ledger => const LedgerSettingsSection(),
+    SettingsSection.i88 => const I88SettingsSection(),
     SettingsSection.lock => LockSettingsSection(
       // 不是從日記／負債（已經過密碼鎖）進來的，改密碼前要先輸入舊密碼。
       askCurrent:
