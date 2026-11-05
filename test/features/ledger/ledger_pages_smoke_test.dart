@@ -690,6 +690,15 @@ void main() {
       container.read(ledgerMonthProvider.notifier).state = DateTime(2026, 10);
       await tester.pump();
       expect(find.textContaining('資料不準確'), findsOneWidget, reason: tab.title);
+      if (tab == LedgerTab.list) {
+        // 搜尋時不標（搜得到的都是有資料的）。
+        await tester.enterText(find.byType(TextField).first, '鼎泰豐');
+        await tester.pump();
+        expect(find.textContaining('資料不準確'), findsNothing);
+        await tester.tap(find.byTooltip('清除搜尋'));
+        await tester.pump();
+        expect(find.textContaining('資料不準確'), findsOneWidget);
+      }
       container.read(ledgerMonthProvider.notifier).state = DateTime(2026, 11);
       await tester.pump();
       expect(find.textContaining('資料不準確'), findsNothing, reason: tab.title);

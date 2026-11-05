@@ -511,11 +511,14 @@ class LedgerPage extends ConsumerWidget {
       ),
       // 2026 年 11 月以前的資料不準確（只是記錄下來）：看那些月份，或搜尋結果裡有
       // 那些月份的紀錄時，明細上方標註。
-      if (wide
-          ? shown.any(
-              (t) => isBeforeAccurate(t.occurredAt.year, t.occurredAt.month),
-            )
-          : isBeforeAccurate(m.year, m.month))
+      // 搜尋時不標（2026-11-05 使用者：搜得到的都是有資料的，不用特別提示）。
+      if (!searching &&
+          (wide
+              ? shown.any(
+                  (t) =>
+                      isBeforeAccurate(t.occurredAt.year, t.occurredAt.month),
+                )
+              : isBeforeAccurate(m.year, m.month)))
         const OldDataBanner(),
       Padding(
         padding: const EdgeInsets.fromLTRB(4, 8, 4, 0),
