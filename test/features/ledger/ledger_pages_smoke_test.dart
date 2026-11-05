@@ -493,7 +493,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('跟別人一起：欄位叫「幫誰」，底下有 Cen 的快選，點了就填進去', (tester) async {
+  testWidgets('跟別人一起：欄位叫「幫誰」，底下直接列最近幫過的人，點了就填進去', (tester) async {
     final store = await seeded();
     await pump(tester, const LedgerPage(tab: LedgerTab.home), store);
     await tester.pumpAndSettle();
@@ -509,13 +509,13 @@ void main() {
     await tester.pump();
     expect(find.text('幫誰'), findsOneWidget);
     expect(find.text('跟誰'), findsNothing);
-    await tester.ensureVisible(find.widgetWithText(ChoiceChip, 'Cen'));
+    await tester.ensureVisible(find.widgetWithText(ChoiceChip, '阿明、小華'));
     await tester.pump();
-    await tester.tap(find.widgetWithText(ChoiceChip, 'Cen'));
+    await tester.tap(find.widgetWithText(ChoiceChip, '阿明、小華'));
     await tester.pump();
     expect(
       tester
-          .widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'Cen'))
+          .widget<ChoiceChip>(find.widgetWithText(ChoiceChip, '阿明、小華'))
           .selected,
       isTrue,
     );

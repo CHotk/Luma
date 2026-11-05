@@ -1056,13 +1056,14 @@ class _TxFormState extends State<_TxForm> {
     );
   }
 
-  /// 「幫誰」的快選：Cen 固定第一個，後面是之前幫過的人（最近的在前、不重複、最多 5 個）。
+  /// 「幫誰」的快選：直接列之前幫過的人（最近的在前、不重複、最多 5 個）；Cen 幫過一次
+  /// 之後自然就會出現，不用固定放（2026-11-04 使用者）。
   List<String> get _pfPeopleOptions {
-    final out = <String>['Cen'];
+    final out = <String>[];
     for (final t in book.txs) {
       final p = t.paidFor?.people.trim();
       if (p != null && p.isNotEmpty && !out.contains(p)) out.add(p);
-      if (out.length >= 6) break;
+      if (out.length >= 5) break;
     }
     return out;
   }
@@ -1666,19 +1667,20 @@ class _TxFormState extends State<_TxForm> {
           // 點一下就填進去，也可以自己打（2026-11-03 使用者）。
           TextField(controller: _pfPeople, decoration: _input('')),
           const SizedBox(height: 6),
-          Wrap(
-            spacing: 6,
-            runSpacing: 4,
-            children: [
-              for (final n in _pfPeopleOptions)
-                ChoiceChip(
-                  label: Text(n),
-                  selected: _pfPeople.text.trim() == n,
-                  showCheckmark: false,
-                  onSelected: (_) => setState(() => _pfPeople.text = n),
-                ),
-            ],
-          ),
+          if (_pfPeopleOptions.isNotEmpty)
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: [
+                for (final n in _pfPeopleOptions)
+                  ChoiceChip(
+                    label: Text(n),
+                    selected: _pfPeople.text.trim() == n,
+                    showCheckmark: false,
+                    onSelected: (_) => setState(() => _pfPeople.text = n),
+                  ),
+              ],
+            ),
           _label('對方要給你多少', trailing: amt > 0 ? '整筆 ${lMoney(amt)}' : null),
           TextField(
             controller: _pfAmount,
