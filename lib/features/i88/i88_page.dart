@@ -45,6 +45,16 @@ final _dayProvider = StateProvider<DateTime>((_) {
   return DateTime(n.year, n.month, n.day);
 });
 
+/// 月曆下面的篩選標籤（2026-11-05 使用者：跟交易&自律一樣，點了月曆上亮出符合的日子）：
+/// `win` 贏的日子、`lose` 輸的日子、`any` 有記錄的日子；null 是沒選。再點一次取消。
+final _hintProvider = StateProvider<String?>((_) => null);
+
+bool _hintMatch(String hint, int? net) => switch (hint) {
+  'win' => net != null && net > 0,
+  'lose' => net != null && net < 0,
+  _ => net != null,
+};
+
 const _win = AppColors.ok;
 const _lose = Color(0xFFFF7A70);
 
@@ -119,6 +129,7 @@ class I88Page extends ConsumerWidget {
   List<Widget> _body(BuildContext context, WidgetRef ref, _I88Data d) {
     final m = ref.watch(_monthProvider);
     final day = ref.watch(_dayProvider);
+    final hint = ref.watch(_hintProvider);
     bool inMonth(I88Entry e) => e.at.year == m.year && e.at.month == m.month;
     final monthNet = d.net(inMonth);
     final wins = d.entries
@@ -270,9 +281,46 @@ class I88Page extends ConsumerWidget {
               children: [
                 for (var i = 1; i < first; i++) const SizedBox.shrink(),
                 for (var n = 1; n <= days; n++)
-                  _cell(ref, DateTime(m.year, m.month, n), dayNet[n], day),
+                  _cell(
+                    ref,
+                    DateTime(m.year, m.month, n),
+                    dayNet[n],
+                    day,
+                    hint: hint,
+                  ),
               ],
             ),
+            if (dayNet.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final (key, label, color, count) in [
+                    (
+                      'win',
+                      '贏的日子',
+                      _win,
+                      dayNet.values.where((v) => v > 0).length,
+                    ),
+                    (
+                      'lose',
+                      '輸的日子',
+                      _lose,
+                      dayNet.values.where((v) => v < 0).length,
+                    ),
+                    ('any', '有記錄的日子', const Color(0xFFE08F5F), dayNet.length),
+                  ])
+                    if (count > 0)
+                      _hintChip(ref, key, '$label $count', color, hint == key),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '點標籤，月曆上亮出符合的日子',
+                style: AppText.note.copyWith(color: AppColors.ink3),
+              ),
+            ],
           ],
         ),
       ),
@@ -309,52 +357,127 @@ class I88Page extends ConsumerWidget {
     ];
   }
 
-  Widget _cell(WidgetRef ref, DateTime date, int? net, DateTime selected) {
+  Widget _hintChip(
+    WidgetRef ref,
+    String key,
+    String label,
+    Color color,
+    bool selected,
+  ) => InkWell(
+    borderRadius: BorderRadius.circular(99),
+    onTap: () => ref.read(_hintProvider.notifier).state = selected ? null : key,
+    child: Container(
+      padding: const EdgeInsets.fromLTRB(8, 3, 11, 3),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(99),
+        color: selected ? color.withValues(alpha: 0.18) : null,
+        border: Border.all(
+          color: selected ? color : const Color(0xFF2A2A3D),
+          width: selected ? 1.6 : 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 10,
+            height: 10,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(3),
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w700,
+              color: AppColors.ink,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+
+  Widget _cell(
+    WidgetRef ref,
+    DateTime date,
+    int? net,
+    DateTime selected, {
+    String? hint,
+  }) {
     final sel = _sameDay(date, selected);
     final today = _sameDay(date, DateTime.now());
     final c = net == null ? null : _color(net);
-    return InkWell(
-      borderRadius: BorderRadius.circular(10),
-      onTap: () => ref.read(_dayProvider.notifier).state = date,
-      child: Container(
-        decoration: BoxDecoration(
-          color: c == null
-              ? Colors.white.withValues(alpha: 0.035)
-              : c.withValues(alpha: 0.18),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: sel
-                ? const Color(0xFFE08F5F)
-                : today
-                ? AppColors.ink3
-                : Colors.transparent,
-            width: 1.5,
-          ),
+    // 選了標籤：符合的日子用標籤的顏色框起來、底色加亮，其他天變淡。
+    final lit = hint != null && _hintMatch(hint, net);
+    final dim = hint != null && !lit;
+    final litColor = hint == 'win'
+        ? _win
+        : hint == 'lose'
+        ? _lose
+        : const Color(0xFFE08F5F);
+    return Opacity(
+      opacity: dim ? 0.25 : 1,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: () => ref.read(_dayProvider.notifier).state = date,
+        child: _cellBody(date, net, c, sel, today, lit, litColor),
+      ),
+    );
+  }
+
+  Widget _cellBody(
+    DateTime date,
+    int? net,
+    Color? c,
+    bool sel,
+    bool today,
+    bool lit,
+    Color litColor,
+  ) {
+    return Container(
+      decoration: BoxDecoration(
+        color: c == null
+            ? Colors.white.withValues(alpha: 0.035)
+            : c.withValues(alpha: lit ? 0.4 : 0.18),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: sel
+              ? const Color(0xFFE08F5F)
+              : lit
+              ? litColor
+              : today
+              ? AppColors.ink3
+              : Colors.transparent,
+          width: lit ? 1.8 : 1.5,
         ),
-        padding: const EdgeInsets.fromLTRB(4, 4, 4, 3),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('${date.day}', style: AppText.note.copyWith(fontSize: 10.5)),
-            const Spacer(),
-            if (net != null)
-              Center(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    net.abs() >= 10000
-                        ? '${net > 0 ? '+' : '−'}${(net.abs() / 1000).toStringAsFixed(0)}k'
-                        : _signed(net).replaceAll('\$', ''),
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      color: c,
-                    ),
+      ),
+      padding: const EdgeInsets.fromLTRB(4, 4, 4, 3),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('${date.day}', style: AppText.note.copyWith(fontSize: 10.5)),
+          const Spacer(),
+          if (net != null)
+            Center(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  net.abs() >= 10000
+                      ? '${net > 0 ? '+' : '−'}${(net.abs() / 1000).toStringAsFixed(0)}k'
+                      : _signed(net).replaceAll('\$', ''),
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: c,
                   ),
                 ),
               ),
-          ],
-        ),
+            ),
+        ],
       ),
     );
   }

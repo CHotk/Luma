@@ -59,6 +59,44 @@ void main() {
     expect(list!.map((e) => e.amount).toSet(), {1200, -500});
     expect(find.text('+\$700'), findsWidgets);
   });
+
+  testWidgets('月曆下面的標籤：點了月曆亮出贏／輸／有記錄的日子，其他天變淡，再點取消', (tester) async {
+    final store = _MemoryStore();
+    final repo = I88Repository(store);
+    final now = DateTime.now();
+    await tester.runAsync(() async {
+      await repo.add(at: DateTime(now.year, now.month, 1, 12), amount: 500);
+      await repo.add(at: DateTime(now.year, now.month, 2, 12), amount: -300);
+      await repo.add(at: DateTime(now.year, now.month, 3, 12), amount: 200);
+    });
+    await pump(tester, store);
+    final days = DateTime(now.year, now.month + 1, 0).day;
+    expect(find.text('贏的日子 2'), findsOneWidget);
+    expect(find.text('輸的日子 1'), findsOneWidget);
+    expect(find.text('有記錄的日子 3'), findsOneWidget);
+    int dimmed() => tester
+        .widgetList<Opacity>(find.byType(Opacity))
+        .where((o) => o.opacity == 0.25)
+        .length;
+    expect(dimmed(), 0);
+    // 贏的日子：2 天亮，其他天變淡。
+    await tester.ensureVisible(find.text('贏的日子 2'));
+    await tester.tap(find.text('贏的日子 2'));
+    await tester.pump();
+    expect(dimmed(), days - 2);
+    // 換成輸的日子：1 天亮。
+    await tester.tap(find.text('輸的日子 1'));
+    await tester.pump();
+    expect(dimmed(), days - 1);
+    await tester.tap(find.text('有記錄的日子 3'));
+    await tester.pump();
+    expect(dimmed(), days - 3);
+    // 再點一次取消。
+    await tester.tap(find.text('有記錄的日子 3'));
+    await tester.pump();
+    expect(dimmed(), 0);
+    expect(tester.takeException(), isNull);
+  });
 }
 
 class _MemoryStore implements KeyValueStore {
