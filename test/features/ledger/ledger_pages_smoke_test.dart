@@ -456,9 +456,8 @@ void main() {
     await pump(tester, const LedgerPage(tab: LedgerTab.list), store);
     expect(find.textContaining('蛋餅加豆漿'), findsOneWidget);
     ProviderScope.containerOf(
-          tester.element(find.byType(LedgerPage)),
-        ).read(ledgerShowNoteProvider.notifier).state =
-        false;
+      tester.element(find.byType(LedgerPage)),
+    ).read(ledgerShowNoteProvider.notifier).state = false;
     await tester.pump();
     expect(find.textContaining('蛋餅加豆漿'), findsNothing);
     expect(find.textContaining('早餐店'), findsOneWidget);
@@ -878,6 +877,33 @@ void main() {
     expect(find.textContaining('要注意'), findsNothing);
     expect(find.textContaining('旗幟'), findsNothing);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('一人一半除不盡：對方給少的那份、我多出一塊（101 → 對方 50、我 51）', (tester) async {
+    final store = await seeded();
+    await pump(tester, const LedgerPage(tab: LedgerTab.home), store);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(FloatingActionButton));
+    await settle(tester);
+    await tester.enterText(find.byType(TextField).at(1), '便當');
+    await tester.enterText(find.byType(TextField).at(2), '101');
+    await tester.pump();
+    final pf = find.text('👥 跟別人一起（對方要給我錢）');
+    await tester.scrollUntilVisible(
+      pf,
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.tap(pf);
+    await tester.pump();
+    expect(find.widgetWithText(ChoiceChip, '一半 \$50'), findsOneWidget);
+    expect(
+      tester
+          .widget<ChoiceChip>(find.widgetWithText(ChoiceChip, '一半 \$50'))
+          .selected,
+      isTrue,
+    );
+    expect(find.widgetWithText(ChoiceChip, '一半 \$51'), findsNothing);
   });
 
   testWidgets('跟別人一起：預設一半時「一半」選項是亮的；改成全部或自己打就跟著變', (tester) async {

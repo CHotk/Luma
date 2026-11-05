@@ -1056,14 +1056,14 @@ class _TxFormState extends State<_TxForm> {
     );
   }
 
-  /// 「幫誰」的快選：直接列之前幫過的人（最近的在前、不重複、最多 5 個）；Cen 幫過一次
+  /// 「幫誰」的快選：直接列之前幫過的人（最近的在前、不重複、最多 3 個）；Cen 幫過一次
   /// 之後自然就會出現，不用固定放（2026-11-04 使用者）。
   List<String> get _pfPeopleOptions {
     final out = <String>[];
     for (final t in book.txs) {
       final p = t.paidFor?.people.trim();
       if (p != null && p.isNotEmpty && !out.contains(p)) out.add(p);
-      if (out.length >= 5) break;
+      if (out.length >= 3) break;
     }
     return out;
   }
@@ -1655,7 +1655,7 @@ class _TxFormState extends State<_TxForm> {
           (v) => setState(() {
             _pf = v;
             if (v && _pfAmount.text.isEmpty && amt > 0) {
-              _pfAmount.text = '${(amt / 2).round()}';
+              _pfAmount.text = '${amt ~/ 2}';
             }
           }),
         ),
@@ -1694,7 +1694,7 @@ class _TxFormState extends State<_TxForm> {
               spacing: 6,
               children: [
                 for (final (label, v) in [
-                  ('一半 ${lMoney((amt / 2).round())}', (amt / 2).round()),
+                  ('一半 ${lMoney(amt ~/ 2)}', amt ~/ 2),
                   ('全部 ${lMoney(amt)}', amt),
                 ])
                   // 目前填的金額剛好等於這個值就亮起來（預設一半時「一半」是選中的）。
