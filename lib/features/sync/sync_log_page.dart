@@ -37,7 +37,7 @@ class _SyncLogPageState extends ConsumerState<SyncLogPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: Gap.sm),
-                const AppTopBar(title: '同步紀錄'),
+                const AppTopBar(title: '同步紀錄', showSync: false),
                 const SizedBox(height: Gap.md),
                 Expanded(
                   child: FutureBuilder(

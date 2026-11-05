@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
+import '../../features/sync/sync_dialog.dart';
 import 'marquee_text.dart';
 import 'open_settings.dart';
 import 'settings_icon.dart';
@@ -30,6 +31,7 @@ class AppTopBar extends StatelessWidget {
     this.showBack = true,
     this.onBack,
     this.showSettings = true,
+    this.showSync = true,
     this.actions = const [],
     this.marqueeTitle = false,
   });
@@ -60,6 +62,10 @@ class AppTopBar extends StatelessWidget {
   /// 設定頁自己不需要再顯示一顆連去設定的齒輪。
   final bool showSettings;
 
+  /// 右上角的雲端同步按鈕（2026-11-04 使用者：每個功能都要有，點了直接跳出
+  /// 多裝置同步的懸浮視窗）。多裝置同步頁自己不用再放一顆。
+  final bool showSync;
+
   /// 頁面自己專屬的按鈕（例如匯出、清空紀錄），排在標題右邊、
   /// 設定齒輪左邊。
   final List<Widget> actions;
@@ -70,6 +76,8 @@ class AppTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 按鈕多的頁面（例如 YT 有四顆）再加上同步、設定會擠不下，間距縮小一點。
+    final gap = actions.length >= 3 ? 2.0 : 6.0;
     return Row(
       children: [
         // 返回鍵、選單三條線大一點（2026-10-15 使用者要求，原本 20）。
@@ -119,11 +127,23 @@ class AppTopBar extends StatelessWidget {
         // 右上角按鈕之間固定留 6 的空隙，全 App 一致（2026-10-08 使用者
         // 回報多裝置同步右上角太擠：雲朵這種比較寬的圖示貼在一起很明顯）。
         for (var i = 0; i < actions.length; i++) ...[
-          if (i > 0) const SizedBox(width: 6),
+          if (i > 0) SizedBox(width: gap),
           actions[i],
         ],
+        if (showSync) ...[
+          if (actions.isNotEmpty) SizedBox(width: gap),
+          IconButton(
+            onPressed: () => showSyncDialog(context),
+            icon: const Icon(Icons.cloud_sync_outlined, size: 22),
+            color: AppColors.ink2,
+            tooltip: '多裝置同步',
+            padding: EdgeInsets.zero,
+            visualDensity: VisualDensity.compact,
+            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+          ),
+        ],
         if (showSettings) ...[
-          if (actions.isNotEmpty) const SizedBox(width: 6),
+          if (actions.isNotEmpty || showSync) SizedBox(width: gap),
           IconButton(
             onPressed: () => openSettings(context),
             icon: const SettingsIcon(size: 20),

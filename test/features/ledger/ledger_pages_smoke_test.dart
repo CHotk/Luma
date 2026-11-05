@@ -422,6 +422,26 @@ void main() {
     expect(find.text('⚠ 中信活存漏記 \$100'), findsOneWidget);
   });
 
+  testWidgets('右上角有雲端同步按鈕，點了跳出多裝置同步的懸浮視窗', (tester) async {
+    final store = await seeded();
+    await pump(tester, const LedgerPage(tab: LedgerTab.home), store);
+    await tester.tap(find.byTooltip('多裝置同步'));
+    await tester.pumpAndSettle();
+    expect(find.byType(Dialog), findsOneWidget);
+    expect(find.text('多裝置同步'), findsOneWidget);
+    await tester.tap(find.byTooltip('關閉'));
+    await tester.pumpAndSettle();
+    expect(find.byType(Dialog), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('首頁本月花費底下有「平均每天花多少」小字', (tester) async {
+    final store = await seeded();
+    await pump(tester, const LedgerPage(tab: LedgerTab.home), store);
+    expect(find.textContaining('平均每天花'), findsOneWidget);
+    expect(find.textContaining('到今天共'), findsOneWidget);
+  });
+
   testWidgets('首頁「幫誰付過」卡片：跟標記旗幟一樣，點開列出幫別人付的紀錄', (tester) async {
     final store = await seeded();
     await pump(tester, const LedgerPage(tab: LedgerTab.home), store);

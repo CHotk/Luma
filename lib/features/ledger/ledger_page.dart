@@ -278,6 +278,20 @@ class LedgerPage extends ConsumerWidget {
               color: left < 0 ? ledgerBad : ledgerAccent,
             ),
           ],
+          // 本月消費平均到「今天為止」每天花多少（2026-11-04 使用者）；過去的月份
+          // 平均整個月，還沒到的月份不顯示。
+          if (isCur ||
+              DateTime(
+                m.year,
+                m.month,
+              ).isBefore(DateTime(now.year, now.month))) ...[
+            const SizedBox(height: 7),
+            Text(
+              '平均每天花 ${lMoney((st.spend / (isCur ? now.day : DateTime(m.year, m.month + 1, 0).day)).round())}'
+              '（${isCur ? '到今天' : '整個月'}共 ${isCur ? now.day : DateTime(m.year, m.month + 1, 0).day} 天）',
+              style: AppText.note.copyWith(color: AppColors.ink2),
+            ),
+          ],
           const SizedBox(height: 7),
           Text(
             '${isCur && left > 0 && bud.total > 0 ? '還有 $daysLeft 天，平均每天可花 ${lMoney(left ~/ daysLeft)}・' : ''}'

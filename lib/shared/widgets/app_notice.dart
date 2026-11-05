@@ -62,6 +62,9 @@ Future<void> showAppNotice(
   return completer.future;
 }
 
+/// 通知左右各縮進去多少，讓出頂列的按鈕。
+const double _noticeSideInset = 64;
+
 class _AppNoticeOverlay extends StatefulWidget {
   const _AppNoticeOverlay({
     required this.message,
@@ -133,10 +136,12 @@ class _AppNoticeOverlayState extends State<_AppNoticeOverlay>
       child: SafeArea(
         bottom: false,
         child: Padding(
+          // 左右各留 64（2026-11-04 使用者）：跳出通知時通常是要繼續操作，太寬會蓋住
+          // 左上的功能選單、右上的雲端同步跟設定；全 App 的通知都是這個樣式。
           padding: const EdgeInsets.fromLTRB(
-            Gap.screenSide,
+            _noticeSideInset,
             10,
-            Gap.screenSide,
+            _noticeSideInset,
             0,
           ),
           child: SlideTransition(
