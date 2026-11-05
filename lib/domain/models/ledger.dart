@@ -222,7 +222,7 @@ class LedgerTx {
   /// 退款、還錢指回原本那筆。
   final String? linkedId;
 
-  /// 標記要注意：單純標註、不影響任何計算。
+  /// 標記旗幟：單純標註、不影響任何計算。
   final bool flagged;
   final PaidFor? paidFor;
 

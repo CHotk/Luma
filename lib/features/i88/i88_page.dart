@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
@@ -7,6 +6,7 @@ import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
 import '../../domain/models/i88.dart';
+import '../../shared/digits_input.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/date_time_wheel.dart';
 import '../../shared/widgets/app_confirm_dialog.dart';
@@ -486,7 +486,7 @@ class I88Page extends ConsumerWidget {
           controller: c,
           autofocus: true,
           keyboardType: TextInputType.number,
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          inputFormatters: [const DigitsInputFormatter()],
           decoration: const InputDecoration(
             prefixText: '\$ ',
             hintText: '例如 30000',
@@ -601,7 +601,7 @@ class _FormState extends State<_Form> {
             controller: _amount,
             autofocus: e == null,
             keyboardType: TextInputType.number,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            inputFormatters: [const DigitsInputFormatter()],
             style: TextStyle(
               fontSize: 26,
               fontWeight: FontWeight.w800,

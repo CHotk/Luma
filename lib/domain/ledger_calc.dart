@@ -271,21 +271,35 @@ class LedgerBook {
     return (predicted: pred, actual: actual, miss: missOf(a, actual, pred));
   }
 
-  /// 附在某筆交易上的對帳點（這筆記下來時帳戶剩多少）；沒填就是 null。
-  LedgerCheckpoint? checkpointOfTx(String txId) =>
-      checkpoints.where((c) => c.txId == txId).firstOrNull;
+  /// 附在某筆交易上的所有對帳點（轉帳可以兩邊帳戶各填一個，2026-11-03 使用者）。
+  List<LedgerCheckpoint> checkpointsOfTx(String txId) =>
+      checkpoints.where((c) => c.txId == txId).toList();
+
+  /// 附在某筆交易上的對帳點（這筆記下來時帳戶剩多少）；沒填就是 null。有兩個時
+  /// 給 [accountId] 指定要哪個帳戶的，不給就是第一個。
+  LedgerCheckpoint? checkpointOfTx(String txId, {String? accountId}) =>
+      checkpoints
+          .where(
+            (c) =>
+                c.txId == txId &&
+                (accountId == null || c.accountId == accountId),
+          )
+          .firstOrNull;
 
   /// 這筆交易記的餘額，跟「上一個有填餘額的點 ＋ 中間記到的交易」推算出來的
   /// 差多少。正的＝少了錢（中間有支出沒記）、負的＝多出錢；0 或這筆沒填餘額、
   /// 或它是這個帳戶第一個餘額（起點）＝null。補上漏記的交易（時間落在兩個
   /// 餘額之間）之後差額歸零，標籤自己消失（2026-11-03 使用者）。
   ({LedgerCheckpoint cp, int miss})? gapOfTx(String txId) {
-    final c = checkpointOfTx(txId);
-    final a = c == null ? null : account(c.accountId);
-    if (c == null || a == null) return null;
-    final d = checkpointDiff(a, c);
-    if (d == null || d.miss == 0) return null;
-    return (cp: c, miss: d.miss);
+    // 轉帳兩邊都填了，任何一邊對不上都算這筆有缺。
+    for (final c in checkpointsOfTx(txId)) {
+      final a = account(c.accountId);
+      if (a == null) continue;
+      final d = checkpointDiff(a, c);
+      if (d == null || d.miss == 0) continue;
+      return (cp: c, miss: d.miss);
+    }
+    return null;
   }
 
   /// 缺的數字剛好對得上哪一筆已經記的交易（2026-11-03 使用者：自動偵測少多少、
@@ -495,7 +509,7 @@ class LedgerBook {
       if (t.toAccountId != null) accountName(t.toAccountId),
       t.paidFor?.people ?? '',
       if (t.paidFor != null) t.paidFor!.settled ? '已給 給了' : '還沒給 要給',
-      if (t.flagged) '要注意 標記 旗',
+      if (t.flagged) '旗幟 標記 旗 要注意',
       amount,
       LedgerBook.describe(t),
       '${d.month}/${d.day}',

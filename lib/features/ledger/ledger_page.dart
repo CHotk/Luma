@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../app/app_bottom_nav.dart';
 import '../../app/theme/colors.dart';
@@ -13,6 +14,7 @@ import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
 import '../../shared/widgets/glass_card.dart';
+import '../../shared/widgets/glass_menu.dart';
 import '../../shared/widgets/inline_empty_card.dart';
 import 'ledger_data.dart';
 import 'ledger_ui.dart';
@@ -332,7 +334,6 @@ class LedgerPage extends ConsumerWidget {
   }
 
   Widget _mini(BuildContext context, WidgetRef ref, LedgerBook book) {
-    final owes = book.owes;
     Widget box(String top, String value, String sub, Color c, VoidCallback f) =>
         Expanded(
           child: GlassCard(
@@ -366,15 +367,7 @@ class LedgerPage extends ConsumerWidget {
     return Row(
       children: [
         box(
-          '🤝 別人還欠你',
-          lMoney(book.oweTotal),
-          '${owes.length} 筆還沒給',
-          ledgerPaidFor,
-          () => oweFlow(context, ref),
-        ),
-        const SizedBox(width: 8),
-        box(
-          '🚩 標記要注意',
+          '🚩 標記旗幟',
           '${book.flagged.length} 筆',
           '點開只看這些',
           AppColors.ink,
@@ -396,6 +389,25 @@ class LedgerPage extends ConsumerWidget {
       _completeness(context, ref, book),
       const SizedBox(height: Gap.md),
       _mini(context, ref, book),
+      // 最近記帳只顯示五筆（2026-11-03 使用者）；要看更多去底部的「明細」。
+      ledgerSection(
+        '最近記帳',
+        action: '全部明細 ›',
+        onAction: () => context.go(LedgerTab.list.path),
+      ),
+      if (book.txs.isEmpty)
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Text('還沒有紀錄，按右下角 ＋ 新增第一筆', style: AppText.bodyDim),
+        )
+      else
+        for (final t in book.txs.take(5))
+          TxTile(
+            book: book,
+            tx: t,
+            showDate: true,
+            onTap: () => txDetailFlow(context, ref, t.id),
+          ),
     ];
   }
 
@@ -431,9 +443,10 @@ class LedgerPage extends ConsumerWidget {
     final st = book.statsWhere(shown.contains);
     final any = f.flagged || f.accountId != null || f.category != null;
     return [
+      // 選月份那一行（左右切換）放在搜尋框上面（2026-11-03 使用者）。
+      if (!wide) _monthBar(ref),
       const _SearchBox(),
       _RangeButton(book: book, searching: searching),
-      if (!wide) _monthBar(ref),
       // 2026 年 11 月以前的資料不準確（只是記錄下來）：看那些月份，或搜尋結果裡有
       // 那些月份的紀錄時，明細上方標註。
       if (wide
@@ -442,73 +455,8 @@ class LedgerPage extends ConsumerWidget {
             )
           : isBeforeAccurate(m.year, m.month))
         const OldDataBanner(),
-      SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
-            ChoiceChip(
-              label: const Text('全部'),
-              selected: !any,
-              showCheckmark: false,
-              onSelected: (_) =>
-                  set((flagged: false, accountId: null, category: null)),
-            ),
-            const SizedBox(width: 6),
-            ChoiceChip(
-              label: Text('🚩 要注意 ${inM.where((t) => t.flagged).length}'),
-              selected: f.flagged,
-              showCheckmark: false,
-              onSelected: (_) => set((
-                flagged: !f.flagged,
-                accountId: f.accountId,
-                category: f.category,
-              )),
-            ),
-            for (final a in book.accounts) ...[
-              const SizedBox(width: 6),
-              ChoiceChip(
-                label: Text('${a.type.emoji} ${a.name}'),
-                selected: f.accountId == a.id,
-                showCheckmark: false,
-                onSelected: (_) => set((
-                  flagged: f.flagged,
-                  accountId: f.accountId == a.id ? null : a.id,
-                  category: f.category,
-                )),
-              ),
-            ],
-          ],
-        ),
-      ),
-      // 分類篩選（2026-11-03 使用者）：只列目前範圍裡有出現的分類。
-      const SizedBox(height: 6),
-      SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
-            for (final c
-                in {for (final t in inM) ...book.categoriesOf(t)}.toList()
-                  ..sort(
-                    (a, b) => ledgerExpenseCats.keys
-                        .toList()
-                        .indexOf(a)
-                        .compareTo(ledgerExpenseCats.keys.toList().indexOf(b)),
-                  )) ...[
-              ChoiceChip(
-                label: Text('${catLook(c).$1} $c'),
-                selected: f.category == c,
-                showCheckmark: false,
-                onSelected: (_) => set((
-                  flagged: f.flagged,
-                  accountId: f.accountId,
-                  category: f.category == c ? null : c,
-                )),
-              ),
-              const SizedBox(width: 6),
-            ],
-          ],
-        ),
-      ),
+      // 全部／注意／帳戶／分類 的篩選收成一個毛玻璃下拉選單（2026-11-03 使用者）。
+      _FilterButton(book: book, inM: inM),
       Padding(
         padding: const EdgeInsets.fromLTRB(4, 8, 4, 0),
         child: Text(
@@ -833,14 +781,8 @@ class LedgerPage extends ConsumerWidget {
         () => importFlow(context, ref),
       ),
       tool(
-        Icons.group_outlined,
-        '別人還欠你',
-        '跟別人一起付的，誰還沒給、按「他給了」',
-        () => oweFlow(context, ref),
-      ),
-      tool(
         Icons.flag_outlined,
-        '標記要注意的',
+        '標記旗幟的',
         '只看被標記的那幾筆',
         () => flagsFlow(context, ref),
       ),
@@ -1221,6 +1163,137 @@ class _RangeButton extends ConsumerWidget {
                 ),
               ],
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 明細的篩選：一顆按鈕，點開是 iOS 風格的毛玻璃下拉選單，裡面分段列出「全部／注意」、
+/// 各個帳戶、目前範圍裡有出現的分類；可以同時選好幾個（例如注意＋現金＋菸酒）。
+class _FilterButton extends ConsumerWidget {
+  const _FilterButton({required this.book, required this.inM});
+
+  final LedgerBook book;
+
+  /// 目前時間範圍裡的交易（只列有出現的分類、算注意幾筆）。
+  final List<LedgerTx> inM;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final f = ref.watch(ledgerFilterProvider);
+    void set(({bool flagged, String? accountId, String? category}) v) =>
+        ref.read(ledgerFilterProvider.notifier).state = v;
+    final cats = {for (final t in inM) ...book.categoriesOf(t)}.toList()
+      ..sort(
+        (a, b) => ledgerExpenseCats.keys
+            .toList()
+            .indexOf(a)
+            .compareTo(ledgerExpenseCats.keys.toList().indexOf(b)),
+      );
+    final accName = f.accountId == null
+        ? null
+        : book.account(f.accountId)?.name;
+    final parts = [
+      if (f.flagged) '注意',
+      ?accName,
+      if (f.category != null) f.category!,
+    ];
+    final any = parts.isNotEmpty;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Builder(
+          builder: (btn) => OutlinedButton.icon(
+            onPressed: () async {
+              final picked = await showGlassMenu<String>(
+                btn,
+                width: 230,
+                maxHeight: MediaQuery.sizeOf(context).height * 0.6,
+                alignLeft: true,
+                selectedValues: {
+                  if (!any) 'all',
+                  if (f.flagged) 'flag',
+                  if (f.accountId != null) 'acct:${f.accountId}',
+                  if (f.category != null) 'cat:${f.category}',
+                },
+                items: [
+                  const GlassMenuItem(
+                    value: 'h:filter',
+                    label: '篩選',
+                    header: true,
+                  ),
+                  const GlassMenuItem(
+                    value: 'all',
+                    label: '全部',
+                    icon: Icons.all_inclusive_rounded,
+                  ),
+                  GlassMenuItem(
+                    value: 'flag',
+                    label: '注意 ${inM.where((t) => t.flagged).length}',
+                    icon: Icons.flag_outlined,
+                  ),
+                  const GlassMenuItem(
+                    value: 'h:acct',
+                    label: '帳戶',
+                    header: true,
+                  ),
+                  for (final a in book.accounts)
+                    GlassMenuItem(
+                      value: 'acct:${a.id}',
+                      label: '${a.type.emoji} ${a.name}',
+                    ),
+                  if (cats.isNotEmpty)
+                    const GlassMenuItem(
+                      value: 'h:cat',
+                      label: '分類',
+                      header: true,
+                    ),
+                  for (final c in cats)
+                    GlassMenuItem(
+                      value: 'cat:$c',
+                      label: '${catLook(c).$1} $c',
+                    ),
+                ],
+              );
+              if (picked == null) return;
+              if (picked == 'all') {
+                set((flagged: false, accountId: null, category: null));
+              } else if (picked == 'flag') {
+                set((
+                  flagged: !f.flagged,
+                  accountId: f.accountId,
+                  category: f.category,
+                ));
+              } else if (picked.startsWith('acct:')) {
+                final id = picked.substring(5);
+                set((
+                  flagged: f.flagged,
+                  accountId: f.accountId == id ? null : id,
+                  category: f.category,
+                ));
+              } else if (picked.startsWith('cat:')) {
+                final c = picked.substring(4);
+                set((
+                  flagged: f.flagged,
+                  accountId: f.accountId,
+                  category: f.category == c ? null : c,
+                ));
+              }
+            },
+            icon: const Icon(Icons.filter_list_rounded, size: 18),
+            label: Text('篩選：${any ? parts.join('・') : '全部'}  ▾'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.ink,
+              side: const BorderSide(color: AppColors.glassEdge),
+              backgroundColor: AppColors.glassFill,
+              visualDensity: VisualDensity.compact,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
           ),
         ),
       ),

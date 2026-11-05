@@ -97,20 +97,31 @@ Future<void> txFormFlow(
   } else {
     await repo.updateTransaction(r.tx);
   }
-  // 這筆之後帳戶剩多少（選填）：附一個對帳點在這筆上；清空就拿掉。
-  final accOf = book.account(r.tx.accountId);
-  if (accOf != null) {
-    // 總額度不用填：抓漏記只比可用額度，總額度會抵掉。
-    final limit = accOf.creditLimit ?? book.stateOf(accOf)?.limit;
+  // 這筆之後帳戶剩多少（選填）：附一個對帳點在這筆上；清空就拿掉。轉帳（含繳卡費）
+  // 兩邊帳戶可以各填一個（2026-11-03 使用者）。
+  final kept = <String>{};
+  Future<void> attach(String? accountId, int? value) async {
+    final acc = book.account(accountId);
+    if (acc == null) return;
+    // 總額度不用填：抓漏記只比可刷餘額，總額度會抵掉。
+    final limit = acc.creditLimit ?? book.stateOf(acc)?.limit;
     await repo.setTxCheckpoint(
       txId: r.tx.id,
-      accountId: accOf.id,
+      accountId: acc.id,
       at: r.tx.occurredAt,
-      value: r.after,
+      value: value,
       creditLimit: limit,
-      isCard: accOf.isCard,
+      isCard: acc.isCard,
     );
+    if (value != null) kept.add(acc.id);
   }
+
+  await attach(r.tx.accountId, r.after);
+  if (r.tx.type == LedgerTxType.transfer) {
+    await attach(r.tx.toAccountId, r.afterTo);
+  }
+  // 編輯時換了帳戶：舊帳戶的餘額點拿掉。
+  if (edit != null) await repo.clearTxCheckpoints(r.tx.id, keep: kept);
   if (r.settleLinked) {
     final o = book.tx(r.tx.linkedId);
     if (o?.paidFor != null) {
@@ -138,7 +149,9 @@ Future<void> txFormFlow(
     return;
   }
   // 填了餘額的話，看這筆跟上一個餘額比有沒有缺（漏記）。
-  final gap = r.after == null ? null : (await _fresh(ref)).gapOfTx(r.tx.id);
+  final gap = r.after == null && r.afterTo == null
+      ? null
+      : (await _fresh(ref)).gapOfTx(r.tx.id);
   // 當天已經有相同金額的其他筆（不看帳戶）：只提醒、不擋下（2026-11-03 使用者）。
   final same = book.sameDayAmount(
     r.tx.occurredAt,
@@ -190,7 +203,7 @@ Future<void> txDetailFlow(
       await repo.updateTransaction(t.copyWith(flagged: !t.flagged));
       _bump(ref);
       if (context.mounted) {
-        showAppNotice(context, t.flagged ? '已取消標記' : '🚩 已標記要注意');
+        showAppNotice(context, t.flagged ? '已取消標記' : '🚩 已標記旗幟');
       }
     case 'edit':
       await txFormFlow(context, ref, edit: t);
@@ -614,35 +627,13 @@ extension on String {
   String? get ifEmptyNull => isEmpty ? null : this;
 }
 
-Future<void> oweFlow(BuildContext context, WidgetRef ref) async {
-  final book = await _fresh(ref);
-  if (!context.mounted) return;
-  final a = await showOweSheet(context, book);
-  if (a == null || !context.mounted) return;
-  switch (a.kind) {
-    case 'open':
-      await txDetailFlow(context, ref, a.id!);
-    case 'repay':
-      await txFormFlow(
-        context,
-        ref,
-        prefill: TxPrefill(type: LedgerTxType.repayment, linkedId: a.id),
-      );
-    case 'settle':
-      final t = book.tx(a.id);
-      if (t != null) await settleFlow(context, ref, t, true);
-    case 'addPaidFor':
-      await txFormFlow(context, ref, prefill: const TxPrefill(paidFor: true));
-  }
-}
-
 Future<void> flagsFlow(BuildContext context, WidgetRef ref) async {
   final book = await _fresh(ref);
   if (!context.mounted) return;
   final a = await showTxListSheet(
     context,
     book,
-    title: '🚩 標記要注意',
+    title: '🚩 標記旗幟',
     txs: book.flagged,
     emptyText: '沒有標記的紀錄',
   );

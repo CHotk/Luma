@@ -46,7 +46,7 @@ void main() {
     expect((await last()).detail, contains('金額：\$120 → \$150'));
     await Future<void>.delayed(const Duration(milliseconds: 2));
     await step(
-      '標記要注意',
+      '標記旗幟',
       () => repo.updateTransaction(t.copyWith(amount: 150, flagged: true)),
     );
     await Future<void>.delayed(const Duration(milliseconds: 2));

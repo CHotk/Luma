@@ -197,6 +197,15 @@ class _AppSideDrawerState extends State<AppSideDrawer> {
                           },
                         ),
                         _NavItem(
+                          icon: Icons.receipt_long_outlined,
+                          label: '記帳',
+                          active: isLedger,
+                          onTap: () {
+                            Navigator.of(context).pop();
+                            if (!isLedger) context.go('/ledger');
+                          },
+                        ),
+                        _NavItem(
                           icon: Icons.fitness_center_rounded,
                           imageAsset: 'assets/images/nav_icons/fitness.png',
                           label: '健身',
@@ -224,15 +233,6 @@ class _AppSideDrawerState extends State<AppSideDrawer> {
                           onTap: () {
                             Navigator.of(context).pop();
                             if (!isDebt) context.go('/debt');
-                          },
-                        ),
-                        _NavItem(
-                          icon: Icons.receipt_long_outlined,
-                          label: '記帳',
-                          active: isLedger,
-                          onTap: () {
-                            Navigator.of(context).pop();
-                            if (!isLedger) context.go('/ledger');
                           },
                         ),
                         _NavItem(

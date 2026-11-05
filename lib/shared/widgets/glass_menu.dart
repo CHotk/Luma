@@ -7,11 +7,19 @@ import '../../app/theme/colors.dart';
 
 /// 毛玻璃下拉選單的一個選項。
 class GlassMenuItem<T> {
-  const GlassMenuItem({required this.value, required this.label, this.icon});
+  const GlassMenuItem({
+    required this.value,
+    required this.label,
+    this.icon,
+    this.header = false,
+  });
 
   final T value;
   final String label;
   final IconData? icon;
+
+  /// true＝只是一行小標題（不能點），用來把選項分段。
+  final bool header;
 }
 
 /// 從某個按鈕下面跳出的毛玻璃小選單（2026-10-15 使用者要求排序選單用
@@ -22,6 +30,15 @@ Future<T?> showGlassMenu<T>(
   required List<GlassMenuItem<T>> items,
   T? selected,
   double width = 200,
+
+  /// 多選時要打勾的那幾個值（單選用 [selected]）。
+  Set<T> selectedValues = const {},
+
+  /// 選項很多時限制選單高度、裡面可以捲動。
+  double? maxHeight,
+
+  /// true＝選單對齊按鈕左邊（預設對齊右邊）。
+  bool alignLeft = false,
 }) {
   final box = anchorContext.findRenderObject()! as RenderBox;
   final anchor = box.localToGlobal(Offset.zero) & box.size;
@@ -35,7 +52,7 @@ Future<T?> showGlassMenu<T>(
         FadeTransition(opacity: animation, child: child),
     pageBuilder: (context, _, _) {
       final screen = MediaQuery.sizeOf(context);
-      final left = (anchor.right - width)
+      final left = ((alignLeft ? anchor.left : anchor.right - width))
           .clamp(8.0, math.max(8.0, screen.width - width - 8))
           .toDouble();
       return Stack(
@@ -58,58 +75,93 @@ Future<T?> showGlassMenu<T>(
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(6),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        for (final item in items)
-                          InkWell(
-                            borderRadius: BorderRadius.circular(10),
-                            onTap: () => Navigator.of(context).pop(item.value),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 10,
-                              ),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(10),
-                                color: item.value == selected
-                                    ? Colors.white.withValues(alpha: 0.1)
-                                    : Colors.transparent,
-                              ),
-                              child: Row(
-                                children: [
-                                  if (item.icon != null) ...[
-                                    Icon(
-                                      item.icon,
-                                      size: 17,
-                                      color: AppColors.ink2,
-                                    ),
-                                    const SizedBox(width: 10),
-                                  ],
-                                  Expanded(
-                                    child: Text(
-                                      item.label,
-                                      style: TextStyle(
-                                        fontSize: 13.5,
-                                        fontWeight: item.value == selected
-                                            ? FontWeight.w700
-                                            : FontWeight.w500,
-                                        color: AppColors.ink,
-                                      ),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxHeight: maxHeight ?? double.infinity,
+                      ),
+                      child: SingleChildScrollView(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            for (final item in items)
+                              if (item.header)
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    10,
+                                    10,
+                                    10,
+                                    4,
+                                  ),
+                                  child: Text(
+                                    item.label,
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.ink3,
                                     ),
                                   ),
-                                  if (item.value == selected)
-                                    const Icon(
-                                      Icons.check_rounded,
-                                      size: 17,
-                                      color: AppColors.accent,
+                                )
+                              else
+                                InkWell(
+                                  borderRadius: BorderRadius.circular(10),
+                                  onTap: () =>
+                                      Navigator.of(context).pop(item.value),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 10,
                                     ),
-                                ],
-                              ),
-                            ),
-                          ),
-                      ],
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(10),
+                                      color:
+                                          (item.value == selected ||
+                                              selectedValues.contains(
+                                                item.value,
+                                              ))
+                                          ? Colors.white.withValues(alpha: 0.1)
+                                          : Colors.transparent,
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        if (item.icon != null) ...[
+                                          Icon(
+                                            item.icon,
+                                            size: 17,
+                                            color: AppColors.ink2,
+                                          ),
+                                          const SizedBox(width: 10),
+                                        ],
+                                        Expanded(
+                                          child: Text(
+                                            item.label,
+                                            style: TextStyle(
+                                              fontSize: 13.5,
+                                              fontWeight:
+                                                  (item.value == selected ||
+                                                      selectedValues.contains(
+                                                        item.value,
+                                                      ))
+                                                  ? FontWeight.w700
+                                                  : FontWeight.w500,
+                                              color: AppColors.ink,
+                                            ),
+                                          ),
+                                        ),
+                                        if (item.value == selected ||
+                                            selectedValues.contains(item.value))
+                                          const Icon(
+                                            Icons.check_rounded,
+                                            size: 17,
+                                            color: AppColors.accent,
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ),

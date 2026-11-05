@@ -108,11 +108,13 @@ void main() {
     }
   }
 
-  Future<void> show(WidgetTester tester, Finder f) => tester.scrollUntilVisible(
-    f,
-    150,
-    scrollable: find.byType(Scrollable).first,
-  );
+  /// 明細篩選是一顆毛玻璃下拉：點開「篩選：」再選一項。
+  Future<void> pickFilter(WidgetTester tester, String label) async {
+    await tester.tap(find.textContaining('篩選：'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(label));
+    await tester.pumpAndSettle();
+  }
 
   Future<void> settle(WidgetTester tester) async {
     for (var i = 0; i < 6; i++) {
@@ -170,13 +172,9 @@ void main() {
     await tester.tap(find.byTooltip('關閉'));
     await settle(tester);
 
-    await show(tester, find.textContaining('別人還欠你').first);
-    await tester.tap(find.textContaining('別人還欠你').first);
-    await settle(tester);
-    expect(find.text('他給了 ✓'), findsOneWidget);
+    // 「別人還欠你」的概念、功能、首頁卡片都拿掉了（使用者）。
+    expect(find.textContaining('別人還欠你'), findsNothing);
     expect(tester.takeException(), isNull);
-    await tester.tap(find.byTooltip('關閉'));
-    await settle(tester);
 
     // 看紀錄走底部的「明細」分頁（首頁不重複放列表）：換到明細再點那一筆。
     await pump(tester, const LedgerPage(tab: LedgerTab.list), store);
@@ -221,18 +219,18 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byType(FloatingActionButton));
     await settle(tester);
-    await tester.enterText(find.byType(TextField).at(1), '120');
+    await tester.enterText(find.byType(TextField).at(2), '120');
     await tester.pump();
     // 商家名稱必填：沒填按鈕按不了。
     expect(
       tester
-          .widget<FilledButton>(find.widgetWithText(FilledButton, '記下來'))
+          .widget<FilledButton>(find.widgetWithText(FilledButton, '新增'))
           .onPressed,
       isNull,
     );
-    await tester.enterText(find.byType(TextField).at(2), '早餐');
+    await tester.enterText(find.byType(TextField).at(1), '早餐');
     await tester.pump();
-    await tester.tap(find.widgetWithText(FilledButton, '記下來'));
+    await tester.tap(find.widgetWithText(FilledButton, '新增'));
     await settle(tester);
     expect(tester.takeException(), isNull);
     final after = await tester.runAsync(
@@ -296,14 +294,14 @@ void main() {
     await settle(tester);
     await tester.tap(find.text('轉帳'));
     await tester.pump();
-    await tester.enterText(find.byType(TextField).at(1), '800');
+    await tester.enterText(find.byType(TextField).at(2), '800');
     await tester.pump();
     await tester.tap(find.text('轉給別人（算支出）'));
     await tester.pump();
     expect(find.text('買什麼（分類）'), findsOneWidget);
-    await tester.enterText(find.byType(TextField).at(2), '小美代買');
+    await tester.enterText(find.byType(TextField).at(1), '小美代買');
     await tester.pump();
-    await tester.tap(find.widgetWithText(FilledButton, '記下來'));
+    await tester.tap(find.widgetWithText(FilledButton, '新增'));
     await settle(tester);
     expect(tester.takeException(), isNull);
     final book = await tester.runAsync(
@@ -362,7 +360,7 @@ void main() {
     );
     await tester.pump();
     expect(find.textContaining('讀懂了'), findsOneWidget);
-    await tester.tap(find.widgetWithText(FilledButton, '記下來'));
+    await tester.tap(find.widgetWithText(FilledButton, '新增'));
     await settle(tester);
     expect(tester.takeException(), isNull);
     final book = await tester.runAsync(
@@ -398,14 +396,18 @@ void main() {
     final store = await seeded();
     await pump(tester, const LedgerPage(tab: LedgerTab.list), store);
     // seeded 只有「餐飲」那一筆支出（鼎泰豐）。
+    // 一顆下拉按鈕，點開才看得到分類；沒有出現的分類（寵物）不列。
+    expect(find.textContaining('篩選：全部'), findsOneWidget);
+    await tester.tap(find.textContaining('篩選：'));
+    await tester.pumpAndSettle();
     expect(find.text('🍜 餐飲'), findsOneWidget);
     expect(find.text('🐾 寵物'), findsNothing);
     await tester.tap(find.text('🍜 餐飲'));
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(find.textContaining('鼎泰豐'), findsWidgets);
     expect(find.textContaining('篩選中'), findsOneWidget);
-    await tester.tap(find.text('全部'));
-    await tester.pump();
+    expect(find.textContaining('篩選：餐飲'), findsOneWidget);
+    await pickFilter(tester, '全部');
     expect(find.textContaining('篩選中'), findsNothing);
     expect(tester.takeException(), isNull);
   });
@@ -437,8 +439,8 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byType(FloatingActionButton));
     await settle(tester);
-    await tester.enterText(find.byType(TextField).at(1), '1000');
-    await tester.enterText(find.byType(TextField).at(2), '聚餐');
+    await tester.enterText(find.byType(TextField).at(2), '1000');
+    await tester.enterText(find.byType(TextField).at(1), '聚餐');
     await tester.pump();
     final pf = find.text('👥 跟別人一起（對方要給我錢）');
     await tester.scrollUntilVisible(
@@ -456,7 +458,7 @@ void main() {
     );
     await tester.tap(done);
     await tester.pump();
-    await tester.tap(find.widgetWithText(FilledButton, '記下來'));
+    await tester.tap(find.widgetWithText(FilledButton, '新增'));
     await settle(tester);
     expect(tester.takeException(), isNull);
     final book = await tester.runAsync(
@@ -474,8 +476,8 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byType(FloatingActionButton));
     await settle(tester);
-    await tester.enterText(find.byType(TextField).at(1), '1000');
-    await tester.enterText(find.byType(TextField).at(2), '家樂福');
+    await tester.enterText(find.byType(TextField).at(2), '1000');
+    await tester.enterText(find.byType(TextField).at(1), '家樂福');
     await tester.pump();
     final split = find.text('拆分（一筆裡有不同分類）');
     await tester.scrollUntilVisible(
@@ -490,16 +492,16 @@ void main() {
     expect(find.textContaining('每一份都要填金額'), findsOneWidget);
     expect(
       tester
-          .widget<FilledButton>(find.widgetWithText(FilledButton, '記下來'))
+          .widget<FilledButton>(find.widgetWithText(FilledButton, '新增'))
           .onPressed,
       isNull,
     );
-    // TextField 順序：貼上(0)、整筆金額(1)、拆分第一份(2)、第二份(3)，商家在分類之後。
-    await tester.enterText(find.byType(TextField).at(2), '500');
+    // TextField 順序：貼上(0)、商家(1)、整筆金額(2)、拆分第一份(3)、第二份(4)。
     await tester.enterText(find.byType(TextField).at(3), '500');
+    await tester.enterText(find.byType(TextField).at(4), '500');
     await tester.pump();
     expect(find.textContaining('剛好拆滿'), findsOneWidget);
-    await tester.tap(find.widgetWithText(FilledButton, '記下來'));
+    await tester.tap(find.widgetWithText(FilledButton, '新增'));
     await settle(tester);
     expect(tester.takeException(), isNull);
     final book = await tester.runAsync(
@@ -550,8 +552,7 @@ void main() {
     expect(find.textContaining('有紀錄的月份'), findsOneWidget);
     await tester.tap(find.textContaining('全部時間（'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('🍺 菸酒'));
-    await tester.pump();
+    await pickFilter(tester, '🍺 菸酒');
     // 三個月加起來 300+500+200 = 1000。
     expect(find.textContaining('3 筆・菸酒 \$1,000'), findsOneWidget);
     expect(find.textContaining('全部時間）'), findsOneWidget);
@@ -614,29 +615,43 @@ void main() {
     expect(find.text('−\$1,000'), findsOneWidget);
     expect(find.text('已拆 2 份'), findsOneWidget);
     // 選分類「餐飲」：只顯示那一份 400，旁邊寫拆分自 1,000。
-    await tester.tap(find.text('🍜 餐飲'));
-    await tester.pump();
+    await pickFilter(tester, '🍜 餐飲');
     expect(find.text('−\$400'), findsOneWidget);
     expect(find.text('拆分自 \$1,000'), findsOneWidget);
     expect(find.text('−\$1,000'), findsNothing);
     expect(find.textContaining('餐飲 \$400'), findsOneWidget); // 上面統計也是 400
     // 換成「生活」：600。
-    await tester.tap(find.text('🍜 餐飲'));
-    await tester.pump();
-    await tester.tap(find.text('🏡 生活'));
-    await tester.pump();
+    await pickFilter(tester, '🍜 餐飲'); // 再點一次＝取消
+    await pickFilter(tester, '🏡 生活');
     expect(find.text('−\$600'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('跟別人一起：按「他給了 ✓」→ 標記就好，就不再列在別人還欠你', (tester) async {
-    final store = await seeded();
-    await pump(tester, const LedgerPage(tab: LedgerTab.home), store);
+  testWidgets('明細：選月份那一行在搜尋框上面；篩選列的旗幟選項叫「注意」', (tester) async {
+    await pump(tester, const LedgerPage(tab: LedgerTab.list), await seeded());
+    final month = tester.getTopLeft(find.byTooltip('上個月')).dy;
+    final search = tester.getTopLeft(find.byIcon(Icons.search_rounded)).dy;
+    expect(month, lessThan(search), reason: '月份列在搜尋框上面');
+    // 篩選是一顆毛玻璃下拉；旗幟那一項叫「注意」。
+    await tester.tap(find.textContaining('篩選：'));
     await tester.pumpAndSettle();
-    await show(tester, find.textContaining('別人還欠你').first);
-    await tester.tap(find.textContaining('別人還欠你').first);
+    expect(find.textContaining('注意 '), findsOneWidget);
+    expect(find.textContaining('要注意'), findsNothing);
+    expect(find.textContaining('旗幟'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('跟別人一起：在那筆按「他給了 ✓」→ 只標記，標籤保留並顯示已給', (tester) async {
+    final store = await seeded();
+    await pump(tester, const LedgerPage(tab: LedgerTab.list), store);
+    expect(find.textContaining('要給 \$1,200'), findsOneWidget);
+    await tester.tap(find.textContaining('鼎泰豐').first);
     await settle(tester);
-    expect(find.text('阿明、小華 要給 \$600'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('他給了 ✓'),
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
     await tester.tap(find.text('他給了 ✓').first);
     await settle(tester);
     await tester.tap(find.text('標記他給了就好'));
@@ -651,6 +666,9 @@ void main() {
       book.txs.where((t) => t.type == LedgerTxType.repayment),
       hasLength(1),
     );
+    // 標籤保留「要給 $金額」，後面多 ✓已給。
+    await pump(tester, const LedgerPage(tab: LedgerTab.list), store);
+    expect(find.textContaining('✓已給'), findsOneWidget);
   });
 }
 

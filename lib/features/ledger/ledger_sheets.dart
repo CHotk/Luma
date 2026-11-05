@@ -4,13 +4,14 @@ import 'package:flutter/services.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
+import '../../shared/digits_input.dart';
 import '../../shared/widgets/date_time_wheel.dart';
 import '../../domain/ledger_calc.dart';
 import '../../domain/models/ledger.dart';
 import 'ledger_ui.dart';
 
 /// 記帳的底部表單：開始記帳（建帳戶）、新增／編輯帳戶、記一筆、
-/// 交易明細、對帳／填餘額、對帳結果、帳戶明細、預算、貼上匯入、別人還欠你（他給了）、
+/// 交易明細、對帳／填餘額、對帳結果、帳戶明細、預算、貼上匯入、他給了、
 /// 交易清單（🚩／分類）。
 ///
 /// 表單本身不碰儲存：回傳使用者填好的東西或按了哪個動作，由
@@ -151,7 +152,7 @@ InputDecoration _input(String hint, {String? prefix, String? suffix}) =>
       ),
     );
 
-final _digits = [FilteringTextInputFormatter.digitsOnly];
+final _digits = <TextInputFormatter>[const DigitsInputFormatter()];
 
 int? _int(TextEditingController c) => int.tryParse(c.text.trim());
 
@@ -295,6 +296,13 @@ Widget _option(
       ),
     ),
   ),
+);
+
+ButtonStyle get _shortcutStyle => OutlinedButton.styleFrom(
+  foregroundColor: ledgerAccent,
+  side: BorderSide(color: ledgerAccent.withValues(alpha: 0.6)),
+  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+  visualDensity: VisualDensity.compact,
 );
 
 ButtonStyle get _outline => OutlinedButton.styleFrom(
@@ -646,7 +654,8 @@ class TxPrefill {
 
 /// 回傳記好的交易、是否順便標記對方給了，跟選填的「這筆之後帳戶剩多少」
 /// （[after]，null＝沒填或清掉）。
-Future<({LedgerTx tx, bool settleLinked, int? after})?> showTxFormSheet(
+Future<({LedgerTx tx, bool settleLinked, int? after, int? afterTo})?>
+showTxFormSheet(
   BuildContext context,
   LedgerBook book, {
   LedgerTx? edit,
@@ -716,6 +725,9 @@ class _TxFormState extends State<_TxForm> {
   /// 這筆之後帳戶剩多少（信用卡是可用額度），選填；有填就附一個對帳點在這筆上。
   late final TextEditingController _after;
 
+  /// 轉帳時入帳那邊帳戶的「這筆之後餘額」（繳卡費＝信用卡的可刷餘額）。
+  late final TextEditingController _afterTo;
+
   String? _linked;
   bool _settle = false;
 
@@ -754,7 +766,15 @@ class _TxFormState extends State<_TxForm> {
       text: e?.paidFor?.amount.toString() ?? '',
     );
     _pfPeople = TextEditingController(text: e?.paidFor?.people ?? '');
-    final oldCp = e == null ? null : book.checkpointOfTx(e.id);
+    final oldCp = e == null
+        ? null
+        : book.checkpointOfTx(e.id, accountId: e.accountId);
+    final oldCpTo = e == null || e.toAccountId == null
+        ? null
+        : book.checkpointOfTx(e.id, accountId: e.toAccountId);
+    _afterTo = TextEditingController(
+      text: (oldCpTo?.available ?? oldCpTo?.balance)?.toString() ?? '',
+    );
     _after = TextEditingController(
       text:
           (oldCp == null
@@ -776,6 +796,7 @@ class _TxFormState extends State<_TxForm> {
       c.dispose();
     }
     _paste.dispose();
+    _fixedName.dispose();
     for (final r in _splitRows) {
       r.amount.dispose();
     }
@@ -911,10 +932,17 @@ class _TxFormState extends State<_TxForm> {
   });
 
   /// 商家名稱必填：支出、收入、轉帳（退款、還錢會自動帶名稱，補記對帳差額也照樣要填）。
+  /// 轉帳到信用卡就只會是繳卡費（2026-11-03 使用者）：名稱自動帶「繳卡費」、不能改。
+  bool get _cardPayment =>
+      _effType == LedgerTxType.transfer && book.account(_to)?.isCard == true;
+
+  final _fixedName = TextEditingController(text: '繳卡費');
+
   bool get _merchantRequired =>
-      _effType == LedgerTxType.expense ||
-      _effType == LedgerTxType.income ||
-      _effType == LedgerTxType.transfer;
+      !_cardPayment &&
+      (_effType == LedgerTxType.expense ||
+          _effType == LedgerTxType.income ||
+          _effType == LedgerTxType.transfer);
 
   String? get _error {
     final amt = _int(_amount) ?? 0;
@@ -958,6 +986,7 @@ class _TxFormState extends State<_TxForm> {
     final ty = _effType;
     final amt = _int(_amount)!;
     var merchant = _merchant.text.trim();
+    if (_cardPayment) merchant = '繳卡費';
     if (merchant.isEmpty && ty == LedgerTxType.refund) {
       final o = book.tx(_linked);
       merchant =
@@ -1027,12 +1056,40 @@ class _TxFormState extends State<_TxForm> {
     );
   }
 
-  /// 選填：這筆記下來之後，帳戶剩多少（信用卡是可用額度）。下一筆也有填的話，
+  /// 選填：這筆記下來之後，帳戶剩多少（信用卡是可刷餘額）。下一筆也有填的話，
   /// App 就能用「上次餘額 − 中間記到的」跟這次比，對不上就是中間漏記
-  /// （2026-11-03 使用者）。
+  /// （2026-11-03 使用者）。轉帳（含繳卡費）可以兩邊帳戶各填一個。
   List<Widget> _afterField(LedgerTx? draft) {
-    final a = book.account(_account);
-    if (a == null) return const [];
+    final from = book.account(_account);
+    if (from == null) return const [];
+    final isTransfer = _effType == LedgerTxType.transfer;
+    final to = isTransfer ? book.account(_to) : null;
+    return [
+      ..._afterBox(
+        draft,
+        from,
+        _after,
+        _afterLabel(from, transfer: isTransfer),
+      ),
+      if (to != null)
+        ..._afterBox(draft, to, _afterTo, _afterLabel(to, transfer: true)),
+    ];
+  }
+
+  /// 餘額欄位的標題（2026-11-03 使用者）：戶頭＝戶頭餘額、現金＝皮包餘額、
+  /// 信用卡＝可刷餘額（轉帳）／刷完後可刷額（刷卡）。
+  String _afterLabel(LedgerAccount a, {required bool transfer}) => a.isCard
+      ? (transfer ? '這筆之後可刷餘額' : '這筆刷完後可刷額')
+      : a.type == LedgerAccountType.cash
+      ? '這筆之後皮包餘額'
+      : '這筆之後戶頭餘額';
+
+  List<Widget> _afterBox(
+    LedgerTx? draft,
+    LedgerAccount a,
+    TextEditingController ctrl,
+    String label,
+  ) {
     final s = book.stateOf(a);
     final card = a.isCard;
     // 照目前記到的推算「這筆之後應該剩多少」當提示（編輯舊的不推算）。
@@ -1041,18 +1098,11 @@ class _TxFormState extends State<_TxForm> {
       final occupied = s.now + LedgerBook.delta(draft, a);
       guess = card ? s.limit - occupied : occupied;
     }
-    final got = _int(_after);
+    final got = _int(ctrl);
     return [
-      _label(
-        card
-            ? '這筆刷完後可刷額'
-            : a.type == LedgerAccountType.cash
-            ? '這筆之後皮包餘額'
-            : '這筆之後的餘額',
-        trailing: '選填・用來抓漏記',
-      ),
+      _label(label, trailing: '選填・用來抓漏記'),
       TextField(
-        controller: _after,
+        controller: ctrl,
         keyboardType: TextInputType.number,
         inputFormatters: _digits,
         decoration: _input('', prefix: '\$'),
@@ -1067,7 +1117,7 @@ class _TxFormState extends State<_TxForm> {
                 ? '✓ 跟 App 推算的一樣'
                 : '⚠ App 推算是 ${lMoney(guess)}，差 ${lMoney((guess - got).abs())}'
                       '${card ? (got < guess ? '（可能有刷卡沒記）' : '') : (got < guess ? '（可能有支出沒記）' : '')}'
-                      '，記下來後這筆會掛「漏記」標籤，補上就消失',
+                      '，新增後這筆會掛「漏記」標籤，補上就消失',
             style: AppText.note.copyWith(
               fontSize: 11,
               color: got == null || got == guess
@@ -1201,6 +1251,30 @@ class _TxFormState extends State<_TxForm> {
         label: Text('${lYmd(_at)} ${lHm(_at)}'),
         style: _outline,
       ),
+      // 商家名稱在金額上面（2026-11-03 使用者）：先時間、再商家、再金額。
+      if (t != LedgerTxType.adjustment) ...[
+        _label(
+          t == LedgerTxType.income
+              ? '來源'
+              : t == LedgerTxType.transfer
+              ? (_toOther ? '轉給誰／買什麼' : '名稱')
+              : '商家／名稱',
+          trailing: _cardPayment
+              ? '自動帶入'
+              : _merchantRequired
+              ? '必填'
+              : '選填',
+        ),
+        // 商家名稱不放提示字（2026-11-03 使用者），記支出、收入、轉帳一定要填。
+        if (_cardPayment)
+          TextField(
+            controller: _fixedName,
+            enabled: false,
+            decoration: _input(''),
+          )
+        else
+          TextField(controller: _merchant, decoration: _input('')),
+      ],
       _label('金額'),
       TextField(
         controller: _amount,
@@ -1253,6 +1327,40 @@ class _TxFormState extends State<_TxForm> {
               if (!ledgerExpenseCats.containsKey(_category)) _category = '購物';
             }),
           ),
+          const SizedBox(height: 10),
+          // 快捷只是「幫你填好下面的欄位」，不是要選的選項，所以不用選項的膠囊樣子
+          // （2026-11-03 使用者）：閃電圖示的按鈕＋一行說明。
+          Text('快捷：點一下幫你填好帳戶跟名稱', style: AppText.note),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: [
+              if (_firstOf(LedgerAccountType.bank) case final bank?)
+                if (_firstOf(LedgerAccountType.cash) case final cash?)
+                  OutlinedButton.icon(
+                    onPressed: () => setState(() {
+                      _account = bank.id;
+                      _to = cash.id;
+                      if (_merchant.text.isEmpty) _merchant.text = 'ATM提款';
+                    }),
+                    icon: const Icon(Icons.bolt_rounded, size: 18),
+                    label: const Text('ATM 提款'),
+                    style: _shortcutStyle,
+                  ),
+              if (_firstOf(LedgerAccountType.bank) case final bank?)
+                if (_firstOf(LedgerAccountType.creditCard) case final card?)
+                  OutlinedButton.icon(
+                    onPressed: () => setState(() {
+                      _account = bank.id;
+                      _to = card.id;
+                    }),
+                    icon: const Icon(Icons.bolt_rounded, size: 18),
+                    label: const Text('繳卡費'),
+                    style: _shortcutStyle,
+                  ),
+            ],
+          ),
           _label('從哪個帳戶'),
           _accountChips(
             book,
@@ -1270,37 +1378,16 @@ class _TxFormState extends State<_TxForm> {
             (v) => setState(() => _to = v),
             disabled: _account,
           ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 6,
-            children: [
-              if (_firstOf(LedgerAccountType.bank) case final bank?)
-                if (_firstOf(LedgerAccountType.cash) case final cash?)
-                  ActionChip(
-                    label: const Text('🏧 ATM 提款'),
-                    onPressed: () => setState(() {
-                      _account = bank.id;
-                      _to = cash.id;
-                      if (_merchant.text.isEmpty) _merchant.text = 'ATM提款';
-                    }),
-                  ),
-              if (_firstOf(LedgerAccountType.bank) case final bank?)
-                if (_firstOf(LedgerAccountType.creditCard) case final card?)
-                  ActionChip(
-                    label: const Text('💳 繳卡費'),
-                    onPressed: () => setState(() {
-                      _account = bank.id;
-                      _to = card.id;
-                      if (_merchant.text.isEmpty) _merchant.text = '繳卡費';
-                    }),
-                  ),
-            ],
+          // 轉到信用卡＝繳卡費：只寫這一句（2026-11-03 使用者）。
+          _note(
+            book.account(_to)?.isCard == true
+                ? [const TextSpan(text: '繳卡費不會列入支出，刷卡那時已算過一次。')]
+                : [
+                    const TextSpan(text: '轉帳只是把錢換個地方放，'),
+                    _b('不算支出'),
+                    const TextSpan(text: '。'),
+                  ],
           ),
-          _note([
-            const TextSpan(text: '轉帳只是把錢換個地方放，'),
-            _b('不算支出'),
-            const TextSpan(text: '。繳卡費也是：刷卡那時已經算過一次了，再算會重複。'),
-          ]),
         ]);
       case LedgerTxType.refund:
         final list = book.refundable;
@@ -1392,7 +1479,7 @@ class _TxFormState extends State<_TxForm> {
                   if (e == null)
                     _toggle(
                       '這次還完就標記已還清',
-                      '打開的話「別人還欠你」就不再算這筆',
+                      '打開就標記這筆對方已經給了',
                       _settle,
                       (v) => setState(() => _settle = v),
                     ),
@@ -1528,20 +1615,6 @@ class _TxFormState extends State<_TxForm> {
         ]);
     }
 
-    if (t != LedgerTxType.adjustment) {
-      children.addAll([
-        _label(
-          t == LedgerTxType.income
-              ? '來源'
-              : t == LedgerTxType.transfer
-              ? (_toOther ? '轉給誰／買什麼' : '名稱')
-              : '商家／名稱',
-          trailing: _merchantRequired ? '必填' : '選填',
-        ),
-        // 商家名稱不放提示字（2026-11-03 使用者），記支出、收入、轉帳一定要填。
-        TextField(controller: _merchant, decoration: _input('')),
-      ]);
-    }
     children.addAll([
       ..._afterField(err == null ? _build() : null),
       _label('備註', trailing: '選填・最多 100 字'),
@@ -1551,8 +1624,8 @@ class _TxFormState extends State<_TxForm> {
         decoration: _input(''),
       ),
       _toggle(
-        '🚩 標記要注意',
-        '單純標註，不影響任何計算；列表上會有小旗子',
+        '🚩 標記旗幟',
+        '純註記 不影響任何計算',
         _flagged,
         (v) => setState(() => _flagged = v),
       ),
@@ -1603,7 +1676,7 @@ class _TxFormState extends State<_TxForm> {
           // 記的當下就能勾「對方已經給我了」（2026-11-03 使用者），不用再進去補。
           _toggle(
             '✓ 對方已經給我了',
-            '打開就不會列在「別人還欠你」，標籤會顯示已給',
+            '標籤會顯示已給',
             _pfSettled,
             (v) => setState(() => _pfSettled = v),
           ),
@@ -1612,11 +1685,7 @@ class _TxFormState extends State<_TxForm> {
                 ? [
                     const TextSpan(text: '本月消費只算你自己的 '),
                     _b(lMoney(amt - pfAmt)),
-                    TextSpan(
-                      text:
-                          '；對方要給的 ${lMoney(pfAmt)} 會列在「別人還欠你」，'
-                          '他給了按「他給了 ✓」就好。',
-                    ),
+                    const TextSpan(text: '；對方給了之後，在這筆按「他給了 ✓」就好。'),
                   ]
                 : [const TextSpan(text: '本月消費只算你自己的那份；他給了之後按「他給了 ✓」就好。')],
             color: ledgerPaidFor,
@@ -1645,12 +1714,15 @@ class _TxFormState extends State<_TxForm> {
               ),
             ),
           _filled(
-            e == null ? '記下來' : '儲存',
+            e == null ? '新增' : '儲存',
             err == null
                 ? () => Navigator.pop(context, (
                     tx: _build(),
                     settleLinked: _type == LedgerTxType.repayment && _settle,
                     after: _int(_after),
+                    afterTo: _effType == LedgerTxType.transfer
+                        ? _int(_afterTo)
+                        : null,
                   ))
                 : null,
           ),
@@ -1693,7 +1765,12 @@ class _TxDetail extends StatelessWidget {
             ? '算進本月消費 ${lMoney(t.ownSpend)}，照拆分分到各分類'
             : '算進本月消費 ${lMoney(t.ownSpend)}（${t.category}）',
       LedgerTxType.income => '算進本月收入',
-      LedgerTxType.transfer => '不算支出，只是換個地方放',
+      LedgerTxType.transfer =>
+        book.account(t.toAccountId)?.type == LedgerAccountType.cash
+            ? '不算支出，只是從數位轉移至實體現金'
+            : book.account(t.toAccountId)?.isCard == true
+            ? '繳卡費不會列入支出，刷卡那時已算過一次。'
+            : '不算支出，只是換個帳戶放',
       LedgerTxType.refund =>
         '從「${book.tx(t.linkedId)?.category ?? ledgerUncategorized}」扣回 ${lMoney(t.amount)}',
       LedgerTxType.repayment => '不算收入（你的錢回來）',
@@ -1776,7 +1853,7 @@ class _TxDetail extends StatelessWidget {
           spacing: 6,
           children: [
             LedgerPill(t.type.label, color: ledgerAccent),
-            if (t.flagged) const LedgerPill('🚩 要注意', color: ledgerBad),
+            if (t.flagged) const LedgerPill('🚩 旗幟', color: ledgerBad),
           ],
         ),
         _box([
@@ -1799,11 +1876,11 @@ class _TxDetail extends StatelessWidget {
           _kv('名稱', t.merchant.isEmpty ? '—' : t.merchant),
           if (t.note.isNotEmpty) _kv('備註', t.note),
           _kv('帳戶變化', effects.isEmpty ? '—' : effects),
-          _kv('怎麼算', counts),
+          _kv('支出算法', counts),
           _kv('來源', switch (t.source) {
             'paste' => '貼上匯入',
             'adjust' => '對帳產生',
-            _ => '手動記',
+            _ => '手動計帳',
           }),
           if (t.raw != null)
             Padding(
@@ -2879,134 +2956,6 @@ class _ImportState extends State<_Import> {
   }
 }
 
-// ── 別人還欠你 ───────────────────────────────────────────
-
-/// 動作：settle（他給了）／open（交易 id）／addPaidFor。
-Future<LAction?> showOweSheet(BuildContext context, LedgerBook book) =>
-    _sheet(context, _Owe(book: book));
-
-class _Owe extends StatelessWidget {
-  const _Owe({required this.book});
-
-  final LedgerBook book;
-
-  @override
-  Widget build(BuildContext context) {
-    final owes = book.owes;
-    final done = book.txs
-        .where(
-          (t) =>
-              t.paidFor != null &&
-              (t.paidFor!.settled || book.repaidOf(t.id) >= t.paidFor!.amount),
-        )
-        .take(20)
-        .toList();
-    void pop(String k, [String? id]) => Navigator.pop(context, LAction(k, id));
-    return _Frame(
-      title: '別人還欠你',
-      footer: OutlinedButton(
-        onPressed: () => pop('addPaidFor'),
-        style: _outline,
-        child: const Text('＋ 記一筆跟別人一起的支出'),
-      ),
-      children: [
-        Center(child: Text('還沒給你的', style: AppText.note)),
-        Text(
-          lMoney(book.oweTotal),
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            fontSize: 30,
-            fontWeight: FontWeight.w800,
-            color: ledgerPaidFor,
-            fontFeatures: lTabular,
-          ),
-        ),
-        Center(
-          child: Text(
-            '${owes.length} 筆',
-            style: AppText.note.copyWith(color: AppColors.ink3),
-          ),
-        ),
-        const SizedBox(height: 12),
-        if (owes.isEmpty)
-          Center(child: Text('沒有人欠你錢 🎉', style: AppText.bodyDim)),
-        for (final o in owes)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Material(
-              color: ledgerTileBg,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-                side: const BorderSide(color: Color(0xFF2A2A3D)),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                onTap: () => pop('open', o.tx.id),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '${o.tx.paidFor!.people} 要給 ${lMoney(o.left)}',
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.ink,
-                              ),
-                            ),
-                            Text(
-                              '${lMd(o.tx.occurredAt)}・'
-                              '${o.tx.merchant.isEmpty ? o.tx.category ?? '' : o.tx.merchant}'
-                              '・整筆 ${lMoney(o.tx.amount)}',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: AppText.note.copyWith(
-                                color: AppColors.ink3,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      FilledButton(
-                        onPressed: () => pop('settle', o.tx.id),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: ledgerAccent,
-                          foregroundColor: const Color(0xFF08130E),
-                          visualDensity: VisualDensity.compact,
-                        ),
-                        child: const Text('他給了 ✓'),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        if (done.isNotEmpty) ...[
-          ledgerSection('給過了'),
-          for (final t in done)
-            TxTile(
-              book: book,
-              tx: t,
-              showDate: true,
-              onTap: () => pop('open', t.id),
-            ),
-        ],
-        _note([
-          const TextSpan(text: '記支出時打開「👥 跟別人一起」，填誰、對方要給多少。'),
-          _b('本月消費只算你自己的那份'),
-          const TextSpan(text: '；他給了按「他給了 ✓」。'),
-        ]),
-      ],
-    );
-  }
-}
-
 /// 「他給了」：只標記就好，或順便記錢進了哪個戶頭（要對帳的話選戶頭，
 /// 那個戶頭的餘額才算得對）。回傳 `mark` 或 `deposit`（id＝帳戶）。
 Future<LAction?> showSettleSheet(
@@ -3032,7 +2981,7 @@ class _Settle extends StatelessWidget {
           context,
           '✓',
           '標記他給了就好',
-          '最常用。不管錢怎麼給的（現金、轉帳），這筆就不再列在「別人還欠你」',
+          '最常用。不管錢怎麼給的（現金、轉帳），這筆就標成對方已經給了',
           () => pop('mark'),
         ),
         const SizedBox(height: 4),

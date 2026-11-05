@@ -251,7 +251,7 @@ class LedgerRepository {
     final diff = logDiffTx(old, t, name);
     if (diff.isEmpty) return;
     // 只動標記、或只動「他給了」的，用比較白話的動作名稱。
-    final onlyFlag = diff.length == 1 && diff.first.startsWith('標記要注意');
+    final onlyFlag = diff.length == 1 && diff.first.startsWith('標記旗幟');
     final onlySettle =
         diff.length == 1 &&
         diff.first.startsWith('跟別人一起') &&
@@ -260,7 +260,7 @@ class LedgerRepository {
         old.paidFor!.settled != t.paidFor!.settled;
     await _log(
       onlyFlag
-          ? (t.flagged ? '標記要注意' : '取消標記')
+          ? (t.flagged ? '標記旗幟' : '取消標記')
           : onlySettle
           ? (t.paidFor!.settled ? '他給了' : '改回還沒給')
           : '編輯',
@@ -279,16 +279,30 @@ class LedgerRepository {
         t.id == id ? t.copyWith(updatedAt: now, deletedAt: now) : t,
     ], (e) => e.toJson());
     // 附在這筆上的餘額也一起刪（不然會留下一個沒有交易的對帳點）。
-    await setTxCheckpoint(
-      txId: id,
-      accountId: '',
-      at: now,
-      value: null,
-      creditLimit: null,
-    );
+    await clearTxCheckpoints(id);
     if (old != null) {
       await _log('刪除', logTx(old, await _acctName()), refId: id);
     }
+  }
+
+  /// 清掉附在某筆交易上的餘額點；[keep] 裡的帳戶留著（改帳戶後清掉舊帳戶的）。
+  Future<void> clearTxCheckpoints(
+    String txId, {
+    Set<String> keep = const {},
+  }) async {
+    final now = DateTime.now();
+    final all = await checkpointsForUpload();
+    var changed = false;
+    for (var i = 0; i < all.length; i++) {
+      final c = all[i];
+      if (c.txId != txId || c.deletedAt != null || keep.contains(c.accountId)) {
+        continue;
+      }
+      all[i] = c.copyWith(updatedAt: now, deletedAt: now);
+      changed = true;
+      await _log('清掉餘額', '附在交易上的餘額 ${c.available ?? c.balance}', refId: txId);
+    }
+    if (changed) await _save(_cpKey, all, (e) => e.toJson());
   }
 
   /// 設定／更新／清掉「這筆交易之後帳戶剩多少」（附在交易上的對帳點）。
@@ -304,7 +318,10 @@ class LedgerRepository {
   }) async {
     final now = DateTime.now();
     final all = await checkpointsForUpload();
-    final i = all.indexWhere((c) => c.txId == txId && c.deletedAt == null);
+    // 同一筆交易每個帳戶最多一個餘額點（轉帳兩邊帳戶各一個）。
+    final i = all.indexWhere(
+      (c) => c.txId == txId && c.accountId == accountId && c.deletedAt == null,
+    );
     final oldVal = i < 0 ? null : (all[i].available ?? all[i].balance);
     if (value == null) {
       if (i >= 0) {
