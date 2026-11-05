@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -73,12 +74,37 @@ class LedgerPage extends ConsumerWidget {
           ? null
           : Padding(
               padding: EdgeInsets.only(bottom: inset),
-              child: FloatingActionButton(
-                onPressed: () => txFormFlow(context, ref),
-                tooltip: '記一筆',
-                backgroundColor: ledgerAccent,
-                foregroundColor: const Color(0xFF08130E),
-                child: const Icon(Icons.add_rounded),
+              // 毛玻璃（模糊＋半透明＋細亮邊），但底色壓深：背後有每筆記帳卡片，
+              // 淺色玻璃會太花（2026-11-05 使用者）。
+              child: ClipOval(
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: const LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [Color(0xCC16241E), Color(0xE60A110E)],
+                      ),
+                      border: Border.all(
+                        color: ledgerAccent.withValues(alpha: 0.45),
+                      ),
+                    ),
+                    child: FloatingActionButton(
+                      onPressed: () => txFormFlow(context, ref),
+                      tooltip: '記一筆',
+                      backgroundColor: Colors.transparent,
+                      foregroundColor: ledgerAccent,
+                      elevation: 0,
+                      focusElevation: 0,
+                      hoverElevation: 0,
+                      highlightElevation: 0,
+                      shape: const CircleBorder(),
+                      child: const Icon(Icons.add_rounded, size: 28),
+                    ),
+                  ),
+                ),
               ),
             ),
       body: AmbientBackground(
@@ -466,7 +492,10 @@ class LedgerPage extends ConsumerWidget {
     final any = f.flagged || f.accountId != null || f.category != null;
     return [
       // 選月份那一行（左右切換）放在搜尋框上面（2026-11-03 使用者）。
-      if (!wide) _monthBar(ref),
+      // 打字後 wide 變 true，月份列會消失：用空位頂著，搜尋框的位置才不會跟著往前
+      // 移（位置一變，搜尋框會被重建、輸入的焦點就掉了；2026-11-05 使用者回報
+      // 「打一個字就失去焦點」）。
+      if (!wide) _monthBar(ref) else const SizedBox.shrink(),
       const _SearchBox(),
       // 查看時間在左、篩選在右，同一行（2026-11-04 使用者）；篩選是毛玻璃下拉選單。
       Row(

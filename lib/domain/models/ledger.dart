@@ -141,17 +141,44 @@ enum LedgerTxType {
 /// 自己的（整筆 − [amount]）。
 /// 一筆消費拆成多個分類時的其中一份（2026-11-03 使用者：1000 元家樂福，500 生活用品＋
 /// 500 餐飲，就不是 1000 購物，方便產報表）。所有份加起來一定要剛好等於整筆金額。
+///
+/// 2026-11-05 使用者：拆的每一份也能寫品項名稱、標這份是不是幫人付的、對方給了沒。
+/// 整筆的 [PaidFor]（金額＝幫人付那幾份加起來）仍然存在，舊的程式讀得到。
 class LedgerSplit {
-  const LedgerSplit({required this.category, required this.amount});
+  const LedgerSplit({
+    required this.category,
+    required this.amount,
+    this.name = '',
+    this.forOther = false,
+    this.settled = false,
+  });
 
   final String category;
   final int amount;
 
-  Map<String, dynamic> toJson() => {'category': category, 'amount': amount};
+  /// 品項名稱（選填）。
+  final String name;
+
+  /// 這一份是幫別人付的（不算進自己的消費）。
+  final bool forOther;
+
+  /// 幫人付的這一份，對方給了沒。
+  final bool settled;
+
+  Map<String, dynamic> toJson() => {
+    'category': category,
+    'amount': amount,
+    if (name.isNotEmpty) 'name': name,
+    if (forOther) 'forOther': true,
+    if (forOther && settled) 'settled': true,
+  };
 
   factory LedgerSplit.fromJson(Map<String, dynamic> j) => LedgerSplit(
     category: j['category'] as String? ?? '未分類',
     amount: (j['amount'] as num).toInt(),
+    name: j['name'] as String? ?? '',
+    forOther: j['forOther'] as bool? ?? false,
+    settled: j['settled'] as bool? ?? false,
   );
 }
 
@@ -230,6 +257,26 @@ class LedgerTx {
   /// [category] 這時放金額最大的那份當代表。
   final List<LedgerSplit> splits;
   bool get isSplit => splits.length >= 2;
+
+  /// 拆分裡有標「幫人付」的那幾份。
+  bool get splitHasOther => isSplit && splits.any((s) => s.forOther);
+
+  /// 把「他給了／改回還沒給」同步到整筆跟每一份幫人付的（外面標已給時用）。
+  LedgerTx withSettled(bool settled) => copyWith(
+    paidFor: () => paidFor?.copyWith(settled: settled),
+    splits: [
+      for (final s in splits)
+        s.forOther
+            ? LedgerSplit(
+                category: s.category,
+                amount: s.amount,
+                name: s.name,
+                forOther: true,
+                settled: settled,
+              )
+            : s,
+    ],
+  );
 
   /// `manual` 手動／`paste` 貼上匯入／`adjust` 對帳產生。
   final String source;

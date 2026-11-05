@@ -125,9 +125,7 @@ Future<void> txFormFlow(
   if (r.settleLinked) {
     final o = book.tx(r.tx.linkedId);
     if (o?.paidFor != null) {
-      await repo.updateTransaction(
-        o!.copyWith(paidFor: () => o.paidFor!.copyWith(settled: true)),
-      );
+      await repo.updateTransaction(o!.withSettled(true));
     }
   }
   _bump(ref);
@@ -320,9 +318,7 @@ Future<void> settleFlow(
       );
     }
   }
-  await repo.updateTransaction(
-    t.copyWith(paidFor: () => pf.copyWith(settled: settled)),
-  );
+  await repo.updateTransaction(t.withSettled(settled));
   _bump(ref);
   if (context.mounted) {
     showAppNotice(

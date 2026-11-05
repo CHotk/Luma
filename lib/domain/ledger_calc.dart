@@ -374,6 +374,14 @@ class LedgerBook {
     final base = t.category ?? ledgerUncategorized;
     if (!t.isSplit || t.amount <= 0) return {base: value};
     final out = <String, int>{};
+    // 有標「幫人付」的份：自己的消費就是沒標的那幾份，直接照各自分類算，不用比例。
+    if (t.splitHasOther && value == t.ownSpend) {
+      for (final s in t.splits) {
+        if (s.forOther) continue;
+        out[s.category] = (out[s.category] ?? 0) + s.amount;
+      }
+      return out;
+    }
     var left = value;
     for (var i = 0; i < t.splits.length; i++) {
       final s = t.splits[i];
@@ -517,7 +525,7 @@ class LedgerBook {
       t.merchant,
       t.note,
       t.category ?? '',
-      for (final s in t.splits) s.category,
+      for (final s in t.splits) ...[s.category, s.name],
       t.type.label,
       accountName(t.accountId),
       if (t.toAccountId != null) accountName(t.toAccountId),

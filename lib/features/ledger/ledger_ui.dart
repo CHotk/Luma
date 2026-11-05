@@ -185,7 +185,7 @@ class TxTile extends ConsumerWidget {
       if (t.category != null && t.type != LedgerTxType.adjustment) {
         sub.write(
           t.isSplit
-              ? '・拆分 ${t.splits.map((s) => '${s.category}${lInt(s.amount)}').join('、')}'
+              ? '・拆分 ${t.splits.map((s) => '${s.name.isNotEmpty ? '${s.name}（${s.category}）' : s.category}${lInt(s.amount)}${s.forOther ? '👥' : ''}').join('、')}'
               : '・${t.category}',
         );
       }

@@ -134,7 +134,7 @@ class AppTopBar extends StatelessWidget {
           if (actions.isNotEmpty) SizedBox(width: gap),
           IconButton(
             onPressed: () => showSyncDialog(context),
-            icon: const Icon(Icons.cloud_sync_outlined, size: 22),
+            icon: const Icon(Icons.cloud_outlined, size: 22),
             color: AppColors.ink2,
             tooltip: '多裝置同步',
             padding: EdgeInsets.zero,

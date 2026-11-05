@@ -612,6 +612,25 @@ void main() {
     expect(book.accountName(t.accountId), '現金');
   });
 
+  testWidgets('明細搜尋框：打一個字之後還在輸入（月份列消失不能害搜尋框被重建、掉焦點）', (tester) async {
+    final store = await seeded();
+    await pump(tester, const LedgerPage(tab: LedgerTab.list), store);
+    await tester.tap(find.byType(TextField).first);
+    await tester.pump();
+    bool focused() => tester
+        .widget<EditableText>(find.byType(EditableText).first)
+        .focusNode
+        .hasFocus;
+    expect(focused(), isTrue);
+    await tester.enterText(find.byType(TextField).first, '鼎');
+    await tester.pump();
+    expect(find.textContaining('搜尋「鼎」'), findsOneWidget);
+    expect(focused(), isTrue, reason: '打第一個字後搜尋框不能失去焦點');
+    await tester.enterText(find.byType(TextField).first, '鼎泰');
+    await tester.pump();
+    expect(focused(), isTrue);
+  });
+
   testWidgets('明細頂部搜尋：輸入後每個欄位都搜（不管月份），清除就回來', (tester) async {
     final store = await seeded();
     await pump(tester, const LedgerPage(tab: LedgerTab.list), store);
@@ -734,9 +753,10 @@ void main() {
           .onPressed,
       isNull,
     );
-    // TextField 順序：貼上(0)、商家(1)、整筆金額(2)、拆分第一份(3)、第二份(4)。
+    // TextField 順序：貼上(0)、商家(1)、整筆金額(2)、第一份金額(3)、第一份品項名稱(4)、
+    // 第二份金額(5)、第二份品項名稱(6)。
     await tester.enterText(find.byType(TextField).at(3), '500');
-    await tester.enterText(find.byType(TextField).at(4), '500');
+    await tester.enterText(find.byType(TextField).at(5), '500');
     await tester.pump();
     expect(find.textContaining('剛好拆滿'), findsOneWidget);
     await tester.tap(find.widgetWithText(FilledButton, '新增'));
@@ -754,6 +774,68 @@ void main() {
     expect(st.spend, 1000);
     expect(st.byCategory.values.fold(0, (a, c) => a + c), 1000);
     expect(now.year, greaterThan(2000));
+  });
+
+  testWidgets('拆分：每一份可寫品項名稱、標幫人付、已給；自己的消費只算沒幫人付的那份', (tester) async {
+    final store = await seeded();
+    await pump(tester, const LedgerPage(tab: LedgerTab.home), store);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(FloatingActionButton));
+    await settle(tester);
+    await tester.enterText(find.byType(TextField).at(2), '1000');
+    await tester.enterText(find.byType(TextField).at(1), '全聯');
+    await tester.pump();
+    final split = find.text('拆分（一筆裡有不同分類）');
+    await tester.scrollUntilVisible(
+      split,
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.tap(split);
+    await tester.pump();
+    await tester.enterText(find.byType(TextField).at(3), '600');
+    await tester.enterText(find.byType(TextField).at(4), '麵包');
+    await tester.enterText(find.byType(TextField).at(5), '400');
+    await tester.enterText(find.byType(TextField).at(6), '幫忙買的飲料');
+    await tester.pump();
+    // 還沒標幫人付：沒有幫誰欄位。
+    expect(find.text('幫誰'), findsNothing);
+    final chip = find.widgetWithText(FilterChip, '👥 幫人付').last;
+    await tester.ensureVisible(chip);
+    await tester.tap(chip);
+    await tester.pump();
+    expect(find.text('幫誰'), findsOneWidget);
+    expect(find.widgetWithText(FilterChip, '✓ 已給'), findsOneWidget);
+    await tester.ensureVisible(find.widgetWithText(FilterChip, '✓ 已給'));
+    await tester.tap(find.widgetWithText(FilterChip, '✓ 已給'));
+    await tester.pump();
+    await tester.ensureVisible(find.text('幫誰'));
+    await tester.enterText(find.byType(TextField).last, 'Cen');
+    await tester.pump();
+    await tester.ensureVisible(find.widgetWithText(FilledButton, '新增'));
+    await tester.tap(find.widgetWithText(FilledButton, '新增'));
+    await settle(tester);
+    expect(tester.takeException(), isNull);
+    final book = await tester.runAsync(
+      () => LedgerRepository(store).loadBook(),
+    );
+    final t = book!.txs.firstWhere((t) => t.merchant == '全聯');
+    expect(t.splits.map((s) => s.name), ['麵包', '幫忙買的飲料']);
+    expect(t.splits.map((s) => s.forOther), [false, true]);
+    expect(t.splits.map((s) => s.settled), [false, true]);
+    expect(t.paidFor?.amount, 400);
+    expect(t.paidFor?.people, 'Cen');
+    expect(t.paidFor?.settled, isTrue);
+    expect(t.ownSpend, 600);
+    // 統計只算沒幫人付的那份。
+    final st = book.statsWhere((x) => x.id == t.id);
+    expect(st.spend, 600);
+    // 搜得到品項名稱。
+    expect(book.matches(t, '飲料'), isTrue);
+    // 外面標「改回還沒給」，每一份也一起改回。
+    final back = t.withSettled(false);
+    expect(back.paidFor!.settled, isFalse);
+    expect(back.splits.map((s) => s.settled), [false, false]);
   });
 
   testWidgets('明細「全部時間」：不管月份，選分類就看那個分類總共花多少', (tester) async {

@@ -41,7 +41,7 @@ Future<void> showSyncDialog(BuildContext context) {
                   child: Row(
                     children: [
                       const Icon(
-                        Icons.cloud_sync_outlined,
+                        Icons.cloud_outlined,
                         size: 19,
                         color: AppColors.accent,
                       ),

@@ -144,7 +144,7 @@ class AppHomePage extends ConsumerWidget {
       const _HomeItem(
         id: 'sync',
         label: '多裝置同步',
-        icon: Icons.cloud_sync_outlined,
+        icon: Icons.cloud_outlined,
         color: Color(0xFF7ED6D0),
         route: '/sync',
       ),

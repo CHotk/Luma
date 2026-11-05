@@ -330,7 +330,7 @@ class _AppSideDrawerState extends State<AppSideDrawer> {
                         // 的功能陸續加進來同步），該有自己的入口。排在除錯
                         // 正上方，使用者原話「放在debug出錯訊息上面」。
                         _NavItem(
-                          icon: Icons.cloud_sync_outlined,
+                          icon: Icons.cloud_outlined,
                           label: '多裝置同步',
                           active: isSync,
                           onTap: () {
