@@ -724,6 +724,31 @@ void main() {
     await finish(tester);
   });
 
+  testWidgets('月曆下面的單標籤可以點：點了月曆上那一單亮起來（跟甘特圖同一個選取），再點取消', (tester) async {
+    await pumpPage(tester, const CryptoWatchPage(), await seeded());
+    await tester.pump(const Duration(seconds: 2));
+    // 沒選的時候，月曆格子上沒有亮框。
+    int litCells() => tester
+        .widgetList<Container>(find.byType(Container))
+        .where((c) => c.foregroundDecoration != null)
+        .length;
+    expect(litCells(), 0);
+    // 月曆下面那排標籤是第一個（甘特圖那個在後面）。
+    final chip = find.textContaining('BTC空', findRichText: true).first;
+    await tester.ensureVisible(chip);
+    await tester.pump(const Duration(seconds: 1));
+    await tester.tap(chip);
+    await tester.pump();
+    expect(litCells(), greaterThan(0));
+    // 跟甘特圖同一個選取：那單的票根跟著出來。
+    expect(find.textContaining('已平倉的紀錄・只是看'), findsOneWidget);
+    await tester.tap(chip);
+    await tester.pump();
+    expect(litCells(), 0);
+    expect(find.textContaining('已平倉的紀錄・只是看'), findsNothing);
+    await finish(tester);
+  });
+
   testWidgets('月曆重疊：不管幾單都一單一條線（不用色塊、沒有 ×N），圖例列出重疊的單', (tester) async {
     final store = _MemoryStore();
     final repo = TradeRepository(store);

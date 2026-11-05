@@ -328,6 +328,7 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
                       lit: litDays.contains(
                         DateTime(_month.year, _month.month, d),
                       ),
+                      selId: _ganttSel,
                       events:
                           events[DateTime(_month.year, _month.month, d)] ??
                           const [],
@@ -369,14 +370,31 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
               spacing: 6,
               runSpacing: 6,
               children: [
+                // 小標籤可以點（2026-11-05 使用者）：點了月曆上那一單抱著的每一天
+                // 亮起來（外框＋那單的顏色），其他單的線變淡；再點一次取消。
                 for (final t in monthTrades)
-                  Container(
-                    padding: const EdgeInsets.fromLTRB(6, 3, 9, 3),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(99),
-                      border: Border.all(color: const Color(0xFF2A2A3D)),
+                  InkWell(
+                    onTap: () => setState(
+                      () => _ganttSel = _ganttSel == t.id ? null : t.id,
                     ),
-                    child: Row(
+                    borderRadius: BorderRadius.circular(99),
+                    child: Container(
+                      padding: const EdgeInsets.fromLTRB(6, 3, 9, 3),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(99),
+                        color: t.id == _ganttSel
+                            ? (colorOf[t.id] ?? AppColors.mid).withValues(
+                                alpha: 0.18,
+                              )
+                            : null,
+                        border: Border.all(
+                          color: t.id == _ganttSel
+                              ? (colorOf[t.id] ?? AppColors.mid)
+                              : const Color(0xFF2A2A3D),
+                          width: t.id == _ganttSel ? 1.6 : 1,
+                        ),
+                      ),
+                      child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Container(
@@ -406,13 +424,14 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
                         ),
                       ],
                     ),
+                    ),
                   ),
               ],
             ),
           ],
           const SizedBox(height: 4),
           Text(
-            '點某一天看那天發生什麼・損益記在平倉那天',
+            '點某一天看那天發生什麼・損益記在平倉那天${monthTrades.isEmpty ? '' : '；點上面的單標籤，月曆上亮出那一單'}',
             style: AppText.note.copyWith(color: AppColors.ink3),
           ),
         ],
@@ -427,6 +446,7 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
     required Map<String, Color> colorOf,
     required Map<String, int> laneOf,
     required bool lit,
+    String? selId,
     int lanes = 1,
     required List<(bool open, String id, DateTime at)> events,
   }) {
@@ -481,10 +501,17 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
                   ? Border.all(color: AppColors.ink2, width: 1)
                   : null,
             ),
+            // 選了一單：那單抱著的每一天用它的顏色框起來、蓋一層亮色。
             foregroundDecoration: lit
                 ? BoxDecoration(
-                    color: AppColors.mid.withValues(alpha: 0.16),
+                    color: (colorOf[selId] ?? AppColors.mid).withValues(
+                      alpha: 0.22,
+                    ),
                     borderRadius: BorderRadius.circular(9),
+                    border: Border.all(
+                      color: colorOf[selId] ?? AppColors.mid,
+                      width: 1.6,
+                    ),
                   )
                 : null,
             child: Stack(
@@ -557,10 +584,14 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
                     right: 4,
                     bottom: 2 + (laneOf[t.id] ?? 0) * _laneStep,
                     height: 2.5,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: colorOf[t.id] ?? tradeOverlapColors.first,
-                        borderRadius: BorderRadius.circular(2),
+                    // 選了某一單，其他單的線變淡，亮的那條才看得出來。
+                    child: Opacity(
+                      opacity: selId == null || t.id == selId ? 1 : 0.25,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: colorOf[t.id] ?? tradeOverlapColors.first,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
                       ),
                     ),
                   ),
