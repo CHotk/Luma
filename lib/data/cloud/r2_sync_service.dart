@@ -1282,7 +1282,15 @@ class R2SyncService {
       mergeFromCloud: repo.mergeLogFromCloud,
       allForUpload: repo.logForUpload,
     );
-    final all = [accounts, txs, cps, budgets, log];
+    // 每月訂閱（2026-11-05）：單純紀錄，跟記帳一起同步，刪除用墓碑。
+    final subs = await _syncRecords<LedgerSubscription>(
+      key: 'ledger_subscriptions.json',
+      fromJson: LedgerSubscription.fromJson,
+      toJson: (e) => e.toJson(),
+      mergeFromCloud: repo.mergeSubscriptionsFromCloud,
+      allForUpload: repo.subscriptionsForUpload,
+    );
+    final all = [accounts, txs, cps, budgets, log, subs];
     return (
       downloaded: all.fold(0, (s, r) => s + r.downloaded),
       uploaded: all.fold(0, (s, r) => s + r.uploaded),

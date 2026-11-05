@@ -7,6 +7,7 @@ import 'package:lume/data/storage/key_value_store.dart';
 import 'package:lume/domain/ledger_calc.dart';
 import 'package:lume/domain/models/ledger.dart';
 import 'package:lume/features/ledger/ledger_page.dart';
+import 'package:lume/features/ledger/ledger_subs_page.dart';
 import 'package:lume/features/ledger/ledger_ui.dart';
 
 /// 記帳四個分頁在手機寬度（360）畫得出來、不爆版，有資料跟沒資料都要；
@@ -136,6 +137,107 @@ void main() {
       });
     }
   }
+
+  testWidgets('每月訂閱：新增、合計只算訂閱中、停用排後面不算合計、刪除；首頁入口寫合計', (tester) async {
+    final store = await seeded();
+    await pump(tester, const LedgerSubsPage(), store);
+    expect(find.text('還沒有訂閱'), findsOneWidget);
+    expect(find.text('每月扣款合計・訂閱中 0 項'), findsOneWidget);
+
+    Future<void> add(String name, String amount, String day) async {
+      await tester.tap(find.byTooltip('新增訂閱'));
+      await settle(tester);
+      // TextField 順序：名稱(0)、金額(1)、每月幾號(2)、備註(3)。
+      await tester.enterText(find.byType(TextField).at(0), name);
+      await tester.enterText(find.byType(TextField).at(1), amount);
+      await tester.enterText(find.byType(TextField).at(2), day);
+      await tester.pump();
+      await tester.tap(find.widgetWithText(FilledButton, '新增'));
+      await settle(tester);
+      // 等通知收掉，不然它蓋在右上角的「新增訂閱」鈕上。
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pumpAndSettle();
+    }
+
+    // 幾號沒填或超過 31 不能存。
+    await tester.tap(find.byTooltip('新增訂閱'));
+    await settle(tester);
+    await tester.enterText(find.byType(TextField).at(0), 'X');
+    await tester.enterText(find.byType(TextField).at(1), '100');
+    await tester.enterText(find.byType(TextField).at(2), '32');
+    await tester.pump();
+    expect(
+      tester
+          .widget<FilledButton>(find.widgetWithText(FilledButton, '新增'))
+          .onPressed,
+      isNull,
+    );
+    expect(find.text('每月幾號要在 1～31 之間'), findsOneWidget);
+    await tester.tap(find.byTooltip('關閉'));
+    await settle(tester);
+
+    await add('Netflix', '390', '12');
+    await add('Spotify', '149', '3');
+    expect(tester.takeException(), isNull);
+    expect(find.text('每月扣款合計・訂閱中 2 項'), findsOneWidget);
+    expect(find.text('\$539'), findsOneWidget); // 合計
+    expect(find.text('一年約 \$6,468'), findsOneWidget);
+    expect(find.text('Netflix'), findsOneWidget);
+    expect(find.text('Spotify'), findsOneWidget);
+    // 扣款日 3 號的 Spotify 排在 12 號的 Netflix 前面。
+    expect(
+      tester.getTopLeft(find.text('Spotify')).dy,
+      lessThan(tester.getTopLeft(find.text('Netflix')).dy),
+    );
+    final repo = LedgerRepository(store);
+    var subs = (await tester.runAsync(() => repo.loadSubscriptions()))!;
+    expect(subs.map((s) => '${s.name}${s.day}'), ['Spotify3', 'Netflix12']);
+
+    // 停用 Netflix：不算合計、排到「已停用」。
+    await tester.tap(find.text('Netflix'));
+    await settle(tester);
+    await tester.tap(find.byType(SwitchListTile));
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, '儲存'));
+    await settle(tester);
+    expect(find.text('每月扣款合計・訂閱中 1 項'), findsOneWidget);
+    expect(find.text('\$149'), findsWidgets);
+    expect(find.textContaining('已停用'), findsWidgets);
+
+    // 刪除 Spotify（要確認）。
+    await tester.tap(find.text('Spotify'));
+    await settle(tester);
+    await tester.tap(find.widgetWithText(OutlinedButton, '刪除'));
+    await settle(tester);
+    await tester.tap(find.widgetWithText(FilledButton, '刪除'));
+    await settle(tester);
+    subs = (await tester.runAsync(() => repo.loadSubscriptions()))!;
+    expect(subs.map((s) => s.name), ['Netflix']);
+    expect(find.text('每月扣款合計・訂閱中 0 項'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    // 只是紀錄：不會自動多出任何一筆交易。
+    final book = (await tester.runAsync(() => repo.loadBook()))!;
+    expect(book.txs.length, 3);
+  });
+
+  testWidgets('記帳首頁有「每月訂閱」入口，寫每月合計跟幾項', (tester) async {
+    final store = await seeded();
+    await tester.runAsync(() async {
+      final repo = LedgerRepository(store);
+      await repo.addSubscription(name: 'Netflix', amount: 390, day: 12);
+      await repo.addSubscription(name: 'iCloud', amount: 30, day: 31);
+      await repo.addSubscription(
+        name: '舊的',
+        amount: 999,
+        day: 1,
+        active: false,
+      );
+    });
+    await pump(tester, const LedgerPage(tab: LedgerTab.home), store);
+    expect(find.text('每月訂閱'), findsOneWidget);
+    expect(find.text('2 項訂閱中・每月 \$420'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('首頁看得到兩件事分開：控制開銷、記帳完整度（活存差 \$630）', (tester) async {
     await pump(tester, const LedgerPage(tab: LedgerTab.home), await seeded());

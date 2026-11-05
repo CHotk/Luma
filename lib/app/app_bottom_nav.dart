@@ -233,7 +233,9 @@ class _AppBottomNavFrameState extends ConsumerState<AppBottomNavFrame> {
       return _musicSpec(path);
     }
     // 記帳的四個分頁只能從這條切，所以就算整條關掉也照樣顯示。
-    if (path.startsWith('/ledger') && path != '/ledger/log') {
+    if (path.startsWith('/ledger') &&
+        path != '/ledger/log' &&
+        path != '/ledger/subs') {
       return _ledgerSpec(path);
     }
     switch (mode) {

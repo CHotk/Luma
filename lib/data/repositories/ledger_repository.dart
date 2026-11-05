@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import '../../domain/ledger_calc.dart';
 import '../../domain/ledger_log.dart';
+import '../../domain/ledger_subscriptions.dart';
 import '../export/device_label.dart';
 import '../../domain/models/ledger.dart';
 import '../seed/seed_merge.dart';
@@ -19,6 +20,7 @@ class LedgerRepository {
   static const _cpKey = 'ledger.checkpoints.v1';
   static const _budgetKey = 'ledger.budgets.v1';
   static const _logKey = 'ledger.log.v1';
+  static const _subsKey = 'ledger.subscriptions.v1';
 
   final KeyValueStore _store;
 
@@ -471,6 +473,105 @@ class LedgerRepository {
       await _log('預算', month, detail: changes.join('\n'));
     }
   }
+
+  // ── 每月訂閱（2026-11-05 使用者：單純紀錄每月幾號扣多少、什麼服務）──────
+
+  Future<List<LedgerSubscription>> subscriptionsForUpload() =>
+      _load(_subsKey, LedgerSubscription.fromJson);
+
+  /// 給畫面用：沒刪掉的，訂閱中的在前（照扣款日）。
+  Future<List<LedgerSubscription>> loadSubscriptions() async =>
+      sortSubs(await subscriptionsForUpload());
+
+  static String _subLine(LedgerSubscription s) =>
+      '${s.name}　每月 ${s.day} 號　\$${s.amount}';
+
+  Future<LedgerSubscription> addSubscription({
+    required String name,
+    required int amount,
+    required int day,
+    String? accountId,
+    String note = '',
+    bool active = true,
+  }) async {
+    final now = DateTime.now();
+    final s = LedgerSubscription(
+      id: ledgerId(),
+      name: name,
+      amount: amount,
+      day: day,
+      accountId: accountId,
+      note: note,
+      active: active,
+      createdAt: now,
+      updatedAt: now,
+    );
+    await _save(_subsKey, [
+      ...await subscriptionsForUpload(),
+      s,
+    ], (e) => e.toJson());
+    final acct = await _acctName();
+    await _log(
+      '新增訂閱',
+      _subLine(s),
+      detail: [
+        if (accountId != null) '扣款帳戶：${acct(accountId)}',
+        if (note.isNotEmpty) '備註：$note',
+        if (!active) '狀態：已停用',
+      ].join('\n'),
+      refId: s.id,
+    );
+    return s;
+  }
+
+  Future<void> updateSubscription(LedgerSubscription s) async {
+    final all = await subscriptionsForUpload();
+    final i = all.indexWhere((x) => x.id == s.id);
+    if (i < 0) return;
+    final old = all[i];
+    all[i] = s.copyWith(updatedAt: DateTime.now());
+    await _save(_subsKey, all, (e) => e.toJson());
+    final acct = await _acctName();
+    String n(String v) => v.isEmpty ? '（空）' : v;
+    final diff = [
+      if (old.name != s.name) '名稱：${old.name} → ${s.name}',
+      if (old.amount != s.amount) '金額：\$${old.amount} → \$${s.amount}',
+      if (old.day != s.day) '每月幾號：${old.day} → ${s.day}',
+      if (old.accountId != s.accountId)
+        '扣款帳戶：${acct(old.accountId)} → ${acct(s.accountId)}',
+      if (old.note != s.note) '備註：${n(old.note)} → ${n(s.note)}',
+      if (old.active != s.active) '狀態：${s.active ? '恢復訂閱' : '停用'}',
+    ];
+    final onlyActive = diff.length == 1 && old.active != s.active; // 只切了訂閱中／停用
+    await _log(
+      onlyActive ? (s.active ? '恢復訂閱' : '停用訂閱') : '編輯訂閱',
+      _subLine(s),
+      detail: diff.join('\n'),
+      refId: s.id,
+    );
+  }
+
+  Future<void> deleteSubscription(String id) async {
+    final now = DateTime.now();
+    final all = await subscriptionsForUpload();
+    final gone = all.where((e) => e.id == id).firstOrNull;
+    await _save(_subsKey, [
+      for (final e in all)
+        e.id == id ? e.copyWith(updatedAt: now, deletedAt: now) : e,
+    ], (e) => e.toJson());
+    if (gone != null) await _log('刪除訂閱', _subLine(gone), refId: id);
+  }
+
+  Future<int> mergeSubscriptionsFromCloud(List<LedgerSubscription> incoming) =>
+      _merge(
+        _subsKey,
+        incoming,
+        LedgerSubscription.fromJson,
+        (e) => e.toJson(),
+        (e) => e.id,
+        (e) => e.syncedAt,
+        (e) => e.deletedAt,
+      );
 
   // ── 同步：把雲端的併回本機，回傳實際異動幾筆 ─────────────
 

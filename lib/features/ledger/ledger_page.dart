@@ -17,7 +17,9 @@ import '../../shared/widgets/app_top_bar.dart';
 import '../../shared/widgets/glass_card.dart';
 import '../../shared/widgets/glass_menu.dart';
 import '../../shared/widgets/inline_empty_card.dart';
+import '../../domain/ledger_subscriptions.dart';
 import 'ledger_data.dart';
+import 'ledger_subs_page.dart';
 import 'ledger_ui.dart';
 
 /// 記帳（Lume 自己用的，2026-11-03 使用者從
@@ -437,6 +439,8 @@ class LedgerPage extends ConsumerWidget {
       _completeness(context, ref, book),
       const SizedBox(height: Gap.md),
       _mini(context, ref, book),
+      const SizedBox(height: Gap.md),
+      const _SubsEntry(),
       // 最近記帳只顯示五筆（2026-11-03 使用者）；要看更多去底部的「明細」。
       ledgerSection(
         '最近記帳',
@@ -1036,6 +1040,56 @@ class _DonutPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_DonutPainter old) => true;
+}
+
+/// 首頁的「每月訂閱」入口（2026-11-05 使用者）：寫每月合計跟幾項，點了進訂閱頁。
+class _SubsEntry extends ConsumerWidget {
+  const _SubsEntry();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final subs = ref.watch(ledgerSubsProvider).valueOrNull ?? const [];
+    final active = subs.where((s) => s.active).toList();
+    return GlassCard(
+      onTap: () => context.push('/ledger/subs'),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: Row(
+        children: [
+          const Text('🔁', style: TextStyle(fontSize: 18)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '每月訂閱',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.ink,
+                  ),
+                ),
+                Text(
+                  active.isEmpty
+                      ? '記錄每月自動扣款的服務'
+                      : '${active.length} 項訂閱中・每月 ${lMoney(subsMonthlyTotal(subs))}',
+                  style: AppText.note.copyWith(
+                    fontSize: 10.5,
+                    color: AppColors.ink3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Icon(
+            Icons.chevron_right_rounded,
+            size: 20,
+            color: AppColors.ink3,
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// 明細頂部的搜尋框：輸入後馬上搜，右邊有清除。

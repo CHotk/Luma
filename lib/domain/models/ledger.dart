@@ -527,6 +527,90 @@ class LedgerBudget {
   );
 }
 
+/// 每月自動扣款的訂閱（2026-11-05 使用者：記錄每月幾號會被扣多少錢、是什麼服務，
+/// **單純紀錄用**，不會自動記進交易、不影響任何計算）。
+///
+/// [day] 是每月幾號（1–31）；遇到沒有那天的月份（31 號碰到 2 月）算那個月最後一天。
+/// [active] 關掉＝已取消或暫停，不算進每月合計，但紀錄還留著。
+class LedgerSubscription {
+  const LedgerSubscription({
+    required this.id,
+    required this.name,
+    required this.amount,
+    required this.day,
+    this.accountId,
+    this.note = '',
+    this.active = true,
+    this.createdAt,
+    this.updatedAt,
+    this.deletedAt,
+  });
+
+  final String id;
+  final String name;
+  final int amount;
+  final int day;
+
+  /// 從哪個帳戶（哪張卡）扣，選填。
+  final String? accountId;
+  final String note;
+  final bool active;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+  final DateTime? deletedAt;
+
+  DateTime get syncedAt => updatedAt ?? createdAt ?? DateTime(2000);
+
+  LedgerSubscription copyWith({
+    String? name,
+    int? amount,
+    int? day,
+    String? Function()? accountId,
+    String? note,
+    bool? active,
+    DateTime? updatedAt,
+    DateTime? deletedAt,
+  }) => LedgerSubscription(
+    id: id,
+    name: name ?? this.name,
+    amount: amount ?? this.amount,
+    day: day ?? this.day,
+    accountId: accountId == null ? this.accountId : accountId(),
+    note: note ?? this.note,
+    active: active ?? this.active,
+    createdAt: createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt ?? this.deletedAt,
+  );
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'amount': amount,
+    'day': day,
+    'accountId': accountId,
+    'note': note,
+    'active': active,
+    'createdAt': createdAt == null ? null : ledgerTime(createdAt!),
+    'updatedAt': updatedAt == null ? null : ledgerTime(updatedAt!),
+    'deletedAt': deletedAt == null ? null : ledgerTime(deletedAt!),
+  };
+
+  factory LedgerSubscription.fromJson(Map<String, dynamic> j) =>
+      LedgerSubscription(
+        id: j['id'] as String,
+        name: j['name'] as String? ?? '',
+        amount: (j['amount'] as num?)?.toInt() ?? 0,
+        day: ((j['day'] as num?)?.toInt() ?? 1).clamp(1, 31),
+        accountId: j['accountId'] as String?,
+        note: j['note'] as String? ?? '',
+        active: j['active'] as bool? ?? true,
+        createdAt: _t(j['createdAt']),
+        updatedAt: _t(j['updatedAt']),
+        deletedAt: _t(j['deletedAt']),
+      );
+}
+
 /// 記帳的操作紀錄（2026-11-03 使用者：每個動作都存一份 log，只會變大、永遠不刪）。
 ///
 /// 只增不改不刪：沒有墓碑、不裁剪，上限只能是畫面顯示上的。多裝置同步時兩邊的
