@@ -148,6 +148,7 @@ class TxTile extends ConsumerWidget {
     required this.onTap,
     this.showDate = false,
     this.partCategory,
+    this.query = '',
   });
 
   final LedgerBook book;
@@ -155,9 +156,40 @@ class TxTile extends ConsumerWidget {
   final VoidCallback onTap;
   final bool showDate;
 
+  /// 搜尋字（明細搜尋時才有）。拆分的消費在搜尋時，每一份各列一行（品項名稱、分類、
+  /// 金額、幫人付），符合關鍵字的那份亮起來（2026-11-05 使用者）。
+  final String query;
+
   /// 明細選了某個分類時，拆分的消費只顯示那個分類的子項（金額是那一份，旁邊寫
   /// 「拆分自 $整筆」），點下去還是開整筆（2026-11-03 使用者）。
   final String? partCategory;
+
+  static List<String> _terms(String q) => q
+      .toLowerCase()
+      .split(RegExp(r'\s+'))
+      .where((s) => s.isNotEmpty)
+      .toList();
+
+  /// 搜尋時拆分的一份：「└ 品項名稱（分類） $金額 👥」，符合關鍵字的亮起來。
+  Widget _partLine(LedgerSplit s, List<String> terms) {
+    final hay = '${s.name} ${s.category} ${s.amount}'.toLowerCase();
+    final hit = terms.any(hay.contains);
+    return Padding(
+      padding: const EdgeInsets.only(top: 3),
+      child: Text(
+        '└ ${s.name.isEmpty ? s.category : '${s.name}（${s.category}）'}'
+        '　${lMoney(s.amount)}'
+        '${s.forOther ? '　👥${s.settled ? '已給' : '幫人付'}' : ''}',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontSize: 11.5,
+          fontWeight: hit ? FontWeight.w800 : FontWeight.w500,
+          color: hit ? ledgerAccent : AppColors.ink3,
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -184,7 +216,9 @@ class TxTile extends ConsumerWidget {
       sub.write(book.accountName(t.accountId));
       if (t.category != null && t.type != LedgerTxType.adjustment) {
         sub.write(
-          t.isSplit
+          t.isSplit && query.trim().isNotEmpty
+              ? '・拆分 ${t.splits.length} 份'
+              : t.isSplit
               ? '・拆分 ${t.splits.map((s) => '${s.name.isNotEmpty ? '${s.name}（${s.category}）' : s.category}${lInt(s.amount)}${s.forOther ? '👥' : ''}').join('、')}'
               : '・${t.category}',
         );
@@ -338,6 +372,9 @@ class TxTile extends ConsumerWidget {
                                   color: AppColors.ink3,
                                 ),
                               ),
+                              if (t.isSplit && query.trim().isNotEmpty)
+                                for (final s in t.splits)
+                                  _partLine(s, _terms(query)),
                             ],
                           ),
                         ),
@@ -516,6 +553,7 @@ List<Widget> groupedTxList(
   List<LedgerTx> txs,
   void Function(LedgerTx) onTap, {
   String? partCategory,
+  String query = '',
 }) {
   final out = <Widget>[];
   DateTime? cur;
@@ -566,6 +604,7 @@ List<Widget> groupedTxList(
         book: book,
         tx: t,
         partCategory: partCategory,
+        query: query,
         onTap: () => onTap(t),
       ),
     );

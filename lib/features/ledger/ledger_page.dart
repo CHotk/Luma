@@ -557,6 +557,7 @@ class LedgerPage extends ConsumerWidget {
           shown,
           (t) => txDetailFlow(context, ref, t.id),
           partCategory: f.category,
+          query: q,
         ),
     ];
   }

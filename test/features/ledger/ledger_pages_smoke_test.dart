@@ -838,6 +838,45 @@ void main() {
     expect(back.splits.map((s) => s.settled), [false, false]);
   });
 
+  testWidgets('明細搜尋：拆分的 item 把每一份的品項名稱列出來，沒搜尋時不列', (tester) async {
+    final store = _MemoryStore();
+    final repo = LedgerRepository(store);
+    final book0 = await tester.runAsync(() => repo.loadBook());
+    final card = book0!.accounts.firstWhere((a) => a.isCard);
+    await tester.runAsync(
+      () => repo.addTransaction(
+        LedgerTx(
+          id: ledgerId(),
+          type: LedgerTxType.expense,
+          occurredAt: DateTime.now(),
+          amount: 1000,
+          accountId: card.id,
+          category: '生活',
+          merchant: '全聯',
+          splits: const [
+            LedgerSplit(category: '生活', amount: 600, name: '衛生紙'),
+            LedgerSplit(
+              category: '餐飲',
+              amount: 400,
+              name: '幫忙買的飲料',
+              forOther: true,
+            ),
+          ],
+          paidFor: const PaidFor(amount: 400, people: 'Cen'),
+        ),
+      ),
+    );
+    await pump(tester, const LedgerPage(tab: LedgerTab.list), store);
+    expect(find.textContaining('└'), findsNothing);
+    await tester.enterText(find.byType(TextField).first, '飲料');
+    await tester.pump();
+    // 兩份都列出來，符合的那份有幫人付標記。
+    expect(find.textContaining('└ 衛生紙（生活）'), findsOneWidget);
+    expect(find.textContaining('└ 幫忙買的飲料（餐飲）'), findsOneWidget);
+    expect(find.textContaining('👥幫人付'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('明細「全部時間」：不管月份，選分類就看那個分類總共花多少', (tester) async {
     final store = _MemoryStore();
     final repo = LedgerRepository(store);
