@@ -525,7 +525,7 @@ class LedgerBook {
       t.merchant,
       t.note,
       t.category ?? '',
-      for (final s in t.splits) ...[s.category, s.name],
+      for (final s in t.splits) ...[s.category, s.name, s.people],
       t.type.label,
       accountName(t.accountId),
       if (t.toAccountId != null) accountName(t.toAccountId),

@@ -1063,7 +1063,7 @@ class _SearchBoxState extends ConsumerState<_SearchBox> {
       },
       textInputAction: TextInputAction.search,
       decoration: InputDecoration(
-        hintText: '商家、備註、分類、帳戶、金額、日期⋯（多詞以空白間格）',
+        hintText: '多詞以空白間格',
         hintStyle: const TextStyle(fontSize: 12.5),
         prefixIcon: const Icon(Icons.search_rounded, size: 20),
         suffixIcon: _c.text.isEmpty

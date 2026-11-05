@@ -151,6 +151,7 @@ class LedgerSplit {
     this.name = '',
     this.forOther = false,
     this.settled = false,
+    this.people = '',
   });
 
   final String category;
@@ -162,6 +163,9 @@ class LedgerSplit {
   /// 這一份是幫別人付的（不算進自己的消費）。
   final bool forOther;
 
+  /// 幫誰（每一份各自填，一筆裡可以幫不同的人）。
+  final String people;
+
   /// 幫人付的這一份，對方給了沒。
   final bool settled;
 
@@ -171,6 +175,7 @@ class LedgerSplit {
     if (name.isNotEmpty) 'name': name,
     if (forOther) 'forOther': true,
     if (forOther && settled) 'settled': true,
+    if (forOther && people.isNotEmpty) 'people': people,
   };
 
   factory LedgerSplit.fromJson(Map<String, dynamic> j) => LedgerSplit(
@@ -179,6 +184,7 @@ class LedgerSplit {
     name: j['name'] as String? ?? '',
     forOther: j['forOther'] as bool? ?? false,
     settled: j['settled'] as bool? ?? false,
+    people: j['people'] as String? ?? '',
   );
 }
 
@@ -273,6 +279,7 @@ class LedgerTx {
                 name: s.name,
                 forOther: true,
                 settled: settled,
+                people: s.people,
               )
             : s,
     ],

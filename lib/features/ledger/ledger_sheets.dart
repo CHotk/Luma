@@ -706,6 +706,7 @@ class _TxFormState extends State<_TxForm> {
     String category,
     String amount, {
     String name = '',
+    String people = '',
     bool forOther = false,
     bool settled = false,
   }) {
@@ -713,16 +714,19 @@ class _TxFormState extends State<_TxForm> {
       category,
       TextEditingController(text: amount),
       TextEditingController(text: name),
+      TextEditingController(text: people),
       forOther: forOther,
       settled: settled,
     );
     r.amount.addListener(() => setState(() {}));
+    r.people.addListener(() => setState(() {}));
     return r;
   }
 
   void _disposeRow(_SplitRow r) {
     r.amount.dispose();
     r.name.dispose();
+    r.people.dispose();
   }
 
   /// 拆分模式下「幫人付」跟著各份走：有任何一份標了就算有幫人付，金額是那幾份加起來。
@@ -732,6 +736,23 @@ class _TxFormState extends State<_TxForm> {
     (s, r) => r.forOther ? s + (_int(r.amount) ?? 0) : s,
   );
   int get _pfValue => _split ? _pfSum : (_int(_pfAmount) ?? 0);
+  String _rowPeople(_SplitRow r) =>
+      r.people.text.trim().isEmpty ? '朋友' : r.people.text.trim();
+
+  /// 整筆的「幫誰」：拆分時是各份幫的人（不重複，用「、」接起來）。
+  String get _pfPeopleText {
+    if (!_split) {
+      return _pfPeople.text.trim().isEmpty ? '朋友' : _pfPeople.text.trim();
+    }
+    final names = <String>[];
+    for (final r in _splitRows) {
+      if (r.forOther && !names.contains(_rowPeople(r))) {
+        names.add(_rowPeople(r));
+      }
+    }
+    return names.join('、');
+  }
+
   bool get _pfAllGiven => _split
       ? _splitRows.where((r) => r.forOther).every((r) => r.settled)
       : _pfSettled;
@@ -742,6 +763,7 @@ class _TxFormState extends State<_TxForm> {
       _pf = true;
       _pfAmount.text = '$_pfSum';
       _pfSettled = _pfAllGiven;
+      if (_pfPeople.text.trim().isEmpty) _pfPeople.text = _pfPeopleText;
     }
     _split = on;
     if (on && _splitRows.isEmpty) {
@@ -798,6 +820,8 @@ class _TxFormState extends State<_TxForm> {
             x.category,
             '${x.amount}',
             name: x.name,
+            // 舊的一份沒存幫誰時，用整筆的幫誰。
+            people: x.people.isNotEmpty ? x.people : (e.paidFor?.people ?? ''),
             forOther: x.forOther,
             // 整筆被標「他給了」時，舊資料的每份也算已給。
             settled: x.settled || (x.forOther && (e.paidFor?.settled ?? false)),
@@ -1037,9 +1061,7 @@ class _TxFormState extends State<_TxForm> {
     final pf = _type == LedgerTxType.expense && _pfOn
         ? PaidFor(
             amount: _pfValue,
-            people: _pfPeople.text.trim().isEmpty
-                ? '朋友'
-                : _pfPeople.text.trim(),
+            people: _pfPeopleText,
             settled: _pfAllGiven,
           )
         : null;
@@ -1055,6 +1077,7 @@ class _TxFormState extends State<_TxForm> {
                 name: r.name.text.trim(),
                 forOther: r.forOther,
                 settled: r.forOther && r.settled,
+                people: r.forOther ? _rowPeople(r) : '',
               ),
           ]
         : const <LedgerSplit>[];
@@ -1106,9 +1129,14 @@ class _TxFormState extends State<_TxForm> {
   List<String> get _pfPeopleOptions {
     final out = <String>[];
     for (final t in book.txs) {
-      final p = t.paidFor?.people.trim();
-      if (p != null && p.isNotEmpty && !out.contains(p)) out.add(p);
-      if (out.length >= 3) break;
+      // 拆分的每一份各自記了幫誰；沒拆的用整筆的。
+      final names = t.splitHasOther
+          ? [for (final s in t.splits) if (s.forOther) s.people.trim()]
+          : [t.paidFor?.people.trim() ?? ''];
+      for (final p in names) {
+        if (p.isNotEmpty && !out.contains(p)) out.add(p);
+        if (out.length >= 3) return out;
+      }
     }
     return out;
   }
@@ -1635,6 +1663,17 @@ class _TxFormState extends State<_TxForm> {
                           onSelected: (v) => setState(() {
                             r.forOther = v;
                             if (!v) r.settled = false;
+                            // 前一份已經填了幫誰就直接帶過來，常常是同一個人。
+                            if (v && r.people.text.trim().isEmpty) {
+                              r.people.text = _splitRows
+                                  .where(
+                                    (x) =>
+                                        x.forOther &&
+                                        x.people.text.trim().isNotEmpty,
+                                  )
+                                  .map((x) => x.people.text.trim())
+                                  .firstOrNull ?? '';
+                            }
                           }),
                         ),
                         if (r.forOther)
@@ -1646,6 +1685,33 @@ class _TxFormState extends State<_TxForm> {
                           ),
                       ],
                     ),
+                    // 這一份幫誰：直接寫在這一份底下，可以打字或點最近幫過的人。
+                    if (r.forOther) ...[
+                      const SizedBox(height: 4),
+                      TextField(
+                        key: ValueKey('splitPeople$i'),
+                        controller: r.people,
+                        decoration: _input('幫誰（例如 Cen）'),
+                      ),
+                      if (_pfPeopleOptions.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            children: [
+                              for (final n in _pfPeopleOptions)
+                                ChoiceChip(
+                                  label: Text(n),
+                                  selected: r.people.text.trim() == n,
+                                  showCheckmark: false,
+                                  onSelected: (_) =>
+                                      setState(() => r.people.text = n),
+                                ),
+                            ],
+                          ),
+                        ),
+                    ],
                   ],
                 ),
               ),
@@ -1744,32 +1810,32 @@ class _TxFormState extends State<_TxForm> {
       }
       if (_pfOn) {
         children.addAll([
-          _label('幫誰'),
-          // 預設 Cen 排第一，後面是之前幫過的人（最近的在前，最多 5 個）；
-          // 點一下就填進去，也可以自己打（2026-11-03 使用者）。
-          TextField(controller: _pfPeople, decoration: _input('')),
-          const SizedBox(height: 6),
-          if (_pfPeopleOptions.isNotEmpty)
-            Wrap(
-              spacing: 6,
-              runSpacing: 4,
-              children: [
-                for (final n in _pfPeopleOptions)
-                  ChoiceChip(
-                    label: Text(n),
-                    selected: _pfPeople.text.trim() == n,
-                    showCheckmark: false,
-                    onSelected: (_) => setState(() => _pfPeople.text = n),
-                  ),
-              ],
-            ),
+          // 拆分時「幫誰」「已給」都寫在每一份底下，這裡只留一句說明。
           if (_split)
             _note([
               const TextSpan(text: '拆分裡標了「幫人付」的那幾份，加起來 '),
               _b(lMoney(pfAmt)),
-              const TextSpan(text: ' 是對方要給的；已給也是每一份各自標。'),
+              const TextSpan(text: ' 是對方要給的；幫誰、已給都在每一份底下各自填。'),
             ], color: ledgerPaidFor)
           else ...[
+            _label('幫誰'),
+            // 點一下最近幫過的人就填進去，也可以自己打（2026-11-03 使用者）。
+            TextField(controller: _pfPeople, decoration: _input('')),
+            const SizedBox(height: 6),
+            if (_pfPeopleOptions.isNotEmpty)
+              Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                children: [
+                  for (final n in _pfPeopleOptions)
+                    ChoiceChip(
+                      label: Text(n),
+                      selected: _pfPeople.text.trim() == n,
+                      showCheckmark: false,
+                      onSelected: (_) => setState(() => _pfPeople.text = n),
+                    ),
+                ],
+              ),
             _label('對方要給你多少', trailing: amt > 0 ? '整筆 ${lMoney(amt)}' : null),
             TextField(
               controller: _pfAmount,
@@ -1995,7 +2061,7 @@ class _TxDetail extends StatelessWidget {
                   .map(
                     (s) =>
                         '${s.category}${s.name.isEmpty ? '' : '・${s.name}'} ${lMoney(s.amount)}'
-                        '${s.forOther ? '　👥幫人付${s.settled ? '✓已給' : '（還沒給）'}' : ''}',
+                        '${s.forOther ? '　👥${s.people.isEmpty ? '幫人付' : '幫${s.people}付'}${s.settled ? '✓已給' : '（還沒給）'}' : ''}',
                   )
                   .join('\n'),
             )
@@ -3265,7 +3331,8 @@ class _SplitRow {
   _SplitRow(
     this.category,
     this.amount,
-    this.name, {
+    this.name,
+    this.people, {
     this.forOther = false,
     this.settled = false,
   });
@@ -3273,6 +3340,9 @@ class _SplitRow {
   String category;
   final TextEditingController amount;
   final TextEditingController name;
+
+  /// 幫誰（標了幫人付才用）。
+  final TextEditingController people;
   bool forOther;
   bool settled;
 }

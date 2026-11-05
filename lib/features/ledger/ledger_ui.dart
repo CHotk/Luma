@@ -179,7 +179,7 @@ class TxTile extends ConsumerWidget {
       child: Text(
         '└ ${s.name.isEmpty ? s.category : '${s.name}（${s.category}）'}'
         '　${lMoney(s.amount)}'
-        '${s.forOther ? '　👥${s.settled ? '已給' : '幫人付'}' : ''}',
+        '${s.forOther ? '　👥${s.people.isEmpty ? '' : '${s.people} '}${s.settled ? '已給' : '幫人付'}' : ''}',
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
