@@ -38,6 +38,9 @@ const ledgerUncategorized = '未分類';
 /// 備註最多幾個字（2026-11-03 使用者：上限 100 字）。
 const ledgerNoteMax = 100;
 
+/// 拆分每一份的品項名稱上限（2026-11-05 使用者：50 字）。
+const ledgerSplitNameMax = 50;
+
 /// 某個帳戶現在的對帳狀況。
 class AccountState {
   const AccountState({

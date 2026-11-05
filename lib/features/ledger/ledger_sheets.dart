@@ -1658,15 +1658,19 @@ class _TxFormState extends State<_TxForm> {
                     ),
                     const SizedBox(height: 6),
                     // 品項名稱（選填）＋這一份是不是幫人付的、對方給了沒。
-                    TextField(
-                      controller: r.name,
-                      maxLength: 30,
-                      decoration: _input('品項名稱（選填）').copyWith(counterText: ''),
-                    ),
-                    const SizedBox(height: 4),
-                    Wrap(
-                      spacing: 6,
+                    // 品項名稱跟「幫人付」按鈕同一行（2026-11-05 使用者）。
+                    Row(
                       children: [
+                        Expanded(
+                          child: TextField(
+                            controller: r.name,
+                            maxLength: ledgerSplitNameMax,
+                            decoration: _input(
+                              '品項名稱（選填）',
+                            ).copyWith(counterText: ''),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
                         FilterChip(
                           label: const Text('👥 幫人付'),
                           selected: r.forOther,
@@ -1676,33 +1680,42 @@ class _TxFormState extends State<_TxForm> {
                             if (!v) r.settled = false;
                             // 前一份已經填了幫誰就直接帶過來，常常是同一個人。
                             if (v && r.people.text.trim().isEmpty) {
-                              r.people.text = _splitRows
-                                  .where(
-                                    (x) =>
-                                        x.forOther &&
-                                        x.people.text.trim().isNotEmpty,
-                                  )
-                                  .map((x) => x.people.text.trim())
-                                  .firstOrNull ?? _defaultPerson;
+                              r.people.text =
+                                  _splitRows
+                                      .where(
+                                        (x) =>
+                                            x.forOther &&
+                                            x.people.text.trim().isNotEmpty,
+                                      )
+                                      .map((x) => x.people.text.trim())
+                                      .firstOrNull ??
+                                  _defaultPerson;
                             }
                           }),
                         ),
-                        if (r.forOther)
+                      ],
+                    ),
+                    // 這一份幫誰：直接寫在這一份底下，可以打字或點最近幫過的人；
+                    // 對方給了沒（已給）跟幫誰同一行。
+                    if (r.forOther) ...[
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              key: ValueKey('splitPeople$i'),
+                              controller: r.people,
+                              decoration: _input('幫誰（例如 Cen）'),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
                           FilterChip(
                             label: const Text('✓ 已給'),
                             selected: r.settled,
                             showCheckmark: false,
                             onSelected: (v) => setState(() => r.settled = v),
                           ),
-                      ],
-                    ),
-                    // 這一份幫誰：直接寫在這一份底下，可以打字或點最近幫過的人。
-                    if (r.forOther) ...[
-                      const SizedBox(height: 4),
-                      TextField(
-                        key: ValueKey('splitPeople$i'),
-                        controller: r.people,
-                        decoration: _input('幫誰（例如 Cen）'),
+                        ],
                       ),
                       if (_pfPeopleOptions.isNotEmpty)
                         Padding(

@@ -805,10 +805,30 @@ void main() {
     await tester.enterText(find.byType(TextField).at(5), '400');
     await tester.enterText(find.byType(TextField).at(6), '幫忙買的飲料');
     await tester.pump();
+    // 品項名稱最多 50 字。
+    await tester.enterText(find.byType(TextField).at(4), '字' * 60);
+    await tester.pump();
+    expect(
+      tester.widget<TextField>(find.byType(TextField).at(4)).controller!.text,
+      hasLength(ledgerSplitNameMax),
+    );
+    await tester.enterText(find.byType(TextField).at(4), '麵包');
+    await tester.pump();
+    // 品項名稱跟「幫人付」按鈕同一行。
+    expect(
+      (tester.getCenter(find.byType(TextField).at(4)).dy -
+              tester.getCenter(find.widgetWithText(FilterChip, '👥 幫人付').first).dy)
+          .abs(),
+      lessThan(8),
+    );
     // 還沒標幫人付：沒有幫誰欄位。
     expect(find.byKey(const ValueKey('splitPeople1')), findsNothing);
     final chip = find.widgetWithText(FilterChip, '👥 幫人付').last;
     await tester.ensureVisible(chip);
+    await tester.pump();
+    // 底下有「新增」那條，再往上推一點才不會被蓋住。
+    await tester.drag(find.byType(Scrollable).last, const Offset(0, -150));
+    await tester.pump();
     await tester.tap(chip);
     await tester.pump();
     // 標了之後，幫誰就在這一份底下（不是表單最底下）。
