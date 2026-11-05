@@ -642,6 +642,22 @@ Future<void> flagsFlow(BuildContext context, WidgetRef ref) async {
   }
 }
 
+/// 首頁「幫誰付過」卡片：列出所有幫別人付的交易（跟標記旗幟同一種做法）。
+Future<void> paidForFlow(BuildContext context, WidgetRef ref) async {
+  final book = await _fresh(ref);
+  if (!context.mounted) return;
+  final a = await showTxListSheet(
+    context,
+    book,
+    title: '👥 幫誰付過',
+    txs: book.paidForOthers,
+    emptyText: '還沒有幫別人付過的紀錄',
+  );
+  if (a?.kind == 'open' && context.mounted) {
+    await txDetailFlow(context, ref, a!.id!);
+  }
+}
+
 Future<void> categoryFlow(
   BuildContext context,
   WidgetRef ref,

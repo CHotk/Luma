@@ -302,6 +302,16 @@ class LedgerBook {
     return null;
   }
 
+  /// 這筆每個有對不上的餘額（轉帳兩邊各一個，戶頭跟卡可能一個對、一個不對）。
+  List<({LedgerAccount account, LedgerCheckpoint cp, int miss})> gapsOfTx(
+    String txId,
+  ) => [
+    for (final c in checkpointsOfTx(txId))
+      if (account(c.accountId) case final a?)
+        if (checkpointDiff(a, c) case final d? when d.miss != 0)
+          (account: a, cp: c, miss: d.miss),
+  ];
+
   /// 缺的數字剛好對得上哪一筆已經記的交易（2026-11-03 使用者：自動偵測少多少、
   /// 有沒有剛好符合這數字的消費）。三種原因：
   /// - [GapHintKind.wrongTime]：缺正數，同帳戶有一筆同金額的支出但時間落在這個
@@ -484,6 +494,10 @@ class LedgerBook {
   ];
 
   List<LedgerTx> get flagged => txs.where((t) => t.flagged).toList();
+
+  /// 幫別人付過的交易（有填「幫誰」的，不管對方給了沒）。
+  List<LedgerTx> get paidForOthers =>
+      txs.where((t) => t.paidFor != null).toList();
 
   /// 搜尋（2026-11-03 使用者：輸入後每個欄位都會搜）。用空白隔開多個關鍵字，每個
   /// 都要找得到（且）；大小寫不分。搜的欄位：商家、備註、分類、類型、帳戶名稱
@@ -752,15 +766,15 @@ class LedgerBook {
       }
       // 選填第 6、7 欄：跟誰一起、對方要給多少（2026-11-03 使用者要求）。
       PaidFor? paidFor;
-      // 填了「對方要給」或「已給」卻沒填跟誰：不要悄悄當一般消費，報錯提醒。
+      // 填了「對方要給」或「已給」卻沒填幫誰：不要悄悄當一般消費，報錯提醒。
       final hasExtra = p.skip(6).take(2).any((s) => s.isNotEmpty);
       if (!withdraw && (p.length < 6 || p[5].isEmpty) && hasExtra) {
-        out.add(ImportLine(line, error: '填了對方要給／已給，第 6 欄「跟誰」也要填'));
+        out.add(ImportLine(line, error: '填了對方要給／已給，第 6 欄「幫誰」也要填'));
         continue;
       }
       if (!withdraw && p.length >= 6 && p[5].isNotEmpty) {
         if (p.length < 7) {
-          out.add(ImportLine(line, error: '填了跟誰，第 7 欄「對方要給多少」也要填'));
+          out.add(ImportLine(line, error: '填了幫誰，第 7 欄「對方要給多少」也要填'));
           continue;
         }
         final owe = int.tryParse(p[6].replaceAll(RegExp(r'[^\d]'), '')) ?? 0;

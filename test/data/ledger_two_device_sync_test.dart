@@ -106,7 +106,7 @@ void main() {
     // 電腦：同步後全部都有、算出來一樣。
     await sync(pc);
     var b = await LedgerRepository(pc).loadBook();
-    expect(b.accounts.map((a) => a.name), ['郵局', '中信活存', '中信信用卡']);
+    expect(b.accounts.map((a) => a.name), ['郵局', '中信活存', '中信信用卡', '台新卡']);
     expect(b.stateOf(b.accounts.first), isNull);
     expect(b.txs, hasLength(2));
     expect(b.stateOf(b.account(bank.id)!)!.miss, 630);

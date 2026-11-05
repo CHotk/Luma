@@ -54,6 +54,7 @@ class LedgerRepository {
   static const _defaults = [
     ('default_bank', '中信活存', LedgerAccountType.bank),
     ('default_card', '中信卡', LedgerAccountType.creditCard),
+    ('default_taishin', '台新卡', LedgerAccountType.creditCard),
     ('default_cash', '現金', LedgerAccountType.cash),
   ];
 
@@ -62,7 +63,10 @@ class LedgerRepository {
   /// 不同的卡只是「用哪張付」）。餘額、額度都是之後想對帳才填。
   Future<void> ensureDefaultAccounts() async {
     final all = await accountsForUpload();
-    if (all.isNotEmpty) return;
+    if (all.isNotEmpty) {
+      await _addLaterDefaults(all);
+      return;
+    }
     final now = DateTime.now();
     await _save(_accountsKey, [
       for (final (i, d) in _defaults.indexed)
@@ -71,6 +75,38 @@ class LedgerRepository {
           name: d.$2,
           type: d.$3,
           order: i + 1,
+          createdAt: now,
+          updatedAt: now,
+        ),
+    ], (e) => e.toJson());
+  }
+
+  /// 後來才加進預設的帳戶（2026-11-04 使用者：信用卡多一張台新）：本來就有帳戶的人
+  /// 也補上一張，排在最後面。用固定 id 判斷，所以刪掉的（墓碑）不會又長回來；
+  /// 自己已經手動建過同名的也不重複建。
+  static const _laterDefaults = [
+    ('default_taishin', '台新卡', LedgerAccountType.creditCard),
+  ];
+
+  Future<void> _addLaterDefaults(List<LedgerAccount> all) async {
+    final add = [
+      for (final d in _laterDefaults)
+        if (!all.any(
+          (a) => a.id == d.$1 || (a.deletedAt == null && a.name == d.$2),
+        ))
+          d,
+    ];
+    if (add.isEmpty) return;
+    final now = DateTime.now();
+    var order = all.fold(0, (m, a) => a.order > m ? a.order : m);
+    await _save(_accountsKey, [
+      ...all,
+      for (final d in add)
+        LedgerAccount(
+          id: d.$1,
+          name: d.$2,
+          type: d.$3,
+          order: ++order,
           createdAt: now,
           updatedAt: now,
         ),

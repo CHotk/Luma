@@ -75,6 +75,47 @@ void main() {
     budgets: budgets,
   );
 
+  test('繳卡費：戶頭餘額、可刷額兩邊都填，任何一邊對不上這筆都掛漏記', () {
+    // 起始：戶頭 45,000、卡占用 12,400。10/10 繳卡費 12,400。
+    final pay = tx(
+      LedgerTxType.transfer,
+      10,
+      12400,
+      'bank',
+      to: 'card',
+      category: null,
+      id: 'pay',
+    );
+    LedgerCheckpoint cp(String acc, {int? balance, int? available}) =>
+        LedgerCheckpoint(
+          id: 'c-$acc',
+          accountId: acc,
+          at: pay.occurredAt,
+          txId: 'pay',
+          balance: balance,
+          available: available,
+          creditLimit: acc == 'card' ? 100000 : null,
+        );
+    // 兩邊都對：沒有缺。
+    var b = book(
+      [pay],
+      extra: [cp('bank', balance: 32600), cp('card', available: 100000)],
+    );
+    expect(b.gapOfTx('pay'), isNull);
+    // 戶頭少了 500（中間有支出沒記），卡那邊是對的：還是要掛。
+    b = book(
+      [pay],
+      extra: [cp('bank', balance: 32100), cp('card', available: 100000)],
+    );
+    expect(b.gapOfTx('pay')?.miss, 500);
+    // 戶頭對、卡的可刷額比預期少 300：卡那邊對不上也要掛。
+    b = book(
+      [pay],
+      extra: [cp('bank', balance: 32600), cp('card', available: 99700)],
+    );
+    expect(b.gapOfTx('pay')?.miss, 300);
+  });
+
   test('ATM 提款、繳卡費是轉帳：帳戶照動，但不算支出', () {
     final b = book([
       tx(LedgerTxType.transfer, 5, 3000, 'bank', to: 'cash', category: null),

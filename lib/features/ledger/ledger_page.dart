@@ -373,6 +373,14 @@ class LedgerPage extends ConsumerWidget {
           AppColors.ink,
           () => flagsFlow(context, ref),
         ),
+        const SizedBox(width: Gap.md),
+        box(
+          '👥 幫誰付過',
+          '${book.paidForOthers.length} 筆',
+          '點開只看這些',
+          AppColors.ink,
+          () => paidForFlow(context, ref),
+        ),
       ],
     );
   }

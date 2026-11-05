@@ -880,7 +880,7 @@ class _TxFormState extends State<_TxForm> {
   /// 貼上的那行讀得懂嗎：null＝還沒貼、'ok'＝填好了、其他＝錯誤說明。
   String? _pasteMsg;
 
-  /// 貼一行匯入格式（`帳戶｜日期時間｜分類｜商家｜金額［｜跟誰｜對方要給｜已給｜餘額｜備註］`），
+  /// 貼一行匯入格式（`帳戶｜日期時間｜分類｜商家｜金額［｜幫誰｜對方要給｜已給｜餘額｜備註］`），
   /// 照匯入同一套解析，把表單各欄自動填好（2026-11-03 使用者）。多行請用右上角的匯入。
   void _applyPaste(String text) {
     final raw = text.trim();
@@ -1056,6 +1056,17 @@ class _TxFormState extends State<_TxForm> {
     );
   }
 
+  /// 「幫誰」的快選：Cen 固定第一個，後面是之前幫過的人（最近的在前、不重複、最多 5 個）。
+  List<String> get _pfPeopleOptions {
+    final out = <String>['Cen'];
+    for (final t in book.txs) {
+      final p = t.paidFor?.people.trim();
+      if (p != null && p.isNotEmpty && !out.contains(p)) out.add(p);
+      if (out.length >= 6) break;
+    }
+    return out;
+  }
+
   /// 選填：這筆記下來之後，帳戶剩多少（信用卡是可刷餘額）。下一筆也有填的話，
   /// App 就能用「上次餘額 − 中間記到的」跟這次比，對不上就是中間漏記
   /// （2026-11-03 使用者）。轉帳（含繳卡費）可以兩邊帳戶各填一個。
@@ -1159,7 +1170,9 @@ class _TxFormState extends State<_TxForm> {
                 color: AppColors.ink,
               ),
             ),
-            subtitle: Text(sub, style: AppText.note.copyWith(fontSize: 10.5)),
+            subtitle: sub.isEmpty
+                ? null
+                : Text(sub, style: AppText.note.copyWith(fontSize: 10.5)),
           ),
         ),
       );
@@ -1648,8 +1661,24 @@ class _TxFormState extends State<_TxForm> {
       );
       if (_pf) {
         children.addAll([
-          _label('跟誰'),
-          TextField(controller: _pfPeople, decoration: _input('例如 小美')),
+          _label('幫誰'),
+          // 預設 Cen 排第一，後面是之前幫過的人（最近的在前，最多 5 個）；
+          // 點一下就填進去，也可以自己打（2026-11-03 使用者）。
+          TextField(controller: _pfPeople, decoration: _input('')),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 6,
+            runSpacing: 4,
+            children: [
+              for (final n in _pfPeopleOptions)
+                ChoiceChip(
+                  label: Text(n),
+                  selected: _pfPeople.text.trim() == n,
+                  showCheckmark: false,
+                  onSelected: (_) => setState(() => _pfPeople.text = n),
+                ),
+            ],
+          ),
           _label('對方要給你多少', trailing: amt > 0 ? '整筆 ${lMoney(amt)}' : null),
           TextField(
             controller: _pfAmount,
@@ -1666,17 +1695,20 @@ class _TxFormState extends State<_TxForm> {
                   ('一半 ${lMoney((amt / 2).round())}', (amt / 2).round()),
                   ('全部 ${lMoney(amt)}', amt),
                 ])
-                  ActionChip(
+                  // 目前填的金額剛好等於這個值就亮起來（預設一半時「一半」是選中的）。
+                  ChoiceChip(
                     label: Text(label),
-                    onPressed: () => _pfAmount.text = '$v',
+                    selected: pfAmt == v,
+                    showCheckmark: false,
+                    onSelected: (_) => setState(() => _pfAmount.text = '$v'),
                   ),
               ],
             ),
           ],
           // 記的當下就能勾「對方已經給我了」（2026-11-03 使用者），不用再進去補。
           _toggle(
-            '✓ 對方已經給我了',
-            '標籤會顯示已給',
+            '✓ 對方已給',
+            '',
             _pfSettled,
             (v) => setState(() => _pfSettled = v),
           ),
@@ -2778,10 +2810,10 @@ class _ImportState extends State<_Import> {
           const TextSpan(text: '一行一筆：'),
           _b('帳戶｜日期時間｜分類｜商家｜金額'),
           const TextSpan(text: '，後面可以再加'),
-          _b('｜跟誰｜對方要給｜已給｜餘額｜備註'),
+          _b('｜幫誰｜對方要給｜已給｜餘額｜備註'),
           const TextSpan(
             text:
-                '（選填：填跟誰、對方要給就是跟別人一起；他已經給了就再加「｜已給」）。\n'
+                '（選填：填幫誰、對方要給就是跟別人一起；他已經給了就再加「｜已給」）。\n'
                 '最後可以再加一欄「｜餘額」＝這筆之後帳戶剩多少（信用卡填可用額度），用來抓漏記；'
                 '最後一欄是「備註」，想寫什麼都可以；中間沒有的欄位留空，例如 ……｜1000｜｜｜｜48500｜請客。\n',
           ),

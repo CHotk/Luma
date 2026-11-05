@@ -206,14 +206,14 @@ void main() {
     await pump(tester, const LedgerPage(tab: LedgerTab.home), store);
     expect(find.text('開始記帳'), findsNothing);
     // 記帳完整度：還沒對過的帳戶不寫「還沒對帳」之類的狀態，只有一顆「對帳」按鈕。
-    expect(find.text('對帳'), findsNWidgets(3));
+    expect(find.text('對帳'), findsNWidgets(4));
     expect(find.text('沒填餘額'), findsNothing);
     expect(find.text('還沒對帳'), findsNothing);
     expect(find.text('全部對上'), findsNothing);
     final book = await tester.runAsync(
       () => LedgerRepository(store).loadBook(),
     );
-    expect(book!.accounts.map((a) => a.name), ['中信活存', '中信卡', '現金']);
+    expect(book!.accounts.map((a) => a.name), ['中信活存', '中信卡', '台新卡', '現金']);
     expect(book.checkpoints, isEmpty);
     // 記一筆，不填任何餘額。
     await tester.pumpAndSettle();
@@ -286,6 +286,184 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('繳卡費兩邊餘額都填：戶頭或卡任何一邊對不上，這一條都掛漏記', (tester) async {
+    final store = _MemoryStore();
+    final repo = LedgerRepository(store);
+    final book0 = await tester.runAsync(() => repo.loadBook());
+    final bank = book0!.accounts.firstWhere(
+      (a) => a.type == LedgerAccountType.bank,
+    );
+    final card = book0.accounts.firstWhere((a) => a.isCard);
+    await tester.runAsync(() async {
+      Future<LedgerTx> add(
+        LedgerTxType type,
+        int day,
+        int amount,
+        String acc,
+        String m, {
+        String? to,
+      }) async {
+        final t = LedgerTx(
+          id: ledgerId(),
+          type: type,
+          occurredAt: DateTime(2026, 11, day, 10),
+          amount: amount,
+          accountId: acc,
+          toAccountId: to,
+          category: type == LedgerTxType.expense ? '餐飲' : null,
+          merchant: m,
+        );
+        await repo.addTransaction(t);
+        return t;
+      }
+
+      Future<void> cp(LedgerTx t, String acc, bool isCard, int v) =>
+          repo.setTxCheckpoint(
+            txId: t.id,
+            accountId: acc,
+            at: t.occurredAt,
+            value: v,
+            creditLimit: null,
+            isCard: isCard,
+          );
+      // 起點：戶頭剩 1000、卡可刷 9000。
+      await cp(
+        await add(LedgerTxType.expense, 1, 10, bank.id, '起點戶頭'),
+        bank.id,
+        false,
+        1000,
+      );
+      await cp(
+        await add(LedgerTxType.expense, 1, 10, card.id, '起點卡'),
+        card.id,
+        true,
+        9000,
+      );
+      // 繳卡費 300：戶頭該剩 700、可刷該變 9300。戶頭填 600（少 100）、卡填對。
+      final pay1 = await add(
+        LedgerTxType.transfer,
+        2,
+        300,
+        bank.id,
+        '繳卡費',
+        to: card.id,
+      );
+      await cp(pay1, bank.id, false, 600);
+      await cp(pay1, card.id, true, 9300);
+      // 再繳 200：戶頭填對（400）、卡的可刷額填 9400（該是 9500，卡那邊差 100）。
+      final pay2 = await add(
+        LedgerTxType.transfer,
+        3,
+        200,
+        bank.id,
+        '繳卡費',
+        to: card.id,
+      );
+      await cp(pay2, bank.id, false, 400);
+      await cp(pay2, card.id, true, 9400);
+    });
+    await pump(tester, const LedgerPage(tab: LedgerTab.list), store);
+    expect(find.textContaining('漏記'), findsNWidgets(2));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('從畫面記繳卡費、兩邊餘額都填（戶頭差 100）→ 存下來這一條掛漏記', (tester) async {
+    final store = _MemoryStore();
+    final repo = LedgerRepository(store);
+    final book0 = await tester.runAsync(() => repo.loadBook());
+    final bank = book0!.accounts.firstWhere(
+      (a) => a.type == LedgerAccountType.bank,
+    );
+    final card = book0.accounts.firstWhere((a) => a.isCard);
+    await tester.runAsync(() async {
+      Future<void> start(String acc, bool isCard, int v, String m) async {
+        final t = LedgerTx(
+          id: ledgerId(),
+          type: LedgerTxType.expense,
+          occurredAt: DateTime(2026, 11, 1, 10),
+          amount: 10,
+          accountId: acc,
+          category: '餐飲',
+          merchant: m,
+        );
+        await repo.addTransaction(t);
+        await repo.setTxCheckpoint(
+          txId: t.id,
+          accountId: acc,
+          at: t.occurredAt,
+          value: v,
+          creditLimit: null,
+          isCard: isCard,
+        );
+      }
+
+      await start(bank.id, false, 1000, '起點戶頭');
+      await start(card.id, true, 9000, '起點卡');
+    });
+    await pump(tester, const LedgerPage(tab: LedgerTab.home), store);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(FloatingActionButton));
+    await settle(tester);
+    await tester.tap(find.text('轉帳'));
+    await tester.pump();
+    await tester.ensureVisible(find.text('繳卡費'));
+    await tester.pump();
+    await tester.tap(find.text('繳卡費'));
+    await tester.pump();
+    await tester.enterText(find.byType(TextField).at(2), '300');
+    await tester.pump();
+    // 兩個餘額欄位：戶頭（該剩 700，填 600）、卡（可刷額該是 9300，填對）。
+    await tester.enterText(find.byType(TextField).at(3), '600');
+    await tester.enterText(find.byType(TextField).at(4), '9300');
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, '新增'));
+    await settle(tester);
+    expect(tester.takeException(), isNull);
+    expect(find.text('⚠ 中信活存漏記 \$100'), findsOneWidget);
+  });
+
+  testWidgets('首頁「幫誰付過」卡片：跟標記旗幟一樣，點開列出幫別人付的紀錄', (tester) async {
+    final store = await seeded();
+    await pump(tester, const LedgerPage(tab: LedgerTab.home), store);
+    expect(find.text('👥 幫誰付過'), findsOneWidget);
+    expect(find.text('🚩 標記旗幟'), findsOneWidget);
+    await tester.ensureVisible(find.text('👥 幫誰付過'));
+    await tester.pump();
+    await tester.tap(find.text('👥 幫誰付過'));
+    await settle(tester);
+    expect(find.textContaining('鼎泰豐'), findsWidgets);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('跟別人一起：欄位叫「幫誰」，底下有 Cen 的快選，點了就填進去', (tester) async {
+    final store = await seeded();
+    await pump(tester, const LedgerPage(tab: LedgerTab.home), store);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(FloatingActionButton));
+    await settle(tester);
+    final pf = find.text('👥 跟別人一起（對方要給我錢）');
+    await tester.scrollUntilVisible(
+      pf,
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.tap(pf);
+    await tester.pump();
+    expect(find.text('幫誰'), findsOneWidget);
+    expect(find.text('跟誰'), findsNothing);
+    await tester.ensureVisible(find.widgetWithText(ChoiceChip, 'Cen'));
+    await tester.pump();
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Cen'));
+    await tester.pump();
+    expect(
+      tester
+          .widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'Cen'))
+          .selected,
+      isTrue,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('轉帳打開「轉給別人（算支出）」→ 存成一筆支出', (tester) async {
     final store = await seeded();
     await pump(tester, const LedgerPage(tab: LedgerTab.home), store);
@@ -321,8 +499,8 @@ void main() {
       ).addAccount(name: '郵局', type: LedgerAccountType.bank),
     );
     await pump(tester, const LedgerPage(tab: LedgerTab.accounts), store);
-    expect(find.textContaining('沒填餘額'), findsOneWidget);
-    await tester.tap(find.text('填餘額'));
+    expect(find.textContaining('沒填餘額'), findsNWidgets(2));
+    await tester.tap(find.text('填餘額').first);
     await settle(tester);
     expect(find.text('填餘額：郵局'), findsOneWidget);
     await tester.enterText(find.byType(TextField).last, '12000');
@@ -333,7 +511,10 @@ void main() {
     final book = await tester.runAsync(
       () => LedgerRepository(store).loadBook(),
     );
-    expect(book!.stateOf(book.accounts.single)!.now, 12000);
+    expect(
+      book!.stateOf(book.accounts.firstWhere((a) => a.name == '郵局'))!.now,
+      12000,
+    );
   });
 
   testWidgets('每個分頁右上角都有「貼上文字匯入」，點了打得開', (tester) async {
@@ -433,7 +614,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('記一筆跟別人一起：當下就能勾「對方已經給我了」，存下來就是已給', (tester) async {
+  testWidgets('記一筆跟別人一起：當下就能勾「對方已給」，存下來就是已給', (tester) async {
     final store = await seeded();
     await pump(tester, const LedgerPage(tab: LedgerTab.home), store);
     await tester.pumpAndSettle();
@@ -450,7 +631,7 @@ void main() {
     );
     await tester.tap(pf);
     await tester.pump();
-    final done = find.text('✓ 對方已經給我了');
+    final done = find.text('✓ 對方已給');
     await tester.scrollUntilVisible(
       done,
       200,
@@ -638,6 +819,51 @@ void main() {
     expect(find.textContaining('注意 '), findsOneWidget);
     expect(find.textContaining('要注意'), findsNothing);
     expect(find.textContaining('旗幟'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('跟別人一起：預設一半時「一半」選項是亮的；改成全部或自己打就跟著變', (tester) async {
+    final store = await seeded();
+    await pump(tester, const LedgerPage(tab: LedgerTab.home), store);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(FloatingActionButton));
+    await settle(tester);
+    await tester.enterText(find.byType(TextField).at(2), '100');
+    await tester.pump();
+    final pf = find.text('👥 跟別人一起（對方要給我錢）');
+    await tester.scrollUntilVisible(
+      pf,
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.tap(pf);
+    await tester.pump();
+    bool on(String text) => tester
+        .widget<ChoiceChip>(find.widgetWithText(ChoiceChip, text))
+        .selected;
+    // 預設對方要給一半（50）：「一半」亮、「全部」不亮。
+    expect(on('一半 \$50'), isTrue);
+    expect(on('全部 \$100'), isFalse);
+    await tester.ensureVisible(find.text('全部 \$100'));
+    await tester.pump();
+    await tester.tap(find.text('全部 \$100'));
+    await tester.pump();
+    expect(on('一半 \$50'), isFalse);
+    expect(on('全部 \$100'), isTrue);
+    // 自己打 70：兩個都不亮。
+    final pfAmount = find.byWidgetPredicate(
+      (w) =>
+          w is TextField &&
+          w.decoration?.prefixText == '\$' &&
+          w.controller?.text == '100',
+    );
+    await tester.enterText(pfAmount, '70');
+    await tester.pump();
+    expect(on('一半 \$50'), isFalse);
+    expect(on('全部 \$100'), isFalse);
+    // 沒有「還欠你」那種說明了，標題也改叫「對方已給」。
+    expect(find.text('✓ 對方已給'), findsOneWidget);
+    expect(find.textContaining('不會列在'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 

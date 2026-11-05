@@ -214,7 +214,7 @@ class TxTile extends StatelessWidget {
       ),
     };
     final pf = t.paidFor;
-    final gap = book.gapOfTx(t.id);
+    final gaps = book.gapsOfTx(t.id);
     final cp = book.checkpointOfTx(t.id);
     // 毛玻璃（2026-11-03 使用者）：背後模糊＋半透明填色＋邊線，跟 GlassCard 同一套
     // 做法；對帳調整那種用黃色邊線。
@@ -280,7 +280,7 @@ class TxTile extends StatelessWidget {
                               if (pf != null ||
                                   t.isSplit ||
                                   t.source == 'paste' ||
-                                  gap != null ||
+                                  gaps.isNotEmpty ||
                                   cp != null)
                                 Padding(
                                   padding: const EdgeInsets.only(top: 3),
@@ -298,14 +298,15 @@ class TxTile extends StatelessWidget {
                                               ? AppColors.ok
                                               : ledgerPaidFor,
                                         ),
-                                      if (gap != null)
+                                      // 轉帳（繳卡費）兩邊都填了，哪一邊對不上就寫哪一邊。
+                                      for (final g in gaps)
                                         LedgerPill(
-                                          gap.miss > 0
-                                              ? '⚠ 漏記 ${lMoney(gap.miss)}'
-                                              : '⚠ 多出 ${lMoney(-gap.miss)}',
+                                          '⚠ ${t.type == LedgerTxType.transfer ? g.account.name : ''}'
+                                          '${g.miss > 0 ? '漏記' : '多出'} '
+                                          '${lMoney(g.miss.abs())}',
                                           color: AppColors.mid,
-                                        )
-                                      else if (cp != null)
+                                        ),
+                                      if (gaps.isEmpty && cp != null)
                                         LedgerPill(
                                           cp.available != null
                                               ? '可用 ${lMoney(cp.available!)}'
