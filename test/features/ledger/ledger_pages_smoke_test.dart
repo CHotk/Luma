@@ -513,7 +513,7 @@ void main() {
     expect(find.textContaining('已繳清'), findsOneWidget);
     // 最上面卡片不寫借款總共還剩多少（2026-11-06 使用者：壓力很大）。
     expect(find.textContaining('借款還剩'), findsNothing);
-    expect(find.byType(LinearProgressIndicator), findsWidgets);
+    expect(find.byType(LinearProgressIndicator), findsNothing); // 每筆下面沒有進度條（黑線）
     expect(tester.takeException(), isNull);
   });
 

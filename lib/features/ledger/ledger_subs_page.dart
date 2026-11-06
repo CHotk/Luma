@@ -223,7 +223,6 @@ class LedgerSubsPage extends ConsumerWidget {
     DateTime now,
   ) {
     final charging = isCharging(s, now);
-    final paid = paidPeriods(s, now);
     final sub = [
       if (charging)
         '下次 ${_nextText(s, now)}'
@@ -302,21 +301,8 @@ class LedgerSubsPage extends ConsumerWidget {
                         color: AppColors.ink3,
                       ),
                     ),
-                    // 每筆下面不寫期數、貸款、利息這些黃字（2026-11-06 使用者：壓力很大），
+                    // 每筆下面不放進度條、也不寫期數、貸款、利息（2026-11-06 使用者：看不懂、壓力很大），
                     // 這些只在編輯表單裡看。
-                    // 期數進度條：已繳幾期／總期數。
-                    if (paid != null && (s.periods ?? 0) > 0) ...[
-                      const SizedBox(height: 5),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
-                        child: LinearProgressIndicator(
-                          value: (paid / s.periods!).clamp(0, 1).toDouble(),
-                          minHeight: 4,
-                          backgroundColor: const Color(0xFF1E1E2E),
-                          color: _kindColor(s.kind),
-                        ),
-                      ),
-                    ],
                   ],
                 ),
               ),
