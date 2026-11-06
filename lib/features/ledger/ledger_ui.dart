@@ -164,11 +164,8 @@ class TxTile extends ConsumerWidget {
   /// 「拆分自 $整筆」），點下去還是開整筆（2026-11-03 使用者）。
   final String? partCategory;
 
-  static List<String> _terms(String q) => q
-      .toLowerCase()
-      .split(RegExp(r'\s+'))
-      .where((s) => s.isNotEmpty)
-      .toList();
+  static List<String> _terms(String q) =>
+      q.toLowerCase().split(RegExp(r'\s+')).where((s) => s.isNotEmpty).toList();
 
   /// 搜尋時拆分的一份：「└ 品項名稱（分類） $金額 👥」，符合關鍵字的亮起來。
   Widget _partLine(LedgerSplit s, List<String> terms) {

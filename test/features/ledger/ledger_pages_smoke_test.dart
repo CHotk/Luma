@@ -220,6 +220,28 @@ void main() {
     expect(book.txs.length, 3);
   });
 
+  testWidgets('記一筆：商家輸入全形 ＦＯＯＤＰＡＮＤＡ 自動變 foodpanda（備註、搜尋也是）', (tester) async {
+    final store = await seeded();
+    await pump(tester, const LedgerPage(tab: LedgerTab.home), store);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(FloatingActionButton));
+    await settle(tester);
+    await tester.enterText(find.byType(TextField).at(2), '250');
+    await tester.enterText(find.byType(TextField).at(1), 'ＦＯＯＤＰＡＮＤＡ　');
+    await tester.pump();
+    expect(
+      tester.widget<TextField>(find.byType(TextField).at(1)).controller!.text,
+      'foodpanda ',
+    );
+    await tester.tap(find.widgetWithText(FilledButton, '新增'));
+    await settle(tester);
+    final book = await tester.runAsync(
+      () => LedgerRepository(store).loadBook(),
+    );
+    expect(book!.txs.any((t) => t.merchant == 'foodpanda'), isTrue);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('記帳首頁有「每月訂閱」入口，寫每月合計跟幾項', (tester) async {
     final store = await seeded();
     await tester.runAsync(() async {

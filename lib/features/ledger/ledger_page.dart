@@ -11,6 +11,7 @@ import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
 import '../../domain/ledger_calc.dart';
 import '../../domain/models/ledger.dart';
+import '../../shared/half_width_input.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
@@ -1114,6 +1115,7 @@ class _SearchBoxState extends ConsumerState<_SearchBox> {
     padding: const EdgeInsets.only(bottom: 8),
     child: TextField(
       controller: _c,
+      inputFormatters: halfWidthFormatters,
       onChanged: (v) {
         ref.read(ledgerSearchProvider.notifier).state = v;
         setState(() {}); // 清除鈕跟著有沒有字出現或消失

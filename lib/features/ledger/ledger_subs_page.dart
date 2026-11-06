@@ -9,6 +9,7 @@ import '../../domain/ledger_calc.dart';
 import '../../domain/ledger_subscriptions.dart';
 import '../../domain/models/ledger.dart';
 import '../../shared/digits_input.dart';
+import '../../shared/half_width_input.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_confirm_dialog.dart';
 import '../../shared/widgets/app_notice.dart';
@@ -417,6 +418,7 @@ class _SubFormState extends State<_SubForm> {
           TextField(
             controller: _name,
             autofocus: e == null,
+            inputFormatters: halfWidthFormatters,
             maxLength: 50,
             decoration: _input('例如 Netflix').copyWith(counterText: ''),
           ),
@@ -446,6 +448,7 @@ class _SubFormState extends State<_SubForm> {
           TextField(
             controller: _note,
             maxLength: ledgerNoteMax,
+            inputFormatters: halfWidthFormatters,
             decoration: _input('例如 家庭方案、年繳').copyWith(counterText: ''),
           ),
           const SizedBox(height: 4),

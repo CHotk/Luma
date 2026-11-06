@@ -5,6 +5,7 @@ import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
 import '../../shared/digits_input.dart';
+import '../../shared/half_width_input.dart';
 import '../../shared/widgets/date_time_wheel.dart';
 import '../../domain/ledger_calc.dart';
 import '../../domain/models/ledger.dart';
@@ -435,7 +436,11 @@ class _SetupState extends State<_Setup> {
                 child: Text(r.type.emoji, style: const TextStyle(fontSize: 18)),
               ),
               Expanded(
-                child: TextField(controller: r.name, decoration: _input('名稱')),
+                child: TextField(
+                  controller: r.name,
+                  inputFormatters: halfWidthFormatters,
+                  decoration: _input('名稱'),
+                ),
               ),
               if (removable)
                 IconButton(
@@ -602,6 +607,7 @@ class _AccountFormState extends State<_AccountForm> {
         _label('名稱'),
         TextField(
           controller: _name,
+          inputFormatters: halfWidthFormatters,
           decoration: _input(_card ? '例如 中信卡' : '例如 郵局'),
         ),
         if (edit == null) ...[
@@ -731,11 +737,10 @@ class _TxFormState extends State<_TxForm> {
 
   /// 拆分模式下「幫人付」跟著各份走：有任何一份標了就算有幫人付，金額是那幾份加起來。
   bool get _pfOn => _split ? _splitRows.any((r) => r.forOther) : _pf;
-  int get _pfSum => _splitRows.fold(
-    0,
-    (s, r) => r.forOther ? s + (_int(r.amount) ?? 0) : s,
-  );
+  int get _pfSum =>
+      _splitRows.fold(0, (s, r) => r.forOther ? s + (_int(r.amount) ?? 0) : s);
   int get _pfValue => _split ? _pfSum : (_int(_pfAmount) ?? 0);
+
   /// 幫誰沒填時的預設：快選列的第一個（最近幫過的人）；從來沒幫過人才寫「朋友」
   /// （2026-11-05 使用者：不要直接給我寫「朋友」）。
   String get _defaultPerson => _pfPeopleOptions.firstOrNull ?? '';
@@ -1070,11 +1075,7 @@ class _TxFormState extends State<_TxForm> {
       merchant = '${book.tx(_linked)?.paidFor?.people ?? ''} 還錢';
     }
     final pf = _type == LedgerTxType.expense && _pfOn
-        ? PaidFor(
-            amount: _pfValue,
-            people: _pfPeopleText,
-            settled: _pfAllGiven,
-          )
+        ? PaidFor(amount: _pfValue, people: _pfPeopleText, settled: _pfAllGiven)
         : null;
     final hasCat = ty == LedgerTxType.expense || ty == LedgerTxType.income;
     final linked = ty == LedgerTxType.refund || ty == LedgerTxType.repayment;
@@ -1142,7 +1143,10 @@ class _TxFormState extends State<_TxForm> {
     for (final t in book.txs) {
       // 拆分的每一份各自記了幫誰；沒拆的用整筆的。
       final names = t.splitHasOther
-          ? [for (final s in t.splits) if (s.forOther) s.people.trim()]
+          ? [
+              for (final s in t.splits)
+                if (s.forOther) s.people.trim(),
+            ]
           : [t.paidFor?.people.trim() ?? ''];
       for (final p in names) {
         if (p.isNotEmpty && !out.contains(p)) out.add(p);
@@ -1371,7 +1375,11 @@ class _TxFormState extends State<_TxForm> {
             decoration: _input(''),
           )
         else
-          TextField(controller: _merchant, decoration: _input('')),
+          TextField(
+            controller: _merchant,
+            inputFormatters: halfWidthFormatters,
+            decoration: _input(''),
+          ),
       ],
       _label('金額'),
       TextField(
@@ -1664,6 +1672,7 @@ class _TxFormState extends State<_TxForm> {
                         Expanded(
                           child: TextField(
                             controller: r.name,
+                            inputFormatters: halfWidthFormatters,
                             maxLength: ledgerSplitNameMax,
                             decoration: _input(
                               '品項名稱（選填）',
@@ -1705,6 +1714,7 @@ class _TxFormState extends State<_TxForm> {
                             child: TextField(
                               key: ValueKey('splitPeople$i'),
                               controller: r.people,
+                              inputFormatters: halfWidthFormatters,
                               decoration: _input('幫誰（例如 Cen）'),
                             ),
                           ),
@@ -1803,6 +1813,7 @@ class _TxFormState extends State<_TxForm> {
       _label('備註', trailing: '選填・最多 100 字'),
       TextField(
         controller: _memo,
+        inputFormatters: halfWidthFormatters,
         maxLength: ledgerNoteMax,
         decoration: _input(''),
       ),
@@ -1848,7 +1859,11 @@ class _TxFormState extends State<_TxForm> {
           else ...[
             _label('幫誰'),
             // 點一下最近幫過的人就填進去，也可以自己打（2026-11-03 使用者）。
-            TextField(controller: _pfPeople, decoration: _input('')),
+            TextField(
+              controller: _pfPeople,
+              inputFormatters: halfWidthFormatters,
+              decoration: _input(''),
+            ),
             const SizedBox(height: 6),
             if (_pfPeopleOptions.isNotEmpty)
               Wrap(
@@ -1898,16 +1913,17 @@ class _TxFormState extends State<_TxForm> {
               (v) => setState(() => _pfSettled = v),
             ),
           ],
-          if (!_split) _note(
-            amt > 0 && pfAmt > 0 && pfAmt <= amt
-                ? [
-                    const TextSpan(text: '本月消費只算你自己的 '),
-                    _b(lMoney(amt - pfAmt)),
-                    const TextSpan(text: '；對方給了之後，在這筆按「他給了 ✓」就好。'),
-                  ]
-                : [const TextSpan(text: '本月消費只算你自己的那份；他給了之後按「他給了 ✓」就好。')],
-            color: ledgerPaidFor,
-          ),
+          if (!_split)
+            _note(
+              amt > 0 && pfAmt > 0 && pfAmt <= amt
+                  ? [
+                      const TextSpan(text: '本月消費只算你自己的 '),
+                      _b(lMoney(amt - pfAmt)),
+                      const TextSpan(text: '；對方給了之後，在這筆按「他給了 ✓」就好。'),
+                    ]
+                  : [const TextSpan(text: '本月消費只算你自己的那份；他給了之後按「他給了 ✓」就好。')],
+              color: ledgerPaidFor,
+            ),
         ]);
       }
     }
