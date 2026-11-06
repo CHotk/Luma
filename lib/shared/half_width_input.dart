@@ -1,15 +1,15 @@
 import 'package:flutter/services.dart';
 
-/// 文字欄位的全形英數字自動轉半形小寫（2026-11-06 使用者：記帳如果輸入全形的
-/// `ＦＯＯＤＰＡＮＤＡ`，自動偵測並改成正常的 `foodpanda`）。
+/// 文字欄位的全形英數字自動轉成對應的半形（2026-11-06 使用者：輸入全形的 `ＦＯＯＤＰＡＮＤＡ`
+/// 自動偵測並改成正常的英文；大寫就對應大寫、小寫對應小寫，不另外改大小寫）。
 ///
-/// 只動全形的英文字母、數字跟全形空白：
-/// - `Ａ–Ｚ`、`ａ–ｚ` → 半形**小寫** `a–z`
+/// 只動全形的英數字跟全形空白：
+/// - `Ａ–Ｚ` → `A–Z`、`ａ–ｚ` → `a–z`
 /// - `０–９` → `0–9`
 /// - 全形空白（U+3000）→ 一般空白
 ///
 /// 中文標點（，。！？（）「」）一律不動，不然中文句子會被改壞；已經是半形的字母
-/// 大小寫也不動（打 `FoodPanda` 就是 `FoodPanda`）。
+/// 也不動。
 class HalfWidthTextFormatter extends TextInputFormatter {
   const HalfWidthTextFormatter();
 
@@ -20,7 +20,7 @@ class HalfWidthTextFormatter extends TextInputFormatter {
     for (final r in s.runes) {
       var o = r;
       if (r >= 0xFF21 && r <= 0xFF3A) {
-        o = r - 0xFF21 + 0x61; // Ａ–Ｚ → a–z
+        o = r - 0xFF21 + 0x41; // Ａ–Ｚ → A–Z
       } else if (r >= 0xFF41 && r <= 0xFF5A) {
         o = r - 0xFF41 + 0x61; // ａ–ｚ → a–z
       } else if (r >= 0xFF10 && r <= 0xFF19) {

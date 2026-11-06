@@ -395,35 +395,35 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
                         ),
                       ),
                       child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 10,
-                          height: 10,
-                          decoration: BoxDecoration(
-                            color: colorOf[t.id],
-                            borderRadius: BorderRadius.circular(3),
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 10,
+                            height: 10,
+                            decoration: BoxDecoration(
+                              color: colorOf[t.id],
+                              borderRadius: BorderRadius.circular(3),
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          '${t.symbol}${t.isLong ? '多' : '空'} ${fmtLev(t.leverage)}',
-                          style: const TextStyle(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.ink,
+                          const SizedBox(width: 6),
+                          Text(
+                            '${t.symbol}${t.isLong ? '多' : '空'} ${fmtLev(t.leverage)}',
+                            style: const TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.ink,
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 5),
-                        Text(
-                          t.isOpen ? '抱著' : fmtPnl(t.pnl!),
-                          style: TextStyle(
-                            fontSize: 11.5,
-                            color: t.isOpen ? AppColors.mid : pnlColor(t.pnl),
+                          const SizedBox(width: 5),
+                          Text(
+                            t.isOpen ? '抱著' : fmtPnl(t.pnl!),
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              color: t.isOpen ? AppColors.mid : pnlColor(t.pnl),
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
+                        ],
+                      ),
                     ),
                   ),
               ],

@@ -3,10 +3,10 @@ import 'package:lume/data/repositories/ledger_repository.dart';
 import 'package:lume/data/storage/key_value_store.dart';
 import 'package:lume/domain/models/ledger.dart';
 
-/// 設定裡的「整理全形文字」：把已經記的全形英數字一次改成半形小寫
-/// （ＦＯＯＤＰＡＮＤＡ → foodpanda），中文跟沒全形字的紀錄一個字都不碰。
+/// 設定裡的「整理全形文字」：把已經記的全形英數字一次改成對應的半形
+/// （ＦＯＯＤＰＡＮＤＡ → FOODPANDA），中文跟沒全形字的紀錄一個字都不碰。
 void main() {
-  test('舊資料的全形英數字全部改成半形小寫，其他不動，記進操作紀錄', () async {
+  test('舊資料的全形英數字全部改成對應的半形，其他不動，記進操作紀錄', () async {
     final store = _MemoryStore();
     final repo = LedgerRepository(store);
     final card = await repo.addAccount(
@@ -66,12 +66,12 @@ void main() {
     final n = await repo.normalizeFullWidthText();
     final book = await repo.loadBook();
     final d = book.tx(dirty.id)!;
-    expect(d.merchant, 'foodpanda');
-    expect(d.note, '外送，uber eats（123）');
-    expect(d.paidFor!.people, 'cen');
+    expect(d.merchant, 'FOODPANDA');
+    expect(d.note, '外送，UBER Eats（123）');
+    expect(d.paidFor!.people, 'Cen');
     expect(d.paidFor!.amount, 250);
-    expect(d.splits.map((s) => s.name), ['burger', '衛生紙']);
-    expect(d.splits.map((s) => s.people), ['', 'cen']);
+    expect(d.splits.map((s) => s.name), ['BURGER', '衛生紙']);
+    expect(d.splits.map((s) => s.people), ['', 'Cen']);
     expect(d.splits.map((s) => s.forOther), [false, true]);
     expect(d.splits.map((s) => s.amount), [300, 200]);
     expect(d.updatedAt!.isAfter(dirtyStamp), isTrue); // 同步才會帶到其他裝置
@@ -81,22 +81,22 @@ void main() {
     expect(c.note, '正常（不要動）');
     expect(c.updatedAt, cleanStamp);
     // 帳戶、訂閱。
-    expect(book.accountName(card.id), 'ctbc 卡');
+    expect(book.accountName(card.id), 'CTBC 卡');
     expect(book.accountName(plain.id), '現金');
     final s = (await repo.loadSubscriptions()).firstWhere(
       (x) => x.id == sub.id,
     );
-    expect(s.name, 'netflix');
-    expect(s.note, '家庭方案xl');
+    expect(s.name, 'NETFLIX');
+    expect(s.note, '家庭方案XL');
     // 回傳 = 改了幾筆（1 交易 + 1 帳戶 + 1 訂閱）。
     expect(n, 3);
     // 操作紀錄多一筆，寫出舊 → 新。
     final log = await repo.loadLog();
     expect(log.length, logBefore + 1);
     final entry = log.firstWhere((e) => e.action == '整理全形文字');
-    expect(entry.summary, '改了 1 筆交易、1 個帳戶、1 個訂閱');
-    expect(entry.detail, contains('商家：ＦＯＯＤＰＡＮＤＡ　 → foodpanda'));
-    expect(entry.detail, contains('帳戶名稱：ＣＴＢＣ　卡 → ctbc 卡'));
+    expect(entry.summary, '改了 1 筆交易、1 個帳戶、1 個每月扣款');
+    expect(entry.detail, contains('商家：ＦＯＯＤＰＡＮＤＡ　 → FOODPANDA'));
+    expect(entry.detail, contains('帳戶名稱：ＣＴＢＣ　卡 → CTBC 卡'));
     // 再按一次：沒東西可改，回 0，不多記一筆。
     expect(await repo.normalizeFullWidthText(), 0);
     expect((await repo.loadLog()).length, logBefore + 1);

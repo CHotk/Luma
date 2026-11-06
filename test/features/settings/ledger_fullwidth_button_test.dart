@@ -7,9 +7,9 @@ import 'package:lume/data/storage/key_value_store.dart';
 import 'package:lume/domain/models/ledger.dart';
 import 'package:lume/features/settings/other_settings_page.dart';
 
-/// 設定 → 記帳 →「整理全形文字」按鈕：確認後把舊資料的全形英數字改成半形小寫。
+/// 設定 → 記帳 →「整理全形文字」按鈕：確認後把舊資料的全形英數字改成對應的半形。
 void main() {
-  testWidgets('按「整理」→ 確認 → 舊的 ＦＯＯＤＰＡＮＤＡ 變 foodpanda，提示改了幾筆', (tester) async {
+  testWidgets('按「整理」→ 確認 → 舊的 ＦＯＯＤＰＡＮＤＡ 變 FOODPANDA，提示改了幾筆', (tester) async {
     tester.view.physicalSize = const Size(360 * 3, 780 * 3);
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
@@ -62,7 +62,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
     }
     book = await tester.runAsync(() => repo.loadBook());
-    expect(book!.txs.single.merchant, 'foodpanda');
+    expect(book!.txs.single.merchant, 'FOODPANDA');
     expect(find.text('已整理 1 筆'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.pump(const Duration(seconds: 5));

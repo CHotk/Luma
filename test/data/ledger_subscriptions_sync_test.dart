@@ -97,13 +97,13 @@ void main() {
     // 操作紀錄：新增 2、編輯 1（金額）、停用 1、刪除 1，兩邊聯集都看得到。
     final log = await a.loadLog();
     final actions = log.map((e) => e.action).toList();
-    expect(actions.where((x) => x == '新增訂閱').length, 2);
-    expect(actions.where((x) => x == '編輯訂閱').length, 1);
-    expect(actions.where((x) => x == '停用訂閱').length, 1);
-    expect(actions.where((x) => x == '刪除訂閱').length, 1);
-    final edit = log.firstWhere((e) => e.action == '編輯訂閱');
+    expect(actions.where((x) => x == '新增扣款').length, 2);
+    expect(actions.where((x) => x == '編輯扣款').length, 1);
+    expect(actions.where((x) => x == '停用扣款').length, 1);
+    expect(actions.where((x) => x == '刪除扣款').length, 1);
+    final edit = log.firstWhere((e) => e.action == '編輯扣款');
     expect(edit.detail, contains('金額：\$390 → \$490'));
-    final stop = log.firstWhere((e) => e.action == '停用訂閱');
+    final stop = log.firstWhere((e) => e.action == '停用扣款');
     expect(stop.summary, contains('Spotify'));
   });
 }

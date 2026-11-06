@@ -2,13 +2,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lume/shared/half_width_input.dart';
 
-/// 文字欄位的全形英數字自動轉半形小寫：ＦＯＯＤＰＡＮＤＡ → foodpanda。
+/// 文字欄位的全形英數字自動轉成對應的半形（大小寫照原來）：ＦＯＯＤＰＡＮＤＡ → FOODPANDA。
 void main() {
-  test('全形英文字母（大小寫都是）、數字、空白轉成半形小寫', () {
-    expect(HalfWidthTextFormatter.normalize('ＦＯＯＤＰＡＮＤＡ'), 'foodpanda');
-    expect(HalfWidthTextFormatter.normalize('ＦｏｏｄＰａｎｄａ'), 'foodpanda');
-    expect(HalfWidthTextFormatter.normalize('７－ＥＬＥＶＥＮ'), '7－eleven');
-    expect(HalfWidthTextFormatter.normalize('ＦＯＯＤ　ＰＡＮＤＡ'), 'food panda');
+  test('全形英文字母、數字、空白轉成對應的半形，大寫還是大寫、小寫還是小寫', () {
+    expect(HalfWidthTextFormatter.normalize('ＦＯＯＤＰＡＮＤＡ'), 'FOODPANDA');
+    expect(HalfWidthTextFormatter.normalize('ＦｏｏｄＰａｎｄａ'), 'FoodPanda');
+    expect(HalfWidthTextFormatter.normalize('７－ＥＬＥＶＥＮ'), '7－ELEVEN');
+    expect(HalfWidthTextFormatter.normalize('ＦＯＯＤ　ＰＡＮＤＡ'), 'FOOD PANDA');
     expect(HalfWidthTextFormatter.normalize('１２３'), '123');
   });
 
@@ -19,7 +19,7 @@ void main() {
     expect(HalfWidthTextFormatter.normalize(''), '');
   });
 
-  test('輸入過濾：打全形馬上變半形小寫，游標位置不變、組字狀態清掉', () {
+  test('輸入過濾：打全形馬上變對應的半形，游標位置不變、組字狀態清掉', () {
     const f = HalfWidthTextFormatter();
     final out = f.formatEditUpdate(
       const TextEditingValue(text: 'ＦＯＯ'),
@@ -29,7 +29,7 @@ void main() {
         composing: TextRange(start: 0, end: 4),
       ),
     );
-    expect(out.text, 'food');
+    expect(out.text, 'FOOD');
     expect(out.selection.baseOffset, 4);
     expect(out.composing, TextRange.empty);
     // 沒有全形字就原樣交回（不動輸入法的組字）。

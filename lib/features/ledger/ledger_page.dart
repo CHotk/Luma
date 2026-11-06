@@ -175,7 +175,7 @@ class LedgerPage extends ConsumerWidget {
     InlineEmptyCard(
       title: '還沒開始記帳',
       message:
-          '先建要用的帳戶（中信活存、中信信用卡、現金，可以再多加戶頭）就能開始。'
+          '先建要用的帳戶（中信帳戶、中信信用卡、現金，可以再多加戶頭）就能開始。'
           '餘額都可以先不填。'
           '不用補以前的紀錄。',
       actions: [EmptyAction('開始記帳', () => setupFlow(context, ref))],
@@ -1043,14 +1043,15 @@ class _DonutPainter extends CustomPainter {
   bool shouldRepaint(_DonutPainter old) => true;
 }
 
-/// 首頁的「每月訂閱」入口（2026-11-05 使用者）：寫每月合計跟幾項，點了進訂閱頁。
+/// 首頁的「每月扣款」入口（2026-11-05 使用者；2026-11-06 改名）：寫每月合計跟幾項，點了進去。
 class _SubsEntry extends ConsumerWidget {
   const _SubsEntry();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final subs = ref.watch(ledgerSubsProvider).valueOrNull ?? const [];
-    final active = subs.where((s) => s.active).toList();
+    final now = DateTime.now();
+    final active = subs.where((s) => isCharging(s, now)).toList();
     return GlassCard(
       onTap: () => context.push('/ledger/subs'),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -1063,7 +1064,7 @@ class _SubsEntry extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  '每月訂閱',
+                  '每月扣款',
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
@@ -1072,8 +1073,8 @@ class _SubsEntry extends ConsumerWidget {
                 ),
                 Text(
                   active.isEmpty
-                      ? '記錄每月自動扣款的服務'
-                      : '${active.length} 項訂閱中・每月 ${lMoney(subsMonthlyTotal(subs))}',
+                      ? '記錄每月會被扣的錢（訂閱、欠款）'
+                      : '${active.length} 項扣款中・每月 ${lMoney(subsMonthlyTotal(subs, now: now))}',
                   style: AppText.note.copyWith(
                     fontSize: 10.5,
                     color: AppColors.ink3,

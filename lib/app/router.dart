@@ -123,10 +123,7 @@ final appRouter = GoRouter(
       ),
     // 記帳操作紀錄（2026-11-03）：只增不刪的 log，從設定的「記帳」分頁進來。
     GoRoute(path: '/ledger/log', builder: (_, _) => const LedgerLogPage()),
-    GoRoute(
-      path: '/ledger/subs',
-      builder: (_, _) => const LedgerSubsPage(),
-    ),
+    GoRoute(path: '/ledger/subs', builder: (_, _) => const LedgerSubsPage()),
     // i88（2026-11-03）：單純記輸贏、月曆卡看每月達標，跟交易分開。
     GoRoute(path: '/i88', builder: (_, _) => const I88Page()),
     GoRoute(path: '/i88/log', builder: (_, _) => const I88LogPage()),

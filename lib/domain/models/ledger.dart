@@ -48,7 +48,7 @@ enum LedgerAccountType {
       values.firstWhere((t) => t.json == s, orElse: () => bank);
 }
 
-/// 一個帳戶（中信活存、中信信用卡、現金⋯）。信用卡多一個總額度。
+/// 一個帳戶（中信帳戶、中信信用卡、現金⋯）。信用卡多一個總額度。
 class LedgerAccount {
   const LedgerAccount({
     required this.id,
@@ -123,8 +123,8 @@ enum LedgerTxType {
   /// 退款，[LedgerTx.linkedId] 指回原本那筆支出。
   refund('退款'),
 
-  /// 別人還你錢，[LedgerTx.linkedId] 指回當初幫人付的那筆；不算收入。
-  repayment('別人還錢'),
+  /// 收到欠款（別人還你錢），[LedgerTx.linkedId] 指回當初幫人付的那筆；不算收入。
+  repayment('收到欠款'),
 
   /// 對帳調整：差額想不起來是什麼，直接調成一筆未分類。
   adjustment('對帳調整');
@@ -527,6 +527,20 @@ class LedgerBudget {
   );
 }
 
+/// 每月扣款的種類（2026-11-06 使用者：每月扣款裡可以區分訂閱跟欠款）。
+enum LedgerChargeKind {
+  subscription('subscription', '訂閱'),
+  debt('debt', '欠款');
+
+  const LedgerChargeKind(this.json, this.label);
+
+  final String json;
+  final String label;
+
+  static LedgerChargeKind parse(String? s) =>
+      values.firstWhere((k) => k.json == s, orElse: () => subscription);
+}
+
 /// 每月自動扣款的訂閱（2026-11-05 使用者：記錄每月幾號會被扣多少錢、是什麼服務，
 /// **單純紀錄用**，不會自動記進交易、不影響任何計算）。
 ///
@@ -538,6 +552,10 @@ class LedgerSubscription {
     required this.name,
     required this.amount,
     required this.day,
+    this.kind = LedgerChargeKind.subscription,
+    this.periods,
+    this.loanTotal,
+    this.startMonth,
     this.note = '',
     this.active = true,
     this.createdAt,
@@ -550,6 +568,17 @@ class LedgerSubscription {
   final int amount;
   final int day;
 
+  /// 訂閱或欠款（只是標示，算法一樣）。
+  final LedgerChargeKind kind;
+
+  /// 欠款才有（2026-11-06 使用者：欠款要有期數的概念，還有實際貸款總額）：總期數。
+  final int? periods;
+
+  /// 欠款才有：實際貸款總額（借了多少，不含利息；每月扣款 × 期數 通常會比它多）。
+  final int? loanTotal;
+
+  /// 欠款才有：第一期是哪個月扣款，`yyyy-MM`。有了它才算得出已繳幾期、還剩幾期。
+  final String? startMonth;
   final String note;
   final bool active;
   final DateTime? createdAt;
@@ -562,6 +591,10 @@ class LedgerSubscription {
     String? name,
     int? amount,
     int? day,
+    LedgerChargeKind? kind,
+    int? Function()? periods,
+    int? Function()? loanTotal,
+    String? Function()? startMonth,
     String? note,
     bool? active,
     DateTime? updatedAt,
@@ -571,6 +604,10 @@ class LedgerSubscription {
     name: name ?? this.name,
     amount: amount ?? this.amount,
     day: day ?? this.day,
+    kind: kind ?? this.kind,
+    periods: periods == null ? this.periods : periods(),
+    loanTotal: loanTotal == null ? this.loanTotal : loanTotal(),
+    startMonth: startMonth == null ? this.startMonth : startMonth(),
     note: note ?? this.note,
     active: active ?? this.active,
     createdAt: createdAt,
@@ -583,6 +620,10 @@ class LedgerSubscription {
     'name': name,
     'amount': amount,
     'day': day,
+    'kind': kind.json,
+    if (periods != null) 'periods': periods,
+    if (loanTotal != null) 'loanTotal': loanTotal,
+    if (startMonth != null) 'startMonth': startMonth,
     'note': note,
     'active': active,
     'createdAt': createdAt == null ? null : ledgerTime(createdAt!),
@@ -596,6 +637,10 @@ class LedgerSubscription {
         name: j['name'] as String? ?? '',
         amount: (j['amount'] as num?)?.toInt() ?? 0,
         day: ((j['day'] as num?)?.toInt() ?? 1).clamp(1, 31),
+        kind: LedgerChargeKind.parse(j['kind'] as String?),
+        periods: (j['periods'] as num?)?.toInt(),
+        loanTotal: (j['loanTotal'] as num?)?.toInt(),
+        startMonth: j['startMonth'] as String?,
         note: j['note'] as String? ?? '',
         active: j['active'] as bool? ?? true,
         createdAt: _t(j['createdAt']),

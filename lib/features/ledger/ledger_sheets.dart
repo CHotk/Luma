@@ -130,6 +130,35 @@ Widget _label(String text, {String? trailing}) => Padding(
   ),
 );
 
+/// æ¨é¡è·è¼¸å¥æ¡åä¸è¡ï¼2026-11-06 ä½¿ç¨èï¼ä¸è¦æ¨é¡ä¸è¡ãè¼¸å¥æ¡åæä¸è¡ï¼ã
+/// å·¦éåºå®å¯¬åº¦æ¾æ¨é¡ï¼[hint] æ¯ä¸é¢ä¸è¡å°å­ï¼ä¾å¦å¿å¡«ï¼ï¼å³éæ¯è¼¸å¥æ¡ã
+Widget _row(String label, Widget field, {String? hint}) => Padding(
+  padding: const EdgeInsets.only(top: 12),
+  child: Row(
+    crossAxisAlignment: CrossAxisAlignment.center,
+    children: [
+      SizedBox(
+        width: 78,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: AppText.note),
+            if (hint != null)
+              Text(
+                hint,
+                style: AppText.note.copyWith(
+                  fontSize: 10,
+                  color: AppColors.ink3,
+                ),
+              ),
+          ],
+        ),
+      ),
+      Expanded(child: field),
+    ],
+  ),
+);
+
 InputDecoration _input(String hint, {String? prefix, String? suffix}) =>
     InputDecoration(
       hintText: hint,
@@ -384,7 +413,7 @@ class _Setup extends StatefulWidget {
 
 class _SetupState extends State<_Setup> {
   final _rows = [
-    _SetupRow(LedgerAccountType.bank, '中信活存'),
+    _SetupRow(LedgerAccountType.bank, '中信帳戶'),
     _SetupRow(LedgerAccountType.creditCard, '中信卡'),
     _SetupRow(LedgerAccountType.cash, '現金'),
   ];
@@ -1286,7 +1315,7 @@ class _TxFormState extends State<_TxForm> {
               LedgerTxType.expense,
               LedgerTxType.income,
               LedgerTxType.transfer,
-              LedgerTxType.refund,
+              // 退款不放在上面這排（2026-11-06 使用者），改放表單最下面。
               LedgerTxType.repayment,
             ])
               ChoiceChip(
@@ -1342,57 +1371,59 @@ class _TxFormState extends State<_TxForm> {
           const TextSpan(text: '，選好分類、填商家就好，記完差額會自動消失。'),
         ], color: AppColors.mid),
       // 填寫順序：先時間、再金額（2026-11-03 使用者）。
-      const SizedBox(height: 12),
-      _label('時間'),
-      OutlinedButton.icon(
-        onPressed: () async {
-          final v = await _pickDateTime(context, _at);
-          if (v != null && mounted) setState(() => _at = v);
-        },
-        icon: const Icon(Icons.schedule_rounded, size: 18),
-        label: Text('${lYmd(_at)} ${lHm(_at)}'),
-        style: _outline,
+      _row(
+        '時間',
+        OutlinedButton.icon(
+          onPressed: () async {
+            final v = await _pickDateTime(context, _at);
+            if (v != null && mounted) setState(() => _at = v);
+          },
+          icon: const Icon(Icons.schedule_rounded, size: 18),
+          label: Text('${lYmd(_at)} ${lHm(_at)}'),
+          style: _outline,
+        ),
       ),
       // 商家名稱在金額上面（2026-11-03 使用者）：先時間、再商家、再金額。
       if (t != LedgerTxType.adjustment) ...[
-        _label(
+        // 商家名稱不放提示字（2026-11-03 使用者），記支出、收入、轉帳一定要填。
+        _row(
           t == LedgerTxType.income
               ? '來源'
               : t == LedgerTxType.transfer
               ? (_toOther ? '轉給誰／買什麼' : '名稱')
               : '商家／名稱',
-          trailing: _cardPayment
+          hint: _cardPayment
               ? '自動帶入'
               : _merchantRequired
               ? '必填'
               : '選填',
+          _cardPayment
+              ? TextField(
+                  controller: _fixedName,
+                  enabled: false,
+                  decoration: _input(''),
+                )
+              : TextField(
+                  controller: _merchant,
+                  inputFormatters: halfWidthFormatters,
+                  decoration: _input(''),
+                ),
         ),
-        // 商家名稱不放提示字（2026-11-03 使用者），記支出、收入、轉帳一定要填。
-        if (_cardPayment)
-          TextField(
-            controller: _fixedName,
-            enabled: false,
-            decoration: _input(''),
-          )
-        else
-          TextField(
-            controller: _merchant,
-            inputFormatters: halfWidthFormatters,
-            decoration: _input(''),
-          ),
       ],
-      _label('金額'),
-      TextField(
-        controller: _amount,
-        keyboardType: TextInputType.number,
-        inputFormatters: _digits,
-        autofocus: e == null && p.amount == null,
-        style: const TextStyle(
-          fontSize: 26,
-          fontWeight: FontWeight.w800,
-          fontFeatures: lTabular,
+      _row(
+        '金額',
+        TextField(
+          controller: _amount,
+          keyboardType: TextInputType.number,
+          inputFormatters: _digits,
+          autofocus: e == null && p.amount == null,
+          style: const TextStyle(
+            fontSize: 26,
+            fontWeight: FontWeight.w800,
+            fontFeatures: lTabular,
+          ),
+          decoration: _input('0', prefix: '\$ '),
         ),
-        decoration: _input('0', prefix: '\$ '),
       ),
     ];
 
@@ -1590,7 +1621,7 @@ class _TxFormState extends State<_TxForm> {
                       (v) => setState(() => _settle = v),
                     ),
                   _note([
-                    const TextSpan(text: '別人還你錢'),
+                    const TextSpan(text: '收到欠款'),
                     _b('不算收入'),
                     const TextSpan(text: '：那是你的錢回來，不是賺的。帳戶照算，對帳才會平。'),
                   ]),
@@ -1810,12 +1841,15 @@ class _TxFormState extends State<_TxForm> {
 
     children.addAll([
       ..._afterField(err == null ? _build() : null),
-      _label('備註', trailing: '選填・最多 100 字'),
-      TextField(
-        controller: _memo,
-        inputFormatters: halfWidthFormatters,
-        maxLength: ledgerNoteMax,
-        decoration: _input(''),
+      _row(
+        '備註',
+        hint: '選填',
+        TextField(
+          controller: _memo,
+          inputFormatters: halfWidthFormatters,
+          maxLength: ledgerNoteMax,
+          decoration: _input(''),
+        ),
       ),
       _toggle(
         '🚩 標記旗幟',
@@ -1857,12 +1891,14 @@ class _TxFormState extends State<_TxForm> {
               const TextSpan(text: ' 是對方要給的；幫誰、已給都在每一份底下各自填。'),
             ], color: ledgerPaidFor)
           else ...[
-            _label('幫誰'),
             // 點一下最近幫過的人就填進去，也可以自己打（2026-11-03 使用者）。
-            TextField(
-              controller: _pfPeople,
-              inputFormatters: halfWidthFormatters,
-              decoration: _input(''),
+            _row(
+              '幫誰',
+              TextField(
+                controller: _pfPeople,
+                inputFormatters: halfWidthFormatters,
+                decoration: _input(''),
+              ),
             ),
             const SizedBox(height: 6),
             if (_pfPeopleOptions.isNotEmpty)
@@ -1879,12 +1915,15 @@ class _TxFormState extends State<_TxForm> {
                     ),
                 ],
               ),
-            _label('對方要給你多少', trailing: amt > 0 ? '整筆 ${lMoney(amt)}' : null),
-            TextField(
-              controller: _pfAmount,
-              keyboardType: TextInputType.number,
-              inputFormatters: _digits,
-              decoration: _input('例如 70', prefix: '\$'),
+            _row(
+              '對方給你',
+              hint: amt > 0 ? '整筆 ${lMoney(amt)}' : null,
+              TextField(
+                controller: _pfAmount,
+                keyboardType: TextInputType.number,
+                inputFormatters: _digits,
+                decoration: _input('例如 70', prefix: '\$'),
+              ),
             ),
             if (amt > 0) ...[
               const SizedBox(height: 6),
@@ -1926,6 +1965,19 @@ class _TxFormState extends State<_TxForm> {
             ),
         ]);
       }
+    }
+
+    // 退款放在整張表單最下面、「跟別人一起」之下（2026-11-06 使用者）：打開就切成退款，
+    // 要選退哪一筆；關掉回支出。新增時才有（編輯舊的退款不能改類型）。
+    if (e == null && p.cpId == null) {
+      children.add(
+        _toggle(
+          '↩ 退款',
+          '退回之前某一筆支出的錢',
+          t == LedgerTxType.refund,
+          (v) => _setType(v ? LedgerTxType.refund : LedgerTxType.expense),
+        ),
+      );
     }
 
     return _Frame(
@@ -3045,9 +3097,9 @@ class _ImportState extends State<_Import> {
                 '中信銀行｜2026/11/04 12:00｜餐飲｜麥當勞｜189｜｜｜｜86000｜加班\n'
                 '現金｜2026/11/05 15:00｜寵物｜飼料｜650｜｜｜｜｜補貨\n'
                 '現金｜2026/11/03 12:30｜餐飲｜便當｜120\n'
-                '中信活存｜2026/11/01 10:00｜提款｜ATM提款｜3000\n'
-                '中信活存｜2026/11/01 11:00｜轉帳｜郵局｜5000\n'
-                '中信活存｜2026/11/01 12:00｜轉帳｜小美｜800',
+                '中信帳戶｜2026/11/01 10:00｜提款｜ATM提款｜3000\n'
+                '中信帳戶｜2026/11/01 11:00｜轉帳｜郵局｜5000\n'
+                '中信帳戶｜2026/11/01 12:00｜轉帳｜小美｜800',
             style: TextStyle(fontFamily: 'monospace', fontSize: 11),
           ),
         ]),

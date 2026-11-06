@@ -55,7 +55,7 @@ class LedgerRepository {
   /// 預設三個帳戶用固定 id：兩台裝置各自第一次打開都會自己建，同步時才會
   /// 合併成同一個、不會變兩份。
   static const _defaults = [
-    ('default_bank', '中信活存', LedgerAccountType.bank),
+    ('default_bank', '中信帳戶', LedgerAccountType.bank),
     ('default_card', '中信卡', LedgerAccountType.creditCard),
     ('default_taishin', '台新卡', LedgerAccountType.creditCard),
     ('default_cash', '現金', LedgerAccountType.cash),
@@ -67,7 +67,8 @@ class LedgerRepository {
   Future<void> ensureDefaultAccounts() async {
     final all = await accountsForUpload();
     if (all.isNotEmpty) {
-      await _addLaterDefaults(all);
+      await _renameLegacyDefaults(all);
+      await _addLaterDefaults(await accountsForUpload());
       return;
     }
     final now = DateTime.now();
@@ -90,6 +91,25 @@ class LedgerRepository {
   static const _laterDefaults = [
     ('default_taishin', '台新卡', LedgerAccountType.creditCard),
   ];
+
+  /// 預設銀行戶頭本來叫「中信活存」，2026-11-06 使用者要求文案改「帳戶」→「中信帳戶」。
+  /// 只改**從來沒被改過**的預設戶頭（updatedAt 還等於 createdAt），自己改過名字或
+  /// 自己建的帳戶不動；改了會記一筆操作紀錄、更新 updatedAt（同步會帶到其他裝置）。
+  Future<void> _renameLegacyDefaults(List<LedgerAccount> all) async {
+    final i = all.indexWhere(
+      (a) =>
+          a.id == 'default_bank' &&
+          a.deletedAt == null &&
+          a.name == '中信活存' &&
+          a.updatedAt != null &&
+          a.updatedAt == a.createdAt,
+    );
+    if (i < 0) return;
+    final next = [...all];
+    next[i] = all[i].copyWith(name: '中信帳戶', updatedAt: DateTime.now());
+    await _save(_accountsKey, next, (e) => e.toJson());
+    await _log('帳戶改名', '中信活存 → 中信帳戶', detail: '預設戶頭文案改成「帳戶」', refId: all[i].id);
+  }
 
   Future<void> _addLaterDefaults(List<LedgerAccount> all) async {
     final add = [
@@ -475,22 +495,27 @@ class LedgerRepository {
     }
   }
 
-  // ── 每月訂閱（2026-11-05 使用者：單純紀錄每月幾號扣多少、什麼服務）──────
+  // ── 每月扣款（2026-11-05 使用者：單純紀錄每月幾號扣多少、什麼服務；2026-11-06 改叫
+  // 每月扣款、可以區分訂閱跟欠款，仍然不跟實際記帳產生關連）──────
 
   Future<List<LedgerSubscription>> subscriptionsForUpload() =>
       _load(_subsKey, LedgerSubscription.fromJson);
 
-  /// 給畫面用：沒刪掉的，訂閱中的在前（照扣款日）。
+  /// 給畫面用：沒刪掉的，扣款中的在前（照扣款日）。
   Future<List<LedgerSubscription>> loadSubscriptions() async =>
       sortSubs(await subscriptionsForUpload());
 
   static String _subLine(LedgerSubscription s) =>
-      '${s.name}　每月 ${s.day} 號　\$${s.amount}';
+      '[${s.kind.label}] ${s.name}　每月 ${s.day} 號　\$${s.amount}';
 
   Future<LedgerSubscription> addSubscription({
     required String name,
     required int amount,
     required int day,
+    LedgerChargeKind kind = LedgerChargeKind.subscription,
+    int? periods,
+    int? loanTotal,
+    String? startMonth,
     String note = '',
     bool active = true,
   }) async {
@@ -500,6 +525,10 @@ class LedgerRepository {
       name: name,
       amount: amount,
       day: day,
+      kind: kind,
+      periods: periods,
+      loanTotal: loanTotal,
+      startMonth: startMonth,
       note: note,
       active: active,
       createdAt: now,
@@ -510,9 +539,12 @@ class LedgerRepository {
       s,
     ], (e) => e.toJson());
     await _log(
-      '新增訂閱',
+      '新增扣款',
       _subLine(s),
       detail: [
+        if (loanTotal != null) '貸款總額：\$$loanTotal',
+        if (periods != null) '總期數：$periods 期',
+        if (startMonth != null) '第一期：$startMonth',
         if (note.isNotEmpty) '備註：$note',
         if (!active) '狀態：已停用',
       ].join('\n'),
@@ -530,15 +562,23 @@ class LedgerRepository {
     await _save(_subsKey, all, (e) => e.toJson());
     String n(String v) => v.isEmpty ? '（空）' : v;
     final diff = [
+      if (old.kind != s.kind) '類型：${old.kind.label} → ${s.kind.label}',
       if (old.name != s.name) '名稱：${old.name} → ${s.name}',
       if (old.amount != s.amount) '金額：\$${old.amount} → \$${s.amount}',
       if (old.day != s.day) '每月幾號：${old.day} → ${s.day}',
+      if (old.loanTotal != s.loanTotal)
+        '貸款總額：${old.loanTotal == null ? '（空）' : '\$${old.loanTotal}'} → '
+            '${s.loanTotal == null ? '（空）' : '\$${s.loanTotal}'}',
+      if (old.periods != s.periods)
+        '總期數：${old.periods ?? '（空）'} → ${s.periods ?? '（空）'}',
+      if (old.startMonth != s.startMonth)
+        '第一期：${old.startMonth ?? '（空）'} → ${s.startMonth ?? '（空）'}',
       if (old.note != s.note) '備註：${n(old.note)} → ${n(s.note)}',
-      if (old.active != s.active) '狀態：${s.active ? '恢復訂閱' : '停用'}',
+      if (old.active != s.active) '狀態：${s.active ? '恢復扣款' : '停用'}',
     ];
-    final onlyActive = diff.length == 1 && old.active != s.active; // 只切了訂閱中／停用
+    final onlyActive = diff.length == 1 && old.active != s.active; // 只切了扣款中／停用
     await _log(
-      onlyActive ? (s.active ? '恢復訂閱' : '停用訂閱') : '編輯訂閱',
+      onlyActive ? (s.active ? '恢復扣款' : '停用扣款') : '編輯扣款',
       _subLine(s),
       detail: diff.join('\n'),
       refId: s.id,
@@ -553,13 +593,13 @@ class LedgerRepository {
       for (final e in all)
         e.id == id ? e.copyWith(updatedAt: now, deletedAt: now) : e,
     ], (e) => e.toJson());
-    if (gone != null) await _log('刪除訂閱', _subLine(gone), refId: id);
+    if (gone != null) await _log('刪除扣款', _subLine(gone), refId: id);
   }
 
-  // ── 整理全形文字（2026-11-06 使用者：之前輸入的全形英數字一次改成半形小寫）──
+  // ── 整理全形文字（2026-11-06 使用者：之前輸入的全形英數字一次改成對應的半形）──
   // 暫時的工具：處理完舊資料之後會拿掉設定裡的按鈕。
 
-  /// 把所有已存的記帳文字裡的全形英數字改成半形小寫（`ＦＯＯＤＰＡＮＤＡ` → `foodpanda`）：
+  /// 把所有已存的記帳文字裡的全形英數字改成對應的半形（`ＦＯＯＤＰＡＮＤＡ` → `FOODPANDA`，大小寫照原來）：
   /// 交易的商家、備註、幫誰、拆分的品項名稱跟幫誰，帳戶名稱，訂閱的名稱、備註。
   /// 只動有全形字的欄位（改完順便去前後空白），其他不碰。改到的紀錄更新 updatedAt，
   /// 同步時其他裝置會帶過去；整件事在操作紀錄記一筆（寫每個欄位 舊 → 新）。
@@ -665,8 +705,8 @@ class LedgerRepository {
         newSubs.add(s);
         continue;
       }
-      note('訂閱名稱', s.name, name);
-      note('訂閱備註', s.note, memo);
+      note('每月扣款名稱', s.name, name);
+      note('每月扣款備註', s.note, memo);
       subCount++;
       newSubs.add(s.copyWith(name: name, note: memo, updatedAt: now));
     }
@@ -679,7 +719,7 @@ class LedgerRepository {
     if (total > 0) {
       await _log(
         '整理全形文字',
-        '改了 $txCount 筆交易、$acctCount 個帳戶、$subCount 個訂閱',
+        '改了 $txCount 筆交易、$acctCount 個帳戶、$subCount 個每月扣款',
         detail: lines.join('\n'),
       );
     }

@@ -19,6 +19,7 @@ LedgerSubscription sub(
 
 /// 每月訂閱（單純紀錄用）：扣款日遇到沒有那天的月份算月底、下一次扣款日、每月合計。
 void main() {
+  debtTests();
   test('31 號碰到短月份算那個月最後一天（含閏年）', () {
     expect(subChargeDate(2026, 2, 31), DateTime(2026, 2, 28));
     expect(subChargeDate(2028, 2, 31), DateTime(2028, 2, 29));
@@ -86,5 +87,118 @@ void main() {
     expect(minimal.day, 31);
     expect(minimal.active, isTrue);
     expect(minimal.amount, 0);
+  });
+}
+
+/// 欠款的期數、貸款總額（2026-11-06 使用者）。
+void debtTests() {
+  LedgerSubscription debt({
+    int amount = 1000,
+    int day = 10,
+    int? periods = 12,
+    int? loan = 11000,
+    String? start = '2026-09',
+    bool active = true,
+  }) => LedgerSubscription(
+    id: 'd',
+    name: '手機分期',
+    amount: amount,
+    day: day,
+    kind: LedgerChargeKind.debt,
+    periods: periods,
+    loanTotal: loan,
+    startMonth: start,
+    active: active,
+  );
+
+  group('欠款期數', () {
+    test('已繳幾期：第一期那個月起，每個月扣款日到了就算一期', () {
+      final d = debt(); // 2026-09 起，每月 10 號，共 12 期
+      expect(paidPeriods(d, DateTime(2026, 8, 20)), 0); // 還沒開始
+      expect(paidPeriods(d, DateTime(2026, 9, 9)), 0); // 9/10 還沒到
+      expect(paidPeriods(d, DateTime(2026, 9, 10)), 1); // 當天算
+      expect(paidPeriods(d, DateTime(2026, 11, 5)), 2); // 9、10 月已扣，11/10 還沒
+      expect(paidPeriods(d, DateTime(2026, 11, 10)), 3);
+      expect(remainingPeriods(d, DateTime(2026, 11, 5)), 10);
+      expect(remainingAmount(d, DateTime(2026, 11, 5)), 10000);
+    });
+
+    test('沒填第一期或總期數就算不出來；訂閱沒有期數', () {
+      expect(paidPeriods(debt(start: null), DateTime(2026, 11, 5)), isNull);
+      expect(paidPeriods(debt(periods: null), DateTime(2026, 11, 5)), isNull);
+      expect(remainingAmount(debt(start: null), DateTime(2026, 11, 5)), isNull);
+      final sub = LedgerSubscription(
+        id: 's',
+        name: 'Netflix',
+        amount: 390,
+        day: 1,
+        periods: 12,
+        startMonth: '2026-01',
+      );
+      expect(paidPeriods(sub, DateTime(2026, 11, 5)), isNull);
+    });
+
+    test('期數扣完＝已繳清：不再算進每月合計，也不再是扣款中', () {
+      final d = debt(periods: 3); // 9、10、11 月
+      expect(isFinished(d, DateTime(2026, 11, 9)), isFalse);
+      expect(isCharging(d, DateTime(2026, 11, 9)), isTrue);
+      expect(subsMonthlyTotal([d], now: DateTime(2026, 11, 9)), 1000);
+      expect(paidPeriods(d, DateTime(2027, 5, 1)), 3); // 不會超過總期數
+      expect(isFinished(d, DateTime(2026, 11, 10)), isTrue);
+      expect(isCharging(d, DateTime(2026, 11, 10)), isFalse);
+      expect(subsMonthlyTotal([d], now: DateTime(2026, 11, 10)), 0);
+      // 排序：已繳清的排到後面。
+      final other = LedgerSubscription(
+        id: 'o',
+        name: 'iCloud',
+        amount: 30,
+        day: 28,
+      );
+      expect(
+        sortSubs([d, other], now: DateTime(2026, 11, 12)).map((s) => s.id),
+        ['o', 'd'],
+      );
+    });
+
+    test('總共要繳 = 期數 × 每月；比貸款總額多的是多繳（利息）', () {
+      expect(totalPayable(debt()), 12000);
+      expect(extraPaid(debt()), 1000); // 12000 − 11000
+      expect(extraPaid(debt(loan: 12000)), isNull); // 一樣多＝沒有多繳
+      expect(extraPaid(debt(loan: null)), isNull);
+      expect(totalPayable(debt(periods: null)), isNull);
+    });
+
+    test('合計可以分訂閱／欠款算', () {
+      final list = [
+        debt(),
+        LedgerSubscription(id: 's', name: 'Netflix', amount: 390, day: 12),
+      ];
+      final at = DateTime(2026, 11, 5);
+      expect(subsMonthlyTotal(list, now: at), 1390);
+      expect(
+        subsMonthlyTotal(list, kind: LedgerChargeKind.debt, now: at),
+        1000,
+      );
+      expect(
+        subsMonthlyTotal(list, kind: LedgerChargeKind.subscription, now: at),
+        390,
+      );
+    });
+
+    test('存取往返不變；訂閱不帶這些欄位', () {
+      final back = LedgerSubscription.fromJson(debt().toJson());
+      expect(back.kind, LedgerChargeKind.debt);
+      expect(back.periods, 12);
+      expect(back.loanTotal, 11000);
+      expect(back.startMonth, '2026-09');
+      final json = LedgerSubscription(
+        id: 's',
+        name: 'x',
+        amount: 1,
+        day: 1,
+      ).toJson();
+      expect(json.containsKey('periods'), isFalse);
+      expect(json.containsKey('loanTotal'), isFalse);
+    });
   });
 }

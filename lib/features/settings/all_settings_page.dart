@@ -143,7 +143,7 @@ const settingIndex = [
     SettingsSection.ledger,
     'ledger.fullwidth',
     '整理全形文字',
-    '全形 半形 英文 數字 小寫 foodpanda 整理 舊資料',
+    '全形 半形 英文 數字 大寫 小寫 整理 舊資料',
   ),
   SettingEntry(SettingsSection.i88, 'i88.log', 'i88 操作紀錄', '操作 紀錄 log i88'),
   SettingEntry(SettingsSection.lock, 'lock.pw', '日記／負債密碼', '密碼'),
