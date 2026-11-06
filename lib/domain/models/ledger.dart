@@ -573,6 +573,7 @@ class LedgerSubscription {
     this.debtType = LedgerDebtType.smallLoan,
     this.periods,
     this.loanTotal,
+    this.fee,
     this.startMonth,
     this.note = '',
     this.active = true,
@@ -602,6 +603,10 @@ class LedgerSubscription {
   /// 借款才有：實際貸款總額（借了多少，不含利息；每月扣款 × 期數 通常會比它多）。
   final int? loanTotal;
 
+  /// 小額借款、信貸才有（2026-11-06 使用者）：辦理手續費，內扣——實際拿到的錢＝貸款總額 − 手續費，
+  /// 但還款照貸款總額的本金算，所以要算進實際年利率。
+  final int? fee;
+
   /// 小額借款、信貸才有：第一期是哪個月扣款，`yyyy-MM`。有了它才算得出已繳幾期、還剩幾期。
   final String? startMonth;
   final String note;
@@ -620,6 +625,7 @@ class LedgerSubscription {
     LedgerDebtType? debtType,
     int? Function()? periods,
     int? Function()? loanTotal,
+    int? Function()? fee,
     String? Function()? startMonth,
     String? note,
     bool? active,
@@ -634,6 +640,7 @@ class LedgerSubscription {
     debtType: debtType ?? this.debtType,
     periods: periods == null ? this.periods : periods(),
     loanTotal: loanTotal == null ? this.loanTotal : loanTotal(),
+    fee: fee == null ? this.fee : fee(),
     startMonth: startMonth == null ? this.startMonth : startMonth(),
     note: note ?? this.note,
     active: active ?? this.active,
@@ -651,6 +658,7 @@ class LedgerSubscription {
     if (kind == LedgerChargeKind.debt) 'debtType': debtType.json,
     if (periods != null) 'periods': periods,
     if (loanTotal != null) 'loanTotal': loanTotal,
+    if (fee != null) 'fee': fee,
     if (startMonth != null) 'startMonth': startMonth,
     'note': note,
     'active': active,
@@ -669,6 +677,7 @@ class LedgerSubscription {
         debtType: LedgerDebtType.parse(j['debtType'] as String?),
         periods: (j['periods'] as num?)?.toInt(),
         loanTotal: (j['loanTotal'] as num?)?.toInt(),
+        fee: (j['fee'] as num?)?.toInt(),
         startMonth: j['startMonth'] as String?,
         note: j['note'] as String? ?? '',
         active: j['active'] as bool? ?? true,

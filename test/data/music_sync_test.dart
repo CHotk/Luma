@@ -92,11 +92,13 @@ void main() {
     var d = await pcStore.load();
     await pcStore.save(
       d.putArtist(
-        d.artist('a1')!.copyWith(
-          avatarUrls: const ['https://x/1.jpg', 'https://x/2.jpg'],
-          shownAvatar: 1,
-          updatedAt: DateTime(2026, 10, 19, 10),
-        ),
+        d
+            .artist('a1')!
+            .copyWith(
+              avatarUrls: const ['https://x/1.jpg', 'https://x/2.jpg'],
+              shownAvatar: 1,
+              updatedAt: DateTime(2026, 10, 19, 10),
+            ),
       ),
     );
     await serviceFor(pc).syncMusic(pcStore);
@@ -111,11 +113,13 @@ void main() {
     d = await phoneStore.load();
     await phoneStore.save(
       d.putArtist(
-        d.artist('a1')!.copyWith(
-          avatarUrls: const ['https://x/3.jpg'],
-          shownAvatar: 0,
-          updatedAt: DateTime(2026, 10, 19, 11),
-        ),
+        d
+            .artist('a1')!
+            .copyWith(
+              avatarUrls: const ['https://x/3.jpg'],
+              shownAvatar: 0,
+              updatedAt: DateTime(2026, 10, 19, 11),
+            ),
       ),
     );
     await serviceFor(phone).syncMusic(phoneStore);
@@ -163,10 +167,12 @@ void main() {
       final d = await pcStore.load();
       await pcStore.save(
         d.putArtist(
-          d.artist('a1')!.copyWith(
-            avatarUrls: const ['https://x/new.jpg'],
-            updatedAt: DateTime(2026, 10, 20, 9),
-          ),
+          d
+              .artist('a1')!
+              .copyWith(
+                avatarUrls: const ['https://x/new.jpg'],
+                updatedAt: DateTime(2026, 10, 20, 9),
+              ),
         ),
       );
     };
@@ -178,10 +184,9 @@ void main() {
 
     // 同一輪就送上雲端了（合併時已經包含），手機同步拿得到。
     await serviceFor(phone).syncMusic(phoneStore);
-    expect(
-      (await phoneStore.load()).artist('a1')!.avatarUrls,
-      ['https://x/new.jpg'],
-    );
+    expect((await phoneStore.load()).artist('a1')!.avatarUrls, [
+      'https://x/new.jpg',
+    ]);
   });
 
   test('兩台各自新增同名歌手：同步後合成一個，歌跟原唱改指到留下的那個，兩台結果一樣', () async {

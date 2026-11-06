@@ -106,9 +106,7 @@ void main() {
       expect(
         tester.getTopLeft(line).dy,
         greaterThan(
-          tester
-              .getTopLeft(find.text('${DateTime.now().month} 月已實現損益'))
-              .dy,
+          tester.getTopLeft(find.text('${DateTime.now().month} 月已實現損益')).dy,
         ),
       );
       expect(find.text('距離上次看盤'), findsNothing);

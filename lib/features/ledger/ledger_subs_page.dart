@@ -376,6 +376,7 @@ class LedgerSubsPage extends ConsumerWidget {
         debtType: r.debtType,
         periods: r.periods,
         loanTotal: r.loanTotal,
+        fee: r.fee,
         startMonth: r.startMonth,
         note: r.note,
         active: r.active,
@@ -390,6 +391,7 @@ class LedgerSubsPage extends ConsumerWidget {
           debtType: r.debtType,
           periods: () => r.periods,
           loanTotal: () => r.loanTotal,
+          fee: () => r.fee,
           startMonth: () => r.startMonth,
           note: r.note,
           active: r.active,
@@ -420,6 +422,7 @@ class _SubResult {
     this.debtType = LedgerDebtType.smallLoan,
     this.periods,
     this.loanTotal,
+    this.fee,
     this.startMonth,
     this.note = '',
     this.active = true,
@@ -433,6 +436,7 @@ class _SubResult {
   final LedgerDebtType debtType;
   final int? periods;
   final int? loanTotal;
+  final int? fee;
   final String? startMonth;
   final String note;
   final bool active;
@@ -459,6 +463,9 @@ class _SubFormState extends State<_SubForm> {
   late final _loan = TextEditingController(
     text: widget.edit?.loanTotal == null ? '' : '${widget.edit!.loanTotal}',
   );
+  late final _fee = TextEditingController(
+    text: widget.edit?.fee == null ? '' : '${widget.edit!.fee}',
+  );
   late final _periods = TextEditingController(
     text: widget.edit?.periods == null ? '' : '${widget.edit!.periods}',
   );
@@ -477,14 +484,14 @@ class _SubFormState extends State<_SubForm> {
   @override
   void initState() {
     super.initState();
-    for (final c in [_name, _amount, _day, _loan, _periods]) {
+    for (final c in [_name, _amount, _day, _loan, _fee, _periods]) {
       c.addListener(() => setState(() {}));
     }
   }
 
   @override
   void dispose() {
-    for (final c in [_name, _amount, _day, _note, _loan, _periods]) {
+    for (final c in [_name, _amount, _day, _note, _loan, _fee, _periods]) {
       c.dispose();
     }
     super.dispose();
@@ -517,13 +524,19 @@ class _SubFormState extends State<_SubForm> {
     final payable = hasFirst && periods != null && periods > 0 && amount > 0
         ? periods * amount
         : null;
+    // 手續費內扣：實際拿到＝貸款總額 − 手續費；年利率拿「實際拿到」去反推，手續費就算進去
+    // （2026-11-06 使用者：銀行不這樣算，但小額借款的內扣金額差很多，一定要算）。
+    final fee = hasFirst ? int.tryParse(_fee.text) : null;
+    final got = loan != null && loan > 0
+        ? (fee != null && fee > 0 ? loan - fee : loan)
+        : null;
     final interest =
         payable != null && loan != null && loan > 0 && payable >= loan
         ? payable - loan
         : null;
-    final rate = interest == null
-        ? null
-        : loanAnnualRate(loan!, amount, periods!);
+    final rate = payable != null && got != null && got > 0
+        ? loanAnnualRate(got, amount, periods!)
+        : null;
     final ok =
         _name.text.trim().isNotEmpty && amount > 0 && day >= 1 && day <= 31;
     return SingleChildScrollView(
@@ -625,6 +638,17 @@ class _SubFormState extends State<_SubForm> {
                 decoration: _input('實際借了多少（選填）', prefix: '\$ '),
               ),
             ),
+            // 小額借款、信貸才有手續費（內扣：實際拿到的錢比貸款總額少）。
+            if (hasFirst)
+              _row(
+                '手續費',
+                TextField(
+                  controller: _fee,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [const DigitsInputFormatter()],
+                  decoration: _input('內扣，沒有就不填', prefix: '\$ '),
+                ),
+              ),
             // 信用卡沒有期數（2026-11-06 使用者）。
             if (hasFirst)
               _row(
@@ -674,10 +698,14 @@ class _SubFormState extends State<_SubForm> {
                   payable == null
                       ? '填了總期數跟第一期，就會算已繳幾期、還剩多少'
                       : [
+                          if (fee != null && fee > 0 && got != null)
+                            '實際拿到 ${lMoney(got)}（貸款總額扣掉手續費）',
                           '實際本利總額 ${lMoney(payable)}',
                           if (interest != null) '純利息 ${lMoney(interest)}',
+                          if (fee != null && fee > 0) '手續費 ${lMoney(fee)}',
                           if (rate != null)
-                            '實際年利率 ${rate.toStringAsFixed(2)}%（本利攤，按銀行信貸計算方式）',
+                            '實際年利率 ${rate.toStringAsFixed(2)}%（本利攤，按銀行信貸計算方式'
+                                '${fee != null && fee > 0 ? '，以實際拿到的錢算、含手續費' : ''}）',
                         ].join('\n'),
                   style: AppText.note.copyWith(color: AppColors.mid),
                 ),
@@ -724,6 +752,7 @@ class _SubFormState extends State<_SubForm> {
                             debtType: _debtType,
                             periods: hasFirst ? periods : null,
                             loanTotal: isDebt ? loan : null,
+                            fee: hasFirst ? fee : null,
                             startMonth: hasFirst ? _start : null,
                             note: _note.text.trim(),
                             active: _active,

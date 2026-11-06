@@ -516,6 +516,7 @@ class LedgerRepository {
     LedgerDebtType debtType = LedgerDebtType.smallLoan,
     int? periods,
     int? loanTotal,
+    int? fee,
     String? startMonth,
     String note = '',
     bool active = true,
@@ -530,6 +531,7 @@ class LedgerRepository {
       debtType: debtType,
       periods: periods,
       loanTotal: loanTotal,
+      fee: fee,
       startMonth: startMonth,
       note: note,
       active: active,
@@ -545,6 +547,7 @@ class LedgerRepository {
       _subLine(s),
       detail: [
         if (loanTotal != null) '貸款總額：\$$loanTotal',
+        if (fee != null) '手續費：\$$fee',
         if (periods != null) '總期數：$periods 期',
         if (startMonth != null) '第一期：$startMonth',
         if (note.isNotEmpty) '備註：$note',
@@ -571,6 +574,9 @@ class LedgerRepository {
       if (old.loanTotal != s.loanTotal)
         '貸款總額：${old.loanTotal == null ? '（空）' : '\$${old.loanTotal}'} → '
             '${s.loanTotal == null ? '（空）' : '\$${s.loanTotal}'}',
+      if (old.fee != s.fee)
+        '手續費：${old.fee == null ? '（空）' : '\$${old.fee}'} → '
+            '${s.fee == null ? '（空）' : '\$${s.fee}'}',
       if (old.periods != s.periods)
         '總期數：${old.periods ?? '（空）'} → ${s.periods ?? '（空）'}',
       if (old.startMonth != s.startMonth)

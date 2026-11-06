@@ -169,6 +169,30 @@ void debtTests() {
       expect(totalPayable(debt(periods: null)), isNull);
     });
 
+    test('手續費內扣：實際拿到的錢比貸款總額少，年利率拿實際拿到的錢算（含手續費）', () {
+      // 借 10 萬、內扣手續費 5,000，實際拿 95,000；12 期每月 8,699。
+      final noFee = debt(amount: 8699, loan: 100000, periods: 12);
+      final withFee = noFee.copyWith(fee: () => 5000);
+      expect(receivedAmount(noFee), 100000);
+      expect(receivedAmount(withFee), 95000);
+      // 純利息不含手續費；總成本＝利息＋手續費＝繳的總額 − 實際拿到。
+      expect(pureInterest(withFee), 8699 * 12 - 100000);
+      expect(totalCost(withFee), 8699 * 12 - 95000);
+      expect(totalCost(withFee)! - pureInterest(withFee)!, 5000);
+      // 沒手續費約 8%；有手續費利率明顯更高。
+      final r0 = annualRateOf(noFee)!, r1 = annualRateOf(withFee)!;
+      expect(r0, closeTo(8.0, 0.05));
+      expect(r1, greaterThan(r0 + 3));
+      expect(r1, closeTo(loanAnnualRate(95000, 8699, 12)!, 1e-9));
+      // 小額借款手續費占比大：借 2 萬、扣 2,000、12 期每月 1,800 → 利率遠高於不算手續費。
+      final small = debt(amount: 1800, loan: 20000, periods: 12);
+      final smallFee = small.copyWith(fee: () => 2000);
+      expect(annualRateOf(smallFee)!, greaterThan(annualRateOf(small)! * 2));
+      // 手續費不合理（比貸款總額還多）就算不出來；沒填貸款總額也算不出來。
+      expect(annualRateOf(noFee.copyWith(fee: () => 200000)), isNull);
+      expect(receivedAmount(debt(loan: null)), isNull);
+    });
+
     test('實際年利率：本息平均攤還反推，跟銀行算法一樣', () {
       // 借 10 萬、年利率 8%、12 期：銀行算每月 8,699。
       expect(loanAnnualRate(100000, 8699, 12), closeTo(8.0, 0.05));
@@ -213,6 +237,13 @@ void debtTests() {
       final back = LedgerSubscription.fromJson(debt().toJson());
       expect(back.kind, LedgerChargeKind.debt);
       expect(back.debtType, LedgerDebtType.smallLoan);
+      expect(back.fee, isNull);
+      expect(
+        LedgerSubscription.fromJson(
+          debt().copyWith(fee: () => 500).toJson(),
+        ).fee,
+        500,
+      );
       // 舊資料沒有 debtType：算小額借款；三種都存得回來。
       expect(LedgerDebtType.parse(null), LedgerDebtType.smallLoan);
       for (final t in LedgerDebtType.values) {

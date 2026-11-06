@@ -307,15 +307,21 @@ void main() {
     await tester.pump();
     expect(find.text('總期數'), findsOneWidget);
     expect(find.text('第一期'), findsOneWidget);
-    // TextField 順序：名稱(0)、每月扣多少(1)、每月幾號(2)、貸款總額(3)、總期數(4)、備註(5)。
+    // TextField 順序：名稱(0)、每月扣多少(1)、每月幾號(2)、貸款總額(3)、手續費(4)、總期數(5)、備註(6)。
     await tester.enterText(find.byType(TextField).at(0), '手機分期');
     await tester.enterText(find.byType(TextField).at(1), '1000');
     await tester.enterText(find.byType(TextField).at(2), '10');
     await tester.enterText(find.byType(TextField).at(3), '11000');
-    await tester.enterText(find.byType(TextField).at(4), '12');
+    await tester.enterText(find.byType(TextField).at(4), '1000'); // 手續費內扣
+    await tester.enterText(find.byType(TextField).at(5), '12');
     await tester.pump();
-    // 12 期 × 1000 = 12000，比貸款總額 11000 多 1000。
-    final rate = loanAnnualRate(11000, 1000, 12)!.toStringAsFixed(2);
+    // 12 期 × 1000 = 12000，比貸款總額 11000 多 1000（純利息）；手續費 1000 內扣，
+    // 實際只拿到 10000，年利率拿實際拿到的錢算（含手續費）。
+    final rate = loanAnnualRate(10000, 1000, 12)!.toStringAsFixed(2);
+    final rateNoFee = loanAnnualRate(11000, 1000, 12)!.toStringAsFixed(2);
+    expect(rate == rateNoFee, isFalse);
+    expect(find.textContaining('實際拿到 \$10,000'), findsOneWidget);
+    expect(find.textContaining('手續費 \$1,000'), findsOneWidget);
     expect(find.textContaining('實際本利總額 \$12,000'), findsOneWidget);
     expect(find.textContaining('純利息 \$1,000'), findsOneWidget);
     expect(find.textContaining('實際年利率 $rate%'), findsOneWidget);
@@ -326,6 +332,9 @@ void main() {
           .abs(),
       lessThan(8),
     );
+    // 借款表單比較長，新增鈕要先捲到看得到。
+    await tester.ensureVisible(find.widgetWithText(FilledButton, '新增'));
+    await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, '新增'));
     await settle(tester);
     await tester.pump(const Duration(seconds: 4));
@@ -335,6 +344,7 @@ void main() {
     expect(s.kind, LedgerChargeKind.debt);
     expect(s.periods, 12);
     expect(s.loanTotal, 11000);
+    expect(s.fee, 1000);
     expect(s.startMonth, isNull);
     expect(s.debtType, LedgerDebtType.smallLoan);
     // 每筆下面不寫期數、貸款總額、利息這些黃字（2026-11-06 使用者：壓力很大）。
@@ -376,7 +386,7 @@ void main() {
     await tester.enterText(find.byType(TextField).at(1), '8699');
     await tester.enterText(find.byType(TextField).at(2), '5');
     await tester.enterText(find.byType(TextField).at(3), '100000');
-    await tester.enterText(find.byType(TextField).at(4), '12');
+    await tester.enterText(find.byType(TextField).at(5), '12');
     await tester.pump();
     final pick = find.textContaining('第一期扣款是哪個月');
     await tester.ensureVisible(pick);

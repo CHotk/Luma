@@ -113,13 +113,29 @@ double? loanAnnualRate(int principal, int payment, int periods) {
   return (low + high) / 2 * 12 * 100;
 }
 
-/// 這筆借款的實際年利率（沒填貸款總額或期數是 null）。
+/// 實際拿到的錢：貸款總額 − 內扣的辦理手續費（沒填手續費就是貸款總額）。
+int? receivedAmount(LedgerSubscription s) {
+  final loan = s.loanTotal;
+  if (loan == null) return null;
+  final fee = s.fee ?? 0;
+  return fee > 0 ? loan - fee : loan;
+}
+
+/// 總成本：純利息 + 手續費，也就是「繳的總額 − 實際拿到的錢」。
+int? totalCost(LedgerSubscription s) {
+  final total = totalPayable(s), got = receivedAmount(s);
+  if (total == null || got == null || got <= 0 || total < got) return null;
+  return total - got;
+}
+
+/// 這筆借款的實際年利率：手續費內扣、實際拿到的錢比貸款總額少，所以拿「實際拿到」去反推，
+/// 手續費就算進利率裡（沒填貸款總額或期數是 null）。
 double? annualRateOf(LedgerSubscription s) {
-  final loan = s.loanTotal, n = s.periods;
-  if (s.kind != LedgerChargeKind.debt || loan == null || n == null) {
+  final got = receivedAmount(s), n = s.periods;
+  if (s.kind != LedgerChargeKind.debt || got == null || n == null) {
     return null;
   }
-  return loanAnnualRate(loan, s.amount, n);
+  return loanAnnualRate(got, s.amount, n);
 }
 
 /// 借款的期數都扣完了（已繳清）。
