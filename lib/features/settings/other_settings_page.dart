@@ -18,6 +18,7 @@ import '../../data/repositories/yt_stats_refresh_setting_store.dart';
 import '../../data/repositories/nav_bar_prefs_store.dart';
 import '../../data/repositories/yt_display_prefs_store.dart';
 import '../../data/repositories/yt_video_open_mode_store.dart';
+import '../../shared/widgets/app_confirm_dialog.dart';
 import '../../shared/widgets/app_notice.dart';
 import 'settings_page.dart' show AppLogoSettingsCard;
 import 'all_settings_page.dart' show SettingsSection;
@@ -1630,7 +1631,65 @@ class LedgerSettingsSection extends ConsumerWidget {
             ),
           ),
         ),
+        const SizedBox(height: Gap.sm),
+        // 暫時的工具（2026-11-06 使用者）：把之前輸入的全形英數字一次改成半形小寫，
+        // 舊資料處理完就拿掉這顆按鈕。
+        SettingAnchor(
+          id: 'ledger.fullwidth',
+          child: SettingsRowCard(
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        '整理全形文字',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.ink,
+                        ),
+                      ),
+                      Text(
+                        '把已經記的全形英數字（例如 ＦＯＯＤＰＡＮＤＡ）一次改成半形小寫'
+                        '（foodpanda）：商家、備註、幫誰、拆分品項、帳戶、訂閱名稱。'
+                        '改了會寫進操作紀錄、同步到其他裝置',
+                        style: AppText.note,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                OutlinedButton(
+                  onPressed: () => _normalizeFullWidth(context, ref),
+                  child: const Text('整理'),
+                ),
+              ],
+            ),
+          ),
+        ),
       ],
+    );
+  }
+
+  Future<void> _normalizeFullWidth(BuildContext context, WidgetRef ref) async {
+    final ok = await showAppConfirmDialog(
+      context,
+      title: '整理全形文字？',
+      message:
+          '會把已記的全形英文字母、數字改成半形小寫'
+          '（ＦＯＯＤＰＡＮＤＡ → foodpanda），中文不動。',
+      confirmLabel: '整理',
+    );
+    if (!ok) return;
+    final n = await ref.read(ledgerRepositoryProvider).normalizeFullWidthText();
+    ref.read(dataRevisionProvider.notifier).state++;
+    if (!context.mounted) return;
+    showAppNotice(
+      context,
+      n == 0 ? '沒有全形英數字需要整理' : '已整理 $n 筆',
+      detail: n == 0 ? null : '改了哪些可以到操作紀錄看',
     );
   }
 }

@@ -3,6 +3,7 @@ import 'dart:convert';
 import '../../domain/ledger_calc.dart';
 import '../../domain/ledger_log.dart';
 import '../../domain/ledger_subscriptions.dart';
+import '../../shared/half_width_input.dart';
 import '../export/device_label.dart';
 import '../../domain/models/ledger.dart';
 import '../seed/seed_merge.dart';
@@ -553,6 +554,136 @@ class LedgerRepository {
         e.id == id ? e.copyWith(updatedAt: now, deletedAt: now) : e,
     ], (e) => e.toJson());
     if (gone != null) await _log('刪除訂閱', _subLine(gone), refId: id);
+  }
+
+  // ── 整理全形文字（2026-11-06 使用者：之前輸入的全形英數字一次改成半形小寫）──
+  // 暫時的工具：處理完舊資料之後會拿掉設定裡的按鈕。
+
+  /// 把所有已存的記帳文字裡的全形英數字改成半形小寫（`ＦＯＯＤＰＡＮＤＡ` → `foodpanda`）：
+  /// 交易的商家、備註、幫誰、拆分的品項名稱跟幫誰，帳戶名稱，訂閱的名稱、備註。
+  /// 只動有全形字的欄位（改完順便去前後空白），其他不碰。改到的紀錄更新 updatedAt，
+  /// 同步時其他裝置會帶過去；整件事在操作紀錄記一筆（寫每個欄位 舊 → 新）。
+  /// 回傳改了幾筆（交易＋帳戶＋訂閱）。
+  Future<int> normalizeFullWidthText() async {
+    String fix(String s) {
+      final n = HalfWidthTextFormatter.normalize(s);
+      return n == s ? s : n.trim();
+    }
+
+    final now = DateTime.now();
+    final lines = <String>[];
+    void note(String where, String a, String b) {
+      if (a != b) lines.add('$where：$a → $b');
+    }
+
+    var txCount = 0, acctCount = 0, subCount = 0;
+
+    final txs = await transactionsForUpload();
+    final newTxs = <LedgerTx>[];
+    for (final t in txs) {
+      if (t.deletedAt != null) {
+        newTxs.add(t);
+        continue;
+      }
+      final merchant = fix(t.merchant);
+      final memo = fix(t.note);
+      final pf = t.paidFor;
+      final people = pf == null ? null : fix(pf.people);
+      final splits = [
+        for (final s in t.splits)
+          LedgerSplit(
+            category: s.category,
+            amount: s.amount,
+            name: fix(s.name),
+            forOther: s.forOther,
+            settled: s.settled,
+            people: fix(s.people),
+          ),
+      ];
+      var splitChanged = false;
+      for (var i = 0; i < splits.length; i++) {
+        if (splits[i].name != t.splits[i].name ||
+            splits[i].people != t.splits[i].people) {
+          splitChanged = true;
+          note('拆分品項', t.splits[i].name, splits[i].name);
+          note('拆分幫誰', t.splits[i].people, splits[i].people);
+        }
+      }
+      final changed =
+          merchant != t.merchant ||
+          memo != t.note ||
+          (pf != null && people != pf.people) ||
+          splitChanged;
+      if (!changed) {
+        newTxs.add(t);
+        continue;
+      }
+      note('商家', t.merchant, merchant);
+      note('備註', t.note, memo);
+      if (pf != null) note('幫誰', pf.people, people!);
+      txCount++;
+      newTxs.add(
+        t.copyWith(
+          merchant: merchant,
+          note: memo,
+          paidFor: pf == null
+              ? null
+              : () => PaidFor(
+                  amount: pf.amount,
+                  people: people!,
+                  settled: pf.settled,
+                ),
+          splits: splits,
+          updatedAt: now,
+        ),
+      );
+    }
+    if (txCount > 0) await _save(_txKey, newTxs, (e) => e.toJson());
+
+    final accounts = await accountsForUpload();
+    final newAccounts = <LedgerAccount>[];
+    for (final a in accounts) {
+      final name = a.deletedAt != null ? a.name : fix(a.name);
+      if (name == a.name) {
+        newAccounts.add(a);
+        continue;
+      }
+      note('帳戶名稱', a.name, name);
+      acctCount++;
+      newAccounts.add(a.copyWith(name: name, updatedAt: now));
+    }
+    if (acctCount > 0) {
+      await _save(_accountsKey, newAccounts, (e) => e.toJson());
+    }
+
+    final subs = await subscriptionsForUpload();
+    final newSubs = <LedgerSubscription>[];
+    for (final s in subs) {
+      final name = s.deletedAt != null ? s.name : fix(s.name);
+      final memo = s.deletedAt != null ? s.note : fix(s.note);
+      if (name == s.name && memo == s.note) {
+        newSubs.add(s);
+        continue;
+      }
+      note('訂閱名稱', s.name, name);
+      note('訂閱備註', s.note, memo);
+      subCount++;
+      newSubs.add(s.copyWith(name: name, note: memo, updatedAt: now));
+    }
+    if (subCount > 0) {
+      await _save(_subsKey, newSubs, (e) => e.toJson());
+    }
+
+    final total = txCount + acctCount + subCount;
+    // 什麼都沒改就不吵操作紀錄。
+    if (total > 0) {
+      await _log(
+        '整理全形文字',
+        '改了 $txCount 筆交易、$acctCount 個帳戶、$subCount 個訂閱',
+        detail: lines.join('\n'),
+      );
+    }
+    return total;
   }
 
   Future<int> mergeSubscriptionsFromCloud(List<LedgerSubscription> incoming) =>
