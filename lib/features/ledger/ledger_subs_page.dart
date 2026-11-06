@@ -603,7 +603,7 @@ class _SubFormState extends State<_SubForm> {
             ),
           ),
           _row(
-            '每月扣多少',
+            isDebt ? '月付金' : '每月扣多少',
             TextField(
               controller: _amount,
               keyboardType: TextInputType.number,

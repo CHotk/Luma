@@ -250,9 +250,11 @@ void main() {
           .abs(),
       lessThan(6),
     );
-    // 切到借款：標題跟提示文字跟著變，預設信用卡。
+    // 切到借款：標題跟提示文字跟著變，預設信用卡；金額欄改叫「月付金」。
     await tester.tap(kindSeg('借款'));
     await tester.pump();
+    expect(find.text('月付金'), findsOneWidget);
+    expect(find.text('每月扣多少'), findsNothing);
     expect(find.text('借款名稱'), findsOneWidget);
     await tester.enterText(find.byType(TextField).at(0), '手機分期');
     await tester.enterText(find.byType(TextField).at(1), '1200');
@@ -307,7 +309,7 @@ void main() {
     await tester.pump();
     expect(find.text('總期數'), findsOneWidget);
     expect(find.text('第一期'), findsOneWidget);
-    // TextField 順序：名稱(0)、每月扣多少(1)、每月幾號(2)、貸款總額(3)、手續費(4)、總期數(5)、備註(6)。
+    // TextField 順序：名稱(0)、月付金(1)、每月幾號(2)、貸款總額(3)、手續費(4)、總期數(5)、備註(6)。
     await tester.enterText(find.byType(TextField).at(0), '手機分期');
     await tester.enterText(find.byType(TextField).at(1), '1000');
     await tester.enterText(find.byType(TextField).at(2), '10');
