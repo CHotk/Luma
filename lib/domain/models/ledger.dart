@@ -538,7 +538,6 @@ class LedgerSubscription {
     required this.name,
     required this.amount,
     required this.day,
-    this.accountId,
     this.note = '',
     this.active = true,
     this.createdAt,
@@ -551,8 +550,6 @@ class LedgerSubscription {
   final int amount;
   final int day;
 
-  /// 從哪個帳戶（哪張卡）扣，選填。
-  final String? accountId;
   final String note;
   final bool active;
   final DateTime? createdAt;
@@ -565,7 +562,6 @@ class LedgerSubscription {
     String? name,
     int? amount,
     int? day,
-    String? Function()? accountId,
     String? note,
     bool? active,
     DateTime? updatedAt,
@@ -575,7 +571,6 @@ class LedgerSubscription {
     name: name ?? this.name,
     amount: amount ?? this.amount,
     day: day ?? this.day,
-    accountId: accountId == null ? this.accountId : accountId(),
     note: note ?? this.note,
     active: active ?? this.active,
     createdAt: createdAt,
@@ -588,7 +583,6 @@ class LedgerSubscription {
     'name': name,
     'amount': amount,
     'day': day,
-    'accountId': accountId,
     'note': note,
     'active': active,
     'createdAt': createdAt == null ? null : ledgerTime(createdAt!),
@@ -602,7 +596,6 @@ class LedgerSubscription {
         name: j['name'] as String? ?? '',
         amount: (j['amount'] as num?)?.toInt() ?? 0,
         day: ((j['day'] as num?)?.toInt() ?? 1).clamp(1, 31),
-        accountId: j['accountId'] as String?,
         note: j['note'] as String? ?? '',
         active: j['active'] as bool? ?? true,
         createdAt: _t(j['createdAt']),

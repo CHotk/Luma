@@ -71,7 +71,6 @@ void main() {
       name: 'Spotify',
       amount: 149,
       day: 3,
-      accountId: 'default_card',
       note: '家庭方案',
       active: false,
       createdAt: DateTime(2026, 11, 5, 9),
@@ -81,7 +80,6 @@ void main() {
     expect(back.name, 'Spotify');
     expect(back.amount, 149);
     expect(back.day, 3);
-    expect(back.accountId, 'default_card');
     expect(back.note, '家庭方案');
     expect(back.active, isFalse);
     final minimal = LedgerSubscription.fromJson({'id': 'y', 'day': 99});

@@ -34,7 +34,6 @@ class LedgerSubsPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final subs = ref.watch(ledgerSubsProvider).valueOrNull;
-    final book = ref.watch(ledgerBookProvider).valueOrNull;
     return Scaffold(
       body: AmbientBackground(
         child: SafeArea(
@@ -53,7 +52,7 @@ class LedgerSubsPage extends ConsumerWidget {
                     IconButton(
                       onPressed: subs == null
                           ? null
-                          : () => _edit(context, ref, book, null),
+                          : () => _edit(context, ref, null),
                       icon: const Icon(Icons.add_rounded, size: 24),
                       color: AppColors.ink2,
                       tooltip: '新增訂閱',
@@ -74,7 +73,7 @@ class LedgerSubsPage extends ConsumerWidget {
                         )
                       : ListView(
                           padding: const EdgeInsets.only(bottom: 40),
-                          children: _body(context, ref, book, subs),
+                          children: _body(context, ref, subs),
                         ),
                 ),
               ],
@@ -88,7 +87,6 @@ class LedgerSubsPage extends ConsumerWidget {
   List<Widget> _body(
     BuildContext context,
     WidgetRef ref,
-    LedgerBook? book,
     List<LedgerSubscription> subs,
   ) {
     final now = DateTime.now();
@@ -140,13 +138,13 @@ class LedgerSubsPage extends ConsumerWidget {
         InlineEmptyCard(
           title: '還沒有訂閱',
           message: '把每月自動扣款的服務記下來，例如 Netflix、Spotify、iCloud',
-          actions: [EmptyAction('新增訂閱', () => _edit(context, ref, book, null))],
+          actions: [EmptyAction('新增訂閱', () => _edit(context, ref, null))],
         )
       else ...[
-        for (final s in active) _tile(context, ref, book, s, now),
+        for (final s in active) _tile(context, ref, s, now),
         if (stopped.isNotEmpty) ...[
           ledgerSection('已停用（不算進合計）'),
-          for (final s in stopped) _tile(context, ref, book, s, now),
+          for (final s in stopped) _tile(context, ref, s, now),
         ],
       ],
       Padding(
@@ -169,14 +167,11 @@ class LedgerSubsPage extends ConsumerWidget {
   Widget _tile(
     BuildContext context,
     WidgetRef ref,
-    LedgerBook? book,
     LedgerSubscription s,
     DateTime now,
   ) {
-    final acct = s.accountId == null ? null : book?.accountName(s.accountId);
     final sub = [
       if (s.active) '下次 ${_nextText(s, now)}' else '已停用',
-      if (acct != null) acct,
       if (s.note.isNotEmpty) s.note,
     ].join('・');
     return Opacity(
@@ -184,7 +179,7 @@ class LedgerSubsPage extends ConsumerWidget {
       child: Padding(
         padding: const EdgeInsets.only(bottom: 8),
         child: GlassCard(
-          onTap: () => _edit(context, ref, book, s),
+          onTap: () => _edit(context, ref, s),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
           child: Row(
             children: [
@@ -263,7 +258,6 @@ class LedgerSubsPage extends ConsumerWidget {
   Future<void> _edit(
     BuildContext context,
     WidgetRef ref,
-    LedgerBook? book,
     LedgerSubscription? edit,
   ) async {
     final r = await showModalBottomSheet<_SubResult>(
@@ -276,7 +270,7 @@ class LedgerSubsPage extends ConsumerWidget {
       ),
       builder: (c) => Padding(
         padding: EdgeInsets.only(bottom: MediaQuery.of(c).viewInsets.bottom),
-        child: _SubForm(edit: edit, book: book),
+        child: _SubForm(edit: edit),
       ),
     );
     if (r == null) return;
@@ -296,7 +290,6 @@ class LedgerSubsPage extends ConsumerWidget {
         name: r.name,
         amount: r.amount,
         day: r.day,
-        accountId: r.accountId,
         note: r.note,
         active: r.active,
       );
@@ -306,7 +299,6 @@ class LedgerSubsPage extends ConsumerWidget {
           name: r.name,
           amount: r.amount,
           day: r.day,
-          accountId: () => r.accountId,
           note: r.note,
           active: r.active,
         ),
@@ -332,7 +324,6 @@ class _SubResult {
     this.name = '',
     this.amount = 0,
     this.day = 1,
-    this.accountId,
     this.note = '',
     this.active = true,
   });
@@ -341,16 +332,14 @@ class _SubResult {
   final String name;
   final int amount;
   final int day;
-  final String? accountId;
   final String note;
   final bool active;
 }
 
 class _SubForm extends StatefulWidget {
-  const _SubForm({required this.edit, required this.book});
+  const _SubForm({required this.edit});
 
   final LedgerSubscription? edit;
-  final LedgerBook? book;
 
   @override
   State<_SubForm> createState() => _SubFormState();
@@ -365,7 +354,6 @@ class _SubFormState extends State<_SubForm> {
     text: widget.edit == null ? '' : '${widget.edit!.day}',
   );
   late final _note = TextEditingController(text: widget.edit?.note ?? '');
-  late String? _account = widget.edit?.accountId;
   late bool _active = widget.edit?.active ?? true;
 
   @override
@@ -399,7 +387,6 @@ class _SubFormState extends State<_SubForm> {
     final day = int.tryParse(_day.text) ?? 0;
     final ok =
         _name.text.trim().isNotEmpty && amount > 0 && day >= 1 && day <= 31;
-    final accounts = widget.book?.accounts ?? const <LedgerAccount>[];
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(18, 14, 18, 16),
       child: Column(
@@ -455,28 +442,6 @@ class _SubFormState extends State<_SubForm> {
                 style: AppText.note.copyWith(color: ledgerBad),
               ),
             ),
-          if (accounts.isNotEmpty) ...[
-            _label('從哪個帳戶扣（選填）'),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                ChoiceChip(
-                  label: const Text('不指定'),
-                  selected: _account == null,
-                  showCheckmark: false,
-                  onSelected: (_) => setState(() => _account = null),
-                ),
-                for (final a in accounts)
-                  ChoiceChip(
-                    label: Text('${a.type.emoji} ${a.name}'),
-                    selected: _account == a.id,
-                    showCheckmark: false,
-                    onSelected: (_) => setState(() => _account = a.id),
-                  ),
-              ],
-            ),
-          ],
           _label('備註（選填）'),
           TextField(
             controller: _note,
@@ -516,7 +481,6 @@ class _SubFormState extends State<_SubForm> {
                             name: _name.text.trim(),
                             amount: amount,
                             day: day,
-                            accountId: _account,
                             note: _note.text.trim(),
                             active: _active,
                           ),

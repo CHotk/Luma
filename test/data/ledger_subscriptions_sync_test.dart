@@ -57,7 +57,6 @@ void main() {
       name: 'Netflix',
       amount: 390,
       day: 12,
-      accountId: 'default_card',
     );
     final spotify = await a.addSubscription(
       name: 'Spotify',
@@ -71,7 +70,6 @@ void main() {
     final b = LedgerRepository(pc);
     var list = await b.loadSubscriptions();
     expect(list.map((s) => s.name), ['Spotify', 'Netflix']); // 3 號、12 號
-    expect(list.last.accountId, 'default_card');
     expect(list.first.note, '家庭方案');
 
     // 電腦：改金額、停用 Spotify。

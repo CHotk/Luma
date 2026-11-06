@@ -490,7 +490,6 @@ class LedgerRepository {
     required String name,
     required int amount,
     required int day,
-    String? accountId,
     String note = '',
     bool active = true,
   }) async {
@@ -500,7 +499,6 @@ class LedgerRepository {
       name: name,
       amount: amount,
       day: day,
-      accountId: accountId,
       note: note,
       active: active,
       createdAt: now,
@@ -510,12 +508,10 @@ class LedgerRepository {
       ...await subscriptionsForUpload(),
       s,
     ], (e) => e.toJson());
-    final acct = await _acctName();
     await _log(
       '新增訂閱',
       _subLine(s),
       detail: [
-        if (accountId != null) '扣款帳戶：${acct(accountId)}',
         if (note.isNotEmpty) '備註：$note',
         if (!active) '狀態：已停用',
       ].join('\n'),
@@ -531,14 +527,11 @@ class LedgerRepository {
     final old = all[i];
     all[i] = s.copyWith(updatedAt: DateTime.now());
     await _save(_subsKey, all, (e) => e.toJson());
-    final acct = await _acctName();
     String n(String v) => v.isEmpty ? '（空）' : v;
     final diff = [
       if (old.name != s.name) '名稱：${old.name} → ${s.name}',
       if (old.amount != s.amount) '金額：\$${old.amount} → \$${s.amount}',
       if (old.day != s.day) '每月幾號：${old.day} → ${s.day}',
-      if (old.accountId != s.accountId)
-        '扣款帳戶：${acct(old.accountId)} → ${acct(s.accountId)}',
       if (old.note != s.note) '備註：${n(old.note)} → ${n(s.note)}',
       if (old.active != s.active) '狀態：${s.active ? '恢復訂閱' : '停用'}',
     ];
