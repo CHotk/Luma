@@ -677,7 +677,7 @@ class _SubFormState extends State<_SubForm> {
                           '實際本利總額 ${lMoney(payable)}',
                           if (interest != null) '純利息 ${lMoney(interest)}',
                           if (rate != null)
-                            '實際年利率 ${rate.toStringAsFixed(2)}%（本息平均攤還，可跟銀行信貸利率比）',
+                            '實際年利率 ${rate.toStringAsFixed(2)}%（本利攤，按銀行信貸計算方式）',
                         ].join('\n'),
                   style: AppText.note.copyWith(color: AppColors.mid),
                 ),
