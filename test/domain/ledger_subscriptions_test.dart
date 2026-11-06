@@ -90,7 +90,7 @@ void main() {
   });
 }
 
-/// 欠款的期數、貸款總額（2026-11-06 使用者）。
+/// 借款的期數、貸款總額（2026-11-06 使用者）。
 void debtTests() {
   LedgerSubscription debt({
     int amount = 1000,
@@ -111,7 +111,7 @@ void debtTests() {
     active: active,
   );
 
-  group('欠款期數', () {
+  group('借款期數', () {
     test('已繳幾期：第一期那個月起，每個月扣款日到了就算一期', () {
       final d = debt(); // 2026-09 起，每月 10 號，共 12 期
       expect(paidPeriods(d, DateTime(2026, 8, 20)), 0); // 還沒開始
@@ -160,15 +160,39 @@ void debtTests() {
       );
     });
 
-    test('總共要繳 = 期數 × 每月；比貸款總額多的是多繳（利息）', () {
+    test('本利總額 = 期數 × 每月；比貸款總額多的是純利息', () {
       expect(totalPayable(debt()), 12000);
-      expect(extraPaid(debt()), 1000); // 12000 − 11000
-      expect(extraPaid(debt(loan: 12000)), isNull); // 一樣多＝沒有多繳
-      expect(extraPaid(debt(loan: null)), isNull);
+      expect(pureInterest(debt()), 1000); // 12000 − 11000
+      expect(pureInterest(debt(loan: 12000)), 0); // 一樣多＝零利率
+      expect(pureInterest(debt(loan: null)), isNull);
+      expect(pureInterest(debt(loan: 13000)), isNull); // 繳的比借的少＝數字有誤
       expect(totalPayable(debt(periods: null)), isNull);
     });
 
-    test('合計可以分訂閱／欠款算', () {
+    test('實際年利率：本息平均攤還反推，跟銀行算法一樣', () {
+      // 借 10 萬、年利率 8%、12 期：銀行算每月 8,699。
+      expect(loanAnnualRate(100000, 8699, 12), closeTo(8.0, 0.05));
+      // 借 100 萬、年利率 3%、84 期：每月約 13,213。
+      expect(loanAnnualRate(1000000, 13213, 84), closeTo(3.0, 0.02));
+      expect(loanAnnualRate(12000, 1000, 12), 0); // 沒利息
+      expect(loanAnnualRate(13000, 1000, 12), isNull); // 繳的比借的少
+      expect(loanAnnualRate(0, 1000, 12), isNull);
+      expect(annualRateOf(debt(loan: null)), isNull);
+      expect(annualRateOf(debt(periods: null)), isNull);
+    });
+
+    test('信用卡沒有第一期：算不出已繳幾期、不會變已繳清；信貸跟小額借款一樣算', () {
+      final at = DateTime(2027, 12, 1);
+      final card = debt(
+        periods: 3,
+      ).copyWith(debtType: LedgerDebtType.creditCard);
+      expect(paidPeriods(card, at), isNull);
+      expect(isFinished(card, at), isFalse);
+      final loan = debt().copyWith(debtType: LedgerDebtType.personalLoan);
+      expect(paidPeriods(loan, DateTime(2026, 11, 5)), 2);
+    });
+
+    test('合計可以分訂閱／借款算', () {
       final list = [
         debt(),
         LedgerSubscription(id: 's', name: 'Netflix', amount: 390, day: 12),
@@ -188,6 +212,13 @@ void debtTests() {
     test('存取往返不變；訂閱不帶這些欄位', () {
       final back = LedgerSubscription.fromJson(debt().toJson());
       expect(back.kind, LedgerChargeKind.debt);
+      expect(back.debtType, LedgerDebtType.smallLoan);
+      // 舊資料沒有 debtType：算小額借款；三種都存得回來。
+      expect(LedgerDebtType.parse(null), LedgerDebtType.smallLoan);
+      for (final t in LedgerDebtType.values) {
+        final x = debt().copyWith(debtType: t);
+        expect(LedgerSubscription.fromJson(x.toJson()).debtType, t);
+      }
       expect(back.periods, 12);
       expect(back.loanTotal, 11000);
       expect(back.startMonth, '2026-09');

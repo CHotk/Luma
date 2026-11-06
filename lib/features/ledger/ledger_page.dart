@@ -1073,7 +1073,7 @@ class _SubsEntry extends ConsumerWidget {
                 ),
                 Text(
                   active.isEmpty
-                      ? '記錄每月會被扣的錢（訂閱、欠款）'
+                      ? '記錄每月會被扣的錢（訂閱、借款）'
                       : '${active.length} 項扣款中・每月 ${lMoney(subsMonthlyTotal(subs, now: now))}',
                   style: AppText.note.copyWith(
                     fontSize: 10.5,

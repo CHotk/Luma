@@ -496,7 +496,7 @@ class LedgerRepository {
   }
 
   // ── 每月扣款（2026-11-05 使用者：單純紀錄每月幾號扣多少、什麼服務；2026-11-06 改叫
-  // 每月扣款、可以區分訂閱跟欠款，仍然不跟實際記帳產生關連）──────
+  // 每月扣款、可以區分訂閱跟借款，仍然不跟實際記帳產生關連）──────
 
   Future<List<LedgerSubscription>> subscriptionsForUpload() =>
       _load(_subsKey, LedgerSubscription.fromJson);
@@ -506,13 +506,14 @@ class LedgerRepository {
       sortSubs(await subscriptionsForUpload());
 
   static String _subLine(LedgerSubscription s) =>
-      '[${s.kind.label}] ${s.name}　每月 ${s.day} 號　\$${s.amount}';
+      '[${s.typeLabel}] ${s.name}　每月 ${s.day} 號　\$${s.amount}';
 
   Future<LedgerSubscription> addSubscription({
     required String name,
     required int amount,
     required int day,
     LedgerChargeKind kind = LedgerChargeKind.subscription,
+    LedgerDebtType debtType = LedgerDebtType.smallLoan,
     int? periods,
     int? loanTotal,
     String? startMonth,
@@ -526,6 +527,7 @@ class LedgerRepository {
       amount: amount,
       day: day,
       kind: kind,
+      debtType: debtType,
       periods: periods,
       loanTotal: loanTotal,
       startMonth: startMonth,
@@ -562,7 +564,7 @@ class LedgerRepository {
     await _save(_subsKey, all, (e) => e.toJson());
     String n(String v) => v.isEmpty ? '（空）' : v;
     final diff = [
-      if (old.kind != s.kind) '類型：${old.kind.label} → ${s.kind.label}',
+      if (old.typeLabel != s.typeLabel) '類型：${old.typeLabel} → ${s.typeLabel}',
       if (old.name != s.name) '名稱：${old.name} → ${s.name}',
       if (old.amount != s.amount) '金額：\$${old.amount} → \$${s.amount}',
       if (old.day != s.day) '每月幾號：${old.day} → ${s.day}',

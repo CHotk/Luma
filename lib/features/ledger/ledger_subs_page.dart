@@ -21,7 +21,7 @@ import 'ledger_data.dart';
 import 'ledger_ui.dart';
 
 /// 每月扣款（2026-11-05 使用者：記錄每月幾號會被扣多少錢、是什麼服務，**單純紀錄用**；
-/// 2026-11-06 改叫「每月扣款」，其中可以區分「訂閱」跟「欠款」兩種標示）。
+/// 2026-11-06 改叫「每月扣款」，其中可以區分「訂閱」跟「借款」，借款再分信用卡、小額借款、信貸）。
 /// 是一個獨立的小功能，只用來釐清每月該繳多少錢：不會自動記進交易、不影響本月消費、
 /// 跟任何帳戶或信用卡餘額沒有關連；資料跟記帳一起多裝置同步，每個動作都進記帳的操作紀錄。
 final ledgerSubsProvider = FutureProvider.autoDispose<List<LedgerSubscription>>(
@@ -96,7 +96,7 @@ class LedgerSubsPage extends ConsumerWidget {
     List<LedgerSubscription> subs,
   ) {
     final now = DateTime.now();
-    // 扣款中＝開關開著、欠款的期數也還沒扣完（扣完＝已繳清，跟已停用一起放下面）。
+    // 扣款中＝開關開著、借款的期數也還沒扣完（扣完＝已繳清，跟已停用一起放下面）。
     final active = subs.where((s) => isCharging(s, now)).toList();
     final stopped = subs.where((s) => !isCharging(s, now)).toList();
     final total = subsMonthlyTotal(subs, now: now);
@@ -110,7 +110,7 @@ class LedgerSubsPage extends ConsumerWidget {
       kind: LedgerChargeKind.debt,
       now: now,
     );
-    // 欠款還剩多少沒繳（只算填了總期數跟第一期、算得出來的）。
+    // 借款還剩多少沒繳（只算填了總期數跟第一期、算得出來的）。
     final debtLeft = active
         .map((s) => remainingAmount(s, now))
         .whereType<int>()
@@ -143,7 +143,7 @@ class LedgerSubsPage extends ConsumerWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              '訂閱 ${lMoney(subTotal)}・欠款 ${lMoney(debtTotal)}・一年約 ${lMoney(total * 12)}',
+              '訂閱 ${lMoney(subTotal)}・借款 ${lMoney(debtTotal)}・一年約 ${lMoney(total * 12)}',
               style: AppText.note.copyWith(color: AppColors.ink3),
             ),
             if (next != null) ...[
@@ -158,7 +158,7 @@ class LedgerSubsPage extends ConsumerWidget {
             if (debtLeftCount > 0) ...[
               const SizedBox(height: 4),
               Text(
-                '欠款還剩 ${lMoney(debtLeft)} 沒繳（$debtLeftCount 筆，剩餘期數 × 每月扣款）',
+                '借款還剩 ${lMoney(debtLeft)} 沒繳（$debtLeftCount 筆，剩餘期數 × 每月扣款）',
                 style: AppText.note.copyWith(color: AppColors.mid),
               ),
             ],
@@ -169,7 +169,7 @@ class LedgerSubsPage extends ConsumerWidget {
       if (subs.isEmpty)
         InlineEmptyCard(
           title: '還沒有每月扣款',
-          message: '把每月會被扣的錢記下來：訂閱（Netflix、Spotify、iCloud）或欠款（分期、借款）',
+          message: '把每月會被扣的錢記下來：訂閱（Netflix、Spotify、iCloud）或借款（信用卡、小額借款、信貸）',
           actions: [EmptyAction('新增每月扣款', () => _edit(context, ref, null))],
         )
       else ...[
@@ -206,7 +206,9 @@ class LedgerSubsPage extends ConsumerWidget {
     final charging = isCharging(s, now);
     final paid = paidPeriods(s, now);
     final left = remainingPeriods(s, now);
-    final extra = extraPaid(s);
+    final total = totalPayable(s);
+    final interest = pureInterest(s);
+    final rate = annualRateOf(s);
     final sub = [
       if (charging)
         '下次 ${_nextText(s, now)}'
@@ -216,8 +218,8 @@ class LedgerSubsPage extends ConsumerWidget {
         '已停用',
       if (s.note.isNotEmpty) s.note,
     ].join('・');
-    // 欠款的期數、貸款總額（2026-11-06 使用者）：共幾期、已繳幾期、還剩幾期、貸款總額、
-    // 總共要繳多少（比貸款總額多的是利息之類）。
+    // 借款（2026-11-06 使用者）：共幾期、已繳幾期、還剩幾期、貸款總額、本利總額、
+    // 純利息、實際年利率。
     final debtLine = s.kind != LedgerChargeKind.debt
         ? null
         : [
@@ -226,7 +228,9 @@ class LedgerSubsPage extends ConsumerWidget {
                   ? '共 ${s.periods} 期'
                   : '已繳 $paid／${s.periods} 期・剩 $left 期（${lMoney(left! * s.amount)}）',
             if (s.loanTotal != null) '貸款總額 ${lMoney(s.loanTotal!)}',
-            if (extra != null) '多繳 ${lMoney(extra)}',
+            if (total != null) '本利總額 ${lMoney(total)}',
+            if (interest != null) '純利息 ${lMoney(interest)}',
+            if (rate != null) '實際年利率 ${rate.toStringAsFixed(2)}%',
           ].join('・');
     return Opacity(
       opacity: charging ? 1 : 0.55,
@@ -284,7 +288,7 @@ class LedgerSubsPage extends ConsumerWidget {
                           ),
                         ),
                         const SizedBox(width: 6),
-                        LedgerPill(s.kind.label, color: _kindColor(s.kind)),
+                        LedgerPill(s.typeLabel, color: _kindColor(s.kind)),
                       ],
                     ),
                     const SizedBox(height: 2),
@@ -376,6 +380,7 @@ class LedgerSubsPage extends ConsumerWidget {
         amount: r.amount,
         day: r.day,
         kind: r.kind,
+        debtType: r.debtType,
         periods: r.periods,
         loanTotal: r.loanTotal,
         startMonth: r.startMonth,
@@ -389,6 +394,7 @@ class LedgerSubsPage extends ConsumerWidget {
           amount: r.amount,
           day: r.day,
           kind: r.kind,
+          debtType: r.debtType,
           periods: () => r.periods,
           loanTotal: () => r.loanTotal,
           startMonth: () => r.startMonth,
@@ -418,6 +424,7 @@ class _SubResult {
     this.amount = 0,
     this.day = 1,
     this.kind = LedgerChargeKind.subscription,
+    this.debtType = LedgerDebtType.smallLoan,
     this.periods,
     this.loanTotal,
     this.startMonth,
@@ -430,6 +437,7 @@ class _SubResult {
   final int amount;
   final int day;
   final LedgerChargeKind kind;
+  final LedgerDebtType debtType;
   final int? periods;
   final int? loanTotal;
   final String? startMonth;
@@ -462,11 +470,16 @@ class _SubFormState extends State<_SubForm> {
     text: widget.edit?.periods == null ? '' : '${widget.edit!.periods}',
   );
 
-  /// 欠款第一期扣款的月份，`yyyy-MM`（選填；有了才算得出已繳幾期）。
+  /// 借款第一期扣款的月份，`yyyy-MM`（選填；有了才算得出已繳幾期）。
   late String? _start = widget.edit?.startMonth;
   late bool _active = widget.edit?.active ?? true;
   late LedgerChargeKind _kind =
       widget.edit?.kind ?? LedgerChargeKind.subscription;
+
+  /// 借款的種類：新增時預設信用卡；舊的照原本存的。
+  late LedgerDebtType _debtType = widget.edit?.kind == LedgerChargeKind.debt
+      ? widget.edit!.debtType
+      : LedgerDebtType.creditCard;
 
   @override
   void initState() {
@@ -504,11 +517,20 @@ class _SubFormState extends State<_SubForm> {
     final amount = int.tryParse(_amount.text) ?? 0;
     final day = int.tryParse(_day.text) ?? 0;
     final isDebt = _kind == LedgerChargeKind.debt;
+    // 信用卡沒有第一期的概念（2026-11-06 使用者）。
+    final hasFirst = isDebt && _debtType != LedgerDebtType.creditCard;
     final loan = int.tryParse(_loan.text);
     final periods = int.tryParse(_periods.text);
     final payable = isDebt && periods != null && periods > 0 && amount > 0
         ? periods * amount
         : null;
+    final interest =
+        payable != null && loan != null && loan > 0 && payable >= loan
+        ? payable - loan
+        : null;
+    final rate = interest == null
+        ? null
+        : loanAnnualRate(loan!, amount, periods!);
     final ok =
         _name.text.trim().isNotEmpty && amount > 0 && day >= 1 && day <= 31;
     return SingleChildScrollView(
@@ -538,7 +560,7 @@ class _SubFormState extends State<_SubForm> {
             ],
           ),
           const SizedBox(height: 4),
-          // 訂閱或欠款（只是標示，算法一樣）。
+          // 訂閱或借款；借款再選信用卡、小額借款或信貸。
           SegmentedButton<LedgerChargeKind>(
             segments: [
               for (final k in LedgerChargeKind.values)
@@ -548,8 +570,20 @@ class _SubFormState extends State<_SubForm> {
             showSelectedIcon: false,
             onSelectionChanged: (s) => setState(() => _kind = s.first),
           ),
+          if (isDebt) ...[
+            const SizedBox(height: 8),
+            SegmentedButton<LedgerDebtType>(
+              segments: [
+                for (final k in LedgerDebtType.values)
+                  ButtonSegment(value: k, label: Text(k.label)),
+              ],
+              selected: {_debtType},
+              showSelectedIcon: false,
+              onSelectionChanged: (s) => setState(() => _debtType = s.first),
+            ),
+          ],
           _row(
-            _kind == LedgerChargeKind.subscription ? '服務名稱' : '欠款名稱',
+            _kind == LedgerChargeKind.subscription ? '服務名稱' : '借款名稱',
             TextField(
               controller: _name,
               autofocus: e == null,
@@ -607,42 +641,52 @@ class _SubFormState extends State<_SubForm> {
                 decoration: _input('例如 12（選填）', suffix: '期'),
               ),
             ),
-            _row(
-              '第一期',
-              OutlinedButton.icon(
-                onPressed: () async {
-                  final now = DateTime.now();
-                  final start = _start?.split('-');
-                  final init = start != null && start.length == 2
-                      ? DateTime(
-                          int.tryParse(start[0]) ?? now.year,
-                          int.tryParse(start[1]) ?? now.month,
-                          day >= 1 && day <= 28 ? day : 1,
-                        )
-                      : now;
-                  final v = await showDateTimeWheel(context, init);
-                  if (v != null && mounted) {
-                    setState(() => _start = monthKeyOf(v));
-                  }
-                },
-                icon: const Icon(Icons.event_rounded, size: 18),
-                label: Text(
-                  _start == null
-                      ? '第一期扣款是哪個月（選填）'
-                      : '${_start!.replaceFirst('-', '/')}（點一下改）',
+            if (hasFirst)
+              _row(
+                '第一期',
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    final now = DateTime.now();
+                    final start = _start?.split('-');
+                    final init = start != null && start.length == 2
+                        ? DateTime(
+                            int.tryParse(start[0]) ?? now.year,
+                            int.tryParse(start[1]) ?? now.month,
+                          )
+                        : now;
+                    // 只選年月，不用細到時分（2026-11-06 使用者）；幾號看「每月幾號」。
+                    final v = await showDateTimeWheel(
+                      context,
+                      init,
+                      monthOnly: true,
+                    );
+                    if (v != null && mounted) {
+                      setState(() => _start = monthKeyOf(v));
+                    }
+                  },
+                  icon: const Icon(Icons.event_rounded, size: 18),
+                  label: Text(
+                    _start == null
+                        ? '第一期扣款是哪個月（選填）'
+                        : '${_start!.replaceFirst('-', '/')}（點一下改）',
+                  ),
                 ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(top: 6, left: 78),
-              child: Text(
-                payable == null
-                    ? '填了總期數跟第一期，就會算已繳幾期、還剩多少'
-                    : '總共要繳 \$$payable'
-                          '${loan != null && loan > 0 && payable > loan ? '，比貸款總額多 \$${payable - loan}' : ''}',
-                style: AppText.note.copyWith(color: AppColors.mid),
+            if (payable != null || hasFirst)
+              Padding(
+                padding: const EdgeInsets.only(top: 6, left: 78),
+                child: Text(
+                  payable == null
+                      ? '填了總期數跟第一期，就會算已繳幾期、還剩多少'
+                      : [
+                          '實際本利總額 ${lMoney(payable)}',
+                          if (interest != null) '純利息 ${lMoney(interest)}',
+                          if (rate != null)
+                            '實際年利率 ${rate.toStringAsFixed(2)}%（本息平均攤還，可跟銀行信貸利率比）',
+                        ].join('\n'),
+                  style: AppText.note.copyWith(color: AppColors.mid),
+                ),
               ),
-            ),
           ],
           _row(
             '備註',
@@ -689,9 +733,10 @@ class _SubFormState extends State<_SubForm> {
                             amount: amount,
                             day: day,
                             kind: _kind,
+                            debtType: _debtType,
                             periods: isDebt ? periods : null,
                             loanTotal: isDebt ? loan : null,
-                            startMonth: isDebt ? _start : null,
+                            startMonth: hasFirst ? _start : null,
                             note: _note.text.trim(),
                             active: _active,
                           ),

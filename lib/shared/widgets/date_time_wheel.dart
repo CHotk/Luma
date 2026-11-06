@@ -5,11 +5,13 @@ import '../../app/theme/colors.dart';
 
 /// 年月日時分一頁選完的滾輪（2026-11-03 使用者：原本日期、時間分兩頁很難用）。
 /// 五個滾輪並排，24 小時制，上面有「現在／今天／昨天」快捷，確定才回傳。
+/// [monthOnly] 只選年、月（回傳那個月 1 號），不顯示日、時、分。
 Future<DateTime?> showDateTimeWheel(
   BuildContext context,
   DateTime initial, {
   int minYear = 2020,
   int maxYear = 2035,
+  bool monthOnly = false,
 }) => showModalBottomSheet<DateTime>(
   context: context,
   useSafeArea: true,
@@ -17,7 +19,12 @@ Future<DateTime?> showDateTimeWheel(
   shape: const RoundedRectangleBorder(
     borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
   ),
-  builder: (_) => _Wheel(initial: initial, minYear: minYear, maxYear: maxYear),
+  builder: (_) => _Wheel(
+    initial: initial,
+    minYear: minYear,
+    maxYear: maxYear,
+    monthOnly: monthOnly,
+  ),
 );
 
 class _Wheel extends StatefulWidget {
@@ -25,11 +32,13 @@ class _Wheel extends StatefulWidget {
     required this.initial,
     required this.minYear,
     required this.maxYear,
+    this.monthOnly = false,
   });
 
   final DateTime initial;
   final int minYear;
   final int maxYear;
+  final bool monthOnly;
 
   @override
   State<_Wheel> createState() => _WheelState();
@@ -52,7 +61,8 @@ class _WheelState extends State<_Wheel> {
 
   int _daysIn(int y, int m) => DateTime(y, m + 1, 0).day;
 
-  DateTime get _value => DateTime(_y, _m, _d, _h, _mi);
+  DateTime get _value =>
+      widget.monthOnly ? DateTime(_y, _m) : DateTime(_y, _m, _d, _h, _mi);
 
   @override
   void dispose() {
@@ -135,6 +145,7 @@ class _WheelState extends State<_Wheel> {
   @override
   Widget build(BuildContext context) {
     final v = _value;
+    final only = widget.monthOnly;
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
@@ -154,8 +165,10 @@ class _WheelState extends State<_Wheel> {
             ),
             const SizedBox(height: 10),
             Text(
-              '${v.year}/${v.month}/${v.day} '
-              '${v.hour.toString().padLeft(2, '0')}:${v.minute.toString().padLeft(2, '0')}',
+              only
+                  ? '${v.year}/${v.month}'
+                  : '${v.year}/${v.month}/${v.day} '
+                        '${v.hour.toString().padLeft(2, '0')}:${v.minute.toString().padLeft(2, '0')}',
               textAlign: TextAlign.center,
               style: const TextStyle(
                 fontSize: 20,
@@ -168,15 +181,21 @@ class _WheelState extends State<_Wheel> {
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
-                  _chip('現在', DateTime.now),
-                  _chip('今天', () {
-                    final n = DateTime.now();
-                    return DateTime(n.year, n.month, n.day, _h, _mi);
-                  }),
-                  _chip('昨天', () {
-                    final n = DateTime.now().subtract(const Duration(days: 1));
-                    return DateTime(n.year, n.month, n.day, _h, _mi);
-                  }),
+                  if (only)
+                    _chip('這個月', DateTime.now)
+                  else ...[
+                    _chip('現在', DateTime.now),
+                    _chip('今天', () {
+                      final n = DateTime.now();
+                      return DateTime(n.year, n.month, n.day, _h, _mi);
+                    }),
+                    _chip('昨天', () {
+                      final n = DateTime.now().subtract(
+                        const Duration(days: 1),
+                      );
+                      return DateTime(n.year, n.month, n.day, _h, _mi);
+                    }),
+                  ],
                 ],
               ),
             ),
@@ -203,41 +222,43 @@ class _WheelState extends State<_Wheel> {
                       _fixDay();
                     }),
                   ),
-                  _wheel(
-                    controller: _cd,
-                    count: 31,
-                    label: (i) => '${i + 1}日',
-                    onChanged: (i) => setState(() {
-                      // 超過這個月天數的滾輪停在月底。
-                      final max = _daysIn(_y, _m);
-                      _d = i + 1 > max ? max : i + 1;
-                      if (i + 1 > max) {
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          if (_cd.hasClients) _cd.jumpToItem(_d - 1);
-                        });
-                      }
-                    }),
-                  ),
-                  _wheel(
-                    controller: _ch,
-                    count: 24,
-                    label: (i) => i.toString().padLeft(2, '0'),
-                    onChanged: (i) => setState(() => _h = i),
-                  ),
-                  const Text(
-                    ':',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.ink2,
+                  if (!only) ...[
+                    _wheel(
+                      controller: _cd,
+                      count: 31,
+                      label: (i) => '${i + 1}日',
+                      onChanged: (i) => setState(() {
+                        // 超過這個月天數的滾輪停在月底。
+                        final max = _daysIn(_y, _m);
+                        _d = i + 1 > max ? max : i + 1;
+                        if (i + 1 > max) {
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            if (_cd.hasClients) _cd.jumpToItem(_d - 1);
+                          });
+                        }
+                      }),
                     ),
-                  ),
-                  _wheel(
-                    controller: _cmi,
-                    count: 60,
-                    label: (i) => i.toString().padLeft(2, '0'),
-                    onChanged: (i) => setState(() => _mi = i),
-                  ),
+                    _wheel(
+                      controller: _ch,
+                      count: 24,
+                      label: (i) => i.toString().padLeft(2, '0'),
+                      onChanged: (i) => setState(() => _h = i),
+                    ),
+                    const Text(
+                      ':',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.ink2,
+                      ),
+                    ),
+                    _wheel(
+                      controller: _cmi,
+                      count: 60,
+                      label: (i) => i.toString().padLeft(2, '0'),
+                      onChanged: (i) => setState(() => _mi = i),
+                    ),
+                  ],
                 ],
               ),
             ),

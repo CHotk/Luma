@@ -527,10 +527,11 @@ class LedgerBudget {
   );
 }
 
-/// 每月扣款的種類（2026-11-06 使用者：每月扣款裡可以區分訂閱跟欠款）。
+/// 每月扣款的種類（2026-11-06 使用者：每月扣款裡可以區分訂閱跟借款）。
+/// 存檔的代號還是 `debt`，舊資料不用轉。
 enum LedgerChargeKind {
   subscription('subscription', '訂閱'),
-  debt('debt', '欠款');
+  debt('debt', '借款');
 
   const LedgerChargeKind(this.json, this.label);
 
@@ -539,6 +540,22 @@ enum LedgerChargeKind {
 
   static LedgerChargeKind parse(String? s) =>
       values.firstWhere((k) => k.json == s, orElse: () => subscription);
+}
+
+/// 借款的種類（2026-11-06 使用者）：信用卡沒有「第一期」的概念，小額借款、信貸才有。
+enum LedgerDebtType {
+  creditCard('credit_card', '信用卡'),
+  smallLoan('small_loan', '小額借款'),
+  personalLoan('personal_loan', '信貸');
+
+  const LedgerDebtType(this.json, this.label);
+
+  final String json;
+  final String label;
+
+  /// 舊資料沒有這欄：當時都有第一期，算小額借款。
+  static LedgerDebtType parse(String? s) =>
+      values.firstWhere((k) => k.json == s, orElse: () => smallLoan);
 }
 
 /// 每月自動扣款的訂閱（2026-11-05 使用者：記錄每月幾號會被扣多少錢、是什麼服務，
@@ -553,6 +570,7 @@ class LedgerSubscription {
     required this.amount,
     required this.day,
     this.kind = LedgerChargeKind.subscription,
+    this.debtType = LedgerDebtType.smallLoan,
     this.periods,
     this.loanTotal,
     this.startMonth,
@@ -568,16 +586,23 @@ class LedgerSubscription {
   final int amount;
   final int day;
 
-  /// 訂閱或欠款（只是標示，算法一樣）。
+  /// 訂閱或借款。
   final LedgerChargeKind kind;
 
-  /// 欠款才有（2026-11-06 使用者：欠款要有期數的概念，還有實際貸款總額）：總期數。
+  /// 借款才有意義：信用卡、小額借款或信貸。
+  final LedgerDebtType debtType;
+
+  /// 畫面上的類型：訂閱，或借款的信用卡／小額借款／信貸。
+  String get typeLabel =>
+      kind == LedgerChargeKind.debt ? debtType.label : kind.label;
+
+  /// 借款才有（2026-11-06 使用者：要有期數的概念，還有實際貸款總額）：總期數。
   final int? periods;
 
-  /// 欠款才有：實際貸款總額（借了多少，不含利息；每月扣款 × 期數 通常會比它多）。
+  /// 借款才有：實際貸款總額（借了多少，不含利息；每月扣款 × 期數 通常會比它多）。
   final int? loanTotal;
 
-  /// 欠款才有：第一期是哪個月扣款，`yyyy-MM`。有了它才算得出已繳幾期、還剩幾期。
+  /// 小額借款、信貸才有：第一期是哪個月扣款，`yyyy-MM`。有了它才算得出已繳幾期、還剩幾期。
   final String? startMonth;
   final String note;
   final bool active;
@@ -592,6 +617,7 @@ class LedgerSubscription {
     int? amount,
     int? day,
     LedgerChargeKind? kind,
+    LedgerDebtType? debtType,
     int? Function()? periods,
     int? Function()? loanTotal,
     String? Function()? startMonth,
@@ -605,6 +631,7 @@ class LedgerSubscription {
     amount: amount ?? this.amount,
     day: day ?? this.day,
     kind: kind ?? this.kind,
+    debtType: debtType ?? this.debtType,
     periods: periods == null ? this.periods : periods(),
     loanTotal: loanTotal == null ? this.loanTotal : loanTotal(),
     startMonth: startMonth == null ? this.startMonth : startMonth(),
@@ -621,6 +648,7 @@ class LedgerSubscription {
     'amount': amount,
     'day': day,
     'kind': kind.json,
+    if (kind == LedgerChargeKind.debt) 'debtType': debtType.json,
     if (periods != null) 'periods': periods,
     if (loanTotal != null) 'loanTotal': loanTotal,
     if (startMonth != null) 'startMonth': startMonth,
@@ -638,6 +666,7 @@ class LedgerSubscription {
         amount: (j['amount'] as num?)?.toInt() ?? 0,
         day: ((j['day'] as num?)?.toInt() ?? 1).clamp(1, 31),
         kind: LedgerChargeKind.parse(j['kind'] as String?),
+        debtType: LedgerDebtType.parse(j['debtType'] as String?),
         periods: (j['periods'] as num?)?.toInt(),
         loanTotal: (j['loanTotal'] as num?)?.toInt(),
         startMonth: j['startMonth'] as String?,

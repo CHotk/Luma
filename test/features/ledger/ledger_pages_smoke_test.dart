@@ -185,7 +185,7 @@ void main() {
     expect(find.text('每月扣款合計・扣款中 2 項'), findsOneWidget);
     expect(find.text('\$539'), findsOneWidget); // 合計
     expect(find.textContaining('一年約 \$6,468'), findsOneWidget);
-    expect(find.textContaining('訂閱 \$539・欠款 \$0'), findsOneWidget);
+    expect(find.textContaining('訂閱 \$539・借款 \$0'), findsOneWidget);
     expect(find.text('Netflix'), findsOneWidget);
     expect(find.text('Spotify'), findsOneWidget);
     // 扣款日 3 號的 Spotify 排在 12 號的 Netflix 前面。
@@ -224,7 +224,7 @@ void main() {
     expect(book.txs.length, 3);
   });
 
-  testWidgets('每月扣款：可以標訂閱或欠款，合計分開寫，改類型也行；欄位標題跟輸入框同一行', (tester) async {
+  testWidgets('每月扣款：可以標訂閱或借款，合計分開寫，改類型也行；欄位標題跟輸入框同一行', (tester) async {
     final store = await seeded();
     await pump(tester, const LedgerSubsPage(), store);
     await tester.tap(find.byTooltip('新增每月扣款'));
@@ -243,10 +243,10 @@ void main() {
           .abs(),
       lessThan(6),
     );
-    // 切到欠款：標題跟提示文字跟著變。
-    await tester.tap(find.text('欠款'));
+    // 切到借款：標題跟提示文字跟著變，預設信用卡。
+    await tester.tap(find.text('借款'));
     await tester.pump();
-    expect(find.text('欠款名稱'), findsOneWidget);
+    expect(find.text('借款名稱'), findsOneWidget);
     await tester.enterText(find.byType(TextField).at(0), '手機分期');
     await tester.enterText(find.byType(TextField).at(1), '1200');
     await tester.enterText(find.byType(TextField).at(2), '20');
@@ -259,10 +259,10 @@ void main() {
     var subs = (await tester.runAsync(() => repo.loadSubscriptions()))!;
     expect(subs.single.kind, LedgerChargeKind.debt);
     expect(
-      find.textContaining('訂閱 \$0・欠款 \$1,200・一年約 \$14,400'),
+      find.textContaining('訂閱 \$0・借款 \$1,200・一年約 \$14,400'),
       findsOneWidget,
     );
-    expect(find.text('欠款'), findsOneWidget); // 列表上的標示
+    expect(find.text('信用卡'), findsOneWidget); // 列表上的標示
     // 改成訂閱：合計跟著搬過去。
     await tester.tap(find.text('手機分期'));
     await settle(tester);
@@ -272,17 +272,17 @@ void main() {
     await settle(tester);
     subs = (await tester.runAsync(() => repo.loadSubscriptions()))!;
     expect(subs.single.kind, LedgerChargeKind.subscription);
-    expect(find.textContaining('訂閱 \$1,200・欠款 \$0'), findsOneWidget);
+    expect(find.textContaining('訂閱 \$1,200・借款 \$0'), findsOneWidget);
     // 操作紀錄寫出類型的變化。
     final log = (await tester.runAsync(() => repo.loadLog()))!;
     expect(
       log.firstWhere((e) => e.action == '編輯扣款').detail,
-      contains('類型：欠款 → 訂閱'),
+      contains('類型：信用卡 → 訂閱'),
     );
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('欠款有期數跟貸款總額：表單算總共要繳、比貸款總額多多少；列表寫共幾期、貸款總額、多繳', (tester) async {
+  testWidgets('借款有期數跟貸款總額：表單算本利總額、純利息、實際年利率；列表也寫出來', (tester) async {
     final store = await seeded();
     await pump(tester, const LedgerSubsPage(), store);
     await tester.tap(find.byTooltip('新增每月扣款'));
@@ -290,10 +290,14 @@ void main() {
     // 訂閱沒有期數、貸款總額這幾列。
     expect(find.text('總期數'), findsNothing);
     expect(find.text('貸款總額'), findsNothing);
-    await tester.tap(find.text('欠款'));
+    await tester.tap(find.text('借款'));
     await tester.pump();
     expect(find.text('貸款總額'), findsOneWidget);
     expect(find.text('總期數'), findsOneWidget);
+    // 信用卡沒有第一期；小額借款、信貸才有。
+    expect(find.text('第一期'), findsNothing);
+    await tester.tap(find.text('小額借款'));
+    await tester.pump();
     expect(find.text('第一期'), findsOneWidget);
     // TextField 順序：名稱(0)、每月扣多少(1)、每月幾號(2)、貸款總額(3)、總期數(4)、備註(5)。
     await tester.enterText(find.byType(TextField).at(0), '手機分期');
@@ -303,7 +307,10 @@ void main() {
     await tester.enterText(find.byType(TextField).at(4), '12');
     await tester.pump();
     // 12 期 × 1000 = 12000，比貸款總額 11000 多 1000。
-    expect(find.textContaining('總共要繳 \$12000，比貸款總額多 \$1000'), findsOneWidget);
+    final rate = loanAnnualRate(11000, 1000, 12)!.toStringAsFixed(2);
+    expect(find.textContaining('實際本利總額 \$12,000'), findsOneWidget);
+    expect(find.textContaining('純利息 \$1,000'), findsOneWidget);
+    expect(find.textContaining('實際年利率 $rate%'), findsOneWidget);
     // 標題跟輸入框同一行。
     expect(
       (tester.getCenter(find.text('貸款總額')).dy -
@@ -321,9 +328,12 @@ void main() {
     expect(s.periods, 12);
     expect(s.loanTotal, 11000);
     expect(s.startMonth, isNull);
-    // 還沒填第一期：只寫共幾期、貸款總額、多繳。
+    expect(s.debtType, LedgerDebtType.smallLoan);
+    // 還沒填第一期：寫共幾期、貸款總額、本利總額、純利息、實際年利率。
     expect(
-      find.textContaining('共 12 期・貸款總額 \$11,000・多繳 \$1,000'),
+      find.textContaining(
+        '共 12 期・貸款總額 \$11,000・本利總額 \$12,000・純利息 \$1,000・實際年利率 $rate%',
+      ),
       findsOneWidget,
     );
     // 改回訂閱：期數、貸款總額清掉，不留在資料裡。
@@ -341,13 +351,68 @@ void main() {
     expect(back.loanTotal, isNull);
     final log = (await tester.runAsync(() => repo.loadLog()))!;
     final edit = log.firstWhere((e) => e.action == '編輯扣款');
-    expect(edit.detail, contains('類型：欠款 → 訂閱'));
+    expect(edit.detail, contains('類型：小額借款 → 訂閱'));
     expect(edit.detail, contains('總期數：12 → （空）'));
     expect(edit.detail, contains('貸款總額：\$11000 → （空）'));
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('欠款算得出已繳幾期：列表寫已繳／共幾期、剩幾期；全部繳完變已繳清不算合計', (tester) async {
+  testWidgets('信貸也有第一期，只選年月不用時分；切到信用卡第一期就清掉', (tester) async {
+    final store = await seeded();
+    await pump(tester, const LedgerSubsPage(), store);
+    await tester.tap(find.byTooltip('新增每月扣款'));
+    await settle(tester);
+    await tester.tap(find.text('借款'));
+    await tester.pump();
+    await tester.tap(find.text('信貸'));
+    await tester.pump();
+    await tester.enterText(find.byType(TextField).at(0), '銀行信貸');
+    await tester.enterText(find.byType(TextField).at(1), '8699');
+    await tester.enterText(find.byType(TextField).at(2), '5');
+    await tester.enterText(find.byType(TextField).at(3), '100000');
+    await tester.enterText(find.byType(TextField).at(4), '12');
+    await tester.pump();
+    final pick = find.textContaining('第一期扣款是哪個月');
+    await tester.ensureVisible(pick);
+    await tester.pumpAndSettle();
+    await tester.tap(pick);
+    await tester.pumpAndSettle();
+    // 滾輪只有年月：有「這個月」，沒有「現在／今天」，也沒有時分。
+    expect(find.text('這個月'), findsOneWidget);
+    expect(find.text('現在'), findsNothing);
+    expect(find.text('今天'), findsNothing);
+    expect(find.text(':'), findsNothing);
+    await tester.tap(find.text('確定'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('（點一下改）'), findsOneWidget);
+    await tester.ensureVisible(find.widgetWithText(FilledButton, '新增'));
+    await tester.tap(find.widgetWithText(FilledButton, '新增'));
+    await settle(tester);
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pumpAndSettle();
+    final repo = LedgerRepository(store);
+    var s = (await tester.runAsync(() => repo.loadSubscriptions()))!.single;
+    expect(s.debtType, LedgerDebtType.personalLoan);
+    expect(s.startMonth, monthKeyOf(DateTime.now()));
+    expect(find.text('信貸'), findsOneWidget); // 列表上的標示
+    expect(find.textContaining('實際年利率 8.0'), findsOneWidget);
+    // 改成信用卡：第一期清掉。
+    await tester.tap(find.text('銀行信貸'));
+    await settle(tester);
+    await tester.tap(find.text('信用卡'));
+    await tester.pump();
+    expect(find.text('第一期'), findsNothing);
+    final save = find.widgetWithText(FilledButton, '儲存');
+    await tester.ensureVisible(save);
+    await tester.tap(save);
+    await settle(tester);
+    s = (await tester.runAsync(() => repo.loadSubscriptions()))!.single;
+    expect(s.debtType, LedgerDebtType.creditCard);
+    expect(s.startMonth, isNull);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('借款算得出已繳幾期：列表寫已繳／共幾期、剩幾期；全部繳完變已繳清不算合計', (tester) async {
     final store = await seeded();
     final now = DateTime.now();
     // 從 3 個月前開始，每月 1 號、共 12 期 → 已繳 4 期（含這個月 1 號）。
@@ -379,7 +444,7 @@ void main() {
     expect(find.text('每月扣款合計・扣款中 1 項'), findsOneWidget);
     expect(find.text('\$1,000'), findsWidgets);
     expect(find.textContaining('已繳清'), findsOneWidget);
-    expect(find.textContaining('欠款還剩 \$8,000 沒繳'), findsOneWidget);
+    expect(find.textContaining('借款還剩 \$8,000 沒繳'), findsOneWidget);
     expect(find.byType(LinearProgressIndicator), findsWidgets);
     expect(tester.takeException(), isNull);
   });
