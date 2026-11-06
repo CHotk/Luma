@@ -575,6 +575,8 @@ class LedgerSubscription {
     this.loanTotal,
     this.fee,
     this.startMonth,
+    this.payUrl = '',
+    this.payAccount = '',
     this.note = '',
     this.active = true,
     this.createdAt,
@@ -609,6 +611,12 @@ class LedgerSubscription {
 
   /// 小額借款、信貸才有：第一期是哪個月扣款，`yyyy-MM`。有了它才算得出已繳幾期、還剩幾期。
   final String? startMonth;
+
+  /// 對方的繳款登入網址（2026-11-06 使用者：方便去繳款，可點、可複製）。
+  final String payUrl;
+
+  /// 固定的繳款戶頭（可複製）。
+  final String payAccount;
   final String note;
   final bool active;
   final DateTime? createdAt;
@@ -627,6 +635,8 @@ class LedgerSubscription {
     int? Function()? loanTotal,
     int? Function()? fee,
     String? Function()? startMonth,
+    String? payUrl,
+    String? payAccount,
     String? note,
     bool? active,
     DateTime? updatedAt,
@@ -641,6 +651,8 @@ class LedgerSubscription {
     periods: periods == null ? this.periods : periods(),
     loanTotal: loanTotal == null ? this.loanTotal : loanTotal(),
     fee: fee == null ? this.fee : fee(),
+    payUrl: payUrl ?? this.payUrl,
+    payAccount: payAccount ?? this.payAccount,
     startMonth: startMonth == null ? this.startMonth : startMonth(),
     note: note ?? this.note,
     active: active ?? this.active,
@@ -659,6 +671,8 @@ class LedgerSubscription {
     if (periods != null) 'periods': periods,
     if (loanTotal != null) 'loanTotal': loanTotal,
     if (fee != null) 'fee': fee,
+    if (payUrl.isNotEmpty) 'payUrl': payUrl,
+    if (payAccount.isNotEmpty) 'payAccount': payAccount,
     if (startMonth != null) 'startMonth': startMonth,
     'note': note,
     'active': active,
@@ -678,6 +692,8 @@ class LedgerSubscription {
         periods: (j['periods'] as num?)?.toInt(),
         loanTotal: (j['loanTotal'] as num?)?.toInt(),
         fee: (j['fee'] as num?)?.toInt(),
+        payUrl: j['payUrl'] as String? ?? '',
+        payAccount: j['payAccount'] as String? ?? '',
         startMonth: j['startMonth'] as String?,
         note: j['note'] as String? ?? '',
         active: j['active'] as bool? ?? true,

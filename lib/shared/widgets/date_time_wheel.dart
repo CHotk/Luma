@@ -6,12 +6,14 @@ import '../../app/theme/colors.dart';
 /// 年月日時分一頁選完的滾輪（2026-11-03 使用者：原本日期、時間分兩頁很難用）。
 /// 五個滾輪並排，24 小時制，上面有「現在／今天／昨天」快捷，確定才回傳。
 /// [monthOnly] 只選年、月（回傳那個月 1 號），不顯示日、時、分。
+/// [dateOnly] 選到年月日，不顯示時、分（回傳那天 0 點）。
 Future<DateTime?> showDateTimeWheel(
   BuildContext context,
   DateTime initial, {
   int minYear = 2020,
   int maxYear = 2035,
   bool monthOnly = false,
+  bool dateOnly = false,
 }) => showModalBottomSheet<DateTime>(
   context: context,
   useSafeArea: true,
@@ -24,6 +26,7 @@ Future<DateTime?> showDateTimeWheel(
     minYear: minYear,
     maxYear: maxYear,
     monthOnly: monthOnly,
+    dateOnly: dateOnly,
   ),
 );
 
@@ -33,12 +36,14 @@ class _Wheel extends StatefulWidget {
     required this.minYear,
     required this.maxYear,
     this.monthOnly = false,
+    this.dateOnly = false,
   });
 
   final DateTime initial;
   final int minYear;
   final int maxYear;
   final bool monthOnly;
+  final bool dateOnly;
 
   @override
   State<_Wheel> createState() => _WheelState();
@@ -61,8 +66,11 @@ class _WheelState extends State<_Wheel> {
 
   int _daysIn(int y, int m) => DateTime(y, m + 1, 0).day;
 
-  DateTime get _value =>
-      widget.monthOnly ? DateTime(_y, _m) : DateTime(_y, _m, _d, _h, _mi);
+  DateTime get _value => widget.monthOnly
+      ? DateTime(_y, _m)
+      : widget.dateOnly
+      ? DateTime(_y, _m, _d)
+      : DateTime(_y, _m, _d, _h, _mi);
 
   @override
   void dispose() {
@@ -146,6 +154,7 @@ class _WheelState extends State<_Wheel> {
   Widget build(BuildContext context) {
     final v = _value;
     final only = widget.monthOnly;
+    final dateOnly = widget.dateOnly;
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
@@ -167,6 +176,8 @@ class _WheelState extends State<_Wheel> {
             Text(
               only
                   ? '${v.year}/${v.month}'
+                  : dateOnly
+                  ? '${v.year}/${v.month}/${v.day}'
                   : '${v.year}/${v.month}/${v.day} '
                         '${v.hour.toString().padLeft(2, '0')}:${v.minute.toString().padLeft(2, '0')}',
               textAlign: TextAlign.center,
@@ -183,7 +194,12 @@ class _WheelState extends State<_Wheel> {
                 children: [
                   if (only)
                     _chip('這個月', DateTime.now)
-                  else ...[
+                  else if (dateOnly) ...[
+                    _chip('今天', DateTime.now),
+                    _chip('昨天', () {
+                      return DateTime.now().subtract(const Duration(days: 1));
+                    }),
+                  ] else ...[
                     _chip('現在', DateTime.now),
                     _chip('今天', () {
                       final n = DateTime.now();
@@ -238,6 +254,8 @@ class _WheelState extends State<_Wheel> {
                         }
                       }),
                     ),
+                  ],
+                  if (!only && !dateOnly) ...[
                     _wheel(
                       controller: _ch,
                       count: 24,

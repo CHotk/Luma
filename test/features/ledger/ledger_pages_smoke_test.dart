@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lume/app/providers.dart';
@@ -198,6 +199,14 @@ void main() {
     expect(find.textContaining('訂閱 \$539・借款 \$0'), findsOneWidget);
     expect(find.text('Netflix'), findsOneWidget);
     expect(find.text('Spotify'), findsOneWidget);
+    // 每筆小字：左邊已經有幾號了，不再寫下次繳款日，只留「還有幾天」。
+    expect(find.textContaining('下次'), findsNothing);
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is Text && RegExp(r'^(還有 \d+ 天|今天繳款)$').hasMatch(w.data ?? ''),
+      ),
+      findsNWidgets(2),
+    );
     // 扣款日 3 號的 Spotify 排在 12 號的 Netflix 前面。
     expect(
       tester.getTopLeft(find.text('Spotify')).dy,
@@ -315,11 +324,14 @@ void main() {
     expect(find.text('貸款總額'), findsOneWidget);
     // 預設信用卡：沒有期數、沒有第一期（2026-11-06 使用者）；小額借款、信貸才有。
     expect(find.text('總期數'), findsNothing);
-    expect(find.text('第一期'), findsNothing);
+    expect(find.text('第一期繳款日'), findsNothing);
     await tester.tap(typeSeg('小額借款'));
     await tester.pump();
     expect(find.text('總期數'), findsOneWidget);
-    expect(find.text('第一期'), findsOneWidget);
+    expect(find.text('第一期繳款日'), findsOneWidget);
+    // 說明清楚第一期填的是什麼：第一次要繳款的那天（繳納期限），不是開始計息日。
+    expect(find.textContaining('第一次要繳款的那天'), findsOneWidget);
+    expect(find.textContaining('不是開始計息的日子'), findsOneWidget);
     // TextField 順序：名稱(0)、月付金(1)、每月幾號(2)、貸款總額(3)、手續費(4)、總期數(5)、備註(6)。
     await tester.enterText(find.byType(TextField).at(0), '手機分期');
     await tester.enterText(find.byType(TextField).at(1), '1000');
@@ -333,12 +345,24 @@ void main() {
     final rate = loanAnnualRate(10000, 1000, 12)!.toStringAsFixed(2);
     final rateNoFee = loanAnnualRate(11000, 1000, 12)!.toStringAsFixed(2);
     expect(rate == rateNoFee, isFalse);
-    expect(find.textContaining('實際拿到 \$10,000'), findsOneWidget);
-    // 手續費自己填過了，下面的分析不重複寫。
-    expect(find.textContaining('手續費 \$1,000'), findsNothing);
-    expect(find.textContaining('實際本利總額 \$12,000'), findsOneWidget);
-    expect(find.textContaining('純利息 \$1,000'), findsOneWidget);
-    expect(find.textContaining('實際年利率 $rate%'), findsOneWidget);
+    // 分析放在備註下面，排成一張「分析」表：左邊項目、右邊數字。
+    expect(find.text('分析'), findsOneWidget);
+    expect(find.text('實際拿到'), findsOneWidget);
+    expect(find.text('\$10,000'), findsOneWidget);
+    expect(find.text('實際本利總額'), findsOneWidget);
+    expect(find.text('\$12,000'), findsOneWidget);
+    expect(find.text('純利息'), findsOneWidget);
+    expect(find.text('\$1,000'), findsOneWidget); // 純利息
+    expect(find.text('實際年利率'), findsOneWidget);
+    expect(find.text('$rate%'), findsOneWidget);
+    // 手續費 1000 占貸款總額 11000 → 9.09%（手續費金額本身不重複寫）。
+    expect(find.text('手續費占貸款總額'), findsOneWidget);
+    expect(find.text('9.09%'), findsOneWidget);
+    // 分析表在備註的下面。
+    expect(
+      tester.getTopLeft(find.text('分析')).dy,
+      greaterThan(tester.getTopLeft(find.text('備註')).dy),
+    );
     // 標題跟輸入框同一行。
     expect(
       (tester.getCenter(find.text('貸款總額')).dy -
@@ -402,16 +426,17 @@ void main() {
     await tester.enterText(find.byType(TextField).at(3), '100000');
     await tester.enterText(find.byType(TextField).at(5), '12');
     await tester.pump();
-    final pick = find.textContaining('第一期扣款是哪個月');
+    final pick = find.textContaining('第一次要繳款是哪天');
     await tester.ensureVisible(pick);
     await tester.pumpAndSettle();
     await tester.tap(pick);
     await tester.pumpAndSettle();
-    // 滾輪只有年月：有「這個月」，沒有「現在／今天」，也沒有時分。
-    expect(find.text('這個月'), findsOneWidget);
+    // 滾輪選到年月日：有「今天／昨天」，沒有「現在」，也沒有時分。
+    expect(find.text('今天'), findsOneWidget);
     expect(find.text('現在'), findsNothing);
-    expect(find.text('今天'), findsNothing);
+    expect(find.text('這個月'), findsNothing);
     expect(find.text(':'), findsNothing);
+    expect(find.text('日'), findsNothing);
     await tester.tap(find.text('確定'));
     await tester.pumpAndSettle();
     expect(find.textContaining('（點一下改）'), findsOneWidget);
@@ -423,7 +448,9 @@ void main() {
     final repo = LedgerRepository(store);
     var s = (await tester.runAsync(() => repo.loadSubscriptions()))!.single;
     expect(s.debtType, LedgerDebtType.personalLoan);
-    expect(s.startMonth, monthKeyOf(DateTime.now()));
+    expect(s.startMonth, dateKeyOf(DateTime.now()));
+    // 選了第一期繳款日，每月幾號跟著帶入。
+    expect(s.day, DateTime.now().day);
     expect(find.text('信貸'), findsOneWidget); // 列表上的標示
     // 列表不寫利率；資料裡 10 萬、每月 8,699、12 期 → 約 8%。
     expect(annualRateOf(s), closeTo(8.0, 0.05));
@@ -440,6 +467,83 @@ void main() {
     s = (await tester.runAsync(() => repo.loadSubscriptions()))!.single;
     expect(s.debtType, LedgerDebtType.creditCard);
     expect(s.startMonth, isNull);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('每月扣款：繳款網址（可開、可複製）、繳款戶頭（可複製）、備註可多行', (tester) async {
+    final store = await seeded();
+    final copied = <String>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') {
+          copied.add((call.arguments as Map)['text'] as String);
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+    await pump(tester, const LedgerSubsPage(), store);
+    await tester.tap(find.byTooltip('新增每月扣款'));
+    await settle(tester);
+    // 沒填時表單沒有開啟／複製鈕。
+    expect(find.byTooltip('開啟繳款網址'), findsNothing);
+    expect(find.byTooltip('複製戶頭'), findsNothing);
+    // TextField 順序：名稱(0)、每月扣多少(1)、每月幾號(2)、繳款網址(3)、繳款戶頭(4)、備註(5)。
+    await tester.enterText(find.byType(TextField).at(0), '電信費');
+    await tester.enterText(find.byType(TextField).at(1), '599');
+    await tester.enterText(find.byType(TextField).at(2), '5');
+    await tester.enterText(
+      find.byType(TextField).at(3),
+      'pay.example.com/login',
+    );
+    await tester.enterText(find.byType(TextField).at(4), '０８１２３４５６７８');
+    await tester.enterText(find.byType(TextField).at(5), '第一行\n第二行\n第三行');
+    await tester.pump();
+    // 全形數字自動轉半形；填了就出現開啟／複製鈕。
+    expect(
+      tester.widget<TextField>(find.byType(TextField).at(4)).controller!.text,
+      '0812345678',
+    );
+    expect(find.byTooltip('開啟繳款網址'), findsOneWidget);
+    expect(find.byTooltip('複製網址'), findsOneWidget);
+    await tester.tap(find.byTooltip('複製戶頭'));
+    await tester.pump();
+    expect(copied, ['0812345678']);
+    // 備註是多行輸入框（一行塞不下會長高、可以換行）。
+    final note = tester.widget<TextField>(find.byType(TextField).at(5));
+    expect(note.maxLines, isNull);
+    expect(note.keyboardType, TextInputType.multiline);
+    await tester.ensureVisible(find.widgetWithText(FilledButton, '新增'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, '新增'));
+    await settle(tester);
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pumpAndSettle();
+    final repo = LedgerRepository(store);
+    final s = (await tester.runAsync(() => repo.loadSubscriptions()))!.single;
+    expect(s.payUrl, 'pay.example.com/login');
+    expect(s.payAccount, '0812345678');
+    expect(s.note, '第一行\n第二行\n第三行');
+    // 列表：備註完整顯示、有幾行顯示幾行；有繳款頁／複製鈕。
+    expect(find.text('第一行\n第二行\n第三行'), findsOneWidget);
+    expect(find.text('繳款頁'), findsOneWidget);
+    expect(find.text('複製網址'), findsOneWidget);
+    await tester.tap(find.text('複製戶頭'));
+    await tester.pump();
+    expect(copied.last, '0812345678');
+    expect(find.text('已複製戶頭'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 4));
+    // 操作紀錄寫出繳款網址跟戶頭。
+    final log = (await tester.runAsync(() => repo.loadLog()))!;
+    final add = log.firstWhere((e) => e.action == '新增扣款');
+    expect(add.detail, contains('繳款網址：pay.example.com/login'));
+    expect(add.detail, contains('繳款戶頭：0812345678'));
     expect(tester.takeException(), isNull);
   });
 

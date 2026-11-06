@@ -8,6 +8,9 @@ import '../../app/theme/typography.dart';
 import '../../domain/ledger_calc.dart';
 import '../../domain/ledger_subscriptions.dart';
 import '../../domain/models/ledger.dart';
+import 'package:flutter/services.dart';
+
+import '../../data/external_link.dart';
 import '../../shared/digits_input.dart';
 import '../../shared/half_width_input.dart';
 import '../../shared/widgets/ambient_background.dart';
@@ -17,6 +20,7 @@ import '../../shared/widgets/app_notice.dart';
 import '../../shared/widgets/app_top_bar.dart';
 import '../../shared/widgets/glass_card.dart';
 import '../../shared/widgets/inline_empty_card.dart';
+import '../yt_tracker/yt_video_row.dart' show openExternalUrl;
 import 'ledger_data.dart';
 import 'ledger_ui.dart';
 
@@ -210,6 +214,11 @@ class LedgerSubsPage extends ConsumerWidget {
     ];
   }
 
+  static String _daysText(LedgerSubscription s, DateTime now) {
+    final d = daysUntilSubCharge(s, now);
+    return d == 0 ? '今天繳款' : '還有 $d 天';
+  }
+
   static String _nextText(LedgerSubscription s, DateTime now) {
     final d = daysUntilSubCharge(s, now);
     return '${lMd(nextSubCharge(s, now))}'
@@ -224,13 +233,13 @@ class LedgerSubsPage extends ConsumerWidget {
   ) {
     final charging = isCharging(s, now);
     final sub = [
+      // 左邊已經有幾號了，不再寫下次繳款日，只留還有幾天（2026-11-06 使用者）。
       if (charging)
-        '下次 ${_nextText(s, now)}'
+        _daysText(s, now)
       else if (isFinished(s, now))
         '已繳清'
       else
         '已停用',
-      if (s.note.isNotEmpty) s.note,
     ].join('・');
     return Opacity(
       opacity: charging ? 1 : 0.55,
@@ -301,6 +310,47 @@ class LedgerSubsPage extends ConsumerWidget {
                         color: AppColors.ink3,
                       ),
                     ),
+                    // 備註完整顯示、會換行，有幾行就顯示幾行（2026-11-06 使用者）。
+                    if (s.note.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 3),
+                        child: Text(
+                          s.note,
+                          style: AppText.note.copyWith(
+                            fontSize: 11,
+                            color: AppColors.ink2,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                    // 有填繳款網址／戶頭才出現：一鍵開啟繳款頁、複製戶頭（方便去繳款）。
+                    if (s.payUrl.isNotEmpty || s.payAccount.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Wrap(
+                          spacing: 8,
+                          children: [
+                            if (s.payUrl.isNotEmpty)
+                              _chipBtn(
+                                Icons.open_in_new_rounded,
+                                '繳款頁',
+                                () => _openUrl(context, s.payUrl),
+                              ),
+                            if (s.payUrl.isNotEmpty)
+                              _chipBtn(
+                                Icons.copy_rounded,
+                                '複製網址',
+                                () => _copy(context, s.payUrl, '已複製網址'),
+                              ),
+                            if (s.payAccount.isNotEmpty)
+                              _chipBtn(
+                                Icons.copy_rounded,
+                                '複製戶頭',
+                                () => _copy(context, s.payAccount, '已複製戶頭'),
+                              ),
+                          ],
+                        ),
+                      ),
                     // 每筆下面不放進度條、也不寫期數、貸款、利息（2026-11-06 使用者：看不懂、壓力很大），
                     // 這些只在編輯表單裡看。
                   ],
@@ -363,6 +413,8 @@ class LedgerSubsPage extends ConsumerWidget {
         periods: r.periods,
         loanTotal: r.loanTotal,
         fee: r.fee,
+        payUrl: r.payUrl,
+        payAccount: r.payAccount,
         startMonth: r.startMonth,
         note: r.note,
         active: r.active,
@@ -378,6 +430,8 @@ class LedgerSubsPage extends ConsumerWidget {
           periods: () => r.periods,
           loanTotal: () => r.loanTotal,
           fee: () => r.fee,
+          payUrl: r.payUrl,
+          payAccount: r.payAccount,
           startMonth: () => r.startMonth,
           note: r.note,
           active: r.active,
@@ -409,6 +463,8 @@ class _SubResult {
     this.periods,
     this.loanTotal,
     this.fee,
+    this.payUrl = '',
+    this.payAccount = '',
     this.startMonth,
     this.note = '',
     this.active = true,
@@ -423,6 +479,8 @@ class _SubResult {
   final int? periods;
   final int? loanTotal;
   final int? fee;
+  final String payUrl;
+  final String payAccount;
   final String? startMonth;
   final String note;
   final bool active;
@@ -449,6 +507,10 @@ class _SubFormState extends State<_SubForm> {
   late final _loan = TextEditingController(
     text: widget.edit?.loanTotal == null ? '' : '${widget.edit!.loanTotal}',
   );
+  late final _payUrl = TextEditingController(text: widget.edit?.payUrl ?? '');
+  late final _payAccount = TextEditingController(
+    text: widget.edit?.payAccount ?? '',
+  );
   late final _fee = TextEditingController(
     text: widget.edit?.fee == null ? '' : '${widget.edit!.fee}',
   );
@@ -456,7 +518,7 @@ class _SubFormState extends State<_SubForm> {
     text: widget.edit?.periods == null ? '' : '${widget.edit!.periods}',
   );
 
-  /// 借款第一期扣款的月份，`yyyy-MM`（選填；有了才算得出已繳幾期）。
+  /// 借款第一期的繳款日，`yyyy-MM-dd`（選填；有了才算得出已繳幾期）。舊資料只存到月 `yyyy-MM`。
   late String? _start = widget.edit?.startMonth;
   late bool _active = widget.edit?.active ?? true;
   late LedgerChargeKind _kind =
@@ -470,14 +532,33 @@ class _SubFormState extends State<_SubForm> {
   @override
   void initState() {
     super.initState();
-    for (final c in [_name, _amount, _day, _loan, _fee, _periods]) {
+    for (final c in [
+      _name,
+      _amount,
+      _day,
+      _loan,
+      _fee,
+      _periods,
+      _payUrl,
+      _payAccount,
+    ]) {
       c.addListener(() => setState(() {}));
     }
   }
 
   @override
   void dispose() {
-    for (final c in [_name, _amount, _day, _note, _loan, _fee, _periods]) {
+    for (final c in [
+      _name,
+      _amount,
+      _day,
+      _note,
+      _loan,
+      _fee,
+      _periods,
+      _payUrl,
+      _payAccount,
+    ]) {
       c.dispose();
     }
     super.dispose();
@@ -486,6 +567,76 @@ class _SubFormState extends State<_SubForm> {
   /// 這頁所有輸入框都不放提示字（2026-11-06 使用者）；[hint] 參數保留但不顯示。
   InputDecoration _input(String hint, {String? prefix, String? suffix}) =>
       InputDecoration(prefixText: prefix, suffixText: suffix);
+
+  /// 分析表：左邊項目、右邊數字（黃色），數字下面一行小字說明怎麼算。
+  Widget _analysis(List<(String, String, String?)> rows) => Container(
+    margin: const EdgeInsets.only(top: 14),
+    padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+    decoration: BoxDecoration(
+      color: AppColors.mid.withValues(alpha: 0.07),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: AppColors.mid.withValues(alpha: 0.3)),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text('分析', style: AppText.note.copyWith(fontWeight: FontWeight.w800)),
+        for (final (i, r) in rows.indexed) ...[
+          if (i > 0)
+            const Divider(height: 14, thickness: 1, color: Color(0x22FFFFFF))
+          else
+            const SizedBox(height: 8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      r.$1,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.ink,
+                      ),
+                    ),
+                    if (r.$3 != null)
+                      Text(
+                        r.$3!,
+                        style: AppText.note.copyWith(
+                          fontSize: 10,
+                          color: AppColors.ink3,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                r.$2,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.mid,
+                  fontFeatures: lTabular,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ],
+    ),
+  );
+
+  Widget _iconBtn(IconData icon, String tip, VoidCallback onTap) => IconButton(
+    onPressed: onTap,
+    icon: Icon(icon, size: 20),
+    tooltip: tip,
+    color: ledgerAccent,
+    visualDensity: VisualDensity.compact,
+    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+  );
 
   /// 標題跟輸入框同一行（2026-11-06 使用者）。
   Widget _row(String label, Widget field) => Padding(
@@ -649,63 +800,138 @@ class _SubFormState extends State<_SubForm> {
               ),
             if (hasFirst)
               _row(
-                '第一期',
+                '第一期繳款日',
                 OutlinedButton.icon(
                   onPressed: () async {
                     final now = DateTime.now();
                     final start = _start?.split('-');
-                    final init = start != null && start.length == 2
+                    final init = start != null && start.length >= 2
                         ? DateTime(
                             int.tryParse(start[0]) ?? now.year,
                             int.tryParse(start[1]) ?? now.month,
+                            start.length >= 3
+                                ? (int.tryParse(start[2]) ?? 1)
+                                : (day >= 1 && day <= 28 ? day : 1),
                           )
                         : now;
-                    // 只選年月，不用細到時分（2026-11-06 使用者）；幾號看「每月幾號」。
+                    // 第一期選到「天」，不含時分（2026-11-06 使用者）：就是第一次要繳款的那天。
                     final v = await showDateTimeWheel(
                       context,
                       init,
-                      monthOnly: true,
+                      dateOnly: true,
                     );
                     if (v != null && mounted) {
-                      setState(() => _start = monthKeyOf(v));
+                      setState(() {
+                        _start = dateKeyOf(v);
+                        // 之後每個月都是同一天繳，順便帶進「每月幾號」（可以再改）。
+                        _day.text = '${v.day}';
+                      });
                     }
                   },
                   icon: const Icon(Icons.event_rounded, size: 18),
                   label: Text(
                     _start == null
-                        ? '第一期扣款是哪個月（選填）'
-                        : '${_start!.replaceFirst('-', '/')}（點一下改）',
+                        ? '第一次要繳款是哪天（選填）'
+                        : '${_start!.replaceAll('-', '/')}（點一下改）',
                   ),
                 ),
               ),
-            if (payable != null || hasFirst)
+            // 說明清楚「第一期」填的是什麼（2026-11-06 使用者）。
+            if (hasFirst)
               Padding(
                 padding: const EdgeInsets.only(top: 6, left: 78),
                 child: Text(
-                  payable == null
-                      ? '填了總期數跟第一期，就會算已繳幾期、還剩多少'
-                      : [
-                          if (fee != null && fee > 0 && got != null)
-                            '實際拿到 ${lMoney(got)}（貸款總額扣掉手續費）',
-                          '實際本利總額 ${lMoney(payable)}',
-                          if (interest != null) '純利息 ${lMoney(interest)}',
-                          if (rate != null)
-                            '實際年利率 ${rate.toStringAsFixed(2)}%（本利攤，按銀行信貸計算方式'
-                                '${fee != null && fee > 0 ? '，以實際拿到的錢算、含手續費' : ''}）',
-                        ].join('\n'),
-                  style: AppText.note.copyWith(color: AppColors.mid),
+                  '填的是「第一次要繳款的那天」，也就是第一期的繳納期限（繳款日），'
+                  '不是開始計息的日子。之後每個月同一天繳，一共繳「總期數」期；'
+                  '選了之後「每月幾號」會自動帶入。',
+                  style: AppText.note.copyWith(
+                    fontSize: 10.5,
+                    color: AppColors.ink3,
+                    height: 1.5,
+                  ),
                 ),
               ),
           ],
+          // 對方的繳款登入網址（可點開、可複製）跟固定繳款戶頭（可複製），方便去繳款。
+          _row(
+            '繳款網址',
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _payUrl,
+                    keyboardType: TextInputType.url,
+                    inputFormatters: halfWidthFormatters,
+                    decoration: _input(''),
+                  ),
+                ),
+                if (_payUrl.text.trim().isNotEmpty) ...[
+                  _iconBtn(
+                    Icons.open_in_new_rounded,
+                    '開啟繳款網址',
+                    () => _openUrl(context, _payUrl.text),
+                  ),
+                  _iconBtn(
+                    Icons.copy_rounded,
+                    '複製網址',
+                    () => _copy(context, _payUrl.text, '已複製網址'),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          _row(
+            '繳款戶頭',
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _payAccount,
+                    inputFormatters: halfWidthFormatters,
+                    decoration: _input(''),
+                  ),
+                ),
+                if (_payAccount.text.trim().isNotEmpty)
+                  _iconBtn(
+                    Icons.copy_rounded,
+                    '複製戶頭',
+                    () => _copy(context, _payAccount.text, '已複製戶頭'),
+                  ),
+              ],
+            ),
+          ),
           _row(
             '備註',
+            // 備註可以換行、一行塞不下就自動長高（2026-11-06 使用者）。
             TextField(
               controller: _note,
               maxLength: ledgerNoteMax,
+              minLines: 1,
+              maxLines: null,
+              keyboardType: TextInputType.multiline,
+              textInputAction: TextInputAction.newline,
               inputFormatters: halfWidthFormatters,
               decoration: _input('').copyWith(counterText: ''),
             ),
           ),
+          // 借款的分析放在備註下面，排成一張分析表（2026-11-06 使用者）。
+          if (payable != null)
+            _analysis([
+              if (fee != null && fee > 0 && got != null)
+                ('實際拿到', lMoney(got), '貸款總額扣掉內扣手續費'),
+              ('實際本利總額', lMoney(payable), '月付金 × 總期數'),
+              if (interest != null) ('純利息', lMoney(interest), '本利總額 − 貸款總額'),
+              if (fee != null && fee > 0 && loan != null && loan > 0)
+                ('手續費占貸款總額', '${(fee / loan * 100).toStringAsFixed(2)}%', null),
+              if (rate != null)
+                (
+                  '實際年利率',
+                  '${rate.toStringAsFixed(2)}%',
+                  fee != null && fee > 0
+                      ? '本利攤，按銀行信貸計算方式；以實際拿到的錢算、含手續費'
+                      : '本利攤，按銀行信貸計算方式',
+                ),
+            ]),
           // 不放「扣款中」開關（2026-11-06 使用者）；不想記了就刪掉。
           const SizedBox(height: 12),
           Row(
@@ -737,6 +963,8 @@ class _SubFormState extends State<_SubForm> {
                             periods: hasFirst ? periods : null,
                             loanTotal: isDebt ? loan : null,
                             fee: hasFirst ? fee : null,
+                            payUrl: _payUrl.text.trim(),
+                            payAccount: _payAccount.text.trim(),
                             startMonth: hasFirst ? _start : null,
                             note: _note.text.trim(),
                             active: _active,
@@ -752,3 +980,49 @@ class _SubFormState extends State<_SubForm> {
     );
   }
 }
+
+/// 開啟對方的繳款網址（沒寫 http 就補 https://）。手機瀏覽器要在點擊當下同步開，
+/// 所以先試 [openExternalUrlSync]，開不了才退回一般的開法。
+Future<void> _openUrl(BuildContext context, String raw) async {
+  final t = raw.trim();
+  if (t.isEmpty) return;
+  final url = t.startsWith(RegExp(r'https?://', caseSensitive: false))
+      ? t
+      : 'https://$t';
+  final opened = openExternalUrlSync(url);
+  if (!opened && context.mounted) await openExternalUrl(context, url);
+}
+
+/// 複製到剪貼簿並跳通知。
+Future<void> _copy(BuildContext context, String text, String message) async {
+  await Clipboard.setData(ClipboardData(text: text.trim()));
+  if (context.mounted) showAppNotice(context, message);
+}
+
+/// 列表每筆下面的小按鈕（開繳款頁、複製網址／戶頭）。
+Widget _chipBtn(IconData icon, String label, VoidCallback onTap) => InkWell(
+  onTap: onTap,
+  borderRadius: BorderRadius.circular(99),
+  child: Container(
+    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(99),
+      border: Border.all(color: ledgerAccent.withValues(alpha: 0.5)),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 13, color: ledgerAccent),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: ledgerAccent,
+          ),
+        ),
+      ],
+    ),
+  ),
+);

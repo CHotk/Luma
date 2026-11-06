@@ -518,6 +518,8 @@ class LedgerRepository {
     int? loanTotal,
     int? fee,
     String? startMonth,
+    String payUrl = '',
+    String payAccount = '',
     String note = '',
     bool active = true,
   }) async {
@@ -533,6 +535,8 @@ class LedgerRepository {
       loanTotal: loanTotal,
       fee: fee,
       startMonth: startMonth,
+      payUrl: payUrl,
+      payAccount: payAccount,
       note: note,
       active: active,
       createdAt: now,
@@ -550,6 +554,8 @@ class LedgerRepository {
         if (fee != null) '手續費：\$$fee',
         if (periods != null) '總期數：$periods 期',
         if (startMonth != null) '第一期：$startMonth',
+        if (payUrl.isNotEmpty) '繳款網址：$payUrl',
+        if (payAccount.isNotEmpty) '繳款戶頭：$payAccount',
         if (note.isNotEmpty) '備註：$note',
         if (!active) '狀態：已停用',
       ].join('\n'),
@@ -581,6 +587,9 @@ class LedgerRepository {
         '總期數：${old.periods ?? '（空）'} → ${s.periods ?? '（空）'}',
       if (old.startMonth != s.startMonth)
         '第一期：${old.startMonth ?? '（空）'} → ${s.startMonth ?? '（空）'}',
+      if (old.payUrl != s.payUrl) '繳款網址：${n(old.payUrl)} → ${n(s.payUrl)}',
+      if (old.payAccount != s.payAccount)
+        '繳款戶頭：${n(old.payAccount)} → ${n(s.payAccount)}',
       if (old.note != s.note) '備註：${n(old.note)} → ${n(s.note)}',
       if (old.active != s.active) '狀態：${s.active ? '恢復扣款' : '停用'}',
     ];

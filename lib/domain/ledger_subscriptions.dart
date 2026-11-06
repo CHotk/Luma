@@ -26,12 +26,16 @@ int daysUntilSubCharge(LedgerSubscription s, DateTime now) {
   return nextSubCharge(s, now).difference(today).inDays;
 }
 
-/// `yyyy-MM` 的格式（第一期扣款月份存檔用）。
+/// `yyyy-MM-dd`（第一期繳款日存檔用，2026-11-06 使用者：要選到天）。
+String dateKeyOf(DateTime d) =>
+    '${monthKeyOf(d)}-${d.day.toString().padLeft(2, '0')}';
+
+/// `yyyy-MM` 的格式（舊的第一期只存到月；現在存 `yyyy-MM-dd`，兩種都讀得懂）。
 String monthKeyOf(DateTime d) =>
     '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}';
 
-/// 借款已經扣了幾期：從第一期那個月起，每個月的扣款日只要到了（含今天）就算一期，
-/// 最多到總期數。沒填第一期月份或總期數就算不出來（null）；信用卡沒有第一期，一律 null。
+/// 借款已經扣了幾期：第一期的繳款日（沒存到天的舊資料用每月幾號）起，之後每個月的扣款日
+/// 只要到了（含今天）就算一期，最多到總期數。沒填第一期月份或總期數就算不出來（null）；信用卡沒有第一期，一律 null。
 int? paidPeriods(LedgerSubscription s, DateTime now) {
   final periods = s.periods;
   final start = s.startMonth;
@@ -42,19 +46,21 @@ int? paidPeriods(LedgerSubscription s, DateTime now) {
     return null;
   }
   final parts = start.split('-');
-  if (parts.length != 2) return null;
+  if (parts.length < 2) return null;
   final sy = int.tryParse(parts[0]), sm = int.tryParse(parts[1]);
   if (sy == null || sm == null) return null;
+  // 第一期繳款日：有存到天就用那天，舊資料只有年月就用每月幾號。
+  final sd = parts.length >= 3 ? int.tryParse(parts[2]) : null;
   final today = DateTime(now.year, now.month, now.day);
-  final k = (now.year - sy) * 12 + (now.month - sm);
-  if (k < 0) return 0;
-  final thisMonthPaid = !subChargeDate(
-    now.year,
-    now.month,
-    s.day,
-  ).isAfter(today);
-  final paid = k + (thisMonthPaid ? 1 : 0);
-  return paid > periods ? periods : paid;
+  var paid = 0;
+  for (var i = 0; i < periods; i++) {
+    final due = i == 0
+        ? subChargeDate(sy, sm, sd ?? s.day)
+        : subChargeDate(sy, sm + i, s.day);
+    if (due.isAfter(today)) break;
+    paid++;
+  }
+  return paid;
 }
 
 /// 還剩幾期（算不出來是 null）。
