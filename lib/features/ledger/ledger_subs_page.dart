@@ -31,6 +31,9 @@ final ledgerSubsProvider = FutureProvider.autoDispose<List<LedgerSubscription>>(
   },
 );
 
+/// 列表篩選：null＝全部、訂閱、借款。
+final ledgerSubsFilterProvider = StateProvider<LedgerChargeKind?>((_) => null);
+
 Color _kindColor(LedgerChargeKind k) =>
     k == LedgerChargeKind.subscription ? ledgerAccent : AppColors.mid;
 
@@ -99,6 +102,11 @@ class LedgerSubsPage extends ConsumerWidget {
     // 扣款中＝開關開著、借款的期數也還沒扣完（扣完＝已繳清，跟已停用一起放下面）。
     final active = subs.where((s) => isCharging(s, now)).toList();
     final stopped = subs.where((s) => !isCharging(s, now)).toList();
+    // 篩選只影響下面的列表，最上面卡片的合計還是全部。
+    final filter = ref.watch(ledgerSubsFilterProvider);
+    bool pass(LedgerSubscription s) => filter == null || s.kind == filter;
+    final shownActive = active.where(pass).toList();
+    final shownStopped = stopped.where(pass).toList();
     final total = subsMonthlyTotal(subs, now: now);
     final subTotal = subsMonthlyTotal(
       subs,
@@ -110,14 +118,6 @@ class LedgerSubsPage extends ConsumerWidget {
       kind: LedgerChargeKind.debt,
       now: now,
     );
-    // 借款還剩多少沒繳（只算填了總期數跟第一期、算得出來的）。
-    final debtLeft = active
-        .map((s) => remainingAmount(s, now))
-        .whereType<int>()
-        .fold<int>(0, (a, b) => a + b);
-    final debtLeftCount = active
-        .where((s) => remainingAmount(s, now) != null)
-        .length;
     LedgerSubscription? next;
     for (final s in active) {
       if (next == null ||
@@ -155,17 +155,31 @@ class LedgerSubsPage extends ConsumerWidget {
                 style: AppText.note.copyWith(color: AppColors.ink2),
               ),
             ],
-            if (debtLeftCount > 0) ...[
-              const SizedBox(height: 4),
-              Text(
-                '借款還剩 ${lMoney(debtLeft)} 沒繳（$debtLeftCount 筆，剩餘期數 × 每月扣款）',
-                style: AppText.note.copyWith(color: AppColors.mid),
-              ),
-            ],
           ],
         ),
       ),
-      const SizedBox(height: Gap.md),
+      // 第一張大卡片下面可以篩選：全部／訂閱／借款（2026-11-06 使用者）。
+      if (subs.isNotEmpty) ...[
+        const SizedBox(height: Gap.sm),
+        Wrap(
+          spacing: 6,
+          children: [
+            for (final (label, value) in <(String, LedgerChargeKind?)>[
+              ('全部', null),
+              ('訂閱', LedgerChargeKind.subscription),
+              ('借款', LedgerChargeKind.debt),
+            ])
+              ChoiceChip(
+                label: Text(label),
+                selected: filter == value,
+                showCheckmark: false,
+                onSelected: (_) =>
+                    ref.read(ledgerSubsFilterProvider.notifier).state = value,
+              ),
+          ],
+        ),
+      ],
+      const SizedBox(height: Gap.sm),
       if (subs.isEmpty)
         InlineEmptyCard(
           title: '還沒有每月扣款',
@@ -173,11 +187,16 @@ class LedgerSubsPage extends ConsumerWidget {
           actions: [EmptyAction('新增每月扣款', () => _edit(context, ref, null))],
         )
       else ...[
-        for (final s in active) _tile(context, ref, s, now),
-        if (stopped.isNotEmpty) ...[
+        for (final s in shownActive) _tile(context, ref, s, now),
+        if (shownStopped.isNotEmpty) ...[
           ledgerSection('已停用（不算進合計）'),
-          for (final s in stopped) _tile(context, ref, s, now),
+          for (final s in shownStopped) _tile(context, ref, s, now),
         ],
+        if (shownActive.isEmpty && shownStopped.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Text('這個分類還沒有紀錄', style: AppText.bodyDim),
+          ),
       ],
       Padding(
         padding: const EdgeInsets.fromLTRB(4, 8, 4, 0),
@@ -205,10 +224,6 @@ class LedgerSubsPage extends ConsumerWidget {
   ) {
     final charging = isCharging(s, now);
     final paid = paidPeriods(s, now);
-    final left = remainingPeriods(s, now);
-    final total = totalPayable(s);
-    final interest = pureInterest(s);
-    final rate = annualRateOf(s);
     final sub = [
       if (charging)
         '下次 ${_nextText(s, now)}'
@@ -218,20 +233,6 @@ class LedgerSubsPage extends ConsumerWidget {
         '已停用',
       if (s.note.isNotEmpty) s.note,
     ].join('・');
-    // 借款（2026-11-06 使用者）：共幾期、已繳幾期、還剩幾期、貸款總額、本利總額、
-    // 純利息、實際年利率。
-    final debtLine = s.kind != LedgerChargeKind.debt
-        ? null
-        : [
-            if (s.periods != null)
-              paid == null
-                  ? '共 ${s.periods} 期'
-                  : '已繳 $paid／${s.periods} 期・剩 $left 期（${lMoney(left! * s.amount)}）',
-            if (s.loanTotal != null) '貸款總額 ${lMoney(s.loanTotal!)}',
-            if (total != null) '本利總額 ${lMoney(total)}',
-            if (interest != null) '純利息 ${lMoney(interest)}',
-            if (rate != null) '實際年利率 ${rate.toStringAsFixed(2)}%',
-          ].join('・');
     return Opacity(
       opacity: charging ? 1 : 0.55,
       child: Padding(
@@ -301,16 +302,8 @@ class LedgerSubsPage extends ConsumerWidget {
                         color: AppColors.ink3,
                       ),
                     ),
-                    if (debtLine != null && debtLine.isNotEmpty) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        debtLine,
-                        style: AppText.note.copyWith(
-                          fontSize: 10.5,
-                          color: AppColors.mid,
-                        ),
-                      ),
-                    ],
+                    // 每筆下面不寫期數、貸款、利息這些黃字（2026-11-06 使用者：壓力很大），
+                    // 這些只在編輯表單裡看。
                     // 期數進度條：已繳幾期／總期數。
                     if (paid != null && (s.periods ?? 0) > 0) ...[
                       const SizedBox(height: 5),
@@ -521,7 +514,7 @@ class _SubFormState extends State<_SubForm> {
     final hasFirst = isDebt && _debtType != LedgerDebtType.creditCard;
     final loan = int.tryParse(_loan.text);
     final periods = int.tryParse(_periods.text);
-    final payable = isDebt && periods != null && periods > 0 && amount > 0
+    final payable = hasFirst && periods != null && periods > 0 && amount > 0
         ? periods * amount
         : null;
     final interest =
@@ -632,15 +625,17 @@ class _SubFormState extends State<_SubForm> {
                 decoration: _input('實際借了多少（選填）', prefix: '\$ '),
               ),
             ),
-            _row(
-              '總期數',
-              TextField(
-                controller: _periods,
-                keyboardType: TextInputType.number,
-                inputFormatters: [const DigitsInputFormatter()],
-                decoration: _input('例如 12（選填）', suffix: '期'),
+            // 信用卡沒有期數（2026-11-06 使用者）。
+            if (hasFirst)
+              _row(
+                '總期數',
+                TextField(
+                  controller: _periods,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [const DigitsInputFormatter()],
+                  decoration: _input('例如 12（選填）', suffix: '期'),
+                ),
               ),
-            ),
             if (hasFirst)
               _row(
                 '第一期',
@@ -699,15 +694,8 @@ class _SubFormState extends State<_SubForm> {
               ).copyWith(counterText: ''),
             ),
           ),
-          const SizedBox(height: 4),
-          SwitchListTile(
-            value: _active,
-            onChanged: (v) => setState(() => _active = v),
-            contentPadding: EdgeInsets.zero,
-            title: const Text('扣款中'),
-            subtitle: Text('關掉＝已取消、暫停或已還清，不算進每月合計', style: AppText.note),
-          ),
-          const SizedBox(height: 8),
+          // 不放「扣款中」開關（2026-11-06 使用者）；不想記了就刪掉。
+          const SizedBox(height: 12),
           Row(
             children: [
               if (e != null) ...[
@@ -734,7 +722,7 @@ class _SubFormState extends State<_SubForm> {
                             day: day,
                             kind: _kind,
                             debtType: _debtType,
-                            periods: isDebt ? periods : null,
+                            periods: hasFirst ? periods : null,
                             loanTotal: isDebt ? loan : null,
                             startMonth: hasFirst ? _start : null,
                             note: _note.text.trim(),

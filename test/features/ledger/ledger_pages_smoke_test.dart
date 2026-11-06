@@ -120,6 +120,16 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  // 表單裡的 訂閱｜借款、信用卡｜小額借款｜信貸 切換（頁面上也有同名的篩選鈕，要指到表單裡的）。
+  Finder kindSeg(String t) => find.descendant(
+    of: find.byType(SegmentedButton<LedgerChargeKind>),
+    matching: find.text(t),
+  );
+  Finder typeSeg(String t) => find.descendant(
+    of: find.byType(SegmentedButton<LedgerDebtType>),
+    matching: find.text(t),
+  );
+
   Future<void> settle(WidgetTester tester) async {
     for (var i = 0; i < 6; i++) {
       await tester.runAsync(
@@ -197,16 +207,13 @@ void main() {
     var subs = (await tester.runAsync(() => repo.loadSubscriptions()))!;
     expect(subs.map((s) => '${s.name}${s.day}'), ['Spotify3', 'Netflix12']);
 
-    // 停用 Netflix：不算合計、排到「已停用」。
+    // 表單裡沒有「扣款中」開關（2026-11-06 使用者）；每筆下面也沒有黃字。
     await tester.tap(find.text('Netflix'));
     await settle(tester);
-    await tester.tap(find.byType(SwitchListTile));
-    await tester.pump();
-    await tester.tap(find.widgetWithText(FilledButton, '儲存'));
+    expect(find.byType(SwitchListTile), findsNothing);
+    expect(find.text('扣款中'), findsNothing);
+    await tester.tap(find.byTooltip('關閉'));
     await settle(tester);
-    expect(find.text('每月扣款合計・扣款中 1 項'), findsOneWidget);
-    expect(find.text('\$149'), findsWidgets);
-    expect(find.textContaining('已停用'), findsWidgets);
 
     // 刪除 Spotify（要確認）。
     await tester.tap(find.text('Spotify'));
@@ -217,7 +224,7 @@ void main() {
     await settle(tester);
     subs = (await tester.runAsync(() => repo.loadSubscriptions()))!;
     expect(subs.map((s) => s.name), ['Netflix']);
-    expect(find.text('每月扣款合計・扣款中 0 項'), findsOneWidget);
+    expect(find.text('每月扣款合計・扣款中 1 項'), findsOneWidget);
     expect(tester.takeException(), isNull);
     // 只是紀錄：不會自動多出任何一筆交易。
     final book = (await tester.runAsync(() => repo.loadBook()))!;
@@ -244,7 +251,7 @@ void main() {
       lessThan(6),
     );
     // 切到借款：標題跟提示文字跟著變，預設信用卡。
-    await tester.tap(find.text('借款'));
+    await tester.tap(kindSeg('借款'));
     await tester.pump();
     expect(find.text('借款名稱'), findsOneWidget);
     await tester.enterText(find.byType(TextField).at(0), '手機分期');
@@ -266,7 +273,7 @@ void main() {
     // 改成訂閱：合計跟著搬過去。
     await tester.tap(find.text('手機分期'));
     await settle(tester);
-    await tester.tap(find.text('訂閱'));
+    await tester.tap(kindSeg('訂閱'));
     await tester.pump();
     await tester.tap(find.widgetWithText(FilledButton, '儲存'));
     await settle(tester);
@@ -290,14 +297,15 @@ void main() {
     // 訂閱沒有期數、貸款總額這幾列。
     expect(find.text('總期數'), findsNothing);
     expect(find.text('貸款總額'), findsNothing);
-    await tester.tap(find.text('借款'));
+    await tester.tap(kindSeg('借款'));
     await tester.pump();
     expect(find.text('貸款總額'), findsOneWidget);
-    expect(find.text('總期數'), findsOneWidget);
-    // 信用卡沒有第一期；小額借款、信貸才有。
+    // 預設信用卡：沒有期數、沒有第一期（2026-11-06 使用者）；小額借款、信貸才有。
+    expect(find.text('總期數'), findsNothing);
     expect(find.text('第一期'), findsNothing);
-    await tester.tap(find.text('小額借款'));
+    await tester.tap(typeSeg('小額借款'));
     await tester.pump();
+    expect(find.text('總期數'), findsOneWidget);
     expect(find.text('第一期'), findsOneWidget);
     // TextField 順序：名稱(0)、每月扣多少(1)、每月幾號(2)、貸款總額(3)、總期數(4)、備註(5)。
     await tester.enterText(find.byType(TextField).at(0), '手機分期');
@@ -329,17 +337,15 @@ void main() {
     expect(s.loanTotal, 11000);
     expect(s.startMonth, isNull);
     expect(s.debtType, LedgerDebtType.smallLoan);
-    // 還沒填第一期：寫共幾期、貸款總額、本利總額、純利息、實際年利率。
-    expect(
-      find.textContaining(
-        '共 12 期・貸款總額 \$11,000・本利總額 \$12,000・純利息 \$1,000・實際年利率 $rate%',
-      ),
-      findsOneWidget,
-    );
+    // 每筆下面不寫期數、貸款總額、利息這些黃字（2026-11-06 使用者：壓力很大）。
+    expect(find.textContaining('共 12 期'), findsNothing);
+    expect(find.textContaining('貸款總額'), findsNothing);
+    expect(find.textContaining('純利息'), findsNothing);
+    expect(find.textContaining('實際年利率'), findsNothing);
     // 改回訂閱：期數、貸款總額清掉，不留在資料裡。
     await tester.tap(find.text('手機分期'));
     await settle(tester);
-    await tester.tap(find.text('訂閱'));
+    await tester.tap(kindSeg('訂閱'));
     await tester.pump();
     await tester.tap(find.widgetWithText(FilledButton, '儲存'));
     await settle(tester);
@@ -362,9 +368,9 @@ void main() {
     await pump(tester, const LedgerSubsPage(), store);
     await tester.tap(find.byTooltip('新增每月扣款'));
     await settle(tester);
-    await tester.tap(find.text('借款'));
+    await tester.tap(kindSeg('借款'));
     await tester.pump();
-    await tester.tap(find.text('信貸'));
+    await tester.tap(typeSeg('信貸'));
     await tester.pump();
     await tester.enterText(find.byType(TextField).at(0), '銀行信貸');
     await tester.enterText(find.byType(TextField).at(1), '8699');
@@ -395,11 +401,12 @@ void main() {
     expect(s.debtType, LedgerDebtType.personalLoan);
     expect(s.startMonth, monthKeyOf(DateTime.now()));
     expect(find.text('信貸'), findsOneWidget); // 列表上的標示
-    expect(find.textContaining('實際年利率 8.0'), findsOneWidget);
+    // 列表不寫利率；資料裡 10 萬、每月 8,699、12 期 → 約 8%。
+    expect(annualRateOf(s), closeTo(8.0, 0.05));
     // 改成信用卡：第一期清掉。
     await tester.tap(find.text('銀行信貸'));
     await settle(tester);
-    await tester.tap(find.text('信用卡'));
+    await tester.tap(typeSeg('信用卡'));
     await tester.pump();
     expect(find.text('第一期'), findsNothing);
     final save = find.widgetWithText(FilledButton, '儲存');
@@ -409,6 +416,40 @@ void main() {
     s = (await tester.runAsync(() => repo.loadSubscriptions()))!.single;
     expect(s.debtType, LedgerDebtType.creditCard);
     expect(s.startMonth, isNull);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('每月扣款可以篩選全部／訂閱／借款，只影響列表不影響最上面的合計', (tester) async {
+    final store = await seeded();
+    await tester.runAsync(() async {
+      final repo = LedgerRepository(store);
+      await repo.addSubscription(name: 'Netflix', amount: 390, day: 12);
+      await repo.addSubscription(
+        name: '信用卡費',
+        amount: 2000,
+        day: 5,
+        kind: LedgerChargeKind.debt,
+        debtType: LedgerDebtType.creditCard,
+      );
+    });
+    await pump(tester, const LedgerSubsPage(), store);
+    expect(find.widgetWithText(ChoiceChip, '全部'), findsOneWidget);
+    expect(find.text('Netflix'), findsOneWidget);
+    expect(find.text('信用卡費'), findsOneWidget);
+    await tester.tap(find.widgetWithText(ChoiceChip, '訂閱'));
+    await tester.pump();
+    expect(find.text('Netflix'), findsOneWidget);
+    expect(find.text('信用卡費'), findsNothing);
+    // 最上面的合計還是全部（390 + 2000）。
+    expect(find.text('\$2,390'), findsOneWidget);
+    await tester.tap(find.widgetWithText(ChoiceChip, '借款'));
+    await tester.pump();
+    expect(find.text('Netflix'), findsNothing);
+    expect(find.text('信用卡費'), findsOneWidget);
+    await tester.tap(find.widgetWithText(ChoiceChip, '全部'));
+    await tester.pump();
+    expect(find.text('Netflix'), findsOneWidget);
+    expect(find.text('信用卡費'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -439,12 +480,15 @@ void main() {
       );
     });
     await pump(tester, const LedgerSubsPage(), store);
-    expect(find.textContaining('已繳 4／12 期・剩 8 期（\$8,000）'), findsOneWidget);
+    // 每筆下面不寫已繳／剩幾期，只有一條進度條。
+    expect(find.textContaining('已繳 4'), findsNothing);
+    expect(find.textContaining('剩 8 期'), findsNothing);
     // 舊分期繳清了：不算進合計（只剩手機分期 1000），放在下面一區，寫已繳清。
     expect(find.text('每月扣款合計・扣款中 1 項'), findsOneWidget);
     expect(find.text('\$1,000'), findsWidgets);
     expect(find.textContaining('已繳清'), findsOneWidget);
-    expect(find.textContaining('借款還剩 \$8,000 沒繳'), findsOneWidget);
+    // 最上面卡片不寫借款總共還剩多少（2026-11-06 使用者：壓力很大）。
+    expect(find.textContaining('借款還剩'), findsNothing);
     expect(find.byType(LinearProgressIndicator), findsWidgets);
     expect(tester.takeException(), isNull);
   });
