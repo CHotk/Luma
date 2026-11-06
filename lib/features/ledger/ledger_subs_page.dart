@@ -497,8 +497,9 @@ class _SubFormState extends State<_SubForm> {
     super.dispose();
   }
 
+  /// 這頁所有輸入框都不放提示字（2026-11-06 使用者）；[hint] 參數保留但不顯示。
   InputDecoration _input(String hint, {String? prefix, String? suffix}) =>
-      InputDecoration(hintText: hint, prefixText: prefix, suffixText: suffix);
+      InputDecoration(prefixText: prefix, suffixText: suffix);
 
   /// 標題跟輸入框同一行（2026-11-06 使用者）。
   Widget _row(String label, Widget field) => Padding(
@@ -646,7 +647,7 @@ class _SubFormState extends State<_SubForm> {
                   controller: _fee,
                   keyboardType: TextInputType.number,
                   inputFormatters: [const DigitsInputFormatter()],
-                  decoration: _input('內扣，沒有就不填', prefix: '\$ '),
+                  decoration: _input('', prefix: '\$ '),
                 ),
               ),
             // 信用卡沒有期數（2026-11-06 使用者）。
@@ -657,7 +658,7 @@ class _SubFormState extends State<_SubForm> {
                   controller: _periods,
                   keyboardType: TextInputType.number,
                   inputFormatters: [const DigitsInputFormatter()],
-                  decoration: _input('例如 12（選填）', suffix: '期'),
+                  decoration: _input('', suffix: '期'),
                 ),
               ),
             if (hasFirst)
@@ -702,7 +703,6 @@ class _SubFormState extends State<_SubForm> {
                             '實際拿到 ${lMoney(got)}（貸款總額扣掉手續費）',
                           '實際本利總額 ${lMoney(payable)}',
                           if (interest != null) '純利息 ${lMoney(interest)}',
-                          if (fee != null && fee > 0) '手續費 ${lMoney(fee)}',
                           if (rate != null)
                             '實際年利率 ${rate.toStringAsFixed(2)}%（本利攤，按銀行信貸計算方式'
                                 '${fee != null && fee > 0 ? '，以實際拿到的錢算、含手續費' : ''}）',
@@ -717,9 +717,7 @@ class _SubFormState extends State<_SubForm> {
               controller: _note,
               maxLength: ledgerNoteMax,
               inputFormatters: halfWidthFormatters,
-              decoration: _input(
-                '選填，例如 家庭方案、還到 12 月',
-              ).copyWith(counterText: ''),
+              decoration: _input('').copyWith(counterText: ''),
             ),
           ),
           // 不放「扣款中」開關（2026-11-06 使用者）；不想記了就刪掉。

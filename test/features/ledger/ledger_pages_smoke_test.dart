@@ -250,8 +250,19 @@ void main() {
           .abs(),
       lessThan(6),
     );
+    // 這頁所有輸入框都不放提示字（2026-11-06 使用者）。
+    List<String?> hints() => [
+      for (final f in tester.widgetList<TextField>(find.byType(TextField)))
+        f.decoration?.hintText,
+    ];
+    expect(hints().every((h) => h == null || h.isEmpty), isTrue);
     // 切到借款：標題跟提示文字跟著變，預設信用卡；金額欄改叫「月付金」。
     await tester.tap(kindSeg('借款'));
+    await tester.pump();
+    await tester.tap(typeSeg('小額借款'));
+    await tester.pump();
+    expect(hints().every((h) => h == null || h.isEmpty), isTrue);
+    await tester.tap(typeSeg('信用卡'));
     await tester.pump();
     expect(find.text('月付金'), findsOneWidget);
     expect(find.text('每月扣多少'), findsNothing);
@@ -323,7 +334,8 @@ void main() {
     final rateNoFee = loanAnnualRate(11000, 1000, 12)!.toStringAsFixed(2);
     expect(rate == rateNoFee, isFalse);
     expect(find.textContaining('實際拿到 \$10,000'), findsOneWidget);
-    expect(find.textContaining('手續費 \$1,000'), findsOneWidget);
+    // 手續費自己填過了，下面的分析不重複寫。
+    expect(find.textContaining('手續費 \$1,000'), findsNothing);
     expect(find.textContaining('實際本利總額 \$12,000'), findsOneWidget);
     expect(find.textContaining('純利息 \$1,000'), findsOneWidget);
     expect(find.textContaining('實際年利率 $rate%'), findsOneWidget);
