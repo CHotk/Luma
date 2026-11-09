@@ -60,6 +60,24 @@ void main() {
     expect(find.text('+\$700'), findsWidgets);
   });
 
+  testWidgets('記錄只到天：日期按鈕只有年月日，滾輪沒有時分，列表也不寫時間', (tester) async {
+    final store = _MemoryStore();
+    await pump(tester, store);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(FloatingActionButton));
+    await tester.pumpAndSettle();
+    final now = DateTime.now();
+    // 日期按鈕只寫年月日。
+    expect(find.text('${now.year}/${now.month}/${now.day}'), findsOneWidget);
+    await tester.tap(find.text('${now.year}/${now.month}/${now.day}'));
+    await tester.pumpAndSettle();
+    // 滾輪沒有時分（沒有冒號、沒有「現在」）。
+    expect(find.text(':'), findsNothing);
+    expect(find.text('現在'), findsNothing);
+    expect(find.text('今天'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('月曆下面的標籤：點了月曆亮出贏／輸／有記錄的日子，其他天變淡，再點取消', (tester) async {
     final store = _MemoryStore();
     final repo = I88Repository(store);

@@ -74,9 +74,6 @@ class I88Repository {
 
   static String _day(DateTime t) => '${t.year}/${t.month}/${t.day}';
 
-  static String _time(DateTime t) =>
-      '${_day(t)} ${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
-
   /// 「贏 $500（2026/11/5 備註）」。
   static String describe(I88Entry e) =>
       '${_money(e.amount)}（${_day(e.at)}${e.note.isEmpty ? '' : ' ${e.note}'}）';
@@ -122,7 +119,7 @@ class I88Repository {
     final diff = [
       if (old.amount != e.amount)
         '金額：${_money(old.amount)} → ${_money(e.amount)}',
-      if (old.at != e.at) '日期時間：${_time(old.at)} → ${_time(e.at)}',
+      if (_day(old.at) != _day(e.at)) '日期：${_day(old.at)} → ${_day(e.at)}',
       if (old.note != e.note) '備註：${note(old.note)} → ${note(e.note)}',
     ];
     await _log('編輯', describe(e), detail: diff.join('\n'), refId: e.id);

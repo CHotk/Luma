@@ -508,9 +508,9 @@ class I88Page extends ConsumerWidget {
                         color: AppColors.ink,
                       ),
                     ),
+                    // 只記到天，不顯示時分（2026-11-09 使用者）。
                     Text(
-                      '${e.at.hour.toString().padLeft(2, '0')}:${e.at.minute.toString().padLeft(2, '0')}'
-                      '${e.note.isEmpty ? '' : '・${e.note}'}',
+                      e.note.isEmpty ? '${e.at.month}/${e.at.day}' : e.note,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: AppText.note.copyWith(color: AppColors.ink3),
@@ -738,14 +738,22 @@ class _FormState extends State<_Form> {
           const SizedBox(height: 10),
           OutlinedButton.icon(
             onPressed: () async {
-              final v = await showDateTimeWheel(context, _at);
-              if (v != null && mounted) setState(() => _at = v);
+              // 紀錄只到天，不用時跟分（2026-11-09 使用者）；原本的時分照舊留著只用來排同一天的先後。
+              final v = await showDateTimeWheel(context, _at, dateOnly: true);
+              if (v != null && mounted) {
+                setState(
+                  () => _at = DateTime(
+                    v.year,
+                    v.month,
+                    v.day,
+                    _at.hour,
+                    _at.minute,
+                  ),
+                );
+              }
             },
-            icon: const Icon(Icons.schedule_rounded, size: 18),
-            label: Text(
-              '${_at.year}/${_at.month}/${_at.day} '
-              '${_at.hour.toString().padLeft(2, '0')}:${_at.minute.toString().padLeft(2, '0')}',
-            ),
+            icon: const Icon(Icons.event_rounded, size: 18),
+            label: Text('${_at.year}/${_at.month}/${_at.day}'),
           ),
           const SizedBox(height: 10),
           TextField(
