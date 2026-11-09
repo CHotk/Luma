@@ -613,6 +613,97 @@ class LedgerRepository {
     if (gone != null) await _log('刪除扣款', _subLine(gone), refId: id);
   }
 
+  // ── 購物分類併入生活（2026-11-09 使用者：不需要購物分類，出一顆按鈕把購物的都轉到生活、
+  // 再把購物分類刪掉）。暫時的工具：處理完舊資料之後會拿掉設定裡的按鈕。
+
+  /// 把所有分類是「購物」的交易（含拆分的每一份）改成「生活」，每月的購物預算加進生活預算、
+  /// 購物預算蓋墓碑（同步時其他裝置也會刪掉）。改到的交易更新 updatedAt，整件事在操作紀錄記一筆。
+  /// 回傳改了幾筆（交易＋預算）。
+  Future<int> moveShoppingToLife() async {
+    const from = '購物', to = '生活';
+    final now = DateTime.now();
+    var txCount = 0, budgetCount = 0;
+    final lines = <String>[];
+
+    final txs = await transactionsForUpload();
+    final newTxs = <LedgerTx>[];
+    for (final t in txs) {
+      if (t.deletedAt != null ||
+          (t.category != from && !t.splits.any((s) => s.category == from))) {
+        newTxs.add(t);
+        continue;
+      }
+      txCount++;
+      lines.add(
+        '${t.occurredAt.month}/${t.occurredAt.day} ${t.merchant.isEmpty ? t.type.label : t.merchant} '
+        '\$${t.amount}',
+      );
+      newTxs.add(
+        t.copyWith(
+          category: () => t.category == from ? to : t.category,
+          splits: [
+            for (final s in t.splits)
+              s.category == from
+                  ? LedgerSplit(
+                      category: to,
+                      amount: s.amount,
+                      name: s.name,
+                      forOther: s.forOther,
+                      otherAmount: s.otherAmount,
+                      settled: s.settled,
+                      people: s.people,
+                    )
+                  : s,
+          ],
+          updatedAt: now,
+        ),
+      );
+    }
+    if (txCount > 0) await _save(_txKey, newTxs, (e) => e.toJson());
+
+    final budgets = await budgetsForUpload();
+    final byId = {for (final b in budgets) b.id: b};
+    var budgetChanged = false;
+    for (final b in budgets) {
+      if (b.category != from || b.deletedAt != null) continue;
+      budgetChanged = true;
+      budgetCount++;
+      final target = byId[LedgerBudget.budgetId(b.month, to)];
+      final sum =
+          (target != null && target.deletedAt == null ? target.amount : 0) +
+          b.amount;
+      if (b.amount > 0) {
+        lines.add('${b.month} 預算：購物 \$${b.amount} 併入生活（共 \$$sum）');
+        byId[LedgerBudget.budgetId(b.month, to)] = LedgerBudget(
+          month: b.month,
+          category: to,
+          amount: sum,
+          updatedAt: now,
+        );
+      }
+      byId[b.id] = LedgerBudget(
+        month: b.month,
+        category: from,
+        amount: 0,
+        updatedAt: now,
+        deletedAt: now,
+      );
+    }
+    if (budgetChanged) {
+      await _save(_budgetKey, byId.values.toList(), (e) => e.toJson());
+    }
+
+    final total = txCount + budgetCount;
+    if (total > 0) {
+      await _log(
+        '購物併入生活',
+        '改了 $txCount 筆交易、$budgetCount 個月的預算',
+        detail: lines.join('\n'),
+      );
+    }
+    return total;
+  }
+
   // ── 整理全形文字（2026-11-06 使用者：之前輸入的全形英數字一次改成對應的半形）──
   // 暫時的工具：處理完舊資料之後會拿掉設定裡的按鈕。
 
@@ -653,6 +744,7 @@ class LedgerRepository {
             amount: s.amount,
             name: fix(s.name),
             forOther: s.forOther,
+            otherAmount: s.otherAmount,
             settled: s.settled,
             people: fix(s.people),
           ),

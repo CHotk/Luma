@@ -727,6 +727,7 @@ class _TxFormState extends State<_TxForm> {
   late String? _to;
   late String _category;
   late final TextEditingController _merchant;
+  late final TextEditingController _item;
   late final TextEditingController _memo;
   late DateTime _at;
   late bool _flagged;
@@ -744,17 +745,20 @@ class _TxFormState extends State<_TxForm> {
     String people = '',
     bool forOther = false,
     bool settled = false,
+    String other = '',
   }) {
     final r = _SplitRow(
       category,
       TextEditingController(text: amount),
       TextEditingController(text: name),
       TextEditingController(text: people),
+      TextEditingController(text: other),
       forOther: forOther,
       settled: settled,
     );
     r.amount.addListener(() => setState(() {}));
     r.people.addListener(() => setState(() {}));
+    r.other.addListener(() => setState(() {}));
     return r;
   }
 
@@ -762,12 +766,21 @@ class _TxFormState extends State<_TxForm> {
     r.amount.dispose();
     r.name.dispose();
     r.people.dispose();
+    r.other.dispose();
   }
 
   /// 拆分模式下「幫人付」跟著各份走：有任何一份標了就算有幫人付，金額是那幾份加起來。
   bool get _pfOn => _split ? _splitRows.any((r) => r.forOther) : _pf;
-  int get _pfSum =>
-      _splitRows.fold(0, (s, r) => r.forOther ? s + (_int(r.amount) ?? 0) : s);
+  int get _pfSum => _splitRows.fold(0, (s, r) => s + _rowOther(r));
+
+  /// 這一份裡對方要給多少：沒填＝整份，填了不能超過這一份的金額。
+  int _rowOther(_SplitRow r) {
+    if (!r.forOther) return 0;
+    final a = _int(r.amount) ?? 0;
+    final t = _int(r.other);
+    return t == null ? a : t.clamp(0, a).toInt();
+  }
+
   int get _pfValue => _split ? _pfSum : (_int(_pfAmount) ?? 0);
 
   /// 幫誰沒填時的預設：快選列的第一個（最近幫過的人）；從來沒幫過人才寫「朋友」
@@ -810,7 +823,14 @@ class _TxFormState extends State<_TxForm> {
     if (on && _splitRows.isEmpty) {
       final all = _int(_amount) ?? 0;
       _splitRows
-        ..add(_newSplitRow(_category, all > 0 ? '$all' : ''))
+        // 已經寫了品項名稱就帶進第一份。
+        ..add(
+          _newSplitRow(
+            _category,
+            all > 0 ? '$all' : '',
+            name: _item.text.trim(),
+          ),
+        )
         ..add(_newSplitRow('生活', ''));
     }
   });
@@ -848,6 +868,7 @@ class _TxFormState extends State<_TxForm> {
     _to = e?.toAccountId ?? p.toAccountId;
     _category = e?.category ?? p.category ?? '';
     _merchant = TextEditingController(text: e?.merchant ?? '');
+    _item = TextEditingController(text: e?.item ?? '');
     _memo = TextEditingController(text: e?.note ?? '');
     _at = e?.occurredAt ?? p.at ?? DateTime.now();
     _flagged = e?.flagged ?? false;
@@ -866,6 +887,9 @@ class _TxFormState extends State<_TxForm> {
             forOther: x.forOther,
             // 整筆被標「他給了」時，舊資料的每份也算已給。
             settled: x.settled || (x.forOther && (e.paidFor?.settled ?? false)),
+            other: x.forOther && x.otherPart != x.amount
+                ? '${x.otherPart}'
+                : '',
           ),
         );
       }
@@ -897,14 +921,30 @@ class _TxFormState extends State<_TxForm> {
     );
     _linked = e?.linkedId ?? p.linkedId;
     _applyDefaults(fillAmount: e == null && p.amount == null);
-    for (final c in [_amount, _merchant, _memo, _pfAmount, _pfPeople, _after]) {
+    for (final c in [
+      _amount,
+      _merchant,
+      _item,
+      _memo,
+      _pfAmount,
+      _pfPeople,
+      _after,
+    ]) {
       c.addListener(() => setState(() {}));
     }
   }
 
   @override
   void dispose() {
-    for (final c in [_amount, _merchant, _memo, _pfAmount, _pfPeople, _after]) {
+    for (final c in [
+      _amount,
+      _merchant,
+      _item,
+      _memo,
+      _pfAmount,
+      _pfPeople,
+      _after,
+    ]) {
       c.dispose();
     }
     _paste.dispose();
@@ -1019,6 +1059,7 @@ class _TxFormState extends State<_TxForm> {
       _to = t.toAccountId;
       if (t.category != null) _category = t.category!;
       _merchant.text = t.merchant;
+      _item.text = '';
       _memo.text = t.note;
       _at = t.occurredAt;
       final pf = t.paidFor;
@@ -1119,9 +1160,15 @@ class _TxFormState extends State<_TxForm> {
                 forOther: r.forOther,
                 settled: r.forOther && r.settled,
                 people: r.forOther ? _rowPeople(r) : '',
+                // 這一份對方只要給一部分（一人一半）才記，整份就不存。
+                otherAmount: r.forOther && _rowOther(r) != (_int(r.amount) ?? 0)
+                    ? _rowOther(r)
+                    : null,
               ),
           ]
         : const <LedgerSplit>[];
+    // 品項名稱只給沒拆分的支出；拆分的每一份各自有名稱。
+    final item = ty == LedgerTxType.expense && !_split ? _item.text.trim() : '';
     final mainCat = splits.isEmpty
         ? _category
         : (splits.toList()..sort((a, b) => b.amount.compareTo(a.amount)))
@@ -1140,6 +1187,7 @@ class _TxFormState extends State<_TxForm> {
             ? ledgerUncategorized
             : null,
         merchant: merchant,
+        item: item,
         note: _memo.text.trim(),
         linkedId: () => linked ? _linked : null,
         flagged: _flagged,
@@ -1156,6 +1204,7 @@ class _TxFormState extends State<_TxForm> {
       toAccountId: ty == LedgerTxType.transfer ? _to : null,
       category: hasCat ? mainCat : null,
       merchant: merchant,
+      item: item,
       note: _memo.text.trim(),
       linkedId: linked ? _linked : null,
       flagged: _flagged,
@@ -1425,6 +1474,28 @@ class _TxFormState extends State<_TxForm> {
           decoration: _input('0', prefix: '\$ '),
         ),
       ),
+      // 沒拆分的支出可以寫品項名稱（2026-11-09 使用者），拆分時每一份各自有名稱。
+      if (t == LedgerTxType.expense && !_split)
+        _row(
+          '品項名稱',
+          TextField(
+            controller: _item,
+            maxLength: ledgerSplitNameMax,
+            inputFormatters: halfWidthFormatters,
+            decoration: _input('').copyWith(counterText: ''),
+          ),
+        ),
+      // 寫了品項名稱之後，可以直接「添加品項 2」：自動變成拆分，這個品項是第一份
+      // （2026-11-09 使用者）。
+      if (t == LedgerTxType.expense && !_split && _item.text.trim().isNotEmpty)
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: () => _toggleSplit(true),
+            icon: const Icon(Icons.add_rounded, size: 18),
+            label: const Text('添加品項 2'),
+          ),
+        ),
     ];
 
     switch (t) {
@@ -1461,7 +1532,7 @@ class _TxFormState extends State<_TxForm> {
             false,
             (v) => setState(() {
               _toOther = v;
-              if (!ledgerExpenseCats.containsKey(_category)) _category = '購物';
+              if (!ledgerExpenseCats.containsKey(_category)) _category = '生活';
             }),
           ),
           const SizedBox(height: 10),
@@ -1755,6 +1826,46 @@ class _TxFormState extends State<_TxForm> {
                             selected: r.settled,
                             showCheckmark: false,
                             onSelected: (v) => setState(() => r.settled = v),
+                          ),
+                        ],
+                      ),
+                      // 這一份對方要給多少：不填＝整份；一人一半按「一半」（2026-11-09 使用者）。
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              key: ValueKey('splitOther$i'),
+                              controller: r.other,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: _digits,
+                              decoration: _input(
+                                '對方要給多少（不填＝整份）',
+                                prefix: '\$ ',
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          ChoiceChip(
+                            label: const Text('一半'),
+                            selected:
+                                (_int(r.amount) ?? 0) > 1 &&
+                                r.other.text.isNotEmpty &&
+                                _rowOther(r) == (_int(r.amount) ?? 0) ~/ 2,
+                            showCheckmark: false,
+                            onSelected: (_) => setState(
+                              () => r.other.text =
+                                  '${(_int(r.amount) ?? 0) ~/ 2}',
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          ChoiceChip(
+                            label: const Text('整份'),
+                            selected:
+                                r.other.text.isEmpty ||
+                                _rowOther(r) == (_int(r.amount) ?? 0),
+                            showCheckmark: false,
+                            onSelected: (_) => setState(() => r.other.clear()),
                           ),
                         ],
                       ),
@@ -2157,13 +2268,14 @@ class _TxDetail extends StatelessWidget {
                   .map(
                     (s) =>
                         '${s.category}${s.name.isEmpty ? '' : '・${s.name}'} ${lMoney(s.amount)}'
-                        '${s.forOther ? '　👥${s.people.isEmpty ? '幫人付' : '幫${s.people}付'}${s.settled ? '✓已給' : '（還沒給）'}' : ''}',
+                        '${s.forOther ? '　👥${s.people.isEmpty ? '幫人付' : '幫${s.people}付'}${s.otherPart != s.amount ? ' ${lMoney(s.otherPart)}' : ''}${s.settled ? '✓已給' : '（還沒給）'}' : ''}',
                   )
                   .join('\n'),
             )
           else if (t.category != null && t.type != LedgerTxType.transfer)
             _kv('分類', t.category!),
           _kv('名稱', t.merchant.isEmpty ? '—' : t.merchant),
+          if (t.item.isNotEmpty) _kv('品項', t.item),
           if (t.note.isNotEmpty) _kv('備註', t.note),
           _kv('帳戶變化', effects.isEmpty ? '—' : effects),
           _kv('支出算法', counts),
@@ -3428,7 +3540,8 @@ class _SplitRow {
     this.category,
     this.amount,
     this.name,
-    this.people, {
+    this.people,
+    this.other, {
     this.forOther = false,
     this.settled = false,
   });
@@ -3439,6 +3552,9 @@ class _SplitRow {
 
   /// 幫誰（標了幫人付才用）。
   final TextEditingController people;
+
+  /// 這一份對方要給多少（空＝整份）。
+  final TextEditingController other;
   bool forOther;
   bool settled;
 }

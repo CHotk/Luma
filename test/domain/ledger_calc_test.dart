@@ -393,7 +393,7 @@ void main() {
     final lines = b.parseImport('''
 中信銀行｜2026/11/02 19:30｜餐飲｜DIN TAI FUNG｜NT\$1,000
 中信銀行｜2026/11/02 19:45｜餐飲｜甜點｜NT\$200
-中信銀行｜2026/11/02 19:45｜購物｜另一家｜NT\$200
+中信銀行｜2026/11/02 19:45｜生活｜另一家｜NT\$200
 ''');
     expect(lines[0].duplicate, isTrue, reason: '跟已經記的同分鐘同金額');
     expect(lines[1].duplicate, isFalse);

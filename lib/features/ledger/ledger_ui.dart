@@ -176,7 +176,7 @@ class TxTile extends ConsumerWidget {
       child: Text(
         '└ ${s.name.isEmpty ? s.category : '${s.name}（${s.category}）'}'
         '　${lMoney(s.amount)}'
-        '${s.forOther ? '　👥${s.people.isEmpty ? '' : '${s.people} '}${s.settled ? '已給' : '幫人付'}' : ''}',
+        '${s.forOther ? '　👥${s.people.isEmpty ? '' : '${s.people} '}${s.settled ? '已給' : '幫人付'}${s.otherPart != s.amount ? ' ${lMoney(s.otherPart)}' : ''}' : ''}',
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
@@ -311,6 +311,17 @@ class TxTile extends ConsumerWidget {
                                   if (t.flagged) const Text(' 🚩'),
                                 ],
                               ),
+                              // 單筆的品項名稱（2026-11-09 使用者）。
+                              if (t.item.isNotEmpty)
+                                Text(
+                                  t.item,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: AppText.note.copyWith(
+                                    fontSize: 11.5,
+                                    color: AppColors.ink2,
+                                  ),
+                                ),
                               // 標籤排在名稱下一行，名字長也不會擠爆。
                               if (pf != null ||
                                   t.isSplit ||

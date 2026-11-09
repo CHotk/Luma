@@ -1669,7 +1669,63 @@ class LedgerSettingsSection extends ConsumerWidget {
             ),
           ),
         ),
+        const SizedBox(height: Gap.sm),
+        // 暫時的工具（2026-11-09 使用者）：不需要「購物」分類，把購物的都轉到生活、再刪掉購物分類，
+        // 舊資料處理完就拿掉這顆按鈕。
+        SettingAnchor(
+          id: 'ledger.shopping',
+          child: SettingsRowCard(
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        '購物併入生活',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.ink,
+                        ),
+                      ),
+                      Text(
+                        '「購物」分類已經拿掉了。按下去會把之前記在購物的交易（含拆分的那一份）'
+                        '都改到「生活」，購物的預算也併進生活。'
+                        '改了會寫進操作紀錄、同步到其他裝置',
+                        style: AppText.note,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                OutlinedButton(
+                  onPressed: () => _moveShopping(context, ref),
+                  child: const Text('轉移'),
+                ),
+              ],
+            ),
+          ),
+        ),
       ],
+    );
+  }
+
+  Future<void> _moveShopping(BuildContext context, WidgetRef ref) async {
+    final ok = await showAppConfirmDialog(
+      context,
+      title: '把購物併入生活？',
+      message: '之前記在「購物」的交易會全部改成「生活」，購物分類就不再有資料。',
+      confirmLabel: '轉移',
+    );
+    if (!ok) return;
+    final n = await ref.read(ledgerRepositoryProvider).moveShoppingToLife();
+    ref.read(dataRevisionProvider.notifier).state++;
+    if (!context.mounted) return;
+    showAppNotice(
+      context,
+      n == 0 ? '沒有購物的資料需要轉移' : '已轉移 $n 筆到生活',
+      detail: n == 0 ? null : '改了哪些可以到操作紀錄看',
     );
   }
 

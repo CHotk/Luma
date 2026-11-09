@@ -13,7 +13,7 @@ import 'models/ledger.dart';
 const ledgerExpenseCats = <String, (String, int)>{
   '餐飲': ('🍜', 0xFFFF9F7A),
   '交通': ('🚕', 0xFF5FD3C6),
-  '購物': ('🛍️', 0xFFB79CFF),
+  // 沒有「購物」分類（2026-11-09 使用者不需要）；舊資料用設定裡的「購物併入生活」轉走。
   '娛樂': ('🎤', 0xFFF5C763),
   '居家': ('🏠', 0xFF8BD17C),
   '帳單': ('🧾', 0xFF7EA6FF),
@@ -380,8 +380,10 @@ class LedgerBook {
     // 有標「幫人付」的份：自己的消費就是沒標的那幾份，直接照各自分類算，不用比例。
     if (t.splitHasOther && value == t.ownSpend) {
       for (final s in t.splits) {
-        if (s.forOther) continue;
-        out[s.category] = (out[s.category] ?? 0) + s.amount;
+        // 幫人付的那份只算自己的部分（對方要給的那段不算）。
+        final own = s.ownPart;
+        if (own <= 0) continue;
+        out[s.category] = (out[s.category] ?? 0) + own;
       }
       return out;
     }
@@ -511,7 +513,7 @@ class LedgerBook {
       txs.where((t) => t.paidFor != null).toList();
 
   /// 搜尋（2026-11-03 使用者：輸入後每個欄位都會搜）。用空白隔開多個關鍵字，每個
-  /// 都要找得到（且）；大小寫不分。搜的欄位：商家、備註、分類、類型、帳戶名稱
+  /// 都要找得到（且）；大小寫不分。搜的欄位：商家、品項名稱、備註、分類、類型、帳戶名稱
   /// （轉帳含轉入）、跟誰、金額（有沒有逗號都行）、日期（11/2、2026/11/02、
   /// 11月）、時間、貼上匯入的原始文字。
   bool matches(LedgerTx t, String query) {
@@ -526,6 +528,7 @@ class LedgerBook {
     final amount = t.amount.toString();
     final hay = [
       t.merchant,
+      t.item,
       t.note,
       t.category ?? '',
       for (final s in t.splits) ...[s.category, s.name, s.people],

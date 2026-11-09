@@ -43,6 +43,7 @@ List<String> logDiffTx(LedgerTx a, LedgerTx b, String Function(String?) acct) {
   d('分類', a.category ?? '無', b.category ?? '無');
   d('拆分', _splits(a.splits), _splits(b.splits));
   d('商家', a.merchant, b.merchant);
+  d('品項', a.item, b.item);
   d('備註', a.note, b.note);
   d('標記旗幟', a.flagged ? '是' : '否', b.flagged ? '是' : '否');
   d('跟別人一起', _pf(a.paidFor), _pf(b.paidFor));

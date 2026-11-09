@@ -1446,6 +1446,69 @@ void main() {
     expect(book.owes.where((o) => o.tx.id == t.id), isEmpty);
   });
 
+  testWidgets('記一筆：沒拆分的支出可以寫品項名稱，寫了有「添加品項 2」自動變拆分；存下來明細看得到、搜得到', (
+    tester,
+  ) async {
+    final store = await seeded();
+    await pump(tester, const LedgerPage(tab: LedgerTab.home), store);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(FloatingActionButton));
+    await settle(tester);
+    // 標題跟輸入框同一行；TextField 順序：貼上(0)、商家(1)、金額(2)、品項名稱(3)。
+    expect(find.text('品項名稱'), findsOneWidget);
+    expect(
+      (tester.getCenter(find.text('品項名稱')).dy -
+              tester.getCenter(find.byType(TextField).at(3)).dy)
+          .abs(),
+      lessThan(8),
+    );
+    // 還沒寫品項名稱就沒有「添加品項 2」。
+    expect(find.text('添加品項 2'), findsNothing);
+    await tester.enterText(find.byType(TextField).at(1), '全家');
+    await tester.enterText(find.byType(TextField).at(3), '御飯糰　ＡＢＣ');
+    await tester.enterText(find.byType(TextField).at(2), '35');
+    await tester.pump();
+    // 全形英數轉半形、上限 50 字。
+    final item = tester.widget<TextField>(find.byType(TextField).at(3));
+    expect(item.controller!.text, '御飯糰 ABC');
+    expect(item.maxLength, 50);
+    // 按「添加品項 2」：自動變拆分，已經寫的品項名稱是第一份，單筆的品項欄隱藏。
+    expect(find.text('添加品項 2'), findsOneWidget);
+    await tester.tap(find.text('添加品項 2'));
+    await tester.pump();
+    expect(find.text('品項名稱'), findsNothing);
+    expect(find.text('添加品項 2'), findsNothing);
+    expect(find.textContaining('拆分（加起來要剛好等於整筆）'), findsOneWidget);
+    expect(
+      tester.widget<TextField>(find.byType(TextField).at(4)).controller!.text,
+      '御飯糰 ABC',
+    );
+    // 取消拆分回來，品項還在。
+    await tester.scrollUntilVisible(
+      find.textContaining('取消拆分'),
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.tap(find.textContaining('取消拆分'));
+    await tester.pump();
+    expect(find.text('品項名稱'), findsOneWidget);
+    await tester.ensureVisible(find.widgetWithText(FilledButton, '新增'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, '新增'));
+    await settle(tester);
+    expect(tester.takeException(), isNull);
+    final book = (await tester.runAsync(
+      () => LedgerRepository(store).loadBook(),
+    ))!;
+    final t = book.txs.firstWhere((t) => t.merchant == '全家');
+    expect(t.item, '御飯糰 ABC');
+    expect(t.isSplit, isFalse);
+    // 搜品項名稱找得到。
+    expect(book.matches(t, 'abc'), isTrue);
+    expect(book.matches(t, '飯糰'), isTrue);
+    expect(book.matches(t, '壽司'), isFalse);
+  });
+
   testWidgets('拆分：一定要拆滿整筆才能存，存下來統計照拆分算', (tester) async {
     final store = await seeded();
     await pump(tester, const LedgerPage(tab: LedgerTab.home), store);
@@ -1588,6 +1651,65 @@ void main() {
     final back = t.withSettled(false);
     expect(back.paidFor!.settled, isFalse);
     expect(back.splits.map((s) => s.settled), [false, false]);
+  });
+
+  testWidgets('拆分：幫人付的那份可以只給一部分（一半），自己的消費只扣對方那段', (tester) async {
+    final store = await seeded();
+    await pump(tester, const LedgerPage(tab: LedgerTab.home), store);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(FloatingActionButton));
+    await settle(tester);
+    await tester.enterText(find.byType(TextField).at(2), '1000');
+    await tester.enterText(find.byType(TextField).at(1), '火鍋');
+    await tester.pump();
+    final split = find.text('拆分（一筆裡有不同分類）');
+    await tester.scrollUntilVisible(
+      split,
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.tap(split);
+    await tester.pump();
+    await tester.enterText(find.byType(TextField).at(3), '600');
+    await tester.enterText(find.byType(TextField).at(5), '400');
+    await tester.pump();
+    final chip = find.widgetWithText(FilterChip, '👥 幫人付').last;
+    await tester.ensureVisible(chip);
+    await tester.pump();
+    await tester.drag(find.byType(Scrollable).last, const Offset(0, -150));
+    await tester.pump();
+    await tester.tap(chip);
+    await tester.pump();
+    // 沒填「對方要給多少」＝整份：400 都是對方的。
+    expect(find.byKey(const ValueKey('splitOther1')), findsOneWidget);
+    expect(find.byKey(const ValueKey('splitOther0')), findsNothing);
+    // 按「一半」→ 對方給 200，那份另外 200 是自己的。
+    await tester.ensureVisible(find.widgetWithText(ChoiceChip, '一半'));
+    await tester.tap(find.widgetWithText(ChoiceChip, '一半'));
+    await tester.pump();
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const ValueKey('splitOther1')))
+          .controller!
+          .text,
+      '200',
+    );
+    await tester.enterText(find.byKey(const ValueKey('splitPeople1')), 'Cen');
+    await tester.pump();
+    await tester.ensureVisible(find.widgetWithText(FilledButton, '新增'));
+    await tester.tap(find.widgetWithText(FilledButton, '新增'));
+    await settle(tester);
+    expect(tester.takeException(), isNull);
+    final book = (await tester.runAsync(
+      () => LedgerRepository(store).loadBook(),
+    ))!;
+    final t = book.txs.firstWhere((t) => t.merchant == '火鍋');
+    expect(t.splits.map((s) => s.amount), [600, 400]);
+    expect(t.splits[1].forOther, isTrue);
+    expect(t.splits[1].otherAmount, 200);
+    expect(t.paidFor?.amount, 200);
+    expect(t.ownSpend, 800);
+    expect(book.statsWhere((x) => x.id == t.id).spend, 800);
   });
 
   testWidgets('拆分：兩份可以幫不同的人，整筆的幫誰是兩個人接起來，快選列各份幫過的人', (tester) async {

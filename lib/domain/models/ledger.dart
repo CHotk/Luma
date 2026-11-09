@@ -152,6 +152,7 @@ class LedgerSplit {
     this.forOther = false,
     this.settled = false,
     this.people = '',
+    this.otherAmount,
   });
 
   final String category;
@@ -169,6 +170,16 @@ class LedgerSplit {
   /// 幫人付的這一份，對方給了沒。
   final bool settled;
 
+  /// 這一份裡對方要給多少（2026-11-09 使用者：一個品項一人一半怎麼辦）；null＝整份都是對方的。
+  final int? otherAmount;
+
+  /// 這一份裡對方要給的錢（沒幫人付＝0；不會超過這一份的金額）。
+  int get otherPart =>
+      !forOther ? 0 : (otherAmount ?? amount).clamp(0, amount).toInt();
+
+  /// 這一份算自己的消費的錢。
+  int get ownPart => amount - otherPart;
+
   Map<String, dynamic> toJson() => {
     'category': category,
     'amount': amount,
@@ -176,6 +187,8 @@ class LedgerSplit {
     if (forOther) 'forOther': true,
     if (forOther && settled) 'settled': true,
     if (forOther && people.isNotEmpty) 'people': people,
+    if (forOther && otherAmount != null && otherAmount != amount)
+      'otherAmount': otherAmount,
   };
 
   factory LedgerSplit.fromJson(Map<String, dynamic> j) => LedgerSplit(
@@ -185,6 +198,7 @@ class LedgerSplit {
     forOther: j['forOther'] as bool? ?? false,
     settled: j['settled'] as bool? ?? false,
     people: j['people'] as String? ?? '',
+    otherAmount: (j['otherAmount'] as num?)?.toInt(),
   );
 }
 
@@ -226,6 +240,7 @@ class LedgerTx {
     this.toAccountId,
     this.category,
     this.merchant = '',
+    this.item = '',
     this.note = '',
     this.linkedId,
     this.flagged = false,
@@ -250,6 +265,10 @@ class LedgerTx {
   final String? toAccountId;
   final String? category;
   final String merchant;
+
+  /// 品項名稱（2026-11-09 使用者：只有一筆的話也要能寫品項，不是只有備註）。
+  /// 沒拆分的支出才有；拆分的每一份各自有 [LedgerSplit.name]。
+  final String item;
   final String note;
 
   /// 退款、還錢指回原本那筆。
@@ -280,6 +299,7 @@ class LedgerTx {
                 forOther: true,
                 settled: settled,
                 people: s.people,
+                otherAmount: s.otherAmount,
               )
             : s,
     ],
@@ -321,6 +341,7 @@ class LedgerTx {
     String? Function()? toAccountId,
     String? Function()? category,
     String? merchant,
+    String? item,
     String? note,
     String? Function()? linkedId,
     bool? flagged,
@@ -337,6 +358,7 @@ class LedgerTx {
     toAccountId: toAccountId == null ? this.toAccountId : toAccountId(),
     category: category == null ? this.category : category(),
     merchant: merchant ?? this.merchant,
+    item: item ?? this.item,
     note: note ?? this.note,
     linkedId: linkedId == null ? this.linkedId : linkedId(),
     flagged: flagged ?? this.flagged,
@@ -360,6 +382,7 @@ class LedgerTx {
     'toAccountId': toAccountId,
     'category': category,
     'merchant': merchant,
+    if (item.isNotEmpty) 'item': item,
     'note': note,
     'linkedId': linkedId,
     'flagged': flagged,
@@ -383,6 +406,7 @@ class LedgerTx {
     toAccountId: j['toAccountId'] as String?,
     category: j['category'] as String?,
     merchant: j['merchant'] as String? ?? '',
+    item: j['item'] as String? ?? '',
     note: j['note'] as String? ?? '',
     linkedId: j['linkedId'] as String?,
     flagged: j['flagged'] as bool? ?? false,
