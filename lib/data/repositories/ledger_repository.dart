@@ -743,6 +743,46 @@ class LedgerRepository {
     return total;
   }
 
+  // ── 每月扣款的繳款登入帳號／密碼（2026-11-09 使用者：有繳款網址的話可以存帳號密碼）──
+  // 帳密不跟雲端同步（跟其他帳密一樣只留在這台裝置），也不進操作紀錄（那份會同步、只增不刪），
+  // 所以獨立存一份 id → {u, p}，不放進 LedgerSubscription 裡。
+
+  static const _subLoginsKey = 'ledger.subscription_logins.v1';
+
+  Future<Map<String, ({String user, String pass})>> loadSubLogins() async {
+    final raw = await _store.read(_subLoginsKey);
+    if (raw == null) return {};
+    try {
+      final m = jsonDecode(raw) as Map<String, dynamic>;
+      return {
+        for (final e in m.entries)
+          e.key: (
+            user: (e.value as Map)['u'] as String? ?? '',
+            pass: (e.value as Map)['p'] as String? ?? '',
+          ),
+      };
+    } catch (_) {
+      return {};
+    }
+  }
+
+  /// 帳號、密碼都空就把這筆的帳密移掉。
+  Future<void> saveSubLogin(String id, String user, String pass) async {
+    final all = await loadSubLogins();
+    if (user.isEmpty && pass.isEmpty) {
+      all.remove(id);
+    } else {
+      all[id] = (user: user, pass: pass);
+    }
+    await _store.write(
+      _subLoginsKey,
+      jsonEncode({
+        for (final e in all.entries)
+          e.key: {'u': e.value.user, 'p': e.value.pass},
+      }),
+    );
+  }
+
   Future<int> mergeSubscriptionsFromCloud(List<LedgerSubscription> incoming) =>
       _merge(
         _subsKey,

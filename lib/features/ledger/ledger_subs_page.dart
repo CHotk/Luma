@@ -21,7 +21,6 @@ import '../../shared/widgets/app_top_bar.dart';
 import '../../shared/widgets/glass_card.dart';
 import '../../shared/widgets/inline_empty_card.dart';
 import '../yt_tracker/yt_video_row.dart' show openExternalUrl;
-import 'ledger_data.dart';
 import 'ledger_ui.dart';
 
 /// 每月扣款（2026-11-05 使用者：記錄每月幾號會被扣多少錢、是什麼服務，**單純紀錄用**；
@@ -34,6 +33,15 @@ final ledgerSubsProvider = FutureProvider.autoDispose<List<LedgerSubscription>>(
     return ref.read(ledgerRepositoryProvider).loadSubscriptions();
   },
 );
+
+/// 每筆的繳款登入帳號／密碼（2026-11-09 使用者）：只存這台裝置、不同步，所以獨立於上面那份。
+final ledgerSubLoginsProvider =
+    FutureProvider.autoDispose<Map<String, ({String user, String pass})>>((
+      ref,
+    ) async {
+      ref.watch(dataRevisionProvider);
+      return ref.read(ledgerRepositoryProvider).loadSubLogins();
+    });
 
 /// 列表篩選：null＝全部、訂閱、借款。
 final ledgerSubsFilterProvider = StateProvider<LedgerChargeKind?>((_) => null);
@@ -232,6 +240,9 @@ class LedgerSubsPage extends ConsumerWidget {
     DateTime now,
   ) {
     final charging = isCharging(s, now);
+    final login = ref.watch(ledgerSubLoginsProvider).valueOrNull?[s.id];
+    final hasUser = login != null && login.user.isNotEmpty;
+    final hasPass = login != null && login.pass.isNotEmpty;
     final sub = [
       // 左邊已經有幾號了，不再寫下次繳款日，只留還有幾天（2026-11-06 使用者）。
       if (charging)
@@ -324,7 +335,10 @@ class LedgerSubsPage extends ConsumerWidget {
                         ),
                       ),
                     // 有填繳款網址／戶頭才出現：一鍵開啟繳款頁、複製戶頭（方便去繳款）。
-                    if (s.payUrl.isNotEmpty || s.payAccount.isNotEmpty)
+                    if (s.payUrl.isNotEmpty ||
+                        s.payAccount.isNotEmpty ||
+                        hasUser ||
+                        hasPass)
                       Padding(
                         padding: const EdgeInsets.only(top: 6),
                         child: Wrap(
@@ -347,6 +361,19 @@ class LedgerSubsPage extends ConsumerWidget {
                                 Icons.copy_rounded,
                                 '複製戶頭',
                                 () => _copy(context, s.payAccount, '已複製戶頭'),
+                              ),
+                            // 登入帳號、密碼（只存這台）：一鍵複製，貼到繳款網站登入。
+                            if (hasUser)
+                              _chipBtn(
+                                Icons.person_rounded,
+                                '複製帳號',
+                                () => _copy(context, login.user, '已複製帳號'),
+                              ),
+                            if (hasPass)
+                              _chipBtn(
+                                Icons.key_rounded,
+                                '複製密碼',
+                                () => _copy(context, login.pass, '已複製密碼'),
                               ),
                           ],
                         ),
@@ -378,6 +405,10 @@ class LedgerSubsPage extends ConsumerWidget {
     WidgetRef ref,
     LedgerSubscription? edit,
   ) async {
+    final repo = ref.read(ledgerRepositoryProvider);
+    final logins = await repo.loadSubLogins();
+    if (!context.mounted) return;
+    final login = edit == null ? null : logins[edit.id];
     final r = await showModalBottomSheet<_SubResult>(
       context: context,
       isScrollControlled: true,
@@ -388,11 +419,10 @@ class LedgerSubsPage extends ConsumerWidget {
       ),
       builder: (c) => Padding(
         padding: EdgeInsets.only(bottom: MediaQuery.of(c).viewInsets.bottom),
-        child: _SubForm(edit: edit),
+        child: _SubForm(edit: edit, login: login),
       ),
     );
     if (r == null) return;
-    final repo = ref.read(ledgerRepositoryProvider);
     if (r.delete) {
       if (!context.mounted) return;
       final ok = await showAppConfirmDialog(
@@ -403,8 +433,9 @@ class LedgerSubsPage extends ConsumerWidget {
       );
       if (!ok) return;
       await repo.deleteSubscription(edit.id);
+      await repo.saveSubLogin(edit.id, '', '');
     } else if (edit == null) {
-      await repo.addSubscription(
+      final added = await repo.addSubscription(
         name: r.name,
         amount: r.amount,
         day: r.day,
@@ -419,7 +450,9 @@ class LedgerSubsPage extends ConsumerWidget {
         note: r.note,
         active: r.active,
       );
+      await repo.saveSubLogin(added.id, r.loginUser, r.loginPass);
     } else {
+      await repo.saveSubLogin(edit.id, r.loginUser, r.loginPass);
       await repo.updateSubscription(
         edit.copyWith(
           name: r.name,
@@ -465,6 +498,8 @@ class _SubResult {
     this.fee,
     this.payUrl = '',
     this.payAccount = '',
+    this.loginUser = '',
+    this.loginPass = '',
     this.startMonth,
     this.note = '',
     this.active = true,
@@ -481,15 +516,20 @@ class _SubResult {
   final int? fee;
   final String payUrl;
   final String payAccount;
+
+  /// 繳款網站的登入帳號／密碼：只存這台裝置，不同步。
+  final String loginUser;
+  final String loginPass;
   final String? startMonth;
   final String note;
   final bool active;
 }
 
 class _SubForm extends StatefulWidget {
-  const _SubForm({required this.edit});
+  const _SubForm({required this.edit, this.login});
 
   final LedgerSubscription? edit;
+  final ({String user, String pass})? login;
 
   @override
   State<_SubForm> createState() => _SubFormState();
@@ -511,6 +551,9 @@ class _SubFormState extends State<_SubForm> {
   late final _payAccount = TextEditingController(
     text: widget.edit?.payAccount ?? '',
   );
+  late final _loginUser = TextEditingController(text: widget.login?.user ?? '');
+  late final _loginPass = TextEditingController(text: widget.login?.pass ?? '');
+  bool _showPass = false;
   late final _fee = TextEditingController(
     text: widget.edit?.fee == null ? '' : '${widget.edit!.fee}',
   );
@@ -541,6 +584,8 @@ class _SubFormState extends State<_SubForm> {
       _periods,
       _payUrl,
       _payAccount,
+      _loginUser,
+      _loginPass,
     ]) {
       c.addListener(() => setState(() {}));
     }
@@ -558,6 +603,8 @@ class _SubFormState extends State<_SubForm> {
       _periods,
       _payUrl,
       _payAccount,
+      _loginUser,
+      _loginPass,
     ]) {
       c.dispose();
     }
@@ -880,6 +927,72 @@ class _SubFormState extends State<_SubForm> {
               ],
             ),
           ),
+          // 有繳款網址才出現登入帳號、密碼（2026-11-09 使用者）：只存這台裝置、不同步，
+          // 列表上有「複製帳號／複製密碼」，貼到網站登入就好。
+          if (_payUrl.text.trim().isNotEmpty) ...[
+            _row(
+              '登入帳號',
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _loginUser,
+                      autocorrect: false,
+                      enableSuggestions: false,
+                      inputFormatters: halfWidthFormatters,
+                      decoration: _input(''),
+                    ),
+                  ),
+                  if (_loginUser.text.trim().isNotEmpty)
+                    _iconBtn(
+                      Icons.copy_rounded,
+                      '複製帳號',
+                      () => _copy(context, _loginUser.text, '已複製帳號'),
+                    ),
+                ],
+              ),
+            ),
+            _row(
+              '登入密碼',
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _loginPass,
+                      obscureText: !_showPass,
+                      autocorrect: false,
+                      enableSuggestions: false,
+                      decoration: _input(''),
+                    ),
+                  ),
+                  _iconBtn(
+                    _showPass
+                        ? Icons.visibility_off_rounded
+                        : Icons.visibility_rounded,
+                    _showPass ? '隱藏密碼' : '顯示密碼',
+                    () => setState(() => _showPass = !_showPass),
+                  ),
+                  if (_loginPass.text.isNotEmpty)
+                    _iconBtn(
+                      Icons.copy_rounded,
+                      '複製密碼',
+                      () => _copy(context, _loginPass.text, '已複製密碼'),
+                    ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(top: 6, left: 78),
+              child: Text(
+                '帳號跟密碼只存在這台裝置，不會同步到雲端、也不會寫進操作紀錄。',
+                style: AppText.note.copyWith(
+                  fontSize: 10.5,
+                  color: AppColors.ink3,
+                  height: 1.5,
+                ),
+              ),
+            ),
+          ],
           _row(
             '繳款戶頭',
             Row(
@@ -965,6 +1078,8 @@ class _SubFormState extends State<_SubForm> {
                             fee: hasFirst ? fee : null,
                             payUrl: _payUrl.text.trim(),
                             payAccount: _payAccount.text.trim(),
+                            loginUser: _loginUser.text.trim(),
+                            loginPass: _loginPass.text,
                             startMonth: hasFirst ? _start : null,
                             note: _note.text.trim(),
                             active: _active,

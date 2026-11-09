@@ -494,7 +494,10 @@ void main() {
     // 沒填時表單沒有開啟／複製鈕。
     expect(find.byTooltip('開啟繳款網址'), findsNothing);
     expect(find.byTooltip('複製戶頭'), findsNothing);
-    // TextField 順序：名稱(0)、每月扣多少(1)、每月幾號(2)、繳款網址(3)、繳款戶頭(4)、備註(5)。
+    // 沒填網址就沒有登入帳號、密碼。
+    expect(find.text('登入帳號'), findsNothing);
+    expect(find.text('登入密碼'), findsNothing);
+    // TextField 順序：名稱(0)、每月扣多少(1)、每月幾號(2)、繳款網址(3)、登入帳號(4)、登入密碼(5)、繳款戶頭(6)、備註(7)。
     await tester.enterText(find.byType(TextField).at(0), '電信費');
     await tester.enterText(find.byType(TextField).at(1), '599');
     await tester.enterText(find.byType(TextField).at(2), '5');
@@ -502,12 +505,38 @@ void main() {
       find.byType(TextField).at(3),
       'pay.example.com/login',
     );
-    await tester.enterText(find.byType(TextField).at(4), '０８１２３４５６７８');
-    await tester.enterText(find.byType(TextField).at(5), '第一行\n第二行\n第三行');
     await tester.pump();
-    // 全形數字自動轉半形；填了就出現開啟／複製鈕。
+    // 填了網址，才出現登入帳號、密碼；密碼預設遮住，可以顯示。
+    expect(find.text('登入帳號'), findsOneWidget);
+    expect(find.text('登入密碼'), findsOneWidget);
+    expect(find.textContaining('只存在這台裝置'), findsOneWidget);
+    expect(
+      tester.widget<TextField>(find.byType(TextField).at(5)).obscureText,
+      isTrue,
+    );
+    await tester.enterText(find.byType(TextField).at(4), 'ｍｅ@ｅｘ.com');
+    await tester.enterText(find.byType(TextField).at(5), 'Pa\$\$w0rd');
+    await tester.enterText(find.byType(TextField).at(6), '０８１２３４５６７８');
+    await tester.enterText(find.byType(TextField).at(7), '第一行\n第二行\n第三行');
+    await tester.pump();
+    await tester.tap(find.byTooltip('顯示密碼'));
+    await tester.pump();
+    expect(
+      tester.widget<TextField>(find.byType(TextField).at(5)).obscureText,
+      isFalse,
+    );
+    // 帳號全形轉半形、密碼照原樣。
     expect(
       tester.widget<TextField>(find.byType(TextField).at(4)).controller!.text,
+      'me@ex.com',
+    );
+    expect(
+      tester.widget<TextField>(find.byType(TextField).at(5)).controller!.text,
+      'Pa\$\$w0rd',
+    );
+    // 全形數字自動轉半形；填了就出現開啟／複製鈕。
+    expect(
+      tester.widget<TextField>(find.byType(TextField).at(6)).controller!.text,
       '0812345678',
     );
     expect(find.byTooltip('開啟繳款網址'), findsOneWidget);
@@ -516,7 +545,7 @@ void main() {
     await tester.pump();
     expect(copied, ['0812345678']);
     // 備註是多行輸入框（一行塞不下會長高、可以換行）。
-    final note = tester.widget<TextField>(find.byType(TextField).at(5));
+    final note = tester.widget<TextField>(find.byType(TextField).at(7));
     expect(note.maxLines, isNull);
     expect(note.keyboardType, TextInputType.multiline);
     await tester.ensureVisible(find.widgetWithText(FilledButton, '新增'));
@@ -539,11 +568,35 @@ void main() {
     expect(copied.last, '0812345678');
     expect(find.text('已複製戶頭'), findsOneWidget);
     await tester.pump(const Duration(seconds: 4));
+    // 帳號、密碼存在本機、列表有複製鈕。
+    final logins = (await tester.runAsync(() => repo.loadSubLogins()))!;
+    expect(logins[s.id]!.user, 'me@ex.com');
+    expect(logins[s.id]!.pass, 'Pa\$\$w0rd');
+    await tester.tap(find.text('複製帳號'));
+    await tester.pump();
+    expect(copied.last, 'me@ex.com');
+    await tester.pump(const Duration(seconds: 4));
+    await tester.tap(find.text('複製密碼'));
+    await tester.pump();
+    expect(copied.last, 'Pa\$\$w0rd');
+    await tester.pump(const Duration(seconds: 4));
+    // 帳密不上雲端（同步用的那份沒有）、也不進操作紀錄。
+    final upload = (await tester.runAsync(
+      () => repo.subscriptionsForUpload(),
+    ))!;
+    expect(
+      jsonEncode([for (final e in upload) e.toJson()]),
+      isNot(contains('w0rd')),
+    );
     // 操作紀錄寫出繳款網址跟戶頭。
     final log = (await tester.runAsync(() => repo.loadLog()))!;
     final add = log.firstWhere((e) => e.action == '新增扣款');
     expect(add.detail, contains('繳款網址：pay.example.com/login'));
     expect(add.detail, contains('繳款戶頭：0812345678'));
+    expect(
+      jsonEncode([for (final e in log) e.toJson()]),
+      isNot(contains('w0rd')),
+    );
     expect(tester.takeException(), isNull);
   });
 
