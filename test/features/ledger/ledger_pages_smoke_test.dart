@@ -1304,10 +1304,12 @@ void main() {
     await settle(tester);
     await tester.enterText(
       find.byType(TextField).first,
-      '現金｜2026/11/05 15:00｜寵物｜飼料｜650｜｜｜｜｜補貨',
+      '現金｜2026/11/05 15:00｜寵物｜飼料｜650｜｜｜｜｜補貨｜貓罐頭',
     );
     await tester.pump();
     expect(find.textContaining('讀懂了'), findsOneWidget);
+    // 第 11 欄品項名稱帶進品項欄。
+    expect(find.widgetWithText(TextField, '貓罐頭'), findsOneWidget);
     await tester.tap(find.widgetWithText(FilledButton, '新增'));
     await settle(tester);
     expect(tester.takeException(), isNull);
@@ -1318,6 +1320,7 @@ void main() {
     expect(t.category, '寵物');
     expect(t.merchant, '飼料');
     expect(t.note, '補貨');
+    expect(t.item, '貓罐頭');
     expect(t.occurredAt, DateTime(2026, 11, 5, 15));
     expect(book.accountName(t.accountId), '現金');
   });

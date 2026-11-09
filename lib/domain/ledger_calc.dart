@@ -689,6 +689,17 @@ class LedgerBook {
         );
         continue;
       }
+      // 第 11 欄選填：品項名稱（2026-11-09 使用者；上限跟記一筆的品項一樣 50 字）。
+      final itemV = p.length >= 11 ? p[10] : '';
+      if (itemV.length > ledgerSplitNameMax) {
+        out.add(
+          ImportLine(
+            line,
+            error: '品項名稱太長（${itemV.length} 字），最多 $ledgerSplitNameMax 字',
+          ),
+        );
+        continue;
+      }
       // 商家名稱必填（2026-11-03 使用者）。
       if (p[3].isEmpty) {
         out.add(ImportLine(line, error: '第 4 欄商家名稱要填'));
@@ -730,6 +741,8 @@ class LedgerBook {
           toAccountId: target?.id,
           category: target == null ? ledgerUncategorized : null,
           merchant: target == null ? '轉給 ${p[3]}' : '轉到 ${p[3]}',
+          // 轉給別人（算支出）才有品項名稱；自己帳戶之間轉帳沒有。
+          item: target == null ? itemV : '',
           note: p.length >= 10 ? p[9] : '',
           source: 'paste',
           raw: line,
@@ -812,6 +825,8 @@ class LedgerBook {
         toAccountId: withdraw ? cash!.id : null,
         category: withdraw ? null : p[2],
         merchant: merchant,
+        // 提款（銀行 → 現金）是轉帳，沒有品項名稱。
+        item: withdraw ? '' : itemV,
         note: noteV,
         paidFor: paidFor,
         source: 'paste',

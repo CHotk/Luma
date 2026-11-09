@@ -75,6 +75,21 @@ void main() {
     budgets: budgets,
   );
 
+  test('貼上匯入第 11 欄是品項名稱：支出、轉給別人有，太長擋下，提款沒有', () {
+    final b = book(const []);
+    final lines = b.parseImport('''
+現金｜2026/11/05 18:00｜餐飲｜全家｜35｜｜｜｜｜｜御飯糰
+現金｜2026/11/05 19:00｜餐飲｜便當店｜80
+現金｜2026/11/05 20:00｜餐飲｜超商｜60｜｜｜｜｜｜${'字' * 51}
+中信活存｜2026/11/05 21:00｜轉帳｜小美｜500｜｜｜｜｜｜幫買飲料
+''');
+    expect(lines[0].tx!.item, '御飯糰');
+    expect(lines[0].tx!.note, '');
+    expect(lines[1].tx!.item, '');
+    expect(lines[2].error, contains('品項名稱太長'));
+    expect(lines[3].tx!.item, '幫買飲料');
+  });
+
   test('繳卡費：戶頭餘額、可刷額兩邊都填，任何一邊對不上這筆都掛漏記', () {
     // 起始：戶頭 45,000、卡占用 12,400。10/10 繳卡費 12,400。
     final pay = tx(

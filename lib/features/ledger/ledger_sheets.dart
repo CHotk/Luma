@@ -1030,7 +1030,7 @@ class _TxFormState extends State<_TxForm> {
   /// 貼上的那行讀得懂嗎：null＝還沒貼、'ok'＝填好了、其他＝錯誤說明。
   String? _pasteMsg;
 
-  /// 貼一行匯入格式（`帳戶｜日期時間｜分類｜商家｜金額［｜幫誰｜對方要給｜已給｜餘額｜備註］`），
+  /// 貼一行匯入格式（`帳戶｜日期時間｜分類｜商家｜金額［｜幫誰｜對方要給｜已給｜餘額｜備註｜品項名稱］`），
   /// 照匯入同一套解析，把表單各欄自動填好（2026-11-03 使用者）。多行請用右上角的匯入。
   void _applyPaste(String text) {
     final raw = text.trim();
@@ -1059,7 +1059,7 @@ class _TxFormState extends State<_TxForm> {
       _to = t.toAccountId;
       if (t.category != null) _category = t.category!;
       _merchant.text = t.merchant;
-      _item.text = '';
+      _item.text = t.item;
       _memo.text = t.note;
       _at = t.occurredAt;
       final pf = t.paidFor;
@@ -3180,12 +3180,13 @@ class _ImportState extends State<_Import> {
           const TextSpan(text: '一行一筆：'),
           _b('帳戶｜日期時間｜分類｜商家｜金額'),
           const TextSpan(text: '，後面可以再加'),
-          _b('｜幫誰｜對方要給｜已給｜餘額｜備註'),
+          _b('｜幫誰｜對方要給｜已給｜餘額｜備註｜品項名稱'),
           const TextSpan(
             text:
                 '（選填：填幫誰、對方要給就是跟別人一起；他已經給了就再加「｜已給」）。\n'
                 '最後可以再加一欄「｜餘額」＝這筆之後帳戶剩多少（信用卡填可用額度），用來抓漏記；'
-                '最後一欄是「備註」，想寫什麼都可以；中間沒有的欄位留空，例如 ……｜1000｜｜｜｜48500｜請客。\n',
+                '「備註」想寫什麼都可以；最後一欄是「品項名稱」（最多 50 字，只有支出跟轉給別人用得到）；'
+                '中間沒有的欄位留空，例如 ……｜1000｜｜｜｜48500｜請客｜牛肉麵。\n',
           ),
           const TextSpan(
             text:
@@ -3208,6 +3209,7 @@ class _ImportState extends State<_Import> {
                 '中信銀行｜2026/11/01 20:00｜餐飲｜火鍋｜900｜小美｜450｜已給\n'
                 '中信銀行｜2026/11/04 12:00｜餐飲｜麥當勞｜189｜｜｜｜86000｜加班\n'
                 '現金｜2026/11/05 15:00｜寵物｜飼料｜650｜｜｜｜｜補貨\n'
+                '現金｜2026/11/05 18:00｜餐飲｜全家｜35｜｜｜｜｜｜御飯糰\n'
                 '現金｜2026/11/03 12:30｜餐飲｜便當｜120\n'
                 '中信帳戶｜2026/11/01 10:00｜提款｜ATM提款｜3000\n'
                 '中信帳戶｜2026/11/01 11:00｜轉帳｜郵局｜5000\n'
