@@ -117,6 +117,9 @@ void main() {
   Future<void> pickFilter(WidgetTester tester, String label) async {
     await tester.tap(find.textContaining('篩選：'));
     await tester.pumpAndSettle();
+    // 選單比較長時要捲才看得到（類型、帳戶、分類都在裡面）。
+    await tester.ensureVisible(find.text(label));
+    await tester.pumpAndSettle();
     await tester.tap(find.text(label));
     await tester.pumpAndSettle();
   }
@@ -1372,6 +1375,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('🍜 餐飲'), findsOneWidget);
     expect(find.text('🐾 寵物'), findsNothing);
+    await tester.ensureVisible(find.text('🍜 餐飲'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('🍜 餐飲'));
     await tester.pumpAndSettle();
     expect(find.textContaining('鼎泰豐'), findsWidgets);
@@ -1379,6 +1384,33 @@ void main() {
     expect(find.textContaining('篩選：餐飲'), findsOneWidget);
     await pickFilter(tester, '全部');
     expect(find.textContaining('篩選中'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('明細可以先篩類型：只看支出／只看收入，再點一次取消', (tester) async {
+    final store = await seeded();
+    await pump(tester, const LedgerPage(tab: LedgerTab.list), store);
+    // seeded 這個月只有支出（鼎泰豐），沒有收入。
+    await tester.tap(find.textContaining('篩選：'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('只看支出'), findsOneWidget);
+    expect(find.textContaining('只看收入 0'), findsOneWidget);
+    await tester.tap(find.textContaining('只看收入'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('篩選：收入'), findsOneWidget);
+    expect(find.text('沒有符合的紀錄'), findsOneWidget);
+    await tester.tap(find.textContaining('篩選：'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('只看支出'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('篩選：支出'), findsOneWidget);
+    expect(find.textContaining('鼎泰豐'), findsWidgets);
+    // 再點一次同一個類型就取消。
+    await tester.tap(find.textContaining('篩選：'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('只看支出'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('篩選：全部'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

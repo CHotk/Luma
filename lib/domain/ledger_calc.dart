@@ -679,6 +679,26 @@ class LedgerBook {
 
   // ── 貼上匯入 ─────────────────────────────────────────────
 
+  /// 貼上匯入第 1 欄找帳戶：名稱一模一樣最優先；否則拿掉「銀行／信用卡／卡／帳戶／活存」這些字，
+  /// 剩下的銀行名稱一樣就算（2026-11-10 使用者：「台新銀行」要對到台新卡）。[card] 是 true
+  /// 只在信用卡裡找（刷卡支出），false 只在非信用卡裡找（收入、提款、轉帳）；找不到回傳 null。
+  LedgerAccount? accountForImport(String name, {required bool card}) {
+    final exact = accounts.where((a) => a.name == name).firstOrNull;
+    if (exact != null) return exact;
+    String stem(String s) => s
+        .replaceAll(RegExp(r'\s|　'), '')
+        .replaceAll(RegExp(r'信用卡|銀行|帳戶|活存|存款|戶頭|卡'), '');
+    final k = stem(name);
+    if (k.length < 2) return null;
+    return accounts
+        .where((a) => a.isCard == card)
+        .where((a) {
+          final s = stem(a.name);
+          return s.length >= 2 && (s == k || s.contains(k) || k.contains(s));
+        })
+        .firstOrNull;
+  }
+
   /// 一行一筆：`帳戶｜日期時間｜分類｜商家｜金額［｜跟誰｜對方要給［｜已給］］`。
   /// 帳戶寫帳戶名稱（現金、郵局）就記在那裡，其他（中信銀行刷卡紀錄）記在第一張
   /// 信用卡；分類「提款」變成轉帳（銀行 → 第一個現金帳戶），不算支出；後兩欄選填，
@@ -799,7 +819,7 @@ class LedgerBook {
           );
           continue;
         }
-        final named = accounts.where((a) => a.name == p[0]).firstOrNull;
+        final named = accountForImport(p[0], card: false);
         final from = named ?? bank;
         final target = accounts.where((a) => a.name == p[3]).firstOrNull;
         if (from == null) {
@@ -843,7 +863,7 @@ class LedgerBook {
       // 寫「轉入」。第 6～9 欄的幫誰／對方要給在收入沒有意思，會忽略；餘額（第 9 欄）照樣可以附。
       final inCat = ledgerImportIncomeCat(p[2]);
       if (inCat != null) {
-        final named = accounts.where((a) => a.name == p[0]).firstOrNull;
+        final named = accountForImport(p[0], card: false);
         final into = named ?? (p[0].contains('現金') ? cash : bank);
         if (into == null) {
           out.add(ImportLine(line, error: '找不到帳戶「${p[0]}」，也沒有銀行帳戶'));
@@ -892,7 +912,8 @@ class LedgerBook {
       }
       // 第一欄是帳戶名稱就記在那個帳戶（現金、郵局⋯）；寫「現金」記第一個
       // 現金帳戶；其他（例如「中信銀行」刷卡紀錄）記在第一張信用卡。
-      final named = accounts.where((a) => a.name == p[0]).firstOrNull;
+      // 提款從銀行出；刷卡支出對到同銀行的信用卡（台新銀行 → 台新卡），對不到才用第一張卡。
+      final named = accountForImport(p[0], card: !withdraw);
       final from = withdraw
           ? (named != null && named.type == LedgerAccountType.bank
                 ? named

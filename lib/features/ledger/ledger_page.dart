@@ -45,11 +45,22 @@ final ledgerMonthProvider = StateProvider<DateTime>(
   (_) => DateTime(DateTime.now().year, DateTime.now().month),
 );
 
-/// 明細的篩選：只看 🚩、只看某個帳戶。
-final ledgerFilterProvider =
-    StateProvider<({bool flagged, String? accountId, String? category})>(
-      (_) => (flagged: false, accountId: null, category: null),
-    );
+/// 明細的篩選：只看 🚩、只看某個帳戶、只看某個分類、只看某種類型（支出／收入／轉帳，2026-11-10 使用者）。
+typedef LedgerFilter = ({
+  bool flagged,
+  String? accountId,
+  String? category,
+  LedgerTxType? type,
+});
+
+const ledgerNoFilter = (
+  flagged: false,
+  accountId: null,
+  category: null,
+  type: null,
+);
+
+final ledgerFilterProvider = StateProvider<LedgerFilter>((_) => ledgerNoFilter);
 
 /// 明細頂部的搜尋字（2026-11-03 使用者）：有字的時候搜全部月份、每個欄位都搜。
 final ledgerSearchProvider = StateProvider<String>((_) => '');
@@ -483,7 +494,7 @@ class LedgerPage extends ConsumerWidget {
   List<Widget> _list(BuildContext context, WidgetRef ref, LedgerBook book) {
     final m = ref.watch(ledgerMonthProvider);
     final f = ref.watch(ledgerFilterProvider);
-    void set(({bool flagged, String? accountId, String? category}) v) =>
+    void set(LedgerFilter v) =>
         ref.read(ledgerFilterProvider.notifier).state = v;
     final q = ref.watch(ledgerSearchProvider).trim();
     final range = ref.watch(ledgerRangeProvider);
@@ -500,6 +511,7 @@ class LedgerPage extends ConsumerWidget {
           (t) =>
               (!searching || book.matches(t, q)) &&
               (!f.flagged || t.flagged) &&
+              (f.type == null || t.type == f.type) &&
               (f.category == null ||
                   book.categoriesOf(t).contains(f.category)) &&
               (f.accountId == null ||
@@ -508,7 +520,11 @@ class LedgerPage extends ConsumerWidget {
         )
         .toList();
     final st = book.statsWhere(shown.contains);
-    final any = f.flagged || f.accountId != null || f.category != null;
+    final any =
+        f.flagged ||
+        f.accountId != null ||
+        f.category != null ||
+        f.type != null;
     return [
       // 選月份那一行（左右切換）在搜尋框上面（2026-11-03 使用者），現在釘在頁面頂端、
       // 往下捲也看得到（2026-11-10 使用者），見 build 裡的 [_pinnedMonth]，不在這個會捲的列表裡。
@@ -565,7 +581,7 @@ class LedgerPage extends ConsumerWidget {
               if (any)
                 EmptyAction(
                   '看全部',
-                  () => set((flagged: false, accountId: null, category: null)),
+                  () => set(ledgerNoFilter),
                 ),
             ],
           ),
@@ -1319,19 +1335,25 @@ class _FilterButton extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final f = ref.watch(ledgerFilterProvider);
-    void set(({bool flagged, String? accountId, String? category}) v) =>
+    void set(LedgerFilter v) =>
         ref.read(ledgerFilterProvider.notifier).state = v;
-    final cats = {for (final t in inM) ...book.categoriesOf(t)}.toList()
-      ..sort(
-        (a, b) => ledgerExpenseCats.keys
-            .toList()
-            .indexOf(a)
-            .compareTo(ledgerExpenseCats.keys.toList().indexOf(b)),
-      );
+    // 分類：選了類型就只列那種類型有出現的分類（只看收入就只列收入的分類）。
+    final cats =
+        {
+          for (final t in inM)
+            if (f.type == null || t.type == f.type) ...book.categoriesOf(t),
+        }.toList()..sort(
+          (a, b) => ledgerExpenseCats.keys
+              .toList()
+              .indexOf(a)
+              .compareTo(ledgerExpenseCats.keys.toList().indexOf(b)),
+        );
+    int countOf(LedgerTxType ty) => inM.where((t) => t.type == ty).length;
     final accName = f.accountId == null
         ? null
         : book.account(f.accountId)?.name;
     final parts = [
+      if (f.type != null) f.type!.label,
       if (f.flagged) '注意',
       ?accName,
       if (f.category != null) f.category!,
@@ -1350,6 +1372,7 @@ class _FilterButton extends ConsumerWidget {
                 maxHeight: MediaQuery.sizeOf(context).height * 0.6,
                 selectedValues: {
                   if (!any) 'all',
+                  if (f.type != null) 'type:${f.type!.name}',
                   if (f.flagged) 'flag',
                   if (f.accountId != null) 'acct:${f.accountId}',
                   if (f.category != null) 'cat:${f.category}',
@@ -1364,6 +1387,21 @@ class _FilterButton extends ConsumerWidget {
                     value: 'all',
                     label: '全部',
                     icon: Icons.all_inclusive_rounded,
+                  ),
+                  GlassMenuItem(
+                    value: 'type:expense',
+                    label: '只看支出 ${countOf(LedgerTxType.expense)}',
+                    icon: Icons.arrow_upward_rounded,
+                  ),
+                  GlassMenuItem(
+                    value: 'type:income',
+                    label: '只看收入 ${countOf(LedgerTxType.income)}',
+                    icon: Icons.arrow_downward_rounded,
+                  ),
+                  GlassMenuItem(
+                    value: 'type:transfer',
+                    label: '只看轉帳 ${countOf(LedgerTxType.transfer)}',
+                    icon: Icons.swap_horiz_rounded,
                   ),
                   GlassMenuItem(
                     value: 'flag',
@@ -1395,12 +1433,22 @@ class _FilterButton extends ConsumerWidget {
               );
               if (picked == null) return;
               if (picked == 'all') {
-                set((flagged: false, accountId: null, category: null));
+                set(ledgerNoFilter);
               } else if (picked == 'flag') {
                 set((
                   flagged: !f.flagged,
                   accountId: f.accountId,
                   category: f.category,
+                  type: f.type,
+                ));
+              } else if (picked.startsWith('type:')) {
+                final ty = LedgerTxType.parse(picked.substring(5));
+                set((
+                  flagged: f.flagged,
+                  accountId: f.accountId,
+                  // 換了類型，原本選的分類可能不屬於這種類型，清掉免得變成空的。
+                  category: null,
+                  type: f.type == ty ? null : ty,
                 ));
               } else if (picked.startsWith('acct:')) {
                 final id = picked.substring(5);
@@ -1408,6 +1456,7 @@ class _FilterButton extends ConsumerWidget {
                   flagged: f.flagged,
                   accountId: f.accountId == id ? null : id,
                   category: f.category,
+                  type: f.type,
                 ));
               } else if (picked.startsWith('cat:')) {
                 final c = picked.substring(4);
@@ -1415,6 +1464,7 @@ class _FilterButton extends ConsumerWidget {
                   flagged: f.flagged,
                   accountId: f.accountId,
                   category: f.category == c ? null : c,
+                  type: f.type,
                 ));
               }
             },

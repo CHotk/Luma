@@ -164,6 +164,7 @@ void main() {
   });
 
   incomeTests();
+  accountMatchTests();
 
   testWidgets('記收入：來源是下拉選單，分類有「平轉」（不算本月收入）', (tester) async {
     final store = await seeded();
@@ -235,6 +236,46 @@ class _MemoryStore implements KeyValueStore {
 
   @override
   Future<void> remove(String key) async => data.remove(key);
+}
+
+/// 貼上匯入第 1 欄寫「台新銀行」要對到台新卡（2026-11-10 使用者），不是第一張卡。
+void accountMatchTests() {
+  test('貼上匯入：第 1 欄的銀行名稱對到同銀行的信用卡（支出）／活存（收入）', () async {
+    final store = _MemoryStore();
+    final repo = LedgerRepository(store);
+    final zhong = await repo.addAccount(
+      name: '中信信用卡',
+      type: LedgerAccountType.creditCard,
+      opening: 90000,
+      openingAt: DateTime(2026, 11, 1),
+      creditLimit: 100000,
+    );
+    final taishin = await repo.addAccount(
+      name: '台新卡',
+      type: LedgerAccountType.creditCard,
+      opening: 50000,
+      openingAt: DateTime(2026, 11, 1),
+      creditLimit: 60000,
+    );
+    final taishinBank = await repo.addAccount(
+      name: '台新活存',
+      type: LedgerAccountType.bank,
+      opening: 1000,
+      openingAt: DateTime(2026, 11, 1),
+    );
+    final book = await repo.loadBook();
+    final l = book.parseImport(
+      '台新銀行｜2026/10/06 10:52｜帳單｜聯徵查詢費｜80｜｜｜｜｜｜Cen調聯徵費用\n'
+      '台新銀行｜2026/10/07 10:52｜收入存款｜某人｜500\n'
+      '郵局｜2026/10/08 10:52｜餐飲｜便當｜100',
+    );
+    expect(l[0].tx!.type, LedgerTxType.expense);
+    expect(l[0].tx!.accountId, taishin.id);
+    expect(l[1].tx!.type, LedgerTxType.income);
+    expect(l[1].tx!.accountId, taishinBank.id);
+    // 對不到的銀行還是記在第一張信用卡。
+    expect(l[2].tx!.accountId, zhong.id);
+  });
 }
 
 /// 貼上匯入記收入（2026-11-10 使用者：轉帳、ATM存款、薪資轉帳）。
