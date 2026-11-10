@@ -12,6 +12,7 @@ import '../../app/theme/typography.dart';
 import '../../domain/ledger_calc.dart';
 import '../../domain/models/ledger.dart';
 import '../../shared/half_width_input.dart';
+import '../../shared/widgets/date_time_wheel.dart';
 import '../../shared/widgets/ambient_background.dart';
 import '../../shared/widgets/app_side_drawer.dart';
 import '../../shared/widgets/app_top_bar.dart';
@@ -72,6 +73,29 @@ enum LedgerRange { month, year, all }
 final ledgerRangeProvider = StateProvider<LedgerRange>(
   (_) => LedgerRange.month,
 );
+
+/// 統計的時間範圍（2026-11-10 使用者：統計也要能選「全部」或「指定月份～指定月份」）。
+/// null＝只看單一個月（跟著上面的月份列，原本的樣子）。跟明細的 [ledgerRangeProvider] 各自一份。
+class LedgerStatsRange {
+  const LedgerStatsRange.all() : all = true, from = null, to = null;
+  const LedgerStatsRange.between(DateTime this.from, DateTime this.to)
+    : all = false;
+
+  final bool all;
+
+  /// 範圍的第一個月、最後一個月（都含，都是那個月 1 號）。
+  final DateTime? from;
+  final DateTime? to;
+
+  bool Function(LedgerTx) get test {
+    if (all) return (_) => true;
+    final a = DateTime(from!.year, from!.month);
+    final b = DateTime(to!.year, to!.month + 1); // 最後一個月的下個月 1 號（不含）
+    return (t) => !t.occurredAt.isBefore(a) && t.occurredAt.isBefore(b);
+  }
+}
+
+final ledgerStatsRangeProvider = StateProvider<LedgerStatsRange?>((_) => null);
 
 class LedgerPage extends ConsumerWidget {
   const LedgerPage({super.key, required this.tab});
@@ -593,18 +617,200 @@ class LedgerPage extends ConsumerWidget {
 
   // ── 統計 ─────────────────────────────────────────────────
 
+  /// 範圍裡有幾個月（算月平均）：指定月份～月份＝差幾個月＋1；全部＝第一筆到最後一筆之間。
+  int _rangeMonths(LedgerBook book, LedgerStatsRange range) {
+    DateTime a, b;
+    if (range.all) {
+      if (book.txs.isEmpty) return 1;
+      a = book.txs.last.occurredAt;
+      b = book.txs.first.occurredAt;
+    } else {
+      a = range.from!;
+      b = range.to!;
+    }
+    return math.max(1, (b.year - a.year) * 12 + b.month - a.month + 1);
+  }
+
+  /// 統計頂部的「統計範圍」按鈕：單月／全部／指定月份～月份。
+  Widget _statsRangeButton(
+    BuildContext context,
+    WidgetRef ref,
+    LedgerBook book,
+    LedgerStatsRange? range,
+    DateTime m,
+  ) {
+    final label = range == null
+        ? '${m.year} 年 ${m.month} 月'
+        : range.all
+        ? '全部時間'
+        : '${range.from!.year}/${range.from!.month} ～ ${range.to!.year}/${range.to!.month}';
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: OutlinedButton.icon(
+          key: const ValueKey('statsRange'),
+          onPressed: () => _openStatsRange(context, ref, book, range, m),
+          icon: const Icon(Icons.date_range_rounded, size: 18),
+          label: Text(
+            '統計範圍：$label  ▾',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.ink,
+            side: const BorderSide(color: AppColors.glassEdge),
+            visualDensity: VisualDensity.compact,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openStatsRange(
+    BuildContext context,
+    WidgetRef ref,
+    LedgerBook book,
+    LedgerStatsRange? range,
+    DateTime m,
+  ) async {
+    final now = DateTime.now();
+    var from =
+        range?.from ??
+        (book.txs.isEmpty
+            ? DateTime(now.year, now.month)
+            : DateTime(
+                book.txs.last.occurredAt.year,
+                book.txs.last.occurredAt.month,
+              ));
+    var to = range?.to ?? DateTime(now.year, now.month);
+    void set(LedgerStatsRange? r) {
+      ref.read(ledgerStatsRangeProvider.notifier).state = r;
+      Navigator.pop(context);
+    }
+
+    await showModalBottomSheet<void>(
+      context: context,
+      useSafeArea: true,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF1A1A27),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (c) => StatefulBuilder(
+        builder: (c, setSt) {
+          Future<void> pickMonth(bool isFrom) async {
+            final v = await showDateTimeWheel(
+              c,
+              isFrom ? from : to,
+              monthOnly: true,
+            );
+            if (v == null) return;
+            setSt(() {
+              final d = DateTime(v.year, v.month);
+              if (isFrom) {
+                from = d;
+                if (to.isBefore(d)) to = d;
+              } else {
+                to = d;
+                if (from.isAfter(d)) from = d;
+              }
+            });
+          }
+
+          Widget monthBtn(String key, DateTime d, bool isFrom) => Expanded(
+            child: OutlinedButton(
+              key: ValueKey(key),
+              onPressed: () => pickMonth(isFrom),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.ink,
+                side: const BorderSide(color: AppColors.glassEdge),
+              ),
+              child: Text('${d.year} 年 ${d.month} 月'),
+            ),
+          );
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(18, 14, 18, 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '統計範圍',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.ink,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      ActionChip(
+                        key: const ValueKey('statsRangeMonth'),
+                        label: Text('單月（${m.year} 年 ${m.month} 月）'),
+                        onPressed: () => set(null),
+                      ),
+                      ActionChip(
+                        key: const ValueKey('statsRangeAll'),
+                        label: Text('全部時間（${book.txs.length} 筆）'),
+                        onPressed: () => set(const LedgerStatsRange.all()),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Text('指定月份 ～ 指定月份', style: AppText.note),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      monthBtn('statsFrom', from, true),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 8),
+                        child: Text('～'),
+                      ),
+                      monthBtn('statsTo', to, false),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      key: const ValueKey('statsRangeApply'),
+                      onPressed: () => set(LedgerStatsRange.between(from, to)),
+                      child: const Text('套用這段時間'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   List<Widget> _stats(BuildContext context, WidgetRef ref, LedgerBook book) {
     final m = ref.watch(ledgerMonthProvider);
-    final st = book.monthStats(m.year, m.month);
+    // 統計範圍（2026-11-10 使用者）：null＝單一個月（跟著月份列）；全部、指定月份～月份沒有預算、
+    // 改看「區間消費／月平均」。
+    final range = ref.watch(ledgerStatsRangeProvider);
+    final single = range == null;
+    final st = single
+        ? book.monthStats(m.year, m.month)
+        : book.statsWhere(range.test);
     final bud = book.budgetOf(m.year, m.month);
     final left = bud.total - st.spend;
+    final months = single ? 1 : _rangeMonths(book, range);
     final cats = st.byCategory.entries.where((e) => e.value > 0).toList()
       ..sort((a, b) => b.value.compareTo(a.value));
     final total = cats.fold(0, (s, e) => s + e.value);
     final rows =
         {
           ...st.byCategory.keys.where((c) => (st.byCategory[c] ?? 0) != 0),
-          ...bud.byCategory.keys,
+          if (single) ...bud.byCategory.keys,
         }.toList()..sort(
           (a, b) => (st.byCategory[b] ?? 0).compareTo(st.byCategory[a] ?? 0),
         );
@@ -633,19 +839,23 @@ class LedgerPage extends ConsumerWidget {
           ),
         );
     return [
-      _monthBar(ref),
+      if (single) _monthBar(ref),
+      _statsRangeButton(context, ref, book, range, m),
       Row(
         children: [
-          kpi(lMoney(st.spend), '本月消費'),
+          kpi(lMoney(st.spend), single ? '本月消費' : '區間消費'),
           const SizedBox(width: 6),
-          kpi(lMoney(st.income), '本月收入', color: AppColors.ok),
+          kpi(lMoney(st.income), single ? '本月收入' : '區間收入', color: AppColors.ok),
           const SizedBox(width: 6),
-          kpi(
-            bud.total == 0 ? '設定' : lMoney(left),
-            '剩餘可花 ✎',
-            color: bud.total > 0 && left < 0 ? ledgerBad : null,
-            onTap: () => budgetFlow(context, ref, m.year, m.month),
-          ),
+          if (single)
+            kpi(
+              bud.total == 0 ? '設定' : lMoney(left),
+              '剩餘可花 ✎',
+              color: bud.total > 0 && left < 0 ? ledgerBad : null,
+              onTap: () => budgetFlow(context, ref, m.year, m.month),
+            )
+          else
+            kpi(lMoney((st.spend / months).round()), '月平均（$months 個月）'),
         ],
       ),
       const SizedBox(height: Gap.md),
@@ -667,7 +877,7 @@ class LedgerPage extends ConsumerWidget {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text('本月消費', style: AppText.note),
+                        Text(single ? '本月消費' : '區間消費', style: AppText.note),
                         Text(
                           lMoney(st.spend),
                           style: const TextStyle(
@@ -684,7 +894,12 @@ class LedgerPage extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
             if (cats.isEmpty)
-              Center(child: Text('這個月還沒有消費', style: AppText.bodyDim))
+              Center(
+                child: Text(
+                  single ? '這個月還沒有消費' : '這段時間沒有消費',
+                  style: AppText.bodyDim,
+                ),
+              )
             else
               Wrap(
                 spacing: 14,
@@ -692,8 +907,15 @@ class LedgerPage extends ConsumerWidget {
                 children: [
                   for (final e in cats)
                     InkWell(
-                      onTap: () =>
-                          categoryFlow(context, ref, e.key, m.year, m.month),
+                      onTap: single
+                          ? () => categoryFlow(
+                              context,
+                              ref,
+                              e.key,
+                              m.year,
+                              m.month,
+                            )
+                          : null,
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -718,15 +940,18 @@ class LedgerPage extends ConsumerWidget {
           ],
         ),
       ),
-      ledgerSection(
-        '分類與預算',
-        action: '編輯預算 ✎',
-        onAction: () => budgetFlow(context, ref, m.year, m.month),
-      ),
+      if (single)
+        ledgerSection(
+          '分類與預算',
+          action: '編輯預算 ✎',
+          onAction: () => budgetFlow(context, ref, m.year, m.month),
+        )
+      else
+        ledgerSection('分類'),
       if (rows.isEmpty)
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4),
-          child: Text('這個月還沒有消費', style: AppText.bodyDim),
+          child: Text(single ? '這個月還沒有消費' : '這段時間沒有消費', style: AppText.bodyDim),
         )
       else
         GlassCard(
@@ -738,9 +963,10 @@ class LedgerPage extends ConsumerWidget {
                   ref,
                   c,
                   st.byCategory[c] ?? 0,
-                  bud.byCategory[c],
+                  single ? bud.byCategory[c] : null,
                   st.spend,
                   m,
+                  canOpen: single,
                 ),
             ],
           ),
@@ -755,12 +981,15 @@ class LedgerPage extends ConsumerWidget {
     int v,
     int? budget,
     int spend,
-    DateTime m,
-  ) {
+    DateTime m, {
+    bool canOpen = true,
+  }) {
     final over = budget != null && v > budget;
     final (emoji, color) = catLook(cat);
     return InkWell(
-      onTap: () => categoryFlow(context, ref, cat, m.year, m.month),
+      onTap: canOpen
+          ? () => categoryFlow(context, ref, cat, m.year, m.month)
+          : null,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
         child: Column(
