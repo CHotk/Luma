@@ -3358,7 +3358,7 @@ class _ImportState extends State<_Import> {
                 '一樣的紀錄會跳過，原始那行會留在明細裡。',
           ),
           const TextSpan(text: '收入：分類寫 '),
-          _b('薪資轉帳、ATM存款、轉入、平轉'),
+          _b('薪資轉帳、ATM存款（或收入存款）、轉入、平轉'),
           const TextSpan(
             text:
                 '（也可以寫薪資、獎金、存款、其他收入）就記成收入；自己帳戶之間轉來轉去寫「平轉」（錢會進帳戶、但不算本月收入），錢進第一欄的帳戶'

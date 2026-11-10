@@ -276,8 +276,10 @@ void incomeTests() {
     final v = book.parseImport(
       '中信活存｜2026-11-10 09:00｜ＡＴＭ存款｜ATM｜100\n'
       '中信活存｜2026-11-10 10:00｜atm 存款｜ATM｜200\n'
-      '中信活存｜2026-11-10 11:00｜ATM存入｜ATM｜300',
+      '中信活存｜2026-11-10 11:00｜ATM存入｜ATM｜300\n'
+      '中信銀行｜2026/07/01 11:06｜收入存款｜未分類｜6000｜｜｜｜｜｜存款入帳',
     );
+    expect(v[3].tx!.category, '其他收入');
     expect(
       v.every((l) => l.willImport && l.tx!.type == LedgerTxType.income),
       isTrue,
