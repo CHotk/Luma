@@ -382,7 +382,7 @@ void main() {
     expect(bad[3].tx!.paidFor, isNull, reason: '後面欄位全空就是一般消費');
   });
 
-  test('防重複：同一個帳戶、同一分鐘、同金額就算重複，商家不一樣也是', () {
+  test('防重複：同一個帳戶、同一分鐘、同金額、同商店才算重複；商店不同是兩筆', () {
     final b = book([
       LedgerTx(
         id: 'a',
@@ -405,14 +405,26 @@ void main() {
       b.sameMinute('card', DateTime(2026, 11, 2, 19, 30), 1000, exceptId: 'a'),
       isNull,
     );
-    final lines = b.parseImport('''
-中信銀行｜2026/11/02 19:30｜餐飲｜DIN TAI FUNG｜NT\$1,000
-中信銀行｜2026/11/02 19:45｜餐飲｜甜點｜NT\$200
-中信銀行｜2026/11/02 19:45｜生活｜另一家｜NT\$200
+    // 商店也要一樣（2026-11-10 使用者）：忽略空白、大小寫；沒給商店就不比；其中一邊沒寫商店當一樣。
+    final at = DateTime(2026, 11, 2, 19, 30);
+    expect(b.sameMinute('card', at, 1000, merchant: '鼎泰豐'), isNotNull);
+    expect(b.sameMinute('card', at, 1000, merchant: ' 鼎 泰豐 '), isNotNull);
+    expect(b.sameMinute('card', at, 1000, merchant: '別家店'), isNull);
+    expect(b.sameMinute('card', at, 1000, merchant: ''), isNotNull);
+    expect(LedgerBook.sameShop('Starbucks', 'starbucks'), isTrue);
+    expect(LedgerBook.sameShop('星巴克', '路易莎'), isFalse);
+    final lines = b.parseImport(r'''
+中信銀行｜2026/11/02 19:30｜餐飲｜鼎泰豐｜NT$1,000
+中信銀行｜2026/11/02 19:30｜餐飲｜DIN TAI FUNG｜NT$1,000
+中信銀行｜2026/11/02 19:45｜餐飲｜甜點｜NT$200
+中信銀行｜2026/11/02 19:45｜生活｜另一家｜NT$200
+中信銀行｜2026/11/02 19:45｜餐飲｜甜點｜NT$200
 ''');
-    expect(lines[0].duplicate, isTrue, reason: '跟已經記的同分鐘同金額');
-    expect(lines[1].duplicate, isFalse);
-    expect(lines[2].duplicate, isTrue, reason: '同一次貼的兩行同分鐘同金額');
+    expect(lines[0].duplicate, isTrue, reason: '跟已經記的同分鐘同金額同商店');
+    expect(lines[1].duplicate, isFalse, reason: '商店不同（銀行英文名）不當重複');
+    expect(lines[2].duplicate, isFalse);
+    expect(lines[3].duplicate, isFalse, reason: '同分鐘同金額但不同店是兩筆');
+    expect(lines[4].duplicate, isTrue, reason: '同一次貼的兩行同分鐘同金額同商店');
   });
 
   test('餘額附在交易上：下一筆餘額對不上就掛漏記，補上中間那筆標籤就消失', () {

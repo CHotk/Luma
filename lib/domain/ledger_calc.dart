@@ -233,7 +233,16 @@ class LedgerBook {
   }) : accounts = accounts.where((a) => a.deletedAt == null).toList()
          ..sort((a, b) => a.order.compareTo(b.order)),
        txs = txs.where((t) => t.deletedAt == null).toList()
-         ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt)),
+         ..sort((a, b) {
+           final c = b.occurredAt.compareTo(a.occurredAt);
+           if (c != 0) return c;
+           // 同一時間（時間不確定的同一天）：排序數字大的在前，再看誰比較晚建立。
+           final o = b.timeOrder.compareTo(a.timeOrder);
+           if (o != 0) return o;
+           return (b.createdAt ?? b.occurredAt).compareTo(
+             a.createdAt ?? a.occurredAt,
+           );
+         }),
        checkpoints = checkpoints.where((c) => c.deletedAt == null).toList()
          ..sort((a, b) => a.at.compareTo(b.at)),
        budgets = budgets.where((b) => b.deletedAt == null).toList();
@@ -641,22 +650,33 @@ class LedgerBook {
         .toList();
   }
 
-  /// 同一個帳戶、同一分鐘、同金額的那筆（2026-11-03 使用者：刷卡要防重複，
-  /// 同日期到分鐘、同金額就不行）。[exceptId] 是編輯中的那筆自己。
+  /// 同一個帳戶、同一分鐘、同金額、同商店的那筆（2026-11-03 使用者：刷卡要防重複，
+  /// 同日期到分鐘、同金額就不行；2026-11-10 使用者：商店名稱也要一樣才算，同一分鐘
+  /// 同金額但不同店是兩筆）。[exceptId] 是編輯中的那筆自己。
+  /// [merchant] 有給才比商店：忽略空白、大小寫，其中一邊沒寫商店就當一樣（保守，寧可多提醒）。
   LedgerTx? sameMinute(
     String accountId,
     DateTime at,
     int amount, {
     String? exceptId,
+    String? merchant,
   }) => txs
       .where(
         (x) =>
             x.id != exceptId &&
             x.accountId == accountId &&
             x.amount == amount &&
-            _minuteOf(x.occurredAt) == _minuteOf(at),
+            _minuteOf(x.occurredAt) == _minuteOf(at) &&
+            (merchant == null || sameShop(x.merchant, merchant)),
       )
       .firstOrNull;
+
+  /// 商店名稱算不算一樣：拿掉空白、不分大小寫；其中一邊是空的就當一樣。
+  static bool sameShop(String a, String b) {
+    String k(String s) => ledgerIncomeKey(s);
+    final x = k(a), y = k(b);
+    return x.isEmpty || y.isEmpty || x == y;
+  }
 
   /// 「11/2 19:30 鼎泰豐 $1,000」，提示重複用。
   static String describe(LedgerTx t) {
@@ -690,13 +710,10 @@ class LedgerBook {
         .replaceAll(RegExp(r'信用卡|銀行|帳戶|活存|存款|戶頭|卡'), '');
     final k = stem(name);
     if (k.length < 2) return null;
-    return accounts
-        .where((a) => a.isCard == card)
-        .where((a) {
-          final s = stem(a.name);
-          return s.length >= 2 && (s == k || s.contains(k) || k.contains(s));
-        })
-        .firstOrNull;
+    return accounts.where((a) => a.isCard == card).where((a) {
+      final s = stem(a.name);
+      return s.length >= 2 && (s == k || s.contains(k) || k.contains(s));
+    }).firstOrNull;
   }
 
   /// 一行一筆：`帳戶｜日期時間｜分類｜商家｜金額［｜跟誰｜對方要給［｜已給］］`。
@@ -733,8 +750,14 @@ class LedgerBook {
     LedgerTx? dupTx;
     String? dupOf(LedgerTx t, int lineNo) {
       dupTx = null;
-      final k = '${t.accountId}|${_minuteOf(t.occurredAt)}|${t.amount}';
-      final old = sameMinute(t.accountId, t.occurredAt, t.amount);
+      final k =
+          '${t.accountId}|${_minuteOf(t.occurredAt)}|${t.amount}|${ledgerIncomeKey(t.merchant)}';
+      final old = sameMinute(
+        t.accountId,
+        t.occurredAt,
+        t.amount,
+        merchant: t.merchant,
+      );
       if (old != null) {
         dupTx = old;
         return '已經記過的「${describe(old)}」';
@@ -970,7 +993,7 @@ class LedgerBook {
         raw: line,
       );
       // 已經記過的、或同一次貼了兩行一樣的，都當重複跳過：同一個帳戶、
-      // 同一分鐘、同金額就算（不看商家）。
+      // 同一分鐘、同金額、同商店就算。
       final dup = dupOf(tx, lineNo);
       out.add(
         ImportLine(

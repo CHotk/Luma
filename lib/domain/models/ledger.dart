@@ -251,6 +251,7 @@ class LedgerTx {
     this.dir,
     this.cpId,
     this.timeUnknown = false,
+    this.timeOrder = 0,
     this.createdAt,
     this.updatedAt,
     this.deletedAt,
@@ -263,6 +264,11 @@ class LedgerTx {
   /// 時間不確定、只知道是哪一天（2026-11-10 使用者）：[occurredAt] 放那天中午 12:00 當代表，
   /// 畫面只顯示日期、不顯示時分。
   final bool timeUnknown;
+
+  /// 時間不確定的同一天好幾筆，用這個數字決定先後（2026-11-10 使用者：像圖層，數字越低越後面）：
+  /// 數字大的排在列表上面（比較晚）、小的在下面（比較早）；一樣大就看哪筆比較晚建立。
+  /// 只有 [timeUnknown] 才有意義，預設 0。
+  final int timeOrder;
   final int amount;
   final String accountId;
 
@@ -353,6 +359,7 @@ class LedgerTx {
     PaidFor? Function()? paidFor,
     List<LedgerSplit>? splits,
     bool? timeUnknown,
+    int? timeOrder,
     DateTime? updatedAt,
     DateTime? deletedAt,
   }) => LedgerTx(
@@ -375,6 +382,7 @@ class LedgerTx {
     dir: dir,
     cpId: cpId,
     timeUnknown: timeUnknown ?? this.timeUnknown,
+    timeOrder: timeOrder ?? this.timeOrder,
     createdAt: createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     deletedAt: deletedAt ?? this.deletedAt,
@@ -400,6 +408,7 @@ class LedgerTx {
     if (dir != null) 'dir': dir,
     if (cpId != null) 'cpId': cpId,
     if (timeUnknown) 'timeUnknown': true,
+    if (timeOrder != 0) 'timeOrder': timeOrder,
     'createdAt': createdAt == null ? null : ledgerTime(createdAt!),
     'updatedAt': updatedAt == null ? null : ledgerTime(updatedAt!),
     'deletedAt': deletedAt == null ? null : ledgerTime(deletedAt!),
@@ -430,6 +439,7 @@ class LedgerTx {
     dir: j['dir'] as String?,
     cpId: j['cpId'] as String?,
     timeUnknown: j['timeUnknown'] as bool? ?? false,
+    timeOrder: (j['timeOrder'] as num?)?.toInt() ?? 0,
     createdAt: _t(j['createdAt']),
     updatedAt: _t(j['updatedAt']),
     deletedAt: _t(j['deletedAt']),

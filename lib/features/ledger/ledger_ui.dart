@@ -31,7 +31,9 @@ String lMd(DateTime d) => '${d.month}/${d.day}';
 String lMdw(DateTime d) => '${lMd(d)}（${_wd[d.weekday - 1]}）';
 
 /// 一筆交易的時分；時間不確定的只知道哪天，顯示「時間不確定」。
-String lTxHm(LedgerTx t) => t.timeUnknown ? '時間不確定' : lHm(t.occurredAt);
+String lTxHm(LedgerTx t) => t.timeUnknown
+    ? (t.timeOrder == 0 ? '時間不確定' : '時間不確定（排序 ${t.timeOrder}）')
+    : lHm(t.occurredAt);
 
 String lHm(DateTime d) =>
     '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';

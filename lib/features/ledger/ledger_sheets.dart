@@ -801,6 +801,9 @@ class _TxFormState extends State<_TxForm> {
   late final TextEditingController _merchant;
   late final TextEditingController _item;
   late final TextEditingController _memo;
+
+  /// 時間不確定時，同一天的排序數字（數字越大越前面）。
+  late final TextEditingController _order;
   late DateTime _at;
 
   /// 時間不確定、只選到哪一天（2026-11-10 使用者）：存那天中午 12:00，畫面只顯示日期。
@@ -927,6 +930,9 @@ class _TxFormState extends State<_TxForm> {
   /// 使用者：應該要可以勾選算支出）。
   bool _toOther = false;
 
+  /// 排序數字（可以是負的；沒填或亂填當 0）。
+  int get _orderValue => int.tryParse(_order.text.trim()) ?? 0;
+
   /// 實際要存的類型。
   LedgerTxType get _effType =>
       _type == LedgerTxType.transfer && _toOther ? LedgerTxType.expense : _type;
@@ -945,6 +951,7 @@ class _TxFormState extends State<_TxForm> {
     _merchant = TextEditingController(text: e?.merchant ?? '');
     _item = TextEditingController(text: e?.item ?? '');
     _memo = TextEditingController(text: e?.note ?? '');
+    _order = TextEditingController(text: '${e?.timeOrder ?? 0}');
     _at = e?.occurredAt ?? p.at ?? DateTime.now();
     _timeUnknown = e?.timeUnknown ?? false;
     _flagged = e?.flagged ?? false;
@@ -1002,6 +1009,7 @@ class _TxFormState extends State<_TxForm> {
       _merchant,
       _item,
       _memo,
+      _order,
       _pfAmount,
       _pfPeople,
       _after,
@@ -1017,6 +1025,7 @@ class _TxFormState extends State<_TxForm> {
       _merchant,
       _item,
       _memo,
+      _order,
       _pfAmount,
       _pfPeople,
       _after,
@@ -1147,6 +1156,7 @@ class _TxFormState extends State<_TxForm> {
       _memo.text = t.note;
       _at = t.occurredAt;
       _timeUnknown = t.timeUnknown;
+      _order.text = '${t.timeOrder}';
       final pf = t.paidFor;
       _pf = pf != null;
       _pfSettled = pf?.settled ?? false;
@@ -1264,6 +1274,7 @@ class _TxFormState extends State<_TxForm> {
         type: ty,
         occurredAt: _at,
         timeUnknown: _timeUnknown,
+        timeOrder: _timeUnknown ? _orderValue : 0,
         amount: amt,
         accountId: _account,
         toAccountId: () => ty == LedgerTxType.transfer ? _to : null,
@@ -1286,6 +1297,7 @@ class _TxFormState extends State<_TxForm> {
       type: ty,
       occurredAt: _at,
       timeUnknown: _timeUnknown,
+      timeOrder: _timeUnknown ? _orderValue : 0,
       amount: amt,
       accountId: _account!,
       toAccountId: ty == LedgerTxType.transfer ? _to : null,
@@ -1571,6 +1583,44 @@ class _TxFormState extends State<_TxForm> {
           ],
         ),
       ),
+      // 時間不確定的同一天有好幾筆時，用排序數字決定先後（像圖層：數字越小越後面，2026-11-10 使用者）。
+      if (_timeUnknown)
+        _row(
+          '同天排序',
+          hint: '數字大的在前',
+          Row(
+            children: [
+              IconButton(
+                key: const ValueKey('orderMinus'),
+                visualDensity: VisualDensity.compact,
+                onPressed: () =>
+                    setState(() => _order.text = '${_orderValue - 1}'),
+                icon: const Icon(Icons.remove_circle_outline_rounded, size: 22),
+              ),
+              Expanded(
+                child: TextField(
+                  key: const ValueKey('timeOrder'),
+                  controller: _order,
+                  textAlign: TextAlign.center,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    signed: true,
+                  ),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'^-?d{0,4}')),
+                  ],
+                  decoration: _input('0'),
+                ),
+              ),
+              IconButton(
+                key: const ValueKey('orderPlus'),
+                visualDensity: VisualDensity.compact,
+                onPressed: () =>
+                    setState(() => _order.text = '${_orderValue + 1}'),
+                icon: const Icon(Icons.add_circle_outline_rounded, size: 22),
+              ),
+            ],
+          ),
+        ),
       // 商家名稱在金額上面（2026-11-03 使用者）：先時間、再商家、再金額。
       if (t != LedgerTxType.adjustment) ...[
         // 商家名稱不放提示字（2026-11-03 使用者），記支出、收入、轉帳一定要填。

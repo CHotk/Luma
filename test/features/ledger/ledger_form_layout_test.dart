@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lume/app/providers.dart';
 import 'package:lume/data/repositories/ledger_repository.dart';
 import 'package:lume/data/storage/key_value_store.dart';
+import 'package:lume/domain/ledger_calc.dart';
 import 'package:lume/domain/models/ledger.dart';
 import 'package:lume/features/ledger/ledger_page.dart';
 
@@ -87,6 +88,45 @@ void main() {
 
 /// 2026-11-10 使用者：時間不確定時只要選到天；時間旁邊有個按鈕，打開就代表不確定。
 void timeUnknownTests() {
+  test('時間不確定的同一天：排序數字大的在前、小的在後（像圖層）；沒排的 0 照建立先後', () {
+    LedgerTx u(String id, int order, {DateTime? created}) => LedgerTx(
+      id: id,
+      type: LedgerTxType.expense,
+      occurredAt: DateTime(2026, 11, 8, 12),
+      amount: 10,
+      accountId: 'x',
+      timeUnknown: true,
+      timeOrder: order,
+      createdAt: created,
+    );
+    final known = LedgerTx(
+      id: 'k',
+      type: LedgerTxType.expense,
+      occurredAt: DateTime(2026, 11, 8, 18, 30),
+      amount: 10,
+      accountId: 'x',
+    );
+    final b = LedgerBook(
+      accounts: const [],
+      txs: [u('low', -2), u('mid', 1), known, u('high', 5), u('zero', 0)],
+      checkpoints: const [],
+      budgets: const [],
+    );
+    // 18:30 那筆最晚在最上面；中午那幾筆依排序數字大→小。
+    expect(b.txs.map((t) => t.id).toList(), [
+      'k',
+      'high',
+      'mid',
+      'zero',
+      'low',
+    ]);
+    final t = u('a', 7);
+    expect(LedgerTx.fromJson(t.toJson()).timeOrder, 7);
+    expect(t.copyWith(amount: 1).timeOrder, 7);
+    expect(u('b', 0).toJson().containsKey('timeOrder'), isFalse);
+    expect(LedgerTx.fromJson(u('c', -3).toJson()).timeOrder, -3);
+  });
+
   test('交易的「時間不確定」存得進、讀得回；沒開的不多存欄位', () {
     final t = LedgerTx(
       id: 'a',
@@ -147,9 +187,22 @@ void timeUnknownTests() {
     expect(find.textContaining('不確定幾點'), findsOneWidget);
     expect(tester.widget<FilterChip>(chip).selected, isTrue);
     // 填商家、金額後新增。
+    // 打開不確定後出現「同天排序」：按 ＋ 三次變 3。
+    expect(find.text('同天排序'), findsOneWidget);
+    for (var i = 0; i < 3; i++) {
+      await tester.tap(find.byKey(const ValueKey('orderPlus')));
+      await tester.pump();
+    }
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const ValueKey('timeOrder')))
+          .controller!
+          .text,
+      '3',
+    );
     await tester.enterText(
       find.byWidgetPredicate(
-        (w) => w is TextField && w.decoration?.hintText == '0',
+        (w) => w is TextField && w.decoration?.hintText == '0' && w.key == null,
       ),
       '120',
     );
@@ -172,6 +225,7 @@ void timeUnknownTests() {
     expect(tx.timeUnknown, isTrue);
     expect(tx.occurredAt.hour, 12);
     expect(tx.occurredAt.minute, 0);
+    expect(tx.timeOrder, 3, reason: '排序數字存起來');
     expect(find.textContaining('時間不確定'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });

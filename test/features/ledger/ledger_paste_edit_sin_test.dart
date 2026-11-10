@@ -50,12 +50,15 @@ void main() {
     final store = await seeded();
     final book = await LedgerRepository(store).loadBook();
     final lines = book.parseImport(
-      '中信信用卡｜2026-11-03 12:00｜餐飲｜別的店名｜250\n'
+      '中信信用卡｜2026-11-03 12:00｜餐飲｜鼎泰豐｜250\n'
       '中信信用卡｜2026-11-03 15:00｜餐飲｜某店｜80\n'
-      '中信信用卡｜2026-11-03 15:00｜餐飲｜某店｜80',
+      '中信信用卡｜2026-11-03 15:00｜餐飲｜某店｜80\n'
+      '中信信用卡｜2026-11-03 12:00｜餐飲｜別的店名｜250',
     );
     expect(lines[0].duplicate, isTrue);
     expect(lines[0].duplicateTx?.merchant, '鼎泰豐');
+    // 同一分鐘同金額但商店不同（2026-11-10）：不算重複。
+    expect(lines[3].duplicate, isFalse);
     expect(lines[1].duplicate, isFalse);
     expect(lines[1].duplicateTx, isNull);
     expect(lines[2].duplicate, isTrue); // 這次貼的第 2 行
@@ -81,12 +84,12 @@ void main() {
     await tester.tap(find.byType(FloatingActionButton));
     await settle(tester);
     expect(find.text('記一筆'), findsOneWidget);
-    // 貼一行跟已經記過的同帳戶、同一分鐘、同金額（商家不同也算）。
+    // 貼一行跟已經記過的同帳戶、同一分鐘、同金額、同商店（2026-11-10：商店也要一樣）。
     final paste = find.byWidgetPredicate(
       (w) => w is TextField && w.decoration?.hintText == '貼上一行文字，下面自動填（選填）',
     );
     expect(paste, findsOneWidget);
-    await tester.enterText(paste, '中信信用卡｜2026-11-03 12:00｜餐飲｜別的店名｜250');
+    await tester.enterText(paste, '中信信用卡｜2026-11-03 12:00｜餐飲｜鼎泰豐｜250');
     await settle(tester);
     // 記一筆的表單關掉，換成「編輯支出」，裡面是原本那筆（鼎泰豐）。
     expect(find.text('記一筆'), findsNothing);

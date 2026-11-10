@@ -42,6 +42,7 @@ List<String> logDiffTx(LedgerTx a, LedgerTx b, String Function(String?) acct) {
     b.timeUnknown ? _day(b.occurredAt) : _time(b.occurredAt),
   );
   d('時間不確定', a.timeUnknown ? '是' : '否', b.timeUnknown ? '是' : '否');
+  if (a.timeUnknown || b.timeUnknown) d('同天排序', a.timeOrder, b.timeOrder);
   d('金額', _money(a.amount), _money(b.amount));
   d('帳戶', acct(a.accountId), acct(b.accountId));
   if (a.toAccountId != b.toAccountId) {

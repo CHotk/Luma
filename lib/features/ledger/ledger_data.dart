@@ -119,20 +119,21 @@ Future<void> txFormFlow(
       );
     }
   }
-  // 防重複（2026-11-03 使用者）：同帳戶、同一分鐘、同金額的已經有了，就提示
+  // 防重複（2026-11-03 使用者）：同帳戶、同一分鐘、同金額、同商店（2026-11-10）的已經有了，就提示
   // 跟哪一筆相同、不新增。
   final dup = book.sameMinute(
     r.tx.accountId,
     r.tx.occurredAt,
     r.tx.amount,
     exceptId: edit?.id,
+    merchant: r.tx.merchant,
   );
   if (dup != null) {
     if (context.mounted) {
       showAppNotice(
         context,
         '跟「${LedgerBook.describe(dup)}」相同，${edit == null ? '沒有新增' : '沒有儲存'}',
-        detail: '同帳戶、同一分鐘、同金額；真的是兩筆就把時間改一分鐘',
+        detail: '同帳戶、同一分鐘、同金額、同商店；真的是兩筆就把時間改一分鐘',
         isError: true,
       );
     }
