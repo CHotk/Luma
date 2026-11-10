@@ -1199,6 +1199,39 @@ class _TxFormState extends State<_TxForm> {
   /// 這筆實際是不是「卡費退回」（負數）：要轉到信用卡才算。
   bool get _neg => _negative && _cardPayment;
 
+  /// 金額最後面的「＋／−」鈕要不要出現：繳卡費（轉到信用卡）、支出、退款。
+  /// 這筆支出已經有人退過款了，就不能改成退款（會把退款孤立），所以不出現。
+  bool get _showSign {
+    final e = widget.edit;
+    if (e != null &&
+        e.type == LedgerTxType.expense &&
+        book.linkedTo(e.id).isNotEmpty) {
+      return false;
+    }
+    return _cardPayment ||
+        _type == LedgerTxType.expense ||
+        _type == LedgerTxType.refund;
+  }
+
+  /// 現在是「＋」（退回）還是「−」（扣款）。
+  bool get _plus => _cardPayment ? _neg : _type == LedgerTxType.refund;
+
+  /// 金額前面的符號：有「＋／−」鈕的時候跟著變，其他照舊只有 $。
+  String get _signPrefix => !_showSign ? r'$ ' : (_plus ? r'+$ ' : r'−$ ');
+
+  /// 按「＋／−」：繳卡費＝切換卡費退回；支出 ↔ 退款（退刷）。切換時金額不動。
+  void _flipSign() {
+    if (_cardPayment) {
+      setState(() => _negative = !_negative);
+      return;
+    }
+    final keep = _amount.text;
+    _setType(
+      _type == LedgerTxType.refund ? LedgerTxType.expense : LedgerTxType.refund,
+    );
+    if (keep.isNotEmpty) setState(() => _amount.text = keep);
+  }
+
   final _fixedName = TextEditingController(text: '繳卡費');
 
   bool get _merchantRequired =>
@@ -1724,27 +1757,28 @@ class _TxFormState extends State<_TxForm> {
           keyboardType: TextInputType.number,
           inputFormatters: _digits,
           autofocus: e == null && p.amount == null,
-          decoration: _input('0', prefix: _neg ? '−\$ ' : '\$ ').copyWith(
-            // 卡費（轉到信用卡）才有的「＋／−」鈕，放在金額最後面：按一下切換負數（退款、部分退款）。
-            suffixIcon: _cardPayment
+          decoration: _input('0', prefix: _signPrefix).copyWith(
+            // 金額最後面的「＋／−」鈕（2026-11-10 使用者）：預設「−」＝扣款（消費、繳卡費），
+            // 按一下變「＋」＝退回（退刷、退款、卡費退回）。新增、編輯都有。
+            suffixIcon: _showSign
                 ? Padding(
                     padding: const EdgeInsets.all(5),
                     child: TextButton(
                       key: const ValueKey('signToggle'),
-                      onPressed: () => setState(() => _negative = !_negative),
+                      onPressed: _flipSign,
                       style: TextButton.styleFrom(
                         minimumSize: const Size(44, 34),
                         padding: EdgeInsets.zero,
-                        backgroundColor: _neg
-                            ? ledgerBad.withValues(alpha: .18)
+                        backgroundColor: _plus
+                            ? AppColors.ok.withValues(alpha: .18)
                             : AppColors.glassFill,
-                        foregroundColor: _neg ? ledgerBad : AppColors.ink,
+                        foregroundColor: _plus ? AppColors.ok : AppColors.ink,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(9),
                         ),
                       ),
                       child: Text(
-                        _neg ? '−' : '＋',
+                        _plus ? '＋' : '−',
                         style: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w800,
@@ -1882,8 +1916,8 @@ class _TxFormState extends State<_TxForm> {
                 ? [
                     TextSpan(
                       text: _neg
-                          ? '卡費退回（負數）：信用卡欠的變多、錢回到帳戶，不會列入支出；按金額最後的「−」改回正數。'
-                          : '繳卡費不會列入支出，刷卡那時已算過一次。按金額最後的「＋」可以改成負數（退款、部分退款）。',
+                          ? '卡費退回（＋）：信用卡欠的變多、錢回到帳戶，不會列入支出；按金額最後的「＋」改回「−」。'
+                          : '繳卡費不會列入支出，刷卡那時已算過一次。按金額最後的「−」可以改成「＋」（卡費退款、部分退款）。',
                     ),
                   ]
                 : [
@@ -2482,10 +2516,10 @@ class _TxDetail extends StatelessWidget {
       LedgerTxType.repayment => '不算收入（你的錢回來）',
       LedgerTxType.adjustment => t.isAdjustOut ? '算進本月消費（未分類）' : '對帳多出來的錢，不算收入',
     };
-    final sign = t.isOut || book.isCardReturn(t)
+    final sign = t.isOut
         ? '−'
         : t.type == LedgerTxType.transfer
-        ? ''
+        ? (book.isCardReturn(t) ? '+' : '')
         : '+';
     final pf = t.paidFor;
     final linked = book.linkedTo(t.id);

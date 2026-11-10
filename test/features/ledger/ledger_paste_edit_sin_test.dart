@@ -110,7 +110,7 @@ void main() {
     final merchant = find.byType(TextField);
     await tester.enterText(merchant.at(1), '福利社');
     final amt = find.byWidgetPredicate(
-      (w) => w is TextField && w.decoration?.prefixText == '\$ ',
+      (w) => w is TextField && w.decoration?.hintText == '0',
     );
     await tester.enterText(amt.first, amount);
     await tester.pump();
@@ -153,7 +153,7 @@ void main() {
     await tester.enterText(
       find
           .byWidgetPredicate(
-            (w) => w is TextField && w.decoration?.prefixText == '\$ ',
+            (w) => w is TextField && w.decoration?.hintText == '0',
           )
           .first,
       '120',
@@ -186,7 +186,7 @@ void main() {
     await settle(tester);
     await tester.enterText(
       find.byWidgetPredicate(
-        (w) => w is TextField && w.decoration?.prefixText == r'$ ',
+        (w) => w is TextField && w.decoration?.hintText == '0',
       ),
       '58000',
     );

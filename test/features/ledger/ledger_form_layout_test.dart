@@ -384,10 +384,10 @@ void cardReturnTests() {
     await settle();
     final toggle = find.byKey(const ValueKey('signToggle'));
     expect(toggle, findsOneWidget);
-    expect(find.text('＋'), findsOneWidget);
+    expect(find.text('−'), findsOneWidget);
     await tester.tap(toggle);
     await settle();
-    expect(find.text('−'), findsOneWidget);
+    expect(find.text('＋'), findsOneWidget);
     await tester.enterText(
       find.byWidgetPredicate(
         (w) => w is TextField && w.decoration?.hintText == '0' && w.key == null,
@@ -416,9 +416,96 @@ void cardReturnTests() {
       500,
     );
     expect(find.textContaining('卡費退回'), findsWidgets);
-    expect(find.text('−\$500'), findsWidgets);
+    expect(find.text('+\$500'), findsWidgets);
     // 編輯：負數還是亮的，帳戶回到「帳戶 → 信用卡」的填法。
     await tester.tap(find.text('卡費退回').first);
+    await settle();
+    await tester.tap(find.widgetWithText(OutlinedButton, '編輯'));
+    await settle();
+    expect(find.text('＋'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('signToggle')));
+    await settle();
+    expect(find.text('−'), findsOneWidget);
+    await tester.ensureVisible(find.widgetWithText(FilledButton, '儲存'));
+    await tester.tap(find.widgetWithText(FilledButton, '儲存'));
+    await settle();
+    final after = (await tester.runAsync(() => repo.loadBook()))!.txs.single;
+    expect(after.accountId, bank.id, reason: '改回正數＝正常繳卡費：帳戶 → 信用卡');
+    expect(after.toAccountId, card.id);
+    expect(after.merchant, '繳卡費');
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('刷卡金額最後的 −／＋：預設「−」是消費，按成「＋」就是退刷（退款）；編輯舊的也能切', (tester) async {
+    final store = _MemoryStore();
+    final repo = LedgerRepository(store);
+    final card = await repo.addAccount(
+      name: '中信卡',
+      type: LedgerAccountType.creditCard,
+      opening: 3000,
+      openingAt: DateTime(2026, 11, 1),
+      creditLimit: 50000,
+    );
+    final now = DateTime.now();
+    await repo.addTransaction(
+      LedgerTx(
+        id: 'orig',
+        type: LedgerTxType.expense,
+        occurredAt: DateTime(now.year, now.month, now.day, 9),
+        amount: 800,
+        accountId: card.id,
+        category: '生活',
+        merchant: '家樂福',
+      ),
+    );
+    await repo.addTransaction(
+      LedgerTx(
+        id: 'mistake',
+        type: LedgerTxType.expense,
+        occurredAt: DateTime(now.year, now.month, now.day, 10),
+        amount: 300,
+        accountId: card.id,
+        category: '生活',
+        merchant: '退刷記成消費',
+      ),
+    );
+    tester.view.physicalSize = const Size(360 * 3, 900 * 3);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [keyValueStoreProvider.overrideWithValue(store)],
+        child: const MaterialApp(home: LedgerPage(tab: LedgerTab.list)),
+      ),
+    );
+    Future<void> settle() async {
+      for (var i = 0; i < 6; i++) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 50)),
+        );
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+    }
+
+    await settle();
+    // 新增：支出一開始是「−」。
+    await tester.tap(find.byType(FloatingActionButton));
+    await settle();
+    final toggle = find.byKey(const ValueKey('signToggle'));
+    expect(toggle, findsOneWidget);
+    expect(find.text('−'), findsOneWidget);
+    await tester.tap(toggle);
+    await settle();
+    expect(find.text('＋'), findsOneWidget);
+    expect(find.text('退哪一筆'), findsWidgets, reason: '＋就是退款，要選退哪一筆');
+    await tester.tap(toggle);
+    await settle();
+    expect(find.text('−'), findsOneWidget);
+    // 關掉新增表單。
+    await tester.tapAt(const Offset(10, 60));
+    await settle();
+    // 編輯：把「退刷記成消費」那筆按成「＋」，變成退款、金額不動、帳戶還是那張卡。
+    await tester.tap(find.text('退刷記成消費'));
     await settle();
     await tester.tap(find.widgetWithText(OutlinedButton, '編輯'));
     await settle();
@@ -429,10 +516,12 @@ void cardReturnTests() {
     await tester.ensureVisible(find.widgetWithText(FilledButton, '儲存'));
     await tester.tap(find.widgetWithText(FilledButton, '儲存'));
     await settle();
-    final after = (await tester.runAsync(() => repo.loadBook()))!.txs.single;
-    expect(after.accountId, bank.id, reason: '改回正數＝正常繳卡費：帳戶 → 信用卡');
-    expect(after.toAccountId, card.id);
-    expect(after.merchant, '繳卡費');
+    final book = (await tester.runAsync(() => repo.loadBook()))!;
+    final fixed = book.txs.firstWhere((t) => t.id == 'mistake');
+    expect(fixed.type, LedgerTxType.refund);
+    expect(fixed.amount, 300);
+    expect(fixed.accountId, card.id);
+    expect(fixed.linkedId, isNotNull, reason: '退款連到某一筆支出');
     expect(tester.takeException(), isNull);
   });
 }

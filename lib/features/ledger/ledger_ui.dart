@@ -249,7 +249,7 @@ class TxTile extends ConsumerWidget {
       LedgerTxType.repayment => ('+${lMoney(t.amount)}', ledgerPaidFor, '不算收入'),
       LedgerTxType.transfer =>
         book.isCardReturn(t)
-            ? ('−${lMoney(t.amount)}', AppColors.ink3, '卡費退回')
+            ? ('+${lMoney(t.amount)}', AppColors.ok, '卡費退回')
             : (lMoney(t.amount), AppColors.ink3, '不算支出'),
       LedgerTxType.adjustment => (
         '${t.isAdjustOut ? '−' : '+'}${lMoney(t.amount)}',
