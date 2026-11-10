@@ -857,7 +857,8 @@ class LedgerBook {
           accountId: into.id,
           category: inCat,
           merchant: p[3],
-          note: noteV,
+          // 收入沒有品項名稱，第 11 欄有字、備註又沒寫就當備註（2026-11-10 使用者：存款入帳）。
+          note: noteV.isEmpty && itemV.isNotEmpty ? itemV : noteV,
           source: 'paste',
           raw: line,
         );

@@ -304,6 +304,15 @@ void incomeTests() {
       '其他收入',
     ]);
     expect(w[5].tx?.type, isNot(LedgerTxType.income));
+    // 收入第 11 欄（品項名稱的位置）有字、備註沒寫 → 當備註；兩個都有就用第 10 欄的備註。
+    final n = book.parseImport(
+      '中信銀行｜2026/07/06 01:06｜收入/未分類｜未分類｜10000｜｜｜｜｜｜存款入帳\n'
+      '中信銀行｜2026/07/06 01:07｜收入/未分類｜未分類｜10001｜｜｜｜｜自己寫的備註｜存款入帳',
+    );
+    expect(n[0].tx!.type, LedgerTxType.income);
+    expect(n[0].tx!.category, '未分類');
+    expect(n[0].tx!.note, '存款入帳');
+    expect(n[1].tx!.note, '自己寫的備註');
     expect(
       v.every((l) => l.willImport && l.tx!.type == LedgerTxType.income),
       isTrue,
