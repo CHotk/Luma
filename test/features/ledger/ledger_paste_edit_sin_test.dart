@@ -336,10 +336,7 @@ void incomeTests() {
       '中信銀行｜2026/07/02 10:04｜收入｜某人｜104\n'
       '中信銀行｜2026/07/02 10:05｜未分類｜某店｜105',
     );
-    expect(
-      w.take(5).every((l) => l.tx!.type == LedgerTxType.income),
-      isTrue,
-    );
+    expect(w.take(5).every((l) => l.tx!.type == LedgerTxType.income), isTrue);
     expect(w.take(5).map((l) => l.tx!.category).toList(), [
       '未分類',
       '未分類',

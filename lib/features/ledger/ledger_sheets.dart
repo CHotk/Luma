@@ -1196,11 +1196,16 @@ class _TxFormState extends State<_TxForm> {
   bool get _cardPayment =>
       _effType == LedgerTxType.transfer && book.account(_to)?.isCard == true;
 
-  /// 這筆實際是不是「卡費退回」（負數）：要轉到信用卡才算。
-  bool get _neg => _negative && _cardPayment;
+  /// 轉帳按了「＋」：主帳戶（上面那排）是收到錢的那邊，存的時候兩個帳戶對調
+  /// （信用卡 → 帳戶＝卡費退回就是這種）。
+  bool get _neg => _negative && _effType == LedgerTxType.transfer;
 
-  /// 金額最後面的「＋／−」鈕要不要出現：繳卡費（轉到信用卡）、支出、退款。
-  /// 這筆支出已經有人退過款了，就不能改成退款（會把退款孤立），所以不出現。
+  /// 金額最後面的「＋／−」鈕（2026-11-10 使用者：每種都要有、都要有實際功能）：
+  /// 「−」＝錢從這個帳戶出去，「＋」＝錢進來。
+  /// 支出 −（按＋變退款＝退刷）／退款 ＋（按−變支出）／收入 ＋（按−變支出，錢出去）／
+  /// 還錢 ＋（按−變支出）／轉帳 −（按＋兩個帳戶對調，收款的變主帳戶）。
+  /// 不出現的情形：轉給別人（算支出）的轉帳、已經被退過款的支出（會把退款孤立）、
+  /// 編輯舊的還錢（原本那筆的「已給」會對不上）、對帳調整。
   bool get _showSign {
     final e = widget.edit;
     if (e != null &&
@@ -1208,28 +1213,50 @@ class _TxFormState extends State<_TxForm> {
         book.linkedTo(e.id).isNotEmpty) {
       return false;
     }
-    return _cardPayment ||
-        _type == LedgerTxType.expense ||
-        _type == LedgerTxType.refund;
+    if (e != null && e.type == LedgerTxType.repayment) return false;
+    return switch (_type) {
+      LedgerTxType.transfer => !_toOther,
+      LedgerTxType.expense ||
+      LedgerTxType.income ||
+      LedgerTxType.refund ||
+      LedgerTxType.repayment => true,
+      _ => false,
+    };
   }
 
-  /// 現在是「＋」（退回）還是「−」（扣款）。
-  bool get _plus => _cardPayment ? _neg : _type == LedgerTxType.refund;
+  /// 現在是「＋」（錢進來）還是「−」（錢出去）。
+  bool get _plus => switch (_type) {
+    LedgerTxType.transfer => _neg,
+    LedgerTxType.expense => false,
+    _ => true,
+  };
 
   /// 金額前面的符號：有「＋／−」鈕的時候跟著變，其他照舊只有 $。
   String get _signPrefix => !_showSign ? r'$ ' : (_plus ? r'+$ ' : r'−$ ');
 
-  /// 按「＋／−」：繳卡費＝切換卡費退回；支出 ↔ 退款（退刷）。切換時金額不動。
+  /// 按「＋／−」。切換時金額不動。
   void _flipSign() {
-    if (_cardPayment) {
-      setState(() => _negative = !_negative);
-      return;
+    switch (_type) {
+      case LedgerTxType.transfer:
+        setState(() => _negative = !_negative);
+        return;
+      case LedgerTxType.expense:
+        final keep = _amount.text;
+        _setType(LedgerTxType.refund);
+        if (keep.isNotEmpty) setState(() => _amount.text = keep);
+      case LedgerTxType.refund:
+        final keep = _amount.text;
+        _setType(LedgerTxType.expense);
+        if (keep.isNotEmpty) setState(() => _amount.text = keep);
+      case LedgerTxType.income || LedgerTxType.repayment:
+        // 收入／還錢按「−」＝錢反過來是出去的：變成支出，分類先放「未分類」。
+        final keep = _amount.text;
+        _category = ledgerUncategorized;
+        _setType(LedgerTxType.expense);
+        if (keep.isNotEmpty) setState(() => _amount.text = keep);
+      default:
+        return;
     }
-    final keep = _amount.text;
-    _setType(
-      _type == LedgerTxType.refund ? LedgerTxType.expense : LedgerTxType.refund,
-    );
-    if (keep.isNotEmpty) setState(() => _amount.text = keep);
   }
 
   final _fixedName = TextEditingController(text: '繳卡費');
@@ -1760,14 +1787,20 @@ class _TxFormState extends State<_TxForm> {
           decoration: _input('0', prefix: _signPrefix).copyWith(
             // 金額最後面的「＋／−」鈕（2026-11-10 使用者）：預設「−」＝扣款（消費、繳卡費），
             // 按一下變「＋」＝退回（退刷、退款、卡費退回）。新增、編輯都有。
+            // 鈕比預設的後綴小一點，金額欄才不會比別的輸入框高（欄位規格要統一）。
+            suffixIconConstraints: const BoxConstraints(
+              minWidth: 50,
+              minHeight: 38,
+            ),
             suffixIcon: _showSign
                 ? Padding(
-                    padding: const EdgeInsets.all(5),
+                    padding: const EdgeInsets.all(3),
                     child: TextButton(
                       key: const ValueKey('signToggle'),
                       onPressed: _flipSign,
                       style: TextButton.styleFrom(
-                        minimumSize: const Size(44, 34),
+                        minimumSize: const Size(44, 32),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         padding: EdgeInsets.zero,
                         backgroundColor: _plus
                             ? AppColors.ok.withValues(alpha: .18)
@@ -1890,7 +1923,7 @@ class _TxFormState extends State<_TxForm> {
             ],
           ),
           _chipRow(
-            '從哪個帳戶',
+            _neg ? '收款帳戶' : '從哪個帳戶',
             _accountChips(
               book,
               _account,
@@ -1902,7 +1935,7 @@ class _TxFormState extends State<_TxForm> {
             ),
           ),
           _chipRow(
-            '轉到',
+            _neg ? '從哪個帳戶轉來' : '轉到',
             _accountChips(
               book,
               _to,

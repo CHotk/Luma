@@ -337,6 +337,90 @@ void timeUnknownTests() {
 
 /// 2026-11-10 使用者：卡費要有地方可以改負數（退款、部分退款），金額最後面一個 ＋／− 按鈕。
 void cardReturnTests() {
+  testWidgets('每種類型都有金額最後的 −／＋：收入按「−」變支出、轉帳按「＋」兩個帳戶對調、還錢也有', (tester) async {
+    final store = _MemoryStore();
+    final repo = LedgerRepository(store);
+    final bank = await repo.addAccount(
+      name: '中信活存',
+      type: LedgerAccountType.bank,
+      opening: 5000,
+      openingAt: DateTime(2026, 11, 1),
+    );
+    final cash = await repo.addAccount(
+      name: '現金',
+      type: LedgerAccountType.cash,
+      opening: 100,
+      openingAt: DateTime(2026, 11, 1),
+    );
+    tester.view.physicalSize = const Size(360 * 3, 900 * 3);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [keyValueStoreProvider.overrideWithValue(store)],
+        child: const MaterialApp(home: LedgerPage(tab: LedgerTab.list)),
+      ),
+    );
+    Future<void> settle() async {
+      for (var i = 0; i < 6; i++) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 50)),
+        );
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+    }
+
+    final toggle = find.byKey(const ValueKey('signToggle'));
+    final amountField = find.byWidgetPredicate(
+      (w) => w is TextField && w.decoration?.hintText == '0' && w.key == null,
+    );
+    await settle();
+    await tester.tap(find.byType(FloatingActionButton));
+    await settle();
+    // 還錢：有鈕、預設「＋」。
+    await tester.tap(find.widgetWithText(ChoiceChip, '收到欠款'));
+    await settle();
+    expect(toggle, findsOneWidget);
+    expect(find.text('＋'), findsOneWidget);
+    // 收入：預設「＋」；按「−」變成支出，金額、來源不動，分類先放未分類。
+    await tester.tap(find.widgetWithText(ChoiceChip, '收入'));
+    await settle();
+    expect(find.text('＋'), findsOneWidget);
+    await tester.enterText(amountField, '700');
+    await tester.pump();
+    await tester.tap(toggle);
+    await settle();
+    expect(find.text('−'), findsOneWidget);
+    expect(
+      tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, '支出')).selected,
+      isTrue,
+    );
+    expect(tester.widget<TextField>(amountField).controller!.text, '700');
+    // 轉帳：預設「−」，按「＋」兩個帳戶對調（標題也跟著變）。
+    await tester.tap(find.widgetWithText(ChoiceChip, '轉帳'));
+    await settle();
+    expect(find.text('−'), findsOneWidget);
+    expect(find.text('從哪個帳戶'), findsOneWidget);
+    await tester.tap(find.text('ATM 提款')); // 快捷：銀行 → 現金
+    await settle();
+    await tester.enterText(amountField, '300');
+    await tester.tap(toggle);
+    await settle();
+    expect(find.text('＋'), findsOneWidget);
+    expect(find.text('收款帳戶'), findsOneWidget);
+    expect(find.text('從哪個帳戶轉來'), findsOneWidget);
+    await tester.ensureVisible(find.widgetWithText(FilledButton, '新增'));
+    await tester.tap(find.widgetWithText(FilledButton, '新增'));
+    await settle();
+    final book = (await tester.runAsync(() => repo.loadBook()))!;
+    final tx = book.txs.single;
+    expect(tx.type, LedgerTxType.transfer);
+    expect(tx.accountId, cash.id, reason: '「＋」：主帳戶（銀行）是收到錢的那邊，存成現金 → 銀行');
+    expect(tx.toAccountId, bank.id);
+    expect(tx.amount, 300);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('卡費：金額最後的 ＋／− 切成負數，存成信用卡 → 帳戶；列表寫負號跟「卡費退回」；編輯時還是負數', (
     tester,
   ) async {
@@ -378,8 +462,8 @@ void cardReturnTests() {
     await settle();
     await tester.tap(find.widgetWithText(ChoiceChip, '轉帳'));
     await settle();
-    // 沒轉到信用卡之前沒有 ＋／−。
-    expect(find.byKey(const ValueKey('signToggle')), findsNothing);
+    // 轉帳也有 ＋／−（一般轉帳是「−」）。
+    expect(find.byKey(const ValueKey('signToggle')), findsOneWidget);
     await tester.tap(find.text('繳卡費').first); // 快捷：帳戶 → 信用卡
     await settle();
     final toggle = find.byKey(const ValueKey('signToggle'));
