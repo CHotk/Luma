@@ -808,6 +808,10 @@ class _TxFormState extends State<_TxForm> {
 
   /// 時間不確定、只選到哪一天（2026-11-10 使用者）：存那天中午 12:00，畫面只顯示日期。
   bool _timeUnknown = false;
+
+  /// 卡費改負數（2026-11-10 使用者：卡費也可能是退款或部分退款）：只有「轉到信用卡」才用得到，
+  /// 存起來是信用卡 → 帳戶的轉帳（金額一樣是正的），畫面上寫「−$」。
+  bool _negative = false;
   late bool _flagged;
   late bool _pf;
   bool _pfSettled = false;
@@ -1002,6 +1006,15 @@ class _TxFormState extends State<_TxForm> {
               ?.toString() ??
           '',
     );
+    // 編輯一筆「卡費退回」（信用卡 → 帳戶）：表單還是照「帳戶 → 信用卡」填，打開負數。
+    if (e != null && book.isCardReturn(e)) {
+      _negative = true;
+      _account = e.toAccountId;
+      _to = e.accountId;
+      final a = _after.text;
+      _after.text = _afterTo.text;
+      _afterTo.text = a;
+    }
     _linked = e?.linkedId ?? p.linkedId;
     _applyDefaults(fillAmount: e == null && p.amount == null);
     for (final c in [
@@ -1180,6 +1193,9 @@ class _TxFormState extends State<_TxForm> {
   bool get _cardPayment =>
       _effType == LedgerTxType.transfer && book.account(_to)?.isCard == true;
 
+  /// 這筆實際是不是「卡費退回」（負數）：要轉到信用卡才算。
+  bool get _neg => _negative && _cardPayment;
+
   final _fixedName = TextEditingController(text: '繳卡費');
 
   bool get _merchantRequired =>
@@ -1230,7 +1246,7 @@ class _TxFormState extends State<_TxForm> {
     final ty = _effType;
     final amt = _int(_amount)!;
     var merchant = _merchant.text.trim();
-    if (_cardPayment) merchant = '繳卡費';
+    if (_cardPayment) merchant = _neg ? '卡費退回' : '繳卡費';
     if (merchant.isEmpty && ty == LedgerTxType.refund) {
       final o = book.tx(_linked);
       merchant =
@@ -1276,8 +1292,10 @@ class _TxFormState extends State<_TxForm> {
         timeUnknown: _timeUnknown,
         timeOrder: _timeUnknown ? _orderValue : 0,
         amount: amt,
-        accountId: _account,
-        toAccountId: () => ty == LedgerTxType.transfer ? _to : null,
+        // 卡費退回：存成信用卡 → 帳戶（跟繳卡費方向相反）。
+        accountId: _neg ? _to! : _account,
+        toAccountId: () =>
+            ty == LedgerTxType.transfer ? (_neg ? _account : _to) : null,
         category: () => hasCat
             ? mainCat
             : ty == LedgerTxType.adjustment
@@ -1299,8 +1317,8 @@ class _TxFormState extends State<_TxForm> {
       timeUnknown: _timeUnknown,
       timeOrder: _timeUnknown ? _orderValue : 0,
       amount: amt,
-      accountId: _account!,
-      toAccountId: ty == LedgerTxType.transfer ? _to : null,
+      accountId: _neg ? _to! : _account!,
+      toAccountId: ty == LedgerTxType.transfer ? (_neg ? _account : _to) : null,
       category: hasCat ? mainCat : null,
       merchant: merchant,
       item: item,
@@ -1637,7 +1655,7 @@ class _TxFormState extends State<_TxForm> {
               : '選填',
           _cardPayment
               ? TextField(
-                  controller: _fixedName,
+                  controller: _fixedName..text = _neg ? '卡費退回' : '繳卡費',
                   enabled: false,
                   decoration: _input(''),
                 )
@@ -1708,7 +1726,36 @@ class _TxFormState extends State<_TxForm> {
           keyboardType: TextInputType.number,
           inputFormatters: _digits,
           autofocus: e == null && p.amount == null,
-          decoration: _input('0', prefix: '\$ '),
+          decoration: _input('0', prefix: _neg ? '−\$ ' : '\$ ').copyWith(
+            // 卡費（轉到信用卡）才有的「＋／−」鈕，放在金額最後面：按一下切換負數（退款、部分退款）。
+            suffixIcon: _cardPayment
+                ? Padding(
+                    padding: const EdgeInsets.all(5),
+                    child: TextButton(
+                      key: const ValueKey('signToggle'),
+                      onPressed: () => setState(() => _negative = !_negative),
+                      style: TextButton.styleFrom(
+                        minimumSize: const Size(44, 34),
+                        padding: EdgeInsets.zero,
+                        backgroundColor: _neg
+                            ? ledgerBad.withValues(alpha: .18)
+                            : AppColors.glassFill,
+                        foregroundColor: _neg ? ledgerBad : AppColors.ink,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(9),
+                        ),
+                      ),
+                      child: Text(
+                        _neg ? '−' : '＋',
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  )
+                : null,
+          ),
         ),
       ),
       // 沒拆分的支出可以寫品項名稱（2026-11-09 使用者），拆分時每一份各自有名稱。
@@ -1834,7 +1881,13 @@ class _TxFormState extends State<_TxForm> {
           // 轉到信用卡＝繳卡費：只寫這一句（2026-11-03 使用者）。
           _note(
             book.account(_to)?.isCard == true
-                ? [const TextSpan(text: '繳卡費不會列入支出，刷卡那時已算過一次。')]
+                ? [
+                    TextSpan(
+                      text: _neg
+                          ? '卡費退回（負數）：信用卡欠的變多、錢回到帳戶，不會列入支出；按金額最後的「−」改回正數。'
+                          : '繳卡費不會列入支出，刷卡那時已算過一次。按金額最後的「＋」可以改成負數（退款、部分退款）。',
+                    ),
+                  ]
                 : [
                     const TextSpan(text: '轉帳只是把錢換個地方放，'),
                     _b('不算支出'),
@@ -2370,9 +2423,10 @@ class _TxFormState extends State<_TxForm> {
                 ? () => Navigator.pop(context, (
                     tx: _build(),
                     settleLinked: _type == LedgerTxType.repayment && _settle,
-                    after: _int(_after),
+                    // 卡費退回時兩邊帳戶對調，餘額也跟著對調。
+                    after: _neg ? _int(_afterTo) : _int(_after),
                     afterTo: _effType == LedgerTxType.transfer
-                        ? _int(_afterTo)
+                        ? (_neg ? _int(_after) : _int(_afterTo))
                         : null,
                   ))
                 : null,
@@ -2418,7 +2472,9 @@ class _TxDetail extends StatelessWidget {
       LedgerTxType.income =>
         t.category == ledgerFlatTransfer ? '不算收入，只是自己帳戶之間轉來轉去' : '算進本月收入',
       LedgerTxType.transfer =>
-        book.account(t.toAccountId)?.type == LedgerAccountType.cash
+        book.isCardReturn(t)
+            ? '卡費退回（負的繳卡費）：信用卡欠的變多、錢回到帳戶，不列入支出'
+            : book.account(t.toAccountId)?.type == LedgerAccountType.cash
             ? '不算支出，只是從數位轉移至實體現金'
             : book.account(t.toAccountId)?.isCard == true
             ? '繳卡費不會列入支出，刷卡那時已算過一次。'
@@ -2428,7 +2484,7 @@ class _TxDetail extends StatelessWidget {
       LedgerTxType.repayment => '不算收入（你的錢回來）',
       LedgerTxType.adjustment => t.isAdjustOut ? '算進本月消費（未分類）' : '對帳多出來的錢，不算收入',
     };
-    final sign = t.isOut
+    final sign = t.isOut || book.isCardReturn(t)
         ? '−'
         : t.type == LedgerTxType.transfer
         ? ''

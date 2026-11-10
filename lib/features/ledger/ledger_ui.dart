@@ -247,7 +247,10 @@ class TxTile extends ConsumerWidget {
       LedgerTxType.income => ('+${lMoney(t.amount)}', AppColors.ok, null),
       LedgerTxType.refund => ('+${lMoney(t.amount)}', AppColors.ok, '退款'),
       LedgerTxType.repayment => ('+${lMoney(t.amount)}', ledgerPaidFor, '不算收入'),
-      LedgerTxType.transfer => (lMoney(t.amount), AppColors.ink3, '不算支出'),
+      LedgerTxType.transfer =>
+        book.isCardReturn(t)
+            ? ('−${lMoney(t.amount)}', AppColors.ink3, '卡費退回')
+            : (lMoney(t.amount), AppColors.ink3, '不算支出'),
       LedgerTxType.adjustment => (
         '${t.isAdjustOut ? '−' : '+'}${lMoney(t.amount)}',
         AppColors.mid,

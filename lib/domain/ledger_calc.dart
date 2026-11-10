@@ -671,6 +671,13 @@ class LedgerBook {
       )
       .firstOrNull;
 
+  /// 卡費退回（2026-11-10 使用者：卡費也可能是退款或部分退款，要能記成負數）：
+  /// 從信用卡轉到非信用卡的帳戶。信用卡欠的變多、錢回到銀行／現金，等於負的繳卡費。
+  bool isCardReturn(LedgerTx t) =>
+      t.type == LedgerTxType.transfer &&
+      account(t.accountId)?.isCard == true &&
+      account(t.toAccountId)?.isCard != true;
+
   /// 商店名稱算不算一樣：拿掉空白、不分大小寫；其中一邊是空的就當一樣。
   static bool sameShop(String a, String b) {
     String k(String s) => ledgerIncomeKey(s);

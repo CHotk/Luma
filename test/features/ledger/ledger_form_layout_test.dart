@@ -13,6 +13,7 @@ import 'package:lume/features/ledger/ledger_page.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   timeUnknownTests();
+  cardReturnTests();
 
   testWidgets('記一筆：標題都靠左同一條線；輸入框一樣高；帳戶、分類、餘額也是同一行', (tester) async {
     final store = _MemoryStore();
@@ -283,6 +284,108 @@ void timeUnknownTests() {
     await settle();
     expect(tester.widget<FilterChip>(chip).selected, isFalse);
     expect(find.textContaining('不確定幾點'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+}
+
+/// 2026-11-10 使用者：卡費要有地方可以改負數（退款、部分退款），金額最後面一個 ＋／− 按鈕。
+void cardReturnTests() {
+  testWidgets('卡費：金額最後的 ＋／− 切成負數，存成信用卡 → 帳戶；列表寫負號跟「卡費退回」；編輯時還是負數', (
+    tester,
+  ) async {
+    final store = _MemoryStore();
+    final repo = LedgerRepository(store);
+    final bank = await repo.addAccount(
+      name: '中信活存',
+      type: LedgerAccountType.bank,
+      opening: 5000,
+      openingAt: DateTime(2026, 11, 1),
+    );
+    final card = await repo.addAccount(
+      name: '中信卡',
+      type: LedgerAccountType.creditCard,
+      opening: 3000,
+      openingAt: DateTime(2026, 11, 1),
+      creditLimit: 50000,
+    );
+    tester.view.physicalSize = const Size(360 * 3, 900 * 3);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [keyValueStoreProvider.overrideWithValue(store)],
+        child: const MaterialApp(home: LedgerPage(tab: LedgerTab.list)),
+      ),
+    );
+    Future<void> settle() async {
+      for (var i = 0; i < 6; i++) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 50)),
+        );
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+    }
+
+    await settle();
+    await tester.tap(find.byType(FloatingActionButton));
+    await settle();
+    await tester.tap(find.widgetWithText(ChoiceChip, '轉帳'));
+    await settle();
+    // 沒轉到信用卡之前沒有 ＋／−。
+    expect(find.byKey(const ValueKey('signToggle')), findsNothing);
+    await tester.tap(find.text('繳卡費').first); // 快捷：帳戶 → 信用卡
+    await settle();
+    final toggle = find.byKey(const ValueKey('signToggle'));
+    expect(toggle, findsOneWidget);
+    expect(find.text('＋'), findsOneWidget);
+    await tester.tap(toggle);
+    await settle();
+    expect(find.text('−'), findsOneWidget);
+    await tester.enterText(
+      find.byWidgetPredicate(
+        (w) => w is TextField && w.decoration?.hintText == '0' && w.key == null,
+      ),
+      '500',
+    );
+    await tester.pump();
+    await tester.ensureVisible(find.widgetWithText(FilledButton, '新增'));
+    await tester.tap(find.widgetWithText(FilledButton, '新增'));
+    await settle();
+    final book = (await tester.runAsync(() => repo.loadBook()))!;
+    final tx = book.txs.single;
+    expect(tx.type, LedgerTxType.transfer);
+    expect(tx.accountId, card.id, reason: '卡費退回：從信用卡出');
+    expect(tx.toAccountId, bank.id, reason: '回到帳戶');
+    expect(tx.amount, 500);
+    expect(tx.merchant, '卡費退回');
+    expect(book.isCardReturn(tx), isTrue);
+    // 帳戶：銀行 +500、信用卡欠款 +500。
+    expect(
+      LedgerBook.delta(tx, book.accounts.firstWhere((a) => a.id == bank.id)),
+      500,
+    );
+    expect(
+      LedgerBook.delta(tx, book.accounts.firstWhere((a) => a.id == card.id)),
+      500,
+    );
+    expect(find.textContaining('卡費退回'), findsWidgets);
+    expect(find.text('−\$500'), findsWidgets);
+    // 編輯：負數還是亮的，帳戶回到「帳戶 → 信用卡」的填法。
+    await tester.tap(find.text('卡費退回').first);
+    await settle();
+    await tester.tap(find.widgetWithText(OutlinedButton, '編輯'));
+    await settle();
+    expect(find.text('−'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('signToggle')));
+    await settle();
+    expect(find.text('＋'), findsOneWidget);
+    await tester.ensureVisible(find.widgetWithText(FilledButton, '儲存'));
+    await tester.tap(find.widgetWithText(FilledButton, '儲存'));
+    await settle();
+    final after = (await tester.runAsync(() => repo.loadBook()))!.txs.single;
+    expect(after.accountId, bank.id, reason: '改回正數＝正常繳卡費：帳戶 → 信用卡');
+    expect(after.toAccountId, card.id);
+    expect(after.merchant, '繳卡費');
     expect(tester.takeException(), isNull);
   });
 }
