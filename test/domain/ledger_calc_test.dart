@@ -481,6 +481,130 @@ void main() {
     expect(make([t1], [after('a', 1, 1000)]).gapOfTx('zzz'), isNull);
   });
 
+  test('時間不確定的同一天：餘額、對帳照排序數字線性計算（不是看列表、也不是同一個時間點）', () {
+    LedgerTx spend(String id, int amount, {int order = 0, int h = 12}) =>
+        LedgerTx(
+          id: id,
+          type: LedgerTxType.expense,
+          occurredAt: DateTime(2026, 11, 5, h),
+          amount: amount,
+          accountId: 'bank',
+          category: '餐飲',
+          timeUnknown: h == 12 && order != -1,
+          timeOrder: order < 0 ? 0 : order,
+          createdAt: DateTime(2026, 11, 5, 20, amount % 60),
+        );
+    LedgerCheckpoint after(String txId, int balance) => LedgerCheckpoint(
+      id: 'cp$txId',
+      accountId: 'bank',
+      at: DateTime(2026, 11, 5, 12), // 存的時間都是中午，算的時候依排序換成當天的位置
+      balance: balance,
+      txId: txId,
+    );
+    LedgerBook make(List<LedgerTx> txs, List<LedgerCheckpoint> cps) =>
+        LedgerBook(
+          accounts: const [bank],
+          txs: txs,
+          checkpoints: cps,
+          budgets: const [],
+        );
+    // 依序花：a 排序 3（餘額 1000 當起點）→ b 排序 5 花 200 剩 800 → c 排序 25（當天最後）花 50 剩 750。
+    final a = spend('a', 100, order: 3);
+    final b = spend('b', 200, order: 5);
+    final c = spend('c', 50, order: 25);
+    final cps = [after('a', 1000), after('b', 800), after('c', 750)];
+    var book = make([a, b, c], cps);
+    expect(book.gapOfTx('b'), isNull, reason: 'a(3) → b(5)：1000 − 200 = 800');
+    expect(book.gapOfTx('c'), isNull, reason: 'b(5) → c(25)：800 − 50 = 750');
+    // 目前餘額照最後一個餘額點（c）算＝750。
+    expect(book.stateOf(bank)!.now, 750);
+    // 把 b 的排序改成 2（排到 a 前面）：順序變 b → a → c，a 花 100 應該剩 700、卻記 1000 → 對不上。
+    book = make([a, spend('b', 200, order: 2), c], cps);
+    expect(
+      book.gapOfTx('a')!.miss,
+      -300,
+      reason: 'b(2) 剩 800 → a(3) 花 100 應 700，記 1000：多出 300',
+    );
+    // 沒設排序（0）也不會平手：照建立先後，每一筆位置都不一樣。
+    final t = make([spend('x', 10), spend('y', 20), spend('z', 30)], const []);
+    final times = t.txs.map(t.calcAtOf).toSet();
+    expect(times.length, 3);
+    // 列表順序跟計算順序一樣：新的在前＝排序大的在前。
+    expect(make([a, b, c], cps).txs.map((e) => e.id).toList(), ['c', 'b', 'a']);
+  });
+
+  test('同一個時間點的好幾筆（轉帳轉出、刷卡剛好同一分鐘）：照建立先後線性計算，轉出的錢要扣到、不會誤報漏記', () {
+    const cash = LedgerAccount(
+      id: 'cash',
+      name: '現金',
+      type: LedgerAccountType.cash,
+      order: 3,
+    );
+    final at = DateTime(2026, 11, 5, 12, 0);
+    LedgerTx tx(
+      String id,
+      LedgerTxType type,
+      int amount,
+      int createdMin, {
+      String? to,
+    }) => LedgerTx(
+      id: id,
+      type: type,
+      occurredAt: at,
+      amount: amount,
+      accountId: 'bank',
+      toAccountId: to,
+      category: type == LedgerTxType.expense ? '餐飲' : null,
+      createdAt: DateTime(2026, 11, 5, 12, createdMin),
+    );
+    LedgerCheckpoint cp(String txId, String acc, int bal) => LedgerCheckpoint(
+      id: 'cp$txId$acc',
+      accountId: acc,
+      at: at,
+      balance: bal,
+      txId: txId,
+    );
+    // 起點：銀行 1000（11/1 手動對帳）；12:00 先轉 300 到現金（銀行剩 700、現金剩 300），
+    // 同一分鐘又花 100（銀行剩 600）。
+    final start = LedgerCheckpoint(
+      id: 'start',
+      accountId: 'bank',
+      at: DateTime(2026, 11, 1),
+      balance: 1000,
+    );
+    final cashStart = LedgerCheckpoint(
+      id: 'cashStart',
+      accountId: 'cash',
+      at: DateTime(2026, 11, 1),
+      balance: 0,
+    );
+    final book = LedgerBook(
+      accounts: const [bank, cash],
+      txs: [
+        tx('t', LedgerTxType.transfer, 300, 1, to: 'cash'),
+        tx('e', LedgerTxType.expense, 100, 2),
+      ],
+      checkpoints: [
+        start,
+        cashStart,
+        cp('t', 'bank', 700),
+        cp('t', 'cash', 300),
+        cp('e', 'bank', 600),
+      ],
+      budgets: const [],
+    );
+    expect(book.gapOfTx('t'), isNull);
+    expect(
+      book.gapOfTx('e'),
+      isNull,
+      reason: '轉出 300 跟刷 100 同一分鐘，兩筆都要扣：1000−300−100=600',
+    );
+    expect(book.stateOf(bank)!.now, 600);
+    expect(book.stateOf(cash)!.now, 300);
+    final times = book.txs.map(book.calcAtOf).toSet();
+    expect(times.length, 2, reason: '同一個時間點也分得出先後');
+  });
+
   test('信用卡餘額附在交易上：刷卡後可用額度對不上＝漏記刷卡', () {
     LedgerTx swipe(String id, int day, int amount) => LedgerTx(
       id: id,

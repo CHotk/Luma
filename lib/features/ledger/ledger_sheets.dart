@@ -2867,7 +2867,7 @@ class _ReconState extends State<_Recon> {
     final since = s == null
         ? const <int>[]
         : book.txs
-              .where((t) => t.occurredAt.isAfter(s.last.at))
+              .where((t) => book.calcAtOf(t).isAfter(s.last.at))
               .map((t) => LedgerBook.delta(t, a))
               .where((d) => d != 0)
               .toList();

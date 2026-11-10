@@ -235,39 +235,100 @@ class LedgerBook {
     required List<LedgerTx> txs,
     required List<LedgerCheckpoint> checkpoints,
     required List<LedgerBudget> budgets,
-  }) : accounts = accounts.where((a) => a.deletedAt == null).toList()
-         ..sort((a, b) => a.order.compareTo(b.order)),
-       txs = txs.where((t) => t.deletedAt == null).toList()..sort(_compareTx),
-       checkpoints = checkpoints.where((c) => c.deletedAt == null).toList()
-         ..sort((a, b) => a.at.compareTo(b.at)),
-       budgets = budgets.where((b) => b.deletedAt == null).toList();
+  }) : this._(
+         accounts,
+         txs.where((t) => t.deletedAt == null).toList(),
+         checkpoints,
+         budgets,
+       );
 
-  /// 明細的順序（新的在前面）。同一天裡：
-  /// 時間不確定、排序數字超過 [ledgerTimeOrderBehindMax]（20）的排最前面（在有時分的前面）；
-  /// 然後是有時分的（晚的在前）；最後是時間不確定、排序 1～20（或沒設）的（在有時分的後面）。
-  /// 兩個時間不確定的比排序數字（大的在前），一樣大就看誰比較晚建立（2026-11-10 使用者）。
-  static int _compareTx(LedgerTx a, LedgerTx b) {
-    final day =
-        DateTime(
-          b.occurredAt.year,
-          b.occurredAt.month,
-          b.occurredAt.day,
-        ).compareTo(
-          DateTime(a.occurredAt.year, a.occurredAt.month, a.occurredAt.day),
+  LedgerBook._(
+    List<LedgerAccount> accounts,
+    List<LedgerTx> live,
+    List<LedgerCheckpoint> cps,
+    List<LedgerBudget> budgets,
+  ) : this._calc(accounts, live, cps, budgets, _calcTimes(live));
+
+  LedgerBook._calc(
+    List<LedgerAccount> accounts,
+    List<LedgerTx> live,
+    List<LedgerCheckpoint> cps,
+    List<LedgerBudget> budgets,
+    Map<String, DateTime> calc,
+  ) : _calcAt = calc,
+      accounts = accounts.where((a) => a.deletedAt == null).toList()
+        ..sort((a, b) => a.order.compareTo(b.order)),
+      txs = (live.toList()
+        ..sort((a, b) {
+          final c = calc[b.id]!.compareTo(calc[a.id]!);
+          if (c != 0) return c;
+          final o = (b.createdAt ?? b.occurredAt).compareTo(
+            a.createdAt ?? a.occurredAt,
+          );
+          return o != 0 ? o : b.id.compareTo(a.id);
+        })),
+      // 附在交易上的餘額點，時間跟著那筆在時間線上的位置走（時間不確定的、或跟別筆剛好同一個
+      // 時間點被分出先後的）。
+      checkpoints = (cps.where((c) => c.deletedAt == null).map((c) {
+        final tid = c.txId;
+        final when = tid == null ? null : calc[tid];
+        final t = tid == null
+            ? null
+            : live.where((x) => x.id == tid).firstOrNull;
+        return when != null && t != null && when != t.occurredAt
+            ? c.copyWith(at: when)
+            : c;
+      }).toList()..sort((a, b) => a.at.compareTo(b.at))),
+      budgets = budgets.where((b) => b.deletedAt == null).toList();
+
+  /// 每一筆在「時間線」上的位置（算餘額、可刷額度、對帳用，2026-11-10 使用者：時間不確定的
+  /// 也要照排序數字線性計算）。有時分的就是它自己的時間；時間不確定的放在當天的兩頭：
+  /// 排序超過 [ledgerTimeOrderBehindMax]（20）的在當天最後（23:58 起、數字小的先），
+  /// 1～20 或沒設的在當天最前（00:00 起、數字小的先）；排序一樣的照建立先後，
+  /// 所以每一筆的位置都不一樣（沒有「同一個時間點」的平手）。
+  static Map<String, DateTime> _calcTimes(List<LedgerTx> live) {
+    final out = <String, DateTime>{};
+    final groups = <String, List<LedgerTx>>{};
+    for (final t in live) {
+      if (!t.timeUnknown) {
+        // 有時分的：同一個時間點有好幾筆（例如轉帳跟刷卡剛好同一分鐘）照建立先後排，
+        // 不然算餘額時第二筆會被當成跟上一個餘額點同時、扣不到（2026-11-10 使用者回報）。
+        (groups['at|${t.occurredAt.millisecondsSinceEpoch}'] ??= []).add(t);
+        continue;
+      }
+      final d = t.occurredAt;
+      final front = t.timeOrder > ledgerTimeOrderBehindMax;
+      (groups['${d.year}-${d.month}-${d.day}|$front|${t.timeOrder}'] ??= [])
+          .add(t);
+    }
+    for (final list in groups.values) {
+      list.sort((a, b) {
+        final c = (a.createdAt ?? a.occurredAt).compareTo(
+          b.createdAt ?? b.occurredAt,
         );
-    if (day != 0) return day;
-    int bucket(LedgerTx t) => !t.timeUnknown
-        ? 1
-        : t.timeOrder > ledgerTimeOrderBehindMax
-        ? 0
-        : 2;
-    final ba = bucket(a), bb = bucket(b);
-    if (ba != bb) return ba.compareTo(bb);
-    if (ba == 1) return b.occurredAt.compareTo(a.occurredAt);
-    final o = b.timeOrder.compareTo(a.timeOrder);
-    if (o != 0) return o;
-    return (b.createdAt ?? b.occurredAt).compareTo(a.createdAt ?? a.occurredAt);
+        return c != 0 ? c : a.id.compareTo(b.id);
+      });
+      for (var i = 0; i < list.length; i++) {
+        final t = list[i], d = t.occurredAt;
+        if (!t.timeUnknown) {
+          out[t.id] = d.add(Duration(milliseconds: i > 999 ? 999 : i));
+          continue;
+        }
+        final base = t.timeOrder > ledgerTimeOrderBehindMax
+            ? DateTime(d.year, d.month, d.day, 23, 58)
+            : DateTime(d.year, d.month, d.day);
+        out[t.id] = base.add(
+          Duration(seconds: t.timeOrder, milliseconds: i > 999 ? 999 : i),
+        );
+      }
+    }
+    return out;
   }
+
+  final Map<String, DateTime> _calcAt;
+
+  /// 這筆在時間線上的位置（見 [_calcTimes]）。
+  DateTime calcAtOf(LedgerTx t) => _calcAt[t.id] ?? t.occurredAt;
 
   final List<LedgerAccount> accounts;
 
@@ -331,8 +392,9 @@ class LedgerBook {
   int sumBetween(LedgerAccount a, DateTime from, DateTime? to) {
     var s = 0;
     for (final t in txs) {
-      if (!t.occurredAt.isAfter(from)) continue;
-      if (to != null && t.occurredAt.isAfter(to)) continue;
+      final at = calcAtOf(t);
+      if (!at.isAfter(from)) continue;
+      if (to != null && at.isAfter(to)) continue;
       s += delta(t, a);
     }
     return s;
@@ -435,7 +497,7 @@ class LedgerBook {
     final prevAt = list[list.indexWhere((x) => x.id == c.id) - 1].at;
     final m = d.miss.abs();
     bool inside(LedgerTx t) =>
-        t.occurredAt.isAfter(prevAt) && !t.occurredAt.isAfter(c.at);
+        calcAtOf(t).isAfter(prevAt) && !calcAtOf(t).isAfter(c.at);
     final out = <GapHint>[];
     if (d.miss > 0) {
       for (final t in txs) {
