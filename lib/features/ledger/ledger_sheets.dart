@@ -7,6 +7,7 @@ import '../../app/theme/typography.dart';
 import '../../shared/digits_input.dart';
 import '../../shared/half_width_input.dart';
 import '../../shared/widgets/date_time_wheel.dart';
+import '../../shared/widgets/glass_menu.dart';
 import '../../domain/ledger_calc.dart';
 import '../../domain/models/ledger.dart';
 import 'ledger_ui.dart';
@@ -1474,22 +1475,56 @@ class _TxFormState extends State<_TxForm> {
                 )
               : t == LedgerTxType.income
               // 收入的來源就那幾種：下拉選單（2026-11-10 使用者）。
-              ? DropdownButtonFormField<String>(
-                  key: const ValueKey('incomeSource'),
-                  initialValue: _merchant.text.trim().isEmpty
-                      ? null
-                      : _merchant.text.trim(),
-                  isExpanded: true,
-                  decoration: _input('選一個來源'),
-                  items: [
-                    for (final s in {
-                      ...ledgerIncomeSources,
-                      if (_merchant.text.trim().isNotEmpty)
-                        _merchant.text.trim(),
-                    })
-                      DropdownMenuItem(value: s, child: Text(s)),
-                  ],
-                  onChanged: (v) => setState(() => _merchant.text = v ?? ''),
+              ? Builder(
+                  builder: (btn) => InkWell(
+                    key: const ValueKey('incomeSource'),
+                    borderRadius: BorderRadius.circular(12),
+                    // 毛玻璃小選單（跟明細的篩選一樣）：只往下開、寬度剛好放得下字，不是整排撐開
+                    // （2026-11-10 使用者：下拉選單像 iOS 毛玻璃、打開太大一個文字才幾個字）。
+                    onTap: () async {
+                      final cur = _merchant.text.trim();
+                      // 選單只往下開：下面空間不夠就限制高度、裡面可以捲。
+                      final box = btn.findRenderObject()! as RenderBox;
+                      final below =
+                          MediaQuery.sizeOf(context).height -
+                          box.localToGlobal(Offset(0, box.size.height)).dy -
+                          24;
+                      final v = await showGlassMenu<String>(
+                        btn,
+                        width: 150,
+                        maxHeight: below < 120 ? 120 : below,
+                        alignLeft: true,
+                        selected: cur.isEmpty ? null : cur,
+                        items: [
+                          for (final s in {
+                            ...ledgerIncomeSources,
+                            if (cur.isNotEmpty) cur,
+                          })
+                            GlassMenuItem(value: s, label: s),
+                        ],
+                      );
+                      if (v != null) setState(() => _merchant.text = v);
+                    },
+                    child: InputDecorator(
+                      decoration: _input('').copyWith(
+                        suffixIcon: const Icon(
+                          Icons.keyboard_arrow_down_rounded,
+                          color: AppColors.ink2,
+                        ),
+                      ),
+                      child: Text(
+                        _merchant.text.trim().isEmpty
+                            ? '選一個來源'
+                            : _merchant.text.trim(),
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: _merchant.text.trim().isEmpty
+                              ? AppColors.ink3
+                              : AppColors.ink,
+                        ),
+                      ),
+                    ),
+                  ),
                 )
               : TextField(
                   controller: _merchant,
