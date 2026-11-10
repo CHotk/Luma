@@ -108,7 +108,7 @@ void timeUnknownTests() {
     expect(LedgerTx.fromJson(old).timeUnknown, isFalse);
   });
 
-  testWidgets('記一筆：時間旁邊的「不確定」打開後只顯示日期，存起來是那天中午、列表寫「時間不詳」', (tester) async {
+  testWidgets('記一筆：時間旁邊的「不確定」打開後只顯示日期，存起來是那天中午、列表寫「時間不確定」', (tester) async {
     final store = _MemoryStore();
     final repo = LedgerRepository(store);
     await repo.addAccount(
@@ -172,7 +172,63 @@ void timeUnknownTests() {
     expect(tx.timeUnknown, isTrue);
     expect(tx.occurredAt.hour, 12);
     expect(tx.occurredAt.minute, 0);
-    expect(find.textContaining('時間不詳'), findsOneWidget);
+    expect(find.textContaining('時間不確定'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('編輯：時間不確定的那筆打開「不確定」是亮的、關掉變回時分；確定時間的那筆可以改成不確定', (tester) async {
+    final store = _MemoryStore();
+    final repo = LedgerRepository(store);
+    final acc = await repo.addAccount(
+      name: '現金',
+      type: LedgerAccountType.cash,
+      opening: 1000,
+      openingAt: DateTime(2026, 11, 1),
+    );
+    final now = DateTime.now();
+    await repo.addTransaction(
+      LedgerTx(
+        id: 't1',
+        type: LedgerTxType.expense,
+        occurredAt: DateTime(now.year, now.month, now.day, 12),
+        amount: 80,
+        accountId: acc.id,
+        category: '餐飲',
+        merchant: '早餐店',
+        timeUnknown: true,
+      ),
+    );
+    tester.view.physicalSize = const Size(360 * 3, 900 * 3);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [keyValueStoreProvider.overrideWithValue(store)],
+        child: const MaterialApp(home: LedgerPage(tab: LedgerTab.list)),
+      ),
+    );
+    Future<void> settle() async {
+      for (var i = 0; i < 6; i++) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 50)),
+        );
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+    }
+
+    await settle();
+    await tester.tap(find.text('早餐店'));
+    await settle();
+    await tester.tap(find.widgetWithText(OutlinedButton, '編輯'));
+    await settle();
+    final chip = find.byKey(const ValueKey('timeUnknown'));
+    expect(chip, findsOneWidget);
+    expect(tester.widget<FilterChip>(chip).selected, isTrue);
+    expect(find.textContaining('不確定幾點'), findsOneWidget);
+    await tester.tap(chip);
+    await settle();
+    expect(tester.widget<FilterChip>(chip).selected, isFalse);
+    expect(find.textContaining('不確定幾點'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }

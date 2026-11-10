@@ -30,8 +30,8 @@ const _wd = ['一', '二', '三', '四', '五', '六', '日'];
 String lMd(DateTime d) => '${d.month}/${d.day}';
 String lMdw(DateTime d) => '${lMd(d)}（${_wd[d.weekday - 1]}）';
 
-/// 一筆交易的時分；時間不確定的只知道哪天，顯示「時間不詳」。
-String lTxHm(LedgerTx t) => t.timeUnknown ? '時間不詳' : lHm(t.occurredAt);
+/// 一筆交易的時分；時間不確定的只知道哪天，顯示「時間不確定」。
+String lTxHm(LedgerTx t) => t.timeUnknown ? '時間不確定' : lHm(t.occurredAt);
 
 String lHm(DateTime d) =>
     '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
