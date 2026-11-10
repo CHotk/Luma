@@ -133,17 +133,60 @@ Widget _label(String text, {String? trailing}) => Padding(
 
 /// æ¨é¡è·è¼¸å¥æ¡åä¸è¡ï¼2026-11-06 ä½¿ç¨èï¼ä¸è¦æ¨é¡ä¸è¡ãè¼¸å¥æ¡åæä¸è¡ï¼ã
 /// å·¦éåºå®å¯¬åº¦æ¾æ¨é¡ï¼[hint] æ¯ä¸é¢ä¸è¡å°å­ï¼ä¾å¦å¿å¡«ï¼ï¼å³éæ¯è¼¸å¥æ¡ã
+/// 表單欄位的字：每個輸入框都一樣大（金額也不特別大）。
+const _fieldStyle = TextStyle(
+  fontSize: 15,
+  fontWeight: FontWeight.w600,
+  color: AppColors.ink,
+  fontFeatures: lTabular,
+);
+
+/// 左邊的欄位標題：像表單的欄位名稱（深色、粗一點），不是淡淡的小註解。
+const _titleStyle = TextStyle(
+  fontSize: 13.5,
+  fontWeight: FontWeight.w700,
+  color: AppColors.ink,
+);
+
+/// 標題在左、一組選項（帳戶、分類的膠囊）在右，同一行；膠囊縮小一點才排得下。
+Widget _chipRow(String label, Widget chips) => Padding(
+  padding: const EdgeInsets.only(top: 12),
+  child: Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      SizedBox(
+        width: 88,
+        child: Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Text(label, style: _titleStyle),
+        ),
+      ),
+      Expanded(
+        child: Builder(
+          builder: (c) => Theme(
+            data: Theme.of(c).copyWith(
+              visualDensity: VisualDensity.compact,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: chips,
+          ),
+        ),
+      ),
+    ],
+  ),
+);
+
 Widget _row(String label, Widget field, {String? hint}) => Padding(
   padding: const EdgeInsets.only(top: 12),
   child: Row(
     crossAxisAlignment: CrossAxisAlignment.center,
     children: [
       SizedBox(
-        width: 78,
+        width: 88,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label, style: AppText.note),
+            Text(label, style: _titleStyle),
             if (hint != null)
               Text(
                 hint,
@@ -155,7 +198,22 @@ Widget _row(String label, Widget field, {String? hint}) => Padding(
           ],
         ),
       ),
-      Expanded(child: field),
+      Expanded(
+        child: Builder(
+          builder: (c) {
+            final t = Theme.of(c);
+            return Theme(
+              data: t.copyWith(
+                textTheme: t.textTheme.copyWith(
+                  titleMedium: _fieldStyle,
+                  bodyLarge: _fieldStyle,
+                ),
+              ),
+              child: field,
+            );
+          },
+        ),
+      ),
     ],
   ),
 );
@@ -168,7 +226,8 @@ InputDecoration _input(String hint, {String? prefix, String? suffix}) =>
       isDense: true,
       filled: true,
       fillColor: ledgerTileBg,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
+      hintStyle: const TextStyle(fontSize: 14, color: AppColors.ink3),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: Color(0xFF2A2A3D)),
@@ -1299,16 +1358,19 @@ class _TxFormState extends State<_TxForm> {
     }
     final got = _int(ctrl);
     return [
-      _label(label, trailing: '選填・用來抓漏記'),
-      TextField(
-        controller: ctrl,
-        keyboardType: TextInputType.number,
-        inputFormatters: _digits,
-        decoration: _input('', prefix: '\$'),
+      _row(
+        label,
+        hint: '選填・抓漏記',
+        TextField(
+          controller: ctrl,
+          keyboardType: TextInputType.number,
+          inputFormatters: _digits,
+          decoration: _input('', prefix: '\$'),
+        ),
       ),
       if (guess != null)
         Padding(
-          padding: const EdgeInsets.only(top: 6),
+          padding: const EdgeInsets.only(top: 6, left: 88),
           child: Text(
             got == null
                 ? 'App 照記到的推算，這筆之後應該是 ${lMoney(guess)}'
@@ -1327,7 +1389,7 @@ class _TxFormState extends State<_TxForm> {
         )
       else if (s == null && got != null)
         Padding(
-          padding: const EdgeInsets.only(top: 6),
+          padding: const EdgeInsets.only(top: 6, left: 88),
           child: Text(
             '這是 ${a.name} 第一個餘額，從這筆開始算；下一筆再填餘額就會幫你比對',
             style: AppText.note.copyWith(fontSize: 11, color: AppColors.ink3),
@@ -1443,14 +1505,22 @@ class _TxFormState extends State<_TxForm> {
       // 填寫順序：先時間、再金額（2026-11-03 使用者）。
       _row(
         '時間',
-        OutlinedButton.icon(
-          onPressed: () async {
+        InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () async {
             final v = await _pickDateTime(context, _at);
             if (v != null && mounted) setState(() => _at = v);
           },
-          icon: const Icon(Icons.schedule_rounded, size: 18),
-          label: Text('${lYmd(_at)} ${lHm(_at)}'),
-          style: _outline,
+          child: InputDecorator(
+            decoration: _input('').copyWith(
+              suffixIcon: const Icon(
+                Icons.schedule_rounded,
+                size: 18,
+                color: AppColors.ink2,
+              ),
+            ),
+            child: Text('${lYmd(_at)} ${lHm(_at)}', style: _fieldStyle),
+          ),
         ),
       ),
       // 商家名稱在金額上面（2026-11-03 使用者）：先時間、再商家、再金額。
@@ -1540,11 +1610,6 @@ class _TxFormState extends State<_TxForm> {
           keyboardType: TextInputType.number,
           inputFormatters: _digits,
           autofocus: e == null && p.amount == null,
-          style: const TextStyle(
-            fontSize: 26,
-            fontWeight: FontWeight.w800,
-            fontFeatures: lTabular,
-          ),
           decoration: _input('0', prefix: '\$ '),
         ),
       ),
@@ -1581,21 +1646,25 @@ class _TxFormState extends State<_TxForm> {
             true,
             (v) => setState(() => _toOther = v),
           ),
-          _label('從哪個帳戶'),
-          _accountChips(book, _account, (v) => setState(() => _account = v)),
-          _label('買什麼（分類）'),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              for (final c in ledgerExpenseCats.entries)
-                ChoiceChip(
-                  label: Text('${c.value.$1} ${c.key}'),
-                  selected: _category == c.key,
-                  showCheckmark: false,
-                  onSelected: (_) => setState(() => _category = c.key),
-                ),
-            ],
+          _chipRow(
+            '從哪個帳戶',
+            _accountChips(book, _account, (v) => setState(() => _account = v)),
+          ),
+          _chipRow(
+            '買什麼（分類）',
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final c in ledgerExpenseCats.entries)
+                  ChoiceChip(
+                    label: Text('${c.value.$1} ${c.key}'),
+                    selected: _category == c.key,
+                    showCheckmark: false,
+                    onSelected: (_) => setState(() => _category = c.key),
+                  ),
+              ],
+            ),
           ),
         ]);
       case LedgerTxType.transfer:
@@ -1643,22 +1712,26 @@ class _TxFormState extends State<_TxForm> {
                   ),
             ],
           ),
-          _label('從哪個帳戶'),
-          _accountChips(
-            book,
-            _account,
-            (v) => setState(() {
-              _account = v;
-              if (_to == v) _to = null;
-              _applyDefaults();
-            }),
+          _chipRow(
+            '從哪個帳戶',
+            _accountChips(
+              book,
+              _account,
+              (v) => setState(() {
+                _account = v;
+                if (_to == v) _to = null;
+                _applyDefaults();
+              }),
+            ),
           ),
-          _label('轉到'),
-          _accountChips(
-            book,
-            _to,
-            (v) => setState(() => _to = v),
-            disabled: _account,
+          _chipRow(
+            '轉到',
+            _accountChips(
+              book,
+              _to,
+              (v) => setState(() => _to = v),
+              disabled: _account,
+            ),
           ),
           // 轉到信用卡＝繳卡費：只寫這一句（2026-11-03 使用者）。
           _note(
@@ -1702,11 +1775,13 @@ class _TxFormState extends State<_TxForm> {
                       _applyDefaults(fillAmount: true);
                     }),
                   ),
-                  _label('退回哪個帳戶'),
-                  _accountChips(
-                    book,
-                    _account,
-                    (v) => setState(() => _account = v),
+                  _chipRow(
+                    '退回哪個帳戶',
+                    _accountChips(
+                      book,
+                      _account,
+                      (v) => setState(() => _account = v),
+                    ),
                   ),
                   _note([
                     const TextSpan(text: '退款會從原本那筆的分類扣回來；退回信用卡的話，可刷額也會跟著變多。'),
@@ -1751,12 +1826,14 @@ class _TxFormState extends State<_TxForm> {
                       _applyDefaults(fillAmount: true);
                     }),
                   ),
-                  _label('錢進哪個帳戶'),
-                  _accountChips(
-                    book,
-                    _account,
-                    (v) => setState(() => _account = v),
-                    only: (a) => !a.isCard,
+                  _chipRow(
+                    '錢進哪個帳戶',
+                    _accountChips(
+                      book,
+                      _account,
+                      (v) => setState(() => _account = v),
+                      only: (a) => !a.isCard,
+                    ),
                   ),
                   if (e == null)
                     _toggle(
@@ -1784,15 +1861,17 @@ class _TxFormState extends State<_TxForm> {
             ? ledgerIncomeCats
             : ledgerExpenseCats;
         children.addAll([
-          _label(t == LedgerTxType.income ? '進哪個帳戶' : '用哪個付'),
-          _accountChips(
-            book,
-            _account,
-            (v) => setState(() => _account = v),
-            only: t == LedgerTxType.income ? (a) => !a.isCard : null,
+          _chipRow(
+            t == LedgerTxType.income ? '進哪個帳戶' : '用哪個付',
+            _accountChips(
+              book,
+              _account,
+              (v) => setState(() => _account = v),
+              only: t == LedgerTxType.income ? (a) => !a.isCard : null,
+            ),
           ),
-          _label(_split && t == LedgerTxType.expense ? '拆分（加起來要剛好等於整筆）' : '分類'),
           if (_split && t == LedgerTxType.expense) ...[
+            _label('拆分（加起來要剛好等於整筆）'),
             for (final (i, r) in _splitRows.indexed)
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
@@ -1998,18 +2077,21 @@ class _TxFormState extends State<_TxForm> {
               child: const Text('取消拆分，改回單一分類'),
             ),
           ] else ...[
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                for (final c in cats.entries)
-                  ChoiceChip(
-                    label: Text('${c.value.$1} ${c.key}'),
-                    selected: _category == c.key,
-                    showCheckmark: false,
-                    onSelected: (_) => setState(() => _category = c.key),
-                  ),
-              ],
+            _chipRow(
+              '分類',
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final c in cats.entries)
+                    ChoiceChip(
+                      label: Text('${c.value.$1} ${c.key}'),
+                      selected: _category == c.key,
+                      showCheckmark: false,
+                      onSelected: (_) => setState(() => _category = c.key),
+                    ),
+                ],
+              ),
             ),
             if (t == LedgerTxType.expense)
               Align(
@@ -2033,7 +2115,7 @@ class _TxFormState extends State<_TxForm> {
           controller: _memo,
           inputFormatters: halfWidthFormatters,
           maxLength: ledgerNoteMax,
-          decoration: _input(''),
+          decoration: _input('').copyWith(counterText: ''), // 不顯示 0/100，每個欄位一樣高
         ),
       ),
       _toggle(
