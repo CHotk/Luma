@@ -1,0 +1,544 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YT 幣圈影片準度評價</title>
+<!--
+  2026-11-10 使用者需求（YT 管理的「幣圈」分類）：
+    1. 能對「影片內容說的」評價 對 / 不對（我另外加了「半對」，不要的話拿掉就好）。
+    2. 目的：篩選出「行情講最正確」的 YT 頻道。
+    3. 要有地方可以看這些評價；影片上要有小標籤。
+
+  四版都包含同一份功能（各版只差在呈現與操作方式，沒有哪一版少掉功能）：
+    A. 評價一部影片：對／半對／不對（可清除、可加備註）
+    B. 影片上的小標籤
+    C. 看評價的地方：依評價篩影片、頻道的評價頁
+    D. 頻道準度：命中率、評價數、待評數；排行；可篩「至少幾部評價」「準度 ≥ 幾 %」
+    E. 評價紀錄（只增不刪；改判也留一筆）
+
+  資料設計（做 App 時照這樣）：跟「歌曲」標記同一套——影片 id → {評價, 備註, 改的時間}，
+  存本機＋R2 多裝置同步（同一部比改的時間、後改的贏）；評價紀錄 append-only。
+  命中率 = (對 + 半對×0.5) ÷ 已評數。評價數太少（< 3 部）顯示「樣本不足」不給百分比／段位。
+  只有「幣圈」分類的頻道才會出現這些按鈕與標籤（跟音樂分類的 ♪ 歌曲一樣：記在影片上，換分類只是不顯示）。
+
+  版面注意（專案記憶）：html, body 用 min-height；.phone 要 flex-shrink:0。
+-->
+<style>
+  :root { --bg:#0C0C13; --card:#151520; --card2:#1C1C2A; --sheet:#1C1C29; --line:#2A2A3D; --ink:#F3F2F8; --ink2:#A3A2B2; --ink3:#74738A; --accent:#7EA6FF; --yt:#FF4E45; --ok:#30D158; --bad:#FF5A5F; --half:#FFB340; --gold:#FFD60A; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body { margin:0; }
+  body { background:var(--bg); color:var(--ink); min-height:100vh; font:14px/1.5 -apple-system,"SF Pro Text",system-ui,"Segoe UI","Microsoft JhengHei",sans-serif; }
+  button { font:inherit; color:inherit; cursor:pointer; }
+  .page { max-width:1140px; margin:0 auto; padding:24px 16px 70px; }
+  h1 { font-size:20px; margin:0 0 6px; }
+  .lead { color:var(--ink2); font-size:13px; margin:0 0 14px; } .lead b { color:var(--ink); }
+  .vtabs { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:18px; align-items:center; }
+  .vtabs button { border:1px solid var(--line); background:var(--card); color:var(--ink2); padding:8px 14px; border-radius:99px; font-size:13px; }
+  .vtabs button.on { border-color:var(--yt); color:#fff; background:rgba(255,78,69,.22); }
+  .vtabs .reset { margin-left:auto; font-size:12px; padding:6px 12px; }
+  .stage { display:flex; gap:28px; align-items:flex-start; flex-wrap:wrap; justify-content:center; }
+  .notes { flex:1 1 320px; max-width:470px; background:var(--card); border:1px solid var(--line); border-radius:18px; padding:18px 20px; font-size:13.5px; color:var(--ink2); }
+  .notes h2 { color:var(--ink); font-size:17px; margin:0 0 4px; }
+  .notes .tag { display:inline-block; font-size:11px; padding:1px 8px; border-radius:99px; background:rgba(255,78,69,.15); color:#ff8a83; margin-bottom:8px; }
+  .notes .tag.main { background:rgba(48,209,88,.15); color:#6fe08f; }
+  .notes h3 { color:var(--ink); font-size:13.5px; margin:14px 0 4px; }
+  .notes ul { margin:0; padding-left:18px; } .notes li { margin:3px 0; }
+  .notes .try { margin-top:14px; padding:10px 12px; border-radius:12px; background:rgba(126,166,255,.08); border:1px solid rgba(126,166,255,.25); color:var(--ink); font-size:12.5px; }
+  .phone { width:390px; max-width:100%; height:820px; flex-shrink:0; border-radius:44px; border:1px solid var(--line); background:#0e0e17; position:relative; overflow:hidden; box-shadow:0 30px 80px rgba(0,0,0,.5); user-select:none; }
+  .screen { position:absolute; inset:0; overflow-y:auto; padding:44px 0 40px; scrollbar-width:none; }
+  .screen::-webkit-scrollbar { display:none; }
+  .status { position:absolute; top:0; left:0; right:0; height:40px; display:flex; align-items:center; justify-content:space-between; padding:0 30px; font-size:13px; font-weight:700; z-index:70; pointer-events:none; }
+  .layer { position:absolute; inset:0; z-index:80; pointer-events:none; } .layer > * { pointer-events:auto; }
+  .toast { position:absolute; left:50%; bottom:34px; transform:translateX(-50%); background:rgba(40,40,56,.96); border:1px solid var(--line); padding:7px 14px; border-radius:99px; font-size:12.5px; z-index:95; opacity:0; transition:opacity .2s; pointer-events:none; white-space:nowrap; }
+  .toast.on { opacity:1; }
+  .top { display:flex; align-items:center; gap:4px; padding:6px 10px 8px; }
+  .top b { font-size:17px; flex:1; margin-left:4px; } .top b small { display:block; font-size:11px; font-weight:500; color:var(--ink3); }
+  .ib { width:34px; height:34px; border-radius:10px; display:grid; place-items:center; color:var(--ink2); font-size:17px; background:none; border:0; }
+  .pad { padding:0 14px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:18px; padding:13px 14px; margin-bottom:10px; }
+  .muted { color:var(--ink2); font-size:12.5px; } .small { color:var(--ink3); font-size:11.5px; }
+  .chips { display:flex; gap:6px; overflow-x:auto; scrollbar-width:none; padding:2px 14px 8px; }
+  .chip { flex-shrink:0; border:1px solid var(--line); background:rgba(255,255,255,.05); color:var(--ink2); border-radius:99px; padding:5px 12px; font-size:12.5px; white-space:nowrap; }
+  .chip.on { background:var(--ink); color:#111; border-color:var(--ink); font-weight:700; }
+  .seg { display:flex; background:rgba(255,255,255,.07); border-radius:10px; padding:2px; margin:0 14px 10px; }
+  .seg button { flex:1; border:0; background:none; color:var(--ink2); padding:6px 0; border-radius:8px; font-size:13px; font-weight:700; }
+  .seg button.on { background:#3a3a50; color:#fff; }
+  .av { width:30px; height:30px; border-radius:50%; flex-shrink:0; display:inline-grid; place-items:center; font-size:12px; font-weight:800; color:#fff; }
+  .av.s { width:16px; height:16px; font-size:9px; vertical-align:middle; margin-right:4px; } .av.l { width:56px; height:56px; font-size:22px; }
+  /* 影片列 */
+  .vrow { display:flex; gap:10px; padding:8px 14px; }
+  .th { width:124px; height:70px; border-radius:10px; flex-shrink:0; position:relative; display:grid; place-items:center; font-size:26px; overflow:hidden; }
+  .th .dur { position:absolute; right:4px; bottom:4px; background:rgba(0,0,0,.8); font-size:10px; font-weight:700; padding:0 4px; border-radius:3px; }
+  .vi { flex:1; min-width:0; }
+  .vt { font-size:13px; font-weight:600; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; line-height:1.35; }
+  .vm { font-size:11.5px; color:var(--ink3); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .quote { font-size:12.5px; color:var(--ink2); border-left:3px solid var(--line); padding:1px 0 1px 8px; margin:5px 0; }
+  /* 色彩語意 */
+  .c-ok { color:var(--ok); } .c-bad { color:var(--bad); } .c-half { color:var(--half); }
+  .bar { height:7px; border-radius:99px; background:rgba(255,255,255,.07); overflow:hidden; margin:5px 0 3px; } .bar i { display:block; height:100%; border-radius:99px; }
+  .dots { display:flex; gap:4px; } .dots i { width:12px; height:12px; border-radius:50%; background:#33334a; display:block; }
+  .dots i.ok, .sq.ok { background:var(--ok); } .dots i.bad, .sq.bad { background:var(--bad); } .dots i.half, .sq.half { background:var(--half); }
+  .sq { width:15px; height:15px; border-radius:4px; background:#33334a; display:inline-block; margin:1px; }
+  .ring { width:92px; height:92px; border-radius:50%; background:conic-gradient(var(--rc,var(--ok)) calc(var(--p)*1%), #2c2c40 0); display:grid; place-items:center; position:relative; flex-shrink:0; }
+  .ring::before { content:""; position:absolute; inset:9px; border-radius:50%; background:#12121c; }
+  .ring b, .ring span { position:relative; text-align:center; line-height:1.1; } .ring b { font-size:22px; } .ring span { font-size:10px; color:var(--ink3); display:block; }
+  .stat3 { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin:10px 0; }
+  .stat3 div { background:var(--card2); border-radius:12px; padding:7px 4px; text-align:center; font-size:11px; color:var(--ink3); } .stat3 b { display:block; font-size:18px; color:var(--ink); }
+  /* 底部抽屜 */
+  .sheet-bg { position:absolute; inset:0; background:rgba(0,0,0,.5); animation:fade .2s; }
+  .sheet { position:absolute; left:0; right:0; bottom:0; background:var(--sheet); border-radius:24px 24px 0 0; padding:10px 18px 24px; animation:up .25s cubic-bezier(.2,.9,.3,1); max-height:88%; overflow-y:auto; }
+  .grab { width:38px; height:5px; border-radius:99px; background:#4a4a5c; margin:0 auto 12px; }
+  .sheet h4 { margin:0 0 4px; font-size:15px; } .sheet textarea, .sheet input[type=text], .sheet select { width:100%; background:#12121c; border:1px solid var(--line); border-radius:12px; color:var(--ink); padding:9px 11px; font:inherit; resize:none; }
+  @keyframes up { from { transform:translateY(100%) } } @keyframes fade { from { opacity:0 } }
+  .big3 { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:12px 0; }
+  .big3 button { border:1.5px solid var(--line); background:var(--card2); border-radius:16px; padding:14px 4px; font-weight:800; font-size:15px; display:flex; flex-direction:column; align-items:center; gap:2px; }
+  .big3 button small { font-size:10.5px; font-weight:500; color:var(--ink3); }
+  .big3 button.ok.on { border-color:var(--ok); background:rgba(48,209,88,.18); } .big3 button.bad.on { border-color:var(--bad); background:rgba(255,90,95,.18); } .big3 button.half.on { border-color:var(--half); background:rgba(255,179,64,.18); }
+  .row2 { display:flex; gap:8px; } .row2 > * { flex:1; }
+  .btn { border:0; border-radius:12px; padding:10px 12px; font-weight:800; background:var(--ink); color:#111; } .btn.g { background:rgba(255,255,255,.1); color:var(--ink); }
+  /* V1 */
+  .b1 { position:absolute; left:4px; top:4px; font-size:10.5px; font-weight:800; padding:1px 7px; border-radius:99px; background:rgba(0,0,0,.72); }
+  .b1.ok { color:var(--ok); border:1px solid var(--ok); } .b1.bad { color:var(--bad); border:1px solid var(--bad); } .b1.half { color:var(--half); border:1px solid var(--half); }
+  .acts { display:flex; gap:6px; margin-top:6px; }
+  .rb { border:1px solid var(--line); background:rgba(255,255,255,.05); border-radius:99px; padding:3px 11px; font-size:12px; font-weight:700; color:var(--ink2); }
+  .rb.on.ok { background:rgba(48,209,88,.2); border-color:var(--ok); color:var(--ok); } .rb.on.bad { background:rgba(255,90,95,.2); border-color:var(--bad); color:var(--bad); }
+  .crow { display:flex; align-items:center; gap:10px; padding:10px 14px; border-top:1px solid var(--line); }
+  .crow .rk { width:18px; font-weight:900; color:var(--ink3); text-align:center; } .crow .ci { flex:1; min-width:0; } .crow .ci b { font-size:14px; }
+  .crow .pc { font-size:18px; font-weight:900; min-width:56px; text-align:right; } .crow .pc.low { font-size:11px; font-weight:600; color:var(--ink3); }
+  .ctl { display:flex; align-items:center; gap:8px; padding:0 14px 8px; flex-wrap:wrap; }
+  .ctl select { background:var(--card2); border:1px solid var(--line); color:var(--ink); border-radius:10px; padding:5px 8px; font:inherit; font-size:12.5px; }
+  .step { display:inline-flex; align-items:center; background:var(--card2); border:1px solid var(--line); border-radius:10px; font-size:12.5px; } .step button { border:0; background:none; width:26px; height:28px; font-size:15px; } .step span { padding:0 4px; }
+  /* V2 */
+  .pcard { margin:0 14px 10px; background:var(--card); border:1px solid var(--line); border-radius:18px; padding:12px 13px; }
+  .pcard.over { border-color:rgba(255,179,64,.6); background:linear-gradient(180deg,rgba(255,179,64,.1),var(--card)); }
+  .pcard .ph { display:flex; align-items:center; gap:8px; font-size:12.5px; } .pcard .ph .dt { margin-left:auto; font-size:11px; font-weight:800; padding:2px 8px; border-radius:99px; background:rgba(255,255,255,.08); color:var(--ink2); }
+  .pcard.over .dt { background:rgba(255,179,64,.2); color:var(--half); }
+  .pcard .ptitle { font-size:12px; color:var(--ink3); margin-top:6px; }
+  .pcard .quote { font-size:15px; font-weight:700; color:var(--ink); border-left-color:var(--accent); }
+  .vb { display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-top:8px; } .vb button { border:1px solid var(--line); background:var(--card2); border-radius:12px; padding:8px 0; font-weight:800; font-size:13px; }
+  .vb .ok { color:var(--ok); } .vb .bad { color:var(--bad); } .vb .half { color:var(--half); }
+  .gh { padding:6px 14px 6px; font-size:12px; font-weight:800; color:var(--ink2); display:flex; align-items:center; gap:6px; } .gh.over { color:var(--half); }
+  .res { width:46px; height:46px; border-radius:12px; display:grid; place-items:center; font-size:18px; font-weight:900; flex-shrink:0; }
+  .res.ok { background:rgba(48,209,88,.16); color:var(--ok); } .res.bad { background:rgba(255,90,95,.16); color:var(--bad); } .res.half { background:rgba(255,179,64,.16); color:var(--half); }
+  /* V3 */
+  .stamp { position:absolute; left:5px; top:7px; transform:rotate(-11deg); border:2px solid; padding:0 6px; font-weight:900; font-size:13px; letter-spacing:1px; border-radius:5px; background:rgba(0,0,0,.45); }
+  .stamp.ok { color:var(--ok); } .stamp.bad { color:var(--bad); } .stamp.half { color:var(--half); }
+  .gr { display:inline-grid; place-items:center; width:30px; height:30px; border-radius:9px; font-weight:900; font-size:16px; color:#111; flex-shrink:0; }
+  .gr.S { background:var(--gold); } .gr.A { background:var(--ok); } .gr.B { background:#64D2FF; } .gr.C { background:#FF7A70; } .gr.Q { background:#3a3a50; color:var(--ink3); font-size:14px; }
+  .gr.xl { width:64px; height:64px; border-radius:20px; font-size:36px; }
+  .podium { display:flex; align-items:flex-end; justify-content:center; gap:8px; padding:6px 14px 4px; }
+  .pod { flex:1; text-align:center; border-radius:16px 16px 0 0; padding:10px 4px 8px; background:var(--card); border:1px solid var(--line); border-bottom:0; }
+  .pod.p1 { height:214px; background:linear-gradient(180deg,rgba(255,214,10,.2),var(--card)); border-color:rgba(255,214,10,.5); } .pod.p2 { height:190px; } .pod.p3 { height:174px; }
+  .pod .nm { font-size:12px; font-weight:700; margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .pod .pc { font-size:20px; font-weight:900; } .pod .md { font-size:20px; }
+  .lrow { display:flex; align-items:center; gap:10px; padding:9px 14px; border-top:1px solid var(--line); } .lrow .ci { flex:1; min-width:0; font-size:13.5px; font-weight:700; }
+  .streak { font-size:11px; color:var(--half); font-weight:800; }
+  /* V4 */
+  .cta { margin:0 14px 12px; border-radius:22px; padding:16px; background:linear-gradient(135deg,#3a2a6e,#1d3b73); border:1px solid rgba(126,166,255,.4); }
+  .cta b { font-size:22px; } .cta .btn { margin-top:10px; width:100%; padding:12px; font-size:15px; }
+  .dotb { position:absolute; left:4px; top:4px; width:20px; height:20px; border-radius:50%; display:grid; place-items:center; font-size:11px; font-weight:900; color:#111; }
+  .dotb.ok { background:var(--ok); } .dotb.bad { background:var(--bad); } .dotb.half { background:var(--half); }
+  .deck { position:relative; height:430px; margin:6px 20px 0; }
+  .scard { position:absolute; inset:0; background:var(--card); border:1px solid var(--line); border-radius:26px; padding:14px; touch-action:none; cursor:grab; display:flex; flex-direction:column; box-shadow:0 14px 40px rgba(0,0,0,.4); transition:transform .22s; }
+  .scard.back { transform:scale(.94) translateY(14px); opacity:.6; pointer-events:none; }
+  .scard .big { font-size:21px; font-weight:800; line-height:1.3; margin:12px 0 6px; border-left:4px solid var(--accent); padding-left:10px; }
+  .scard .hint { position:absolute; top:18px; font-size:22px; font-weight:900; padding:2px 10px; border:3px solid; border-radius:10px; opacity:0; transform:rotate(-12deg); } .scard .hint.hok { right:16px; color:var(--ok); transform:rotate(12deg); } .scard .hint.hbad { left:16px; color:var(--bad); } .scard .hint.hhalf { left:50%; margin-left:-30px; color:var(--half); }
+  .swbtn { display:flex; justify-content:center; gap:16px; margin-top:16px; } .swbtn button { width:62px; height:62px; border-radius:50%; border:2px solid; background:var(--card); font-size:24px; font-weight:900; } .swbtn .bad { color:var(--bad); border-color:var(--bad); } .swbtn .ok { color:var(--ok); border-color:var(--ok); } .swbtn .half { color:var(--half); border-color:var(--half); width:52px; height:52px; margin-top:5px; font-size:20px; } .swbtn .undo { color:var(--ink2); border-color:var(--line); width:44px; height:44px; margin-top:9px; font-size:17px; }
+  .prog { margin:4px 20px 0; height:5px; border-radius:99px; background:#2c2c40; overflow:hidden; } .prog i { display:block; height:100%; background:var(--accent); }
+  table.cmp { width:100%; border-collapse:collapse; font-size:12.5px; margin-top:26px; } table.cmp th, table.cmp td { border:1px solid var(--line); padding:6px 9px; text-align:left; } table.cmp th { background:var(--card2); } .cmp td.y { color:var(--ok); }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>YT 幣圈影片準度評價・四種設計</h1>
+  <p class="lead">在「幣圈」分類的影片上評 <b>對 / 半對 / 不對</b>，累積成每個頻道的<b>命中率</b>，找出行情講最準的 YT。四版都能點、都有全部功能，差在操作與呈現方式。</p>
+  <div class="vtabs" id="vtabs"></div>
+  <div class="stage"><div class="notes" id="notes"></div><div class="phone" id="phone"><div class="status"><span>9:41</span><span>●●● 5G</span></div><div class="screen" id="scr"></div><div class="layer" id="lay"></div><div class="toast" id="toast"></div></div></div>
+  <table class="cmp">
+    <tr><th>功能</th><th>一 主流 👍👎</th><th>二 預測帳本</th><th>三 戰績段位</th><th>四 滑動驗證</th></tr>
+    <tr><td>評對／半對／不對</td><td class="y">影片列按鈕＋抽屜</td><td class="y">到期卡片三顆鍵</td><td class="y">抽屜大印章鈕</td><td class="y">滑卡片或按鍵</td></tr>
+    <tr><td>影片上的小標籤</td><td class="y">縮圖角落膠囊</td><td class="y">左側結果方塊＋到期標籤</td><td class="y">縮圖蓋印章</td><td class="y">縮圖角落圓點</td></tr>
+    <tr><td>看評價的地方</td><td class="y">依影片篩／頻道頁</td><td class="y">已驗證分頁／頻道戰績</td><td class="y">排行榜／頻道頁</td><td class="y">清單／頻道頁</td></tr>
+    <tr><td>篩出最準的頻道</td><td class="y">排序＋評價數＋準度門檻</td><td class="y">戰績分頁（時間軸）</td><td class="y">段位 S/A/B/C 篩選</td><td class="y">準度榜＋門檻</td></tr>
+    <tr><td>評價紀錄（只增不刪）</td><td class="y">頻道頁底部</td><td class="y">頻道頁判定紀錄</td><td class="y">頻道頁底部</td><td class="y">頻道頁底部</td></tr>
+  </table>
+</div>
+
+<script>
+// ───────────── 示範資料 ─────────────
+const CH = [
+  { id:'c1', name:'幣圈老王', ini:'王', col:'#4F8CFF', em:'🐂' },
+  { id:'c2', name:'比特幣學長', ini:'學', col:'#FF9F43', em:'₿' },
+  { id:'c3', name:'鏈上偵探', ini:'偵', col:'#2FB75E', em:'🔍' },
+  { id:'c4', name:'阿Ken看盤', ini:'K', col:'#BF5AF2', em:'📊' },
+  { id:'c5', name:'空氣幣終結者', ini:'終', col:'#E5484D', em:'💣' },
+  { id:'c6', name:'週末大戶', ini:'戶', col:'#1FA89B', em:'🎰' },
+];
+const CHm = Object.fromEntries(CH.map(c => [c.id, c]));
+// [id, 頻道, 標題, 他說了什麼（沒記就 null）, 幾天前, 評價, 幾天後驗證（負的＝已過期）]
+const RAW = [
+  ['v1','c1','比特幣下週衝破 7 萬？主力在吃貨','BTC 一週內站上 7 萬美元',12,'ok',null],
+  ['v2','c1','ETH 還能抱嗎？','ETH 月底前跌破 2,800',9,'bad',null],
+  ['v3','c1','山寨季真的來了','十一月底前 SOL 漲破 250',3,null,5],
+  ['v4','c1','減半後的真相','BTC 年底前創新高',20,'half',null],
+  ['v23','c1','這波回檔的三個訊號','BTC 兩週內不破 6 萬',28,'ok',null],
+  ['v24','c1','現貨 ETF 怎麼看','ETF 週淨流入轉正',35,'ok',null],
+  ['v5','c2','BTC 回測 6.2 萬是最後上車機會','BTC 本週回測 6.2 萬後反彈',7,'ok',null],
+  ['v6','c2','聯準會降息夜，這樣操作','降息後 24 小時內 BTC 先跌後漲',5,'ok',null],
+  ['v7','c2','ETF 資金流入，下一站 8 萬','BTC 兩週內到 8 萬',2,null,12],
+  ['v8','c2','我為什麼看空到年底','BTC 年底前跌破 5 萬',30,'bad',null],
+  ['v25','c2','長線布局的三個條件','BTC 一個月內不破前低',27,'ok',null],
+  ['v33','c2','選擇權到期日前瞻','到期日前 BTC 在 6.5～7 萬',18,'ok',null],
+  ['v9','c3','巨鯨轉入交易所，要砸盤了？','三天內出現 5% 以上單日回檔',6,'ok',null],
+  ['v10','c3','穩定幣流入創新高 = 牛市？','穩定幣市值月底前再 +3%',14,'ok',null],
+  ['v11','c3','這個錢包在偷偷吸籌','該代幣兩週內漲 30%',4,null,-2],
+  ['v21','c3','鏈上資料看 ETH 質押','ETH 質押量月底創高',22,'ok',null],
+  ['v22','c3','交易所餘額一路下降','BTC 交易所餘額再降 2%',33,'ok',null],
+  ['v12','c4','週線收這裡，多空就定了','週線收在 6.8 萬以上',8,'half',null],
+  ['v13','c4','看盤秘笈：這根 K 棒不簡單',null,1,null,null],
+  ['v14','c4','空單別凹了！','一週內 BTC 不會再破前低',11,'bad',null],
+  ['v26','c4','突破還是假突破','今日收盤站穩 6.6 萬',18,'bad',null],
+  ['v27','c4','日線看這個形態','三天內回補缺口',24,'half',null],
+  ['v15','c5','這個新幣一定歸零','上市一個月內跌 80%',25,'ok',null],
+  ['v16','c5','Meme 幣最後一棒','該 meme 幣 30 天內腰斬',16,'ok',null],
+  ['v17','c5','這間交易所要出事','三個月內暫停提款',40,'bad',null],
+  ['v28','c5','空投幣別接','上線首週跌破發行價',31,'ok',null],
+  ['v29','c5','這條公鏈是龐氏','半年內 TVL 腰斬',45,'bad',null],
+  ['v18','c6','週末行情預告','週日收盤前 BTC 回到 6.5 萬',2,null,-1],
+  ['v19','c6','週末 all in 一個幣',null,0,null,null],
+  ['v20','c6','週一開盤怎麼走','週一亞洲盤開高走低',9,'bad',null],
+  ['v30','c6','這個週末要噴','週末 BTC 漲 5%',13,'bad',null],
+  ['v31','c6','跌深反彈順勢單','隔天反彈 3%',19,'bad',null],
+  ['v32','c6','週五晚上的訊號','週末不再破低',26,'half',null],
+];
+let V, VM, LOG;
+function reset() {
+  V = RAW.map(r => ({ id:r[0], ch:r[1], t:r[2], claim:r[3], ago:r[4], r:r[5], due:r[6], note:'', dur:`${8 + (r[4] * 7) % 31}:${String((r[4] * 13) % 60).padStart(2, '0')}` }));
+  V.sort((a, b) => a.ago - b.ago);
+  VM = Object.fromEntries(V.map(v => [v.id, v]));
+  LOG = V.filter(v => v.r).map(v => ({ id:v.id, r:v.r, at:v.ago + 0.5, mine:false })).sort((a, b) => b.at - a.at);
+}
+reset();
+const RL = { ok:'對', half:'半對', bad:'不對' };
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+function stats(cid) {
+  const c = { ok:0, bad:0, half:0, pend:0 };
+  V.filter(v => v.ch === cid).forEach(v => c[v.r || 'pend']++);
+  const n = c.ok + c.bad + c.half;
+  return { ...c, n, rate: n ? Math.round((c.ok + c.half * .5) / n * 100) : null };
+}
+const grade = s => s.n < 3 ? 'Q' : s.rate >= 80 ? 'S' : s.rate >= 65 ? 'A' : s.rate >= 50 ? 'B' : 'C';
+const rcol = r => r == null ? '#555' : r >= 80 ? '#FFD60A' : r >= 65 ? '#30D158' : r >= 50 ? '#64D2FF' : '#FF7A70';
+const av = (c, k = '') => `<span class="av ${k}" style="background:${c.col}">${c.ini}</span>`;
+const thbg = v => `background:linear-gradient(135deg,${CHm[v.ch].col},#1a1a2a)`;
+const ratedOf = cid => V.filter(v => v.ch === cid && v.r).sort((a, b) => a.ago - b.ago);
+const streak = cid => { let n = 0; for (const v of ratedOf(cid)) { if (v.r === 'ok') n++; else break; } return n; };
+const count = (fn) => V.filter(fn).length;
+function doRate(id, r) {
+  const v = VM[id]; const clear = v.r === r;
+  v.r = clear ? null : r;
+  if (clear && v.due == null && v.claim) v.due = 0; // 清除評價後回到「待驗證」
+  LOG.unshift({ id, r:v.r || 'clear', at:0, mine:true });
+  return clear ? `已清除「${v.t.slice(0, 8)}…」的評價` : `評為「${RL[r]}」：${v.t.slice(0, 8)}…`;
+}
+const hdr = (title, sub, back, right = '') => `<div class="top">${back ? `<button class="ib" data-a="back">‹</button>` : `<span class="ib">‹</span>`}<b>${title}${sub ? `<small>${sub}</small>` : ''}</b>${right}</div>`;
+const sheetWrap = inner => `<div class="sheet-bg" data-a="close"></div><div class="sheet"><div class="grab"></div>${inner}</div>`;
+const logRows = cid => { const rows = LOG.filter(l => VM[l.id].ch === cid).slice(0, 6); return rows.length ? rows.map(l => `<div class="muted" style="padding:3px 0">${l.mine ? '剛剛' : Math.ceil(l.at) + ' 天前'}・${l.r === 'clear' ? '清除評價' : `評為 <b class="c-${l.r}">${RL[l.r]}</b>`}・${esc(VM[l.id].t.slice(0, 14))}</div>`).join('') : '<div class="small">還沒有紀錄</div>'; };
+const last10 = cid => `<div class="dots">${ratedOf(cid).slice(0, 10).map(v => `<i class="${v.r}"></i>`).join('')}</div>`;
+// 共用抽屜：評價一部影片（skin 決定按鈕的文字）
+function rateSheet(S, skin) {
+  const v = VM[S.sheet.id], c = CHm[v.ch];
+  const lab = skin === 'stamp' ? { ok:['命中', '說中了'], half:['擦邊', '對一半'], bad:['打臉', '說錯了'] } : { ok:['👍 對', '內容正確'], half:['◐ 半對', '部分正確'], bad:['👎 不對', '內容有誤'] };
+  return sheetWrap(`
+    <div style="display:flex;gap:8px;align-items:center">${av(c)}<div style="min-width:0"><h4 style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(v.t)}</h4><div class="small">${c.name}・${v.ago} 天前</div></div></div>
+    ${v.claim ? `<div class="quote" style="color:var(--ink)">他說：「${esc(v.claim)}」</div>` : '<div class="small" style="margin:8px 0">這部還沒記他說了什麼（可以在備註寫）</div>'}
+    <div class="big3">${['ok', 'half', 'bad'].map(k => `<button class="${k} ${v.r === k ? 'on' : ''}" data-a="rate" data-x="${v.id}|${k}">${lab[k][0]}<small>${lab[k][1]}</small></button>`).join('')}</div>
+    <textarea rows="2" placeholder="備註（選填）：例如 實際走到 6.9 萬，差一點">${esc(v.note)}</textarea>
+    <div class="row2" style="margin-top:10px"><button class="btn g" data-a="rate" data-x="${v.id}|${v.r || 'ok'}" ${v.r ? '' : 'disabled style="opacity:.4"'}>清除評價</button><button class="btn" data-a="save">儲存備註</button></div>`);
+}
+
+// ───────────── 版本一：主流 👍👎 ─────────────
+const S1 = { p:'cat', seg:'video', f:'all', sort:'rate', minN:3, minRate:0, cid:null, cf:'all', sheet:null };
+const badge1 = v => v.r ? `<span class="b1 ${v.r}">${{ ok:'👍 對', bad:'👎 不對', half:'◐ 半對' }[v.r]}</span>` : '';
+function row1(v, showCh = true) {
+  const c = CHm[v.ch];
+  return `<div class="vrow"><div class="th" style="${thbg(v)}" data-a="play">${c.em}<span class="dur">${v.dur}</span>${badge1(v)}</div>
+    <div class="vi"><div class="vt">${esc(v.t)}</div><div class="vm">${showCh ? `${av(c, 's')}${c.name}・` : ''}${v.ago} 天前</div>
+    <div class="acts"><button class="rb ${v.r === 'ok' ? 'on ok' : ''}" data-a="rate" data-x="${v.id}|ok">👍 對</button><button class="rb ${v.r === 'bad' ? 'on bad' : ''}" data-a="rate" data-x="${v.id}|bad">👎 不對</button><button class="rb" data-a="sheet" data-x="${v.id}">⋯</button></div></div></div>`;
+}
+function view1(S) {
+  const lay = S.sheet ? rateSheet(S, 'plain') : '';
+  if (S.p === 'ch') {
+    const c = CHm[S.cid], s = stats(c.id);
+    const list = V.filter(v => v.ch === c.id && (S.cf === 'all' || (S.cf === 'pend' ? !v.r : v.r === S.cf)));
+    return { layer:lay, screen:`${hdr(c.name, '幣圈分類', true)}
+      <div class="pad"><div class="card" style="display:flex;gap:14px;align-items:center">
+        <div class="ring" style="--p:${s.rate || 0};--rc:${rcol(s.rate)}"><div><b>${s.n < 3 ? '—' : s.rate + '%'}</b><span>${s.n < 3 ? '樣本不足' : '命中率'}</span></div></div>
+        <div style="flex:1"><div class="stat3" style="margin:0;grid-template-columns:repeat(2,1fr)"><div><b class="c-ok">${s.ok}</b>對</div><div><b class="c-bad">${s.bad}</b>不對</div><div><b class="c-half">${s.half}</b>半對</div><div><b>${s.pend}</b>待評</div></div></div></div>
+        <div class="card"><div class="small" style="margin-bottom:6px">最近 10 部評價（新→舊）</div>${last10(c.id)}</div></div>
+      <div class="chips">${[['all', '全部'], ['pend', '待評'], ['ok', '👍 對'], ['half', '◐ 半對'], ['bad', '👎 不對']].map(([k, t]) => `<button class="chip ${S.cf === k ? 'on' : ''}" data-a="cf" data-x="${k}">${t}</button>`).join('')}</div>
+      ${list.map(v => row1(v, false)).join('') || '<div class="small" style="padding:20px;text-align:center">這個條件沒有影片</div>'}
+      <div class="pad"><div class="card" style="margin-top:10px"><div class="small" style="margin-bottom:4px">評價紀錄（只增不刪）</div>${logRows(c.id)}</div></div>` };
+  }
+  const vlist = V.filter(v => S.f === 'all' || (S.f === 'pend' ? !v.r : v.r === S.f));
+  let body;
+  if (S.seg === 'video') {
+    const cnt = k => k === 'all' ? V.length : k === 'pend' ? count(v => !v.r) : count(v => v.r === k);
+    body = `<div class="chips">${[['all', '全部'], ['pend', '待評'], ['ok', '👍 對'], ['half', '◐ 半對'], ['bad', '👎 不對']].map(([k, t]) => `<button class="chip ${S.f === k ? 'on' : ''}" data-a="f" data-x="${k}">${t} ${cnt(k)}</button>`).join('')}</div>${vlist.map(v => row1(v)).join('')}`;
+  } else {
+    let rows = CH.map(c => ({ c, s:stats(c.id) })).filter(o => o.s.n >= S.minN && (S.minRate === 0 || o.s.rate >= S.minRate));
+    const hidden = CH.length - rows.length;
+    rows.sort((a, b) => S.sort === 'rate' ? b.s.rate - a.s.rate : S.sort === 'n' ? b.s.n - a.s.n : a.s.pend - b.s.pend);
+    body = `<div class="ctl"><select data-a="sort"><option value="rate" ${S.sort === 'rate' ? 'selected' : ''}>排序：準度高→低</option><option value="n" ${S.sort === 'n' ? 'selected' : ''}>排序：評價數多→少</option><option value="pend" ${S.sort === 'pend' ? 'selected' : ''}>排序：待評少→多</option></select>
+      <span class="small">至少</span><span class="step"><button data-a="minN" data-x="-1">−</button><span>${S.minN} 部</span><button data-a="minN" data-x="1">＋</button></span></div>
+      <div class="chips">${[0, 50, 65, 80].map(r => `<button class="chip ${S.minRate === r ? 'on' : ''}" data-a="minRate" data-x="${r}">${r ? '準度 ≥ ' + r + '%' : '準度不限'}</button>`).join('')}</div>
+      ${rows.map((o, i) => `<div class="crow" data-a="ch" data-x="${o.c.id}"><span class="rk">${i + 1}</span>${av(o.c)}<div class="ci"><b>${o.c.name}</b><div class="bar"><i style="width:${o.s.rate}%;background:${rcol(o.s.rate)}"></i></div><span class="small">${o.s.ok} 對・${o.s.half} 半・${o.s.bad} 不對・${o.s.pend} 待評</span></div><div class="pc" style="color:${rcol(o.s.rate)}">${o.s.rate}%</div></div>`).join('') || '<div class="small" style="padding:24px;text-align:center">沒有符合的頻道，放寬條件看看</div>'}
+      ${hidden ? `<div class="small" style="padding:10px 14px">另外 ${hidden} 個頻道評價不足或準度不到，已隱藏</div>` : ''}`;
+  }
+  return { layer:lay, screen:`${hdr('幣圈', `${CH.length} 個頻道・${count(v => v.r)} 部已評價`, false, '<button class="ib">🔍</button><button class="ib">⋯</button>')}
+    <div class="seg"><button class="${S.seg === 'video' ? 'on' : ''}" data-a="seg" data-x="video">依影片</button><button class="${S.seg === 'chan' ? 'on' : ''}" data-a="seg" data-x="chan">依頻道（準度）</button></div>${body}` };
+}
+function on1(S, a, x, ctx) {
+  if (a === 'back') S.p = 'cat';
+  else if (a === 'seg') S.seg = x;
+  else if (a === 'f') S.f = x;
+  else if (a === 'cf') S.cf = x;
+  else if (a === 'sort') S.sort = x;
+  else if (a === 'minN') S.minN = Math.max(0, Math.min(8, S.minN + +x));
+  else if (a === 'minRate') S.minRate = +x;
+  else if (a === 'ch') { S.p = 'ch'; S.cid = x; S.cf = 'all'; }
+  else if (a === 'sheet') S.sheet = { id:x };
+  else if (a === 'close') S.sheet = null;
+  else if (a === 'rate') { const [id, r] = x.split('|'); ctx.toast(doRate(id, r)); S.sheet = null; }
+  else if (a === 'save') { VM[S.sheet.id].note = ctx.root.querySelector('textarea').value; ctx.toast('備註已存'); S.sheet = null; }
+  else if (a === 'play') ctx.toast('（示範）播放影片');
+}
+
+// ───────────── 版本二：預測帳本 ─────────────
+const S2 = { p:'cat', seg:'pend', cid:null, sheet:null };
+const dtag = d => d <= 0 ? `已到期 ${-d || 0} 天` : `${d} 天後驗證`;
+function pcard(v) {
+  const c = CHm[v.ch], over = v.due != null && v.due <= 0;
+  return `<div class="pcard ${over ? 'over' : ''}"><div class="ph">${av(c, 's')}<b>${c.name}</b><span class="small">${v.ago} 天前</span><span class="dt">${over ? '🔔 ' : '⏳ '}${dtag(v.due)}</span></div>
+    <div class="ptitle">${esc(v.t)}</div><div class="quote">「${esc(v.claim)}」</div>
+    <div class="vb"><button class="bad" data-a="rate" data-x="${v.id}|bad">✗ 說錯了</button><button class="half" data-a="rate" data-x="${v.id}|half">◐ 半對</button><button class="ok" data-a="rate" data-x="${v.id}|ok">✓ 說對了</button></div>
+    <div style="text-align:right;margin-top:6px"><button class="chip" data-a="sheet" data-x="${v.id}">改期／備註</button></div></div>`;
+}
+function view2(S) {
+  let lay = '';
+  if (S.sheet && S.sheet.t === 'add') {
+    const open = V.filter(v => !v.claim);
+    lay = sheetWrap(`<h4>記一則預測</h4><div class="small" style="margin-bottom:8px">看影片時順手記下「他說了什麼」，之後到期會提醒你驗證</div>
+      <select id="addv">${open.map(v => `<option value="${v.id}" ${S.sheet.pick === v.id ? 'selected' : ''}>${CHm[v.ch].name}・${esc(v.t)}</option>`).join('') || '<option>（沒有還沒記預測的影片）</option>'}</select>
+      <input type="text" id="addc" value="${esc(S.sheet.txt || '')}" placeholder="他說了什麼？例如 BTC 一週內站上 7 萬" style="margin-top:8px">
+      <div class="chips" style="padding:10px 0 4px">${[[3, '3 天'], [7, '1 週'], [30, '1 個月'], [90, '3 個月']].map(([d, t]) => `<button class="chip ${S.sheet.d === d ? 'on' : ''}" data-a="adddue" data-x="${d}">${t}後驗證</button>`).join('')}</div>
+      <div class="row2" style="margin-top:10px"><button class="btn g" data-a="close">取消</button><button class="btn" data-a="addok" ${open.length ? '' : 'disabled style="opacity:.4"'}>記下來</button></div>`);
+  } else if (S.sheet) {
+    const v = VM[S.sheet.id];
+    lay = sheetWrap(`<h4>${esc(v.t)}</h4><div class="quote" style="color:var(--ink)">「${esc(v.claim || '（沒記預測）')}」</div>
+      ${v.due != null ? `<div class="small">目前：${dtag(v.due)}</div><div class="chips" style="padding:8px 0">${[[3, '＋3 天'], [7, '＋1 週'], [30, '＋1 個月']].map(([d, t]) => `<button class="chip" data-a="postpone" data-x="${v.id}|${d}">${t}</button>`).join('')}</div>` : ''}
+      <div class="big3">${['ok', 'half', 'bad'].map(k => `<button class="${k} ${v.r === k ? 'on' : ''}" data-a="rate" data-x="${v.id}|${k}">${{ ok:'說對了', half:'半對', bad:'說錯了' }[k]}</button>`).join('')}</div>
+      <textarea rows="2" placeholder="驗證備註：實際走勢…">${esc(v.note)}</textarea><div class="row2" style="margin-top:10px"><button class="btn g" data-a="close">關閉</button><button class="btn" data-a="save">儲存備註</button></div>`);
+  }
+  if (S.p === 'ch') {
+    const c = CHm[S.cid], s = stats(c.id), all = V.filter(v => v.ch === c.id);
+    return { layer:lay, screen:`${hdr(c.name + ' 的戰績', '預測帳本', true)}<div class="pad">
+      <div class="card"><div style="display:flex;align-items:center;gap:14px"><div class="ring" style="--p:${s.rate || 0};--rc:${rcol(s.rate)}"><div><b>${s.n < 3 ? '—' : s.rate + '%'}</b><span>${s.n < 3 ? '樣本不足' : '命中率'}</span></div></div><div class="stat3" style="margin:0;flex:1"><div><b class="c-ok">${s.ok}</b>對</div><div><b class="c-half">${s.half}</b>半</div><div><b class="c-bad">${s.bad}</b>錯</div><div><b>${s.pend}</b>待</div></div></div>
+        <div class="small" style="margin:12px 0 4px">預測時間軸（舊→新）</div><div>${ratedOf(c.id).reverse().map(v => `<span class="sq ${v.r}"></span>`).join('')}${all.filter(v => !v.r && v.claim).map(() => '<span class="sq" style="outline:1px dashed #888;background:none"></span>').join('')}</div></div>
+      <div class="gh">所有預測</div>
+      ${all.map(v => `<div class="pcard" style="margin:0 0 8px;display:flex;gap:10px;align-items:center" data-a="sheet" data-x="${v.id}"><div class="res ${v.r || ''}" style="${v.r ? '' : 'background:#2c2c40;color:var(--ink3)'}">${v.r ? { ok:'✓', half:'◐', bad:'✗' }[v.r] : '⏳'}</div><div style="min-width:0;flex:1"><div style="font-weight:700;font-size:13.5px">${esc(v.claim || '（沒記預測）')}</div><div class="small">${esc(v.t)}・${v.ago} 天前${v.due != null && !v.r ? '・' + dtag(v.due) : ''}</div>${v.note ? `<div class="small" style="color:var(--ink2)">📝 ${esc(v.note)}</div>` : ''}</div></div>`).join('')}
+      <div class="card" style="margin-top:10px"><div class="small" style="margin-bottom:4px">判定紀錄（只增不刪，改判也留一筆）</div>${logRows(c.id)}</div></div>` };
+  }
+  const pend = V.filter(v => !v.r && v.claim), over = pend.filter(v => v.due <= 0), soon = pend.filter(v => v.due > 0 && v.due <= 7), later = pend.filter(v => v.due > 7), none = V.filter(v => !v.claim && !v.r);
+  let body = '';
+  if (S.seg === 'pend') {
+    body = (over.length ? `<div class="gh over">🔔 已到期，該驗證了（${over.length}）</div>${over.map(pcard).join('')}` : '')
+      + (soon.length ? `<div class="gh">⏳ 一週內到期（${soon.length}）</div>${soon.map(pcard).join('')}` : '')
+      + (later.length ? `<div class="gh">更久以後（${later.length}）</div>${later.map(pcard).join('')}` : '')
+      + (none.length ? `<div class="gh">📝 還沒記預測的影片（${none.length}）</div>${none.map(v => `<div class="pcard" style="display:flex;align-items:center;gap:10px"><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600">${esc(v.t)}</div><div class="small">${CHm[v.ch].name}・${v.ago} 天前</div></div><button class="chip on" data-a="addfor" data-x="${v.id}">記預測</button></div>`).join('')}` : '')
+      || '<div class="small" style="padding:30px;text-align:center">目前沒有待驗證的預測 🎉</div>';
+  } else if (S.seg === 'done') {
+    body = V.filter(v => v.r).map(v => `<div class="pcard" style="display:flex;gap:10px;align-items:center" data-a="sheet" data-x="${v.id}"><div class="res ${v.r}">${{ ok:'✓', half:'◐', bad:'✗' }[v.r]}</div><div style="min-width:0;flex:1"><div style="font-weight:700;font-size:13.5px">${esc(v.claim || v.t)}</div><div class="small">${av(CHm[v.ch], 's')}${CHm[v.ch].name}・${v.ago} 天前${v.note ? '・📝 ' + esc(v.note) : ''}</div></div></div>`).join('');
+  } else {
+    body = CH.map(c => ({ c, s:stats(c.id) })).sort((a, b) => (b.s.rate ?? -1) - (a.s.rate ?? -1)).map((o, i) => `<div class="pcard" data-a="ch" data-x="${o.c.id}"><div class="ph">${av(o.c)}<b style="font-size:14px">${i + 1}. ${o.c.name}</b><span class="dt" style="color:${rcol(o.s.rate)}">${o.s.n < 3 ? '樣本不足' : o.s.rate + '%'}</span></div><div style="margin-top:8px">${ratedOf(o.c.id).reverse().map(v => `<span class="sq ${v.r}"></span>`).join('')}</div><div class="small">${o.s.n} 則已驗證・${o.s.pend} 則待驗證</div></div>`).join('');
+  }
+  return { layer:lay, screen:`${hdr('幣圈・預測帳本', `${pend.length} 則待驗證`, false, '<button class="ib" data-a="add" style="width:auto;padding:0 10px;font-size:13px;font-weight:800;background:rgba(126,166,255,.18);color:var(--accent)">＋ 記預測</button>')}
+    <div class="seg"><button class="${S.seg === 'pend' ? 'on' : ''}" data-a="seg" data-x="pend">待驗證 ${pend.length + none.length}</button><button class="${S.seg === 'done' ? 'on' : ''}" data-a="seg" data-x="done">已驗證 ${count(v => v.r)}</button><button class="${S.seg === 'rank' ? 'on' : ''}" data-a="seg" data-x="rank">戰績</button></div>${body}` };
+}
+function on2(S, a, x, ctx) {
+  if (a === 'back') S.p = 'cat';
+  else if (a === 'seg') S.seg = x;
+  else if (a === 'ch') { S.p = 'ch'; S.cid = x; }
+  else if (a === 'sheet') S.sheet = { id:x };
+  else if (a === 'close') S.sheet = null;
+  else if (a === 'add') S.sheet = { t:'add', d:7 };
+  else if (a === 'addfor') { S.sheet = { t:'add', d:7, pick:x }; }
+  else if (a === 'adddue') { S.sheet.txt = ctx.root.querySelector('#addc').value; S.sheet.pick = ctx.root.querySelector('#addv').value; S.sheet.d = +x; }
+  else if (a === 'addok') {
+    const sel = ctx.root.querySelector('#addv'), txt = ctx.root.querySelector('#addc').value.trim();
+    const v = VM[S.sheet.pick || sel.value]; if (!v) return;
+    if (!txt) { ctx.toast('先寫他說了什麼'); return; }
+    v.claim = txt; v.due = S.sheet.d; ctx.toast(`已記下，${S.sheet.d} 天後提醒你驗證`); S.sheet = null; S.seg = 'pend';
+  }
+  else if (a === 'postpone') { const [id, d] = x.split('|'); VM[id].due += +d; ctx.toast(`延後 ${d} 天`); }
+  else if (a === 'rate') { const [id, r] = x.split('|'); ctx.toast(doRate(id, r)); S.sheet = null; }
+  else if (a === 'save') { VM[S.sheet.id].note = ctx.root.querySelector('textarea').value; ctx.toast('備註已存'); S.sheet = null; }
+}
+
+// ───────────── 版本三：戰績段位（印章＋排行榜）─────────────
+const S3 = { p:'cat', gf:'all', cid:null, sheet:null };
+const stamp3 = v => v.r ? `<span class="stamp ${v.r}">${{ ok:'命中', bad:'打臉', half:'擦邊' }[v.r]}</span>` : '';
+const grBadge = (s, k = '') => `<span class="gr ${grade(s) === 'Q' ? 'Q' : grade(s)} ${k}">${grade(s) === 'Q' ? '?' : grade(s)}</span>`;
+function row3(v) {
+  const c = CHm[v.ch];
+  return `<div class="vrow" data-a="sheet" data-x="${v.id}"><div class="th" style="${thbg(v)}">${c.em}<span class="dur">${v.dur}</span>${stamp3(v)}</div><div class="vi"><div class="vt">${esc(v.t)}</div><div class="vm">${av(c, 's')}${c.name}・${v.ago} 天前</div>${v.claim ? `<div class="quote">${esc(v.claim)}</div>` : ''}${v.r ? '' : '<div class="small" style="color:var(--accent)">點一下評價 ›</div>'}</div></div>`;
+}
+function view3(S) {
+  const lay = S.sheet ? rateSheet(S, 'stamp') : '';
+  if (S.p === 'ch') {
+    const c = CHm[S.cid], s = stats(c.id), best = ratedOf(c.id).find(v => v.r === 'ok'), worst = ratedOf(c.id).find(v => v.r === 'bad');
+    return { layer:lay, screen:`${hdr(c.name, '戰績', true)}<div class="pad">
+      <div class="card" style="text-align:center">${grBadge(s, 'xl')}<div style="font-size:30px;font-weight:900;color:${rcol(s.rate)};margin-top:6px">${s.n < 3 ? '樣本不足' : s.rate + '%'}</div>
+        <div class="small">${s.n} 部已評・${s.pend} 部待評${s.n < 3 ? '（至少 3 部才給段位）' : ''}</div>
+        <div class="stat3"><div><b class="c-ok">${s.ok}</b>命中</div><div><b class="c-half">${s.half}</b>擦邊</div><div><b class="c-bad">${s.bad}</b>打臉</div><div><b class="streak">🔥${streak(c.id)}</b>連中</div></div>
+        <div class="small" style="margin-bottom:4px">最近 10 部</div><div style="display:flex;justify-content:center">${last10(c.id)}</div></div>
+      ${best ? `<div class="card"><div class="small">🏆 最近一次命中</div><div style="font-weight:700">${esc(best.claim || best.t)}</div></div>` : ''}${worst ? `<div class="card"><div class="small">🤡 最近一次打臉</div><div style="font-weight:700">${esc(worst.claim || worst.t)}</div></div>` : ''}</div>
+      ${V.filter(v => v.ch === c.id).map(row3).join('')}
+      <div class="pad"><div class="card"><div class="small" style="margin-bottom:4px">評價紀錄（只增不刪）</div>${logRows(c.id)}</div></div>` };
+  }
+  const rows = CH.map(c => ({ c, s:stats(c.id) })).sort((a, b) => (b.s.rate ?? -1) - (a.s.rate ?? -1));
+  const ranked = rows.filter(o => o.s.n >= 3);
+  const pod = k => { const o = ranked[k]; return o ? `<div class="pod p${k + 1}" data-a="ch" data-x="${o.c.id}"><div class="md">${['🥇', '🥈', '🥉'][k]}</div>${av(o.c, 'l')}<div class="nm">${o.c.name}</div><div class="pc" style="color:${rcol(o.s.rate)}">${o.s.rate}%</div>${grBadge(o.s)}</div>` : ''; };
+  const list = rows.filter(o => S.gf === 'all' || (S.gf === 'Q' ? grade(o.s) === 'Q' : grade(o.s) === S.gf));
+  return { layer:lay, screen:`${hdr('幣圈・準度排行', '誰的行情講最準', false, '<button class="ib">🔍</button>')}
+    <div class="podium">${pod(1)}${pod(0)}${pod(2)}</div>
+    <div class="chips" style="padding-top:12px">${[['all', '全部'], ['S', 'S 段'], ['A', 'A 段'], ['B', 'B 段'], ['C', 'C 段'], ['Q', '樣本不足']].map(([k, t]) => `<button class="chip ${S.gf === k ? 'on' : ''}" data-a="gf" data-x="${k}">${t}</button>`).join('')}</div>
+    ${list.map((o, i) => `<div class="lrow" data-a="ch" data-x="${o.c.id}">${grBadge(o.s)}${av(o.c)}<div class="ci">${o.c.name}<div class="small">${o.s.n} 部已評・${o.s.pend} 待評 ${streak(o.c.id) >= 2 ? `<span class="streak">🔥連中 ${streak(o.c.id)}</span>` : ''}</div></div><div style="text-align:right">${last10(o.c.id)}<div style="font-weight:900;color:${rcol(o.s.rate)};margin-top:3px">${o.s.n < 3 ? '—' : o.s.rate + '%'}</div></div></div>`).join('') || '<div class="small" style="padding:20px;text-align:center">這個段位還沒有頻道</div>'}
+    <div class="gh" style="margin-top:12px">最新影片（點一下蓋章）</div>${V.slice(0, 6).map(row3).join('')}` };
+}
+function on3(S, a, x, ctx) {
+  if (a === 'back') S.p = 'cat';
+  else if (a === 'gf') S.gf = x;
+  else if (a === 'ch') { S.p = 'ch'; S.cid = x; }
+  else if (a === 'sheet') S.sheet = { id:x };
+  else if (a === 'close') S.sheet = null;
+  else if (a === 'rate') { const [id, r] = x.split('|'); ctx.toast(doRate(id, r)); S.sheet = null; }
+  else if (a === 'save') { VM[S.sheet.id].note = ctx.root.querySelector('textarea').value; ctx.toast('備註已存'); S.sheet = null; }
+}
+
+// ───────────── 版本四：滑動驗證 ─────────────
+const S4 = { p:'cat', cid:null, sheet:null, q:[], i:0, hist:[], res:{ ok:0, half:0, bad:0 } };
+const dot4 = v => v.r ? `<span class="dotb ${v.r}">${{ ok:'✓', bad:'✗', half:'◐' }[v.r]}</span>` : '';
+function row4(v) {
+  const c = CHm[v.ch];
+  return `<div class="vrow"><div class="th" style="${thbg(v)}" data-a="sheet" data-x="${v.id}">${c.em}<span class="dur">${v.dur}</span>${dot4(v)}</div><div class="vi"><div class="vt">${esc(v.t)}</div><div class="vm">${av(c, 's')}${c.name}・${v.ago} 天前</div>${v.claim ? `<div class="quote">${esc(v.claim)}</div>` : ''}</div></div>`;
+}
+function view4(S) {
+  const lay = S.sheet ? rateSheet(S, 'plain') : '';
+  if (S.p === 'swipe') {
+    const cur = VM[S.q[S.i]], nxt = VM[S.q[S.i + 1]];
+    const card = (v, back) => { const c = CHm[v.ch]; return `<div class="scard ${back ? 'back' : ''}" ${back ? '' : 'id="card"'}>
+      <div class="th" style="width:100%;height:150px;border-radius:18px;${thbg(v)};font-size:54px">${c.em}<span class="dur">${v.dur}</span></div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:12px">${av(c)}<div><b>${c.name}</b><div class="small">${v.ago} 天前的影片</div></div></div>
+      <div class="small" style="margin-top:12px">他說：</div><div class="big">${esc(v.claim)}</div>
+      <div class="small">${v.due != null ? (v.due <= 0 ? '🔔 已到期，現在驗證' : '⏳ ' + dtag(v.due)) : ''}　${esc(v.t)}</div>
+      ${back ? '' : '<span class="hint hbad">不對</span><span class="hint hok">對</span><span class="hint hhalf">半對</span>'}</div>`; };
+    if (!cur) {
+      const t = S.res, n = t.ok + t.half + t.bad;
+      return { layer:'', screen:`${hdr('驗證完成', '', true)}<div class="pad"><div class="card" style="text-align:center;padding:28px 14px"><div style="font-size:44px">🎯</div><div style="font-size:20px;font-weight:900;margin:6px 0">這次驗了 ${n} 則</div>
+        <div class="stat3"><div><b class="c-ok">${t.ok}</b>對</div><div><b class="c-half">${t.half}</b>半對</div><div><b class="c-bad">${t.bad}</b>不對</div><div><b>${n ? Math.round((t.ok + t.half * .5) / n * 100) : 0}%</b>這批命中</div></div>
+        <button class="btn" style="width:100%;margin-top:6px" data-a="back">回幣圈清單</button></div></div>` };
+    }
+    return { layer:'', screen:`${hdr('滑動驗證', `第 ${S.i + 1} / ${S.q.length} 則`, true, '<button class="ib" data-a="back" style="font-size:13px;width:auto;padding:0 8px">結束</button>')}
+      <div class="prog"><i style="width:${S.i / S.q.length * 100}%"></i></div>
+      <div class="deck">${nxt ? card(nxt, true) : ''}${card(cur, false)}</div>
+      <div class="swbtn"><button class="undo" data-a="undo" title="上一則">↶</button><button class="bad" data-a="swipe" data-x="bad">✗</button><button class="half" data-a="swipe" data-x="half">◐</button><button class="ok" data-a="swipe" data-x="ok">✓</button></div>
+      <div class="small" style="text-align:center;margin-top:12px">← 不對　↑ 半對　→ 對　（可以用鍵盤方向鍵）</div>` };
+  }
+  if (S.p === 'ch') {
+    const c = CHm[S.cid], s = stats(c.id);
+    return { layer:lay, screen:`${hdr(c.name, '幣圈分類', true)}<div class="pad"><div class="card" style="display:flex;gap:14px;align-items:center"><div class="ring" style="--p:${s.rate || 0};--rc:${rcol(s.rate)}"><div><b>${s.n < 3 ? '—' : s.rate + '%'}</b><span>${s.n < 3 ? '樣本不足' : '命中率'}</span></div></div><div style="flex:1"><div class="stat3" style="margin:0;grid-template-columns:repeat(2,1fr)"><div><b class="c-ok">${s.ok}</b>對</div><div><b class="c-bad">${s.bad}</b>不對</div><div><b class="c-half">${s.half}</b>半對</div><div><b>${s.pend}</b>待評</div></div></div></div>
+      <div class="card"><div class="small" style="margin-bottom:6px">最近 10 部</div>${last10(c.id)}</div></div>
+      ${V.filter(v => v.ch === c.id).map(row4).join('')}<div class="pad"><div class="card"><div class="small" style="margin-bottom:4px">評價紀錄（只增不刪）</div>${logRows(c.id)}</div></div>` };
+  }
+  const pend = V.filter(v => !v.r && v.claim);
+  const rows = CH.map(c => ({ c, s:stats(c.id) })).filter(o => o.s.n >= 3).sort((a, b) => b.s.rate - a.s.rate);
+  return { layer:lay, screen:`${hdr('幣圈', '', false, '<button class="ib">🔍</button><button class="ib">⋯</button>')}
+    <div class="cta"><div class="small" style="color:#cfd6ff">待驗證</div><b>${pend.length} 則預測等你驗證</b><div class="muted" style="margin-top:2px">像刷卡片一樣，左右滑就好</div><button class="btn" data-a="start" ${pend.length ? '' : 'disabled style="opacity:.4"'}>開始滑動驗證</button></div>
+    <div class="gh">準度榜（至少 3 部評價）</div><div class="pad"><div class="card" style="padding:4px 12px">${rows.map((o, i) => `<div class="crow" style="padding:8px 0;${i ? '' : 'border-top:0'}" data-a="ch" data-x="${o.c.id}"><span class="rk">${i + 1}</span>${av(o.c)}<div class="ci"><b>${o.c.name}</b><div class="bar"><i style="width:${o.s.rate}%;background:${rcol(o.s.rate)}"></i></div></div><div class="pc" style="color:${rcol(o.s.rate)}">${o.s.rate}%</div></div>`).join('')}</div></div>
+    <div class="gh">所有影片</div>${V.map(row4).join('')}` };
+}
+function on4(S, a, x, ctx) {
+  if (a === 'back') { S.p = 'cat'; }
+  else if (a === 'ch') { S.p = 'ch'; S.cid = x; }
+  else if (a === 'sheet') S.sheet = { id:x };
+  else if (a === 'close') S.sheet = null;
+  else if (a === 'start') { S.q = V.filter(v => !v.r && v.claim).sort((a, b) => a.due - b.due).map(v => v.id); S.i = 0; S.hist = []; S.res = { ok:0, half:0, bad:0 }; S.p = 'swipe'; }
+  else if (a === 'swipe') flyOut(S, x, ctx);
+  else if (a === 'swipeDone') { const id = S.q[S.i]; doRate(id, x); S.res[x]++; S.hist.push({ id, r:x }); S.i++; }
+  else if (a === 'undo') { const h = S.hist.pop(); if (h) { VM[h.id].r = null; LOG.unshift({ id:h.id, r:'clear', at:0, mine:true }); S.res[h.r]--; S.i--; ctx.toast('回到上一則'); } }
+  else if (a === 'rate') { const [id, r] = x.split('|'); ctx.toast(doRate(id, r)); S.sheet = null; }
+  else if (a === 'save') { VM[S.sheet.id].note = ctx.root.querySelector('textarea').value; ctx.toast('備註已存'); S.sheet = null; }
+}
+// 卡片飛出去再記錄
+function flyOut(S, r, ctx) {
+  const card = ctx.root.querySelector('#card'); if (!card || S.busy) return;
+  S.busy = true; card.style.transition = 'transform .25s, opacity .25s';
+  card.style.transform = r === 'ok' ? 'translate(420px,0) rotate(24deg)' : r === 'bad' ? 'translate(-420px,0) rotate(-24deg)' : 'translate(0,-520px)';
+  card.style.opacity = '0';
+  setTimeout(() => { S.busy = false; ctx.dispatch('swipeDone', r); }, 240);
+}
+function after4(S, ctx) {
+  const card = ctx.root.querySelector('#card'); if (!card || S.p !== 'swipe') return;
+  let sx = 0, sy = 0, drag = false;
+  const hint = (dx, dy) => { const set = (c, o) => card.querySelector(c).style.opacity = o; set('.hok', Math.max(0, Math.min(1, dx / 90))); set('.hbad', Math.max(0, Math.min(1, -dx / 90))); set('.hhalf', Math.max(0, Math.min(1, -dy / 110))); };
+  card.onpointerdown = e => { drag = true; sx = e.clientX; sy = e.clientY; card.setPointerCapture(e.pointerId); card.style.transition = 'none'; };
+  card.onpointermove = e => { if (!drag) return; const dx = e.clientX - sx, dy = e.clientY - sy; card.style.transform = `translate(${dx}px,${dy}px) rotate(${dx / 14}deg)`; hint(dx, dy); };
+  card.onpointerup = e => { if (!drag) return; drag = false; const dx = e.clientX - sx, dy = e.clientY - sy;
+    if (dx > 90) flyOut(S, 'ok', ctx); else if (dx < -90) flyOut(S, 'bad', ctx); else if (dy < -110) flyOut(S, 'half', ctx);
+    else { card.style.transition = 'transform .2s'; card.style.transform = ''; hint(0, 0); } };
+}
+
+// ───────────── 外框 ─────────────
+const VARS = [
+  { name:'一　主流 👍👎', main:true, S:S1, view:view1, on:on1, title:'版本一：像 YouTube／Yelp 的 👍👎', tag:'主流做法',
+    bullets:['每部影片下面直接兩顆小按鈕 👍對／👎不對，一鍵評完，點同一顆取消；「⋯」開抽屜才有半對和備註。', '影片縮圖左上角有小膠囊標籤：👍 對／👎 不對／◐ 半對，沒評的不顯示。', '「依頻道（準度）」是排行：可選排序、「至少 N 部評價」、「準度 ≥ 50／65／80%」，不夠格的先藏起來，底下告訴你藏了幾個。', '點頻道：命中率圓環、對／不對／半對／待評數、近 10 部圓點、依評價篩影片、評價紀錄。'],
+    try:'試試：切到「依頻道」把「至少」調成 5 部，再選準度 ≥ 80%，看誰最準；回「依影片」點某部的 👍。' },
+  { name:'二　預測帳本', S:S2, view:view2, on:on2, title:'版本二：預測帳本（等驗證）', tag:'適合「預測」型影片',
+    bullets:['行情影片不能馬上評對錯，要等走勢出來。所以先記「他說了什麼」＋幾天後驗證，到期再來打勾。', '「待驗證」依到期分組；已到期的卡片發黃框、頂端寫「該驗證了」；影片還沒記預測的另外列，一鍵「記預測」。', '卡片上三顆鍵：說錯了／半對／說對了；「改期／備註」可延後驗證日。', '「戰績」分頁每個頻道一排方塊時間軸（綠對、橘半、紅錯、虛線＝待驗證）；頻道頁有每則預測與判定紀錄。'],
+    try:'試試：待驗證裡按「說對了」，到「已驗證」看；右上「＋ 記預測」幫還沒記的影片寫一句話。' },
+  { name:'三　戰績段位', S:S3, view:view3, on:on3, title:'版本三：戰績段位＋印章', tag:'遊戲感',
+    bullets:['頻道依命中率分 S（≥80）／A（≥65）／B（≥50）／C，評價少於 3 部是「?」樣本不足。', '首頁就是排行榜：前三名頒獎台，下面可依段位篩選；每列有近 10 部圓點與「🔥連中」。', '影片縮圖蓋印章：「命中」「打臉」「擦邊」；點影片開抽屜蓋章。', '頻道頁：大段位徽章、命中率、連中數，最近一次命中／打臉各一條，加影片清單與評價紀錄。'],
+    try:'試試：點下方最新影片蓋「命中」，看排行榜與連中數變化；點段位 chip 只看 S 段。' },
+  { name:'四　滑動驗證', S:S4, view:view4, on:on4, after:after4, title:'版本四：像刷卡片的批次驗證', tag:'一次清掉一堆待評',
+    bullets:['待評一多就懶得評，所以做成卡片：每張寫「他說了什麼」，往右滑＝對、往左滑＝不對、往上滑＝半對（也可按下面三顆或鍵盤方向鍵）。', '最急的（已到期）排最前；可以「↶」回上一張；全部滑完有這批的成績。', '清單上的影片只有縮圖左上一個小圓點（✓／✗／◐），乾淨不搶版面；點縮圖也能單獨評。', '清單上方是「準度榜」（至少 3 部評價）；點頻道看命中率、近 10 部與評價紀錄。'],
+    try:'試試：按「開始滑動驗證」，用滑鼠把卡片往右拖過去，或按鍵盤 ← ↑ →。' },
+];
+let cur = 0;
+const el = { scr:document.getElementById('scr'), lay:document.getElementById('lay'), phone:document.getElementById('phone'), toast:document.getElementById('toast') };
+let toastT;
+function toast(msg) { el.toast.textContent = msg; el.toast.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => el.toast.classList.remove('on'), 1700); }
+const ctx = { root:el.phone, toast, dispatch:(a, x) => dispatch(a, x) };
+function render() {
+  const A = VARS[cur], y = el.scr.scrollTop;
+  const out = A.view(A.S);
+  el.scr.innerHTML = out.screen; el.lay.innerHTML = out.layer || '';
+  el.scr.scrollTop = y;
+  if (A.after) A.after(A.S, ctx);
+}
+function dispatch(a, x) { const A = VARS[cur]; const keep = ['back', 'ch', 'seg', 'start', 'swipeDone'].includes(a); A.on(A.S, a, x, ctx); if (keep && a !== 'swipeDone') el.scr.scrollTop = 0; render(); }
+el.phone.addEventListener('click', e => { const t = e.target.closest('[data-a]'); if (!t || t.tagName === 'SELECT') return; dispatch(t.dataset.a, t.dataset.x); });
+el.phone.addEventListener('change', e => { const t = e.target.closest('[data-a]'); if (t && t.tagName === 'SELECT') dispatch(t.dataset.a, t.value); });
+addEventListener('keydown', e => { const A = VARS[cur]; if (cur !== 3 || A.S.p !== 'swipe' || A.S.busy) return; const m = { ArrowRight:'ok', ArrowLeft:'bad', ArrowUp:'half' }[e.key]; if (m) { e.preventDefault(); flyOut(A.S, m, ctx); } });
+function drawFrame() {
+  const A = VARS[cur];
+  document.getElementById('vtabs').innerHTML = VARS.map((v, i) => `<button class="${i === cur ? 'on' : ''}" data-i="${i}">${v.name}</button>`).join('') + '<button class="reset" id="rs">重置示範資料</button>';
+  document.getElementById('notes').innerHTML = `<span class="tag ${A.main ? 'main' : ''}">${A.tag}</span><h2>${A.title}</h2><h3>怎麼運作</h3><ul>${A.bullets.map(b => `<li>${b}</li>`).join('')}</ul><div class="try">${A.try}</div>`;
+  document.querySelectorAll('#vtabs [data-i]').forEach(b => b.onclick = () => { cur = +b.dataset.i; drawFrame(); render(); });
+  document.getElementById('rs').onclick = () => { reset(); Object.assign(S1, { p:'cat', seg:'video', f:'all', sheet:null }); Object.assign(S2, { p:'cat', seg:'pend', sheet:null }); Object.assign(S3, { p:'cat', gf:'all', sheet:null }); Object.assign(S4, { p:'cat', sheet:null }); render(); toast('示範資料已重置'); };
+}
+drawFrame(); render();
+window.__t = { VARS, dispatch, get cur() { return cur; }, setCur(i) { cur = i; drawFrame(); render(); }, stats, V: () => V };
+</script>
+</body>
+</html>
