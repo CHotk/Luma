@@ -250,6 +250,7 @@ class LedgerTx {
     this.raw,
     this.dir,
     this.cpId,
+    this.timeUnknown = false,
     this.createdAt,
     this.updatedAt,
     this.deletedAt,
@@ -258,6 +259,10 @@ class LedgerTx {
   final String id;
   final LedgerTxType type;
   final DateTime occurredAt;
+
+  /// 時間不確定、只知道是哪一天（2026-11-10 使用者）：[occurredAt] 放那天中午 12:00 當代表，
+  /// 畫面只顯示日期、不顯示時分。
+  final bool timeUnknown;
   final int amount;
   final String accountId;
 
@@ -347,6 +352,7 @@ class LedgerTx {
     bool? flagged,
     PaidFor? Function()? paidFor,
     List<LedgerSplit>? splits,
+    bool? timeUnknown,
     DateTime? updatedAt,
     DateTime? deletedAt,
   }) => LedgerTx(
@@ -368,6 +374,7 @@ class LedgerTx {
     raw: raw,
     dir: dir,
     cpId: cpId,
+    timeUnknown: timeUnknown ?? this.timeUnknown,
     createdAt: createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     deletedAt: deletedAt ?? this.deletedAt,
@@ -392,6 +399,7 @@ class LedgerTx {
     'raw': raw,
     if (dir != null) 'dir': dir,
     if (cpId != null) 'cpId': cpId,
+    if (timeUnknown) 'timeUnknown': true,
     'createdAt': createdAt == null ? null : ledgerTime(createdAt!),
     'updatedAt': updatedAt == null ? null : ledgerTime(updatedAt!),
     'deletedAt': deletedAt == null ? null : ledgerTime(deletedAt!),
@@ -421,6 +429,7 @@ class LedgerTx {
     raw: j['raw'] as String?,
     dir: j['dir'] as String?,
     cpId: j['cpId'] as String?,
+    timeUnknown: j['timeUnknown'] as bool? ?? false,
     createdAt: _t(j['createdAt']),
     updatedAt: _t(j['updatedAt']),
     deletedAt: _t(j['deletedAt']),

@@ -5,6 +5,8 @@ import 'models/ledger.dart';
 
 String _money(int v) => '\$$v';
 
+String _day(DateTime t) => '${t.year}/${t.month}/${t.day}（時間不確定）';
+
 String _time(DateTime t) =>
     '${t.year}/${t.month}/${t.day} '
     '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
@@ -34,7 +36,12 @@ List<String> logDiffTx(LedgerTx a, LedgerTx b, String Function(String?) acct) {
   }
 
   d('類型', a.type.label, b.type.label);
-  d('時間', _time(a.occurredAt), _time(b.occurredAt));
+  d(
+    '時間',
+    a.timeUnknown ? _day(a.occurredAt) : _time(a.occurredAt),
+    b.timeUnknown ? _day(b.occurredAt) : _time(b.occurredAt),
+  );
+  d('時間不確定', a.timeUnknown ? '是' : '否', b.timeUnknown ? '是' : '否');
   d('金額', _money(a.amount), _money(b.amount));
   d('帳戶', acct(a.accountId), acct(b.accountId));
   if (a.toAccountId != b.toAccountId) {

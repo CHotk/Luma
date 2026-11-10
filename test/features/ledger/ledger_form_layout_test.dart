@@ -11,6 +11,7 @@ import 'package:lume/features/ledger/ledger_page.dart';
 /// （時間、商家、金額、帳戶、分類、這筆之後餘額、備註），金額也不特別長／特別大。
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  timeUnknownTests();
 
   testWidgets('記一筆：標題都靠左同一條線；輸入框一樣高；帳戶、分類、餘額也是同一行', (tester) async {
     final store = _MemoryStore();
@@ -80,6 +81,98 @@ void main() {
     expect(afterField, findsWidgets);
     expect((mid(after) - mid(afterField.first)).abs(), lessThan(14));
     expect(memoLabel, findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+}
+
+/// 2026-11-10 使用者：時間不確定時只要選到天；時間旁邊有個按鈕，打開就代表不確定。
+void timeUnknownTests() {
+  test('交易的「時間不確定」存得進、讀得回；沒開的不多存欄位', () {
+    final t = LedgerTx(
+      id: 'a',
+      type: LedgerTxType.expense,
+      occurredAt: DateTime(2026, 11, 8, 12),
+      amount: 100,
+      accountId: 'x',
+      timeUnknown: true,
+    );
+    expect(LedgerTx.fromJson(t.toJson()).timeUnknown, isTrue);
+    expect(t.copyWith(amount: 5).timeUnknown, isTrue);
+    expect(t.copyWith(timeUnknown: false).timeUnknown, isFalse);
+    expect(
+      t.copyWith(timeUnknown: false).toJson().containsKey('timeUnknown'),
+      isFalse,
+    );
+    // 舊資料沒有這個欄位＝時間是確定的。
+    final old = t.toJson()..remove('timeUnknown');
+    expect(LedgerTx.fromJson(old).timeUnknown, isFalse);
+  });
+
+  testWidgets('記一筆：時間旁邊的「不確定」打開後只顯示日期，存起來是那天中午、列表寫「時間不詳」', (tester) async {
+    final store = _MemoryStore();
+    final repo = LedgerRepository(store);
+    await repo.addAccount(
+      name: '現金',
+      type: LedgerAccountType.cash,
+      opening: 1000,
+      openingAt: DateTime(2026, 11, 1),
+    );
+    tester.view.physicalSize = const Size(360 * 3, 900 * 3);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [keyValueStoreProvider.overrideWithValue(store)],
+        child: const MaterialApp(home: LedgerPage(tab: LedgerTab.list)),
+      ),
+    );
+    Future<void> settle() async {
+      for (var i = 0; i < 6; i++) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 50)),
+        );
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+    }
+
+    await settle();
+    await tester.tap(find.byType(FloatingActionButton));
+    await settle();
+    // 一開始有時分，沒有「不確定幾點」。
+    expect(find.textContaining('不確定幾點'), findsNothing);
+    final chip = find.byKey(const ValueKey('timeUnknown'));
+    expect(chip, findsOneWidget);
+    await tester.tap(chip);
+    await settle();
+    expect(find.textContaining('不確定幾點'), findsOneWidget);
+    expect(tester.widget<FilterChip>(chip).selected, isTrue);
+    // 填商家、金額後新增。
+    await tester.enterText(
+      find.byWidgetPredicate(
+        (w) => w is TextField && w.decoration?.hintText == '0',
+      ),
+      '120',
+    );
+    await tester.enterText(
+      find.descendant(
+        of: find
+            .ancestor(of: find.text('商家／名稱'), matching: find.byType(Row))
+            .first,
+        matching: find.byType(TextField),
+      ),
+      '早餐店',
+    );
+    await tester.tap(find.textContaining('餐飲').first);
+    await tester.pump();
+    await tester.ensureVisible(find.widgetWithText(FilledButton, '新增'));
+    await tester.tap(find.widgetWithText(FilledButton, '新增'));
+    await settle();
+    final book = (await tester.runAsync(() => repo.loadBook()))!;
+    final tx = book.txs.single;
+    expect(tx.timeUnknown, isTrue);
+    expect(tx.occurredAt.hour, 12);
+    expect(tx.occurredAt.minute, 0);
+    expect(find.textContaining('時間不詳'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

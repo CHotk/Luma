@@ -802,6 +802,9 @@ class _TxFormState extends State<_TxForm> {
   late final TextEditingController _item;
   late final TextEditingController _memo;
   late DateTime _at;
+
+  /// 時間不確定、只選到哪一天（2026-11-10 使用者）：存那天中午 12:00，畫面只顯示日期。
+  bool _timeUnknown = false;
   late bool _flagged;
   late bool _pf;
   bool _pfSettled = false;
@@ -943,6 +946,7 @@ class _TxFormState extends State<_TxForm> {
     _item = TextEditingController(text: e?.item ?? '');
     _memo = TextEditingController(text: e?.note ?? '');
     _at = e?.occurredAt ?? p.at ?? DateTime.now();
+    _timeUnknown = e?.timeUnknown ?? false;
     _flagged = e?.flagged ?? false;
     _pf = e?.paidFor != null || p.paidFor;
     _pfSettled = e?.paidFor?.settled ?? false;
@@ -1142,6 +1146,7 @@ class _TxFormState extends State<_TxForm> {
       _item.text = t.item;
       _memo.text = t.note;
       _at = t.occurredAt;
+      _timeUnknown = t.timeUnknown;
       final pf = t.paidFor;
       _pf = pf != null;
       _pfSettled = pf?.settled ?? false;
@@ -1258,6 +1263,7 @@ class _TxFormState extends State<_TxForm> {
       return e.copyWith(
         type: ty,
         occurredAt: _at,
+        timeUnknown: _timeUnknown,
         amount: amt,
         accountId: _account,
         toAccountId: () => ty == LedgerTxType.transfer ? _to : null,
@@ -1279,6 +1285,7 @@ class _TxFormState extends State<_TxForm> {
       id: ledgerId(),
       type: ty,
       occurredAt: _at,
+      timeUnknown: _timeUnknown,
       amount: amt,
       accountId: _account!,
       toAccountId: ty == LedgerTxType.transfer ? _to : null,
@@ -1505,22 +1512,63 @@ class _TxFormState extends State<_TxForm> {
       // 填寫順序：先時間、再金額（2026-11-03 使用者）。
       _row(
         '時間',
-        InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: () async {
-            final v = await _pickDateTime(context, _at);
-            if (v != null && mounted) setState(() => _at = v);
-          },
-          child: InputDecorator(
-            decoration: _input('').copyWith(
-              suffixIcon: const Icon(
-                Icons.schedule_rounded,
-                size: 18,
-                color: AppColors.ink2,
+        Row(
+          children: [
+            Expanded(
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () async {
+                  // 時間不確定就只選到哪一天，存那天中午當代表。
+                  final DateTime? v;
+                  if (_timeUnknown) {
+                    v = await showDateTimeWheel(context, _at, dateOnly: true);
+                  } else {
+                    v = await _pickDateTime(context, _at);
+                  }
+                  if (v != null && mounted) {
+                    final picked = _timeUnknown
+                        ? DateTime(v.year, v.month, v.day, 12)
+                        : v;
+                    setState(() => _at = picked);
+                  }
+                },
+                child: InputDecorator(
+                  decoration: _input('').copyWith(
+                    suffixIcon: Icon(
+                      _timeUnknown
+                          ? Icons.calendar_today_rounded
+                          : Icons.schedule_rounded,
+                      size: 18,
+                      color: AppColors.ink2,
+                    ),
+                  ),
+                  child: Text(
+                    _timeUnknown
+                        ? '${lYmd(_at)}（不確定幾點）'
+                        : '${lYmd(_at)} ${lHm(_at)}',
+                    style: _fieldStyle,
+                  ),
+                ),
               ),
             ),
-            child: Text('${lYmd(_at)} ${lHm(_at)}', style: _fieldStyle),
-          ),
+            const SizedBox(width: 8),
+            // 時間不確定的開關：打開就只選到天（沒有時、分）。
+            Tooltip(
+              message: '不確定幾點，只記哪一天',
+              child: FilterChip(
+                key: const ValueKey('timeUnknown'),
+                label: const Text('不確定'),
+                avatar: const Icon(Icons.help_outline_rounded, size: 16),
+                selected: _timeUnknown,
+                showCheckmark: false,
+                visualDensity: VisualDensity.compact,
+                onSelected: (v) => setState(() {
+                  _timeUnknown = v;
+                  if (v) _at = DateTime(_at.year, _at.month, _at.day, 12);
+                }),
+              ),
+            ),
+          ],
         ),
       ),
       // 商家名稱在金額上面（2026-11-03 使用者）：先時間、再商家、再金額。
@@ -2411,7 +2459,12 @@ class _TxDetail extends StatelessWidget {
           ],
         ),
         _box([
-          _kv('時間', '${lYmd(t.occurredAt)} ${lHm(t.occurredAt)}'),
+          _kv(
+            '時間',
+            t.timeUnknown
+                ? '${lYmd(t.occurredAt)}（不確定幾點）'
+                : '${lYmd(t.occurredAt)} ${lHm(t.occurredAt)}',
+          ),
           _kv(
             '帳戶',
             t.type == LedgerTxType.transfer
@@ -3430,7 +3483,7 @@ class _ImportState extends State<_Import> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${t.merchant}・${lMd(t.occurredAt)} ${lHm(t.occurredAt)}',
+                      '${t.merchant}・${lMd(t.occurredAt)} ${lTxHm(t)}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(

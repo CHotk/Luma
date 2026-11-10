@@ -577,13 +577,7 @@ class LedgerPage extends ConsumerWidget {
             message: any || searching
                 ? '換個關鍵字或篩選看看'
                 : '按右下角 ＋ 記一筆，或按右上角的貼上圖示匯入刷卡紀錄',
-            actions: [
-              if (any)
-                EmptyAction(
-                  '看全部',
-                  () => set(ledgerNoFilter),
-                ),
-            ],
+            actions: [if (any) EmptyAction('看全部', () => set(ledgerNoFilter))],
           ),
         )
       else

@@ -29,6 +29,10 @@ String lInt(int v) => _group(v);
 const _wd = ['一', '二', '三', '四', '五', '六', '日'];
 String lMd(DateTime d) => '${d.month}/${d.day}';
 String lMdw(DateTime d) => '${lMd(d)}（${_wd[d.weekday - 1]}）';
+
+/// 一筆交易的時分；時間不確定的只知道哪天，顯示「時間不詳」。
+String lTxHm(LedgerTx t) => t.timeUnknown ? '時間不詳' : lHm(t.occurredAt);
+
 String lHm(DateTime d) =>
     '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
 String lYmd(DateTime d) => '${d.year}/${d.month}/${d.day}';
@@ -203,7 +207,7 @@ class TxTile extends ConsumerWidget {
         : txLook(t);
     final sub = StringBuffer();
     if (showDate) sub.write('${lMd(t.occurredAt)} ');
-    sub.write(lHm(t.occurredAt));
+    sub.write(lTxHm(t));
     sub.write('・');
     if (t.type == LedgerTxType.transfer) {
       sub.write(
