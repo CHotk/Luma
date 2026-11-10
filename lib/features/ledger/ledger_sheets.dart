@@ -934,8 +934,9 @@ class _TxFormState extends State<_TxForm> {
   /// 使用者：應該要可以勾選算支出）。
   bool _toOther = false;
 
-  /// 排序數字（可以是負的；沒填或亂填當 0）。
-  int get _orderValue => int.tryParse(_order.text.trim()) ?? 0;
+  /// 排序數字（從 1 開始、最大 99；0 不算，沒填＝沒設定＝0，排在有時分的後面）。
+  int get _orderValue =>
+      (int.tryParse(_order.text.trim()) ?? 0).clamp(0, ledgerTimeOrderMax);
 
   /// 實際要存的類型。
   LedgerTxType get _effType =>
@@ -955,7 +956,9 @@ class _TxFormState extends State<_TxForm> {
     _merchant = TextEditingController(text: e?.merchant ?? '');
     _item = TextEditingController(text: e?.item ?? '');
     _memo = TextEditingController(text: e?.note ?? '');
-    _order = TextEditingController(text: '${e?.timeOrder ?? 0}');
+    _order = TextEditingController(
+      text: (e?.timeOrder ?? 0) == 0 ? '' : '${e!.timeOrder}',
+    );
     _at = e?.occurredAt ?? p.at ?? DateTime.now();
     _timeUnknown = e?.timeUnknown ?? false;
     _flagged = e?.flagged ?? false;
@@ -1169,7 +1172,7 @@ class _TxFormState extends State<_TxForm> {
       _memo.text = t.note;
       _at = t.occurredAt;
       _timeUnknown = t.timeUnknown;
-      _order.text = '${t.timeOrder}';
+      _order.text = t.timeOrder == 0 ? '' : '${t.timeOrder}';
       final pf = t.paidFor;
       _pf = pf != null;
       _pfSettled = pf?.settled ?? false;
@@ -1573,9 +1576,7 @@ class _TxFormState extends State<_TxForm> {
                     ),
                   ),
                   child: Text(
-                    _timeUnknown
-                        ? '${lYmd(_at)}（不確定幾點）'
-                        : '${lYmd(_at)} ${lHm(_at)}',
+                    _timeUnknown ? lYmd(_at) : '${lYmd(_at)} ${lHm(_at)}',
                     style: _fieldStyle,
                   ),
                 ),
@@ -1588,7 +1589,6 @@ class _TxFormState extends State<_TxForm> {
               child: FilterChip(
                 key: const ValueKey('timeUnknown'),
                 label: const Text('不確定'),
-                avatar: const Icon(Icons.help_outline_rounded, size: 16),
                 selected: _timeUnknown,
                 showCheckmark: false,
                 visualDensity: VisualDensity.compact,
@@ -1598,47 +1598,45 @@ class _TxFormState extends State<_TxForm> {
                 }),
               ),
             ),
-          ],
-        ),
-      ),
-      // 時間不確定的同一天有好幾筆時，用排序數字決定先後（像圖層：數字越小越後面，2026-11-10 使用者）。
-      if (_timeUnknown)
-        _row(
-          '同天排序',
-          hint: '數字大的在前',
-          Row(
-            children: [
-              IconButton(
-                key: const ValueKey('orderMinus'),
-                visualDensity: VisualDensity.compact,
-                onPressed: () =>
-                    setState(() => _order.text = '${_orderValue - 1}'),
-                icon: const Icon(Icons.remove_circle_outline_rounded, size: 22),
-              ),
-              Expanded(
+            // 時間不確定的同一天有好幾筆時，右邊填排序數字決定先後（像圖層，2026-11-10 使用者）：
+            // 1～20 排在有時分的後面、超過 20 排在有時分的前面，數字大的在前；新增、編輯都能設。
+            if (_timeUnknown) ...[
+              const SizedBox(width: 8),
+              SizedBox(
+                width: 58,
                 child: TextField(
                   key: const ValueKey('timeOrder'),
                   controller: _order,
                   textAlign: TextAlign.center,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    signed: true,
-                  ),
+                  keyboardType: TextInputType.number,
                   inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'^-?d{0,4}')),
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(2),
+                    // 從 1 開始，0 不算：開頭的 0 直接去掉。
+                    TextInputFormatter.withFunction((old, v) {
+                      final t = v.text.replaceFirst(RegExp(r'^0+'), '');
+                      return t == v.text
+                          ? v
+                          : TextEditingValue(
+                              text: t,
+                              selection: TextSelection.collapsed(
+                                offset: t.length,
+                              ),
+                            );
+                    }),
                   ],
-                  decoration: _input('0'),
+                  decoration: _input('排序').copyWith(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 13,
+                    ),
+                  ),
                 ),
               ),
-              IconButton(
-                key: const ValueKey('orderPlus'),
-                visualDensity: VisualDensity.compact,
-                onPressed: () =>
-                    setState(() => _order.text = '${_orderValue + 1}'),
-                icon: const Icon(Icons.add_circle_outline_rounded, size: 22),
-              ),
             ],
-          ),
+          ],
         ),
+      ),
       // 商家名稱在金額上面（2026-11-03 使用者）：先時間、再商家、再金額。
       if (t != LedgerTxType.adjustment) ...[
         // 商家名稱不放提示字（2026-11-03 使用者），記支出、收入、轉帳一定要填。

@@ -223,6 +223,11 @@ class ImportLine {
 String monthKey(int year, int month) =>
     '$year-${month.toString().padLeft(2, '0')}';
 
+/// 時間不確定的「同天排序」：1～20 排在同一天有時分的後面，超過 20 排在它們前面
+/// （2026-11-10 使用者）；最大可以填 [ledgerTimeOrderMax]。
+const ledgerTimeOrderBehindMax = 20;
+const ledgerTimeOrderMax = 99;
+
 /// 一整本帳（已濾掉刪除的），所有數字都從這裡現算。
 class LedgerBook {
   LedgerBook({
@@ -232,20 +237,37 @@ class LedgerBook {
     required List<LedgerBudget> budgets,
   }) : accounts = accounts.where((a) => a.deletedAt == null).toList()
          ..sort((a, b) => a.order.compareTo(b.order)),
-       txs = txs.where((t) => t.deletedAt == null).toList()
-         ..sort((a, b) {
-           final c = b.occurredAt.compareTo(a.occurredAt);
-           if (c != 0) return c;
-           // 同一時間（時間不確定的同一天）：排序數字大的在前，再看誰比較晚建立。
-           final o = b.timeOrder.compareTo(a.timeOrder);
-           if (o != 0) return o;
-           return (b.createdAt ?? b.occurredAt).compareTo(
-             a.createdAt ?? a.occurredAt,
-           );
-         }),
+       txs = txs.where((t) => t.deletedAt == null).toList()..sort(_compareTx),
        checkpoints = checkpoints.where((c) => c.deletedAt == null).toList()
          ..sort((a, b) => a.at.compareTo(b.at)),
        budgets = budgets.where((b) => b.deletedAt == null).toList();
+
+  /// 明細的順序（新的在前面）。同一天裡：
+  /// 時間不確定、排序數字超過 [ledgerTimeOrderBehindMax]（20）的排最前面（在有時分的前面）；
+  /// 然後是有時分的（晚的在前）；最後是時間不確定、排序 1～20（或沒設）的（在有時分的後面）。
+  /// 兩個時間不確定的比排序數字（大的在前），一樣大就看誰比較晚建立（2026-11-10 使用者）。
+  static int _compareTx(LedgerTx a, LedgerTx b) {
+    final day =
+        DateTime(
+          b.occurredAt.year,
+          b.occurredAt.month,
+          b.occurredAt.day,
+        ).compareTo(
+          DateTime(a.occurredAt.year, a.occurredAt.month, a.occurredAt.day),
+        );
+    if (day != 0) return day;
+    int bucket(LedgerTx t) => !t.timeUnknown
+        ? 1
+        : t.timeOrder > ledgerTimeOrderBehindMax
+        ? 0
+        : 2;
+    final ba = bucket(a), bb = bucket(b);
+    if (ba != bb) return ba.compareTo(bb);
+    if (ba == 1) return b.occurredAt.compareTo(a.occurredAt);
+    final o = b.timeOrder.compareTo(a.timeOrder);
+    if (o != 0) return o;
+    return (b.createdAt ?? b.occurredAt).compareTo(a.createdAt ?? a.occurredAt);
+  }
 
   final List<LedgerAccount> accounts;
 

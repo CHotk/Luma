@@ -89,8 +89,8 @@ void main() {
 
 /// 2026-11-10 使用者：時間不確定時只要選到天；時間旁邊有個按鈕，打開就代表不確定。
 void timeUnknownTests() {
-  test('時間不確定的同一天：排序數字大的在前、小的在後（像圖層）；沒排的 0 照建立先後', () {
-    LedgerTx u(String id, int order, {DateTime? created}) => LedgerTx(
+  test('時間不確定的同一天：1～20 在有時分的後面、21 以上在前面，數字大的在前；0 不算（跟沒設一樣）', () {
+    LedgerTx u(String id, int order) => LedgerTx(
       id: id,
       type: LedgerTxType.expense,
       occurredAt: DateTime(2026, 11, 8, 12),
@@ -98,34 +98,55 @@ void timeUnknownTests() {
       accountId: 'x',
       timeUnknown: true,
       timeOrder: order,
-      createdAt: created,
     );
-    final known = LedgerTx(
-      id: 'k',
+    LedgerTx k(String id, int h, int m) => LedgerTx(
+      id: id,
       type: LedgerTxType.expense,
-      occurredAt: DateTime(2026, 11, 8, 18, 30),
+      occurredAt: DateTime(2026, 11, 8, h, m),
+      amount: 10,
+      accountId: 'x',
+    );
+    final other = LedgerTx(
+      id: 'next',
+      type: LedgerTxType.expense,
+      occurredAt: DateTime(2026, 11, 9, 1),
       amount: 10,
       accountId: 'x',
     );
     final b = LedgerBook(
       accounts: const [],
-      txs: [u('low', -2), u('mid', 1), known, u('high', 5), u('zero', 0)],
+      txs: [
+        u('o3', 3),
+        k('k0800', 8, 0),
+        u('o25', 25),
+        u('o10', 10),
+        k('k1830', 18, 30),
+        u('o99', 99),
+        u('o0', 0),
+        u('o21', 21),
+        u('o20', 20),
+        other,
+      ],
       checkpoints: const [],
       budgets: const [],
     );
-    // 18:30 那筆最晚在最上面；中午那幾筆依排序數字大→小。
+    // 隔天最上面；這天：超過 20 的（大→小）、有時分的（晚→早）、1～20 的（大→小）、沒設的最後。
     expect(b.txs.map((t) => t.id).toList(), [
-      'k',
-      'high',
-      'mid',
-      'zero',
-      'low',
+      'next',
+      'o99',
+      'o25',
+      'o21',
+      'k1830',
+      'k0800',
+      'o20',
+      'o10',
+      'o3',
+      'o0',
     ]);
     final t = u('a', 7);
     expect(LedgerTx.fromJson(t.toJson()).timeOrder, 7);
     expect(t.copyWith(amount: 1).timeOrder, 7);
     expect(u('b', 0).toJson().containsKey('timeOrder'), isFalse);
-    expect(LedgerTx.fromJson(u('c', -3).toJson()).timeOrder, -3);
   });
 
   test('交易的「時間不確定」存得進、讀得回；沒開的不多存欄位', () {
@@ -179,28 +200,32 @@ void timeUnknownTests() {
     await settle();
     await tester.tap(find.byType(FloatingActionButton));
     await settle();
-    // 一開始有時分，沒有「不確定幾點」。
-    expect(find.textContaining('不確定幾點'), findsNothing);
     final chip = find.byKey(const ValueKey('timeUnknown'));
     expect(chip, findsOneWidget);
+    // 一開始有時分、沒有排序欄。
+    expect(find.byKey(const ValueKey('timeOrder')), findsNothing);
+    expect(find.textContaining(RegExp(r'\d\d:\d\d')), findsWidgets);
     await tester.tap(chip);
     await settle();
-    expect(find.textContaining('不確定幾點'), findsOneWidget);
     expect(tester.widget<FilterChip>(chip).selected, isTrue);
-    // 填商家、金額後新增。
-    // 打開不確定後出現「同天排序」：按 ＋ 三次變 3。
-    expect(find.text('同天排序'), findsOneWidget);
-    for (var i = 0; i < 3; i++) {
-      await tester.tap(find.byKey(const ValueKey('orderPlus')));
-      await tester.pump();
-    }
+    // 時間欄只剩日期，不寫「不確定幾點」，也沒有時分。
+    expect(find.textContaining('不確定幾點'), findsNothing);
+    // 排序欄在時間同一行的右邊，不用說明文字。
+    final order = find.byKey(const ValueKey('timeOrder'));
+    expect(order, findsOneWidget);
+    expect(find.text('同天排序'), findsNothing);
     expect(
-      tester
-          .widget<TextField>(find.byKey(const ValueKey('timeOrder')))
-          .controller!
-          .text,
-      '3',
+      (tester.getCenter(order).dy - tester.getCenter(find.text('時間')).dy).abs(),
+      lessThan(14),
+      reason: '排序欄跟「時間」同一行',
     );
+    // 從 1 開始、0 不算：打 0 會被去掉；打 3 就是 3。
+    await tester.enterText(order, '0');
+    await tester.pump();
+    expect(tester.widget<TextField>(order).controller!.text, '');
+    await tester.enterText(order, '03');
+    await tester.pump();
+    expect(tester.widget<TextField>(order).controller!.text, '3');
     await tester.enterText(
       find.byWidgetPredicate(
         (w) => w is TextField && w.decoration?.hintText == '0' && w.key == null,
@@ -279,11 +304,33 @@ void timeUnknownTests() {
     final chip = find.byKey(const ValueKey('timeUnknown'));
     expect(chip, findsOneWidget);
     expect(tester.widget<FilterChip>(chip).selected, isTrue);
-    expect(find.textContaining('不確定幾點'), findsOneWidget);
+    // 編輯也能設排序：填 25（超過 20＝排在有時分的前面）後儲存。
+    final order = find.byKey(const ValueKey('timeOrder'));
+    expect(order, findsOneWidget);
+    await tester.enterText(order, '25');
+    await tester.pump();
+    await tester.ensureVisible(find.widgetWithText(FilledButton, '儲存'));
+    await tester.tap(find.widgetWithText(FilledButton, '儲存'));
+    await settle();
+    final saved = (await tester.runAsync(() => repo.loadBook()))!.txs.single;
+    expect(saved.timeUnknown, isTrue);
+    expect(saved.timeOrder, 25);
+    // 再開編輯：排序欄帶出 25；關掉「不確定」變回時分、排序欄消失。
+    await tester.tap(find.textContaining('排序 25'));
+    await settle();
+    await tester.tap(find.widgetWithText(OutlinedButton, '編輯'));
+    await settle();
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const ValueKey('timeOrder')))
+          .controller!
+          .text,
+      '25',
+    );
     await tester.tap(chip);
     await settle();
     expect(tester.widget<FilterChip>(chip).selected, isFalse);
-    expect(find.textContaining('不確定幾點'), findsNothing);
+    expect(find.byKey(const ValueKey('timeOrder')), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }
