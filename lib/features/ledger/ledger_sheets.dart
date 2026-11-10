@@ -1451,11 +1451,15 @@ class _TxFormState extends State<_TxForm> {
 
   /// 餘額欄位的標題（2026-11-03 使用者）：戶頭＝戶頭餘額、現金＝皮包餘額、
   /// 信用卡＝可刷餘額（轉帳）／刷完後可刷額（刷卡）。
-  String _afterLabel(LedgerAccount a, {required bool transfer}) => a.isCard
-      ? (transfer ? '這筆之後可刷餘額' : '這筆刷完後可刷額')
-      : a.type == LedgerAccountType.cash
-      ? '這筆之後皮包餘額'
-      : '這筆之後戶頭餘額';
+  ///
+  /// 第一行寫是哪一個帳戶（2026-11-10 使用者：可用額度前面要標示清楚是哪一個帳戶；轉帳有兩個
+  /// 帳戶各填一個，不寫名字分不出來）。
+  String _afterLabel(LedgerAccount a, {required bool transfer}) =>
+      '${a.name}\n${a.isCard
+          ? (transfer ? '這筆之後可刷餘額' : '這筆刷完後可刷額')
+          : a.type == LedgerAccountType.cash
+          ? '這筆之後皮包餘額'
+          : '這筆之後戶頭餘額'}';
 
   List<Widget> _afterBox(
     LedgerTx? draft,
@@ -2753,10 +2757,14 @@ class _TxDetail extends StatelessWidget {
             ),
         ]),
         if (txCp != null) ...[
-          ledgerSection(txCp.available != null ? '刷完後的可用額度' : '這筆之後的餘額'),
+          ledgerSection(
+            '${book.accountName(txCp.accountId)}・'
+            '${txCp.available != null ? '刷完後的可用額度' : '這筆之後的餘額'}',
+          ),
           _box([
             _kv(
-              txCp.available != null ? '可用額度' : '餘額',
+              '${book.accountName(txCp.accountId)} '
+              '${txCp.available != null ? '可用額度' : '餘額'}',
               lMoney(txCp.available ?? txCp.balance ?? 0),
             ),
             if (txGap == null)
