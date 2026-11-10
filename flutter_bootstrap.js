@@ -48,7 +48,7 @@ _flutter.loader.load();
 // 只掛監聽會永遠等不到（2026-10-20 實測沒註冊成功）：已經載完就馬上註冊。
 function registerServiceWorker() {
   navigator.serviceWorker
-    .register('flutter_service_worker.js?v=' + "3869745992")
+    .register('flutter_service_worker.js?v=' + "2049140749")
     .catch(function () {});
 }
 if ('serviceWorker' in navigator) {
