@@ -42,11 +42,26 @@ const ledgerImportIncome = <String, String>{
   '薪資': '薪資',
   '獎金': '獎金',
   'ATM存款': '其他收入',
+  'ATM存入': '其他收入',
+  '現金存款': '其他收入',
   '存款': '其他收入',
+  '存入': '其他收入',
   '轉入': '其他收入',
   '轉帳入帳': '其他收入',
+  '匯入': '其他收入',
+  '利息': '其他收入',
   '其他收入': '其他收入',
 };
+
+/// 比對收入分類用的寫法：拿掉空白、全形英數轉半形、英文轉大寫（ＡＴＭ存款、atm 存款、ATM存款 都認得）。
+String ledgerIncomeKey(String s) {
+  final b = StringBuffer();
+  for (final r in s.runes) {
+    if (r == 0x20 || r == 0x3000 || r == 0x09) continue;
+    b.writeCharCode(r >= 0xFF01 && r <= 0xFF5E ? r - 0xFEE0 : r);
+  }
+  return b.toString().toUpperCase();
+}
 
 /// 備註最多幾個字（2026-11-03 使用者：上限 100 字）。
 const ledgerNoteMax = 100;
@@ -785,7 +800,7 @@ class LedgerBook {
       // 收入（2026-11-10 使用者：貼上匯入要能記收入——轉帳、ATM存款、薪資轉帳）：分類寫下面這些就是
       // 收入，錢進第 1 欄的帳戶（寫「現金」進現金，其他進銀行）。「轉帳」本來是轉出去，所以收到的轉帳
       // 寫「轉入」。第 6～9 欄的幫誰／對方要給在收入沒有意思，會忽略；餘額（第 9 欄）照樣可以附。
-      final inCat = ledgerImportIncome[p[2]];
+      final inCat = ledgerImportIncome[ledgerIncomeKey(p[2])];
       if (inCat != null) {
         final named = accounts.where((a) => a.name == p[0]).firstOrNull;
         final into = named ?? (p[0].contains('現金') ? cash : bank);

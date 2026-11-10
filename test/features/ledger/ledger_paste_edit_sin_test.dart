@@ -235,6 +235,16 @@ void incomeTests() {
     expect(lines[2].tx!.note, '午餐錢');
     expect(lines[3].tx!.accountId, cash.id);
     expect(lines[3].tx!.category, '獎金');
+    // 全形、空白、小寫也認得。
+    final v = book.parseImport(
+      '中信活存｜2026-11-10 09:00｜ＡＴＭ存款｜ATM｜100\n'
+      '中信活存｜2026-11-10 10:00｜atm 存款｜ATM｜200\n'
+      '中信活存｜2026-11-10 11:00｜ATM存入｜ATM｜300',
+    );
+    expect(
+      v.every((l) => l.willImport && l.tx!.type == LedgerTxType.income),
+      isTrue,
+    );
     // 「轉帳」還是轉出去：轉到自己的同一個帳戶是錯的。
     expect(lines[4].error, isNotNull);
     expect(lines.take(4).every((l) => l.willImport), isTrue);
