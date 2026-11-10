@@ -187,6 +187,8 @@ void main() {
       '58000',
     );
     await tester.pump();
+    // 收入分類也有「未分類」（不知道算什麼收入時選）。
+    expect(find.widgetWithText(ChoiceChip, '❔ 未分類'), findsOneWidget);
     await tester.ensureVisible(find.widgetWithText(ChoiceChip, '🔁 平轉'));
     await tester.tap(find.widgetWithText(ChoiceChip, '🔁 平轉'));
     await tester.pump();
