@@ -35,6 +35,19 @@ const ledgerIncomeCats = <String, (String, int)>{
 
 const ledgerUncategorized = '未分類';
 
+/// 貼上匯入的收入：第 3 欄寫左邊那個字就是收入、分類記成右邊那個（2026-11-10 使用者：轉帳、ATM存款、
+/// 薪資轉帳）。「轉帳」本來是轉出去，所以收到的轉帳寫「轉入」。
+const ledgerImportIncome = <String, String>{
+  '薪資轉帳': '薪資',
+  '薪資': '薪資',
+  '獎金': '獎金',
+  'ATM存款': '其他收入',
+  '存款': '其他收入',
+  '轉入': '其他收入',
+  '轉帳入帳': '其他收入',
+  '其他收入': '其他收入',
+};
+
 /// 備註最多幾個字（2026-11-03 使用者：上限 100 字）。
 const ledgerNoteMax = 100;
 
@@ -769,6 +782,42 @@ class LedgerBook {
         );
         continue;
       }
+      // 收入（2026-11-10 使用者：貼上匯入要能記收入——轉帳、ATM存款、薪資轉帳）：分類寫下面這些就是
+      // 收入，錢進第 1 欄的帳戶（寫「現金」進現金，其他進銀行）。「轉帳」本來是轉出去，所以收到的轉帳
+      // 寫「轉入」。第 6～9 欄的幫誰／對方要給在收入沒有意思，會忽略；餘額（第 9 欄）照樣可以附。
+      final inCat = ledgerImportIncome[p[2]];
+      if (inCat != null) {
+        final named = accounts.where((a) => a.name == p[0]).firstOrNull;
+        final into = named ?? (p[0].contains('現金') ? cash : bank);
+        if (into == null) {
+          out.add(ImportLine(line, error: '找不到帳戶「${p[0]}」，也沒有銀行帳戶'));
+          continue;
+        }
+        final tx = LedgerTx(
+          id: ledgerId(),
+          type: LedgerTxType.income,
+          occurredAt: at,
+          amount: amount,
+          accountId: into.id,
+          category: inCat,
+          merchant: p[3],
+          note: noteV,
+          source: 'paste',
+          raw: line,
+        );
+        out.add(
+          ImportLine(
+            line,
+            tx: tx,
+            after: afterV,
+            duplicateOf: dupOf(tx, lineNo),
+            duplicateTx: dupTx,
+            sameDayOf: sameDayWarn(tx, lineNo),
+            beforeStart: start != null && at.isBefore(start),
+          ),
+        );
+        continue;
+      }
       final withdraw = p[2] == '提款';
       // 分類要是 App 有的才行，不認得就擋下這一行（2026-11-03 使用者：不要悄悄放進
       // 未分類），其他行照樣匯入。
@@ -779,7 +828,7 @@ class LedgerBook {
             error:
                 '第 $lineNo 行：分類「${p[2]}」App 沒有這個分類。可用：'
                 '${ledgerExpenseCats.keys.join("、")}'
-                '（另外可寫「提款」「轉帳」）',
+                '（另外可寫「提款」「轉帳」，收入可寫 ${ledgerImportIncome.keys.join("、")}）',
           ),
         );
         continue;

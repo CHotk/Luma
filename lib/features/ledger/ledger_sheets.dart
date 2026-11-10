@@ -1070,6 +1070,8 @@ class _TxFormState extends State<_TxForm> {
     setState(() {
       _type = t.type == LedgerTxType.transfer
           ? LedgerTxType.transfer
+          : t.type == LedgerTxType.income
+          ? LedgerTxType.income
           : LedgerTxType.expense;
       _toOther = false;
       _amount.text = '${t.amount}';
@@ -3218,6 +3220,13 @@ class _ImportState extends State<_Import> {
                 '寫別人（小美）就當轉給別人、算支出；轉帳那幾行也可以在預覽勾「算支出」。'
                 '一樣的紀錄會跳過，原始那行會留在明細裡。',
           ),
+          const TextSpan(text: '收入：分類寫 '),
+          _b('薪資轉帳、ATM存款、轉入'),
+          const TextSpan(
+            text:
+                '（也可以寫薪資、獎金、存款、其他收入）就記成收入，錢進第一欄的帳戶'
+                '（寫現金進現金，其他進銀行）；收到的轉帳要寫「轉入」，因為「轉帳」是轉出去。\n',
+          ),
         ]),
         _note([
           const TextSpan(
@@ -3231,7 +3240,10 @@ class _ImportState extends State<_Import> {
                 '現金｜2026/11/03 12:30｜餐飲｜便當｜120\n'
                 '中信帳戶｜2026/11/01 10:00｜提款｜ATM提款｜3000\n'
                 '中信帳戶｜2026/11/01 11:00｜轉帳｜郵局｜5000\n'
-                '中信帳戶｜2026/11/01 12:00｜轉帳｜小美｜800',
+                '中信帳戶｜2026/11/01 12:00｜轉帳｜小美｜800\n'
+                '中信帳戶｜2026/11/05 09:00｜薪資轉帳｜某某公司｜50000\n'
+                '中信帳戶｜2026/11/06 10:00｜ATM存款｜ATM｜3000\n'
+                '中信帳戶｜2026/11/07 11:00｜轉入｜小美還款｜800',
             style: TextStyle(fontFamily: 'monospace', fontSize: 11),
           ),
         ]),

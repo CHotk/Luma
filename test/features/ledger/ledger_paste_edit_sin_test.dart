@@ -163,6 +163,8 @@ void main() {
     expect(book.txs.any((x) => x.merchant == '麵包店'), isTrue);
   });
 
+  incomeTests();
+
   testWidgets('設定關掉「110／1100 問要不要改成菸酒」就不問', (tester) async {
     final store = await seeded();
     await pump(tester, store);
@@ -196,4 +198,45 @@ class _MemoryStore implements KeyValueStore {
 
   @override
   Future<void> remove(String key) async => data.remove(key);
+}
+
+/// 貼上匯入記收入（2026-11-10 使用者：轉帳、ATM存款、薪資轉帳）。
+void incomeTests() {
+  test('貼上匯入：薪資轉帳、ATM存款、轉入都是收入，錢進第一欄的帳戶', () async {
+    final store = _MemoryStore();
+    final repo = LedgerRepository(store);
+    final bank = await repo.addAccount(
+      name: '中信活存',
+      type: LedgerAccountType.bank,
+      opening: 1000,
+      openingAt: DateTime(2026, 11, 1),
+    );
+    final cash = await repo.addAccount(
+      name: '現金',
+      type: LedgerAccountType.cash,
+      opening: 0,
+      openingAt: DateTime(2026, 11, 1),
+    );
+    final book = await repo.loadBook();
+    final lines = book.parseImport(
+      '中信活存｜2026-11-05 09:00｜薪資轉帳｜某某公司｜50000\n'
+      '中信活存｜2026-11-06 10:00｜ATM存款｜ATM｜3000\n'
+      '中信活存｜2026-11-07 11:00｜轉入｜朋友還款｜800｜｜｜｜｜午餐錢\n'
+      '現金｜2026-11-08 12:00｜獎金｜紅包｜600\n'
+      '中信活存｜2026-11-09 13:00｜轉帳｜中信活存｜10',
+    );
+    final t0 = lines[0].tx!;
+    expect(t0.type, LedgerTxType.income);
+    expect(t0.category, '薪資');
+    expect(t0.accountId, bank.id);
+    expect(t0.merchant, '某某公司');
+    expect(lines[1].tx!.category, '其他收入');
+    expect(lines[2].tx!.type, LedgerTxType.income);
+    expect(lines[2].tx!.note, '午餐錢');
+    expect(lines[3].tx!.accountId, cash.id);
+    expect(lines[3].tx!.category, '獎金');
+    // 「轉帳」還是轉出去：轉到自己的同一個帳戶是錯的。
+    expect(lines[4].error, isNotNull);
+    expect(lines.take(4).every((l) => l.willImport), isTrue);
+  });
 }
