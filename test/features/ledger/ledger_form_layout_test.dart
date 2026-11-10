@@ -608,6 +608,94 @@ void cardReturnTests() {
     expect(fixed.linkedId, isNotNull, reason: '退款連到某一筆支出');
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    '轉帳「轉到」多了 LineBank、他人戶頭：轉到 LineBank 只扣這邊的錢、不算支出（平轉）；他人戶頭＝轉給別人算支出',
+    (tester) async {
+      final store = _MemoryStore();
+      final repo = LedgerRepository(store);
+      final bank = await repo.addAccount(
+        name: '中信活存',
+        type: LedgerAccountType.bank,
+        opening: 5000,
+        openingAt: DateTime(2026, 11, 1),
+      );
+      await repo.addAccount(
+        name: '現金',
+        type: LedgerAccountType.cash,
+        opening: 0,
+        openingAt: DateTime(2026, 11, 1),
+      );
+      tester.view.physicalSize = const Size(360 * 3, 900 * 3);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [keyValueStoreProvider.overrideWithValue(store)],
+          child: const MaterialApp(home: LedgerPage(tab: LedgerTab.list)),
+        ),
+      );
+      Future<void> settle() async {
+        for (var i = 0; i < 6; i++) {
+          await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 50)),
+          );
+          await tester.pump(const Duration(milliseconds: 100));
+        }
+      }
+
+      final amountField = find.byWidgetPredicate(
+        (w) => w is TextField && w.decoration?.hintText == '0' && w.key == null,
+      );
+      await settle();
+      await tester.tap(find.byType(FloatingActionButton));
+      await settle();
+      await tester.tap(find.widgetWithText(ChoiceChip, '轉帳'));
+      await settle();
+      final lineBank = find.byKey(const ValueKey('toLineBank'));
+      expect(lineBank, findsOneWidget);
+      expect(find.byKey(const ValueKey('toOtherAccount')), findsOneWidget);
+      // 從中信活存轉到 LineBank。
+      await tester.tap(find.textContaining('中信活存').first);
+      await settle();
+      await tester.ensureVisible(lineBank);
+      await tester.tap(lineBank);
+      await settle();
+      expect(tester.widget<ChoiceChip>(lineBank).selected, isTrue);
+      await tester.enterText(amountField, '800');
+      await tester.pump();
+      await tester.ensureVisible(find.widgetWithText(FilledButton, '新增'));
+      await tester.tap(find.widgetWithText(FilledButton, '新增'));
+      await settle();
+      final book = (await tester.runAsync(() => repo.loadBook()))!;
+      final tx = book.txs.single;
+      expect(tx.type, LedgerTxType.transfer);
+      expect(tx.accountId, bank.id);
+      expect(tx.toAccountId, isNull);
+      expect(tx.toName, 'LineBank');
+      expect(tx.merchant, '平轉');
+      // 轉出的帳戶餘額要被扣掉：5000 − 800；也不算支出。
+      expect(
+        book.stateOf(book.accounts.firstWhere((a) => a.id == bank.id))!.now,
+        4200,
+      );
+      expect(book.statsWhere((_) => true).spend, 0);
+      expect(find.textContaining('LineBank'), findsWidgets);
+      expect(find.text('平轉'), findsWidgets);
+      // 編輯：LineBank 還是選著的。
+      await tester.tap(find.textContaining('LineBank').first);
+      await settle();
+      await tester.tap(find.widgetWithText(OutlinedButton, '編輯'));
+      await settle();
+      expect(
+        tester
+            .widget<ChoiceChip>(find.byKey(const ValueKey('toLineBank')))
+            .selected,
+        isTrue,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 }
 
 class _MemoryStore implements KeyValueStore {

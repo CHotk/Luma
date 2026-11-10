@@ -212,9 +212,7 @@ class TxTile extends ConsumerWidget {
     sub.write(lTxHm(t));
     sub.write('・');
     if (t.type == LedgerTxType.transfer) {
-      sub.write(
-        '${book.accountName(t.accountId)} → ${book.accountName(t.toAccountId)}',
-      );
+      sub.write('${book.accountName(t.accountId)} → ${book.toLabel(t)}');
     } else {
       sub.write(book.accountName(t.accountId));
       if (t.category != null && t.type != LedgerTxType.adjustment) {
@@ -250,7 +248,11 @@ class TxTile extends ConsumerWidget {
       LedgerTxType.transfer =>
         book.isCardReturn(t)
             ? ('+${lMoney(t.amount)}', AppColors.ok, '卡費退回')
-            : (lMoney(t.amount), AppColors.ink3, '不算支出'),
+            : (
+                lMoney(t.amount),
+                AppColors.ink3,
+                t.toName.isNotEmpty ? '平轉' : '不算支出',
+              ),
       LedgerTxType.adjustment => (
         '${t.isAdjustOut ? '−' : '+'}${lMoney(t.amount)}',
         AppColors.mid,

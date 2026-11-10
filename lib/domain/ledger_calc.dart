@@ -348,6 +348,11 @@ class LedgerBook {
 
   String accountName(String? id) => account(id)?.name ?? '（已刪除的帳戶）';
 
+  /// 轉帳「轉到」那邊的名稱：記在 App 裡的帳戶用它的名字，沒記的（LineBank）用 [LedgerTx.toName]。
+  String toLabel(LedgerTx t) => t.toAccountId == null && t.toName.isNotEmpty
+      ? t.toName
+      : accountName(t.toAccountId);
+
   /// 起始日：所有帳戶期初值裡最早的那天。
   DateTime? get startDate {
     DateTime? d;
@@ -701,6 +706,8 @@ class LedgerBook {
       t.type.label,
       accountName(t.accountId),
       if (t.toAccountId != null) accountName(t.toAccountId),
+      t.toName,
+      if (t.toName.isNotEmpty) '平轉',
       t.paidFor?.people ?? '',
       if (t.paidFor != null) t.paidFor!.settled ? '已給 給了' : '還沒給 要給',
       if (t.flagged) '旗幟 標記 旗 要注意',
@@ -759,6 +766,7 @@ class LedgerBook {
   /// 從信用卡轉到非信用卡的帳戶。信用卡欠的變多、錢回到銀行／現金，等於負的繳卡費。
   bool isCardReturn(LedgerTx t) =>
       t.type == LedgerTxType.transfer &&
+      t.toAccountId != null &&
       account(t.accountId)?.isCard == true &&
       account(t.toAccountId)?.isCard != true;
 

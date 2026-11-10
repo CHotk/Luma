@@ -238,6 +238,7 @@ class LedgerTx {
     required this.amount,
     required this.accountId,
     this.toAccountId,
+    this.toName = '',
     this.category,
     this.merchant = '',
     this.item = '',
@@ -274,6 +275,10 @@ class LedgerTx {
 
   /// 轉帳的轉入帳戶；其他類型是 null。
   final String? toAccountId;
+
+  /// 轉帳轉到「沒記在 App 裡」的自己的戶頭（例如 LineBank，2026-11-10 使用者）：[toAccountId]
+  /// 是 null、這裡放名稱；只扣轉出那個帳戶的錢，不算支出（平轉）。
+  final String toName;
   final String? category;
   final String merchant;
 
@@ -350,6 +355,7 @@ class LedgerTx {
     int? amount,
     String? accountId,
     String? Function()? toAccountId,
+    String? toName,
     String? Function()? category,
     String? merchant,
     String? item,
@@ -369,6 +375,7 @@ class LedgerTx {
     amount: amount ?? this.amount,
     accountId: accountId ?? this.accountId,
     toAccountId: toAccountId == null ? this.toAccountId : toAccountId(),
+    toName: toName ?? this.toName,
     category: category == null ? this.category : category(),
     merchant: merchant ?? this.merchant,
     item: item ?? this.item,
@@ -395,6 +402,7 @@ class LedgerTx {
     'amount': amount,
     'accountId': accountId,
     'toAccountId': toAccountId,
+    if (toName.isNotEmpty) 'toName': toName,
     'category': category,
     'merchant': merchant,
     if (item.isNotEmpty) 'item': item,
@@ -421,6 +429,7 @@ class LedgerTx {
     amount: (j['amount'] as num).toInt(),
     accountId: j['accountId'] as String,
     toAccountId: j['toAccountId'] as String?,
+    toName: j['toName'] as String? ?? '',
     category: j['category'] as String?,
     merchant: j['merchant'] as String? ?? '',
     item: j['item'] as String? ?? '',
