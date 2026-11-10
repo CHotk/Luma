@@ -1117,7 +1117,7 @@ class _TxFormState extends State<_TxForm> {
     final amt = _int(_amount) ?? 0;
     if (_amount.text.trim().isEmpty) return '金額要填（折扣折抵到 0 就填 0）';
     if (_merchantRequired && _merchant.text.trim().isEmpty) {
-      return '商家名稱要填';
+      return _effType == LedgerTxType.income ? '來源要選' : '商家名稱要填';
     }
     if (book.account(_account) == null) return '要選帳戶';
     if (_effType == LedgerTxType.transfer) {
@@ -1471,6 +1471,25 @@ class _TxFormState extends State<_TxForm> {
                   controller: _fixedName,
                   enabled: false,
                   decoration: _input(''),
+                )
+              : t == LedgerTxType.income
+              // 收入的來源就那幾種：下拉選單（2026-11-10 使用者）。
+              ? DropdownButtonFormField<String>(
+                  key: const ValueKey('incomeSource'),
+                  initialValue: _merchant.text.trim().isEmpty
+                      ? null
+                      : _merchant.text.trim(),
+                  isExpanded: true,
+                  decoration: _input('選一個來源'),
+                  items: [
+                    for (final s in {
+                      ...ledgerIncomeSources,
+                      if (_merchant.text.trim().isNotEmpty)
+                        _merchant.text.trim(),
+                    })
+                      DropdownMenuItem(value: s, child: Text(s)),
+                  ],
+                  onChanged: (v) => setState(() => _merchant.text = v ?? ''),
                 )
               : TextField(
                   controller: _merchant,
@@ -2181,7 +2200,8 @@ class _TxDetail extends StatelessWidget {
         t.isSplit
             ? '算進本月消費 ${lMoney(t.ownSpend)}，照拆分分到各分類'
             : '算進本月消費 ${lMoney(t.ownSpend)}（${t.category}）',
-      LedgerTxType.income => '算進本月收入',
+      LedgerTxType.income =>
+        t.category == ledgerFlatTransfer ? '不算收入，只是自己帳戶之間轉來轉去' : '算進本月收入',
       LedgerTxType.transfer =>
         book.account(t.toAccountId)?.type == LedgerAccountType.cash
             ? '不算支出，只是從數位轉移至實體現金'
@@ -3221,10 +3241,10 @@ class _ImportState extends State<_Import> {
                 '一樣的紀錄會跳過，原始那行會留在明細裡。',
           ),
           const TextSpan(text: '收入：分類寫 '),
-          _b('薪資轉帳、ATM存款、轉入'),
+          _b('薪資轉帳、ATM存款、轉入、平轉'),
           const TextSpan(
             text:
-                '（也可以寫薪資、獎金、存款、其他收入）就記成收入，錢進第一欄的帳戶'
+                '（也可以寫薪資、獎金、存款、其他收入）就記成收入；自己帳戶之間轉來轉去寫「平轉」（錢會進帳戶、但不算本月收入），錢進第一欄的帳戶'
                 '（寫現金進現金，其他進銀行）；收到的轉帳要寫「轉入」，因為「轉帳」是轉出去。\n',
           ),
         ]),
@@ -3243,7 +3263,8 @@ class _ImportState extends State<_Import> {
                 '中信帳戶｜2026/11/01 12:00｜轉帳｜小美｜800\n'
                 '中信帳戶｜2026/11/05 09:00｜薪資轉帳｜某某公司｜50000\n'
                 '中信帳戶｜2026/11/06 10:00｜ATM存款｜ATM｜3000\n'
-                '中信帳戶｜2026/11/07 11:00｜轉入｜小美還款｜800',
+                '中信帳戶｜2026/11/07 11:00｜轉入｜小美還款｜800\n'
+                '中信銀行｜2026/06/29 20:09｜平轉｜ATM存款｜58000｜｜｜｜｜｜存款入帳',
             style: TextStyle(fontFamily: 'monospace', fontSize: 11),
           ),
         ]),

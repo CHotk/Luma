@@ -31,7 +31,16 @@ const ledgerIncomeCats = <String, (String, int)>{
   '薪資': ('💰', 0xFF5FE08D),
   '獎金': ('🎁', 0xFF5FE08D),
   '其他收入': ('➕', 0xFF5FE08D),
+  // 自己不同帳戶之間轉來轉去（2026-11-10 使用者）：錢確實進了這個帳戶，但不算收入（見 [ledgerFlatTransfer]）。
+  '平轉': ('🔁', 0xFF7EA6FF),
 };
+
+/// 記一筆「收入」的來源只有這幾種，用下拉選單選（2026-11-10 使用者）。舊資料、貼上匯入帶進來的
+/// 其他名稱（例如公司名）編輯時會自動多出一個選項，不會被洗掉。
+const ledgerIncomeSources = <String>['薪資轉帳', 'ATM存款', '轉帳', '獎金', '利息', '其他'];
+
+/// 收入分類「平轉」：自己的帳戶之間轉來轉去、ATM 存自己的現金…；餘額會加，但不算進本月收入。
+const ledgerFlatTransfer = '平轉';
 
 const ledgerUncategorized = '未分類';
 
@@ -51,6 +60,9 @@ const ledgerImportIncome = <String, String>{
   '匯入': '其他收入',
   '利息': '其他收入',
   '其他收入': '其他收入',
+  '平轉': '平轉',
+  '自轉': '平轉',
+  '互轉': '平轉',
 };
 
 /// 比對收入分類用的寫法：拿掉空白、全形英數轉半形、英文轉大寫（ＡＴＭ存款、atm 存款、ATM存款 都認得）。
@@ -463,7 +475,7 @@ class LedgerBook {
                 : categoryShares(o, -t.amount),
           );
         case LedgerTxType.income:
-          income += t.amount;
+          if (t.category != ledgerFlatTransfer) income += t.amount;
         case LedgerTxType.transfer:
         case LedgerTxType.repayment:
           break;

@@ -165,6 +165,41 @@ void main() {
 
   incomeTests();
 
+  testWidgets('記收入：來源是下拉選單，分類有「平轉」（不算本月收入）', (tester) async {
+    final store = await seeded();
+    await pump(tester, store);
+    await tester.tap(find.byType(FloatingActionButton));
+    await settle(tester);
+    await tester.tap(find.widgetWithText(ChoiceChip, '收入'));
+    await settle(tester);
+    // 來源不是輸入框，是下拉選單：點開選「ATM存款」。
+    final dd = find.byKey(const ValueKey('incomeSource'));
+    expect(dd, findsOneWidget);
+    await tester.tap(dd);
+    await settle(tester);
+    expect(find.text('薪資轉帳'), findsWidgets);
+    await tester.tap(find.text('ATM存款').last);
+    await settle(tester);
+    await tester.enterText(
+      find.byWidgetPredicate(
+        (w) => w is TextField && w.decoration?.prefixText == r'$ ',
+      ),
+      '58000',
+    );
+    await tester.pump();
+    await tester.ensureVisible(find.widgetWithText(ChoiceChip, '🔁 平轉'));
+    await tester.tap(find.widgetWithText(ChoiceChip, '🔁 平轉'));
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, '新增'));
+    await settle(tester);
+    final book = await LedgerRepository(store).loadBook();
+    final t = book.txs.firstWhere((x) => x.amount == 58000);
+    expect(t.type, LedgerTxType.income);
+    expect(t.merchant, 'ATM存款');
+    expect(t.category, '平轉');
+    expect(book.statsWhere((_) => true).income, 0);
+  });
+
   testWidgets('設定關掉「110／1100 問要不要改成菸酒」就不問', (tester) async {
     final store = await seeded();
     await pump(tester, store);
@@ -245,6 +280,21 @@ void incomeTests() {
       v.every((l) => l.willImport && l.tx!.type == LedgerTxType.income),
       isTrue,
     );
+    // 平轉：記成收入分類「平轉」，錢進帳戶、但不算本月收入。
+    final f = book.parseImport(
+      '中信銀行｜2026/06/29 20:09｜平轉｜ATM存款｜58000｜｜｜｜｜｜存款入帳\n'
+      '中信活存｜2026/06/30 09:00｜薪資轉帳｜某某公司｜40000',
+    );
+    expect(f[0].tx!.type, LedgerTxType.income);
+    expect(f[0].tx!.category, '平轉');
+    expect(f[0].tx!.accountId, bank.id);
+    final withTx = LedgerBook(
+      accounts: book.accounts,
+      txs: [f[0].tx!, f[1].tx!],
+      checkpoints: const [],
+      budgets: const [],
+    );
+    expect(withTx.statsWhere((_) => true).income, 40000); // 平轉的 58000 不算收入
     // 「轉帳」還是轉出去：轉到自己的同一個帳戶是錯的。
     expect(lines[4].error, isNotNull);
     expect(lines.take(4).every((l) => l.willImport), isTrue);
