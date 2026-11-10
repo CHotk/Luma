@@ -48,12 +48,12 @@
   .notes h3 { color:var(--ink); font-size:13.5px; margin:14px 0 4px; }
   .notes ul { margin:0; padding-left:18px; } .notes li { margin:3px 0; }
   .notes .try { margin-top:14px; padding:10px 12px; border-radius:12px; background:rgba(126,166,255,.08); border:1px solid rgba(126,166,255,.25); color:var(--ink); font-size:12.5px; }
-  .phone { width:390px; max-width:100%; height:820px; flex-shrink:0; border-radius:44px; border:1px solid var(--line); background:#0e0e17; position:relative; overflow:hidden; box-shadow:0 30px 80px rgba(0,0,0,.5); user-select:none; }
+  .phone { width:390px; max-width:100%; height:820px; flex-shrink:0; border-radius:44px; border:1px solid var(--line); background:radial-gradient(circle at 12% 6%, rgba(36,80,216,.24), transparent 42%), radial-gradient(circle at 92% 28%, rgba(108,47,206,.2), transparent 40%), radial-gradient(circle at 20% 90%, rgba(14,124,108,.16), transparent 38%), #0e0e17; position:relative; overflow:hidden; box-shadow:0 30px 80px rgba(0,0,0,.5); user-select:none; }
   .screen { position:absolute; inset:0; overflow-y:auto; padding:44px 0 40px; scrollbar-width:none; }
   .screen::-webkit-scrollbar { display:none; }
   .status { position:absolute; top:0; left:0; right:0; height:40px; display:flex; align-items:center; justify-content:space-between; padding:0 30px; font-size:13px; font-weight:700; z-index:70; pointer-events:none; }
   .layer { position:absolute; inset:0; z-index:80; pointer-events:none; } .layer > * { pointer-events:auto; }
-  .toast { position:absolute; left:50%; bottom:34px; transform:translateX(-50%); background:rgba(40,40,56,.96); border:1px solid var(--line); padding:7px 14px; border-radius:99px; font-size:12.5px; z-index:95; opacity:0; transition:opacity .2s; pointer-events:none; white-space:nowrap; }
+  .toast { position:absolute; left:50%; bottom:96px; transform:translateX(-50%); background:rgba(40,40,56,.96); border:1px solid var(--line); padding:7px 14px; border-radius:99px; font-size:12.5px; z-index:95; opacity:0; transition:opacity .2s; pointer-events:none; white-space:nowrap; }
   .toast.on { opacity:1; }
   .top { display:flex; align-items:center; gap:4px; padding:6px 10px 8px; }
   .top b { font-size:17px; flex:1; margin-left:4px; } .top b small { display:block; font-size:11px; font-weight:500; color:var(--ink3); }
@@ -166,6 +166,89 @@
   .dist { display:flex; height:12px; border-radius:99px; overflow:hidden; background:#2c2c40; }
   .dist i { display:block; height:100%; }
   .lrow .rk { flex-shrink:0; text-align:center; }
+  /* ── 最終版：照現在 App 的 YT 畫面 ── */
+  .a-wrap { padding:0 14px 110px; }
+  .a-top { display:flex; align-items:center; gap:2px; height:50px; }
+  .a-top .t { flex:1; display:flex; align-items:center; gap:8px; min-width:0; font-size:18px; font-weight:800; }
+  .a-top .tt { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .a-ic { width:32px; height:34px; display:grid; place-items:center; border-radius:10px; color:var(--ink2); font-size:17px; cursor:pointer; flex-shrink:0; }
+  .a-ic.hi { color:var(--gold); background:rgba(255,214,10,.12); }
+  .a-ic.a-back { font-size:28px; width:34px; color:var(--ink); }
+  .a-yt { width:24px; height:17px; border-radius:5px; background:var(--yt); display:inline-grid; place-items:center; font-size:8px; color:#fff; flex-shrink:0; }
+  .a-cats { display:flex; gap:6px; overflow-x:auto; scrollbar-width:none; height:34px; align-items:center; margin:2px -14px 8px; padding:0 14px; }
+  .a-cat { flex-shrink:0; display:flex; align-items:center; gap:6px; padding:6px 12px; border-radius:99px; font-size:12.5px; font-weight:600; color:var(--ink2); background:rgba(255,255,255,.075); border:1px solid rgba(255,255,255,.14); cursor:pointer; }
+  .a-cat.on { color:var(--ink); }
+  .a-cat i { width:7px; height:7px; border-radius:50%; display:inline-block; }
+  .a-seg2 { display:flex; border:1px solid rgba(255,255,255,.14); border-radius:99px; overflow:hidden; background:rgba(255,255,255,.075); margin-bottom:8px; }
+  .a-seg2 button { flex:1; padding:9px 0; border:0; background:none; color:var(--ink2); font-weight:600; font-size:13px; }
+  .a-seg2 button.on { background:rgba(255,78,69,.28); color:var(--ink); }
+  .a-chips { display:flex; flex-wrap:wrap; gap:6px; }
+  .a-chip { padding:5px 10px; border-radius:99px; font-size:10.5px; font-weight:600; color:var(--ink2); background:rgba(255,255,255,.075); border:1px solid rgba(255,255,255,.14); cursor:pointer; white-space:nowrap; }
+  .a-chip.on { background:rgba(126,166,255,.22); border-color:var(--accent); color:var(--ink); }
+  .a-chip.prop { border-color:rgba(255,214,10,.4); }
+  .a-txt { font-size:11px; color:var(--ink2); white-space:nowrap; cursor:pointer; padding:4px 2px; }
+  .a-sec { font-size:11.5px; color:var(--ink3); height:28px; display:flex; align-items:center; }
+  .a-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .a-chc { display:flex; align-items:center; gap:8px; padding:8px 2px 8px 10px; border-radius:16px; background:rgba(255,255,255,.075); border:1px solid rgba(255,255,255,.14); cursor:pointer; min-height:62px; position:relative; overflow:hidden; }
+  .a-chc.pin::before { content:""; position:absolute; left:0; top:0; bottom:0; width:3px; background:#FFD60A; }
+  .a-av { display:inline-grid; place-items:center; border-radius:50%; color:#fff; font-weight:800; flex-shrink:0; }
+  .a-chc .nm { flex:1; min-width:0; display:flex; flex-direction:column; gap:1px; }
+  .a-chc .nm b { font-size:12.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .a-chc .nm span { font-size:10.5px; color:var(--ink3); white-space:nowrap; }
+  .a-acc { display:inline-block; align-self:flex-start; font-size:10px; font-weight:800; padding:0 6px; border:1px solid; border-radius:6px; margin-top:2px; }
+  .a-acc.q { color:var(--ink3); border-color:#3a3a4c; font-weight:600; }
+  .a-more { color:var(--ink2); font-size:21px; padding:0 5px; cursor:pointer; flex-shrink:0; align-self:center; line-height:1; }
+  .a-list { border-top:1px solid rgba(255,255,255,.14); }
+  .a-row { border-bottom:1px solid rgba(255,255,255,.14); }
+  .a-main { position:relative; overflow:hidden; }
+  .a-acts { position:absolute; right:0; top:0; bottom:0; display:flex; padding:6px 6px 6px 0; }
+  .a-sw { width:50px; margin-left:6px; border:0; border-radius:14px; color:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; font-size:11px; font-weight:600; cursor:pointer; }
+  .a-sw b { font-size:17px; font-weight:700; }
+  .a-sw.g { background:#30D158; } .a-sw.r { background:#FF453A; } .a-sw.n { background:#636366; } .a-sw.b { background:#0A84FF; } .a-sw.k { background:#48484A; }
+  .a-in { position:relative; display:flex; gap:10px; padding:8px 0; background:#0d0d15; transition:transform .26s cubic-bezier(.2,.9,.3,1); touch-action:pan-y; cursor:pointer; }
+  .a-th { position:relative; width:128px; height:72px; border-radius:10px; overflow:hidden; flex-shrink:0; display:grid; place-items:center; }
+  .a-th .em { font-size:26px; }
+  .a-dur { position:absolute; right:3px; bottom:3px; background:rgba(0,0,0,.75); color:#fff; font-size:9.5px; font-weight:600; padding:1px 4px; border-radius:4px; }
+  .a-new { position:absolute; left:3px; top:3px; background:#2E6BFF; color:#fff; font-size:8.5px; font-weight:900; padding:1px 4px; border-radius:4px; }
+  .a-st { position:absolute; right:3px; top:3px; display:flex; gap:3px; }
+  .sqs { width:18px; height:18px; border-radius:5px; background:rgba(0,0,0,.72); display:grid; place-items:center; font-size:10px; font-weight:900; color:#fff; }
+  .a-bl { position:absolute; left:3px; bottom:3px; display:flex; flex-direction:column; align-items:flex-start; gap:2px; }
+  .a-pill { font-size:9.5px; font-weight:700; color:#fff; padding:1px 5px; border-radius:4px; line-height:1.3; white-space:nowrap; }
+  .a-pill.ty.影片 { background:rgba(61,90,254,.9); } .a-pill.ty.Shorts { background:rgba(255,45,111,.9); } .a-pill.ty.直播 { background:rgba(229,57,53,.9); }
+  .a-pill.ok { background:rgba(48,209,88,.95); color:#06240f; } .a-pill.bad { background:rgba(255,69,58,.95); } .a-pill.half { background:rgba(255,159,10,.95); color:#2b1800; } .a-pill.none { background:rgba(120,119,140,.95); } .a-pill.wait { background:rgba(46,107,255,.95); } .a-pill.over { background:rgba(255,159,10,.95); color:#2b1800; }
+  .a-vi { flex:1; min-width:0; }
+  .a-vt { font-size:12.5px; line-height:1.35; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .a-note { font-size:10.5px; color:var(--ink3); margin-top:4px; }
+  .a-claim { font-size:11px; color:var(--ink2); margin-top:3px; border-left:2px solid var(--accent); padding-left:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .a-claim .due { margin-left:6px; color:#9ab8ff; font-weight:700; } .a-claim .due.over { color:var(--half); }
+  .a-verify { display:flex; gap:5px; padding:0 0 9px 138px; flex-wrap:wrap; background:#0d0d15; }
+  .a-verify button { border:1px solid var(--line); background:var(--card2); border-radius:99px; padding:3px 9px; font-size:11px; font-weight:700; color:var(--ink2); }
+  .a-verify .ok { color:var(--ok); } .a-verify .bad { color:var(--bad); } .a-verify .half { color:var(--half); }
+  .a-banner { margin:2px 0 6px; padding:9px 12px; border-radius:12px; background:rgba(126,166,255,.1); border:1px solid rgba(126,166,255,.3); font-size:12px; color:var(--ink); }
+  .a-banner.over { background:rgba(255,179,64,.12); border-color:rgba(255,179,64,.5); }
+  .a-nav { position:absolute; left:50%; bottom:22px; transform:translateX(-50%); display:flex; gap:2px; padding:5px; border-radius:99px; background:rgba(30,30,44,.8); backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,.14); z-index:60; }
+  .a-nav span { white-space:nowrap; display:flex; flex-direction:column; align-items:center; gap:1px; padding:6px 18px; border-radius:99px; font-size:10.5px; font-weight:700; color:var(--ink2); cursor:pointer; }
+  .a-nav span b { font-size:15px; } .a-nav span.on { background:rgba(255,255,255,.14); color:#fff; }
+  .a-grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:6px; }
+  .a-cc { height:112px; border:1px solid; border-radius:16px; padding:13px; position:relative; cursor:pointer; display:flex; flex-direction:column; }
+  .a-cc i { width:7px; height:7px; border-radius:50%; display:block; }
+  .a-cc b { font-size:13px; margin-top:6px; } .a-cc > span { font-size:11px; color:var(--ink3); }
+  .a-cc .avs { margin-top:auto; display:flex; }
+  .a-cc .avs span { width:22px; height:22px; border-radius:50%; display:grid; place-items:center; font-size:10px; font-weight:800; color:#fff; border:2px solid #0d0d15; }
+  .a-badge { position:absolute; right:10px; top:10px; font-size:10.5px; font-weight:800; font-style:normal; padding:2px 7px; border-radius:99px; background:rgba(126,166,255,.25); color:#cfdcff; }
+  .a-badge.over { background:rgba(255,159,10,.95); color:#2b1800; }
+  .a-chhead { display:flex; align-items:center; gap:12px; padding:6px 0; }
+  .a-chhead .nm { font-size:17px; font-weight:800; }
+  .a-accbox { display:flex; flex-direction:column; align-items:center; gap:2px; padding:8px 10px; border-radius:14px; background:rgba(255,255,255,.075); border:1px solid rgba(255,255,255,.14); cursor:pointer; font-size:10.5px; color:var(--ink3); }
+  .a-accbox b { font-size:15px; }
+  .a-bars { display:flex; align-items:flex-end; gap:4px; height:40px; margin-bottom:8px; }
+  .a-bars i { flex:1; background:rgba(126,166,255,.45); border-radius:3px 3px 0 0; display:block; }
+  .a-tabs { display:flex; padding:3px; border-radius:99px; background:rgba(30,30,44,.72); border:1px solid rgba(255,255,255,.14); margin:6px 0 8px; overflow-x:auto; scrollbar-width:none; gap:2px; }
+  .a-tabs span { flex:0 0 auto; padding:7px 7px; border-radius:99px; font-size:11.5px; font-weight:700; color:var(--ink2); white-space:nowrap; cursor:pointer; }
+  .a-tabs span.on { background:rgba(255,255,255,.16); color:var(--ink); }
+  .mhead { font-size:12px; font-weight:800; color:var(--ink2); margin:12px 0 4px; }
+  .mlist .mi { display:flex; gap:10px; align-items:center; padding:9px 6px; border-radius:10px; font-size:13.5px; cursor:pointer; }
+  .mlist .mi:hover { background:rgba(255,255,255,.07); } .mlist .mi b { width:22px; text-align:center; font-weight:400; }
 </style>
 </head>
 <body>
@@ -176,11 +259,11 @@
   <div class="stage"><div class="notes" id="notes"></div><div class="phone" id="phone"><div class="status"><span>9:41</span><span>●●● 5G</span></div><div class="screen" id="scr"></div><div class="layer" id="lay"></div><div class="toast" id="toast"></div></div></div>
   <table class="cmp">
     <tr><th>功能</th><th>一 主流</th><th>二 預測帳本</th><th>三 戰績段位</th><th>四 滑動驗證</th><th>最終版</th></tr>
-    <tr><td>評 ○ 對／△ 半對／✕ 不對</td><td class="y">影片列按鈕＋視窗</td><td class="y">到期卡片鍵</td><td class="y">視窗大印章鈕</td><td class="y">滑卡片或按鍵</td><td class="y">影片列按鈕＋待驗證卡片＋視窗</td></tr>
-    <tr><td>— 沒給方向（不算命中率）</td><td class="y">列上鈕＋視窗</td><td class="y">第四顆鍵</td><td class="y">視窗「沒方向」章</td><td class="y">往下滑或 ⊘ 鈕</td><td class="y">三處都有，統計單獨計數</td></tr>
-    <tr><td>先預測、到期驗證</td><td>—</td><td class="y">核心</td><td>—</td><td>驗證卡片</td><td class="y">影片列「先預測」＋待驗證分頁</td></tr>
-    <tr><td>影片上的小標籤</td><td class="y">縮圖角落膠囊</td><td class="y">結果方塊＋到期標籤</td><td class="y">縮圖蓋印章</td><td class="y">角落圓點</td><td class="y">結果膠囊＋待驗證／該驗證</td></tr>
-    <tr><td>統計、排行、篩最準的頻道</td><td class="y">排序＋評價數＋準度門檻</td><td class="y">戰績時間軸</td><td class="y">段位 S/A/B/C</td><td class="y">準度榜</td><td class="y">統計分頁：全部都有</td></tr>
+    <tr><td>評 ○ 對／△ 半對／✕ 不對</td><td class="y">影片列按鈕＋視窗</td><td class="y">到期卡片鍵</td><td class="y">視窗大印章鈕</td><td class="y">滑卡片或按鍵</td><td class="y">往左滑動作鈕＋⋮ 視窗＋「🎯 待驗證」篩選</td></tr>
+    <tr><td>— 沒給方向（不算命中率）</td><td class="y">列上鈕＋視窗</td><td class="y">第四顆鍵</td><td class="y">視窗「沒方向」章</td><td class="y">往下滑或 ⊘ 鈕</td><td class="y">滑動鈕、⋮ 視窗、篩選都有，統計單獨計數</td></tr>
+    <tr><td>先預測、到期驗證</td><td>—</td><td class="y">核心</td><td>—</td><td>驗證卡片</td><td class="y">滑動鈕「⏳ 預測」＋⋮ 視窗＋待驗證篩選</td></tr>
+    <tr><td>影片上的小標籤</td><td class="y">縮圖角落膠囊</td><td class="y">結果方塊＋到期標籤</td><td class="y">縮圖蓋印章</td><td class="y">角落圓點</td><td class="y">縮圖左下角膠囊（跟「♪ 歌曲」同位置）</td></tr>
+    <tr><td>統計、排行、篩最準的頻道</td><td class="y">排序＋評價數＋準度門檻</td><td class="y">戰績時間軸</td><td class="y">段位 S/A/B/C</td><td class="y">準度榜</td><td class="y">🎯 準度統計頁＋頻道卡片準度＋頻道頁「評價」分頁</td></tr>
     <tr><td>評價紀錄（只增不刪）</td><td class="y">頻道頁</td><td class="y">頻道頁</td><td class="y">頻道頁</td><td class="y">頻道頁</td><td class="y">頻道頁＋統計頁最近紀錄</td></tr>
   </table>
 </div>
@@ -520,156 +603,284 @@ function after4(S, ctx) {
     else { card.style.transition = 'transform .2s'; card.style.transform = ''; hint(0, 0); } };
 }
 
-// ───────────── 最終版：結合一（主流一鍵評）＋二（先預測、待驗證）＋三（統計、排行） ─────────────
-// 2026-11-10 使用者：下一版放同檔案、叫最終版，要 100% 完整可操作，看完再決定要不要做進 App。
-const S5 = { tab:'video', f:'all', gf:'all', sort:'rate', minN:3, minRate:0, p:'main', cid:null, cf:'all', dlg:null };
+// ───────────── 最終版：直接長在現在的 YT 畫面上（首頁 → 幣圈分類頁 → 頻道頁 → 準度統計） ─────────────
+// 2026-11-10 使用者：上一版的「最終版」沒有真的結合目前 UI 畫面、看不出效果。
+// 這版照現在 App 的 YT 畫面重做：頂列（返回＋YT 紅圖示標題＋右邊一排圖示＋雲端／設定）、分類篩選膠囊、
+// 「依頻道顯示／依影片顯示」、頻道卡片（2 欄）、影片列（128×72 縮圖＋時長＋類型標籤＋右上狀態小方塊、往左滑出動作鈕、⋮）、
+// 頻道詳情頁（頻道資料＋膠囊分頁列）、底部浮動分頁列（頻道／影片／播放清單）。
+// 新功能全部做成「現有元件的延伸」，跟「♪ 歌曲」一樣：只有幣圈分類才出現。
+const S5 = { p:'home', mode:'channel', sort:'normal', view:'unwatched', tf:'all', vsort:'new', cid:null, ctab:'all', csort:'new', cf:'all', gf:'all', ssort:'rate', minN:3, minRate:0, dlg:null, hid:[], sw:null };
 const MARK = { ok:'○', half:'△', bad:'✕', none:'—' };
 const MARKTXT = { ok:'對', half:'半對', bad:'不對', none:'沒給方向' };
 const isRated = v => v.r && v.r !== 'none';
+const SUBS = { c1:123000, c2:86000, c3:51000, c4:32000, c5:214000, c6:18000 };
+const fmtSubs = n => n >= 10000 ? (n / 10000).toFixed(1).replace(/\.0$/, '') + ' 萬' : String(n);
+const vnum = v => +v.id.replace(/\D/g, '');
+const vType = v => vnum(v) % 17 === 0 ? '直播' : vnum(v) % 9 === 0 ? 'Shorts' : '影片';
+const vWatched = v => vnum(v) % 4 === 0;
+const vCached = v => vnum(v) % 3 === 0;
+const vViews = v => { const n = (vnum(v) * 7919) % 900 + 12; return n >= 100 ? (n / 10).toFixed(1).replace(/\.0$/, '') + ' 萬次' : n * 100 + ' 次'; };
+const vAgo = v => v.ago === 0 ? '2 小時前' : v.ago < 30 ? v.ago + ' 天前' : Math.floor(v.ago / 30) + ' 個月前';
+const CATS = [['知識', '#4F8CFF'], ['學習', '#30D158'], ['娛樂', '#FF9F43'], ['影視', '#BF5AF2'], ['生活', '#2EC4B6'], ['幣圈', '#FFB340']];
+const pend5 = () => V.filter(v => !v.r && v.claim);
+const over5 = () => pend5().filter(v => v.due <= 0);
 
-function row5(v, showCh = true) {
-  const c = CHm[v.ch];
-  const pending = !v.r && v.claim;
-  const over = pending && v.due != null && v.due <= 0;
-  const badge = v.r
-    ? `<span class="b1 ${v.r}">${MARK[v.r]} ${MARKTXT[v.r]}</span>`
-    : pending
-    ? `<span class="b1 ${over ? 'over' : 'wait'}">${over ? '🔔 該驗證' : '⏳ 待驗證'}</span>`
-    : '';
-  return `<div class="vrow"><div class="th" style="${thbg(v)}" data-a="play">${c.em}<span class="dur">${v.dur}</span>${badge}</div>
-    <div class="vi"><div class="vt">${esc(v.t)}</div>
-    <div class="vm">${showCh ? `<span data-a="ch" data-x="${c.id}" style="cursor:pointer">${av(c, 's')}${c.name}</span>・` : ''}${v.ago} 天前${pending ? '・' + dtag(v.due) : ''}</div>
-    ${v.claim ? `<div class="quote">「${esc(v.claim)}」</div>` : ''}
-    <div class="acts">
-      <button class="rb ${v.r === 'ok' ? 'on ok' : ''}" data-a="rate" data-x="${v.id}|ok">○ 對</button>
-      <button class="rb ${v.r === 'bad' ? 'on bad' : ''}" data-a="rate" data-x="${v.id}|bad">✕ 不對</button>
-      <button class="rb ${v.r === 'none' ? 'on none' : ''}" data-a="rate" data-x="${v.id}|none">— 沒方向</button>
-      ${v.r ? '' : `<button class="rb" data-a="dlg" data-x="${v.id}|plan">⏳ ${v.claim ? '改預測' : '先預測'}</button>`}
-      <button class="rb" data-a="dlg" data-x="${v.id}|rate">⋯</button>
-    </div></div></div>`;
+// ── 共用小元件（照現在 App 的樣子）
+const aIc = (g, a, x = '', extra = '') => `<span class="a-ic ${extra}" ${a ? `data-a="${a}" data-x="${x}"` : ''}>${g}</span>`;
+function aTop(title, { back = false, actions = [], icon = true, small = false } = {}) {
+  return `<div class="a-top">${back ? aIc('‹', 'back', '', 'a-back') : aIc('☰', 'noop')}<div class="t">${icon ? '<span class="a-yt">▶</span>' : ''}<span class="tt">${title}</span></div>${actions.join('')}${aIc('☁', 'noop')}${aIc('⚙', 'noop')}</div>`;
+}
+function aNav(S) {
+  const on = S.p === 'home' ? 0 : (S.p === 'cat' && S.mode === 'video') ? 1 : -1;
+  return `<div class="a-nav">${[['▦', '頻道', 'home'], ['▶', '影片', 'video'], ['☰', '播放清單', 'pl']].map(([g, t, k], i) => `<span class="${on === i || (i === 0 && on === -1) ? 'on' : ''}" data-a="nav" data-x="${k}"><b>${g}</b>${t}</span>`).join('')}</div>`;
+}
+const pill5 = v => {
+  if (v.r) return `<span class="a-pill ${v.r}">${MARK[v.r]} ${MARKTXT[v.r]}</span>`;
+  if (v.claim) return v.due <= 0 ? '<span class="a-pill over">🔔 該驗證</span>' : `<span class="a-pill wait">⏳ ${v.due} 天後驗證</span>`;
+  return '';
+};
+function avatar5(c, r = 17) { return `<span class="a-av" style="width:${r * 2}px;height:${r * 2}px;background:${c.col};font-size:${r * .75}px">${c.ini}</span>`; }
+
+// ── 影片列（跟現在的 YtVideoRow 一樣：往左滑出動作鈕、⋮ 開選單；新增的評價都是「歌曲」那一套的延伸）
+const SW_W = 5 * 56 + 6;
+function row5(v, S, { showCh = true, verify = false } = {}) {
+  const c = CHm[v.ch], t = vType(v), watched = vWatched(v), hid = S.hid.includes(v.id);
+  const sq = [watched ? '<span class="sqs">✓</span>' : '', hid ? '<span class="sqs">⊘</span>' : '', vCached(v) ? '<span class="sqs" style="color:#FFB340">☁</span>' : ''].join('');
+  const act = (cls, g, label, a, x) => `<button class="a-sw ${cls}" data-a="${a}" data-x="${x}"><b>${g}</b>${label}</button>`;
+  return `<div class="a-row" style="${hid ? 'opacity:.5' : ''}"><div class="a-main">
+    <div class="a-acts">${act('g', '○', '對', 'rate', v.id + '|ok')}${act('r', '✕', '不對', 'rate', v.id + '|bad')}${act('n', '—', '沒方向', 'rate', v.id + '|none')}${act('b', '⏳', '預測', 'dlg', v.id + '|plan')}${act('k', hid ? '👁' : '🚫', hid ? '取消隱藏' : '隱藏', 'hide', v.id)}</div>
+    <div class="a-in ${S.sw === v.id ? 'open' : ''}" data-id="${v.id}" data-w="${SW_W}" style="${S.sw === v.id ? `transform:translateX(-${SW_W}px)` : ''}">
+      <div class="a-th" style="${thbg(v)}" data-a="open" data-x="${v.id}">
+        <span class="em">${c.em}</span>
+        ${vnum(v) % 4 !== 0 && v.ago <= 3 && !watched ? '<span class="a-new">NEW</span>' : ''}
+        <span class="a-st">${sq}</span>
+        <span class="a-dur">${v.dur}</span>
+        <span class="a-bl">${pill5(v)}<span class="a-pill ty ${t}">${t}</span></span>
+      </div>
+      <div class="a-vi" data-a="open" data-x="${v.id}">
+        <div class="a-vt" style="${watched ? 'color:var(--ink3)' : ''}">${esc(v.t)}</div>
+        <div class="a-note">${showCh ? c.name + '・' : ''}${vViews(v)}・${vAgo(v)}</div>
+        ${v.claim ? `<div class="a-claim">「${esc(v.claim)}」</div>` : ''}
+      </div>
+      <span class="a-more" data-a="dlg" data-x="${v.id}|menu">⋮</span>
+    </div></div>
+    ${verify && !v.r ? `<div class="a-verify"><button class="ok" data-a="rate" data-x="${v.id}|ok">○ 說對</button><button class="half" data-a="rate" data-x="${v.id}|half">△ 半對</button><button class="bad" data-a="rate" data-x="${v.id}|bad">✕ 說錯</button><button class="none" data-a="rate" data-x="${v.id}|none">— 沒方向</button><button data-a="dlg" data-x="${v.id}|plan">改期</button></div>` : ''}
+  </div>`;
 }
 
+// ── 居中的視窗
 function dlg5(S) {
   const d = S.dlg;
   if (!d) return '';
-  if (d.t === 'rate') {
+  const wrap = inner => `<div class="sheet-bg" data-a="close"></div><div class="sheet">${inner}</div>`;
+  if (d.t === 'menu') {
     const v = VM[d.id], c = CHm[v.ch];
-    return sheetWrap(`
-      <div style="display:flex;gap:8px;align-items:center">${av(c)}<div style="min-width:0"><h4 style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(v.t)}</h4><div class="small">${c.name}・${v.ago} 天前</div></div></div>
-      ${v.claim ? `<div class="quote" style="color:var(--ink)">他說：「${esc(v.claim)}」${!v.r && v.due != null ? `<div class="small">${dtag(v.due)}</div>` : ''}</div>` : '<div class="small" style="margin:8px 0">還沒記他說了什麼；行情要等走完才知道的，可以按「先預測」，到期再回來驗證</div>'}
+    return wrap(`
+      <div style="display:flex;gap:10px;align-items:center">${avatar5(c, 16)}<div style="min-width:0"><h4 style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(v.t)}</h4><div class="small">${c.name}・${vAgo(v)}</div></div></div>
+      ${v.claim ? `<div class="quote" style="color:var(--ink)">他說：「${esc(v.claim)}」${!v.r ? `<div class="small">${dtag(v.due)}</div>` : ''}</div>` : ''}
+      <div class="mhead">🎯 準度評價（幣圈）</div>
       <div class="big3">${['ok', 'half', 'bad', 'none'].map(k => `<button class="${k} ${v.r === k ? 'on' : ''}" data-a="rate" data-x="${v.id}|${k}">${MARK[k]} ${k === 'none' ? '沒方向' : MARKTXT[k]}<small>${{ ok:'內容正確', half:'部分正確', bad:'內容有誤', none:'沒給方向・沒講漲跌' }[k]}</small></button>`).join('')}</div>
       <textarea rows="2" placeholder="備註（選填）：例如 實際走到 6.9 萬，差一點">${esc(v.note)}</textarea>
-      <div class="row2" style="margin-top:10px">
-        ${v.r ? `<button class="btn g" data-a="rate" data-x="${v.id}|${v.r}">清除評價</button>` : `<button class="btn g" data-a="dlg" data-x="${v.id}|plan">⏳ ${v.claim ? '改預測' : '先預測'}</button>`}
-        <button class="btn" data-a="save">儲存備註</button>
-      </div>
-      <div style="text-align:center;margin-top:8px"><button class="chip" data-a="close">關閉</button></div>`);
+      <div class="row2" style="margin-top:8px">${v.r ? `<button class="btn g" data-a="rate" data-x="${v.id}|${v.r}">清除評價</button>` : `<button class="btn g" data-a="dlg" data-x="${v.id}|plan">⏳ ${v.claim ? '改預測' : '先預測'}</button>`}<button class="btn" data-a="save">儲存備註</button></div>
+      <div class="mhead">更多</div>
+      <div class="mlist">${[['⏱', '存到稍後觀看'], ['☰', '加入播放清單'], [S.hid.includes(v.id) ? '👁' : '🚫', S.hid.includes(v.id) ? '取消隱藏' : '隱藏'], ['↗', '在 YouTube 開啟']].map(([g, t]) => `<div class="mi" data-a="${t.includes('隱藏') ? 'hide' : 'noop'}" data-x="${v.id}"><b>${g}</b>${t}</div>`).join('')}</div>`);
+  }
+  if (d.t === 'chmenu') {
+    const c = CHm[d.id];
+    return wrap(`<div style="display:flex;gap:10px;align-items:center;margin-bottom:6px">${avatar5(c, 18)}<h4>${c.name}</h4></div>
+      <div class="mlist">${[['🎯', '看準度戰績', 'ch|' + c.id], ['✎', '編輯頻道', 'noop|'], ['⇄', '移到其他分類', 'noop|'], ['📌', '置頂', 'noop|'], ['❄', '冷藏', 'noop|'], ['🗑', '刪除', 'noop|']].map(([g, t, a]) => `<div class="mi" data-a="${a.split('|')[0]}" data-x="${a.split('|')[1]}"><b>${g}</b>${t}</div>`).join('')}</div>`);
   }
   // plan：記預測（先預測，等行情走完再驗證）
   const open = V.filter(v => !v.claim && !v.r);
   const fixed = d.id ? VM[d.id] : null;
-  return sheetWrap(`<h4>${fixed && fixed.claim ? '改預測' : '記一則預測'}</h4>
-    <div class="small" style="margin-bottom:8px">先記下「他說了什麼」，行情走完到期再來驗證，到期會在「待驗證」提醒你</div>
-    ${fixed ? `<div style="font-size:13px;font-weight:600;margin-bottom:8px">${esc(fixed.t)}<div class="small">${CHm[fixed.ch].name}・${fixed.ago} 天前</div></div>` : `<select id="plv">${open.map(v => `<option value="${v.id}" ${d.pick === v.id ? 'selected' : ''}>${CHm[v.ch].name}・${esc(v.t)}</option>`).join('') || '<option>（沒有還沒記預測的影片）</option>'}</select>`}
+  return wrap(`<h4>${fixed && fixed.claim ? '改預測' : '記一則預測'}</h4>
+    <div class="small" style="margin-bottom:8px">先記下「他說了什麼」，行情走完到期再來驗證；到期會在幣圈分類標示「🔔」</div>
+    ${fixed ? `<div style="font-size:13px;font-weight:600;margin-bottom:8px">${esc(fixed.t)}<div class="small">${CHm[fixed.ch].name}・${vAgo(fixed)}</div></div>` : `<select id="plv">${open.map(v => `<option value="${v.id}" ${d.pick === v.id ? 'selected' : ''}>${CHm[v.ch].name}・${esc(v.t)}</option>`).join('') || '<option>（沒有還沒記預測的影片）</option>'}</select>`}
     <input type="text" id="plc" value="${esc(d.txt ?? (fixed && fixed.claim) ?? '')}" placeholder="他說了什麼？例如 BTC 一週內站上 7 萬" style="margin-top:8px">
     <div class="chips" style="padding:10px 0 4px;flex-wrap:wrap">${[[3, '3 天'], [7, '1 週'], [30, '1 個月'], [90, '3 個月']].map(([n, t]) => `<button class="chip ${d.d === n ? 'on' : ''}" data-a="planDue" data-x="${n}">${t}後驗證</button>`).join('')}</div>
     <div class="row2" style="margin-top:10px"><button class="btn g" data-a="close">取消</button><button class="btn" data-a="planOk" ${fixed || open.length ? '' : 'disabled style="opacity:.4"'}>記下來</button></div>`);
 }
 
-function pcard5(v) {
-  const c = CHm[v.ch], over = v.due != null && v.due <= 0;
-  return `<div class="pcard ${over ? 'over' : ''}"><div class="ph">${av(c, 's')}<b>${c.name}</b><span class="small">${v.ago} 天前</span><span class="dt">${over ? '🔔 ' : '⏳ '}${dtag(v.due)}</span></div>
-    <div class="ptitle">${esc(v.t)}</div><div class="quote">「${esc(v.claim)}」</div>
-    <div class="vb"><button class="bad" data-a="rate" data-x="${v.id}|bad">✕ 說錯</button><button class="half" data-a="rate" data-x="${v.id}|half">△ 半對</button><button class="ok" data-a="rate" data-x="${v.id}|ok">○ 說對</button><button class="none" data-a="rate" data-x="${v.id}|none">— 沒方向</button></div>
-    <div style="text-align:right;margin-top:6px"><button class="chip" data-a="dlg" data-x="${v.id}|plan">改預測／改期</button></div></div>`;
+// ── 準度小元件
+const accChip = c => { const s = stats(c.id); return s.n < 3 ? `<span class="a-acc q">準度 —</span>` : `<span class="a-acc" style="color:${rcol(s.rate)};border-color:${rcol(s.rate)}55">${grade(s)} ${s.rate}%</span>`; };
+
+// ── 頁面：YT 首頁（分類資料夾）
+function homeView(S) {
+  const cards = [['全部', '#7EA6FF', 46], ['知識', '#4F8CFF', 12], ['學習', '#30D158', 9], ['娛樂', '#FF9F43', 8], ['影視', '#BF5AF2', 7], ['生活', '#2EC4B6', 5], ['幣圈', '#FFB340', 6], ['看過但不喜歡', '#8A8A9A', 3]];
+  const o = over5().length, p = pend5().length;
+  return `${aTop('YT 頻道追蹤', { icon: true, actions: [aIc('🔍', 'noop'), aIc('＋', 'noop')] })}
+    <div class="a-grid2">${cards.map(([n, col, k]) => `<div class="a-cc" style="background:${col}1F;border-color:${col}66" data-a="${n === '幣圈' ? 'goCat' : 'noop'}">
+      <i style="background:${col}"></i><b>${n}</b><span>${k} 個頻道</span>
+      ${n === '幣圈' && (o || p) ? `<em class="a-badge ${o ? 'over' : ''}">${o ? '🔔 ' + o + ' 該驗證' : '⏳ ' + p + ' 待驗證'}</em>` : ''}
+      <div class="avs">${CH.slice(0, 3).map((c, i) => `<span style="background:${c.col};margin-left:${i ? -6 : 0}px">${c.ini}</span>`).join('')}</div></div>`).join('')}</div>`;
 }
 
-function view5(S) {
-  const lay = dlg5(S);
-  const tabs = (extra = '') => `<div class="seg"><button class="${S.tab === 'video' ? 'on' : ''}" data-a="tab" data-x="video">影片</button><button class="${S.tab === 'pend' ? 'on' : ''}" data-a="tab" data-x="pend">待驗證 ${V.filter(v => !v.r && v.claim).length}</button><button class="${S.tab === 'stats' ? 'on' : ''}" data-a="tab" data-x="stats">統計</button></div>`;
-  // ── 頻道頁（戰績）
-  if (S.p === 'ch') {
-    const c = CHm[S.cid], s = stats(c.id), best = ratedOf(c.id).find(v => v.r === 'ok'), worst = ratedOf(c.id).find(v => v.r === 'bad');
-    const list = V.filter(v => v.ch === c.id && (S.cf === 'all' || (S.cf === 'pend' ? !v.r : v.r === S.cf)));
-    return { layer:lay, screen:`${hdr(c.name, '準度戰績', true)}<div class="pad">
-      <div class="card" style="text-align:center">${grBadge(s, 'xl')}
+// ── 頁面：幣圈分類頁
+function catView(S) {
+  const rows0 = CH.map(c => ({ c, s:stats(c.id) }));
+  let body;
+  if (S.mode === 'channel') {
+    const sorters = { normal:(a, b) => 0, subs:(a, b) => SUBS[b.c.id] - SUBS[a.c.id], subsAsc:(a, b) => SUBS[a.c.id] - SUBS[b.c.id], rate:(a, b) => (b.s.rate ?? -1) - (a.s.rate ?? -1) };
+    const sorted = rows0.slice().sort(sorters[S.sort]);
+    const pinned = sorted.filter(o => o.c.id === 'c2'), rest = sorted.filter(o => o.c.id !== 'c2');
+    const card = o => `<div class="a-chc ${o.c.id === 'c2' ? 'pin' : ''}" data-a="ch" data-x="${o.c.id}">${avatar5(o.c, 17)}<div class="nm"><b>${o.c.name}</b><span>${fmtSubs(SUBS[o.c.id])} 位訂閱者</span>${accChip(o.c)}</div><span class="a-more" data-a="dlg" data-x="${o.c.id}|chmenu">⋮</span></div>`;
+    body = `<div class="a-chips" style="margin-bottom:6px">${[['normal', '預設排序'], ['subs', '訂閱人數 多→少'], ['subsAsc', '訂閱人數 少→多'], ['rate', '🎯 準度 高→低']].map(([k, t]) => `<span class="a-chip ${S.sort === k ? 'on' : ''}" data-a="sort" data-x="${k}">${t}</span>`).join('')}</div>
+      <div class="a-sec">📌 已置頂 · ${pinned.length}</div><div class="a-grid">${pinned.map(card).join('')}</div>
+      <div class="a-sec" style="margin-top:10px">▷ 一般 · ${rest.length}</div><div class="a-grid">${rest.map(card).join('')}</div>`;
+  } else {
+    const vs = V.filter(v => (S.tf === 'all' || vType(v) === S.tf) && ({
+      unwatched:!S.hid.includes(v.id) && !vWatched(v), hidden:S.hid.includes(v.id), all:true,
+      pend:!S.hid.includes(v.id) && !v.r && v.claim, ok:v.r === 'ok', half:v.r === 'half', bad:v.r === 'bad', none:v.r === 'none',
+    }[S.view]));
+    if (S.vsort === 'old') vs.reverse();
+    const cnt = k => V.filter(v => ({ unwatched:!S.hid.includes(v.id) && !vWatched(v), hidden:S.hid.includes(v.id), all:true, pend:!S.hid.includes(v.id) && !v.r && v.claim, ok:v.r === 'ok', half:v.r === 'half', bad:v.r === 'bad', none:v.r === 'none' }[k])).length;
+    const o = over5().length;
+    body = `<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px"><div class="a-chips" style="flex:1">${[['all', '全部'], ['影片', '一般影片'], ['Shorts', 'Shorts'], ['直播', '直播']].map(([k, t]) => `<span class="a-chip ${S.tf === (k === 'all' ? 'all' : k) ? 'on' : ''}" data-a="tf" data-x="${k}">${t}</span>`).join('')}</div>
+        <span class="a-txt" data-a="vsort">⇅ ${S.vsort === 'new' ? '最新' : '最舊'}</span><span class="a-txt" data-a="refresh">⟳ 重新整理</span></div>
+      <div class="a-chips" style="margin-bottom:6px">${[['unwatched', '沒看過'], ['hidden', '已隱藏'], ['all', '全部']].map(([k, t]) => `<span class="a-chip ${S.view === k ? 'on' : ''}" data-a="view" data-x="${k}">${t}</span>`).join('')}
+        ${[['pend', '🎯 待驗證'], ['ok', '○ 對'], ['half', '△ 半對'], ['bad', '✕ 不對'], ['none', '— 沒給方向']].map(([k, t]) => `<span class="a-chip prop ${S.view === k ? 'on' : ''}" data-a="view" data-x="${k}">${t} ${cnt(k)}</span>`).join('')}
+        <span class="a-chip">範圍：每頻道最新 20 部</span></div>
+      ${S.view === 'pend' && o ? `<div class="a-banner">🔔 ${o} 則已到期，該驗證了——點下面的 ○ △ ✕ — 直接驗證</div>` : ''}
+      <div class="a-list">${vs.map(v => row5(v, S, { verify: S.view === 'pend' })).join('') || '<div class="small" style="padding:30px;text-align:center">這裡空空的</div>'}</div>`;
+  }
+  return `${aTop('幣圈', { back: true, actions: [aIc('🔍', 'noop'), aIc('＋', 'noop'), aIc('🎯', 'stats', '', 'hi'), aIc('🕘', 'noop'), aIc('🗑', 'noop')] })}
+    <div class="a-cats">${CATS.map(([n, col]) => `<span class="a-cat ${n === '幣圈' ? 'on' : ''}" style="${n === '幣圈' ? `background:${col}30;border-color:${col}` : ''}" data-a="${n === '幣圈' ? 'noop' : 'otherCat'}"><i style="background:${col}"></i>${n}</span>`).join('')}<span class="a-cat" data-a="otherCat"><i style="background:#8A8A9A"></i>看過但不喜歡</span></div>
+    <div class="a-seg2"><button class="${S.mode === 'channel' ? 'on' : ''}" data-a="mode" data-x="channel">依頻道顯示</button><button class="${S.mode === 'video' ? 'on' : ''}" data-a="mode" data-x="video">依影片顯示</button></div>
+    ${body}`;
+}
+
+// ── 頁面：頻道詳情
+function chView(S) {
+  const c = CHm[S.cid], s = stats(c.id);
+  const tabs = [['all', '全部'], ['影片', '影片'], ['Shorts', 'Shorts'], ['直播', '直播'], ['about', '簡介'], ['watch', '觀看紀錄'], ['rating', '🎯 評價']];
+  let body;
+  const mine = V.filter(v => v.ch === c.id);
+  if (S.ctab === 'about') body = `<div class="card"><div style="font-weight:800;margin-bottom:4px">簡介</div><div class="muted">${c.name}：每週分析 BTC／ETH 行情與鏈上資料。（示範文字）</div><div class="small" style="margin-top:8px">分類：幣圈　・　網址：youtube.com/@${c.id}</div></div>`;
+  else if (S.ctab === 'watch') body = `<div class="a-list">${mine.filter(vWatched).map(v => row5(v, S, { showCh:false })).join('') || '<div class="small" style="padding:24px;text-align:center">還沒有觀看紀錄</div>'}</div>`;
+  else if (S.ctab === 'rating') {
+    const best = ratedOf(c.id).find(v => v.r === 'ok'), worst = ratedOf(c.id).find(v => v.r === 'bad');
+    const list = mine.filter(v => S.cf === 'all' || (S.cf === 'pend' ? !v.r && v.claim : v.r === S.cf));
+    body = `<div class="card" style="text-align:center">${grBadge(s, 'xl')}
         <div style="font-size:30px;font-weight:900;color:${rcol(s.rate)};margin-top:6px">${s.n < 3 ? '樣本不足' : s.rate + '%'}</div>
         <div class="small">${s.n} 部已評・${s.pend} 部待評${s.n < 3 ? '（至少 3 部才給段位）' : ''}・命中率＝(○＋△×0.5)÷已評，「沒給方向」不算</div>
-        <div class="stat3" style="grid-template-columns:repeat(3,1fr)"><div><b class="c-ok">${s.ok}</b>○ 對</div><div><b class="c-half">${s.half}</b>△ 半對</div><div><b class="c-bad">${s.bad}</b>✕ 不對</div><div><b>${s.none}</b>— 沒方向</div><div><b>${s.pend}</b>待評</div><div><b class="streak">🔥${streak(c.id)}</b>連對</div></div>
-        <div class="small" style="margin-bottom:4px">預測時間軸（舊→新）</div><div>${ratedOf(c.id).reverse().map(v => `<span class="sq ${v.r}"></span>`).join('')}${V.filter(v => v.ch === c.id && !v.r && v.claim).map(() => '<span class="sq" style="outline:1px dashed #888;background:none"></span>').join('')}</div>
-      </div>
-      ${best ? `<div class="card"><div class="small">🏆 最近一次說對</div><div style="font-weight:700">${esc(best.claim || best.t)}</div></div>` : ''}${worst ? `<div class="card"><div class="small">🤡 最近一次說錯</div><div style="font-weight:700">${esc(worst.claim || worst.t)}</div></div>` : ''}</div>
-      <div class="chips">${[['all', '全部'], ['pend', '待評'], ['ok', '○ 對'], ['half', '△ 半對'], ['bad', '✕ 不對'], ['none', '— 沒給方向']].map(([k, t]) => `<button class="chip ${S.cf === k ? 'on' : ''}" data-a="cf" data-x="${k}">${t}</button>`).join('')}</div>
-      ${list.map(v => row5(v, false)).join('') || '<div class="small" style="padding:20px;text-align:center">這個條件沒有影片</div>'}
-      <div class="pad"><div class="card" style="margin-top:10px"><div class="small" style="margin-bottom:4px">評價紀錄（只增不刪，改判也留一筆）</div>${logRows(c.id)}</div></div>` };
+        <div class="stat3" style="grid-template-columns:repeat(3,1fr)"><div><b class="c-ok">${s.ok}</b>○ 對</div><div><b class="c-half">${s.half}</b>△ 半對</div><div><b class="c-bad">${s.bad}</b>✕ 不對</div><div><b>${s.none}</b>— 沒方向</div><div><b>${mine.filter(v => !v.r && v.claim).length}</b>待驗證</div><div><b class="streak">🔥${streak(c.id)}</b>連對</div></div>
+        <div class="small" style="margin-bottom:4px">預測時間軸（舊→新）</div><div>${ratedOf(c.id).reverse().map(v => `<span class="sq ${v.r}"></span>`).join('')}${mine.filter(v => !v.r && v.claim).map(() => '<span class="sq" style="outline:1px dashed #888;background:none"></span>').join('')}</div></div>
+      ${best ? `<div class="card"><div class="small">🏆 最近一次說對</div><div style="font-weight:700">${esc(best.claim || best.t)}</div></div>` : ''}${worst ? `<div class="card"><div class="small">🤡 最近一次說錯</div><div style="font-weight:700">${esc(worst.claim || worst.t)}</div></div>` : ''}
+      <div class="a-chips" style="margin:6px 0">${[['all', '全部'], ['pend', '待驗證'], ['ok', '○ 對'], ['half', '△ 半對'], ['bad', '✕ 不對'], ['none', '— 沒給方向']].map(([k, t]) => `<span class="a-chip ${S.cf === k ? 'on' : ''}" data-a="cf" data-x="${k}">${t}</span>`).join('')}</div>
+      <div class="a-list">${list.map(v => row5(v, S, { showCh:false, verify:true })).join('') || '<div class="small" style="padding:20px;text-align:center">這個條件沒有影片</div>'}</div>
+      <div class="card" style="margin-top:10px"><div class="small" style="margin-bottom:4px">評價紀錄（只增不刪，改判也留一筆）</div>${logRows(c.id)}</div>`;
+  } else {
+    const list = mine.filter(v => S.ctab === 'all' || vType(v) === S.ctab);
+    if (S.csort === 'old') list.reverse(); else if (S.csort === 'pop') list.sort((a, b) => vnum(b) % 7 - vnum(a) % 7);
+    body = `<div class="a-chips" style="margin:2px 0 4px">${[['new', '最新'], ['pop', '熱門'], ['old', '最舊']].map(([k, t]) => `<span class="a-chip ${S.csort === k ? 'on' : ''}" data-a="csort" data-x="${k}">${t}</span>`).join('')}</div>
+      <div class="a-list">${list.map(v => row5(v, S, { showCh:false })).join('') || '<div class="small" style="padding:24px;text-align:center">這個頻道沒有這類影片</div>'}</div>`;
   }
-  // ── 影片
-  if (S.tab === 'video') {
-    const cnt = k => k === 'all' ? V.length : k === 'pend' ? count(v => !v.r) : count(v => v.r === k);
-    const vlist = V.filter(v => S.f === 'all' || (S.f === 'pend' ? !v.r : v.r === S.f));
-    return { layer:lay, screen:`${hdr('幣圈', `${count(isRated)} 部已評・${count(v => !v.r && v.claim)} 則待驗證`, false, '<button class="ib">🔍</button><button class="ib">⋯</button>')}${tabs()}
-      <div class="chips">${[['all', '全部'], ['pend', '待評'], ['ok', '○ 對'], ['half', '△ 半對'], ['bad', '✕ 不對'], ['none', '— 沒給方向']].map(([k, t]) => `<button class="chip ${S.f === k ? 'on' : ''}" data-a="f" data-x="${k}">${t} ${cnt(k)}</button>`).join('')}</div>
-      ${vlist.map(v => row5(v)).join('') || '<div class="small" style="padding:30px;text-align:center">這個條件沒有影片</div>'}` };
-  }
-  // ── 待驗證
-  if (S.tab === 'pend') {
-    const pend = V.filter(v => !v.r && v.claim), over = pend.filter(v => v.due <= 0), soon = pend.filter(v => v.due > 0 && v.due <= 7), later = pend.filter(v => v.due > 7), none = V.filter(v => !v.claim && !v.r);
-    return { layer:lay, screen:`${hdr('待驗證', `${pend.length} 則預測等行情走完`, false, '<button class="ib" data-a="dlg" data-x="|plan" style="width:auto;padding:0 10px;font-size:13px;font-weight:800;background:rgba(126,166,255,.18);color:var(--accent)">＋ 記預測</button>')}${tabs()}
-      ${(over.length ? `<div class="gh over">🔔 已到期，該驗證了（${over.length}）</div>${over.map(pcard5).join('')}` : '')
-        + (soon.length ? `<div class="gh">⏳ 一週內到期（${soon.length}）</div>${soon.map(pcard5).join('')}` : '')
-        + (later.length ? `<div class="gh">更久以後（${later.length}）</div>${later.map(pcard5).join('')}` : '')
-        + (none.length ? `<div class="gh">📝 還沒記預測、也還沒評的影片（${none.length}）</div>${none.map(v => `<div class="pcard" style="display:flex;align-items:center;gap:8px"><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600">${esc(v.t)}</div><div class="small">${CHm[v.ch].name}・${v.ago} 天前</div></div><button class="chip" data-a="rate" data-x="${v.id}|none">— 沒方向</button><button class="chip on" data-a="dlg" data-x="${v.id}|plan">先預測</button></div>`).join('')}` : '')
-        || '<div class="small" style="padding:30px;text-align:center">目前沒有待驗證的預測 🎉</div>'}` };
-  }
-  // ── 統計
+  return `${aTop(c.name, { back: true, icon: false, actions: [aIc('🔍', 'noop'), aIc('✎', 'noop')] })}
+    <div class="a-chhead">${avatar5(c, 30)}<div style="flex:1;min-width:0"><div class="nm">${c.name}</div><div class="a-note">${fmtSubs(SUBS[c.id])} 位訂閱者・${mine.length} 部影片</div><div style="margin-top:5px"><span class="a-chip on" style="background:#FFB34030;border-color:#FFB340">幣圈</span></div></div>
+      <div class="a-accbox" data-a="ctab" data-x="rating">${grBadge(s)}<b style="color:${rcol(s.rate)}">${s.n < 3 ? '—' : s.rate + '%'}</b><span>準度 ›</span></div></div>
+    <div class="a-note" style="margin:6px 0 2px">上傳頻率（近 12 週）</div><div class="a-bars">${[3, 5, 2, 6, 4, 7, 3, 5, 6, 2, 4, 5].map(h => `<i style="height:${h * 5}px"></i>`).join('')}</div>
+    <div class="a-tabs">${tabs.map(([k, t]) => `<span class="${S.ctab === k ? 'on' : ''}" data-a="ctab" data-x="${k}">${t}</span>`).join('')}</div>
+    ${body}`;
+}
+
+// ── 頁面：準度統計
+function statsView(S) {
   const rows0 = CH.map(c => ({ c, s:stats(c.id) }));
   const allN = rows0.reduce((a, o) => a + o.s.n, 0), allScore = rows0.reduce((a, o) => a + o.s.ok + o.s.half * .5, 0);
   const tot = { ok:0, half:0, bad:0, none:0 };
   rows0.forEach(o => { tot.ok += o.s.ok; tot.half += o.s.half; tot.bad += o.s.bad; tot.none += o.s.none; });
   const totAll = tot.ok + tot.half + tot.bad + tot.none || 1;
-  let rows = rows0.filter(o => (S.gf === 'all' ? true : S.gf === 'Q' ? grade(o.s) === 'Q' : grade(o.s) === S.gf) && o.s.n >= S.minN && (S.minRate === 0 || (o.s.rate ?? 0) >= S.minRate));
-  rows.sort((a, b) => S.sort === 'rate' ? (b.s.rate ?? -1) - (a.s.rate ?? -1) : S.sort === 'n' ? b.s.n - a.s.n : a.s.pend - b.s.pend);
+  const rows = rows0.filter(o => (S.gf === 'all' ? true : S.gf === 'Q' ? grade(o.s) === 'Q' : grade(o.s) === S.gf) && o.s.n >= S.minN && (S.minRate === 0 || (o.s.rate ?? 0) >= S.minRate))
+    .sort((a, b) => S.ssort === 'rate' ? (b.s.rate ?? -1) - (a.s.rate ?? -1) : S.ssort === 'n' ? b.s.n - a.s.n : a.s.pend - b.s.pend);
   const hidden = CH.length - rows.length;
   const ranked = rows0.filter(o => o.s.n >= 3).sort((a, b) => b.s.rate - a.s.rate);
-  const pod = k => { const o = ranked[k]; return o ? `<div class="pod p${k + 1}" data-a="ch" data-x="${o.c.id}"><div class="md">${['🥇', '🥈', '🥉'][k]}</div>${av(o.c, 'l')}<div class="nm">${o.c.name}</div><div class="pc" style="color:${rcol(o.s.rate)}">${o.s.rate}%</div>${grBadge(o.s)}</div>` : ''; };
-  return { layer:lay, screen:`${hdr('準度統計', '誰的行情講最準', false, '<button class="ib">⋯</button>')}${tabs()}
-    <div class="pad"><div class="stat3" style="margin-top:0"><div><b>${allN}</b>已評</div><div><b style="color:${rcol(allN ? Math.round(allScore / allN * 100) : null)}">${allN ? Math.round(allScore / allN * 100) + '%' : '—'}</b>整體命中率</div><div><b>${count(v => !v.r && v.claim)}</b>待驗證</div><div><b>${tot.none}</b>沒給方向</div></div>
-      <div class="card"><div class="small" style="margin-bottom:6px">評價分佈（共 ${totAll} 部）</div>
-        <div class="dist"><i style="width:${tot.ok / totAll * 100}%;background:var(--ok)"></i><i style="width:${tot.half / totAll * 100}%;background:var(--half)"></i><i style="width:${tot.bad / totAll * 100}%;background:var(--bad)"></i><i style="width:${tot.none / totAll * 100}%;background:#6f6e84"></i></div>
-        <div class="small" style="margin-top:6px"><span class="c-ok">○ 對 ${tot.ok}</span>　<span class="c-half">△ 半對 ${tot.half}</span>　<span class="c-bad">✕ 不對 ${tot.bad}</span>　<span style="color:#b3b2c4">— 沒方向 ${tot.none}</span></div></div></div>
-    <div class="podium">${pod(1)}${pod(0)}${pod(2)}</div>
-    <div class="chips" style="padding-top:12px">${[['all', '全部段位'], ['S', 'S'], ['A', 'A'], ['B', 'B'], ['C', 'C'], ['Q', '樣本不足']].map(([k, t]) => `<button class="chip ${S.gf === k ? 'on' : ''}" data-a="gf" data-x="${k}">${t}</button>`).join('')}</div>
-    <div class="ctl"><select data-a="sort"><option value="rate" ${S.sort === 'rate' ? 'selected' : ''}>排序：準度高→低</option><option value="n" ${S.sort === 'n' ? 'selected' : ''}>排序：評價數多→少</option><option value="pend" ${S.sort === 'pend' ? 'selected' : ''}>排序：待評少→多</option></select>
+  const pod = k => { const o = ranked[k]; return o ? `<div class="pod p${k + 1}" data-a="ch" data-x="${o.c.id}"><div class="md">${['🥇', '🥈', '🥉'][k]}</div>${avatar5(o.c, 26)}<div class="nm">${o.c.name}</div><div class="pc" style="color:${rcol(o.s.rate)}">${o.s.rate}%</div>${grBadge(o.s)}</div>` : ''; };
+  const o = over5().length, p = pend5().length;
+  return `${aTop('準度統計', { back: true, icon: false, actions: [] })}
+    <div class="a-banner ${o ? 'over' : ''}" data-a="goPend" style="cursor:pointer">${o ? '🔔 ' + o + ' 則已到期，該驗證了' : '⏳ ' + p + ' 則待驗證'}　<b>去驗證 ›</b></div>
+    <div class="stat3" style="margin-top:6px"><div><b>${allN}</b>已評</div><div><b style="color:${rcol(allN ? Math.round(allScore / allN * 100) : null)}">${allN ? Math.round(allScore / allN * 100) + '%' : '—'}</b>整體命中率</div><div><b>${p}</b>待驗證</div><div><b>${tot.none}</b>沒給方向</div></div>
+    <div class="card"><div class="small" style="margin-bottom:6px">評價分佈（共 ${totAll} 部）</div>
+      <div class="dist"><i style="width:${tot.ok / totAll * 100}%;background:var(--ok)"></i><i style="width:${tot.half / totAll * 100}%;background:var(--half)"></i><i style="width:${tot.bad / totAll * 100}%;background:var(--bad)"></i><i style="width:${tot.none / totAll * 100}%;background:#6f6e84"></i></div>
+      <div class="small" style="margin-top:6px"><span class="c-ok">○ 對 ${tot.ok}</span>　<span class="c-half">△ 半對 ${tot.half}</span>　<span class="c-bad">✕ 不對 ${tot.bad}</span>　<span style="color:#b3b2c4">— 沒方向 ${tot.none}</span></div></div>
+    <div class="podium" style="padding:6px 0 0">${pod(1)}${pod(0)}${pod(2)}</div>
+    <div class="a-chips" style="margin:10px 0 6px">${[['all', '全部段位'], ['S', 'S'], ['A', 'A'], ['B', 'B'], ['C', 'C'], ['Q', '樣本不足']].map(([k, t]) => `<span class="a-chip ${S.gf === k ? 'on' : ''}" data-a="gf" data-x="${k}">${t}</span>`).join('')}</div>
+    <div class="ctl" style="padding:0 0 6px"><select data-a="ssort"><option value="rate" ${S.ssort === 'rate' ? 'selected' : ''}>排序：準度高→低</option><option value="n" ${S.ssort === 'n' ? 'selected' : ''}>排序：評價數多→少</option><option value="pend" ${S.ssort === 'pend' ? 'selected' : ''}>排序：待評少→多</option></select>
       <span class="small">至少</span><span class="step"><button data-a="minN" data-x="-1">−</button><span>${S.minN} 部</span><button data-a="minN" data-x="1">＋</button></span></div>
-    <div class="chips">${[0, 50, 65, 80].map(r => `<button class="chip ${S.minRate === r ? 'on' : ''}" data-a="minRate" data-x="${r}">${r ? '準度 ≥ ' + r + '%' : '準度不限'}</button>`).join('')}</div>
-    ${rows.map((o, i) => `<div class="lrow" data-a="ch" data-x="${o.c.id}"><span class="rk" style="width:16px;color:var(--ink3);font-weight:900">${i + 1}</span>${grBadge(o.s)}${av(o.c)}<div class="ci">${o.c.name}<div class="small">${o.s.n} 部已評・${o.s.pend} 待評${o.s.none ? '・' + o.s.none + ' 沒方向' : ''} ${streak(o.c.id) >= 2 ? `<span class="streak">🔥連對 ${streak(o.c.id)}</span>` : ''}</div></div><div style="text-align:right">${last10(o.c.id)}<div style="font-weight:900;color:${rcol(o.s.rate)};margin-top:3px">${o.s.n < 3 ? '—' : o.s.rate + '%'}</div></div></div>`).join('') || '<div class="small" style="padding:24px;text-align:center">沒有符合的頻道，放寬條件看看</div>'}
-    ${hidden ? `<div class="small" style="padding:8px 14px">另外 ${hidden} 個頻道不符合條件，已隱藏</div>` : ''}
-    <div class="gh" style="margin-top:12px">最近的評價紀錄（只增不刪）</div>
-    <div class="pad"><div class="card">${LOG.slice(0, 8).map(l => `<div class="muted" style="padding:3px 0">${l.mine ? '剛剛' : Math.ceil(l.at) + ' 天前'}・${l.r === 'clear' ? '清除評價' : `評為 <b class="c-${l.r}">${MARK[l.r]} ${MARKTXT[l.r]}</b>`}・${CHm[VM[l.id].ch].name}・${esc(VM[l.id].t.slice(0, 12))}</div>`).join('')}</div></div>` };
+    <div class="a-chips" style="margin-bottom:6px">${[0, 50, 65, 80].map(r => `<span class="a-chip ${S.minRate === r ? 'on' : ''}" data-a="minRate" data-x="${r}">${r ? '準度 ≥ ' + r + '%' : '準度不限'}</span>`).join('')}</div>
+    <div class="a-list">${rows.map((o, i) => `<div class="lrow" style="padding:9px 0" data-a="ch" data-x="${o.c.id}"><span style="width:16px;color:var(--ink3);font-weight:900;text-align:center">${i + 1}</span>${grBadge(o.s)}${avatar5(o.c, 15)}<div class="ci">${o.c.name}<div class="small">${o.s.n} 部已評・${o.s.pend} 待評${o.s.none ? '・' + o.s.none + ' 沒方向' : ''} ${streak(o.c.id) >= 2 ? `<span class="streak">🔥連對 ${streak(o.c.id)}</span>` : ''}</div></div><div style="text-align:right">${last10(o.c.id)}<div style="font-weight:900;color:${rcol(o.s.rate)};margin-top:3px">${o.s.n < 3 ? '—' : o.s.rate + '%'}</div></div></div>`).join('') || '<div class="small" style="padding:24px;text-align:center">沒有符合的頻道，放寬條件看看</div>'}</div>
+    ${hidden ? `<div class="small" style="padding:6px 0">另外 ${hidden} 個頻道不符合條件，已隱藏</div>` : ''}
+    <div class="a-sec" style="margin-top:12px">最近的評價紀錄（只增不刪）</div>
+    <div class="card">${LOG.slice(0, 8).map(l => `<div class="muted" style="padding:3px 0">${l.mine ? '剛剛' : Math.ceil(l.at) + ' 天前'}・${l.r === 'clear' ? '清除評價' : `評為 <b class="c-${l.r}">${MARK[l.r]} ${MARKTXT[l.r]}</b>`}・${CHm[VM[l.id].ch].name}・${esc(VM[l.id].t.slice(0, 12))}</div>`).join('')}</div>`;
+}
+
+function view5(S) {
+  const inner = S.p === 'home' ? homeView(S) : S.p === 'cat' ? catView(S) : S.p === 'ch' ? chView(S) : statsView(S);
+  return { screen:`<div class="a-wrap">${inner}</div>`, layer:aNav(S) + dlg5(S) };
 }
 
 function on5(S, a, x, ctx) {
-  if (a === 'tab') { S.tab = x; S.p = 'main'; }
-  else if (a === 'back') S.p = 'main';
-  else if (a === 'f') S.f = x;
+  const closeSw = () => { S.sw = null; };
+  if (a === 'noop') ctx.toast('（示範）這個按鈕本示範沒做');
+  else if (a === 'otherCat') ctx.toast('（示範）本示範只做「幣圈」分類');
+  else if (a === 'goCat') { S.p = 'cat'; S.mode = 'channel'; }
+  else if (a === 'back') { S.p = S.p === 'ch' || S.p === 'stats' ? (S.from || 'cat') : 'home'; S.from = null; closeSw(); }
+  else if (a === 'nav') { closeSw(); if (x === 'home') S.p = 'home'; else if (x === 'video') { S.p = 'cat'; S.mode = 'video'; } else ctx.toast('（示範）播放清單本示範沒做'); }
+  else if (a === 'mode') { S.mode = x; closeSw(); }
+  else if (a === 'sort') S.sort = x;
+  else if (a === 'tf') S.tf = x;
+  else if (a === 'view') { S.view = S.view === x && x !== 'unwatched' ? 'unwatched' : x; closeSw(); }
+  else if (a === 'vsort') S.vsort = S.vsort === 'new' ? 'old' : 'new';
+  else if (a === 'refresh') ctx.toast('（示範）已是最新');
+  else if (a === 'stats') { S.from = S.p; S.p = 'stats'; }
+  else if (a === 'goPend') { S.p = 'cat'; S.mode = 'video'; S.view = 'pend'; closeSw(); }
+  else if (a === 'ch') { S.from = S.p === 'stats' ? 'stats' : S.p === 'ch' ? S.from : 'cat'; S.p = 'ch'; S.cid = x; S.ctab = 'all'; S.cf = 'all'; S.dlg = null; closeSw(); }
+  else if (a === 'ctab') S.ctab = x;
+  else if (a === 'csort') S.csort = x;
   else if (a === 'cf') S.cf = x;
   else if (a === 'gf') S.gf = x;
-  else if (a === 'sort') S.sort = x;
+  else if (a === 'ssort') S.ssort = x;
   else if (a === 'minN') S.minN = Math.max(0, Math.min(8, S.minN + +x));
   else if (a === 'minRate') S.minRate = +x;
-  else if (a === 'ch') { S.p = 'ch'; S.cid = x; S.cf = 'all'; }
-  else if (a === 'dlg') { const [id, kind] = x.split('|'); S.dlg = kind === 'plan' ? { t:'plan', id:id || null, d:(id && VM[id].due > 0 ? VM[id].due : 7) } : { t:'rate', id }; }
+  else if (a === 'open') { if (S.sw) { closeSw(); } else if (!window.__justDragged) ctx.toast('（示範）開啟影片'); }
+  else if (a === 'hide') { const id = x; S.hid = S.hid.includes(id) ? S.hid.filter(i => i !== id) : [...S.hid, id]; ctx.toast(S.hid.includes(id) ? '已隱藏' : '已取消隱藏'); S.dlg = null; closeSw(); }
+  else if (a === 'dlg') { const [id, kind] = x.split('|'); closeSw(); S.dlg = kind === 'plan' ? { t:'plan', id:id || null, d:(id && VM[id].due > 0 ? VM[id].due : 7) } : kind === 'chmenu' ? { t:'chmenu', id } : { t:'menu', id }; }
   else if (a === 'close') S.dlg = null;
-  else if (a === 'rate') { const [id, r] = x.split('|'); ctx.toast(doRate(id, r)); S.dlg = null; }
+  else if (a === 'rate') { const [id, r] = x.split('|'); ctx.toast(doRate(id, r)); S.dlg = null; closeSw(); }
   else if (a === 'save') { VM[S.dlg.id].note = ctx.root.querySelector('textarea').value; ctx.toast('備註已存'); S.dlg = null; }
   else if (a === 'planDue') { S.dlg.txt = ctx.root.querySelector('#plc').value; const sel = ctx.root.querySelector('#plv'); if (sel) S.dlg.pick = sel.value; S.dlg.d = +x; }
   else if (a === 'planOk') {
     const sel = ctx.root.querySelector('#plv'), txt = ctx.root.querySelector('#plc').value.trim();
     const v = VM[S.dlg.id || (sel && sel.value)]; if (!v) return;
     if (!txt) { ctx.toast('先寫他說了什麼'); return; }
-    v.claim = txt; v.due = S.dlg.d; ctx.toast(`已記下，${S.dlg.d} 天後提醒你驗證`); S.dlg = null; S.tab = 'pend'; S.p = 'main';
+    v.claim = txt; v.due = S.dlg.d; ctx.toast(`已記下，${S.dlg.d} 天後提醒你驗證`); S.dlg = null; S.p = 'cat'; S.mode = 'video'; S.view = 'pend';
   }
-  else if (a === 'play') ctx.toast('（示範）播放影片');
+}
+
+// 影片列往左滑（跟現在的 YtVideoRow 一樣：橫向拖超過一半就停在露出動作鈕的位置）
+function after5(S, ctx) {
+  // 分類膠囊、頻道分頁列選到的那個要看得到（跟現在的 App 一樣橫向可捲）
+  ctx.root.querySelectorAll('.a-cats, .a-tabs').forEach(box => { const on = box.querySelector('.on'); if (on) box.scrollLeft = Math.max(0, on.offsetLeft - box.clientWidth / 2 + on.offsetWidth / 2); });
+  ctx.root.querySelectorAll('.a-in').forEach(el => {
+    const W = +el.dataset.w, id = el.dataset.id;
+    let sx = 0, sy = 0, dx = 0, down = false, moved = false;
+    const base = () => (S.sw === id ? -W : 0);
+    el.onpointerdown = e => { down = true; moved = false; sx = e.clientX; sy = e.clientY; dx = 0; };
+    el.onpointermove = e => {
+      if (!down) return;
+      const mx = e.clientX - sx, my = e.clientY - sy;
+      if (!moved && Math.abs(mx) > 8 && Math.abs(mx) > Math.abs(my)) { moved = true; el.setPointerCapture(e.pointerId); el.style.transition = 'none'; }
+      if (moved) { dx = mx; el.style.transform = `translateX(${Math.max(-W, Math.min(0, base() + dx))}px)`; }
+    };
+    el.onpointerup = () => {
+      if (!down) return; down = false;
+      if (moved) {
+        window.__justDragged = true; setTimeout(() => { window.__justDragged = false; }, 60);
+        el.style.transition = ''; const pos = base() + dx;
+        S.sw = pos < -W / 2 ? id : null;
+        el.style.transform = `translateX(${S.sw === id ? -W : 0}px)`;
+      }
+    };
+  });
 }
 
 // ───────────── 外框 ─────────────
@@ -686,14 +897,14 @@ const VARS = [
   { name:'四　滑動驗證', S:S4, view:view4, on:on4, after:after4, title:'版本四：像刷卡片的批次驗證', tag:'一次清掉一堆待評',
     bullets:['待評一多就懶得評，所以做成卡片：每張寫「他說了什麼」，往右滑＝對、往左滑＝不對、往上滑＝半對（也可按下面三顆或鍵盤方向鍵）。', '最急的（已到期）排最前；可以「↶」回上一張；全部滑完有這批的成績。', '清單上的影片只有縮圖左上一個小圓點（○／✕／△），乾淨不搶版面；點縮圖也能單獨評。', '清單上方是「準度榜」（至少 3 部評價）；點頻道看命中率、近 10 部與評價紀錄。'],
     try:'試試：按「開始滑動驗證」，用滑鼠把卡片往右拖過去，或按鍵盤 ← ↑ →。' },
-  { name:'五　最終版（結合一二三）', final:true, S:S5, view:view5, on:on5, title:'最終版：一鍵評＋先預測＋統計，一個完整的 App 模樣', tag:'最終版・100% 可操作',
+  { name:'五　最終版（長在現在的 YT 畫面上）', final:true, S:S5, view:view5, on:on5, after:after5, title:'最終版：直接長在現在的 YT 畫面上', tag:'最終版・照現在的 App 畫面・100% 可操作',
     bullets:[
-      '<b>影片</b>分頁（版本一）：每部影片直接按 ○ 對／✕ 不對／— 沒方向，一鍵評完；縮圖左上有小標籤；上面可依評價篩選（含「沒給方向」）；點「⋯」開居中的視窗，有 ○ △ ✕ — 四種、備註、清除。',
-      '<b>先預測</b>（版本二）：行情要等走完才知道，影片列上按「⏳ 先預測」，記下「他說了什麼」＋幾天後驗證；影片上會出現「⏳ 待驗證」或「🔔 該驗證」小標籤。',
-      '<b>待驗證</b>分頁（版本二）：依到期分組（已到期、一週內、更久以後），卡片上 ○ 說對／△ 半對／✕ 說錯／— 沒方向，可改預測、改期；還沒記預測的影片另外列。',
-      '<b>統計</b>分頁（版本三）：整體命中率與評價分佈、前三名頒獎台、S/A/B/C 段位篩選、排序、至少幾部評價、準度門檻、連對、近 10 部圓點、最近評價紀錄；點頻道進戰績頁（時間軸、最近說對／說錯、依評價篩影片、評價紀錄）。',
-      '所有視窗都是居中的，不是從底部彈出。'],
-    try:'試試：影片分頁按「⏳ 先預測」記一則 → 到「待驗證」按「○ 說對」→ 到「統計」看排行跟那個頻道的戰績；再回影片分頁點「— 沒方向」看它不算進命中率。' },
+      '<b>照現在 App 的 YT 畫面重做</b>：YT 首頁（分類資料夾卡片）→ 幣圈分類頁（頂列、分類膠囊、依頻道／依影片顯示、2 欄頻道卡片、影片列）→ 頻道詳情頁（頻道資料、上傳頻率、膠囊分頁列）→ 底部浮動分頁列（頻道／影片／播放清單）。',
+      '<b>新功能都是現有元件的延伸</b>（跟「♪ 歌曲」同一套做法，只有幣圈分類才出現）：影片列<b>往左滑</b>多出 ○ 對／✕ 不對／— 沒方向／⏳ 預測 四顆動作鈕；縮圖左下角多評價小標籤（跟「♪ 歌曲」同位置）；⋮ 選單（居中視窗）最上面多評價與備註；「依影片顯示」第二排篩選多「🎯 待驗證／○ 對／△ 半對／✕ 不對／— 沒給方向」。',
+      '<b>先預測、待驗證</b>：滑出「⏳ 預測」或 ⋮ 記下「他說了什麼」＋幾天後驗證；影片列多一行引言和「⏳ 5 天後驗證」，到期變「🔔 已到期」；篩「🎯 待驗證」直接在列下面按 ○ 說對／△ 半對／✕ 說錯／— 沒方向；首頁的幣圈卡片也會冒出「🔔 該驗證」。',
+      '<b>看統計</b>：依頻道顯示的卡片多一個準度標籤（S 100%），排序多「🎯 準度 高→低」；頂列多 🎯 進「準度統計」（整體命中率、評價分佈、前三名、段位篩選、排序、至少幾部、準度門檻、最近評價紀錄）；頻道頁多「準度 ›」與「🎯 評價」分頁（時間軸、最近說對／說錯、依評價篩影片、評價紀錄）。',
+      '所有彈出視窗都是居中的，不是從底部彈出。'],
+    try:'試試：首頁點「幣圈」（卡片上有「🔔 該驗證」）→ 頻道卡片看準度標籤、切「🎯 準度 高→低」→ 切「依影片顯示」，把一部影片往左滑按「⏳ 預測」→ 再篩「🎯 待驗證」按「○ 說對」→ 點頂列 🎯 看統計、點一個頻道看它的評價分頁。' },
 ];
 let cur = 0;
 const el = { scr:document.getElementById('scr'), lay:document.getElementById('lay'), phone:document.getElementById('phone'), toast:document.getElementById('toast') };
@@ -716,7 +927,7 @@ function drawFrame() {
   document.getElementById('vtabs').innerHTML = VARS.map((v, i) => `<button class="${i === cur ? 'on' : ''} ${v.final ? 'final' : ''}" data-i="${i}">${v.name}</button>`).join('') + '<button class="reset" id="rs">重置示範資料</button>';
   document.getElementById('notes').innerHTML = `<span class="tag ${A.main || A.final ? 'main' : ''}">${A.tag}</span><h2>${A.title}</h2><h3>怎麼運作</h3><ul>${A.bullets.map(b => `<li>${b}</li>`).join('')}<li><b>第四種評價「沒給方向」</b>：影片沒講漲跌方向、沒有可驗證的說法，就點它——<b>不算進命中率、也不算待評</b>，單獨一類（有自己的小標籤、篩選與計數）。</li></ul><div class="try">${A.try}</div>`;
   document.querySelectorAll('#vtabs [data-i]').forEach(b => b.onclick = () => { cur = +b.dataset.i; drawFrame(); render(); });
-  document.getElementById('rs').onclick = () => { reset(); Object.assign(S1, { p:'cat', seg:'video', f:'all', sheet:null }); Object.assign(S2, { p:'cat', seg:'pend', sheet:null }); Object.assign(S3, { p:'cat', gf:'all', sheet:null }); Object.assign(S4, { p:'cat', sheet:null }); Object.assign(S5, { tab:'video', f:'all', gf:'all', sort:'rate', minN:3, minRate:0, p:'main', cid:null, cf:'all', dlg:null }); render(); toast('示範資料已重置'); };
+  document.getElementById('rs').onclick = () => { reset(); Object.assign(S1, { p:'cat', seg:'video', f:'all', sheet:null }); Object.assign(S2, { p:'cat', seg:'pend', sheet:null }); Object.assign(S3, { p:'cat', gf:'all', sheet:null }); Object.assign(S4, { p:'cat', sheet:null }); Object.assign(S5, { p:'home', mode:'channel', sort:'normal', view:'unwatched', tf:'all', vsort:'new', cid:null, ctab:'all', csort:'new', cf:'all', gf:'all', ssort:'rate', minN:3, minRate:0, dlg:null, hid:[], sw:null, from:null }); render(); toast('示範資料已重置'); };
 }
 drawFrame(); render();
 window.__t = { VARS, dispatch, get cur() { return cur; }, setCur(i) { cur = i; drawFrame(); render(); }, stats, V: () => V };
