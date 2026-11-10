@@ -18,6 +18,7 @@ import '../../data/repositories/music_play_log_store.dart';
 import '../../data/repositories/music_event_log_store.dart';
 import '../../data/repositories/music_play_mode_store.dart';
 import '../../data/repositories/ledger_show_note_store.dart';
+import '../../data/repositories/ledger_sin_ask_store.dart';
 import '../../data/repositories/yt_embed_player_style_store.dart';
 import '../../data/repositories/yt_search_recents_store.dart';
 import '../../data/repositories/yt_stats_refresh_setting_store.dart';
@@ -666,9 +667,17 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
             container.read(ledgerShowNoteProvider.notifier).state =
                 await LedgerShowNoteStore(kv).load();
           }
+          // 「110／1100 問要不要改成菸酒」也跟著同步。
+          final s2 = await service.syncStampedSetting(
+            LedgerSinAskStore(kv).record,
+          );
+          if (s2.downloaded > 0) {
+            container.read(ledgerSinAskProvider.notifier).state =
+                await LedgerSinAskStore(kv).load();
+          }
           return (
-            downloaded: r.downloaded + s.downloaded,
-            uploaded: r.uploaded + s.uploaded,
+            downloaded: r.downloaded + s.downloaded + s2.downloaded,
+            uploaded: r.uploaded + s.uploaded + s2.uploaded,
           );
         }),
       ]);

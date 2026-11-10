@@ -696,9 +696,16 @@ showTxFormSheet(
   LedgerTx? edit,
   TxPrefill prefill = const TxPrefill(),
   int? initialAfter,
+  void Function(LedgerTx)? onSwitchEdit,
 }) => _sheet(
   context,
-  _TxForm(book: book, edit: edit, prefill: prefill, initialAfter: initialAfter),
+  _TxForm(
+    book: book,
+    edit: edit,
+    prefill: prefill,
+    initialAfter: initialAfter,
+    onSwitchEdit: onSwitchEdit,
+  ),
 );
 
 class _TxForm extends StatefulWidget {
@@ -707,7 +714,12 @@ class _TxForm extends StatefulWidget {
     this.edit,
     required this.prefill,
     this.initialAfter,
+    this.onSwitchEdit,
   });
+
+  /// 記一筆時貼一行文字、偵測到已經記過同一筆（同帳戶、同分鐘、同金額）：不新增，
+  /// 關掉這張表單，交給呼叫的人改成編輯那一筆（2026-11-10 使用者：這樣順暢一點）。
+  final void Function(LedgerTx)? onSwitchEdit;
 
   /// 匯入預覽編輯時，原本那行的「這筆之後餘額」（還沒存、查不到對帳點）。
   final int? initialAfter;
@@ -1047,6 +1059,12 @@ class _TxFormState extends State<_TxForm> {
     final t = l.tx;
     if (t == null) {
       setState(() => _pasteMsg = l.error);
+      return;
+    }
+    final same = l.duplicateTx;
+    if (same != null && widget.edit == null && widget.onSwitchEdit != null) {
+      widget.onSwitchEdit!(same);
+      Navigator.of(context).pop();
       return;
     }
     setState(() {

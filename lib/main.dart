@@ -18,6 +18,7 @@ import 'data/repositories/music_play_log_store.dart';
 import 'data/repositories/music_event_log_store.dart';
 import 'data/repositories/music_play_mode_store.dart';
 import 'data/repositories/ledger_show_note_store.dart';
+import 'data/repositories/ledger_sin_ask_store.dart';
 import 'data/repositories/usdt_twd_rate_store.dart';
 import 'data/repositories/yt_api_key_store.dart';
 import 'data/repositories/yt_embed_player_style_store.dart';
@@ -90,6 +91,7 @@ Future<void> _start() async {
     final savedMusic = await MusicStore(store).load();
     final savedMusicMode = await MusicPlayModeStore(store).load();
     final savedLedgerShowNote = await LedgerShowNoteStore(store).load();
+    final savedLedgerSinAsk = await LedgerSinAskStore(store).load();
     final savedMusicLog = await MusicPlayLogStore(store).load();
     final savedMusicEvents = await MusicEventLogStore(store).load();
     final savedYtDisplayPrefs = await YtDisplayPrefsStore(store).load();
@@ -120,6 +122,7 @@ Future<void> _start() async {
           musicDataProvider.overrideWith((ref) => savedMusic),
           musicPlayModeProvider.overrideWith((ref) => savedMusicMode),
           ledgerShowNoteProvider.overrideWith((ref) => savedLedgerShowNote),
+          ledgerSinAskProvider.overrideWith((ref) => savedLedgerSinAsk),
           musicPlayLogProvider.overrideWith((ref) => savedMusicLog),
           musicEventLogProvider.overrideWith((ref) => savedMusicEvents),
           ytDisplayPrefsProvider.overrideWith((ref) => savedYtDisplayPrefs),

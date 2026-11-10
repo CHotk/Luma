@@ -11,6 +11,7 @@ import '../../data/repositories/diary_password_store.dart';
 import '../../data/repositories/jp_home_ring_store.dart';
 import '../../data/repositories/jp_light_style_store.dart';
 import '../../data/repositories/ledger_show_note_store.dart';
+import '../../data/repositories/ledger_sin_ask_store.dart';
 import '../../data/repositories/music_play_mode_store.dart';
 import '../../data/repositories/usdt_twd_rate_store.dart';
 import '../../data/repositories/yt_embed_player_style_store.dart';
@@ -1585,6 +1586,44 @@ class LedgerSettingsSection extends ConsumerWidget {
                   onChanged: (v) async {
                     ref.read(ledgerShowNoteProvider.notifier).state = v;
                     await LedgerShowNoteStore(
+                      ref.read(keyValueStoreProvider),
+                    ).save(v);
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: Gap.sm),
+        SettingAnchor(
+          id: 'ledger.sinask',
+          child: SettingsRowCard(
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        '110／1100 問要不要改成菸酒',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.ink,
+                        ),
+                      ),
+                      Text(
+                        '記一筆時金額剛好是 110 或 1100、分類又不是菸酒，儲存前跳出來問要不要改',
+                        style: AppText.note,
+                      ),
+                    ],
+                  ),
+                ),
+                Switch(
+                  value: ref.watch(ledgerSinAskProvider),
+                  onChanged: (v) async {
+                    ref.read(ledgerSinAskProvider.notifier).state = v;
+                    await LedgerSinAskStore(
                       ref.read(keyValueStoreProvider),
                     ).save(v);
                   },

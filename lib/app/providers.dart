@@ -18,6 +18,7 @@ import '../data/repositories/jp_light_style_store.dart';
 import '../data/repositories/yt_video_song_store.dart';
 import '../data/repositories/music_play_mode_store.dart';
 import '../data/repositories/ledger_show_note_store.dart';
+import '../data/repositories/ledger_sin_ask_store.dart';
 import '../data/repositories/music_event_log_store.dart';
 import '../data/repositories/music_play_log_store.dart';
 import '../domain/models/music.dart';
@@ -229,6 +230,11 @@ final musicDataProvider = StateProvider<MusicData>((ref) => MusicData.empty);
 /// [LedgerShowNoteStore]。
 final ledgerShowNoteProvider = StateProvider<bool>(
   (ref) => LedgerShowNoteStore.defaultValue,
+);
+
+/// 記帳：金額是 110 或 1100 時問要不要改成菸酒（2026-11-10，預設開），見 [LedgerSinAskStore]。
+final ledgerSinAskProvider = StateProvider<bool>(
+  (ref) => LedgerSinAskStore.defaultValue,
 );
 
 /// 音樂點歌怎麼播（2026-10-19，預設轉到 YouTube），見 [MusicPlayModeStore]。

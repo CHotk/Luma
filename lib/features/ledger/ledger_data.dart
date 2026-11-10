@@ -70,8 +70,55 @@ Future<void> txFormFlow(
   final book = await _fresh(ref);
   if (!context.mounted) return;
   if (!book.isSetUp) return setupFlow(context, ref);
-  final r = await showTxFormSheet(context, book, edit: edit, prefill: prefill);
-  if (r == null) return;
+  // 貼文字偵測到已經記過同一筆：表單關掉，直接改成編輯那一筆。
+  LedgerTx? switchTo;
+  final r0 = await showTxFormSheet(
+    context,
+    book,
+    edit: edit,
+    prefill: prefill,
+    onSwitchEdit: edit == null ? (t) => switchTo = t : null,
+  );
+  if (switchTo != null) {
+    if (!context.mounted) return;
+    showAppNotice(
+      context,
+      '已經有同一筆，直接改成編輯它',
+      detail: '「${LedgerBook.describe(switchTo!)}」（同帳戶、同一分鐘、同金額）',
+    );
+    return txFormFlow(context, ref, edit: switchTo, inWizard: inWizard);
+  }
+  if (r0 == null || !context.mounted) return;
+  var r = r0;
+  // 金額剛好 110 或 1100、分類又不是菸酒：問要不要改成菸酒（設定可關）。編輯時沒動金額跟分類就不再問。
+  final t0 = r.tx;
+  if (ref.read(ledgerSinAskProvider) &&
+      t0.type == LedgerTxType.expense &&
+      !t0.isSplit &&
+      t0.category != '菸酒' &&
+      (t0.amount == 110 || t0.amount == 1100) &&
+      !(edit != null &&
+          edit.amount == t0.amount &&
+          edit.category == t0.category)) {
+    final yes = await showAppConfirmDialog(
+      context,
+      title: '要改成菸酒嗎？',
+      message:
+          '這筆是 NT\$${t0.amount}，目前分類是「${t0.category ?? ledgerUncategorized}」。要改成「菸酒」嗎？',
+      confirmLabel: '改成菸酒',
+      cancelLabel: '不用',
+      destructive: false,
+    );
+    if (!context.mounted) return;
+    if (yes) {
+      r = (
+        tx: t0.copyWith(category: () => '菸酒'),
+        settleLinked: r.settleLinked,
+        after: r.after,
+        afterTo: r.afterTo,
+      );
+    }
+  }
   // 防重複（2026-11-03 使用者）：同帳戶、同一分鐘、同金額的已經有了，就提示
   // 跟哪一筆相同、不新增。
   final dup = book.sameMinute(

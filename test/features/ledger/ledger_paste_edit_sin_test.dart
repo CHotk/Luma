@@ -1,0 +1,199 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:lume/app/providers.dart';
+import 'package:lume/data/repositories/ledger_repository.dart';
+import 'package:lume/data/storage/key_value_store.dart';
+import 'package:lume/domain/ledger_calc.dart';
+import 'package:lume/domain/models/ledger.dart';
+import 'package:lume/features/ledger/ledger_page.dart';
+
+/// 2026-11-10 使用者：
+/// 1. 記一筆時貼文字，偵測到已經記過同一筆，直接變成編輯那一筆（不用再看「按記下來也不會加」）。
+/// 2. 金額剛好 110 或 1100 且分類不是菸酒，儲存前問要不要改成菸酒（設定可關）。
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  final noon = DateTime(2026, 11, 3, 12, 0);
+
+  Future<_MemoryStore> seeded() async {
+    final store = _MemoryStore();
+    final repo = LedgerRepository(store);
+    final card = await repo.addAccount(
+      name: '中信信用卡',
+      type: LedgerAccountType.creditCard,
+      opening: 90000,
+      openingAt: DateTime(2026, 11, 1),
+      creditLimit: 100000,
+    );
+    await repo.addAccount(
+      name: '現金',
+      type: LedgerAccountType.cash,
+      opening: 2000,
+      openingAt: DateTime(2026, 11, 1),
+    );
+    await repo.addTransaction(
+      LedgerTx(
+        id: ledgerId(),
+        type: LedgerTxType.expense,
+        occurredAt: noon,
+        amount: 250,
+        accountId: card.id,
+        category: '餐飲',
+        merchant: '鼎泰豐',
+      ),
+    );
+    return store;
+  }
+
+  test('貼上匯入：重複的是已經記過的哪一筆（duplicateTx）；這次貼的兩行重複沒有', () async {
+    final store = await seeded();
+    final book = await LedgerRepository(store).loadBook();
+    final lines = book.parseImport(
+      '中信信用卡｜2026-11-03 12:00｜餐飲｜別的店名｜250\n'
+      '中信信用卡｜2026-11-03 15:00｜餐飲｜某店｜80\n'
+      '中信信用卡｜2026-11-03 15:00｜餐飲｜某店｜80',
+    );
+    expect(lines[0].duplicate, isTrue);
+    expect(lines[0].duplicateTx?.merchant, '鼎泰豐');
+    expect(lines[1].duplicate, isFalse);
+    expect(lines[1].duplicateTx, isNull);
+    expect(lines[2].duplicate, isTrue); // 這次貼的第 2 行
+    expect(lines[2].duplicateTx, isNull);
+  });
+
+  Future<void> pump(WidgetTester tester, _MemoryStore store) async {
+    tester.view.physicalSize = const Size(360 * 3, 780 * 3);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [keyValueStoreProvider.overrideWithValue(store)],
+        child: const MaterialApp(home: LedgerPage(tab: LedgerTab.home)),
+      ),
+    );
+    await settle(tester);
+  }
+
+  testWidgets('記一筆貼上同一筆：直接變成編輯那一筆', (tester) async {
+    final store = await seeded();
+    await pump(tester, store);
+    await tester.tap(find.byType(FloatingActionButton));
+    await settle(tester);
+    expect(find.text('記一筆'), findsOneWidget);
+    // 貼一行跟已經記過的同帳戶、同一分鐘、同金額（商家不同也算）。
+    final paste = find.byWidgetPredicate(
+      (w) => w is TextField && w.decoration?.hintText == '貼上一行文字，下面自動填（選填）',
+    );
+    expect(paste, findsOneWidget);
+    await tester.enterText(paste, '中信信用卡｜2026-11-03 12:00｜餐飲｜別的店名｜250');
+    await settle(tester);
+    // 記一筆的表單關掉，換成「編輯支出」，裡面是原本那筆（鼎泰豐）。
+    expect(find.text('記一筆'), findsNothing);
+    expect(find.text('編輯支出'), findsOneWidget);
+    expect(find.text('鼎泰豐'), findsWidgets);
+    expect(find.textContaining('已經有同一筆'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  Future<void> fillAndSave(
+    WidgetTester tester, {
+    required String amount,
+  }) async {
+    await tester.tap(find.byType(FloatingActionButton));
+    await settle(tester);
+    final fields = find.byType(TextField);
+    // 商家、金額：用輸入框順序不穩，改用 hint／標籤找不到的話就依序填。
+    final merchant = find.byType(TextField);
+    await tester.enterText(merchant.at(1), '福利社');
+    final amt = find.byWidgetPredicate(
+      (w) => w is TextField && w.decoration?.prefixText == '\$ ',
+    );
+    await tester.enterText(amt.first, amount);
+    await tester.pump();
+    expect(fields, findsWidgets);
+    await tester.tap(find.widgetWithText(FilledButton, '新增'));
+    await settle(tester);
+  }
+
+  testWidgets('金額 110：儲存前問要不要改成菸酒，按「改成菸酒」分類就變菸酒', (tester) async {
+    final store = await seeded();
+    await pump(tester, store);
+    await fillAndSave(tester, amount: '110');
+    expect(find.text('要改成菸酒嗎？'), findsOneWidget);
+    await tester.tap(find.text('改成菸酒'));
+    await settle(tester);
+    final book = await LedgerRepository(store).loadBook();
+    final t = book.txs.firstWhere((x) => x.merchant == '福利社');
+    expect(t.amount, 110);
+    expect(t.category, '菸酒');
+  });
+
+  testWidgets('金額 1100：按「不用」就維持原分類；金額 120 不會問', (tester) async {
+    final store = await seeded();
+    await pump(tester, store);
+    await fillAndSave(tester, amount: '1100');
+    expect(find.text('要改成菸酒嗎？'), findsOneWidget);
+    await tester.tap(find.text('不用'));
+    await settle(tester);
+    var book = await LedgerRepository(store).loadBook();
+    expect(
+      book.txs.firstWhere((x) => x.merchant == '福利社').category,
+      isNot('菸酒'),
+    );
+
+    await tester.tap(find.byType(FloatingActionButton));
+    await settle(tester);
+    // 另外開一筆 120：沒有彈窗。
+    final merchant = find.byType(TextField);
+    await tester.enterText(merchant.at(1), '麵包店');
+    await tester.enterText(
+      find
+          .byWidgetPredicate(
+            (w) => w is TextField && w.decoration?.prefixText == '\$ ',
+          )
+          .first,
+      '120',
+    );
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, '新增'));
+    await settle(tester);
+    expect(find.text('要改成菸酒嗎？'), findsNothing);
+    book = await LedgerRepository(store).loadBook();
+    expect(book.txs.any((x) => x.merchant == '麵包店'), isTrue);
+  });
+
+  testWidgets('設定關掉「110／1100 問要不要改成菸酒」就不問', (tester) async {
+    final store = await seeded();
+    await pump(tester, store);
+    ProviderScope.containerOf(
+      tester.element(find.byType(LedgerPage)),
+    ).read(ledgerSinAskProvider.notifier).state = false;
+    await fillAndSave(tester, amount: '110');
+    expect(find.text('要改成菸酒嗎？'), findsNothing);
+    final book = await LedgerRepository(store).loadBook();
+    expect(book.txs.any((x) => x.merchant == '福利社' && x.amount == 110), isTrue);
+  });
+}
+
+Future<void> settle(WidgetTester tester) async {
+  for (var i = 0; i < 6; i++) {
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 50)),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+  }
+}
+
+class _MemoryStore implements KeyValueStore {
+  final data = <String, String>{};
+
+  @override
+  Future<String?> read(String key) async => data[key];
+
+  @override
+  Future<void> write(String key, String value) async => data[key] = value;
+
+  @override
+  Future<void> remove(String key) async => data.remove(key);
+}

@@ -124,6 +124,7 @@ class ImportLine {
     this.tx,
     this.error,
     this.duplicateOf,
+    this.duplicateTx,
     this.sameDayOf,
     this.beforeStart = false,
     this.after,
@@ -135,6 +136,9 @@ class ImportLine {
 
   /// 跟哪一筆重複（同帳戶、同分鐘、同金額）；null＝不重複。
   final String? duplicateOf;
+
+  /// 重複的是已經記過的哪一筆（貼的單行偵測到時，直接改成編輯它）；這次貼的兩行重複＝null。
+  final LedgerTx? duplicateTx;
   bool get duplicate => duplicateOf != null;
 
   /// 當天已經有相同金額的其他筆（不看帳戶；只提醒、不擋下）。
@@ -637,10 +641,15 @@ class LedgerBook {
       return null;
     }
 
+    LedgerTx? dupTx;
     String? dupOf(LedgerTx t, int lineNo) {
+      dupTx = null;
       final k = '${t.accountId}|${_minuteOf(t.occurredAt)}|${t.amount}';
       final old = sameMinute(t.accountId, t.occurredAt, t.amount);
-      if (old != null) return '已經記過的「${describe(old)}」';
+      if (old != null) {
+        dupTx = old;
+        return '已經記過的「${describe(old)}」';
+      }
       final prev = seenAt[k];
       if (prev != null) return '這次貼的第 $prev 行';
       seenAt[k] = lineNo;
@@ -753,6 +762,7 @@ class LedgerBook {
             tx: tx,
             after: afterV,
             duplicateOf: dupOf(tx, lineNo),
+            duplicateTx: dupTx,
             sameDayOf: sameDayWarn(tx, lineNo),
             beforeStart: start != null && at.isBefore(start),
           ),
@@ -841,6 +851,7 @@ class LedgerBook {
           tx: tx,
           after: afterV,
           duplicateOf: dup,
+          duplicateTx: dupTx,
           sameDayOf: sameDayWarn(tx, lineNo),
           beforeStart: start != null && at.isBefore(start),
         ),

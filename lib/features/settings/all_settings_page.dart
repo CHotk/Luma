@@ -141,6 +141,12 @@ const settingIndex = [
   SettingEntry(SettingsSection.ledger, 'ledger.log', '記帳操作紀錄', '操作 紀錄 log 記帳'),
   SettingEntry(
     SettingsSection.ledger,
+    'ledger.sinask',
+    '110／1100 問要不要改成菸酒',
+    '菸酒 菸 酒 110 1100 分類 詢問',
+  ),
+  SettingEntry(
+    SettingsSection.ledger,
     'ledger.fullwidth',
     '整理全形文字',
     '全形 半形 英文 數字 大寫 小寫 整理 舊資料',
