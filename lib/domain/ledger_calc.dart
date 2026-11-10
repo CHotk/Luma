@@ -59,6 +59,7 @@ const ledgerImportIncome = <String, String>{
   // 2026-11-10 使用者：「ATM存款」其實是判斷收入，所以也可以寫「收入存款」，兩個都保留。
   '收入存款': '其他收入',
   '帳戶存款': '其他收入',
+  '收入': '其他收入',
   '存入': '其他收入',
   '轉入': '其他收入',
   '轉帳入帳': '其他收入',
@@ -69,6 +70,29 @@ const ledgerImportIncome = <String, String>{
   '自轉': '平轉',
   '互轉': '平轉',
 };
+
+/// 貼上匯入第 3 欄是不是收入，是的話回傳收入分類（不是收入回傳 null）。
+///
+/// 除了 [ledgerImportIncome] 的寫法，也能「收入＋分類」一次寫好（2026-11-10 使用者）：
+/// 收入未分類、收入/未分類、ATM存款/平轉、收入存款-薪資（分隔用 / - : 、 逗號都行）。
+/// 「未分類」「其他」支出也有，單獨寫會當支出，所以收入的未分類一定要前面帶收入的字。
+String? ledgerImportIncomeCat(String col) {
+  final k = ledgerIncomeKey(col);
+  final direct = ledgerImportIncome[k];
+  if (direct != null) return direct;
+  final parts = k.split(RegExp(r'[/\-:、,]'));
+  if (parts.length == 2 &&
+      ledgerIncomeCats.containsKey(parts[1]) &&
+      (parts[0] == '收入' || ledgerImportIncome.containsKey(parts[0]))) {
+    return parts[1];
+  }
+  if (parts.length == 1 &&
+      k.startsWith('收入') &&
+      ledgerIncomeCats.containsKey(k.substring(2))) {
+    return k.substring(2);
+  }
+  return null;
+}
 
 /// 比對收入分類用的寫法：拿掉空白、全形英數轉半形、英文轉大寫（ＡＴＭ存款、atm 存款、ATM存款 都認得）。
 String ledgerIncomeKey(String s) {
@@ -817,7 +841,7 @@ class LedgerBook {
       // 收入（2026-11-10 使用者：貼上匯入要能記收入——轉帳、ATM存款、薪資轉帳）：分類寫下面這些就是
       // 收入，錢進第 1 欄的帳戶（寫「現金」進現金，其他進銀行）。「轉帳」本來是轉出去，所以收到的轉帳
       // 寫「轉入」。第 6～9 欄的幫誰／對方要給在收入沒有意思，會忽略；餘額（第 9 欄）照樣可以附。
-      final inCat = ledgerImportIncome[ledgerIncomeKey(p[2])];
+      final inCat = ledgerImportIncomeCat(p[2]);
       if (inCat != null) {
         final named = accounts.where((a) => a.name == p[0]).firstOrNull;
         final into = named ?? (p[0].contains('現金') ? cash : bank);

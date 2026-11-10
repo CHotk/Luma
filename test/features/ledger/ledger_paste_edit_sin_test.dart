@@ -283,6 +283,27 @@ void incomeTests() {
     expect(v[3].tx!.category, '其他收入');
     expect(v[4].tx!.type, LedgerTxType.income);
     expect(v[4].tx!.category, '其他收入');
+    // 收入＋分類一次寫好；單獨的「未分類」「其他」仍是支出。
+    final w = book.parseImport(
+      '中信銀行｜2026/07/02 10:00｜收入/未分類｜某人｜100\n'
+      '中信銀行｜2026/07/02 10:01｜收入未分類｜某人｜101\n'
+      '中信銀行｜2026/07/02 10:02｜ATM存款／平轉｜ATM｜102\n'
+      '中信銀行｜2026/07/02 10:03｜收入-薪資｜公司｜103\n'
+      '中信銀行｜2026/07/02 10:04｜收入｜某人｜104\n'
+      '中信銀行｜2026/07/02 10:05｜未分類｜某店｜105',
+    );
+    expect(
+      w.take(5).every((l) => l.tx!.type == LedgerTxType.income),
+      isTrue,
+    );
+    expect(w.take(5).map((l) => l.tx!.category).toList(), [
+      '未分類',
+      '未分類',
+      '平轉',
+      '薪資',
+      '其他收入',
+    ]);
+    expect(w[5].tx?.type, isNot(LedgerTxType.income));
     expect(
       v.every((l) => l.willImport && l.tx!.type == LedgerTxType.income),
       isTrue,
