@@ -142,6 +142,11 @@ class LedgerPage extends ConsumerWidget {
                   ],
                 ),
                 const SizedBox(height: Gap.sm),
+                // 明細：選月份那一行釘在這裡、不跟著捲（打字搜尋或選整年／全部時間時不是看單月，
+                // 用空位頂著，列表的位置不變才不會重建、搜尋框焦點才不會掉）。
+                tab == LedgerTab.list && book != null && book.isSetUp
+                    ? _pinnedMonth(ref)
+                    : const SizedBox.shrink(),
                 Expanded(
                   child: book == null
                       ? const Center(
@@ -184,13 +189,21 @@ class LedgerPage extends ConsumerWidget {
 
   // ── 共用小區塊 ───────────────────────────────────────────
 
-  Widget _monthBar(WidgetRef ref) {
+  Widget _pinnedMonth(WidgetRef ref) {
+    final wide =
+        ref.watch(ledgerSearchProvider).trim().isNotEmpty ||
+        ref.watch(ledgerRangeProvider) != LedgerRange.month;
+    return wide ? const SizedBox.shrink() : _monthBar(ref, tall: true);
+  }
+
+  /// [tall]＝明細頂部釘住不跟著捲的那條：高一點（2026-11-10 使用者）。
+  Widget _monthBar(WidgetRef ref, {bool tall = false}) {
     final m = ref.watch(ledgerMonthProvider);
     void go(int d) => ref.read(ledgerMonthProvider.notifier).state = DateTime(
       m.year,
       m.month + d,
     );
-    return Row(
+    final row = Row(
       children: [
         IconButton(
           onPressed: () => go(-1),
@@ -202,8 +215,8 @@ class LedgerPage extends ConsumerWidget {
           child: Text(
             '${m.year} 年 ${m.month} 月',
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 15,
+            style: TextStyle(
+              fontSize: tall ? 16.5 : 15,
               fontWeight: FontWeight.w800,
               color: AppColors.ink,
             ),
@@ -217,6 +230,7 @@ class LedgerPage extends ConsumerWidget {
         ),
       ],
     );
+    return tall ? SizedBox(height: 60, child: row) : row;
   }
 
   Widget _spendCard(
@@ -496,11 +510,8 @@ class LedgerPage extends ConsumerWidget {
     final st = book.statsWhere(shown.contains);
     final any = f.flagged || f.accountId != null || f.category != null;
     return [
-      // 選月份那一行（左右切換）放在搜尋框上面（2026-11-03 使用者）。
-      // 打字後 wide 變 true，月份列會消失：用空位頂著，搜尋框的位置才不會跟著往前
-      // 移（位置一變，搜尋框會被重建、輸入的焦點就掉了；2026-11-05 使用者回報
-      // 「打一個字就失去焦點」）。
-      if (!wide) _monthBar(ref) else const SizedBox.shrink(),
+      // 選月份那一行（左右切換）在搜尋框上面（2026-11-03 使用者），現在釘在頁面頂端、
+      // 往下捲也看得到（2026-11-10 使用者），見 build 裡的 [_pinnedMonth]，不在這個會捲的列表裡。
       const _SearchBox(),
       // 查看時間在左、篩選在右，同一行（2026-11-04 使用者）；篩選是毛玻璃下拉選單。
       Row(
