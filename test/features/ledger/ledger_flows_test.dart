@@ -580,6 +580,248 @@ void main() {
     expect(find.textContaining('明細'), findsNothing);
     expect(tester.takeException(), isNull);
   });
+
+  // ── 單筆餘額對不上（漏記）：在那筆明細直接處理 ──
+
+  /// 郵局期初 5000；昨天 300、兩小時前 200 並填「這筆之後剩 4400」（應該 4500）→ 漏記 100。
+  Future<(LedgerRepository, _MemoryStore, LedgerAccount)> withGap(
+    WidgetTester tester,
+  ) async {
+    final (repo, store, acc) = await withSpend(tester);
+    final at = DateTime.now().subtract(const Duration(hours: 2));
+    await repo.addTransaction(
+      LedgerTx(
+        id: 'e2',
+        type: LedgerTxType.expense,
+        occurredAt: at,
+        amount: 200,
+        accountId: acc.id,
+        category: '餐飲',
+        merchant: '午餐',
+      ),
+    );
+    await repo.setTxCheckpoint(
+      txId: 'e2',
+      accountId: acc.id,
+      at: at,
+      value: 4400,
+      creditLimit: null,
+    );
+    return (repo, store, acc);
+  }
+
+  testWidgets('漏記標籤：在那筆明細「想不起來，直接調成未分類」→ 標籤消失', (tester) async {
+    final (repo, store, _) = await withGap(tester);
+    expect((await book(tester, repo)).gapOfTx('e2')!.miss, 100);
+    await host(tester, (c, ref) => txDetailFlow(c, ref, 'e2'), store: store);
+    await go(tester);
+    await tapText(tester, '想不起來，直接調成未分類');
+    final b = await book(tester, repo);
+    expect(b.gapOfTx('e2'), isNull);
+    final adj = b.txs.firstWhere((t) => t.type == LedgerTxType.adjustment);
+    expect(adj.amount, 100);
+    expect(adj.occurredAt.isBefore(b.tx('e2')!.occurredAt), isTrue);
+  });
+
+  testWidgets('漏記標籤：在那筆明細「補記漏掉的那筆」→ 金額帶 100、記完標籤消失', (tester) async {
+    final (repo, store, _) = await withGap(tester);
+    await host(tester, (c, ref) => txDetailFlow(c, ref, 'e2'), store: store);
+    await go(tester);
+    await tapText(tester, '補記漏掉的那筆');
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is TextField && w.controller?.text == '100',
+      ),
+      findsOneWidget,
+    );
+    await tester.enterText(fieldIn('商家／名稱'), '飲料');
+    await tester.pump();
+    await tapFilled(tester, '新增');
+    expect((await book(tester, repo)).gapOfTx('e2'), isNull);
+  });
+
+  // ── 帳戶明細的差額處理、刪掉某次對帳 ──
+
+  Future<(LedgerRepository, _MemoryStore, LedgerAccount)> withMiss(
+    WidgetTester tester,
+  ) async {
+    final (repo, store, acc) = await withSpend(tester);
+    await repo.addCheckpoint(
+      LedgerCheckpoint(
+        id: 'cpX',
+        accountId: acc.id,
+        at: DateTime.now(),
+        balance: 4500,
+      ),
+    );
+    return (repo, store, acc);
+  }
+
+  testWidgets('帳戶明細有差額：直接調整', (tester) async {
+    final (repo, store, acc) = await withMiss(tester);
+    await host(tester, (c, ref) => accountFlow(c, ref, acc), store: store);
+    await go(tester);
+    await tapText(tester, '直接調成一筆未分類支出 \$200');
+    final b = await book(tester, repo);
+    expect(b.stateOf(b.account(acc.id)!)!.miss, 0);
+  });
+
+  testWidgets('帳戶明細有差額：補記一筆', (tester) async {
+    final (repo, store, acc) = await withMiss(tester);
+    await host(tester, (c, ref) => accountFlow(c, ref, acc), store: store);
+    await go(tester);
+    await tapText(tester, '補記一筆');
+    await tester.enterText(fieldIn('商家／名稱'), '補的');
+    await tester.pump();
+    await tapFilled(tester, '新增');
+    final b = await book(tester, repo);
+    expect(b.stateOf(b.account(acc.id)!)!.miss, 0);
+  });
+
+  testWidgets('帳戶明細：長按某次對帳 → 確認刪掉、差額照上一次重算', (tester) async {
+    final (repo, store, acc) = await withMiss(tester);
+    await host(tester, (c, ref) => accountFlow(c, ref, acc), store: store);
+    await go(tester);
+    final row = find.textContaining('第一次填').first;
+    await tester.ensureVisible(row);
+    // 長按最新那次（列在最上面）：找「對帳」那一列以外的第一列就是最新的。
+    final rows = find.ancestor(of: row, matching: find.byType(InkWell));
+    expect(rows, findsWidgets);
+    final latest = find.byWidgetPredicate(
+      (w) => w is InkWell && w.onLongPress != null,
+    );
+    await tester.longPress(latest.first);
+    await settle(tester);
+    expect(find.text('刪掉這次對帳？'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, '刪除').last);
+    await settle(tester);
+    final b = await book(tester, repo);
+    expect(b.checkpoints.where((c) => c.id == 'cpX'), isEmpty);
+    expect(b.stateOf(b.account(acc.id)!)!.miss, 0);
+  });
+
+  // ── 一次對帳：有餘額的帳戶對上了 → 下一個 ──
+
+  testWidgets('一次對帳：這個帳戶對上了，按「下一個」跳到下一個帳戶', (tester) async {
+    final store = _MemoryStore();
+    final repo = LedgerRepository(store);
+    final a = await repo.addAccount(
+      name: 'A戶頭',
+      type: LedgerAccountType.bank,
+      opening: 1000,
+      openingAt: DateTime.now().subtract(const Duration(days: 1)),
+    );
+    await repo.addAccount(name: 'B皮包', type: LedgerAccountType.cash);
+    await host(
+      tester,
+      (c, ref) => reconFlow(c, ref, a, wizard: true),
+      store: store,
+    );
+    await go(tester);
+    await tester.enterText(find.byType(TextField).last, '1000');
+    await tester.pump();
+    expect(find.text('✓ 對上了'), findsOneWidget);
+    await tapFilled(tester, '確認對帳');
+    expect(find.text('對上了！'), findsOneWidget);
+    await tapFilled(tester, '下一個：B皮包 ›');
+    expect(find.text('填餘額：B皮包'), findsOneWidget);
+  });
+
+  // ── 匯入的邊界：附餘額、重複的跳過 ──
+
+  testWidgets('匯入：第 9 欄有「這筆之後餘額」就附上；同一行再貼一次＝重複不加', (tester) async {
+    final store = _MemoryStore();
+    final repo = LedgerRepository(store);
+    await repo.loadBook();
+    await host(tester, (c, ref) => importFlow(c, ref), store: store);
+    const line = '現金｜2026/11/01 08:00｜餐飲｜早餐店｜80｜｜｜｜920';
+    await go(tester);
+    await tester.enterText(find.byType(TextField).first, line);
+    await tester.pump();
+    await tapFilled(tester, '匯入 1 筆');
+    var b = await book(tester, repo);
+    final t = b.txs.single;
+    expect(b.checkpointOfTx(t.id)?.balance, 920);
+    // 再貼一次同一行＋新的一行：重複的那行不加。
+    await go(tester);
+    await tester.enterText(
+      find.byType(TextField).first,
+      '$line\n現金｜2026/11/01 12:00｜餐飲｜便當｜100',
+    );
+    await tester.pump();
+    await tapFilled(tester, '匯入 1 筆');
+    b = await book(tester, repo);
+    expect(b.txs.length, 2);
+  });
+
+  testWidgets('匯入：還沒有任何帳戶（帳戶都刪了）→ 先開「開始記帳」', (tester) async {
+    final store = _MemoryStore();
+    final repo = LedgerRepository(store);
+    final b0 = await repo.loadBook();
+    for (final a in b0.accounts) {
+      await repo.deleteAccount(a.id);
+    }
+    await host(tester, (c, ref) => importFlow(c, ref), store: store);
+    await go(tester);
+    expect(find.text('開始記帳'), findsOneWidget);
+  });
+
+  // ── 明細互相連結 ──
+
+  testWidgets('退款明細：點「退的是」那筆 → 開原本那筆的明細', (tester) async {
+    final (repo, store) = await withTx(tester, expense);
+    final acc = (await book(tester, repo)).tx('t1')!.accountId;
+    await tester.runAsync(
+      () => repo.addTransaction(
+        LedgerTx(
+          id: 'r1',
+          type: LedgerTxType.refund,
+          occurredAt: DateTime.now(),
+          amount: 100,
+          accountId: acc,
+          linkedId: 't1',
+          merchant: '火鍋 退款',
+        ),
+      ),
+    );
+    await host(tester, (c, ref) => txDetailFlow(c, ref, 'r1'), store: store);
+    await go(tester);
+    expect(find.text('退款明細'), findsOneWidget);
+    await tester.ensureVisible(find.text('退的是'));
+    await tester.tap(find.textContaining('火鍋').last);
+    await settle(tester);
+    expect(find.text('支出明細'), findsOneWidget);
+  });
+
+  testWidgets('幫誰付過：列出有幫人付的、點了開明細', (tester) async {
+    final (_, store) = await withTx(
+      tester,
+      (a) => expense(a, pf: const PaidFor(amount: 300, people: '小美')),
+    );
+    await host(tester, (c, ref) => paidForFlow(c, ref), store: store);
+    await go(tester);
+    await tester.tap(find.textContaining('火鍋').last);
+    await settle(tester);
+    expect(find.text('支出明細'), findsOneWidget);
+  });
+
+  testWidgets('分類明細：點那筆開明細；「幫別人付」列有幫人付的那幾筆', (tester) async {
+    final (_, store) = await withTx(
+      tester,
+      (a) => expense(a, pf: const PaidFor(amount: 300, people: '小美')),
+    );
+    final now = DateTime.now();
+    await host(
+      tester,
+      (c, ref) => categoryFlow(c, ref, ledgerPaidForOut, now.year, now.month),
+      store: store,
+    );
+    await go(tester);
+    expect(find.textContaining('幫別人付・${now.month} 月'), findsOneWidget);
+    await tester.tap(find.textContaining('火鍋').last);
+    await settle(tester);
+    expect(find.text('支出明細'), findsOneWidget);
+  });
 }
 
 class _MemoryStore implements KeyValueStore {
