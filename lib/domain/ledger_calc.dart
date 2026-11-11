@@ -397,47 +397,58 @@ class LedgerBook {
 
   /// 沒記在 App 裡的地方（LineBank／富邦）照轉入轉出推算有多少台幣：轉進去的轉帳加、
   /// 收入「平轉」從那邊轉回來的減。[skipId] 是正在編輯的那筆（算「這筆之後」時先拿掉）。
-  int extBalance(String name, {String? skipId}) {
-    var sum = 0;
-    for (final t in txs) {
-      if (t.id == skipId) continue;
+  /// 照時間先後算沒記在 App 裡的那邊（[name]）。[twd]＝這筆讓它變多少（台幣或 USDT）；
+  /// 轉帳有填「這筆之後」（[LedgerTx.fromAfter]／[LedgerTx.toAfter]）就直接用那個數字當新的起點。
+  double _extRun(
+    String name,
+    String? skipId,
+    double Function(LedgerTx t, int dir) delta,
+  ) {
+    final list =
+        [
+          for (final t in txs)
+            if (t.id != skipId) t,
+        ]..sort((a, b) {
+          final c = a.occurredAt.compareTo(b.occurredAt);
+          return c != 0
+              ? c
+              : (a.createdAt ?? a.occurredAt).compareTo(
+                  b.createdAt ?? b.occurredAt,
+                );
+        });
+    var sum = 0.0;
+    for (final t in list) {
       if (t.type == LedgerTxType.transfer &&
           !t.toOther &&
           t.toAccountId == null &&
           t.toName == name) {
-        sum += t.amount;
+        sum = t.toAfter ?? sum + delta(t, 1);
       } else if (t.type == LedgerTxType.income &&
           t.category == ledgerFlatTransfer &&
           t.toName == name) {
-        sum -= t.amount;
+        sum += delta(t, -1);
       }
       // 從那邊轉出去（轉帳的「從哪個帳戶」選了它）。
       if (t.type == LedgerTxType.transfer && t.fromName == name) {
-        sum -= t.amount;
+        sum = t.fromAfter ?? sum + delta(t, -1);
       }
     }
     return sum;
   }
 
-  /// 轉到虛擬貨幣累計換到多少 USDT（沒填 USDT 的舊資料用 ÷32 粗估）。
-  double usdtBalance({String? skipId}) {
-    var sum = 0.0;
-    for (final t in txs) {
-      if (t.id == skipId) continue;
-      if (t.type == LedgerTxType.transfer &&
-          !t.toOther &&
-          t.toAccountId == null &&
-          t.toName == ledgerCryptoExt) {
-        sum += t.extAmount ?? t.amount / ledgerUsdtRoughRate;
-      }
-      if (t.type == LedgerTxType.transfer && t.fromName == ledgerCryptoExt) {
-        sum -= t.extAmount ?? t.amount / ledgerUsdtRoughRate;
-      }
-    }
-    return sum;
-  }
+  /// 沒記在 App 裡的地方（LineBank／富邦）照轉入轉出推算有多少台幣：轉進去的轉帳加、
+  /// 收入「平轉」從那邊轉回來的減、從那邊轉出去的減；有填「這筆之後」就從那裡重新算。
+  /// [skipId] 是正在編輯的那筆（算「這筆之後」時先拿掉）。
+  int extBalance(String name, {String? skipId}) =>
+      _extRun(name, skipId, (t, dir) => dir * t.amount.toDouble()).round();
 
-  /// 轉帳「轉到」那邊的名稱：記在 App 裡的帳戶用它的名字，沒記的（LineBank）用 [LedgerTx.toName]。
+  /// 虛擬貨幣累計多少 USDT（沒填 USDT 的舊資料用 ÷32 粗估）；有填「這筆之後」就從那裡重新算。
+  double usdtBalance({String? skipId}) => _extRun(
+    ledgerCryptoExt,
+    skipId,
+    (t, dir) => dir * (t.extAmount ?? t.amount / ledgerUsdtRoughRate),
+  );
+
   /// 轉帳「從哪」那邊的名稱：沒記在 App 裡的（LineBank／富邦／虛擬貨幣）用 [LedgerTx.fromName]。
   String fromLabel(LedgerTx t) =>
       t.fromName.isNotEmpty ? t.fromName : accountName(t.accountId);

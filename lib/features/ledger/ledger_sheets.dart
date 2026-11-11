@@ -950,9 +950,38 @@ class _TxFormState extends State<_TxForm> {
   /// 轉帳從「沒記在 App 裡」的自己的地方轉出（LineBank／富邦／虛擬貨幣）：空字串＝從 App 裡的帳戶。
   String _srcExt = '';
 
+  /// 沒記在 App 裡的兩邊「這筆之後」實際剩多少（選填；台幣或 USDT）。
+  late final TextEditingController _extFromAfter;
+  late final TextEditingController _extToAfter;
+
   /// 轉帳現在是不是從沒記在 App 裡的地方轉出。
   bool get _fromOutside =>
       _effType == LedgerTxType.transfer && _srcExt.isNotEmpty;
+
+  /// 轉帳現在是不是轉到沒記在 App 裡的自己的地方。
+  bool get _toOutside =>
+      _effType == LedgerTxType.transfer &&
+      !_toOther &&
+      _toExt.isNotEmpty &&
+      !_neg;
+
+  double? _extNum(TextEditingController c) =>
+      double.tryParse(c.text.trim().replaceAll(',', ''));
+
+  /// 平轉的名稱自動帶（2026-11-11 使用者：LineBank 轉虛擬貨幣＝「虛擬貨幣入金」）。
+  /// 只有名稱是空的、或還是上一次自動帶的才換，自己打的不動。
+  void _autoTransferName() {
+    const auto = {'平轉', '虛擬貨幣入金', '虛擬貨幣出金'};
+    final cur = _merchant.text.trim();
+    if (cur.isNotEmpty && !auto.contains(cur)) return;
+    _merchant.text = _toExt == ledgerCryptoExt
+        ? '虛擬貨幣入金'
+        : _srcExt == ledgerCryptoExt
+        ? '虛擬貨幣出金'
+        : (_toExt.isNotEmpty || _srcExt.isNotEmpty)
+        ? '平轉'
+        : cur;
+  }
 
   /// 排序數字（從 1 開始、最大 99；0 不算，沒填＝沒設定＝0，排在有時分的後面）。
   int get _orderValue =>
@@ -977,6 +1006,16 @@ class _TxFormState extends State<_TxForm> {
         : '';
     _fromExt = e?.type == LedgerTxType.income ? (e?.toName ?? '') : '';
     _srcExt = e?.type == LedgerTxType.transfer ? (e?.fromName ?? '') : '';
+    String num(double? v, String name) => v == null
+        ? ''
+        : name == ledgerCryptoExt
+        ? lUsdt(v).replaceAll(',', '')
+        : '${v.round()}';
+    _extFromAfter = TextEditingController(
+      text: num(e?.fromAfter, e?.fromName ?? ''),
+    )..addListener(() => setState(() {}));
+    _extToAfter = TextEditingController(text: num(e?.toAfter, e?.toName ?? ''))
+      ..addListener(() => setState(() {}));
     _category = e?.category ?? p.category ?? '';
     _merchant = TextEditingController(text: e?.merchant ?? '');
     _usdt = TextEditingController(
@@ -1065,6 +1104,8 @@ class _TxFormState extends State<_TxForm> {
   @override
   void dispose() {
     _usdt.dispose();
+    _extFromAfter.dispose();
+    _extToAfter.dispose();
     for (final c in [
       _amount,
       _merchant,
@@ -1518,6 +1559,8 @@ class _TxFormState extends State<_TxForm> {
         // 卡費退回：存成信用卡 → 帳戶（跟繳卡費方向相反）。
         accountId: _fromOutside ? '' : (_neg ? _to! : _account),
         fromName: _fromOutside ? _srcExt : '',
+        fromAfter: () => _fromOutside ? _extNum(_extFromAfter) : null,
+        toAfter: () => _toOutside ? _extNum(_extToAfter) : null,
         toAccountId: () => ty == LedgerTxType.transfer
             ? (_neg ? _account : (_toExt.isEmpty ? _to : null))
             : null,
@@ -1551,6 +1594,8 @@ class _TxFormState extends State<_TxForm> {
       amount: amt,
       accountId: _fromOutside ? '' : (_neg ? _to! : _account!),
       fromName: _fromOutside ? _srcExt : '',
+      fromAfter: _fromOutside ? _extNum(_extFromAfter) : null,
+      toAfter: _toOutside ? _extNum(_extToAfter) : null,
       toAccountId: ty == LedgerTxType.transfer
           ? (_neg ? _account : (_toExt.isEmpty ? _to : null))
           : null,
@@ -1626,24 +1671,52 @@ class _TxFormState extends State<_TxForm> {
     final skip = widget.edit?.id;
     final amt = _int(_amount) ?? 0;
     final sign = out ? -1 : 1;
-    final key = ValueKey(out ? 'srcExtAfter' : 'extAfter');
-    if (name == ledgerCryptoExt) {
-      final after =
-          book.usdtBalance(skipId: skip) +
-          sign * (_usdtValue ?? amt / ledgerUsdtRoughRate);
-      return _row(
-        '$name\n這筆之後',
-        Text(
-          '${lUsdt(after)} USDT（≈ ${lMoney((after * ledgerUsdtRoughRate).round())}）',
-          key: key,
-          style: _fieldStyle,
+    final ctrl = out ? _extFromAfter : _extToAfter;
+    final crypto = name == ledgerCryptoExt;
+    // 推算的「這筆之後」當提示；有填實際的就用填的（之後從那裡重新算）。
+    final guess = crypto
+        ? book.usdtBalance(skipId: skip) +
+              sign * (_usdtValue ?? amt / ledgerUsdtRoughRate)
+        : (book.extBalance(name, skipId: skip) + sign * amt).toDouble();
+    final typed = _extNum(ctrl);
+    final shown = typed ?? guess;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _row(
+          '$name\n這筆之後',
+          hint: '選填',
+          TextField(
+            key: ValueKey(out ? 'srcExtAfter' : 'extAfter'),
+            controller: ctrl,
+            keyboardType: TextInputType.numberWithOptions(decimal: crypto),
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(
+                RegExp(crypto ? r'^-?\d*\.?\d{0,2}' : r'^-?\d*'),
+              ),
+            ],
+            decoration: _input(
+              crypto ? lUsdt(guess) : lInt(guess.round()),
+              prefix: crypto ? null : '\$',
+              suffix: crypto ? 'USDT' : null,
+            ),
+          ),
         ),
-      );
-    }
-    final after = book.extBalance(name, skipId: skip) + sign * amt;
-    return _row(
-      '$name\n這筆之後',
-      Text('約 ${lMoney(after)}（照轉入轉出推算）', key: key, style: _fieldStyle),
+        Padding(
+          padding: const EdgeInsets.only(top: 6, left: 88),
+          child: Text(
+            typed == null
+                ? (crypto
+                      ? '推算 ${lUsdt(guess)} USDT（≈ ${lMoney((guess * ledgerUsdtRoughRate).round())}）；有填就用填的'
+                      : '推算約 ${lMoney(guess.round())}；有填就用填的')
+                : crypto
+                ? '≈ ${lMoney((shown * ledgerUsdtRoughRate).round())}（×$ledgerUsdtRoughRate 粗估台幣）'
+                : '之後照這個數字往下推算',
+            key: ValueKey(out ? 'srcExtAfterNote' : 'extAfterNote'),
+            style: AppText.note.copyWith(fontSize: 11),
+          ),
+        ),
+      ],
     );
   }
 
@@ -2106,6 +2179,9 @@ class _TxFormState extends State<_TxForm> {
                     onPressed: () => setState(() {
                       _account = bank.id;
                       _to = cash.id;
+                      _srcExt = '';
+                      _toExt = '';
+                      _toOther = false;
                       if (_merchant.text.isEmpty) _merchant.text = 'ATM提款';
                     }),
                     icon: const Icon(Icons.bolt_rounded, size: 18),
@@ -2118,11 +2194,29 @@ class _TxFormState extends State<_TxForm> {
                     onPressed: () => setState(() {
                       _account = bank.id;
                       _to = card.id;
+                      _srcExt = '';
+                      _toExt = '';
+                      _toOther = false;
                     }),
                     icon: const Icon(Icons.bolt_rounded, size: 18),
                     label: const Text('繳卡費'),
                     style: _shortcutStyle,
                   ),
+              // LineBank → 虛擬貨幣（2026-11-11 使用者：點一下就選好、名稱帶「虛擬貨幣入金」）。
+              OutlinedButton.icon(
+                key: const ValueKey('cryptoDeposit'),
+                onPressed: () => setState(() {
+                  _negative = false;
+                  _srcExt = 'LineBank';
+                  _toExt = ledgerCryptoExt;
+                  _to = null;
+                  _toOther = false;
+                  _autoTransferName();
+                }),
+                icon: const Icon(Icons.bolt_rounded, size: 18),
+                label: const Text('虛擬貨幣入金'),
+                style: _shortcutStyle,
+              ),
             ],
           ),
           _chipRow(
@@ -2154,9 +2248,7 @@ class _TxFormState extends State<_TxForm> {
                               : (_) => setState(() {
                                   _srcExt = n;
                                   _negative = false;
-                                  if (_merchant.text.trim().isEmpty) {
-                                    _merchant.text = '平轉';
-                                  }
+                                  _autoTransferName();
                                 }),
                         ),
                     ],
@@ -2193,9 +2285,7 @@ class _TxFormState extends State<_TxForm> {
                                   _toExt = n;
                                   _to = null;
                                   _toOther = false;
-                                  if (_merchant.text.trim().isEmpty) {
-                                    _merchant.text = '平轉';
-                                  }
+                                  _autoTransferName();
                                 }),
                         ),
                       ChoiceChip(

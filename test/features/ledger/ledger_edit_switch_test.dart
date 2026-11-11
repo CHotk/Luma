@@ -152,6 +152,74 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('快捷「虛擬貨幣入金」：選好 LineBank → 虛擬貨幣、名稱自動帶；兩邊都能填這筆之後、旁邊有推算', (
+    tester,
+  ) async {
+    final store = _MemoryStore();
+    final (repo, _, _) = await setup(tester, store);
+    await open(tester, store);
+    await tester.tap(find.byType(FloatingActionButton));
+    await settle(tester);
+    await tester.tap(find.widgetWithText(ChoiceChip, '轉帳'));
+    await settle(tester);
+    await tester.tap(find.byKey(const ValueKey('cryptoDeposit')));
+    await settle(tester);
+    expect(
+      tester
+          .widget<ChoiceChip>(find.byKey(const ValueKey('srcExt_LineBank')))
+          .selected,
+      isTrue,
+    );
+    expect(
+      tester
+          .widget<ChoiceChip>(find.byKey(const ValueKey('toExt_虛擬貨幣')))
+          .selected,
+      isTrue,
+    );
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is TextField && w.controller?.text == '虛擬貨幣入金',
+      ),
+      findsOneWidget,
+    );
+    final amountField = find.byWidgetPredicate(
+      (w) => w is TextField && w.decoration?.hintText == '0' && w.key == null,
+    );
+    await tester.enterText(amountField, '3200');
+    await tester.pump();
+    final from = find.byKey(const ValueKey('srcExtAfter'));
+    final to = find.byKey(const ValueKey('extAfter'));
+    await tester.ensureVisible(to);
+    expect(from, findsOneWidget);
+    expect(to, findsOneWidget);
+    // 沒填：旁邊寫推算。
+    expect(
+      tester.widget<Text>(find.byKey(const ValueKey('srcExtAfterNote'))).data,
+      contains('3,200'),
+    );
+    expect(
+      tester.widget<Text>(find.byKey(const ValueKey('extAfterNote'))).data,
+      contains('推算 100 USDT'),
+    );
+    await tester.enterText(from, '12000');
+    await tester.enterText(to, '250.5');
+    await tester.pump();
+    await tester.ensureVisible(find.widgetWithText(FilledButton, '新增'));
+    await tester.tap(find.widgetWithText(FilledButton, '新增'));
+    await settle(tester);
+    final book = (await tester.runAsync(() => repo.loadBook()))!;
+    final tx = book.txs.single;
+    expect(tx.merchant, '虛擬貨幣入金');
+    expect(tx.fromName, 'LineBank');
+    expect(tx.toName, '虛擬貨幣');
+    expect(tx.fromAfter, 12000);
+    expect(tx.toAfter, 250.5);
+    // 有填就是新的起點。
+    expect(book.extBalance('LineBank'), 12000);
+    expect(book.usdtBalance(), 250.5);
+    expect(tester.takeException(), isNull);
+  });
+
   test('虛擬貨幣轉出：USDT 扣掉', () {
     final b = LedgerBook(
       accounts: const [],

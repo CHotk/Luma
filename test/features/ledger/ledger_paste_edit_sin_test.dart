@@ -381,7 +381,7 @@ void main() {
       contains('\$3,000'),
     );
     expect(
-      tester.widget<Text>(find.byKey(const ValueKey('extAfter'))).data,
+      tester.widget<Text>(find.byKey(const ValueKey('extAfterNote'))).data,
       contains('93.75 USDT'),
     );
     await tester.ensureVisible(find.widgetWithText(FilledButton, '新增'));
