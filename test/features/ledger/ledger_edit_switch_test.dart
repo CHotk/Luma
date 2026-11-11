@@ -507,6 +507,38 @@ void main() {
     expect(selected, ['支出'], reason: '只有上面的類型是選著的');
   });
 
+  testWidgets('編輯舊的那筆：餘額欄下面也有推算，算的是那時候（不是現在）', (tester) async {
+    final store = _MemoryStore();
+    final (repo, bank, _) = await setup(tester, store);
+    final now = DateTime.now();
+    for (final (id, m, h, amt) in [
+      ('a', '早餐店', 9, 300),
+      ('b', '午餐店', 12, 200),
+    ]) {
+      await repo.addTransaction(
+        LedgerTx(
+          id: id,
+          type: LedgerTxType.expense,
+          occurredAt: DateTime(now.year, now.month, now.day, h),
+          amount: amt,
+          accountId: bank.id,
+          category: '餐飲',
+          merchant: m,
+        ),
+      );
+    }
+    await open(tester, store);
+    await tester.tap(find.text('早餐店'));
+    await settle(tester);
+    await tester.tap(find.widgetWithText(OutlinedButton, '編輯'));
+    await settle(tester);
+    // 期初 5000，早上這筆 300 之後＝4700（中午那筆 200 在後面，不算）。
+    final hint = find.textContaining('推算約');
+    await tester.ensureVisible(hint.first);
+    expect(find.textContaining('4,700'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('商家下拉不列刷卡（信用卡）的商家', (tester) async {
     final store = _MemoryStore();
     final (repo, bank, card) = await setup(tester, store);

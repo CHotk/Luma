@@ -2065,9 +2065,22 @@ class _TxFormState extends State<_TxForm> {
     // 即時推算（2026-11-11 使用者：填餘額的下面要有即時的小推算）：表單還沒填完也算，
     // 金額沒填當 0。
     int? guess;
-    if (s != null && widget.edit == null) {
+    // 編輯舊的也推算（2026-11-11 使用者：不管有沒有填都顯示估計）：從這筆時間之前最近一個
+    // 對帳點往後加（不算這筆自己、也不算這筆自己掛的對帳點），不是用「現在」的值。
+    final e = widget.edit;
+    final base = s == null
+        ? null
+        : e == null
+        ? s.now
+        : book.valueAt(
+            a,
+            _at,
+            skipTx: e.id,
+            skipCp: book.checkpointOfTx(e.id, accountId: a.id)?.id,
+          );
+    if (s != null && base != null) {
       final occupied =
-          s.now + (draft != null ? LedgerBook.delta(draft, a) : _probeDelta(a));
+          base + (draft != null ? LedgerBook.delta(draft, a) : _probeDelta(a));
       guess = card ? s.limit - occupied : occupied;
     }
     final got = _int(ctrl);

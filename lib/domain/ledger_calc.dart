@@ -635,6 +635,25 @@ class LedgerBook {
     return (predicted: pred, actual: actual, miss: missOf(a, actual, pred));
   }
 
+  /// [at] 那時候（含）帳戶的值（銀行／現金＝餘額、信用卡＝已占用）：從那之前最近一個對帳點
+  /// 往後加記到的。[skipTx]／[skipCp] 是正在編輯的那筆跟它自己掛的對帳點（不算進去）。
+  /// 那之前沒有對帳點＝沒有起點，null（2026-11-11 使用者：編輯時也要顯示推算）。
+  int? valueAt(LedgerAccount a, DateTime at, {String? skipTx, String? skipCp}) {
+    LedgerCheckpoint? base;
+    for (final c in checkpointsOf(a.id)) {
+      if (c.id == skipCp || c.at.isAfter(at)) continue;
+      if (base == null || !c.at.isBefore(base.at)) base = c;
+    }
+    if (base == null) return null;
+    var v = checkpointValue(a, base);
+    for (final t in txs) {
+      if (t.id == skipTx) continue;
+      final when = calcAtOf(t);
+      if (when.isAfter(base.at) && !when.isAfter(at)) v += delta(t, a);
+    }
+    return v;
+  }
+
   /// 附在某筆交易上的所有對帳點（轉帳可以兩邊帳戶各填一個，2026-11-03 使用者）。
   List<LedgerCheckpoint> checkpointsOfTx(String txId) =>
       checkpoints.where((c) => c.txId == txId).toList();
