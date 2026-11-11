@@ -721,6 +721,8 @@ Future<void> categoryFlow(
   final inM = LedgerBook.inMonth(year, month);
   final txs = book.txs.where(inM).where((t) {
     if (t.type == LedgerTxType.expense) {
+      // 「幫別人付」不是分類：列有幫人付的那幾筆。
+      if (cat == ledgerPaidForOut) return t.paidFor != null || t.splitHasOther;
       return book.categoriesOf(t).contains(cat);
     }
     if (t.type == LedgerTxType.adjustment) {
@@ -730,9 +732,15 @@ Future<void> categoryFlow(
       return book.categoriesOf(t).contains(cat) ||
           (book.tx(t.linkedId) == null && cat == ledgerUncategorized);
     }
+    // 轉給他人（含拆分）、轉給自己帳戶裡花掉的部分（2026-11-11）。
+    if (t.type == LedgerTxType.transfer) {
+      return book.categoriesOf(t).contains(cat);
+    }
     return false;
   }).toList();
-  final spent = book.monthStats(year, month).byCategory[cat] ?? 0;
+  final ms = book.monthStats(year, month);
+  // 沒算進消費的（幫別人付、還款、轉給他人）看 extra。
+  final spent = ms.byCategory[cat] ?? ms.extra[cat] ?? 0;
   final budget = book.budgetOf(year, month).byCategory[cat];
   final a = await showTxListSheet(
     context,

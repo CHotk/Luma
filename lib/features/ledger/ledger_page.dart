@@ -1014,6 +1014,38 @@ class LedgerPage extends ConsumerWidget {
             ],
           ),
         ),
+      // 沒算進消費的（2026-11-11 使用者：統計底部要有一塊，也要有一樣的表）：
+      // 幫別人付、還款、轉給他人——算總支出、不算消費。
+      if (st.extra.values.any((v) => v != 0)) ...[
+        ledgerSection('沒算進消費的'),
+        GlassCard(
+          key: const ValueKey('statsExtra'),
+          child: Column(
+            children: [
+              for (final e
+                  in (st.extra.entries.where((e) => e.value != 0).toList()
+                    ..sort((a, b) => b.value.compareTo(a.value))))
+                _catRow(
+                  context,
+                  ref,
+                  e.key,
+                  e.value,
+                  null,
+                  st.out - st.spend,
+                  m,
+                  canOpen: single,
+                ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(4, 6, 4, 0),
+          child: Text(
+            '這些算進總支出（${lMoney(st.out)}），不算消費、不吃預算。',
+            style: AppText.note.copyWith(fontSize: 11.5),
+          ),
+        ),
+      ],
     ];
   }
 

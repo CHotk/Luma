@@ -659,6 +659,54 @@ void main() {
     expect(s.byCategory['沖銷'], 350);
   });
 
+  testWidgets('統計底部有「沒算進消費的」表（還款、轉給他人）', (tester) async {
+    final store = _MemoryStore();
+    final (repo, bank, _) = await setup(tester, store);
+    final now = DateTime.now();
+    await repo.addTransaction(
+      LedgerTx(
+        id: 'r',
+        type: LedgerTxType.expense,
+        occurredAt: DateTime(now.year, now.month, now.day, 9),
+        amount: 5000,
+        accountId: bank.id,
+        category: '還款',
+        merchant: '中信信貸',
+      ),
+    );
+    await repo.addTransaction(
+      LedgerTx(
+        id: 'o',
+        type: LedgerTxType.transfer,
+        occurredAt: DateTime(now.year, now.month, now.day, 10),
+        amount: 800,
+        accountId: bank.id,
+        toOther: true,
+        toName: '小美',
+        merchant: '小美',
+      ),
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [keyValueStoreProvider.overrideWithValue(store)],
+        child: const MaterialApp(home: LedgerPage(tab: LedgerTab.stats)),
+      ),
+    );
+    await settle(tester);
+    final extra = find.byKey(const ValueKey('statsExtra'));
+    await tester.ensureVisible(extra);
+    expect(find.text('沒算進消費的'), findsOneWidget);
+    expect(
+      find.descendant(of: extra, matching: find.textContaining('還款')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: extra, matching: find.textContaining('轉給他人')),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('商家下拉不列刷卡（信用卡）的商家', (tester) async {
     final store = _MemoryStore();
     final (repo, bank, card) = await setup(tester, store);

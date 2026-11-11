@@ -94,6 +94,7 @@ String lAgo(DateTime t) {
 
 (String, Color) catLook(String cat) {
   if (cat == ledgerToOtherCat) return ('👤', const Color(0xFF7EA6FF));
+  if (cat == ledgerPaidForOut) return ('👥', ledgerPaidFor);
   final c =
       ledgerExpenseCats[cat] ??
       ledgerIncomeCats[cat] ??
