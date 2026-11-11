@@ -1328,7 +1328,7 @@ class _TxFormState extends State<_TxForm> {
   /// 轉帳、還錢各看各自那一類；繳卡費自動帶的名稱不算。
   List<String> get _recentMerchants {
     final ty = _effType;
-    // 刷卡（中信卡等信用卡）的商家名稱是帳單上的怪名字，不列（2026-11-11 使用者）；
+    // 刷卡（中信卡等信用卡）通常是貼文字匯入、用不到下拉，不列（2026-11-11 使用者）；
     // 跳過的不算，照樣湊滿 20 個。
     final list =
         [

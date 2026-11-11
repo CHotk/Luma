@@ -194,7 +194,7 @@ void main() {
         occurredAt: DateTime(now.year, now.month, now.day, 8),
         amount: 99,
         accountId: card.id,
-        merchant: 'PCHOME*刷卡怪名',
+        merchant: 'PCHOME*刷卡',
       ),
     );
     await repo.addTransaction(
@@ -213,7 +213,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('merchantRecent')));
     await settle(tester);
     expect(find.text('全家'), findsWidgets);
-    expect(find.text('PCHOME*刷卡怪名'), findsOneWidget, reason: '只在列表裡、下拉沒有');
+    expect(find.text('PCHOME*刷卡'), findsOneWidget, reason: '只在列表裡、下拉沒有');
   });
 }
 
