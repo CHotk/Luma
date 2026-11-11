@@ -1489,6 +1489,12 @@ class _TxFormState extends State<_TxForm> {
       }
       if (!_fromOutside && _to == _account) return '轉出跟轉入不能是同一個帳戶';
       if (_srcExt.isNotEmpty && _srcExt == _toExt) return '轉出跟轉入不能是同一個地方';
+      // 跟虛擬貨幣有關的都要填換了多少 USDT（2026-11-11 使用者）；以前記的不擋。
+      if ((_cryptoIn || _cryptoOut) &&
+          _usdtValue == null &&
+          widget.edit == null) {
+        return _cryptoOut ? '要填賣掉多少 USDT' : '要填換到多少 USDT';
+      }
     }
     if (_type == LedgerTxType.refund && book.tx(_linked) == null) {
       return '要選退哪一筆';
@@ -1682,6 +1688,12 @@ class _TxFormState extends State<_TxForm> {
   }
 
   /// [out]＝這筆是從那邊轉出去（扣掉），不然是轉進去（加上）。
+  /// 轉帳轉進虛擬貨幣／從虛擬貨幣轉出來。
+  bool get _cryptoIn =>
+      _effType == LedgerTxType.transfer && !_neg && _toExt == ledgerCryptoExt;
+  bool get _cryptoOut =>
+      _effType == LedgerTxType.transfer && _srcExt == ledgerCryptoExt;
+
   /// 虛擬貨幣那邊填的跟推算差多少 USDT（沒填、沒差＝null）。
   double? get _cryptoDiff {
     final out = _fromOutside && _srcExt == ledgerCryptoExt;
@@ -2078,7 +2090,12 @@ class _TxFormState extends State<_TxForm> {
       // 金額在商家名稱上面（2026-11-11 使用者；原本商家在上面）。每個欄位右邊都有一顆統一樣式的
       // 毛玻璃按鈕：時間「不確定」、金額「＋／−」、商家下拉最近 20 個。
       _row(
-        '金額',
+        // 跟虛擬貨幣有關的轉帳：金額是台幣那邊（2026-11-11 使用者：多少換多少要清楚）。
+        _cryptoOut
+            ? '換回台幣'
+            : _cryptoIn
+            ? '轉出台幣'
+            : '金額',
         Row(
           children: [
             Expanded(
@@ -2384,7 +2401,6 @@ class _TxFormState extends State<_TxForm> {
               !_neg) ...[
             _row(
               _srcExt == ledgerCryptoExt ? '賣掉 USDT' : '換到 USDT',
-              hint: '選填',
               TextField(
                 key: const ValueKey('usdtField'),
                 controller: _usdt,
@@ -2405,9 +2421,14 @@ class _TxFormState extends State<_TxForm> {
             Padding(
               padding: const EdgeInsets.only(top: 6, left: 88),
               child: Text(
+                // 多少換多少（2026-11-11 使用者）：「$3,200 → 100 USDT・1 USDT ≈ $32.00」，反過來也是。
                 _usdtValue == null
-                    ? '沒填就用台幣 ÷ $ledgerUsdtRoughRate 粗估'
-                    : '≈ ${lMoney((_usdtValue! * ledgerUsdtRoughRate).round())}（×$ledgerUsdtRoughRate 粗估台幣）',
+                    ? '要填${_cryptoOut ? '賣掉' : '換到'}多少 USDT（照 ×$ledgerUsdtRoughRate 粗估約 ${lUsdt((_int(_amount) ?? 0) / ledgerUsdtRoughRate)} USDT）'
+                    : (_int(_amount) ?? 0) <= 0
+                    ? '≈ ${lMoney((_usdtValue! * ledgerUsdtRoughRate).round())}（×$ledgerUsdtRoughRate 粗估台幣）'
+                    : _cryptoOut
+                    ? '${lUsdt(_usdtValue!)} USDT → ${lMoney(_int(_amount)!)}・1 USDT ≈ \$${((_int(_amount)!) / _usdtValue!).toStringAsFixed(2)}'
+                    : '${lMoney(_int(_amount)!)} → ${lUsdt(_usdtValue!)} USDT・1 USDT ≈ \$${((_int(_amount)!) / _usdtValue!).toStringAsFixed(2)}',
                 key: const ValueKey('usdtTwd'),
                 style: AppText.note.copyWith(fontSize: 11),
               ),
@@ -3199,6 +3220,7 @@ class _TxDetail extends StatelessWidget {
                 ? '${book.fromLabel(t)} → ${book.toLabel(t)}'
                 : book.accountName(t.accountId),
           ),
+          if (book.fxLine(t) case final fx?) _kv('換匯', fx),
           if (t.isSplit)
             _kv(
               '拆分',

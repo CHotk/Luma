@@ -475,6 +475,31 @@ class LedgerBook {
     return d.abs() < 0.005 ? null : d;
   }
 
+  /// 跟虛擬貨幣有關的轉帳「多少換多少」（2026-11-11 使用者）：轉進去＝「$3,200 → 100 USDT」、
+  /// 轉出來＝「100 USDT → $3,200」，後面帶換算匯率。沒填 USDT 或不是虛擬貨幣的＝null。
+  String? fxLine(LedgerTx t) {
+    final u = t.extAmount;
+    if (t.type != LedgerTxType.transfer || u == null || u <= 0) return null;
+    final rate = (t.amount / u).toStringAsFixed(2);
+    final twd = '\$${_fxMoney(t.amount)}';
+    final usdt = '${_fxUsdt(u)} USDT';
+    if (t.fromName == ledgerCryptoExt) return '$usdt → $twd・1 USDT ≈ \$$rate';
+    if (t.toName == ledgerCryptoExt) return '$twd → $usdt・1 USDT ≈ \$$rate';
+    return null;
+  }
+
+  static String _fxMoney(int v) => v.toString().replaceAllMapped(
+    RegExp(r'\B(?=(\d{3})+(?!\d))'),
+    (_) => ',',
+  );
+
+  static String _fxUsdt(double v) {
+    final s = v.toStringAsFixed(2);
+    return s.endsWith('.00')
+        ? s.substring(0, s.length - 3)
+        : (s.endsWith('0') ? s.substring(0, s.length - 1) : s);
+  }
+
   /// 轉帳「從哪」那邊的名稱：沒記在 App 裡的（LineBank／富邦／虛擬貨幣）用 [LedgerTx.fromName]。
   String fromLabel(LedgerTx t) =>
       t.fromName.isNotEmpty ? t.fromName : accountName(t.accountId);

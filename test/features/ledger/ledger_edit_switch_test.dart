@@ -189,6 +189,19 @@ void main() {
     );
     await tester.enterText(amountField, '3200');
     await tester.pump();
+    // 金額寫的是轉出的台幣；USDT 一定要填，下面寫多少換多少。
+    expect(find.text('轉出台幣'), findsOneWidget);
+    expect(
+      tester.widget<Text>(find.byKey(const ValueKey('usdtTwd'))).data,
+      startsWith('要填換到多少 USDT'),
+    );
+    await tester.ensureVisible(find.byKey(const ValueKey('usdtField')));
+    await tester.enterText(find.byKey(const ValueKey('usdtField')), '100');
+    await tester.pump();
+    expect(
+      tester.widget<Text>(find.byKey(const ValueKey('usdtTwd'))).data,
+      r'$3,200 → 100 USDT・1 USDT ≈ $32.00',
+    );
     final from = find.byKey(const ValueKey('srcExtAfter'));
     final to = find.byKey(const ValueKey('extAfter'));
     await tester.ensureVisible(to);
@@ -217,6 +230,7 @@ void main() {
     expect(tx.toName, '虛擬貨幣');
     expect(tx.fromAfter, 12000);
     expect(tx.toAfter, 250.5);
+    expect(book.fxLine(tx), r'$3,200 → 100 USDT・1 USDT ≈ $32.00');
     // 有填就是新的起點。
     expect(book.extBalance('LineBank'), 12000);
     expect(book.usdtBalance(), 250.5);
@@ -251,6 +265,11 @@ void main() {
       ],
     );
     expect(b.usdtBalance(), 50);
+    // 反過來也寫多少換多少：賣掉 50 USDT 拿回 $1,600。
+    expect(
+      b.fxLine(b.txs.firstWhere((t) => t.id == 'b')),
+      r'50 USDT → $1,600・1 USDT ≈ $32.00',
+    );
     expect(b.fromLabel(b.txs.firstWhere((t) => t.id == 'b')), '虛擬貨幣');
   });
 
