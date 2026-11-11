@@ -1981,9 +1981,9 @@ void main() {
     );
     await pump(tester, const LedgerPage(tab: LedgerTab.list), store);
     expect(
-      find.byKey(const ValueKey('twd_100')),
+      find.byKey(const ValueKey('cashNote')),
       findsOneWidget,
-      reason: '現金 120 元那筆顯示 100 元紙鈔',
+      reason: '現金那筆是綠色鈔票',
     );
     // 中信卡刷的用熊大那張卡的圖（2026-11-11 使用者）。
     expect(

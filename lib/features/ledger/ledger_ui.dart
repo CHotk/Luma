@@ -108,156 +108,97 @@ Color accountColor(LedgerAccountType t) => switch (t) {
 };
 
 /// 圓角方塊圖示（emoji）。
-/// 品牌小圖示（2026-11-11 使用者，自用）：圖檔、要不要轉素色、是不是卡片（橫的）。
-typedef LedgerBrand = ({String asset, bool mono, bool card});
+/// 品牌小圖示（2026-11-11 使用者，自用）：圖檔、要不要縮小留邊（小 logo）、是不是卡片（橫的）。
+typedef LedgerBrand = ({String asset, bool pad, bool card});
 
 const _brandLineBank = (
   asset: 'assets/ledger/icons/linebank.png',
-  mono: false,
+  pad: false,
   card: false,
 );
 const _brandCtbcCard = (
   asset: 'assets/ledger/icons/ctbc_linepay.png',
-  mono: false,
+  pad: false,
   card: true,
 );
-// 中信 logo 用素色（2026-11-11 使用者）。
+// 中信 logo 用簡單版（綠色標誌、中間紅色），正常顏色（2026-11-11 使用者：不用追求黑白）。
 const _brandCtbc = (
   asset: 'assets/ledger/icons/ctbc.png',
-  mono: true,
+  pad: true,
   card: false,
 );
 
 bool _isCtbcBank(LedgerAccount? a) =>
     a != null && !a.isCard && a.name.contains('中信');
 
-/// 一筆記帳要不要用品牌圖示（null＝照原本的 emoji）。先後：ATM 提款維持 🏧 →
-/// LineBank 相關 → 中信卡相關（熊大那張卡）→ 中信帳戶轉出（中信 logo 素色）。
+/// 一筆記帳要不要用品牌圖示（null＝照原本的 emoji）。2026-11-11 使用者：
+/// - icon 由「錢從哪裡出去」決定：轉帳看轉出那邊、支出看付的帳戶；轉出那邊沒有品牌就用
+///   原本的圖示，不看轉入那邊。ATM 提款維持 🏧。
+/// - 純收款（薪水、其他收入、未分類收入…，不是平轉）看哪個帳戶收錢；退款、還錢也是錢進那個帳戶。
+/// - 收入平轉看錢從哪個戶頭來（LineBank＝LINE Bank）。
+/// 品牌：中信卡＝熊大卡、中信帳戶＝中信 logo、LineBank＝LINE Bank。
 LedgerBrand? ledgerBrandOf(LedgerBook book, LedgerTx t) {
   final from = book.account(t.accountId);
   final to = book.account(t.toAccountId);
-  final transfer = t.type == LedgerTxType.transfer;
-  if (transfer &&
-      from?.type == LedgerAccountType.bank &&
-      to?.type == LedgerAccountType.cash) {
-    return null;
+  if (t.type == LedgerTxType.transfer) {
+    if (from?.type == LedgerAccountType.bank &&
+        to?.type == LedgerAccountType.cash) {
+      return null;
+    }
+    if (t.fromName.isNotEmpty) {
+      return t.fromName == 'LineBank' ? _brandLineBank : null;
+    }
+    return _brandOfAccount(book, from);
   }
-  if (t.fromName == 'LineBank' || (!t.toOther && t.toName == 'LineBank')) {
-    return _brandLineBank;
+  if (t.type == LedgerTxType.income && t.category == ledgerFlatTransfer) {
+    return t.toName == 'LineBank' ? _brandLineBank : null;
   }
-  if (book.isCtbcCard(from) || book.isCtbcCard(to)) return _brandCtbcCard;
-  if (transfer && _isCtbcBank(from)) return _brandCtbc;
-  return null;
+  // 支出、對帳調整：錢從這個帳戶出去；收入、退款、還錢：錢進這個帳戶（都是 accountId）。
+  return _brandOfAccount(book, from);
 }
 
-/// 帳戶的品牌圖示：中信卡＝熊大那張卡、中信的銀行帳戶＝中信 logo 素色。
+LedgerBrand? _brandOfAccount(LedgerBook book, LedgerAccount? a) =>
+    book.isCtbcCard(a)
+    ? _brandCtbcCard
+    : _isCtbcBank(a)
+    ? _brandCtbc
+    : null;
+
+/// 帳戶的品牌圖示：中信卡＝熊大那張卡、中信的銀行帳戶＝中信 logo。
 LedgerBrand? ledgerAccountBrand(LedgerAccount a) => a.isCard
     ? (a.name.contains('中信') ? _brandCtbcCard : null)
     : (_isCtbcBank(a) ? _brandCtbc : null);
 
-/// 中信 logo 用簡單版（綠色那個標誌）做成素色剪影（2026-11-11 使用者：好看一點）。
-const _mono = ColorFilter.mode(Color(0xFFC9CED6), BlendMode.srcIn);
+/// 現金那筆的小圖示：一張綠色鈔票、中間一個 $（2026-11-11 使用者：不用照金額分面額，
+/// 畫一張現金就夠）。
+class LedgerCashIcon extends StatelessWidget {
+  const LedgerCashIcon({super.key, this.size = 36});
 
-/// 台幣面額（2026-11-11 使用者：現金照金額顯示，5 元以內 1 元、10 元以內 5 元，以此類推）。
-/// 金額 ≤ 下一個面額 → 顯示上一個面額；超過 2000 都是 2000。
-int twdDenomFor(int amount) {
-  const steps = [
-    (5, 1),
-    (10, 5),
-    (50, 10),
-    (100, 50),
-    (200, 100),
-    (500, 200),
-    (1000, 500),
-    (2000, 1000),
-  ];
-  final a = amount.abs();
-  for (final (max, d) in steps) {
-    if (a <= max) return d;
-  }
-  return 2000;
-}
-
-/// 現金那筆的小圖示：硬幣（1／5／10／50）是圓的、紙鈔（100 以上）是橫的長方形，
-/// 顏色照真的台幣（1 元銅色、5／10 元銀色、50 元金色；100 紅、200 綠、500 咖啡、
-/// 1000 藍、2000 紫），中間寫面額。
-class TwdMoneyIcon extends StatelessWidget {
-  const TwdMoneyIcon(this.amount, {super.key, this.size = 36});
-
-  final int amount;
   final double size;
-
-  static const _coin = <int, (Color, Color)>{
-    1: (Color(0xFFE2A46B), Color(0xFF9C5A2A)),
-    5: (Color(0xFFE9EDF2), Color(0xFF8D96A3)),
-    10: (Color(0xFFF1F3F6), Color(0xFF9AA3AF)),
-    50: (Color(0xFFFFE08A), Color(0xFFC99A2E)),
-  };
-  static const _note = <int, Color>{
-    100: Color(0xFFE5484D),
-    200: Color(0xFF3FAE6A),
-    500: Color(0xFFB7774A),
-    1000: Color(0xFF4C7BD9),
-    2000: Color(0xFF8E6BD1),
-  };
 
   @override
   Widget build(BuildContext context) {
-    final d = twdDenomFor(amount);
-    final box = BoxDecoration(
-      color: Colors.white.withValues(alpha: 0.06),
-      borderRadius: BorderRadius.circular(size * 0.3),
-    );
-    final coin = _coin[d];
-    final Widget face;
-    if (coin != null) {
-      final s = size * 0.78;
-      face = Container(
-        width: s,
-        height: s,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: RadialGradient(
-            center: const Alignment(-0.35, -0.4),
-            radius: 0.95,
-            colors: [coin.$1, coin.$2],
-          ),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.55),
-            width: 1.2,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.35),
-              blurRadius: 3,
-              offset: const Offset(0, 1.5),
-            ),
-          ],
-        ),
-        child: Text(
-          '$d',
-          style: TextStyle(
-            fontSize: s * (d >= 10 ? 0.4 : 0.5),
-            fontWeight: FontWeight.w900,
-            height: 1,
-            color: Colors.black.withValues(alpha: 0.62),
-          ),
-        ),
-      );
-    } else {
-      final c = _note[d]!;
-      final w = size * 0.92, h = size * 0.56;
-      face = Container(
+    final w = size * 0.86, h = size * 0.54;
+    const green = Color(0xFF2FA866);
+    return Container(
+      key: const ValueKey('cashNote'),
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: green.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(size * 0.3),
+      ),
+      child: Container(
         width: w,
         height: h,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(size * 0.08),
-          gradient: LinearGradient(
+          borderRadius: BorderRadius.circular(size * 0.07),
+          gradient: const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color.lerp(c, Colors.white, .25)!, c],
+            colors: [Color(0xFF5FD08F), green],
           ),
           border: Border.all(
             color: Colors.white.withValues(alpha: 0.45),
@@ -265,35 +206,36 @@ class TwdMoneyIcon extends StatelessWidget {
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.35),
+              color: Colors.black.withValues(alpha: 0.3),
               blurRadius: 3,
               offset: const Offset(0, 1.5),
             ),
           ],
         ),
-        padding: EdgeInsets.symmetric(horizontal: w * 0.08),
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
+        // 中間一個圓、圓裡一個 $，像鈔票上的圖案。
+        child: Container(
+          width: h * 0.72,
+          height: h * 0.72,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.white.withValues(alpha: 0.22),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.55),
+              width: 1,
+            ),
+          ),
           child: Text(
-            '$d',
+            '\$',
             style: TextStyle(
-              fontSize: h * 0.52,
+              fontSize: h * 0.5,
               fontWeight: FontWeight.w900,
               height: 1,
               color: Colors.white,
-              letterSpacing: -0.3,
             ),
           ),
         ),
-      );
-    }
-    return Container(
-      key: ValueKey('twd_$d'),
-      width: size,
-      height: size,
-      decoration: box,
-      alignment: Alignment.center,
-      child: face,
+      ),
     );
   }
 }
@@ -325,22 +267,21 @@ class LedgerIcon extends StatelessWidget {
         errorBuilder: (_, _, _) =>
             Text(emoji, style: TextStyle(fontSize: size * 0.47)),
       );
-      if (b.mono) img = ColorFiltered(colorFilter: _mono, child: img);
       return Container(
         key: ValueKey('brand_${b.asset.split('/').last}'),
         width: size,
         height: size,
-        // 卡片四邊留空，不要被外框圓角裁到（2026-11-11 使用者）；素色 logo 也縮小一點。
+        // 卡片四邊留空，不要被外框圓角裁到（2026-11-11 使用者）；小 logo 也縮小一點。
         padding: b.card
             ? EdgeInsets.symmetric(horizontal: size * 0.1)
-            : b.mono
-            ? EdgeInsets.all(size * 0.24)
+            : b.pad
+            ? EdgeInsets.all(size * 0.22)
             : null,
         decoration: BoxDecoration(
-          color: b.card || b.mono ? Colors.white.withValues(alpha: 0.07) : null,
+          color: b.card || b.pad ? Colors.white.withValues(alpha: 0.07) : null,
           borderRadius: BorderRadius.circular(size * 0.3),
         ),
-        clipBehavior: b.card || b.mono ? Clip.none : Clip.antiAlias,
+        clipBehavior: b.card || b.pad ? Clip.none : Clip.antiAlias,
         alignment: Alignment.center,
         child: b.card
             ? ClipRRect(
@@ -472,6 +413,11 @@ class TxTile extends ConsumerWidget {
     sub.write('・');
     if (t.type == LedgerTxType.transfer) {
       sub.write('${book.fromLabel(t)} → ${book.toLabel(t)}');
+      if (t.isSplit) {
+        sub.write(
+          '・拆分 ${t.splits.map((s) => '${s.name.isNotEmpty ? '${s.name}（${s.category}）' : s.category}${lInt(s.amount)}').join('、')}',
+        );
+      }
       if (t.extAmount != null) sub.write(' ${lUsdt(t.extAmount!)} USDT');
     } else {
       sub.write(book.accountName(t.accountId));
@@ -563,11 +509,11 @@ class TxTile extends ConsumerWidget {
                         ),
                         child: Row(
                           children: [
-                            // 現金付的照金額顯示台幣硬幣／紙鈔（2026-11-11 使用者）。
+                            // 現金付的用一張綠色鈔票（2026-11-11 使用者）。
                             if ((t.type == LedgerTxType.expense ||
                                     t.type == LedgerTxType.income) &&
                                 acct?.type == LedgerAccountType.cash)
-                              TwdMoneyIcon(t.amount)
+                              const LedgerCashIcon()
                             else
                               LedgerIcon(
                                 emoji,

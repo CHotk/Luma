@@ -763,6 +763,8 @@ class LedgerBook {
   /// 這筆（或它原本的支出，退款時）算哪些分類。
   List<String> categoriesOf(LedgerTx t) {
     if (t.type == LedgerTxType.transfer && t.toOther) {
+      // 轉給他人有拆分：照拆的分類（2026-11-11 使用者）。
+      if (t.isSplit) return [for (final s in t.splits) s.category];
       return const [ledgerToOtherCat];
     }
     final src = t.type == LedgerTxType.refund ? tx(t.linkedId) : t;
@@ -806,7 +808,12 @@ class LedgerBook {
           if (t.category != ledgerFlatTransfer) income += t.amount;
         case LedgerTxType.transfer:
           // 轉給別人的戶頭：錢離開了，算一筆支出（2026-11-11 使用者）；轉給自己的帳戶不算。
-          if (t.toOther) addExtra(ledgerToOtherCat, t.amount);
+          // 轉給他人有拆分（2026-11-11 使用者：像支出一樣拆成分類／品項）：每一份照分類算消費。
+          if (t.toOther && t.isSplit) {
+            addShares(categoryShares(t, t.amount));
+          } else if (t.toOther) {
+            addExtra(ledgerToOtherCat, t.amount);
+          }
         case LedgerTxType.repayment:
           break;
       }

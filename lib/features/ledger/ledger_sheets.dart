@@ -1467,6 +1467,12 @@ class _TxFormState extends State<_TxForm> {
     return v == null || v <= 0 ? null : v;
   }
 
+  /// 現在有沒有在拆分：支出，或轉給他人的轉帳（2026-11-11 使用者）。
+  bool get _splitOn =>
+      _split &&
+      (_effType == LedgerTxType.expense ||
+          (_effType == LedgerTxType.transfer && _toOther));
+
   /// 支出分類選了「還款」：商家欄換成「還給誰」下拉選單。
   bool get _repay =>
       _effType == LedgerTxType.expense && _category == ledgerRepayCat;
@@ -1510,7 +1516,7 @@ class _TxFormState extends State<_TxForm> {
     if (_type == LedgerTxType.repayment && book.tx(_linked) == null) {
       return '要選還哪一筆';
     }
-    if (_type == LedgerTxType.expense && _split) {
+    if (_splitOn) {
       final amtAll = _int(_amount) ?? 0;
       if (_splitRows.length < 2) return '拆分至少要兩份';
       if (_splitRows.any((r) => (_int(r.amount) ?? 0) <= 0)) {
@@ -1550,7 +1556,7 @@ class _TxFormState extends State<_TxForm> {
     final hasCat = ty == LedgerTxType.expense || ty == LedgerTxType.income;
     final linked = ty == LedgerTxType.refund || ty == LedgerTxType.repayment;
     // 拆分：category 放金額最大的那份當代表，統計照 splits 算。
-    final splits = ty == LedgerTxType.expense && _split
+    final splits = _splitOn
         ? [
             for (final r in _splitRows)
               LedgerSplit(
@@ -1670,6 +1676,218 @@ class _TxFormState extends State<_TxForm> {
   /// 選填：這筆記下來之後，帳戶剩多少（信用卡是可刷餘額）。下一筆也有填的話，
   /// App 就能用「上次餘額 − 中間記到的」跟這次比，對不上就是中間漏記
   /// （2026-11-03 使用者）。轉帳（含繳卡費）可以兩邊帳戶各填一個。
+  /// 拆分的編輯區（支出、轉給他人的轉帳共用；2026-11-11 使用者：轉給他人也要能像支出一樣拆）。
+  List<Widget> _splitEditor() => [
+    _label('拆分（加起來要剛好等於整筆）'),
+    for (final (i, r) in _splitRows.indexed)
+      Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  flex: 5,
+                  // 拆分的分類也用毛玻璃按鈕＋毛玻璃選單（2026-11-11 使用者：跟其他欄位右邊的按鈕一樣 iOS 26 風格）。
+                  child: Builder(
+                    builder: (btn) => LedgerGlassButton(
+                      key: ValueKey('splitCat_$i'),
+                      onTap: () => _pickSplitCategory(btn, r),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              ledgerExpenseCats.containsKey(r.category)
+                                  ? '${ledgerExpenseCats[r.category]!.$1} ${r.category}'
+                                  : r.category,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const Icon(Icons.keyboard_arrow_down_rounded),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  flex: 4,
+                  child: TextField(
+                    controller: r.amount,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: _digits,
+                    decoration: _input('', prefix: '\$'),
+                  ),
+                ),
+                IconButton(
+                  tooltip: '刪掉這一份',
+                  onPressed: _splitRows.length <= 2
+                      ? null
+                      : () => setState(() {
+                          _disposeRow(_splitRows.removeAt(i));
+                        }),
+                  icon: const Icon(Icons.remove_circle_outline_rounded),
+                  color: AppColors.ink3,
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            // 品項名稱（選填）＋這一份是不是幫人付的、對方給了沒。
+            // 品項名稱跟「幫人付」按鈕同一行（2026-11-05 使用者）。
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: r.name,
+                    inputFormatters: halfWidthFormatters,
+                    maxLength: ledgerSplitNameMax,
+                    decoration: _input('品項名稱（選填）').copyWith(counterText: ''),
+                  ),
+                ),
+                // 轉帳（轉給他人）拆分沒有幫人付。
+                if (_effType == LedgerTxType.expense) ...[
+                  const SizedBox(width: 8),
+                  FilterChip(
+                    label: const Text('👥 幫人付'),
+                    selected: r.forOther,
+                    showCheckmark: false,
+                    onSelected: (v) => setState(() {
+                      r.forOther = v;
+                      if (!v) r.settled = false;
+                      // 前一份已經填了幫誰就直接帶過來，常常是同一個人。
+                      if (v && r.people.text.trim().isEmpty) {
+                        r.people.text =
+                            _splitRows
+                                .where(
+                                  (x) =>
+                                      x.forOther &&
+                                      x.people.text.trim().isNotEmpty,
+                                )
+                                .map((x) => x.people.text.trim())
+                                .firstOrNull ??
+                            _defaultPerson;
+                      }
+                    }),
+                  ),
+                ],
+              ],
+            ),
+            // 這一份幫誰：直接寫在這一份底下，可以打字或點最近幫過的人；
+            // 對方給了沒（已給）跟幫誰同一行。
+            if (r.forOther) ...[
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      key: ValueKey('splitPeople$i'),
+                      controller: r.people,
+                      inputFormatters: halfWidthFormatters,
+                      decoration: _input('幫誰（例如 Cen）'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  FilterChip(
+                    label: const Text('✓ 已給'),
+                    selected: r.settled,
+                    showCheckmark: false,
+                    onSelected: (v) => setState(() => r.settled = v),
+                  ),
+                ],
+              ),
+              // 這一份對方要給多少：不填＝整份；一人一半按「一半」（2026-11-09 使用者）。
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      key: ValueKey('splitOther$i'),
+                      controller: r.other,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: _digits,
+                      decoration: _input('對方要給多少（不填＝整份）', prefix: '\$ '),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ChoiceChip(
+                    label: const Text('一半'),
+                    selected:
+                        (_int(r.amount) ?? 0) > 1 &&
+                        r.other.text.isNotEmpty &&
+                        _rowOther(r) == (_int(r.amount) ?? 0) ~/ 2,
+                    showCheckmark: false,
+                    onSelected: (_) => setState(
+                      () => r.other.text = '${(_int(r.amount) ?? 0) ~/ 2}',
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  ChoiceChip(
+                    label: const Text('整份'),
+                    selected:
+                        r.other.text.isEmpty ||
+                        _rowOther(r) == (_int(r.amount) ?? 0),
+                    showCheckmark: false,
+                    onSelected: (_) => setState(() => r.other.clear()),
+                  ),
+                ],
+              ),
+              if (_pfPeopleOptions.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    children: [
+                      for (final n in _pfPeopleOptions)
+                        ChoiceChip(
+                          label: Text(n),
+                          selected: r.people.text.trim() == n,
+                          showCheckmark: false,
+                          onSelected: (_) => setState(() => r.people.text = n),
+                        ),
+                    ],
+                  ),
+                ),
+            ],
+          ],
+        ),
+      ),
+    Row(
+      children: [
+        TextButton.icon(
+          onPressed: () =>
+              setState(() => _splitRows.add(_newSplitRow('生活', ''))),
+          icon: const Icon(Icons.add_rounded, size: 18),
+          label: const Text('再加一份'),
+        ),
+        const Spacer(),
+        Text(
+          () {
+            final d = (_int(_amount) ?? 0) - _splitSum;
+            return d == 0
+                ? '✓ 剛好拆滿 ${lMoney(_int(_amount) ?? 0)}'
+                : d > 0
+                ? '還差 ${lMoney(d)}'
+                : '多了 ${lMoney(-d)}';
+          }(),
+          style: TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w700,
+            color: (_int(_amount) ?? 0) - _splitSum == 0
+                ? AppColors.ok
+                : AppColors.mid,
+          ),
+        ),
+      ],
+    ),
+    TextButton(
+      onPressed: () => _toggleSplit(false),
+      child: const Text('取消拆分，改回單一分類'),
+    ),
+  ];
+
   List<Widget> _afterField(LedgerTx? draft) {
     final from = _fromOutside ? null : book.account(_account);
     final isTransfer = _effType == LedgerTxType.transfer;
@@ -2451,6 +2669,21 @@ class _TxFormState extends State<_TxForm> {
               ),
             ),
           ],
+          // 轉給他人也能像支出一樣拆成好幾個分類／品項（2026-11-11 使用者）。
+          if (_toOther) ...[
+            if (_split)
+              ..._splitEditor()
+            else
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  key: const ValueKey('transferSplit'),
+                  onPressed: () => _toggleSplit(true),
+                  icon: const Icon(Icons.call_split_rounded, size: 18),
+                  label: const Text('拆分（分成不同分類／品項）'),
+                ),
+              ),
+          ],
           // 轉到信用卡＝繳卡費：只寫這一句（2026-11-03 使用者）。
           _note(
             _toOther
@@ -2619,218 +2852,7 @@ class _TxFormState extends State<_TxForm> {
             ),
           ),
           if (_split && t == LedgerTxType.expense) ...[
-            _label('拆分（加起來要剛好等於整筆）'),
-            for (final (i, r) in _splitRows.indexed)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          flex: 5,
-                          // 拆分的分類也用毛玻璃按鈕＋毛玻璃選單（2026-11-11 使用者：跟其他欄位右邊的按鈕一樣 iOS 26 風格）。
-                          child: Builder(
-                            builder: (btn) => LedgerGlassButton(
-                              key: ValueKey('splitCat_$i'),
-                              onTap: () => _pickSplitCategory(btn, r),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      ledgerExpenseCats.containsKey(r.category)
-                                          ? '${ledgerExpenseCats[r.category]!.$1} ${r.category}'
-                                          : r.category,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  const Icon(Icons.keyboard_arrow_down_rounded),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          flex: 4,
-                          child: TextField(
-                            controller: r.amount,
-                            keyboardType: TextInputType.number,
-                            inputFormatters: _digits,
-                            decoration: _input('', prefix: '\$'),
-                          ),
-                        ),
-                        IconButton(
-                          tooltip: '刪掉這一份',
-                          onPressed: _splitRows.length <= 2
-                              ? null
-                              : () => setState(() {
-                                  _disposeRow(_splitRows.removeAt(i));
-                                }),
-                          icon: const Icon(Icons.remove_circle_outline_rounded),
-                          color: AppColors.ink3,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    // 品項名稱（選填）＋這一份是不是幫人付的、對方給了沒。
-                    // 品項名稱跟「幫人付」按鈕同一行（2026-11-05 使用者）。
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: r.name,
-                            inputFormatters: halfWidthFormatters,
-                            maxLength: ledgerSplitNameMax,
-                            decoration: _input(
-                              '品項名稱（選填）',
-                            ).copyWith(counterText: ''),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        FilterChip(
-                          label: const Text('👥 幫人付'),
-                          selected: r.forOther,
-                          showCheckmark: false,
-                          onSelected: (v) => setState(() {
-                            r.forOther = v;
-                            if (!v) r.settled = false;
-                            // 前一份已經填了幫誰就直接帶過來，常常是同一個人。
-                            if (v && r.people.text.trim().isEmpty) {
-                              r.people.text =
-                                  _splitRows
-                                      .where(
-                                        (x) =>
-                                            x.forOther &&
-                                            x.people.text.trim().isNotEmpty,
-                                      )
-                                      .map((x) => x.people.text.trim())
-                                      .firstOrNull ??
-                                  _defaultPerson;
-                            }
-                          }),
-                        ),
-                      ],
-                    ),
-                    // 這一份幫誰：直接寫在這一份底下，可以打字或點最近幫過的人；
-                    // 對方給了沒（已給）跟幫誰同一行。
-                    if (r.forOther) ...[
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              key: ValueKey('splitPeople$i'),
-                              controller: r.people,
-                              inputFormatters: halfWidthFormatters,
-                              decoration: _input('幫誰（例如 Cen）'),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          FilterChip(
-                            label: const Text('✓ 已給'),
-                            selected: r.settled,
-                            showCheckmark: false,
-                            onSelected: (v) => setState(() => r.settled = v),
-                          ),
-                        ],
-                      ),
-                      // 這一份對方要給多少：不填＝整份；一人一半按「一半」（2026-11-09 使用者）。
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              key: ValueKey('splitOther$i'),
-                              controller: r.other,
-                              keyboardType: TextInputType.number,
-                              inputFormatters: _digits,
-                              decoration: _input(
-                                '對方要給多少（不填＝整份）',
-                                prefix: '\$ ',
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          ChoiceChip(
-                            label: const Text('一半'),
-                            selected:
-                                (_int(r.amount) ?? 0) > 1 &&
-                                r.other.text.isNotEmpty &&
-                                _rowOther(r) == (_int(r.amount) ?? 0) ~/ 2,
-                            showCheckmark: false,
-                            onSelected: (_) => setState(
-                              () => r.other.text =
-                                  '${(_int(r.amount) ?? 0) ~/ 2}',
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          ChoiceChip(
-                            label: const Text('整份'),
-                            selected:
-                                r.other.text.isEmpty ||
-                                _rowOther(r) == (_int(r.amount) ?? 0),
-                            showCheckmark: false,
-                            onSelected: (_) => setState(() => r.other.clear()),
-                          ),
-                        ],
-                      ),
-                      if (_pfPeopleOptions.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: Wrap(
-                            spacing: 6,
-                            runSpacing: 4,
-                            children: [
-                              for (final n in _pfPeopleOptions)
-                                ChoiceChip(
-                                  label: Text(n),
-                                  selected: r.people.text.trim() == n,
-                                  showCheckmark: false,
-                                  onSelected: (_) =>
-                                      setState(() => r.people.text = n),
-                                ),
-                            ],
-                          ),
-                        ),
-                    ],
-                  ],
-                ),
-              ),
-            Row(
-              children: [
-                TextButton.icon(
-                  onPressed: () =>
-                      setState(() => _splitRows.add(_newSplitRow('生活', ''))),
-                  icon: const Icon(Icons.add_rounded, size: 18),
-                  label: const Text('再加一份'),
-                ),
-                const Spacer(),
-                Text(
-                  () {
-                    final d = (_int(_amount) ?? 0) - _splitSum;
-                    return d == 0
-                        ? '✓ 剛好拆滿 ${lMoney(_int(_amount) ?? 0)}'
-                        : d > 0
-                        ? '還差 ${lMoney(d)}'
-                        : '多了 ${lMoney(-d)}';
-                  }(),
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w700,
-                    color: (_int(_amount) ?? 0) - _splitSum == 0
-                        ? AppColors.ok
-                        : AppColors.mid,
-                  ),
-                ),
-              ],
-            ),
-            TextButton(
-              onPressed: () => _toggleSplit(false),
-              child: const Text('取消拆分，改回單一分類'),
-            ),
+            ..._splitEditor(),
           ] else ...[
             _chipRow(
               '分類',

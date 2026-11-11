@@ -416,20 +416,40 @@ void main() {
     );
     String? a(LedgerTx t) => ledgerBrandOf(b, t)?.asset.split('/').last;
     expect(a(tx(LedgerTxType.transfer, to: 'cash')), isNull, reason: 'ATM');
-    expect(a(tx(LedgerTxType.transfer, toName: 'LineBank')), 'linebank.png');
+    // icon 由錢從哪裡出去決定：中信帳戶平轉到 LineBank＝中信；從 LineBank 轉出＝LINE Bank。
+    expect(a(tx(LedgerTxType.transfer, toName: 'LineBank')), 'ctbc.png');
+    expect(
+      a(tx(LedgerTxType.transfer, acc: 'cash', toName: 'LineBank')),
+      isNull,
+      reason: '轉出那邊（現金）沒有品牌就用原本的，不看轉入',
+    );
     expect(
       a(tx(LedgerTxType.transfer, acc: '', fromName: 'LineBank', to: 'bank')),
       'linebank.png',
     );
     expect(a(tx(LedgerTxType.expense, acc: 'card')), 'ctbc_linepay.png');
-    expect(a(tx(LedgerTxType.transfer, to: 'card')), 'ctbc_linepay.png');
+    // 錢從中信帳戶出去的支出也是中信 logo。
+    expect(a(tx(LedgerTxType.expense)), 'ctbc.png');
+    // 純收款看哪邊收錢：薪水進中信帳戶＝中信；進現金＝原本的。
+    expect(a(tx(LedgerTxType.income)), 'ctbc.png');
+    expect(a(tx(LedgerTxType.income, acc: 'cash')), isNull);
+    expect(
+      a(tx(LedgerTxType.transfer, to: 'card')),
+      'ctbc.png',
+      reason: '繳卡費看轉出的中信帳戶',
+    );
+    expect(
+      a(tx(LedgerTxType.transfer, acc: 'cash', to: 'card')),
+      isNull,
+      reason: '從現金繳卡費，錢從現金出去',
+    );
     expect(
       a(tx(LedgerTxType.transfer, toName: '虛擬貨幣')),
       'ctbc.png',
       reason: '中信帳戶轉出',
     );
     expect(
-      ledgerBrandOf(b, tx(LedgerTxType.transfer, toName: '虛擬貨幣'))!.mono,
+      ledgerBrandOf(b, tx(LedgerTxType.transfer, toName: '虛擬貨幣'))!.pad,
       isTrue,
     );
     expect(a(tx(LedgerTxType.expense, acc: 'cash')), isNull);
@@ -485,21 +505,6 @@ void main() {
         if (c.selected) label(c),
     ];
     expect(selected, ['支出'], reason: '只有上面的類型是選著的');
-  });
-
-  test('現金照金額顯示台幣面額：5 元以內 1 元、10 元以內 5 元，以此類推', () {
-    expect(twdDenomFor(3), 1);
-    expect(twdDenomFor(5), 1);
-    expect(twdDenomFor(6), 5);
-    expect(twdDenomFor(10), 5);
-    expect(twdDenomFor(11), 10);
-    expect(twdDenomFor(50), 10);
-    expect(twdDenomFor(80), 50);
-    expect(twdDenomFor(120), 100);
-    expect(twdDenomFor(300), 200);
-    expect(twdDenomFor(800), 500);
-    expect(twdDenomFor(1500), 1000);
-    expect(twdDenomFor(5000), 2000);
   });
 
   testWidgets('商家下拉不列刷卡（信用卡）的商家', (tester) async {
