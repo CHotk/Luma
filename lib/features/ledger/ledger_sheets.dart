@@ -915,6 +915,10 @@ class _TxFormState extends State<_TxForm> {
       if (_pfPeople.text.trim().isEmpty) _pfPeople.text = _pfPeopleText;
     }
     _split = on;
+    if (on && _splitRows.isEmpty && _canSpendPart) {
+      _splitRows.add(_newSplitRow(ledgerUncategorized, ''));
+      return;
+    }
     if (on && _splitRows.isEmpty) {
       final all = _int(_amount) ?? 0;
       _splitRows
@@ -1045,7 +1049,9 @@ class _TxFormState extends State<_TxForm> {
     _confirmed = e?.confirmed ?? false;
     _pf = e?.paidFor != null || p.paidFor;
     _pfSettled = e?.paidFor?.settled ?? false;
-    if (e != null && e.isSplit) {
+    if (e != null &&
+        (e.isSplit ||
+            (e.type == LedgerTxType.transfer && e.splits.isNotEmpty))) {
       _split = true;
       for (final x in e.splits) {
         _splitRows.add(
@@ -1473,6 +1479,14 @@ class _TxFormState extends State<_TxForm> {
       (_effType == LedgerTxType.expense ||
           (_effType == LedgerTxType.transfer && _toOther));
 
+  /// 轉給自己的帳戶，其中一部分是花掉的（2026-11-11 使用者：轉兩萬請人幫忙領現金、其中一千送他）。
+  bool get _canSpendPart =>
+      _effType == LedgerTxType.transfer &&
+      !_toOther &&
+      !_neg &&
+      (_to != null || _toExt.isNotEmpty);
+  bool get _spendOn => _split && _canSpendPart;
+
   /// 支出分類選了「還款」：商家欄換成「還給誰」下拉選單。
   bool get _repay =>
       _effType == LedgerTxType.expense && _category == ledgerRepayCat;
@@ -1516,6 +1530,16 @@ class _TxFormState extends State<_TxForm> {
     if (_type == LedgerTxType.repayment && book.tx(_linked) == null) {
       return '要選還哪一筆';
     }
+    if (_spendOn) {
+      final amtAll = _int(_amount) ?? 0;
+      if (_splitRows.isEmpty) return '至少要一份花掉的';
+      if (_splitRows.any((r) => (_int(r.amount) ?? 0) <= 0)) {
+        return '每一份都要填金額（不要的份請按刪除）';
+      }
+      if (_splitSum >= amtAll) {
+        return '花掉的加起來要比整筆 ${lMoney(amtAll)} 少（全部都花掉就改選他人戶頭）';
+      }
+    }
     if (_splitOn) {
       final amtAll = _int(_amount) ?? 0;
       if (_splitRows.length < 2) return '拆分至少要兩份';
@@ -1556,7 +1580,7 @@ class _TxFormState extends State<_TxForm> {
     final hasCat = ty == LedgerTxType.expense || ty == LedgerTxType.income;
     final linked = ty == LedgerTxType.refund || ty == LedgerTxType.repayment;
     // 拆分：category 放金額最大的那份當代表，統計照 splits 算。
-    final splits = _splitOn
+    final splits = _splitOn || _spendOn
         ? [
             for (final r in _splitRows)
               LedgerSplit(
@@ -1678,7 +1702,7 @@ class _TxFormState extends State<_TxForm> {
   /// （2026-11-03 使用者）。轉帳（含繳卡費）可以兩邊帳戶各填一個。
   /// 拆分的編輯區（支出、轉給他人的轉帳共用；2026-11-11 使用者：轉給他人也要能像支出一樣拆）。
   List<Widget> _splitEditor() => [
-    _label('拆分（加起來要剛好等於整筆）'),
+    _label(_canSpendPart ? '花掉的部分（其餘照樣轉過去）' : '拆分（加起來要剛好等於整筆）'),
     for (final (i, r) in _splitRows.indexed)
       Padding(
         padding: const EdgeInsets.only(bottom: 12),
@@ -1723,7 +1747,7 @@ class _TxFormState extends State<_TxForm> {
                 ),
                 IconButton(
                   tooltip: '刪掉這一份',
-                  onPressed: _splitRows.length <= 2
+                  onPressed: _splitRows.length <= (_canSpendPart ? 1 : 2)
                       ? null
                       : () => setState(() {
                           _disposeRow(_splitRows.removeAt(i));
@@ -1866,6 +1890,10 @@ class _TxFormState extends State<_TxForm> {
         Text(
           () {
             final d = (_int(_amount) ?? 0) - _splitSum;
+            if (_canSpendPart) {
+              final dest = _toExt.isNotEmpty ? _toExt : book.accountName(_to);
+              return d > 0 ? '其餘 ${lMoney(d)} 轉到 $dest' : '花掉的比整筆還多';
+            }
             return d == 0
                 ? '✓ 剛好拆滿 ${lMoney(_int(_amount) ?? 0)}'
                 : d > 0
@@ -1875,7 +1903,10 @@ class _TxFormState extends State<_TxForm> {
           style: TextStyle(
             fontSize: 12.5,
             fontWeight: FontWeight.w700,
-            color: (_int(_amount) ?? 0) - _splitSum == 0
+            color:
+                (_canSpendPart
+                    ? (_int(_amount) ?? 0) > _splitSum
+                    : (_int(_amount) ?? 0) == _splitSum)
                 ? AppColors.ok
                 : AppColors.mid,
           ),
@@ -1884,7 +1915,7 @@ class _TxFormState extends State<_TxForm> {
     ),
     TextButton(
       onPressed: () => _toggleSplit(false),
-      child: const Text('取消拆分，改回單一分類'),
+      child: Text(_canSpendPart ? '取消（整筆都轉過去）' : '取消拆分，改回單一分類'),
     ),
   ];
 
@@ -2049,7 +2080,10 @@ class _TxFormState extends State<_TxForm> {
       final out = ty == LedgerTxType.expense || ty == LedgerTxType.transfer;
       d += out ? -s * amt : s * amt;
     }
-    if (to == a.id && _toExt.isEmpty && !_toOther) d += s * amt;
+    if (to == a.id && _toExt.isEmpty && !_toOther) {
+      // 有花掉的部分：只有其餘的轉進來。
+      d += s * (amt - (_spendOn ? _splitSum : 0));
+    }
     return d;
   }
 
@@ -2683,6 +2717,21 @@ class _TxFormState extends State<_TxForm> {
             ),
           ],
           // 轉給他人也能像支出一樣拆成好幾個分類／品項（2026-11-11 使用者）。
+          // 轉給自己的帳戶，其中一部分是花掉的（送人、手續費…）（2026-11-11 使用者）。
+          if (_canSpendPart) ...[
+            if (_split)
+              ..._splitEditor()
+            else
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  key: const ValueKey('transferSpend'),
+                  onPressed: () => _toggleSplit(true),
+                  icon: const Icon(Icons.call_split_rounded, size: 18),
+                  label: const Text('拆分：其中一部分是花掉的（送人、手續費…）'),
+                ),
+              ),
+          ],
           if (_toOther) ...[
             if (_split)
               ..._splitEditor()

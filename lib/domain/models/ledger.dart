@@ -330,6 +330,18 @@ class LedgerTx {
   final List<LedgerSplit> splits;
   bool get isSplit => splits.length >= 2;
 
+  /// 轉給自己帳戶的轉帳裡「花掉的部分」（2026-11-11 使用者：轉兩萬給人幫忙領現金，其中一千
+  /// 是送他的）：[splits] 放花掉的那幾份（一份也可以），其餘照樣轉進去。轉給他人的轉帳拆分是
+  /// 整筆拆滿，不是這種。
+  List<LedgerSplit> get spentParts =>
+      type == LedgerTxType.transfer && !toOther ? splits : const [];
+
+  /// 花掉的部分加起來。
+  int get spentSum => spentParts.fold(0, (s, x) => s + x.amount);
+
+  /// 真的轉進目的帳戶的錢（扣掉花掉的部分）。
+  int get transferIn => amount - spentSum;
+
   /// 拆分裡有標「幫人付」的那幾份。
   bool get splitHasOther => isSplit && splits.any((s) => s.forOther);
 

@@ -24,6 +24,9 @@ const ledgerExpenseCats = <String, (String, int)>{
   '菸酒': ('🍺', 0xFFD9A066),
   // 還款（2026-11-11 使用者）：還給誰用下拉選單選，見 [ledgerRepayTargets]。
   '還款': ('💸', 0xFFFF8A65),
+  // 沖銷（2026-11-11 使用者：記帳總會有漏，對帳少了錢就記一筆沖銷，月底看實際漏記多少）。
+  // 照樣算消費（錢確實花掉了），統計裡單獨一個分類。
+  '沖銷': ('🩹', 0xFFB0A4C8),
   // 創業兩個放最底下，最後一個一定是「未分類」（2026-11-11 使用者）。
   '創業魔物童話': ('🐉', 0xFFE08FD0),
   '創業交友APP': ('💘', 0xFFFF8FB1),
@@ -32,6 +35,9 @@ const ledgerExpenseCats = <String, (String, int)>{
 
 /// 轉帳給別人的戶頭（[LedgerTx.toOther]）算的分類：轉帳本身就是一種支出，不用選支出分類。
 const ledgerToOtherCat = '轉給他人';
+
+/// 支出分類「沖銷」：漏記的錢（對帳少了錢補記時的預設分類）。
+const ledgerWriteOffCat = '沖銷';
 
 /// 支出分類「還款」。
 const ledgerRepayCat = '還款';
@@ -437,7 +443,11 @@ class LedgerBook {
           !t.toOther &&
           t.toAccountId == null &&
           t.toName == name) {
-        sum = t.toAfter ?? sum + delta(t, 1);
+        // 有花掉的部分：轉進去的只有其餘（填了 USDT 的照填的，那就是實際換到的）。
+        final inPart = t.extAmount != null || t.amount == 0
+            ? delta(t, 1)
+            : delta(t, 1) * t.transferIn / t.amount;
+        sum = t.toAfter ?? sum + inPart;
       } else if (t.type == LedgerTxType.income &&
           t.category == ledgerFlatTransfer &&
           t.toName == name) {
@@ -567,7 +577,8 @@ class LedgerBook {
       d += out ? -s * t.amount : s * t.amount;
     }
     if (t.type == LedgerTxType.transfer && t.toAccountId == a.id) {
-      d += s * t.amount;
+      // 有花掉的部分：只有其餘的轉進來（2026-11-11 使用者）。
+      d += s * t.transferIn;
     }
     return d;
   }
@@ -786,6 +797,9 @@ class LedgerBook {
       if (t.isSplit) return [for (final s in t.splits) s.category];
       return const [ledgerToOtherCat];
     }
+    if (t.type == LedgerTxType.transfer) {
+      return [for (final s in t.spentParts) s.category];
+    }
     final src = t.type == LedgerTxType.refund ? tx(t.linkedId) : t;
     if (src == null) return const [];
     if (src.isSplit) return [for (final s in src.splits) s.category];
@@ -832,6 +846,13 @@ class LedgerBook {
             addShares(categoryShares(t, t.amount));
           } else if (t.toOther) {
             addExtra(ledgerToOtherCat, t.amount);
+          } else if (t.spentParts.isNotEmpty) {
+            // 轉給自己的帳戶、其中花掉的部分照分類算消費（2026-11-11 使用者）。
+            final m = <String, int>{};
+            for (final s in t.spentParts) {
+              m[s.category] = (m[s.category] ?? 0) + s.amount;
+            }
+            addShares(m);
           }
         case LedgerTxType.repayment:
           break;

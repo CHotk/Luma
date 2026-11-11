@@ -565,6 +565,100 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  test('轉給自己帳戶、其中一部分花掉：目的帳戶只進其餘的，花掉的算消費', () {
+    const bank = LedgerAccount(
+      id: 'bank',
+      name: '中信帳戶',
+      type: LedgerAccountType.bank,
+    );
+    const cash = LedgerAccount(
+      id: 'cash',
+      name: '現金',
+      type: LedgerAccountType.cash,
+    );
+    final t = LedgerTx(
+      id: 't',
+      type: LedgerTxType.transfer,
+      occurredAt: DateTime(2026, 11, 5),
+      amount: 20000,
+      accountId: 'bank',
+      toAccountId: 'cash',
+      splits: const [LedgerSplit(category: '生活', amount: 1000, name: '送他')],
+    );
+    expect(t.spentSum, 1000);
+    expect(t.transferIn, 19000);
+    expect(LedgerBook.delta(t, bank), -20000);
+    expect(LedgerBook.delta(t, cash), 19000);
+    final b = LedgerBook(
+      accounts: const [bank, cash],
+      checkpoints: const [],
+      budgets: const [],
+      txs: [t],
+    );
+    final s = b.statsWhere((_) => true);
+    expect(s.spend, 1000);
+    expect(s.byCategory['生活'], 1000);
+    expect(b.categoriesOf(t), ['生活']);
+    final j = LedgerTx.fromJson(t.toJson());
+    expect(j.spentSum, 1000);
+  });
+
+  testWidgets('轉帳轉到自己的帳戶有「其中一部分是花掉的」，填了寫其餘轉過去多少', (tester) async {
+    final store = _MemoryStore();
+    final (repo, bank, _) = await setup(tester, store);
+    await repo.addAccount(
+      name: '現金',
+      type: LedgerAccountType.cash,
+      opening: 0,
+      openingAt: DateTime(2026, 11, 1),
+    );
+    await open(tester, store);
+    await tester.tap(find.byType(FloatingActionButton));
+    await settle(tester);
+    await tester.tap(find.widgetWithText(ChoiceChip, '轉帳'));
+    await settle(tester);
+    await tester.ensureVisible(find.widgetWithText(ChoiceChip, '🪙 現金').last);
+    await tester.tap(find.widgetWithText(ChoiceChip, '🪙 現金').last);
+    await settle(tester);
+    final amountField = find.byWidgetPredicate(
+      (w) => w is TextField && w.decoration?.hintText == '0' && w.key == null,
+    );
+    await tester.enterText(amountField, '20000');
+    await tester.pump();
+    final btn = find.byKey(const ValueKey('transferSpend'));
+    await tester.ensureVisible(btn);
+    await tester.tap(btn);
+    await settle(tester);
+    expect(find.text('花掉的部分（其餘照樣轉過去）'), findsOneWidget);
+    expect(find.textContaining('其餘 \$20,000 轉到 現金'), findsOneWidget);
+    expect(find.text('👥 幫人付'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  test('支出有「沖銷」分類（在還款後面），照樣算消費、統計單獨一類', () {
+    final keys = ledgerExpenseCats.keys.toList();
+    expect(keys.indexOf('沖銷'), keys.indexOf('還款') + 1);
+    expect(keys.last, '未分類');
+    final b = LedgerBook(
+      accounts: const [],
+      checkpoints: const [],
+      budgets: const [],
+      txs: [
+        LedgerTx(
+          id: 'w',
+          type: LedgerTxType.expense,
+          occurredAt: DateTime(2026, 11, 30),
+          amount: 350,
+          accountId: 'bank',
+          category: ledgerWriteOffCat,
+        ),
+      ],
+    );
+    final s = b.statsWhere((_) => true);
+    expect(s.spend, 350);
+    expect(s.byCategory['沖銷'], 350);
+  });
+
   testWidgets('商家下拉不列刷卡（信用卡）的商家', (tester) async {
     final store = _MemoryStore();
     final (repo, bank, card) = await setup(tester, store);

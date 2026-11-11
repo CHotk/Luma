@@ -368,7 +368,7 @@ class TxTile extends ConsumerWidget {
     sub.write('・');
     if (t.type == LedgerTxType.transfer) {
       sub.write('${book.fromLabel(t)} → ${book.toLabel(t)}');
-      if (t.isSplit) {
+      if (t.splits.isNotEmpty) {
         sub.write(
           '・拆分 ${t.splits.map((s) => '${s.name.isNotEmpty ? '${s.name}（${s.category}）' : s.category}${lInt(s.amount)}').join('、')}',
         );
@@ -414,6 +414,8 @@ class TxTile extends ConsumerWidget {
                 AppColors.ink3,
                 t.toOther
                     ? '轉給他人'
+                    : t.spentSum > 0
+                    ? '含花費 ${lMoney(t.spentSum)}'
                     : t.toName.isNotEmpty || t.fromName.isNotEmpty
                     ? '平轉'
                     : '不算支出',

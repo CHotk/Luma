@@ -514,7 +514,8 @@ Future<void> fixAddFlow(
       type: t.miss > 0 ? LedgerTxType.expense : LedgerTxType.income,
       amount: t.miss.abs(),
       accountId: account.id,
-      category: t.miss > 0 ? ledgerUncategorized : '其他收入',
+      // 少了錢補記：預設「沖銷」（2026-11-11 使用者：月底看實際漏記多少）。
+      category: t.miss > 0 ? ledgerWriteOffCat : '其他收入',
       at: t.at,
       cpId: t.cp.id,
     ),
