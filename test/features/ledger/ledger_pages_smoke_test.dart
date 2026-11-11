@@ -1927,7 +1927,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('明細每一條的圖示看付款方式：現金＝鈔票、刷卡＝信用卡，轉帳照原本的符號', (tester) async {
+  testWidgets('明細每一條的圖示看付款方式：現金＝金幣、刷卡＝信用卡，轉帳照原本的符號', (tester) async {
     final store = await seeded();
     final repo = LedgerRepository(store);
     final b = await tester.runAsync(() => repo.loadBook());
@@ -1948,7 +1948,7 @@ void main() {
       ),
     );
     await pump(tester, const LedgerPage(tab: LedgerTab.list), store);
-    expect(find.text('💵'), findsOneWidget, reason: '現金那筆');
+    expect(find.text('🪙'), findsOneWidget, reason: '現金那筆');
     expect(find.text('💳'), findsOneWidget, reason: '刷卡那筆（鼎泰豐）');
     expect(find.text('⇄'), findsOneWidget, reason: '轉帳照原本的符號');
     expect(tester.takeException(), isNull);

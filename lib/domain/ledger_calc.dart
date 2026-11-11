@@ -41,7 +41,7 @@ const ledgerRepayCat = '還款';
 const ledgerTransferExts = <(String, String)>[
   ('LineBank', '🏦'),
   ('富邦', '🏦'),
-  ('虛擬貨幣', '🪙'),
+  ('虛擬貨幣', '💎'),
 ];
 
 /// 虛擬貨幣（USDT）粗估換算台幣用的匯率（2026-11-11 使用者：填 USDT 順便顯示 ×32 的粗估台幣）。
@@ -411,6 +411,10 @@ class LedgerBook {
           t.toName == name) {
         sum -= t.amount;
       }
+      // 從那邊轉出去（轉帳的「從哪個帳戶」選了它）。
+      if (t.type == LedgerTxType.transfer && t.fromName == name) {
+        sum -= t.amount;
+      }
     }
     return sum;
   }
@@ -426,11 +430,18 @@ class LedgerBook {
           t.toName == ledgerCryptoExt) {
         sum += t.extAmount ?? t.amount / ledgerUsdtRoughRate;
       }
+      if (t.type == LedgerTxType.transfer && t.fromName == ledgerCryptoExt) {
+        sum -= t.extAmount ?? t.amount / ledgerUsdtRoughRate;
+      }
     }
     return sum;
   }
 
   /// 轉帳「轉到」那邊的名稱：記在 App 裡的帳戶用它的名字，沒記的（LineBank）用 [LedgerTx.toName]。
+  /// 轉帳「從哪」那邊的名稱：沒記在 App 裡的（LineBank／富邦／虛擬貨幣）用 [LedgerTx.fromName]。
+  String fromLabel(LedgerTx t) =>
+      t.fromName.isNotEmpty ? t.fromName : accountName(t.accountId);
+
   String toLabel(LedgerTx t) => t.toAccountId == null && t.toName.isNotEmpty
       ? t.toName
       : accountName(t.toAccountId);
@@ -799,10 +810,13 @@ class LedgerBook {
       t.category ?? '',
       for (final s in t.splits) ...[s.category, s.name, s.people],
       t.type.label,
-      accountName(t.accountId),
+      fromLabel(t),
       if (t.toAccountId != null) accountName(t.toAccountId),
       t.toName,
-      if (t.toOther) '轉給他人' else if (t.toName.isNotEmpty) '平轉',
+      if (t.toOther)
+        '轉給他人'
+      else if (t.toName.isNotEmpty || t.fromName.isNotEmpty)
+        '平轉',
       t.paidFor?.people ?? '',
       if (t.paidFor != null) t.paidFor!.settled ? '已給 給了' : '還沒給 要給',
       if (t.flagged) '旗幟 標記 旗 要注意',

@@ -239,7 +239,7 @@ void main() {
           type: LedgerTxType.expense,
           occurredAt: noon,
           amount: 10 + i,
-          accountId: book0.accounts.first.id,
+          accountId: book0.accounts.firstWhere((a) => !a.isCard).id,
           category: '餐飲',
           merchant: i == 24 ? '鼎泰豐' : '店$i',
         ),

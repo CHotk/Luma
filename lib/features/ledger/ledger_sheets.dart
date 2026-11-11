@@ -947,6 +947,13 @@ class _TxFormState extends State<_TxForm> {
   /// 轉到「沒記在 App 裡」的自己的戶頭（目前只有 LineBank，2026-11-10 使用者）：空字串＝沒選。
   String _toExt = '';
 
+  /// 轉帳從「沒記在 App 裡」的自己的地方轉出（LineBank／富邦／虛擬貨幣）：空字串＝從 App 裡的帳戶。
+  String _srcExt = '';
+
+  /// 轉帳現在是不是從沒記在 App 裡的地方轉出。
+  bool get _fromOutside =>
+      _effType == LedgerTxType.transfer && _srcExt.isNotEmpty;
+
   /// 排序數字（從 1 開始、最大 99；0 不算，沒填＝沒設定＝0，排在有時分的後面）。
   int get _orderValue =>
       (int.tryParse(_order.text.trim()) ?? 0).clamp(0, ledgerTimeOrderMax);
@@ -969,6 +976,7 @@ class _TxFormState extends State<_TxForm> {
         ? (e?.toName ?? '')
         : '';
     _fromExt = e?.type == LedgerTxType.income ? (e?.toName ?? '') : '';
+    _srcExt = e?.type == LedgerTxType.transfer ? (e?.fromName ?? '') : '';
     _category = e?.category ?? p.category ?? '';
     _merchant = TextEditingController(text: e?.merchant ?? '');
     _usdt = TextEditingController(
@@ -1107,7 +1115,10 @@ class _TxFormState extends State<_TxForm> {
       case LedgerTxType.transfer:
         // 信用卡不能當轉出的帳戶（2026-11-11 使用者）：頂多繳卡費是戶頭轉到信用卡。
         // 編輯舊資料不偷換帳戶（以前可能記過信用卡轉出）。
-        if (!valid(_account, widget.edit == null ? (a) => !a.isCard : null)) {
+        if (!valid(
+          _account,
+          widget.edit?.type == LedgerTxType.transfer ? null : (a) => !a.isCard,
+        )) {
           _account =
               (_firstOf(LedgerAccountType.bank) ??
                       accounts.where((a) => !a.isCard).firstOrNull)
@@ -1189,6 +1200,7 @@ class _TxFormState extends State<_TxForm> {
           ? LedgerTxType.income
           : LedgerTxType.expense;
       _toOther = false;
+      _srcExt = '';
       _amount.text = '${t.amount}';
       _account = t.accountId;
       _to = t.toAccountId;
@@ -1213,6 +1225,20 @@ class _TxFormState extends State<_TxForm> {
     });
   }
 
+  /// 編輯時上面那排也能切 支出／收入／轉帳（2026-11-11 使用者）。不能切的：退款、還錢、
+  /// 對帳調整、有退款或還錢連著的那筆（切了會把它們孤立）。
+  bool get _canSwitchType {
+    final e = widget.edit;
+    if (e == null) return false;
+    return const {
+          LedgerTxType.expense,
+          LedgerTxType.income,
+          LedgerTxType.transfer,
+        }.contains(e.type) &&
+        e.cpId == null &&
+        book.linkedTo(e.id).isEmpty;
+  }
+
   void _setType(LedgerTxType t) => setState(() {
     _type = t;
     _applyDefaults(fillAmount: true);
@@ -1226,7 +1252,10 @@ class _TxFormState extends State<_TxForm> {
   /// 轉帳按了「＋」：主帳戶（上面那排）是收到錢的那邊，存的時候兩個帳戶對調
   /// （信用卡 → 帳戶＝卡費退回就是這種）。
   bool get _neg =>
-      _negative && _effType == LedgerTxType.transfer && _toExt.isEmpty;
+      _negative &&
+      _effType == LedgerTxType.transfer &&
+      _toExt.isEmpty &&
+      _srcExt.isEmpty;
 
   /// 金額最後面的「＋／−」鈕（2026-11-10 使用者：每種都要有、都要有實際功能）：
   /// 「−」＝錢從這個帳戶出去，「＋」＝錢進來。
@@ -1243,7 +1272,7 @@ class _TxFormState extends State<_TxForm> {
     }
     if (e != null && e.type == LedgerTxType.repayment) return false;
     return switch (_type) {
-      LedgerTxType.transfer => !_toOther && _toExt.isEmpty,
+      LedgerTxType.transfer => !_toOther && _toExt.isEmpty && _srcExt.isEmpty,
       LedgerTxType.expense ||
       LedgerTxType.income ||
       LedgerTxType.refund ||
@@ -1299,12 +1328,18 @@ class _TxFormState extends State<_TxForm> {
   /// 轉帳、還錢各看各自那一類；繳卡費自動帶的名稱不算。
   List<String> get _recentMerchants {
     final ty = _effType;
-    final list = [...book.txs.where((x) => x.type == ty)]
-      ..sort(
-        (a, b) => (b.createdAt ?? b.occurredAt).compareTo(
-          a.createdAt ?? a.occurredAt,
-        ),
-      );
+    // 刷卡（中信卡等信用卡）的商家名稱是帳單上的怪名字，不列（2026-11-11 使用者）；
+    // 跳過的不算，照樣湊滿 20 個。
+    final list =
+        [
+          ...book.txs.where(
+            (x) => x.type == ty && book.account(x.accountId)?.isCard != true,
+          ),
+        ]..sort(
+          (a, b) => (b.createdAt ?? b.occurredAt).compareTo(
+            a.createdAt ?? a.occurredAt,
+          ),
+        );
     final out = <String>[];
     for (final x in list) {
       final m = x.merchant.trim();
@@ -1341,8 +1376,10 @@ class _TxFormState extends State<_TxForm> {
 
   /// 轉到虛擬貨幣時填的 USDT（沒填或不是轉到虛擬貨幣＝null）。
   double? get _usdtValue {
-    if (_type != LedgerTxType.transfer || _toExt != ledgerCryptoExt)
+    if (_type != LedgerTxType.transfer ||
+        (_toExt != ledgerCryptoExt && _srcExt != ledgerCryptoExt)) {
       return null;
+    }
     final v = double.tryParse(_usdt.text.trim());
     return v == null || v <= 0 ? null : v;
   }
@@ -1363,7 +1400,7 @@ class _TxFormState extends State<_TxForm> {
           ? '要填誰的戶頭'
           : '商家名稱要填';
     }
-    if (book.account(_account) == null) return '要選帳戶';
+    if (!_fromOutside && book.account(_account) == null) return '要選帳戶';
     // 只擋新記的；以前記的平轉沒有來源戶頭，編輯時不擋。
     if (widget.edit == null &&
         _effType == LedgerTxType.income &&
@@ -1375,7 +1412,8 @@ class _TxFormState extends State<_TxForm> {
       if (!_toOther && _toExt.isEmpty && book.account(_to) == null) {
         return '要選轉到哪個帳戶';
       }
-      if (_to == _account) return '轉出跟轉入不能是同一個帳戶';
+      if (!_fromOutside && _to == _account) return '轉出跟轉入不能是同一個帳戶';
+      if (_srcExt.isNotEmpty && _srcExt == _toExt) return '轉出跟轉入不能是同一個地方';
     }
     if (_type == LedgerTxType.refund && book.tx(_linked) == null) {
       return '要選退哪一筆';
@@ -1455,7 +1493,8 @@ class _TxFormState extends State<_TxForm> {
         timeOrder: _timeUnknown ? _orderValue : 0,
         amount: amt,
         // 卡費退回：存成信用卡 → 帳戶（跟繳卡費方向相反）。
-        accountId: _neg ? _to! : _account,
+        accountId: _fromOutside ? '' : (_neg ? _to! : _account),
+        fromName: _fromOutside ? _srcExt : '',
         toAccountId: () => ty == LedgerTxType.transfer
             ? (_neg ? _account : (_toExt.isEmpty ? _to : null))
             : null,
@@ -1487,7 +1526,8 @@ class _TxFormState extends State<_TxForm> {
       timeUnknown: _timeUnknown,
       timeOrder: _timeUnknown ? _orderValue : 0,
       amount: amt,
-      accountId: _neg ? _to! : _account!,
+      accountId: _fromOutside ? '' : (_neg ? _to! : _account!),
+      fromName: _fromOutside ? _srcExt : '',
       toAccountId: ty == LedgerTxType.transfer
           ? (_neg ? _account : (_toExt.isEmpty ? _to : null))
           : null,
@@ -1534,49 +1574,53 @@ class _TxFormState extends State<_TxForm> {
   /// App 就能用「上次餘額 − 中間記到的」跟這次比，對不上就是中間漏記
   /// （2026-11-03 使用者）。轉帳（含繳卡費）可以兩邊帳戶各填一個。
   List<Widget> _afterField(LedgerTx? draft) {
-    final from = book.account(_account);
-    if (from == null) return const [];
+    final from = _fromOutside ? null : book.account(_account);
     final isTransfer = _effType == LedgerTxType.transfer;
-    final to = isTransfer ? book.account(_to) : null;
+    if (from == null && !_fromOutside) return const [];
+    final to = isTransfer && _toExt.isEmpty && !_toOther
+        ? book.account(_to)
+        : null;
     return [
-      ..._afterBox(
-        draft,
-        from,
-        _after,
-        _afterLabel(from, transfer: isTransfer),
-      ),
+      if (from != null)
+        ..._afterBox(
+          draft,
+          from,
+          _after,
+          _afterLabel(from, transfer: isTransfer),
+        ),
+      if (_fromOutside) _extAfter(_srcExt, out: true),
       if (to != null)
         ..._afterBox(draft, to, _afterTo, _afterLabel(to, transfer: true)),
       // 轉到沒記在 App 裡的地方（LineBank／富邦／虛擬貨幣）：兩邊都看得到有多少
       // （2026-11-11 使用者）；虛擬貨幣用 USDT，旁邊寫 ×32 粗估台幣。
-      if (isTransfer && !_toOther && _toExt.isNotEmpty && !_neg) _extAfter(),
+      if (isTransfer && !_toOther && _toExt.isNotEmpty && !_neg)
+        _extAfter(_toExt),
     ];
   }
 
-  Widget _extAfter() {
+  /// [out]＝這筆是從那邊轉出去（扣掉），不然是轉進去（加上）。
+  Widget _extAfter(String name, {bool out = false}) {
     final skip = widget.edit?.id;
     final amt = _int(_amount) ?? 0;
-    if (_toExt == ledgerCryptoExt) {
+    final sign = out ? -1 : 1;
+    final key = ValueKey(out ? 'srcExtAfter' : 'extAfter');
+    if (name == ledgerCryptoExt) {
       final after =
           book.usdtBalance(skipId: skip) +
-          (_usdtValue ?? amt / ledgerUsdtRoughRate);
+          sign * (_usdtValue ?? amt / ledgerUsdtRoughRate);
       return _row(
-        '$_toExt\n這筆之後',
+        '$name\n這筆之後',
         Text(
           '${lUsdt(after)} USDT（≈ ${lMoney((after * ledgerUsdtRoughRate).round())}）',
-          key: const ValueKey('extAfter'),
+          key: key,
           style: _fieldStyle,
         ),
       );
     }
-    final after = book.extBalance(_toExt, skipId: skip) + amt;
+    final after = book.extBalance(name, skipId: skip) + sign * amt;
     return _row(
-      '$_toExt\n這筆之後',
-      Text(
-        '約 ${lMoney(after)}（照轉入轉出推算）',
-        key: const ValueKey('extAfter'),
-        style: _fieldStyle,
-      ),
+      '$name\n這筆之後',
+      Text('約 ${lMoney(after)}（照轉入轉出推算）', key: key, style: _fieldStyle),
     );
   }
 
@@ -1688,7 +1732,7 @@ class _TxFormState extends State<_TxForm> {
     final pfAmt = _pfValue;
     final t = _type;
     final children = <Widget>[
-      if (e == null && p.cpId == null)
+      if ((e == null || _canSwitchType) && p.cpId == null)
         Wrap(
           spacing: 6,
           runSpacing: 6,
@@ -1698,7 +1742,8 @@ class _TxFormState extends State<_TxForm> {
               LedgerTxType.income,
               LedgerTxType.transfer,
               // 退款不放在上面這排（2026-11-06 使用者），改放表單最下面。
-              LedgerTxType.repayment,
+              // 編輯時不能改成還錢（要選還哪一筆）。
+              if (e == null) LedgerTxType.repayment,
             ])
               ChoiceChip(
                 label: Text(x.label),
@@ -1708,7 +1753,8 @@ class _TxFormState extends State<_TxForm> {
               ),
           ],
         ),
-      if (e == null && p.cpId == null) const SizedBox(height: 10),
+      if ((e == null || _canSwitchType) && p.cpId == null)
+        const SizedBox(height: 10),
       if (e == null && p.cpId == null) ...[
         TextField(
           controller: _paste,
@@ -2051,14 +2097,37 @@ class _TxFormState extends State<_TxForm> {
             _neg ? '收款帳戶' : '從哪個帳戶',
             _accountChips(
               book,
-              _account,
+              _srcExt.isEmpty ? _account : null,
               (v) => setState(() {
                 _account = v;
+                _srcExt = '';
                 if (_to == v) _to = null;
                 _applyDefaults();
               }),
               // 信用卡不能轉帳出去，這一排不列信用卡（2026-11-11 使用者）；舊資料選著的照列。
-              only: (a) => !a.isCard || a.id == _account,
+              only: (a) => !a.isCard || (a.id == _account && _srcExt.isEmpty),
+              // 也能從沒記在 App 裡的自己的地方轉出來（2026-11-11 使用者：LineBank、富邦、虛擬貨幣）。
+              // 轉進來（＋）時不顯示。
+              extra: _neg
+                  ? const []
+                  : [
+                      for (final (n, emoji) in ledgerTransferExts)
+                        ChoiceChip(
+                          key: ValueKey('srcExt_$n'),
+                          label: Text('$emoji $n'),
+                          selected: _srcExt == n,
+                          showCheckmark: false,
+                          onSelected: _toExt == n
+                              ? null
+                              : (_) => setState(() {
+                                  _srcExt = n;
+                                  _negative = false;
+                                  if (_merchant.text.trim().isEmpty) {
+                                    _merchant.text = '平轉';
+                                  }
+                                }),
+                        ),
+                    ],
             ),
           ),
           _chipRow(
@@ -2071,7 +2140,7 @@ class _TxFormState extends State<_TxForm> {
                 _toExt = '';
                 _toOther = false;
               }),
-              disabled: _account,
+              disabled: _srcExt.isEmpty ? _account : null,
               // 轉到沒記在 App 裡的地方（2026-11-10 使用者）：自己的 LineBank（平轉，只扣這邊的錢、
               // 不算支出）、別人的戶頭（等於「轉給別人」，算支出）。轉進來（＋）時不顯示。
               extra: _neg
@@ -2086,14 +2155,16 @@ class _TxFormState extends State<_TxForm> {
                           label: Text('$emoji $n'),
                           selected: _toExt == n,
                           showCheckmark: false,
-                          onSelected: (_) => setState(() {
-                            _toExt = n;
-                            _to = null;
-                            _toOther = false;
-                            if (_merchant.text.trim().isEmpty) {
-                              _merchant.text = '平轉';
-                            }
-                          }),
+                          onSelected: _srcExt == n
+                              ? null
+                              : (_) => setState(() {
+                                  _toExt = n;
+                                  _to = null;
+                                  _toOther = false;
+                                  if (_merchant.text.trim().isEmpty) {
+                                    _merchant.text = '平轉';
+                                  }
+                                }),
                         ),
                       ChoiceChip(
                         key: const ValueKey('toOtherAccount'),
@@ -2110,9 +2181,10 @@ class _TxFormState extends State<_TxForm> {
             ),
           ),
           // 轉到虛擬貨幣：填換到多少 USDT，下面寫 ×32 的粗估台幣（2026-11-11 使用者）。
-          if (_toExt == ledgerCryptoExt && !_neg) ...[
+          if ((_toExt == ledgerCryptoExt || _srcExt == ledgerCryptoExt) &&
+              !_neg) ...[
             _row(
-              '換到 USDT',
+              _srcExt == ledgerCryptoExt ? '賣掉 USDT' : '換到 USDT',
               hint: '選填',
               TextField(
                 key: const ValueKey('usdtField'),
@@ -2149,6 +2221,16 @@ class _TxFormState extends State<_TxForm> {
                     const TextSpan(text: '轉給別人的戶頭：這個帳戶的錢會扣掉，'),
                     _b('算一筆支出'),
                     const TextSpan(text: '（分類「轉給他人」），不用選支出分類。'),
+                  ]
+                : _fromOutside
+                ? [
+                    const TextSpan(text: '從自己的 '),
+                    _b(_srcExt),
+                    TextSpan(
+                      text: _toExt.isNotEmpty
+                          ? ' 平轉到 $_toExt：兩邊都沒記在 App 裡，只更新推算的金額，不算支出。'
+                          : ' 平轉進來：錢加到轉入的帳戶、但不算收入；$_srcExt 那邊照轉入轉出推算。',
+                    ),
                   ]
                 : _toExt.isNotEmpty
                 ? [
@@ -2769,7 +2851,11 @@ class _TxDetail extends StatelessWidget {
       LedgerTxType.income =>
         t.category == ledgerFlatTransfer ? '不算收入，只是自己帳戶之間轉來轉去' : '算進本月收入',
       LedgerTxType.transfer =>
-        t.toName.isNotEmpty
+        t.toOther
+            ? '轉給 ${t.toName} 的戶頭：算一筆支出（轉給他人），算進總支出、不算消費'
+            : t.fromName.isNotEmpty
+            ? '從 ${t.fromName} 平轉到 ${book.toLabel(t)}：自己的錢換個地方放，不算收入也不算支出'
+            : t.toName.isNotEmpty
             ? '平轉到 ${t.toName}：只是自己的錢換個戶頭放、不算支出；${t.toName} 沒有記在 App 裡，所以只扣這個帳戶的錢'
             : book.isCardReturn(t)
             ? '卡費退回（負的繳卡費）：信用卡欠的變多、錢回到帳戶，不列入支出'
@@ -2873,7 +2959,7 @@ class _TxDetail extends StatelessWidget {
           _kv(
             '帳戶',
             t.type == LedgerTxType.transfer
-                ? '${book.accountName(t.accountId)} → ${book.toLabel(t)}'
+                ? '${book.fromLabel(t)} → ${book.toLabel(t)}'
                 : book.accountName(t.accountId),
           ),
           if (t.isSplit)
@@ -3934,7 +4020,7 @@ class _ImportState extends State<_Import> {
                       t.type == LedgerTxType.transfer
                           ? _asSpend.contains(_key(i, l))
                                 ? '支出・${book.accountName(t.accountId)}・未分類（轉給別人）'
-                                : '轉帳 ${book.accountName(t.accountId)} → ${book.toLabel(t)}（不算支出）'
+                                : '轉帳 ${book.fromLabel(t)} → ${book.toLabel(t)}（不算支出）'
                           : '支出・${book.accountName(t.accountId)}・${t.category}'
                                 '${t.paidFor == null ? '' : '・${t.paidFor!.people} ${t.paidFor!.settled ? '已給' : '要給'} ${lMoney(t.paidFor!.amount)}'}',
                       maxLines: 2,

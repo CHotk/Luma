@@ -230,7 +230,7 @@ class TxTile extends ConsumerWidget {
     sub.write(lTxHm(t));
     sub.write('・');
     if (t.type == LedgerTxType.transfer) {
-      sub.write('${book.accountName(t.accountId)} → ${book.toLabel(t)}');
+      sub.write('${book.fromLabel(t)} → ${book.toLabel(t)}');
       if (t.extAmount != null) sub.write(' ${lUsdt(t.extAmount!)} USDT');
     } else {
       sub.write(book.accountName(t.accountId));
@@ -272,7 +272,7 @@ class TxTile extends ConsumerWidget {
                 AppColors.ink3,
                 t.toOther
                     ? '轉給他人'
-                    : t.toName.isNotEmpty
+                    : t.toName.isNotEmpty || t.fromName.isNotEmpty
                     ? '平轉'
                     : '不算支出',
               ),

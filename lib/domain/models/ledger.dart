@@ -36,7 +36,7 @@ DateTime? _t(Object? v) =>
 enum LedgerAccountType {
   bank('bank', '銀行', '🏦'),
   creditCard('credit_card', '信用卡', '💳'),
-  cash('cash', '現金', '💵');
+  cash('cash', '現金', '🪙');
 
   const LedgerAccountType(this.json, this.label, this.emoji);
 
@@ -240,6 +240,7 @@ class LedgerTx {
     this.toAccountId,
     this.toName = '',
     this.toOther = false,
+    this.fromName = '',
     this.extAmount,
     this.category,
     this.merchant = '',
@@ -285,6 +286,10 @@ class LedgerTx {
   /// 轉給別人的戶頭（2026-11-11 使用者）：還是「轉帳」，錢從這個帳戶扣掉、對方的戶頭不追蹤；
   /// [toName] 放誰的戶頭。轉帳本身就算一種支出（分類固定「轉給他人」），不用選支出分類。
   final bool toOther;
+
+  /// 轉帳從「沒記在 App 裡」的自己的地方轉出（LineBank／富邦／虛擬貨幣，2026-11-11 使用者）：
+  /// 這時 [accountId] 是空字串（沒有 App 裡的帳戶被扣錢），只加到轉入那邊。
+  final String fromName;
 
   /// 轉到「虛擬貨幣」時實際換到多少 USDT（2026-11-11 使用者：虛擬貨幣那邊用 USDT 當幣種）。
   final double? extAmount;
@@ -366,6 +371,7 @@ class LedgerTx {
     String? Function()? toAccountId,
     String? toName,
     bool? toOther,
+    String? fromName,
     double? Function()? extAmount,
     String? Function()? category,
     String? merchant,
@@ -388,6 +394,7 @@ class LedgerTx {
     toAccountId: toAccountId == null ? this.toAccountId : toAccountId(),
     toName: toName ?? this.toName,
     toOther: toOther ?? this.toOther,
+    fromName: fromName ?? this.fromName,
     extAmount: extAmount == null ? this.extAmount : extAmount(),
     category: category == null ? this.category : category(),
     merchant: merchant ?? this.merchant,
@@ -417,6 +424,7 @@ class LedgerTx {
     'toAccountId': toAccountId,
     if (toName.isNotEmpty) 'toName': toName,
     if (toOther) 'toOther': true,
+    if (fromName.isNotEmpty) 'fromName': fromName,
     if (extAmount != null) 'extAmt': extAmount,
     'category': category,
     'merchant': merchant,
@@ -446,6 +454,7 @@ class LedgerTx {
     toAccountId: j['toAccountId'] as String?,
     toName: j['toName'] as String? ?? '',
     toOther: j['toOther'] as bool? ?? false,
+    fromName: j['fromName'] as String? ?? '',
     extAmount: (j['extAmt'] as num?)?.toDouble(),
     category: j['category'] as String?,
     merchant: j['merchant'] as String? ?? '',

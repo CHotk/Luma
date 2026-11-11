@@ -15,7 +15,7 @@ String _time(DateTime t) =>
 String logTx(LedgerTx t, String Function(String?) acct) {
   final name = t.merchant.isEmpty ? '' : ' ${t.merchant}';
   final where = t.type == LedgerTxType.transfer
-      ? '${acct(t.accountId)} → ${t.toAccountId == null && t.toName.isNotEmpty ? t.toName : acct(t.toAccountId)}'
+      ? '${t.fromName.isNotEmpty ? t.fromName : acct(t.accountId)} → ${t.toAccountId == null && t.toName.isNotEmpty ? t.toName : acct(t.toAccountId)}'
       : acct(t.accountId);
   return '${t.type.label}$name ${_money(t.amount)}（$where）';
 }
@@ -45,6 +45,11 @@ List<String> logDiffTx(LedgerTx a, LedgerTx b, String Function(String?) acct) {
   if (a.timeUnknown || b.timeUnknown) d('同天排序', a.timeOrder, b.timeOrder);
   d('金額', _money(a.amount), _money(b.amount));
   d('帳戶', acct(a.accountId), acct(b.accountId));
+  if (a.fromName != b.fromName) {
+    out.add(
+      '從（沒記帳的戶頭）：${a.fromName.isEmpty ? '無' : a.fromName} → ${b.fromName.isEmpty ? '無' : b.fromName}',
+    );
+  }
   if (a.toName != b.toName) {
     out.add(
       '轉到（沒記帳的戶頭）：${a.toName.isEmpty ? '無' : a.toName} → ${b.toName.isEmpty ? '無' : b.toName}',
