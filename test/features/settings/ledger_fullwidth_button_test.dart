@@ -42,8 +42,10 @@ void main() {
     );
     await tester.pump();
     expect(find.text('整理全形文字'), findsOneWidget);
-    await tester.ensureVisible(find.widgetWithText(OutlinedButton, '整理'));
-    await tester.tap(find.widgetWithText(OutlinedButton, '整理'));
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('ledgerFullwidthBtn')),
+    );
+    await tester.tap(find.byKey(const ValueKey('ledgerFullwidthBtn')));
     await tester.pumpAndSettle();
     // 先確認，取消就什麼都不動。
     expect(find.text('整理全形文字？'), findsOneWidget);
@@ -52,7 +54,7 @@ void main() {
     var book = await tester.runAsync(() => repo.loadBook());
     expect(book!.txs.single.merchant, 'ＦＯＯＤＰＡＮＤＡ');
     // 確認 → 改掉。
-    await tester.tap(find.widgetWithText(OutlinedButton, '整理'));
+    await tester.tap(find.byKey(const ValueKey('ledgerFullwidthBtn')));
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, '整理'));
     for (var i = 0; i < 4; i++) {

@@ -42,8 +42,8 @@ void main() {
     );
     await tester.pump();
     expect(find.text('購物併入生活'), findsOneWidget);
-    await tester.ensureVisible(find.widgetWithText(OutlinedButton, '轉移'));
-    await tester.tap(find.widgetWithText(OutlinedButton, '轉移'));
+    await tester.ensureVisible(find.byKey(const ValueKey('ledgerShoppingBtn')));
+    await tester.tap(find.byKey(const ValueKey('ledgerShoppingBtn')));
     await tester.pumpAndSettle();
     // 先確認，取消就什麼都不動。
     expect(find.text('把購物併入生活？'), findsOneWidget);
@@ -52,7 +52,7 @@ void main() {
     var book = await tester.runAsync(() => repo.loadBook());
     expect(book!.txs.single.category, '購物');
     // 確認 → 改掉。
-    await tester.tap(find.widgetWithText(OutlinedButton, '轉移'));
+    await tester.tap(find.byKey(const ValueKey('ledgerShoppingBtn')));
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, '轉移'));
     for (var i = 0; i < 4; i++) {

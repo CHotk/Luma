@@ -21,6 +21,7 @@ import '../../data/repositories/yt_display_prefs_store.dart';
 import '../../data/repositories/yt_video_open_mode_store.dart';
 import '../../shared/widgets/app_confirm_dialog.dart';
 import '../../shared/widgets/app_notice.dart';
+import '../../shared/widgets/glass_card.dart';
 import 'settings_page.dart' show AppLogoSettingsCard;
 import 'all_settings_page.dart' show SettingsSection;
 import 'settings_anchor.dart';
@@ -1551,38 +1552,30 @@ class _VideoTabChannelRow extends ConsumerWidget {
 }
 
 /// 記帳自己的設定分頁（2026-11-03 使用者：打開設定應該是記帳自己的分頁，不是空的）。
-/// 目前放「操作紀錄」：每個動作都記一份，只增不刪、會同步。
+///
+/// 2026-11-11 使用者：內容不變、整理成得獎 App 那種乾淨的樣子——照 iOS 設定的分組清單：
+/// 每組上面一行小標題、底下一塊圓角玻璃、一列一列用細線隔開，每列左邊自己的彩色小圖示、
+/// 標題短、說明一行；長的說明放到那組下面的註解。
 class LedgerSettingsSection extends ConsumerWidget {
   const LedgerSettingsSection({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final count = ref.watch(ledgerLogProvider).valueOrNull?.length;
-    return SettingsBlock(
-      section: SettingsSection.ledger,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SettingAnchor(
-          id: 'ledger.note',
-          child: SettingsRowCard(
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        '顯示備註',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.ink,
-                        ),
-                      ),
-                      Text('最近記帳跟明細每一條下面要不要顯示備註', style: AppText.note),
-                    ],
-                  ),
-                ),
-                Switch(
+        _LedgerGroup(
+          header: '顯示',
+          rows: [
+            SettingAnchor(
+              id: 'ledger.note',
+              child: _LedgerRow(
+                icon: Icons.notes_rounded,
+                color: const Color(0xFF5E9BFF),
+                title: '顯示備註',
+                subtitle: '最近記帳、明細每一條下面',
+                trailing: Switch(
                   value: ref.watch(ledgerShowNoteProvider),
                   onChanged: (v) async {
                     ref.read(ledgerShowNoteProvider.notifier).state = v;
@@ -1591,36 +1584,21 @@ class LedgerSettingsSection extends ConsumerWidget {
                     ).save(v);
                   },
                 ),
-              ],
+              ),
             ),
-          ),
+          ],
         ),
-        const SizedBox(height: Gap.sm),
-        SettingAnchor(
-          id: 'ledger.sinask',
-          child: SettingsRowCard(
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        '110／1100 問要不要改成菸酒',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.ink,
-                        ),
-                      ),
-                      Text(
-                        '記一筆時金額剛好是 110 或 1100、分類又不是菸酒，儲存前跳出來問要不要改',
-                        style: AppText.note,
-                      ),
-                    ],
-                  ),
-                ),
-                Switch(
+        _LedgerGroup(
+          header: '記帳時',
+          footer: '金額剛好是 110 或 1100、分類又不是菸酒時，儲存前跳出來問要不要改成菸酒。',
+          rows: [
+            SettingAnchor(
+              id: 'ledger.sinask',
+              child: _LedgerRow(
+                icon: Icons.local_bar_rounded,
+                color: const Color(0xFFF2A93B),
+                title: '110／1100 問要不要改菸酒',
+                trailing: Switch(
                   value: ref.watch(ledgerSinAskProvider),
                   onChanged: (v) async {
                     ref.read(ledgerSinAskProvider.notifier).state = v;
@@ -1629,158 +1607,73 @@ class LedgerSettingsSection extends ConsumerWidget {
                     ).save(v);
                   },
                 ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: Gap.sm),
-        // 消費／總支出／收入的詳細說明（2026-11-11 使用者：設定裡要有地方可以打開看）。
-        SettingAnchor(
-          id: 'ledger.terms',
-          child: SettingsRowCard(
-            child: InkWell(
-              key: const ValueKey('ledgerTermsBtn'),
-              onTap: () => showLedgerTermsDialog(context),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          '消費、總支出、收入怎麼算',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.ink,
-                          ),
-                        ),
-                        Text('打開看每一種怎麼算、哪些算哪些不算', style: AppText.note),
-                      ],
-                    ),
-                  ),
-                  const Icon(
-                    Icons.chevron_right_rounded,
-                    color: AppColors.ink3,
-                  ),
-                ],
               ),
             ),
-          ),
+          ],
         ),
-        const SizedBox(height: Gap.sm),
-        SettingAnchor(
-          id: 'ledger.log',
-          child: SettingsRowCard(
-            child: InkWell(
-              onTap: () => context.push('/ledger/log'),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          '操作紀錄',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.ink,
-                          ),
-                        ),
-                        Text(
-                          '記帳的每個動作（新增、編輯、刪除、標記、他給了、對帳、匯入、預算、帳戶）'
-                          '都會記一筆，只會變多、不會被刪，同步時會帶到其他裝置'
-                          '${count == null ? '' : '・目前 $count 筆'}',
-                          style: AppText.note,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Icon(
-                    Icons.chevron_right_rounded,
-                    color: AppColors.ink3,
-                  ),
-                ],
+        _LedgerGroup(
+          header: '說明與紀錄',
+          footer:
+              '操作紀錄：新增、編輯、刪除、標記、他給了、對帳、匯入、預算、帳戶，每個動作都記一筆；'
+              '只會變多、不會被刪，同步時會帶到其他裝置。',
+          rows: [
+            // 消費／總支出／收入的詳細說明（2026-11-11 使用者：設定裡要有地方可以打開看）。
+            SettingAnchor(
+              id: 'ledger.terms',
+              child: _LedgerRow(
+                key: const ValueKey('ledgerTermsBtn'),
+                icon: Icons.menu_book_rounded,
+                color: const Color(0xFF35C2A6),
+                title: '消費、總支出、收入怎麼算',
+                onTap: () => showLedgerTermsDialog(context),
               ),
             ),
-          ),
-        ),
-        const SizedBox(height: Gap.sm),
-        // 暫時的工具（2026-11-06 使用者）：把之前輸入的全形英數字一次改成對應的半形，
-        // 舊資料處理完就拿掉這顆按鈕。
-        SettingAnchor(
-          id: 'ledger.fullwidth',
-          child: SettingsRowCard(
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        '整理全形文字',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.ink,
-                        ),
-                      ),
-                      Text(
-                        '把已經記的全形英數字（例如 ＦＯＯＤＰＡＮＤＡ）一次改成對應的半形英數字'
-                        '（FOODPANDA，大小寫照原來）：商家、備註、幫誰、拆分品項、帳戶、每月扣款名稱。'
-                        '改了會寫進操作紀錄、同步到其他裝置',
-                        style: AppText.note,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                OutlinedButton(
-                  onPressed: () => _normalizeFullWidth(context, ref),
-                  child: const Text('整理'),
-                ),
-              ],
+            SettingAnchor(
+              id: 'ledger.log',
+              child: _LedgerRow(
+                icon: Icons.history_rounded,
+                color: const Color(0xFF9B7BFF),
+                title: '操作紀錄',
+                value: count == null ? null : '$count 筆',
+                onTap: () => context.push('/ledger/log'),
+              ),
             ),
-          ),
+          ],
         ),
-        const SizedBox(height: Gap.sm),
-        // 暫時的工具（2026-11-09 使用者）：不需要「購物」分類，把購物的都轉到生活、再刪掉購物分類，
-        // 舊資料處理完就拿掉這顆按鈕。
-        SettingAnchor(
-          id: 'ledger.shopping',
-          child: SettingsRowCard(
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        '購物併入生活',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.ink,
-                        ),
-                      ),
-                      Text(
-                        '「購物」分類已經拿掉了。按下去會把之前記在購物的交易（含拆分的那一份）'
-                        '都改到「生活」，購物的預算也併進生活。'
-                        '改了會寫進操作紀錄、同步到其他裝置',
-                        style: AppText.note,
-                      ),
-                    ],
-                  ),
+        // 暫時的工具：舊資料處理完就拿掉（全形 2026-11-06、購物 2026-11-09 使用者）。
+        _LedgerGroup(
+          header: '資料整理',
+          footer: '整理舊資料用的一次性工具。改了什麼都會寫進操作紀錄、同步到其他裝置。',
+          rows: [
+            SettingAnchor(
+              id: 'ledger.fullwidth',
+              child: _LedgerRow(
+                icon: Icons.text_fields_rounded,
+                color: const Color(0xFF8A93A6),
+                title: '整理全形文字',
+                subtitle: 'ＦＯＯＤＰＡＮＤＡ → FOODPANDA',
+                trailing: _LedgerPill(
+                  key: const ValueKey('ledgerFullwidthBtn'),
+                  label: '整理',
+                  onTap: () => _normalizeFullWidth(context, ref),
                 ),
-                const SizedBox(width: 8),
-                OutlinedButton(
-                  onPressed: () => _moveShopping(context, ref),
-                  child: const Text('轉移'),
-                ),
-              ],
+              ),
             ),
-          ),
+            SettingAnchor(
+              id: 'ledger.shopping',
+              child: _LedgerRow(
+                icon: Icons.merge_type_rounded,
+                color: const Color(0xFFFF8A65),
+                title: '購物併入生活',
+                subtitle: '購物的交易（含拆分）跟預算改到生活',
+                trailing: _LedgerPill(
+                  key: const ValueKey('ledgerShoppingBtn'),
+                  label: '轉移',
+                  onTap: () => _moveShopping(context, ref),
+                ),
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -1821,6 +1714,191 @@ class LedgerSettingsSection extends ConsumerWidget {
       context,
       n == 0 ? '沒有全形英數字需要整理' : '已整理 $n 筆',
       detail: n == 0 ? null : '改了哪些可以到操作紀錄看',
+    );
+  }
+}
+
+/// 記帳設定的一組：小標題＋圓角玻璃清單＋下面的註解。
+class _LedgerGroup extends StatelessWidget {
+  const _LedgerGroup({required this.header, required this.rows, this.footer});
+
+  final String header;
+  final String? footer;
+  final List<Widget> rows;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 22),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 16, bottom: 7),
+            child: Text(
+              header,
+              style: const TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                letterSpacing: .6,
+                color: AppColors.ink3,
+              ),
+            ),
+          ),
+          GlassCard(
+            padding: EdgeInsets.zero,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (var i = 0; i < rows.length; i++) ...[
+                  if (i > 0)
+                    const Divider(
+                      height: 1,
+                      thickness: .6,
+                      indent: 58,
+                      color: AppColors.glassEdge,
+                    ),
+                  rows[i],
+                ],
+              ],
+            ),
+          ),
+          if (footer != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 7, 16, 0),
+              child: Text(
+                footer!,
+                style: AppText.note.copyWith(fontSize: 12, height: 1.45),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 記帳設定的一列：左邊彩色圓角小圖示、標題（＋一行說明）、右邊開關／按鈕／數值＋箭頭。
+class _LedgerRow extends StatelessWidget {
+  const _LedgerRow({
+    super.key,
+    required this.icon,
+    required this.color,
+    required this.title,
+    this.subtitle,
+    this.trailing,
+    this.value,
+    this.onTap,
+  });
+
+  final IconData icon;
+  final Color color;
+  final String title;
+  final String? subtitle;
+  final Widget? trailing;
+
+  /// 右邊灰色的數值（例如「120 筆」），放在箭頭前面。
+  final String? value;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final row = ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 54),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 9, 12, 9),
+        child: Row(
+          children: [
+            Container(
+              width: 30,
+              height: 30,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [color, Color.lerp(color, Colors.black, .18)!],
+                ),
+              ),
+              child: Icon(icon, size: 18, color: Colors.white),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.ink,
+                    ),
+                  ),
+                  if (subtitle != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        subtitle!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppText.note.copyWith(fontSize: 12),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            if (value != null) ...[
+              const SizedBox(width: 8),
+              Text(
+                value!,
+                style: const TextStyle(fontSize: 14, color: AppColors.ink3),
+              ),
+            ],
+            if (trailing != null) ...[const SizedBox(width: 8), trailing!],
+            if (onTap != null)
+              const Padding(
+                padding: EdgeInsets.only(left: 2),
+                child: Icon(Icons.chevron_right_rounded, color: AppColors.ink3),
+              ),
+          ],
+        ),
+      ),
+    );
+    return onTap == null ? row : InkWell(onTap: onTap, child: row);
+  }
+}
+
+/// 列右邊的小膠囊按鈕（整理、轉移）。
+class _LedgerPill extends StatelessWidget {
+  const _LedgerPill({super.key, required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white.withValues(alpha: .10),
+      shape: StadiumBorder(
+        side: BorderSide(color: Colors.white.withValues(alpha: .18)),
+      ),
+      child: InkWell(
+        customBorder: const StadiumBorder(),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontSize: 13.5,
+              fontWeight: FontWeight.w700,
+              color: AppColors.accent,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
