@@ -467,7 +467,8 @@ class TxTile extends ConsumerWidget {
                                       t.isSplit ||
                                       t.source == 'paste' ||
                                       gaps.isNotEmpty ||
-                                      cp != null)
+                                      cp != null ||
+                                      book.usdtDiffOf(t) != null)
                                     Padding(
                                       padding: const EdgeInsets.only(top: 3),
                                       child: Wrap(
@@ -507,6 +508,18 @@ class TxTile extends ConsumerWidget {
                                             ),
                                           if (t.source == 'paste')
                                             const LedgerPill('匯入'),
+                                          // 虛擬貨幣餘額跟推算有差：確認是盈虧的寫盈虧，還沒確認的提醒。
+                                          if (book.usdtDiffOf(t) case final d?)
+                                            LedgerPill(
+                                              t.extPnlOk
+                                                  ? '${d > 0 ? '盈利 +' : '虧損 −'}${lUsdt(d.abs())} USDT'
+                                                  : '⚠ 虛擬貨幣差 ${d > 0 ? '+' : '−'}${lUsdt(d.abs())} USDT',
+                                              color: t.extPnlOk
+                                                  ? (d > 0
+                                                        ? AppColors.ok
+                                                        : ledgerBad)
+                                                  : AppColors.mid,
+                                            ),
                                         ],
                                       ),
                                     ),

@@ -54,6 +54,8 @@ void main() {
     await settle();
     await tester.tap(find.widgetWithText(ChoiceChip, '收入'));
     await settle();
+    await pickDefaultAccount(tester);
+    await settle();
 
     double left(String t) => tester.getTopLeft(find.text(t).first).dx;
     double mid(Finder f) => tester.getCenter(f).dy;
@@ -245,6 +247,7 @@ void timeUnknownTests() {
     );
     await tester.tap(find.textContaining('餐飲').first);
     await tester.pump();
+    await pickDefaultAccount(tester);
     await tester.ensureVisible(find.widgetWithText(FilledButton, '新增'));
     await tester.tap(find.widgetWithText(FilledButton, '新增'));
     await settle();
@@ -411,6 +414,7 @@ void cardReturnTests() {
     expect(find.text('＋'), findsOneWidget);
     expect(find.text('收款帳戶'), findsOneWidget);
     expect(find.text('從哪個帳戶轉來'), findsOneWidget);
+    await pickDefaultAccount(tester);
     await tester.ensureVisible(find.widgetWithText(FilledButton, '新增'));
     await tester.tap(find.widgetWithText(FilledButton, '新增'));
     await settle();
@@ -481,6 +485,7 @@ void cardReturnTests() {
       '500',
     );
     await tester.pump();
+    await pickDefaultAccount(tester);
     await tester.ensureVisible(find.widgetWithText(FilledButton, '新增'));
     await tester.tap(find.widgetWithText(FilledButton, '新增'));
     await settle();
@@ -666,6 +671,7 @@ void cardReturnTests() {
       expect(tester.widget<ChoiceChip>(lineBank).selected, isTrue);
       await tester.enterText(amountField, '800');
       await tester.pump();
+      await pickDefaultAccount(tester);
       await tester.ensureVisible(find.widgetWithText(FilledButton, '新增'));
       await tester.tap(find.widgetWithText(FilledButton, '新增'));
       await settle();
@@ -711,4 +717,26 @@ class _MemoryStore implements KeyValueStore {
 
   @override
   Future<void> remove(String key) async => data.remove(key);
+}
+
+/// 2026-11-11 起新記的不預選帳戶（使用者：不要預設選中信卡）：測試照以前的預設自己點
+/// （支出＝第一張信用卡、收入＝第一個戶頭；轉帳照舊會自己帶）。已經選了就不動。
+Future<void> pickDefaultAccount(WidgetTester tester) async {
+  bool on(String t) => tester
+      .widgetList<ChoiceChip>(find.widgetWithText(ChoiceChip, t))
+      .any((c) => c.selected);
+  if (on('轉帳')) return;
+  final income = on('收入');
+  final title = find.text(income ? '進哪個帳戶' : '用哪個付');
+  if (title.evaluate().isEmpty) return;
+  final row = find.ancestor(of: title.first, matching: find.byType(Row)).first;
+  final chips = find.descendant(of: row, matching: find.byType(ChoiceChip));
+  final list = tester.widgetList<ChoiceChip>(chips).toList();
+  if (list.isEmpty || list.any((c) => c.selected)) return;
+  String label(ChoiceChip c) => (c.label as Text).data ?? '';
+  var i = list.indexWhere((c) => label(c).startsWith(income ? '🏦' : '💳'));
+  if (i < 0) i = 0;
+  await tester.ensureVisible(chips.at(i));
+  await tester.tap(chips.at(i));
+  await tester.pump();
 }

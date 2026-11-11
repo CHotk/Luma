@@ -955,6 +955,9 @@ class _TxFormState extends State<_TxForm> {
   late final TextEditingController _extFromAfter;
   late final TextEditingController _extToAfter;
 
+  /// 虛擬貨幣填的餘額跟推算有差：確認是盈虧（幣價浮動）。
+  late bool _pnlOk;
+
   /// 轉帳現在是不是從沒記在 App 裡的地方轉出。
   bool get _fromOutside =>
       _effType == LedgerTxType.transfer && _srcExt.isNotEmpty;
@@ -1030,6 +1033,7 @@ class _TxFormState extends State<_TxForm> {
     _at = e?.occurredAt ?? p.at ?? DateTime.now();
     _timeUnknown = e?.timeUnknown ?? false;
     _flagged = e?.flagged ?? false;
+    _pnlOk = e?.extPnlOk ?? false;
     _confirmed = e?.confirmed ?? false;
     _pf = e?.paidFor != null || p.paidFor;
     _pfSettled = e?.paidFor?.settled ?? false;
@@ -1141,18 +1145,22 @@ class _TxFormState extends State<_TxForm> {
 
     switch (_type) {
       case LedgerTxType.expense:
+        // 新記的不幫忙選帳戶（2026-11-11 使用者：不要預設選中信卡），自己點；
+        // 編輯舊的帳戶不見了才補一個。
         if (!valid(_account)) {
-          _account =
-              (_firstOf(LedgerAccountType.creditCard) ?? accounts.firstOrNull)
-                  ?.id;
+          _account = widget.edit == null
+              ? null
+              : (_firstOf(LedgerAccountType.creditCard) ?? accounts.firstOrNull)
+                    ?.id;
         }
         // 不幫使用者選預設分類（2026-11-11 使用者）：沒選存成「未分類」。
         if (!ledgerExpenseCats.containsKey(_category)) _category = '';
       case LedgerTxType.income:
         if (!valid(_account, (a) => !a.isCard)) {
-          _account =
-              pick((a) => a.type == LedgerAccountType.bank) ??
-              pick((a) => !a.isCard);
+          _account = widget.edit == null
+              ? null
+              : pick((a) => a.type == LedgerAccountType.bank) ??
+                    pick((a) => !a.isCard);
         }
         if (!ledgerIncomeCats.containsKey(_category)) _category = '';
       case LedgerTxType.transfer:
@@ -1564,6 +1572,7 @@ class _TxFormState extends State<_TxForm> {
         fromName: _fromOutside ? _srcExt : '',
         fromAfter: () => _fromOutside ? _extNum(_extFromAfter) : null,
         toAfter: () => _toOutside ? _extNum(_extToAfter) : null,
+        extPnlOk: _pnlOk && _cryptoDiff != null,
         toAccountId: () => ty == LedgerTxType.transfer
             ? (_neg ? _account : (_toExt.isEmpty ? _to : null))
             : null,
@@ -1600,6 +1609,7 @@ class _TxFormState extends State<_TxForm> {
       fromName: _fromOutside ? _srcExt : '',
       fromAfter: _fromOutside ? _extNum(_extFromAfter) : null,
       toAfter: _toOutside ? _extNum(_extToAfter) : null,
+      extPnlOk: _pnlOk && _cryptoDiff != null,
       toAccountId: ty == LedgerTxType.transfer
           ? (_neg ? _account : (_toExt.isEmpty ? _to : null))
           : null,
@@ -1672,6 +1682,21 @@ class _TxFormState extends State<_TxForm> {
   }
 
   /// [out]＝這筆是從那邊轉出去（扣掉），不然是轉進去（加上）。
+  /// 虛擬貨幣那邊填的跟推算差多少 USDT（沒填、沒差＝null）。
+  double? get _cryptoDiff {
+    final out = _fromOutside && _srcExt == ledgerCryptoExt;
+    final into = _toOutside && _toExt == ledgerCryptoExt;
+    if (!out && !into) return null;
+    final typed = _extNum(out ? _extFromAfter : _extToAfter);
+    if (typed == null) return null;
+    final amt = _int(_amount) ?? 0;
+    final guess =
+        book.usdtBalance(skipId: widget.edit?.id) +
+        (out ? -1 : 1) * (_usdtValue ?? amt / ledgerUsdtRoughRate);
+    final d = typed - guess;
+    return d.abs() < 0.005 ? null : d;
+  }
+
   Widget _extAfter(String name, {bool out = false}) {
     final skip = widget.edit?.id;
     final amt = _int(_amount) ?? 0;
@@ -1720,6 +1745,35 @@ class _TxFormState extends State<_TxForm> {
             style: AppText.note.copyWith(fontSize: 11),
           ),
         ),
+        // 虛擬貨幣填的跟推算有差：寫差多少，可以確認是盈虧（幣價本來就會浮動，2026-11-11 使用者）。
+        if ((crypto ? _cryptoDiff : null) case final d?)
+          Padding(
+            padding: const EdgeInsets.only(top: 6, left: 88),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(
+                  '跟推算差 ${d > 0 ? '+' : '−'}${lUsdt(d.abs())} USDT'
+                  '（≈ ${lMoney((d.abs() * ledgerUsdtRoughRate).round())}）',
+                  key: const ValueKey('cryptoDiff'),
+                  style: AppText.note.copyWith(
+                    fontSize: 11,
+                    color: _pnlOk ? AppColors.ink3 : AppColors.mid,
+                  ),
+                ),
+                FilterChip(
+                  key: const ValueKey('pnlOk'),
+                  label: Text(d > 0 ? '確認是盈利' : '確認是虧損'),
+                  selected: _pnlOk,
+                  showCheckmark: true,
+                  visualDensity: VisualDensity.compact,
+                  onSelected: (v) => setState(() => _pnlOk = v),
+                ),
+              ],
+            ),
+          ),
       ],
     );
   }
@@ -1736,6 +1790,22 @@ class _TxFormState extends State<_TxForm> {
           ? '這筆之後皮包餘額'
           : '這筆之後戶頭餘額'}';
 
+  /// 表單還沒填完（[_build] 還不能用）時，照目前填的金額、類型、帳戶估這筆讓 [a] 變多少。
+  int _probeDelta(LedgerAccount a) {
+    final amt = _int(_amount) ?? 0;
+    final ty = _effType;
+    final s = a.isCard ? -1 : 1;
+    final from = _fromOutside ? null : (_neg ? _to : _account);
+    final to = ty == LedgerTxType.transfer ? (_neg ? _account : _to) : null;
+    var d = 0;
+    if (from == a.id) {
+      final out = ty == LedgerTxType.expense || ty == LedgerTxType.transfer;
+      d += out ? -s * amt : s * amt;
+    }
+    if (to == a.id && _toExt.isEmpty && !_toOther) d += s * amt;
+    return d;
+  }
+
   List<Widget> _afterBox(
     LedgerTx? draft,
     LedgerAccount a,
@@ -1745,9 +1815,12 @@ class _TxFormState extends State<_TxForm> {
     final s = book.stateOf(a);
     final card = a.isCard;
     // 照目前記到的推算「這筆之後應該剩多少」當提示（編輯舊的不推算）。
+    // 即時推算（2026-11-11 使用者：填餘額的下面要有即時的小推算）：表單還沒填完也算，
+    // 金額沒填當 0。
     int? guess;
-    if (s != null && draft != null && widget.edit == null) {
-      final occupied = s.now + LedgerBook.delta(draft, a);
+    if (s != null && widget.edit == null) {
+      final occupied =
+          s.now + (draft != null ? LedgerBook.delta(draft, a) : _probeDelta(a));
       guess = card ? s.limit - occupied : occupied;
     }
     final got = _int(ctrl);
@@ -1767,7 +1840,7 @@ class _TxFormState extends State<_TxForm> {
           padding: const EdgeInsets.only(top: 6, left: 88),
           child: Text(
             got == null
-                ? 'App 照記到的推算，這筆之後應該是 ${lMoney(guess)}'
+                ? '推算約 ${lMoney(guess)}'
                 : got == guess
                 ? '✓ 跟 App 推算的一樣'
                 : '⚠ App 推算是 ${lMoney(guess)}，差 ${lMoney((guess - got).abs())}'

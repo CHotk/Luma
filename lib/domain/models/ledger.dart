@@ -243,6 +243,7 @@ class LedgerTx {
     this.fromName = '',
     this.fromAfter,
     this.toAfter,
+    this.extPnlOk = false,
     this.extAmount,
     this.category,
     this.merchant = '',
@@ -299,6 +300,9 @@ class LedgerTx {
   /// [fromAfter]＝[fromName] 那邊、[toAfter]＝[toName] 那邊。
   final double? fromAfter;
   final double? toAfter;
+
+  /// 虛擬貨幣填的「這筆之後」跟推算有差時，使用者確認這差額是盈虧（幣價浮動，2026-11-11 使用者）。
+  final bool extPnlOk;
 
   /// 轉到「虛擬貨幣」時實際換到多少 USDT（2026-11-11 使用者：虛擬貨幣那邊用 USDT 當幣種）。
   final double? extAmount;
@@ -387,6 +391,7 @@ class LedgerTx {
     String? fromName,
     double? Function()? fromAfter,
     double? Function()? toAfter,
+    bool? extPnlOk,
     double? Function()? extAmount,
     String? Function()? category,
     String? merchant,
@@ -413,6 +418,7 @@ class LedgerTx {
     fromName: fromName ?? this.fromName,
     fromAfter: fromAfter == null ? this.fromAfter : fromAfter(),
     toAfter: toAfter == null ? this.toAfter : toAfter(),
+    extPnlOk: extPnlOk ?? this.extPnlOk,
     extAmount: extAmount == null ? this.extAmount : extAmount(),
     category: category == null ? this.category : category(),
     merchant: merchant ?? this.merchant,
@@ -446,6 +452,7 @@ class LedgerTx {
     if (fromName.isNotEmpty) 'fromName': fromName,
     if (fromAfter != null) 'fromAfter': fromAfter,
     if (toAfter != null) 'toAfter': toAfter,
+    if (extPnlOk) 'extPnlOk': true,
     if (extAmount != null) 'extAmt': extAmount,
     'category': category,
     'merchant': merchant,
@@ -479,6 +486,7 @@ class LedgerTx {
     fromName: j['fromName'] as String? ?? '',
     fromAfter: (j['fromAfter'] as num?)?.toDouble(),
     toAfter: (j['toAfter'] as num?)?.toDouble(),
+    extPnlOk: j['extPnlOk'] as bool? ?? false,
     extAmount: (j['extAmt'] as num?)?.toDouble(),
     category: j['category'] as String?,
     merchant: j['merchant'] as String? ?? '',

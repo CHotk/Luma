@@ -406,8 +406,9 @@ class LedgerBook {
   double _extRun(
     String name,
     String? skipId,
-    double Function(LedgerTx t, int dir) delta,
-  ) {
+    double Function(LedgerTx t, int dir) delta, {
+    String? stopAt,
+  }) {
     final list =
         [
           for (final t in txs)
@@ -422,6 +423,7 @@ class LedgerBook {
         });
     var sum = 0.0;
     for (final t in list) {
+      if (t.id == stopAt) break;
       if (t.type == LedgerTxType.transfer &&
           !t.toOther &&
           t.toAccountId == null &&
@@ -452,6 +454,26 @@ class LedgerBook {
     skipId,
     (t, dir) => dir * (t.extAmount ?? t.amount / ledgerUsdtRoughRate),
   );
+
+  /// 虛擬貨幣那邊填了「這筆之後」時，跟推算差多少 USDT（正＝多出來、負＝少了；沒填或沒差＝null）。
+  /// 幣價會浮動，差額可以在表單確認是盈虧（[LedgerTx.extPnlOk]）。
+  double? usdtDiffOf(LedgerTx t) {
+    if (t.type != LedgerTxType.transfer) return null;
+    final isTo =
+        !t.toOther && t.toAccountId == null && t.toName == ledgerCryptoExt;
+    final isFrom = t.fromName == ledgerCryptoExt;
+    final after = isTo ? t.toAfter : (isFrom ? t.fromAfter : null);
+    if (after == null) return null;
+    final before = _extRun(
+      ledgerCryptoExt,
+      null,
+      (x, dir) => dir * (x.extAmount ?? x.amount / ledgerUsdtRoughRate),
+      stopAt: t.id,
+    );
+    final mine = t.extAmount ?? t.amount / ledgerUsdtRoughRate;
+    final d = after - (before + (isTo ? mine : -mine));
+    return d.abs() < 0.005 ? null : d;
+  }
 
   /// 轉帳「從哪」那邊的名稱：沒記在 App 裡的（LineBank／富邦／虛擬貨幣）用 [LedgerTx.fromName]。
   String fromLabel(LedgerTx t) =>

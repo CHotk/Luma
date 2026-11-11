@@ -117,6 +117,7 @@ void main() {
     await tester.enterText(amt.first, amount);
     await tester.pump();
     expect(fields, findsWidgets);
+    await pickDefaultAccount(tester);
     await tester.tap(find.widgetWithText(FilledButton, '新增'));
     await settle(tester);
   }
@@ -161,6 +162,7 @@ void main() {
       '120',
     );
     await tester.pump();
+    await pickDefaultAccount(tester);
     await tester.tap(find.widgetWithText(FilledButton, '新增'));
     await settle(tester);
     expect(find.text('要改成菸酒嗎？'), findsNothing);
@@ -214,6 +216,7 @@ void main() {
     await tester.enterText(amountField(), '55');
     await tester.enterText(merchantField(), '路邊攤');
     await tester.pump();
+    await pickDefaultAccount(tester);
     await tester.ensureVisible(find.widgetWithText(FilledButton, '新增'));
     await tester.tap(find.widgetWithText(FilledButton, '新增'));
     await settle(tester);
@@ -285,6 +288,7 @@ void main() {
     await tester.enterText(amountField(), '5000');
     await tester.pump();
     // 沒選來源戶頭按新增：不會存。
+    await pickDefaultAccount(tester);
     await tester.ensureVisible(find.widgetWithText(FilledButton, '新增'));
     await tester.tap(find.widgetWithText(FilledButton, '新增'));
     await settle(tester);
@@ -294,6 +298,7 @@ void main() {
     expect(book.txs.where((t) => t.type == LedgerTxType.income), isEmpty);
     await tester.tap(find.byKey(const ValueKey('fromExt_富邦')));
     await tester.pump();
+    await pickDefaultAccount(tester);
     await tester.ensureVisible(find.widgetWithText(FilledButton, '新增'));
     await tester.tap(find.widgetWithText(FilledButton, '新增'));
     await settle(tester);
@@ -320,6 +325,7 @@ void main() {
     await tester.enterText(amountField(), '1200');
     await tester.enterText(merchantField(), '阿明');
     await tester.pump();
+    await pickDefaultAccount(tester);
     await tester.ensureVisible(find.widgetWithText(FilledButton, '新增'));
     await tester.tap(find.widgetWithText(FilledButton, '新增'));
     await settle(tester);
@@ -385,6 +391,7 @@ void main() {
       tester.widget<Text>(find.byKey(const ValueKey('extAfterNote'))).data,
       contains('93.75 USDT'),
     );
+    await pickDefaultAccount(tester);
     await tester.ensureVisible(find.widgetWithText(FilledButton, '新增'));
     await tester.tap(find.widgetWithText(FilledButton, '新增'));
     await settle(tester);
@@ -465,6 +472,7 @@ void main() {
       '8000',
     );
     await tester.pump();
+    await pickDefaultAccount(tester);
     await tester.ensureVisible(find.widgetWithText(FilledButton, '新增'));
     await tester.tap(find.widgetWithText(FilledButton, '新增'));
     await settle(tester);
@@ -509,6 +517,7 @@ void main() {
     await tester.ensureVisible(find.byKey(const ValueKey('fromExt_LineBank')));
     await tester.tap(find.byKey(const ValueKey('fromExt_LineBank')));
     await tester.pump();
+    await pickDefaultAccount(tester);
     await tester.ensureVisible(find.widgetWithText(FilledButton, '新增'));
     await tester.tap(find.widgetWithText(FilledButton, '新增'));
     await settle(tester);
@@ -712,4 +721,26 @@ void incomeTests() {
     await tester.pumpAndSettle();
     expect(find.textContaining('總支出＝'), findsNothing);
   });
+}
+
+/// 2026-11-11 起新記的不預選帳戶（使用者：不要預設選中信卡）：測試照以前的預設自己點
+/// （支出＝第一張信用卡、收入＝第一個戶頭；轉帳照舊會自己帶）。已經選了就不動。
+Future<void> pickDefaultAccount(WidgetTester tester) async {
+  bool on(String t) => tester
+      .widgetList<ChoiceChip>(find.widgetWithText(ChoiceChip, t))
+      .any((c) => c.selected);
+  if (on('轉帳')) return;
+  final income = on('收入');
+  final title = find.text(income ? '進哪個帳戶' : '用哪個付');
+  if (title.evaluate().isEmpty) return;
+  final row = find.ancestor(of: title.first, matching: find.byType(Row)).first;
+  final chips = find.descendant(of: row, matching: find.byType(ChoiceChip));
+  final list = tester.widgetList<ChoiceChip>(chips).toList();
+  if (list.isEmpty || list.any((c) => c.selected)) return;
+  String label(ChoiceChip c) => (c.label as Text).data ?? '';
+  var i = list.indexWhere((c) => label(c).startsWith(income ? '🏦' : '💳'));
+  if (i < 0) i = 0;
+  await tester.ensureVisible(chips.at(i));
+  await tester.tap(chips.at(i));
+  await tester.pump();
 }

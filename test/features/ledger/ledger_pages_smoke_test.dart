@@ -169,6 +169,7 @@ void main() {
       await tester.enterText(find.byType(TextField).at(1), amount);
       await tester.enterText(find.byType(TextField).at(2), day);
       await tester.pump();
+      await pickDefaultAccount(tester);
       await tester.tap(find.widgetWithText(FilledButton, '新增'));
       await settle(tester);
       // 等通知收掉，不然它蓋在右上角的「新增每月扣款」鈕上。
@@ -283,6 +284,7 @@ void main() {
     await tester.enterText(find.byType(TextField).at(1), '1200');
     await tester.enterText(find.byType(TextField).at(2), '20');
     await tester.pump();
+    await pickDefaultAccount(tester);
     await tester.tap(find.widgetWithText(FilledButton, '新增'));
     await settle(tester);
     await tester.pump(const Duration(seconds: 4));
@@ -374,8 +376,10 @@ void main() {
       lessThan(8),
     );
     // 借款表單比較長，新增鈕要先捲到看得到。
+    await pickDefaultAccount(tester);
     await tester.ensureVisible(find.widgetWithText(FilledButton, '新增'));
     await tester.pumpAndSettle();
+    await pickDefaultAccount(tester);
     await tester.tap(find.widgetWithText(FilledButton, '新增'));
     await settle(tester);
     await tester.pump(const Duration(seconds: 4));
@@ -443,6 +447,7 @@ void main() {
     await tester.tap(find.text('確定'));
     await tester.pumpAndSettle();
     expect(find.textContaining('（點一下改）'), findsOneWidget);
+    await pickDefaultAccount(tester);
     await tester.ensureVisible(find.widgetWithText(FilledButton, '新增'));
     await tester.tap(find.widgetWithText(FilledButton, '新增'));
     await settle(tester);
@@ -551,8 +556,10 @@ void main() {
     final note = tester.widget<TextField>(find.byType(TextField).at(7));
     expect(note.maxLines, isNull);
     expect(note.keyboardType, TextInputType.multiline);
+    await pickDefaultAccount(tester);
     await tester.ensureVisible(find.widgetWithText(FilledButton, '新增'));
     await tester.pumpAndSettle();
+    await pickDefaultAccount(tester);
     await tester.tap(find.widgetWithText(FilledButton, '新增'));
     await settle(tester);
     await tester.pump(const Duration(seconds: 4));
@@ -815,6 +822,7 @@ void main() {
       tester.widget<TextField>(find.byType(TextField).at(2)).controller!.text,
       'FOODPANDA ',
     );
+    await pickDefaultAccount(tester);
     await tester.tap(find.widgetWithText(FilledButton, '新增'));
     await settle(tester);
     final book = await tester.runAsync(
@@ -936,6 +944,7 @@ void main() {
     );
     await tester.enterText(find.byType(TextField).at(2), '早餐');
     await tester.pump();
+    await pickDefaultAccount(tester);
     await tester.tap(find.widgetWithText(FilledButton, '新增'));
     await settle(tester);
     expect(tester.takeException(), isNull);
@@ -1122,6 +1131,7 @@ void main() {
     await tester.enterText(find.byType(TextField).at(3), '600');
     await tester.enterText(find.byType(TextField).at(4), '9300');
     await tester.pump();
+    await pickDefaultAccount(tester);
     await tester.tap(find.widgetWithText(FilledButton, '新增'));
     await settle(tester);
     expect(tester.takeException(), isNull);
@@ -1261,6 +1271,7 @@ void main() {
     expect(find.text('買什麼（分類）'), findsNothing);
     await tester.enterText(find.byType(TextField).at(2), '小美');
     await tester.pump();
+    await pickDefaultAccount(tester);
     await tester.ensureVisible(find.widgetWithText(FilledButton, '新增'));
     await tester.tap(find.widgetWithText(FilledButton, '新增'));
     await settle(tester);
@@ -1328,6 +1339,7 @@ void main() {
     expect(find.textContaining('讀懂了'), findsOneWidget);
     // 第 11 欄品項名稱帶進品項欄。
     expect(find.widgetWithText(TextField, '貓罐頭'), findsOneWidget);
+    await pickDefaultAccount(tester);
     await tester.tap(find.widgetWithText(FilledButton, '新增'));
     await settle(tester);
     expect(tester.takeException(), isNull);
@@ -1534,6 +1546,7 @@ void main() {
     );
     await tester.tap(done);
     await tester.pump();
+    await pickDefaultAccount(tester);
     await tester.tap(find.widgetWithText(FilledButton, '新增'));
     await settle(tester);
     expect(tester.takeException(), isNull);
@@ -1592,8 +1605,10 @@ void main() {
     await tester.tap(find.textContaining('取消拆分'));
     await tester.pump();
     expect(find.text('品項名稱'), findsOneWidget);
+    await pickDefaultAccount(tester);
     await tester.ensureVisible(find.widgetWithText(FilledButton, '新增'));
     await tester.pumpAndSettle();
+    await pickDefaultAccount(tester);
     await tester.tap(find.widgetWithText(FilledButton, '新增'));
     await settle(tester);
     expect(tester.takeException(), isNull);
@@ -1615,6 +1630,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byType(FloatingActionButton));
     await settle(tester);
+    await pickDefaultAccount(tester);
     await tester.enterText(find.byType(TextField).at(1), '1000');
     await tester.enterText(find.byType(TextField).at(2), '家樂福');
     await tester.pump();
@@ -1641,6 +1657,7 @@ void main() {
     await tester.enterText(find.byType(TextField).at(5), '500');
     await tester.pump();
     expect(find.textContaining('剛好拆滿'), findsOneWidget);
+    await pickDefaultAccount(tester);
     await tester.tap(find.widgetWithText(FilledButton, '新增'));
     await settle(tester);
     expect(tester.takeException(), isNull);
@@ -1727,6 +1744,7 @@ void main() {
     );
     await tester.enterText(find.byKey(const ValueKey('splitPeople1')), 'Cen');
     await tester.pump();
+    await pickDefaultAccount(tester);
     await tester.ensureVisible(find.widgetWithText(FilledButton, '新增'));
     await tester.tap(find.widgetWithText(FilledButton, '新增'));
     await settle(tester);
@@ -1797,6 +1815,7 @@ void main() {
     );
     await tester.enterText(find.byKey(const ValueKey('splitPeople1')), 'Cen');
     await tester.pump();
+    await pickDefaultAccount(tester);
     await tester.ensureVisible(find.widgetWithText(FilledButton, '新增'));
     await tester.tap(find.widgetWithText(FilledButton, '新增'));
     await settle(tester);
@@ -1844,6 +1863,7 @@ void main() {
     await tester.ensureVisible(find.byKey(const ValueKey('splitPeople1')));
     await tester.enterText(find.byKey(const ValueKey('splitPeople1')), 'Amy');
     await tester.pump();
+    await pickDefaultAccount(tester);
     await tester.ensureVisible(find.widgetWithText(FilledButton, '新增'));
     await tester.tap(find.widgetWithText(FilledButton, '新增'));
     await settle(tester);
@@ -2141,4 +2161,26 @@ class _MemoryStore implements KeyValueStore {
 
   @override
   Future<void> remove(String key) async => data.remove(key);
+}
+
+/// 2026-11-11 起新記的不預選帳戶（使用者：不要預設選中信卡）：測試照以前的預設自己點
+/// （支出＝第一張信用卡、收入＝第一個戶頭；轉帳照舊會自己帶）。已經選了就不動。
+Future<void> pickDefaultAccount(WidgetTester tester) async {
+  bool on(String t) => tester
+      .widgetList<ChoiceChip>(find.widgetWithText(ChoiceChip, t))
+      .any((c) => c.selected);
+  if (on('轉帳')) return;
+  final income = on('收入');
+  final title = find.text(income ? '進哪個帳戶' : '用哪個付');
+  if (title.evaluate().isEmpty) return;
+  final row = find.ancestor(of: title.first, matching: find.byType(Row)).first;
+  final chips = find.descendant(of: row, matching: find.byType(ChoiceChip));
+  final list = tester.widgetList<ChoiceChip>(chips).toList();
+  if (list.isEmpty || list.any((c) => c.selected)) return;
+  String label(ChoiceChip c) => (c.label as Text).data ?? '';
+  var i = list.indexWhere((c) => label(c).startsWith(income ? '🏦' : '💳'));
+  if (i < 0) i = 0;
+  await tester.ensureVisible(chips.at(i));
+  await tester.tap(chips.at(i));
+  await tester.pump();
 }

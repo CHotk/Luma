@@ -132,6 +132,7 @@ void main() {
     await tester.pump();
     await tester.ensureVisible(find.byKey(const ValueKey('srcExtAfter')));
     expect(find.text('約 -\$1,000（照轉入轉出推算）'), findsNothing);
+    await pickDefaultAccount(tester);
     await tester.ensureVisible(find.widgetWithText(FilledButton, '新增'));
     await tester.tap(find.widgetWithText(FilledButton, '新增'));
     await settle(tester);
@@ -205,6 +206,7 @@ void main() {
     await tester.enterText(from, '12000');
     await tester.enterText(to, '250.5');
     await tester.pump();
+    await pickDefaultAccount(tester);
     await tester.ensureVisible(find.widgetWithText(FilledButton, '新增'));
     await tester.tap(find.widgetWithText(FilledButton, '新增'));
     await settle(tester);
@@ -416,6 +418,52 @@ void main() {
     expect(ledgerAccountBrand(cash), isNull);
   });
 
+  test('虛擬貨幣餘額跟推算有差：算出差多少 USDT，確認是盈虧的存起來', () {
+    LedgerTx tr(String id, int day, {double? after, bool ok = false}) =>
+        LedgerTx(
+          id: id,
+          type: LedgerTxType.transfer,
+          occurredAt: DateTime(2026, 11, day),
+          amount: 3200,
+          accountId: 'bank',
+          toName: '虛擬貨幣',
+          extAmount: 100,
+          toAfter: after,
+          extPnlOk: ok,
+        );
+    final b = LedgerBook(
+      accounts: const [],
+      checkpoints: const [],
+      budgets: const [],
+      txs: [tr('a', 1), tr('b', 2, after: 230, ok: true), tr('c', 3)],
+    );
+    // 第二筆前面 100 + 這筆 100 = 推算 200，填 230 → 多 30（盈利）。
+    expect(b.usdtDiffOf(b.tx('b')!), closeTo(30, 1e-9));
+    expect(b.usdtDiffOf(b.tx('a')!), isNull);
+    // 有填就是新起點：230 + 100。
+    expect(b.usdtBalance(), closeTo(330, 1e-9));
+    final j = LedgerTx.fromJson(b.tx('b')!.toJson());
+    expect(j.extPnlOk, isTrue);
+    expect(j.toAfter, 230);
+  });
+
+  testWidgets('新記一筆不預選帳戶、不預選分類', (tester) async {
+    final store = _MemoryStore();
+    await setup(tester, store);
+    await open(tester, store);
+    await tester.tap(find.byType(FloatingActionButton));
+    await settle(tester);
+    final chips = tester
+        .widgetList<ChoiceChip>(find.byType(ChoiceChip))
+        .toList();
+    String label(ChoiceChip c) => (c.label as Text).data ?? '';
+    final selected = [
+      for (final c in chips)
+        if (c.selected) label(c),
+    ];
+    expect(selected, ['支出'], reason: '只有上面的類型是選著的');
+  });
+
   testWidgets('商家下拉不列刷卡（信用卡）的商家', (tester) async {
     final store = _MemoryStore();
     final (repo, bank, card) = await setup(tester, store);
@@ -461,4 +509,26 @@ class _MemoryStore implements KeyValueStore {
 
   @override
   Future<void> remove(String key) async => data.remove(key);
+}
+
+/// 2026-11-11 起新記的不預選帳戶（使用者：不要預設選中信卡）：測試照以前的預設自己點
+/// （支出＝第一張信用卡、收入＝第一個戶頭；轉帳照舊會自己帶）。已經選了就不動。
+Future<void> pickDefaultAccount(WidgetTester tester) async {
+  bool on(String t) => tester
+      .widgetList<ChoiceChip>(find.widgetWithText(ChoiceChip, t))
+      .any((c) => c.selected);
+  if (on('轉帳')) return;
+  final income = on('收入');
+  final title = find.text(income ? '進哪個帳戶' : '用哪個付');
+  if (title.evaluate().isEmpty) return;
+  final row = find.ancestor(of: title.first, matching: find.byType(Row)).first;
+  final chips = find.descendant(of: row, matching: find.byType(ChoiceChip));
+  final list = tester.widgetList<ChoiceChip>(chips).toList();
+  if (list.isEmpty || list.any((c) => c.selected)) return;
+  String label(ChoiceChip c) => (c.label as Text).data ?? '';
+  var i = list.indexWhere((c) => label(c).startsWith(income ? '🏦' : '💳'));
+  if (i < 0) i = 0;
+  await tester.ensureVisible(chips.at(i));
+  await tester.tap(chips.at(i));
+  await tester.pump();
 }
