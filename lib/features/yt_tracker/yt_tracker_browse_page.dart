@@ -16,6 +16,7 @@ import '../../data/repositories/yt_video_cache_store.dart';
 import '../../data/repositories/yt_video_views.dart';
 import '../../data/repositories/yt_video_watch_store.dart';
 import '../../data/repositories/yt_video_hidden_store.dart';
+import '../../data/repositories/yt_video_rating_store.dart';
 import '../../data/services/youtube_api_service.dart';
 import '../../domain/models/yt_subscriber_snapshot.dart';
 import '../../domain/models/yt_tracker.dart';
@@ -36,6 +37,8 @@ import 'yt_api_key_dialog.dart';
 import 'yt_channel_avatar.dart';
 import 'yt_tracker_home_page.dart'
     show YtCategoryImage, deleteYtCategory, runYtChannelDiscovery;
+import 'yt_crypto_stats_page.dart';
+import 'yt_rating_ui.dart';
 import 'yt_video_row.dart';
 
 enum _ViewMode { channel, video }
@@ -47,7 +50,7 @@ enum _TypeFilter { all, regular, shorts, live }
 
 /// 「依頻道顯示」的排序（2026-09-24 使用者要求）。訂閱人數沒有資料的
 /// （還沒更新到、或頻道隱藏訂閱數）一律排最後，不管升冪降冪。
-enum _ChannelSort { normal, subsDesc, subsAsc }
+enum _ChannelSort { normal, subsDesc, subsAsc, accuracy }
 
 /// 一部影片＋它屬於哪個頻道，「依影片顯示」要混合多個頻道的影片，
 /// 每一列要能同時秀出影片跟頻道兩邊的資訊。
@@ -115,6 +118,16 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
 
   /// 選的分類全都是音樂分類（名字有「音樂」）：才有「♪歌曲」跟標歌曲。
   bool _music = false;
+
+  /// 選的分類全都是幣圈分類（名字有「幣圈」，2026-11-11）：才有準度評價。
+  bool _crypto = false;
+
+  bool _allCrypto(List<YtCategory> categories) =>
+      _selected.isNotEmpty &&
+      _selected.every(
+        (id) =>
+            categories.any((c) => c.id == id && isCryptoCategoryName(c.name)),
+      );
 
   /// 分類頁搜尋（2026-10-15）：只搜快取裡這些頻道的全部影片標題，打字就搜。
   bool _searchOpen = false;
@@ -234,6 +247,7 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                     known: _knownFor(item.video.videoId),
                     forceShow: true,
                     songMode: _music,
+                    cryptoMode: _crypto,
                     onWatchedChanged: (r) => _onWatched(item.video.videoId, r),
                     onHiddenChanged: _loadVideoMarks,
                   );
@@ -285,6 +299,14 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
       _MarkView.hidden => hidden,
       _MarkView.all => true,
       _MarkView.songs => ref.read(ytVideoSongsProvider).contains(id),
+      _MarkView.pending ||
+      _MarkView.ok ||
+      _MarkView.half ||
+      _MarkView.bad ||
+      _MarkView.none => ytRatingMatches(
+        ref.read(ytVideoRatingsProvider)[id],
+        view.name,
+      ),
     };
   }
 
@@ -508,6 +530,21 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
 
   List<YtChannel> _bySort(List<YtChannel> list) {
     if (_sort == _ChannelSort.normal) return list;
+    // 準度 高→低（幣圈，2026-11-11）：評價夠多的照命中率，資料少的排後面。
+    if (_sort == _ChannelSort.accuracy) {
+      final ratings = ref.read(ytVideoRatingsProvider).values;
+      double key(YtChannel c) {
+        final a = ytAccuracyOf(ratings, channelId: c.id);
+        return a.enough ? a.rate! : -1 - (a.rated / 1000);
+      }
+
+      final indexed = [for (var i = 0; i < list.length; i++) (i, list[i])];
+      indexed.sort((a, b) {
+        final d = key(b.$2).compareTo(key(a.$2));
+        return d != 0 ? d : a.$1.compareTo(b.$1);
+      });
+      return [for (final e in indexed) e.$2];
+    }
     final indexed = [for (var i = 0; i < list.length; i++) (i, list[i])];
     indexed.sort((a, b) {
       final x = a.$2.subscriberCount;
@@ -1113,8 +1150,10 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
             spacing: 6,
             children: [
               for (final view in _MarkView.values)
-                if (view != _MarkView.songs || _music)
+                if ((view != _MarkView.songs || _music) &&
+                    (!view.crypto || _crypto))
                   _TypeChip(
+                    key: ValueKey('markView_${view.name}'),
                     label: view.label,
                     selected: _view == view,
                     onTap: () {
@@ -1198,6 +1237,7 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                                   known: _knownFor(preview[i].video.videoId),
                                   forceShow: _view != _MarkView.unwatched,
                                   songMode: _music,
+                                  cryptoMode: _crypto,
                                   onWatchedChanged: (r) =>
                                       _onWatched(preview[i].video.videoId, r),
                                   onHiddenChanged: _loadVideoMarks,
@@ -1279,6 +1319,7 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                           known: _knownFor(item.video.videoId),
                           forceShow: _view != _MarkView.unwatched,
                           songMode: _music,
+                          cryptoMode: _crypto,
                           onWatchedChanged: (r) =>
                               _onWatched(item.video.videoId, r),
                           onHiddenChanged: _loadVideoMarks,
@@ -1296,6 +1337,8 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
   Widget build(BuildContext context) {
     // 標／取消歌曲後「♪ 歌曲」的清單要跟著變。
     ref.watch(ytVideoSongsProvider);
+    // 評價改了，待驗證／對／不對的清單跟頻道準度要跟著變。
+    ref.watch(ytVideoRatingsProvider);
     return Scaffold(
       drawer: const AppSideDrawer(),
       body: AmbientBackground(
@@ -1388,6 +1431,30 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                                   titleIconColor: AppColors.ytAccent,
                                   titleLeading: _titleImage(categories),
                                   actions: [
+                                    // 幣圈分類：🎯 準度統計（2026-11-11）。
+                                    if (_allCrypto(categories))
+                                      IconButton(
+                                        key: const ValueKey('cryptoStats'),
+                                        onPressed: () =>
+                                            Navigator.of(context).push(
+                                              MaterialPageRoute<void>(
+                                                builder: (_) =>
+                                                    YtCryptoStatsPage(
+                                                      channelNames: {
+                                                        for (final c
+                                                            in channels)
+                                                          c.id: c.name,
+                                                      },
+                                                    ),
+                                              ),
+                                            ),
+                                        icon: const Icon(
+                                          Icons.my_location_rounded,
+                                          size: 20,
+                                        ),
+                                        color: AppColors.ink2,
+                                        tooltip: '準度統計',
+                                      ),
                                     IconButton(
                                       onPressed: _openSearch,
                                       icon: const Icon(
@@ -1608,6 +1675,21 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                                                           _ChannelSort.subsAsc,
                                                     ),
                                                   ),
+                                                  if (_allCrypto(categories))
+                                                    _TypeChip(
+                                                      key: const ValueKey(
+                                                        'sortAccuracy',
+                                                      ),
+                                                      label: '🎯 準度 高→低',
+                                                      selected:
+                                                          _sort ==
+                                                          _ChannelSort.accuracy,
+                                                      onTap: () => setState(
+                                                        () =>
+                                                            _sort = _ChannelSort
+                                                                .accuracy,
+                                                      ),
+                                                    ),
                                                 ],
                                               ),
                                             ),
@@ -1641,6 +1723,19 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                                             ),
                                             // 只有單獨看「挖掘新頻道」分類時才秀來源標籤
                                             // （2026-09-29 使用者要求：僅在挖掘分類才顯示）。
+                                            accuracy: _allCrypto(categories)
+                                                ? {
+                                                    for (final c in channels)
+                                                      c.id: ytAccuracyOf(
+                                                        ref
+                                                            .read(
+                                                              ytVideoRatingsProvider,
+                                                            )
+                                                            .values,
+                                                        channelId: c.id,
+                                                      ),
+                                                  }
+                                                : null,
                                             showDiscoveredBadge:
                                                 _selected.length == 1 &&
                                                 _selected.single ==
@@ -1682,6 +1777,7 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                                   : (() {
                                       // 選的分類都是音樂分類才有歌曲。
                                       _music = _allMusic(categories);
+                                      _crypto = _allCrypto(categories);
                                       return _buildVideoPanel(channels);
                                     })(),
                             ),
@@ -2286,6 +2382,7 @@ class _ChannelGrid extends StatefulWidget {
     required this.onSetNormal,
     required this.onDelete,
     this.showDiscoveredBadge = false,
+    this.accuracy,
     this.trash = false,
     this.onRestore,
     this.onPurge,
@@ -2323,6 +2420,9 @@ class _ChannelGrid extends StatefulWidget {
   /// 只有正在單獨看「挖掘新頻道」分類時才是 true，其他情況一律不顯示
   /// 挖掘來源標籤（2026-09-29 使用者要求：僅在挖掘分類才顯示）。
   final bool showDiscoveredBadge;
+
+  /// 幣圈分類的頻道準度（2026-11-11）：卡片上多一個準度小標籤；不是幣圈就是 null。
+  final Map<String, YtAccuracy>? accuracy;
 
   @override
   State<_ChannelGrid> createState() => _ChannelGridState();
@@ -2682,13 +2782,48 @@ class _ChannelGridState extends State<_ChannelGrid> {
                                     ),
                                   ],
                                 ),
-                                if (c.subscriberLabel != null) ...[
+                                if (c.subscriberLabel != null ||
+                                    widget.accuracy?[c.id] != null) ...[
                                   const SizedBox(height: 4),
-                                  Text(
-                                    c.subscriberLabel!,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: AppText.note,
+                                  Row(
+                                    children: [
+                                      if (widget.accuracy?[c.id]
+                                          case final acc?) ...[
+                                        Container(
+                                          key: ValueKey('acc_${c.id}'),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 5,
+                                            vertical: 1,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: ytAccuracyColor(
+                                              acc,
+                                            ).withValues(alpha: 0.18),
+                                            borderRadius: BorderRadius.circular(
+                                              5,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            '🎯 ${acc.label}',
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w800,
+                                              color: ytAccuracyColor(acc),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 5),
+                                      ],
+                                      if (c.subscriberLabel != null)
+                                        Flexible(
+                                          child: Text(
+                                            c.subscriberLabel!,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: AppText.note,
+                                          ),
+                                        ),
+                                    ],
                                   ),
                                 ],
                               ],
@@ -2916,6 +3051,7 @@ class _CategoryPickChip extends StatelessWidget {
 /// 一樣大會太擠。
 class _TypeChip extends StatelessWidget {
   const _TypeChip({
+    super.key,
     required this.label,
     required this.selected,
     required this.onTap,
@@ -2971,8 +3107,15 @@ enum _MarkView {
   unwatched('沒看過'),
   hidden('已隱藏'),
   all('全部'),
-  songs('♪ 歌曲');
+  songs('♪ 歌曲'),
+  // 幣圈分類才有（2026-11-11）。
+  pending('🎯 待驗證', crypto: true),
+  ok('○ 對', crypto: true),
+  half('△ 半對', crypto: true),
+  bad('✕ 不對', crypto: true),
+  none('— 沒給方向', crypto: true);
 
-  const _MarkView(this.label);
+  const _MarkView(this.label, {this.crypto = false});
   final String label;
+  final bool crypto;
 }

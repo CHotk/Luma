@@ -33,6 +33,7 @@ import 'yt_tracker_browse_page.dart'
         refreshYtSubscriberStats,
         showAddYtChannelDialog;
 import 'yt_channel_avatar.dart';
+import 'yt_rating_ui.dart' show isCryptoCategoryName;
 
 /// YT 頻道追蹤首頁：分類資料夾格子（設計稿 06/07/08 定案，見
 /// `design-history/Yt頻道訂閱管理/`）。
@@ -1728,6 +1729,39 @@ class YtCategoryCardState extends State<YtCategoryCard> {
                         ? const TextStyle(fontSize: 11, color: Colors.white70)
                         : AppText.note,
                   ),
+                  // 幣圈分類：有預測到了驗證日就冒「🔔 N 該驗證」（2026-11-11）。
+                  if (isCryptoCategoryName(category.name))
+                    Consumer(
+                      builder: (context, ref, _) {
+                        final now = DateTime.now();
+                        final due = ref
+                            .watch(ytVideoRatingsProvider)
+                            .values
+                            .where((r) => r.isDue(now))
+                            .length;
+                        if (due == 0) return const SizedBox.shrink();
+                        return Container(
+                          key: const ValueKey('cryptoDue'),
+                          margin: const EdgeInsets.only(top: 3),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 1,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFF9F0A),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            '🔔 $due 該驗證',
+                            style: const TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.black,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                   const Spacer(),
                   Row(
                     children: [

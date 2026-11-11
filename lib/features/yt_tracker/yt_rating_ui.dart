@@ -13,6 +13,13 @@ import '../../data/services/youtube_api_service.dart';
 /// 分類名是不是幣圈。
 bool isCryptoCategoryName(String name) => name.contains('幣圈');
 
+/// 影片篩選「待驗證／對／半對／不對／沒給方向」：[key] 是 pending 或 [YtVerdict.name]。
+bool ytRatingMatches(YtVideoRating? r, String key) {
+  if (r == null) return false;
+  if (key == 'pending') return r.pending;
+  return r.verdict?.name == key;
+}
+
 Color ytVerdictColor(YtVerdict v) => switch (v) {
   YtVerdict.ok => AppColors.ok,
   YtVerdict.half => AppColors.mid,
@@ -323,7 +330,7 @@ Future<void> showYtRatingDialog(
     ),
   );
   final note = noteCtrl.text.trim();
-  noteCtrl.dispose();
+  // 不在這裡 dispose：視窗關掉的動畫還在用這個輸入框（2026-11-11 測試抓到），交給 GC。
   if (!context.mounted) return;
   if (choice is YtVerdict) {
     await actions.rate(
@@ -414,44 +421,46 @@ Future<void> showYtPredictDialog(
         ),
         content: SizedBox(
           width: 320,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                video.title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: AppText.note,
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                key: const ValueKey('predict_claim'),
-                controller: ctrl,
-                autofocus: true,
-                maxLines: 2,
-                style: const TextStyle(fontSize: 13, color: AppColors.ink),
-                decoration: const InputDecoration(
-                  isDense: true,
-                  hintText: '他說了什麼？例如 BTC 兩週內站上 8 萬',
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  video.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.note,
                 ),
-              ),
-              const SizedBox(height: 12),
-              Text('幾天後驗證', style: AppText.note),
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 8,
-                children: [
-                  for (final d in const [3, 7, 14, 30, 90])
-                    ChoiceChip(
-                      key: ValueKey('predict_days_$d'),
-                      label: Text('$d 天'),
-                      selected: days == d,
-                      onSelected: (_) => setS(() => days = d),
-                    ),
-                ],
-              ),
-            ],
+                const SizedBox(height: 10),
+                TextField(
+                  key: const ValueKey('predict_claim'),
+                  controller: ctrl,
+                  autofocus: true,
+                  maxLines: 2,
+                  style: const TextStyle(fontSize: 13, color: AppColors.ink),
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    hintText: '他說了什麼？例如 BTC 兩週內站上 8 萬',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text('幾天後驗證', style: AppText.note),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    for (final d in const [3, 7, 14, 30, 90])
+                      ChoiceChip(
+                        key: ValueKey('predict_days_$d'),
+                        label: Text('$d 天'),
+                        selected: days == d,
+                        onSelected: (_) => setS(() => days = d),
+                      ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
         actions: [
@@ -469,7 +478,7 @@ Future<void> showYtPredictDialog(
     ),
   );
   final claim = ctrl.text;
-  ctrl.dispose();
+  // 不在這裡 dispose：視窗關掉的動畫還在用這個輸入框（2026-11-11 測試抓到），交給 GC。
   if (ok != true) return;
   await YtRatingActions(
     ref,

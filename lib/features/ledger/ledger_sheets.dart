@@ -1106,7 +1106,8 @@ class _TxFormState extends State<_TxForm> {
         if (!ledgerIncomeCats.containsKey(_category)) _category = '';
       case LedgerTxType.transfer:
         // 信用卡不能當轉出的帳戶（2026-11-11 使用者）：頂多繳卡費是戶頭轉到信用卡。
-        if (!valid(_account, (a) => !a.isCard)) {
+        // 編輯舊資料不偷換帳戶（以前可能記過信用卡轉出）。
+        if (!valid(_account, widget.edit == null ? (a) => !a.isCard : null)) {
           _account =
               (_firstOf(LedgerAccountType.bank) ??
                       accounts.where((a) => !a.isCard).firstOrNull)
@@ -1363,7 +1364,9 @@ class _TxFormState extends State<_TxForm> {
           : '商家名稱要填';
     }
     if (book.account(_account) == null) return '要選帳戶';
-    if (_effType == LedgerTxType.income &&
+    // 只擋新記的；以前記的平轉沒有來源戶頭，編輯時不擋。
+    if (widget.edit == null &&
+        _effType == LedgerTxType.income &&
         _category == ledgerFlatTransfer &&
         _fromExt.isEmpty) {
       return '平轉要選來源戶頭';
@@ -2054,8 +2057,8 @@ class _TxFormState extends State<_TxForm> {
                 if (_to == v) _to = null;
                 _applyDefaults();
               }),
-              // 信用卡不能轉帳出去，這一排不列信用卡（2026-11-11 使用者）。
-              only: (a) => !a.isCard,
+              // 信用卡不能轉帳出去，這一排不列信用卡（2026-11-11 使用者）；舊資料選著的照列。
+              only: (a) => !a.isCard || a.id == _account,
             ),
           ),
           _chipRow(

@@ -19,6 +19,7 @@ import '../../data/repositories/yt_video_marks_revision.dart';
 import '../../data/repositories/yt_video_hidden_store.dart';
 import '../../data/repositories/yt_video_views.dart';
 import '../../data/repositories/yt_video_watch_store.dart';
+import '../../data/repositories/yt_video_rating_store.dart';
 import '../../data/services/youtube_api_service.dart';
 import '../../data/services/yt_channel_filler.dart';
 import '../../data/services/yt_channel_search.dart';
@@ -43,6 +44,8 @@ import 'yt_channel_edit_header.dart';
 import 'yt_channel_log_page.dart';
 import 'yt_channel_stats.dart';
 import 'yt_duration_filter.dart';
+import 'yt_crypto_stats_page.dart';
+import 'yt_rating_ui.dart';
 import 'yt_video_row.dart';
 
 /// 「影片」清單的類型篩選，跟 `yt_tracker_browse_page.dart` 的
@@ -153,6 +156,9 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
 
   /// 頻道在音樂分類裡（分類名有「音樂」）：才有「♪歌曲」跟標歌曲的按鈕。
   bool _music = false;
+
+  /// 頻道在幣圈分類裡（2026-11-11）：影片能評準度、多「準度」入口跟評價篩選。
+  bool _crypto = false;
 
   // 哪些 videoId 這次是從本機快取讀到的、不是真的打 API 抓來的
   // （2026-09-30 使用者要求：想在畫面上看出哪些是秒出來、不用配額的）。
@@ -823,6 +829,14 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
       _VideoView.hidden => hidden,
       _VideoView.all => true,
       _VideoView.songs => ref.read(ytVideoSongsProvider).contains(v.videoId),
+      _VideoView.pending ||
+      _VideoView.ok ||
+      _VideoView.half ||
+      _VideoView.bad ||
+      _VideoView.none => ytRatingMatches(
+        ref.read(ytVideoRatingsProvider)[v.videoId],
+        view.name,
+      ),
     };
   }
 
@@ -889,6 +903,7 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     onHiddenChanged: _loadVideoFilters,
     fromCache: allFromCache || _cachedVideoIds.contains(v.videoId),
     songMode: _music,
+    cryptoMode: _crypto,
   );
 
   // 切類型篩選（2026-09-30 使用者要求）。原本的做法是抓全部上傳清單，
@@ -1965,6 +1980,7 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                           ? '未分類'
                           : category.first.name;
                       _music = categoryLabel.contains('音樂');
+                      _crypto = isCryptoCategoryName(categoryLabel);
 
                       // 不能在 build() 當下直接呼叫（裡面可能觸發
                       // setState），排到這一幀畫完之後——跟
@@ -2857,8 +2873,33 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
               // 一次只亮一格（2026-10-16 使用者要求）：沒看過是平常的樣子，
               // 點別格切過去、再點亮著的那格回到沒看過。每點一次都重讀看過／
               // 隱藏名單（看了幾部回來，名單才會是新的）。
+              // 幣圈：🎯 準度 → 這個頻道的命中率、依評價看影片（2026-11-11）。
+              if (_crypto)
+                Consumer(
+                  builder: (context, ref, _) {
+                    final acc = ytAccuracyOf(
+                      ref.watch(ytVideoRatingsProvider).values,
+                      channelId: widget.channelId,
+                    );
+                    return _Pick(
+                      key: const ValueKey('channelAccuracy'),
+                      label: '🎯 準度 ${acc.label} ›',
+                      color: AppColors.ytAccent,
+                      selected: false,
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => YtCryptoStatsPage(
+                            channelId: widget.channelId,
+                            channelName: channel.name,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
               for (final view in _VideoView.values)
-                if (view != _VideoView.songs || _music)
+                if ((view != _VideoView.songs || _music) &&
+                    (!view.crypto || _crypto))
                   _Pick(
                     label: withCount(
                       view.label,
@@ -2935,6 +2976,7 @@ class _TrashBanner extends StatelessWidget {
 
 class _Pick extends StatelessWidget {
   const _Pick({
+    super.key,
     required this.label,
     required this.color,
     required this.selected,
@@ -3894,8 +3936,15 @@ enum _VideoView {
   unwatched('沒看過'),
   hidden('已隱藏'),
   all('全部'),
-  songs('♪ 歌曲');
+  songs('♪ 歌曲'),
+  // 幣圈分類才有（2026-11-11）。
+  pending('🎯 待驗證', crypto: true),
+  ok('○ 對', crypto: true),
+  half('△ 半對', crypto: true),
+  bad('✕ 不對', crypto: true),
+  none('— 沒給方向', crypto: true);
 
-  const _VideoView(this.label);
+  const _VideoView(this.label, {this.crypto = false});
   final String label;
+  final bool crypto;
 }
