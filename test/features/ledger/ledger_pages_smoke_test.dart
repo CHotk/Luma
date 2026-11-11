@@ -1980,7 +1980,11 @@ void main() {
       ),
     );
     await pump(tester, const LedgerPage(tab: LedgerTab.list), store);
-    expect(find.text('🪙'), findsOneWidget, reason: '現金那筆');
+    expect(
+      find.byKey(const ValueKey('twd_100')),
+      findsOneWidget,
+      reason: '現金 120 元那筆顯示 100 元紙鈔',
+    );
     // 中信卡刷的用熊大那張卡的圖（2026-11-11 使用者）。
     expect(
       find.byKey(const ValueKey('brand_ctbc_linepay.png')),

@@ -12,6 +12,9 @@ import '../../data/repositories/jp_home_ring_store.dart';
 import '../../data/repositories/jp_light_style_store.dart';
 import '../../data/repositories/ledger_show_note_store.dart';
 import '../../data/repositories/ledger_sin_ask_store.dart';
+import '../../data/repositories/ledger_confirm_store.dart';
+import '../../data/repositories/ledger_usdt_rate_store.dart';
+import '../../domain/ledger_calc.dart' show ledgerUsdtRoughRate;
 import '../../data/repositories/music_play_mode_store.dart';
 import '../../data/repositories/usdt_twd_rate_store.dart';
 import '../../data/repositories/yt_embed_player_style_store.dart';
@@ -1586,6 +1589,43 @@ class LedgerSettingsSection extends ConsumerWidget {
                 ),
               ),
             ),
+            // 已確認功能（2026-11-11 使用者：可以關掉，關了沒有小藍點、沒有確認鈕、篩選沒有「未確認」）。
+            SettingAnchor(
+              id: 'ledger.confirm',
+              child: _LedgerRow(
+                icon: Icons.verified_rounded,
+                color: const Color(0xFF4DA3FF),
+                title: '已確認功能',
+                subtitle: '沒確認的那條右上角小藍點',
+                trailing: Switch(
+                  key: const ValueKey('ledgerConfirmSwitch'),
+                  value: ref.watch(ledgerConfirmOnProvider),
+                  onChanged: (v) async {
+                    ref.read(ledgerConfirmOnProvider.notifier).state = v;
+                    await LedgerConfirmStore(
+                      ref.read(keyValueStoreProvider),
+                    ).save(v);
+                  },
+                ),
+              ),
+            ),
+          ],
+        ),
+        _LedgerGroup(
+          header: '虛擬貨幣',
+          footer: '只用在沒填 USDT 時的粗估，跟「≈ 台幣」的換算；有填 USDT 的照填的算。',
+          rows: [
+            SettingAnchor(
+              id: 'ledger.usdtRate',
+              child: _LedgerRow(
+                key: const ValueKey('ledgerUsdtRateBtn'),
+                icon: Icons.currency_exchange_rounded,
+                color: const Color(0xFF26A17B),
+                title: 'USDT 換算匯率',
+                value: '1 USDT ≈ \$${ref.watch(ledgerUsdtRateProvider)}',
+                onTap: () => _editUsdtRate(context, ref),
+              ),
+            ),
           ],
         ),
         _LedgerGroup(
@@ -1677,6 +1717,46 @@ class LedgerSettingsSection extends ConsumerWidget {
         ),
       ],
     );
+  }
+
+  Future<void> _editUsdtRate(BuildContext context, WidgetRef ref) async {
+    final c = TextEditingController(
+      text: '${ref.read(ledgerUsdtRateProvider)}',
+    );
+    final v = await showDialog<double>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('USDT 換算匯率'),
+        content: TextField(
+          key: const ValueKey('ledgerUsdtRateField'),
+          controller: c,
+          autofocus: true,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(
+            prefixText: '1 USDT ≈ \$',
+            hintText: '32.6',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            key: const ValueKey('ledgerUsdtRateOk'),
+            onPressed: () {
+              final x = double.tryParse(c.text.trim());
+              Navigator.pop(ctx, x != null && x > 0 ? x : null);
+            },
+            child: const Text('儲存'),
+          ),
+        ],
+      ),
+    );
+    if (v == null) return;
+    ledgerUsdtRoughRate = v;
+    ref.read(ledgerUsdtRateProvider.notifier).state = v;
+    await LedgerUsdtRateStore(ref.read(keyValueStoreProvider)).save(v);
   }
 
   Future<void> _moveShopping(BuildContext context, WidgetRef ref) async {

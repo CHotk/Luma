@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app/providers.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
@@ -150,6 +152,12 @@ const _titleStyle = TextStyle(
 );
 
 /// 標題在左、一組選項（帳戶、分類的膠囊）在右，同一行；膠囊縮小一點才排得下。
+/// 設定裡「已確認」功能有沒有開（2026-11-11 使用者：可以關掉）。
+bool _confirmOn(BuildContext context) => ProviderScope.containerOf(
+  context,
+  listen: false,
+).read(ledgerConfirmOnProvider);
+
 Widget _chipRow(String label, Widget chips) => Padding(
   padding: const EdgeInsets.only(top: 12),
   child: Row(
@@ -1701,6 +1709,10 @@ class _TxFormState extends State<_TxForm> {
     if (!out && !into) return null;
     final typed = _extNum(out ? _extFromAfter : _extToAfter);
     if (typed == null) return null;
+    // 之前沒填過虛擬貨幣餘額：這筆就是起點，不用比。
+    if (!book.extHasBalance(ledgerCryptoExt, skipId: widget.edit?.id)) {
+      return null;
+    }
     final amt = _int(_amount) ?? 0;
     final guess =
         book.usdtBalance(skipId: widget.edit?.id) +
@@ -1748,7 +1760,12 @@ class _TxFormState extends State<_TxForm> {
           padding: const EdgeInsets.only(top: 6, left: 88),
           child: Text(
             // 旁邊只寫小小的推算結果（2026-11-11 使用者：「有填就用填的」那句不用）。
-            !crypto
+            // 之前沒填過這邊的餘額：沒有起點可以推算，填的這筆就是起點。
+            !book.extHasBalance(name, skipId: skip)
+                ? (crypto && typed != null
+                      ? '第一次填，從這筆開始算・≈ ${lMoney((typed * ledgerUsdtRoughRate).round())}'
+                      : '還沒填過 $name 的餘額，這筆填了就從這裡開始算')
+                : !crypto
                 ? '推算約 ${lMoney(guess.round())}'
                 : typed == null
                 ? '推算 ${lUsdt(guess)} USDT（≈ ${lMoney((guess * ledgerUsdtRoughRate).round())}）'
@@ -2881,12 +2898,13 @@ class _TxFormState extends State<_TxForm> {
         _flagged,
         (v) => setState(() => _flagged = v),
       ),
-      _toggle(
-        '✓ 已確認',
-        '人工確認過、不用再改、沒爭議',
-        _confirmed,
-        (v) => setState(() => _confirmed = v),
-      ),
+      if (_confirmOn(context))
+        _toggle(
+          '✓ 已確認',
+          '人工確認過、不用再改、沒爭議',
+          _confirmed,
+          (v) => setState(() => _confirmed = v),
+        ),
     ]);
     if (t == LedgerTxType.expense) {
       // 2026-11-03 使用者：標一筆是跟別人一起的、對方要給多少（不一定是一半，
@@ -3187,26 +3205,28 @@ class _TxDetail extends StatelessWidget {
           children: [
             LedgerPill(t.type.label, color: ledgerAccent),
             if (t.flagged) const LedgerPill('🚩 旗幟', color: ledgerBad),
-            if (t.confirmed) const LedgerPill('✓ 已確認', color: AppColors.ok),
+            if (t.confirmed && _confirmOn(context))
+              const LedgerPill('✓ 已確認', color: AppColors.ok),
           ],
         ),
         // 已確認（2026-11-11 使用者）：沒確認的在列表右上角有小藍點，點進來按這裡確認。
-        const SizedBox(height: 10),
-        Center(
-          child: t.confirmed
-              ? TextButton.icon(
-                  key: const ValueKey('confirmToggle'),
-                  onPressed: () => pop('confirm'),
-                  icon: const Icon(Icons.undo_rounded, size: 18),
-                  label: const Text('取消確認'),
-                )
-              : FilledButton.tonalIcon(
-                  key: const ValueKey('confirmToggle'),
-                  onPressed: () => pop('confirm'),
-                  icon: const Icon(Icons.check_circle_rounded, size: 18),
-                  label: const Text('標成已確認'),
-                ),
-        ),
+        if (_confirmOn(context)) const SizedBox(height: 10),
+        if (_confirmOn(context))
+          Center(
+            child: t.confirmed
+                ? TextButton.icon(
+                    key: const ValueKey('confirmToggle'),
+                    onPressed: () => pop('confirm'),
+                    icon: const Icon(Icons.undo_rounded, size: 18),
+                    label: const Text('取消確認'),
+                  )
+                : FilledButton.tonalIcon(
+                    key: const ValueKey('confirmToggle'),
+                    onPressed: () => pop('confirm'),
+                    icon: const Icon(Icons.check_circle_rounded, size: 18),
+                    label: const Text('標成已確認'),
+                  ),
+          ),
         _box([
           _kv(
             '時間',

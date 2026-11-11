@@ -45,7 +45,9 @@ const ledgerTransferExts = <(String, String)>[
 ];
 
 /// 虛擬貨幣（USDT）粗估換算台幣用的匯率（2026-11-11 使用者：填 USDT 順便顯示 ×32 的粗估台幣）。
-const ledgerUsdtRoughRate = 32;
+/// USDT 粗估換算台幣的匯率（2026-11-11 使用者：改 32.6、設定內可調整，見 LedgerUsdtRateStore）。
+/// 啟動、改設定、同步下載時更新這個值；只用在沒填 USDT 的粗估跟「≈ 台幣」的顯示。
+double ledgerUsdtRoughRate = 32.6;
 
 /// 轉到虛擬貨幣的那個名稱（[ledgerTransferExts] 裡的）。
 const ledgerCryptoExt = '虛擬貨幣';
@@ -55,7 +57,14 @@ const ledgerFlatSources = <String>['LineBank', '富邦'];
 
 /// 「還款」的對象只有這幾個，用下拉選單選（2026-11-11 使用者）。舊資料、貼上匯入帶進來的
 /// 其他名稱編輯時會自動多出一個選項，不會被洗掉。
-const ledgerRepayTargets = <String>['中信信貸', '台新信貸', '當鋪', 'Jet', 'JUJI'];
+const ledgerRepayTargets = <String>[
+  '中信信貸',
+  '台新信貸',
+  '當鋪',
+  'Jet',
+  'JUJI',
+  'mon', // 2026-11-11 使用者加
+];
 
 const ledgerIncomeCats = <String, (String, int)>{
   '薪資': ('💰', 0xFF5FE08D),
@@ -457,6 +466,30 @@ class LedgerBook {
 
   /// 虛擬貨幣那邊填了「這筆之後」時，跟推算差多少 USDT（正＝多出來、負＝少了；沒填或沒差＝null）。
   /// 幣價會浮動，差額可以在表單確認是盈虧（[LedgerTx.extPnlOk]）。
+  /// 沒記在 App 裡的那邊（[name]）在 [stopAt] 那筆之前（照時間）有沒有填過「這筆之後」的餘額。
+  /// 沒填過＝推算沒有起點，第一次填的就是起點、不用跟推算比（2026-11-11 使用者）。
+  bool extHasBalance(String name, {String? skipId, String? stopAt}) {
+    final list =
+        [
+          for (final t in txs)
+            if (t.id != skipId) t,
+        ]..sort((a, b) {
+          final c = a.occurredAt.compareTo(b.occurredAt);
+          return c != 0
+              ? c
+              : (a.createdAt ?? a.occurredAt).compareTo(
+                  b.createdAt ?? b.occurredAt,
+                );
+        });
+    for (final t in list) {
+      if (t.id == stopAt) break;
+      if (t.type != LedgerTxType.transfer) continue;
+      if (!t.toOther && t.toName == name && t.toAfter != null) return true;
+      if (t.fromName == name && t.fromAfter != null) return true;
+    }
+    return false;
+  }
+
   double? usdtDiffOf(LedgerTx t) {
     if (t.type != LedgerTxType.transfer) return null;
     final isTo =
@@ -464,6 +497,8 @@ class LedgerBook {
     final isFrom = t.fromName == ledgerCryptoExt;
     final after = isTo ? t.toAfter : (isFrom ? t.fromAfter : null);
     if (after == null) return null;
+    // 之前沒填過虛擬貨幣餘額：這筆就是起點，不比（2026-11-11 使用者）。
+    if (!extHasBalance(ledgerCryptoExt, stopAt: t.id)) return null;
     final before = _extRun(
       ledgerCryptoExt,
       null,

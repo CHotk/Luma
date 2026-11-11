@@ -20,6 +20,8 @@ import '../data/repositories/yt_video_song_store.dart';
 import '../data/repositories/music_play_mode_store.dart';
 import '../data/repositories/ledger_show_note_store.dart';
 import '../data/repositories/ledger_sin_ask_store.dart';
+import '../data/repositories/ledger_confirm_store.dart';
+import '../data/repositories/ledger_usdt_rate_store.dart';
 import '../data/repositories/music_event_log_store.dart';
 import '../data/repositories/music_play_log_store.dart';
 import '../domain/models/music.dart';
@@ -231,6 +233,16 @@ final musicDataProvider = StateProvider<MusicData>((ref) => MusicData.empty);
 /// [LedgerShowNoteStore]。
 final ledgerShowNoteProvider = StateProvider<bool>(
   (ref) => LedgerShowNoteStore.defaultValue,
+);
+
+/// 記帳：要不要用「已確認」功能（2026-11-11，預設開），見 [LedgerConfirmStore]。
+final ledgerConfirmOnProvider = StateProvider<bool>(
+  (ref) => LedgerConfirmStore.defaultValue,
+);
+
+/// 記帳：USDT 粗估匯率（2026-11-11，預設 32.6），見 [LedgerUsdtRateStore]。
+final ledgerUsdtRateProvider = StateProvider<double>(
+  (ref) => LedgerUsdtRateStore.defaultValue,
 );
 
 /// 記帳：金額是 110 或 1100 時問要不要改成菸酒（2026-11-10，預設開），見 [LedgerSinAskStore]。

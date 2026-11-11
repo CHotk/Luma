@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/app_bottom_nav.dart';
+import '../../app/providers.dart' show ledgerConfirmOnProvider;
 import '../../app/theme/colors.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
@@ -571,7 +572,9 @@ class LedgerPage extends ConsumerWidget {
               (amount.min == null || t.amount.abs() >= amount.min!) &&
               (amount.max == null || t.amount.abs() <= amount.max!) &&
               (!f.flagged || t.flagged) &&
-              (!f.unconfirmed || !t.confirmed) &&
+              (!f.unconfirmed ||
+                  !ref.read(ledgerConfirmOnProvider) ||
+                  !t.confirmed) &&
               (f.type == null || t.type == f.type) &&
               (f.category == null ||
                   book.categoriesOf(t).contains(f.category)) &&
@@ -1773,12 +1776,13 @@ class _FilterCapsule extends ConsumerWidget {
           label: '注意 ${inM.where((t) => t.flagged).length}',
           icon: Icons.flag_outlined,
         ),
-        // 還沒確認過的（2026-11-11 使用者）。
-        GlassMenuItem(
-          value: 'unconf',
-          label: '未確認 ${inM.where((t) => !t.confirmed).length}',
-          icon: Icons.radio_button_unchecked_rounded,
-        ),
+        // 還沒確認過的（2026-11-11 使用者）；設定關掉確認功能就沒有這項。
+        if (ref.read(ledgerConfirmOnProvider))
+          GlassMenuItem(
+            value: 'unconf',
+            label: '未確認 ${inM.where((t) => !t.confirmed).length}',
+            icon: Icons.radio_button_unchecked_rounded,
+          ),
         const GlassMenuItem(value: 'h:acct', label: '帳戶', header: true),
         for (final a in book.accounts)
           GlassMenuItem(

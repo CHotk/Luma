@@ -141,6 +141,18 @@ const settingIndex = [
   SettingEntry(SettingsSection.ledger, 'ledger.log', '記帳操作紀錄', '操作 紀錄 log 記帳'),
   SettingEntry(
     SettingsSection.ledger,
+    'ledger.confirm',
+    '已確認功能',
+    '確認 已確認 未確認 藍點 記帳',
+  ),
+  SettingEntry(
+    SettingsSection.ledger,
+    'ledger.usdtRate',
+    'USDT 換算匯率',
+    'USDT 匯率 虛擬貨幣 台幣 記帳',
+  ),
+  SettingEntry(
+    SettingsSection.ledger,
     'ledger.sinask',
     '110／1100 問要不要改成菸酒',
     '菸酒 菸 酒 110 1100 分類 詢問',

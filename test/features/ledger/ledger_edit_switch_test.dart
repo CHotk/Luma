@@ -210,11 +210,11 @@ void main() {
     // 沒填：旁邊寫推算。
     expect(
       tester.widget<Text>(find.byKey(const ValueKey('srcExtAfterNote'))).data,
-      contains('3,200'),
+      contains('還沒填過 LineBank'),
     );
     expect(
       tester.widget<Text>(find.byKey(const ValueKey('extAfterNote'))).data,
-      contains('推算 100 USDT'),
+      contains('還沒填過 虛擬貨幣'),
     );
     await tester.enterText(from, '12000');
     await tester.enterText(to, '250.5');
@@ -454,7 +454,11 @@ void main() {
       accounts: const [],
       checkpoints: const [],
       budgets: const [],
-      txs: [tr('a', 1), tr('b', 2, after: 230, ok: true), tr('c', 3)],
+      txs: [
+        tr('a', 1, after: 100),
+        tr('b', 2, after: 230, ok: true),
+        tr('c', 3),
+      ],
     );
     // 第二筆前面 100 + 這筆 100 = 推算 200，填 230 → 多 30（盈利）。
     expect(b.usdtDiffOf(b.tx('b')!), closeTo(30, 1e-9));
@@ -481,6 +485,21 @@ void main() {
         if (c.selected) label(c),
     ];
     expect(selected, ['支出'], reason: '只有上面的類型是選著的');
+  });
+
+  test('現金照金額顯示台幣面額：5 元以內 1 元、10 元以內 5 元，以此類推', () {
+    expect(twdDenomFor(3), 1);
+    expect(twdDenomFor(5), 1);
+    expect(twdDenomFor(6), 5);
+    expect(twdDenomFor(10), 5);
+    expect(twdDenomFor(11), 10);
+    expect(twdDenomFor(50), 10);
+    expect(twdDenomFor(80), 50);
+    expect(twdDenomFor(120), 100);
+    expect(twdDenomFor(300), 200);
+    expect(twdDenomFor(800), 500);
+    expect(twdDenomFor(1500), 1000);
+    expect(twdDenomFor(5000), 2000);
   });
 
   testWidgets('商家下拉不列刷卡（信用卡）的商家', (tester) async {

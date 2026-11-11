@@ -389,7 +389,7 @@ void main() {
     );
     expect(
       tester.widget<Text>(find.byKey(const ValueKey('extAfterNote'))).data,
-      contains('93.75 USDT'),
+      contains('還沒填過 虛擬貨幣'),
     );
     await pickDefaultAccount(tester);
     await tester.ensureVisible(find.widgetWithText(FilledButton, '新增'));

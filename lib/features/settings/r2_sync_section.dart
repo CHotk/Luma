@@ -20,6 +20,9 @@ import '../../data/repositories/music_event_log_store.dart';
 import '../../data/repositories/music_play_mode_store.dart';
 import '../../data/repositories/ledger_show_note_store.dart';
 import '../../data/repositories/ledger_sin_ask_store.dart';
+import '../../data/repositories/ledger_confirm_store.dart';
+import '../../data/repositories/ledger_usdt_rate_store.dart';
+import '../../domain/ledger_calc.dart' show ledgerUsdtRoughRate;
 import '../../data/repositories/yt_embed_player_style_store.dart';
 import '../../data/repositories/yt_search_recents_store.dart';
 import '../../data/repositories/yt_stats_refresh_setting_store.dart';
@@ -683,9 +686,35 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
             container.read(ledgerSinAskProvider.notifier).state =
                 await LedgerSinAskStore(kv).load();
           }
+          // 「已確認」功能開關、USDT 粗估匯率（2026-11-11）也跟著同步。
+          final s3 = await service.syncStampedSetting(
+            LedgerConfirmStore(kv).record,
+          );
+          if (s3.downloaded > 0) {
+            container.read(ledgerConfirmOnProvider.notifier).state =
+                await LedgerConfirmStore(kv).load();
+          }
+          final s4 = await service.syncStampedSetting(
+            LedgerUsdtRateStore(kv).record,
+          );
+          if (s4.downloaded > 0) {
+            final rate = await LedgerUsdtRateStore(kv).load();
+            ledgerUsdtRoughRate = rate;
+            container.read(ledgerUsdtRateProvider.notifier).state = rate;
+          }
           return (
-            downloaded: r.downloaded + s.downloaded + s2.downloaded,
-            uploaded: r.uploaded + s.uploaded + s2.uploaded,
+            downloaded:
+                r.downloaded +
+                s.downloaded +
+                s2.downloaded +
+                s3.downloaded +
+                s4.downloaded,
+            uploaded:
+                r.uploaded +
+                s.uploaded +
+                s2.uploaded +
+                s3.uploaded +
+                s4.uploaded,
           );
         }),
       ]);
