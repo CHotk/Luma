@@ -2874,7 +2874,7 @@ class _TxDetail extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = tx;
-    final (emoji, color) = txLook(t);
+    final (emoji, color) = txLook(t, book);
     final effects = [
       for (final a in book.accounts)
         if (LedgerBook.delta(t, a) case final d when d != 0)
@@ -3999,8 +3999,8 @@ class _ImportState extends State<_Import> {
         ),
       );
     }
-    final (emoji, color) = txLook(t);
     final book = widget.book;
+    final (emoji, color) = txLook(t, book);
     return Opacity(
       opacity: l.duplicate ? 0.45 : 1,
       child: Padding(

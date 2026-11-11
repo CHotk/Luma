@@ -67,7 +67,8 @@ String lAgo(DateTime t) {
 }
 
 /// 分類（或交易類型）的圖示跟顏色。
-(String, Color) txLook(LedgerTx t) {
+/// [book] 有給的話：戶頭轉到現金（ATM 提款）用 🏧（2026-11-11 使用者）。
+(String, Color) txLook(LedgerTx t, [LedgerBook? book]) {
   switch (t.type) {
     case LedgerTxType.expense:
       final c = ledgerExpenseCats[t.category] ?? ledgerExpenseCats['未分類']!;
@@ -76,6 +77,11 @@ String lAgo(DateTime t) {
       final c = ledgerIncomeCats[t.category] ?? ledgerIncomeCats['其他收入']!;
       return (c.$1, Color(c.$2));
     case LedgerTxType.transfer:
+      if (book != null &&
+          book.account(t.toAccountId)?.type == LedgerAccountType.cash &&
+          book.account(t.accountId)?.type == LedgerAccountType.bank) {
+        return ('🏧', const Color(0xFF7EA6FF));
+      }
       return ('⇄', const Color(0xFF7EA6FF));
     case LedgerTxType.refund:
       return ('↩️', AppColors.ok);
@@ -224,7 +230,7 @@ class TxTile extends ConsumerWidget {
         (t.type == LedgerTxType.expense || t.type == LedgerTxType.income) &&
             acct != null
         ? (acct.type.emoji, accountColor(acct.type))
-        : txLook(t);
+        : txLook(t, book);
     final sub = StringBuffer();
     if (showDate) sub.write('${lMd(t.occurredAt)} ');
     sub.write(lTxHm(t));
