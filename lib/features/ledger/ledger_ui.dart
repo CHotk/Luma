@@ -37,6 +37,17 @@ String lTxHm(LedgerTx t) => t.timeUnknown
 
 String lHm(DateTime d) =>
     '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+
+/// USDT 數量：最多兩位小數，去掉多餘的 0。
+String lUsdt(double v) {
+  final s = v.toStringAsFixed(2);
+  return s.endsWith('.00')
+      ? s.substring(0, s.length - 3)
+      : s.endsWith('0')
+      ? s.substring(0, s.length - 1)
+      : s;
+}
+
 String lYmd(DateTime d) => '${d.year}/${d.month}/${d.day}';
 bool lSameDay(DateTime a, DateTime b) =>
     a.year == b.year && a.month == b.month && a.day == b.day;
@@ -70,6 +81,7 @@ String lAgo(DateTime t) {
 }
 
 (String, Color) catLook(String cat) {
+  if (cat == ledgerToOtherCat) return ('👤', const Color(0xFF7EA6FF));
   final c =
       ledgerExpenseCats[cat] ??
       ledgerIncomeCats[cat] ??
@@ -213,6 +225,7 @@ class TxTile extends ConsumerWidget {
     sub.write('・');
     if (t.type == LedgerTxType.transfer) {
       sub.write('${book.accountName(t.accountId)} → ${book.toLabel(t)}');
+      if (t.extAmount != null) sub.write(' ${lUsdt(t.extAmount!)} USDT');
     } else {
       sub.write(book.accountName(t.accountId));
       if (t.category != null && t.type != LedgerTxType.adjustment) {
@@ -251,7 +264,11 @@ class TxTile extends ConsumerWidget {
             : (
                 lMoney(t.amount),
                 AppColors.ink3,
-                t.toName.isNotEmpty ? '平轉' : '不算支出',
+                t.toOther
+                    ? '轉給他人'
+                    : t.toName.isNotEmpty
+                    ? '平轉'
+                    : '不算支出',
               ),
       LedgerTxType.adjustment => (
         '${t.isAdjustOut ? '−' : '+'}${lMoney(t.amount)}',

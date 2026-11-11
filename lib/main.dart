@@ -12,6 +12,7 @@ import 'data/repositories/app_logo_store.dart';
 import 'data/repositories/error_log_repository.dart';
 import 'data/repositories/jp_home_ring_store.dart';
 import 'data/repositories/jp_light_style_store.dart';
+import 'data/repositories/yt_video_rating_store.dart';
 import 'data/repositories/yt_video_song_store.dart';
 import 'data/repositories/music_store.dart';
 import 'data/repositories/music_play_log_store.dart';
@@ -88,6 +89,7 @@ Future<void> _start() async {
     final savedJpShowRing = await JpHomeRingStore(store).load();
     final savedJpLightStyle = await JpLightStyleStore(store).load();
     final savedYtSongs = await YtVideoSongStore(store).loadIds();
+    final savedYtRatings = await YtVideoRatingStore(store).load();
     final savedMusic = await MusicStore(store).load();
     final savedMusicMode = await MusicPlayModeStore(store).load();
     final savedLedgerShowNote = await LedgerShowNoteStore(store).load();
@@ -119,6 +121,7 @@ Future<void> _start() async {
           jpShowProgressRingProvider.overrideWith((ref) => savedJpShowRing),
           jpLightStyleProvider.overrideWith((ref) => savedJpLightStyle),
           ytVideoSongsProvider.overrideWith((ref) => savedYtSongs),
+          ytVideoRatingsProvider.overrideWith((ref) => savedYtRatings),
           musicDataProvider.overrideWith((ref) => savedMusic),
           musicPlayModeProvider.overrideWith((ref) => savedMusicMode),
           ledgerShowNoteProvider.overrideWith((ref) => savedLedgerShowNote),

@@ -6,6 +6,7 @@ import 'package:lume/data/repositories/ledger_repository.dart';
 import 'package:lume/data/storage/key_value_store.dart';
 import 'package:lume/domain/ledger_calc.dart';
 import 'package:lume/domain/models/ledger.dart';
+import 'package:lume/features/ledger/ledger_glass_button.dart';
 import 'package:lume/features/ledger/ledger_page.dart';
 
 /// 2026-11-10 使用者：
@@ -108,7 +109,7 @@ void main() {
     final fields = find.byType(TextField);
     // 商家、金額：用輸入框順序不穩，改用 hint／標籤找不到的話就依序填。
     final merchant = find.byType(TextField);
-    await tester.enterText(merchant.at(1), '福利社');
+    await tester.enterText(merchant.at(2), '福利社');
     final amt = find.byWidgetPredicate(
       (w) => w is TextField && w.decoration?.hintText == '0',
     );
@@ -149,7 +150,7 @@ void main() {
     await settle(tester);
     // 另外開一筆 120：沒有彈窗。
     final merchant = find.byType(TextField);
-    await tester.enterText(merchant.at(1), '麵包店');
+    await tester.enterText(merchant.at(2), '麵包店');
     await tester.enterText(
       find
           .byWidgetPredicate(
@@ -168,6 +169,298 @@ void main() {
 
   incomeTests();
   accountMatchTests();
+
+  Finder amountField() => find
+      .byWidgetPredicate((w) => w is TextField && w.decoration?.hintText == '0')
+      .first;
+  // 輸入框順序：貼上(0)、金額(1)、商家(2)。
+  Finder merchantField() => find.byType(TextField).at(2);
+
+  testWidgets('記一筆：預設不選分類；金額在商家上面；每個欄位右邊都有統一的毛玻璃按鈕', (tester) async {
+    final store = await seeded();
+    await pump(tester, store);
+    await tester.tap(find.byType(FloatingActionButton));
+    await settle(tester);
+    // 支出、收入都沒有預設選好的分類。
+    for (final c in ledgerExpenseCats.entries) {
+      final chip = find.widgetWithText(ChoiceChip, '${c.value.$1} ${c.key}');
+      if (chip.evaluate().isEmpty) continue;
+      expect(tester.widget<ChoiceChip>(chip).selected, isFalse, reason: c.key);
+    }
+    await tester.tap(find.widgetWithText(ChoiceChip, '收入'));
+    await settle(tester);
+    for (final c in ledgerIncomeCats.entries) {
+      final chip = find.widgetWithText(ChoiceChip, '${c.value.$1} ${c.key}');
+      if (chip.evaluate().isEmpty) continue;
+      expect(tester.widget<ChoiceChip>(chip).selected, isFalse, reason: c.key);
+    }
+    await tester.tap(find.widgetWithText(ChoiceChip, '支出'));
+    await settle(tester);
+    // 金額在商家名稱上面。
+    final amountY = tester.getTopLeft(amountField()).dy;
+    final merchantY = tester.getTopLeft(find.text('商家／名稱')).dy;
+    expect(amountY, lessThan(merchantY));
+    // 時間「不確定」、金額「−」、商家下拉：同一種玻璃按鈕。
+    for (final k in ['timeUnknown', 'signToggle', 'merchantRecent']) {
+      expect(find.byKey(ValueKey(k)), findsOneWidget, reason: k);
+      expect(
+        find.byKey(ValueKey(k)).evaluate().first.widget,
+        isA<LedgerGlassButton>(),
+        reason: k,
+      );
+    }
+    // 不選分類直接記：存成「未分類」。
+    await tester.enterText(amountField(), '55');
+    await tester.enterText(merchantField(), '路邊攤');
+    await tester.pump();
+    await tester.ensureVisible(find.widgetWithText(FilledButton, '新增'));
+    await tester.tap(find.widgetWithText(FilledButton, '新增'));
+    await settle(tester);
+    final book = (await tester.runAsync(
+      () => LedgerRepository(store).loadBook(),
+    ))!;
+    final t = book.txs.firstWhere((x) => x.merchant == '路邊攤');
+    expect(t.category, '未分類');
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('記一筆：商家旁的下拉列出最近用過的商家（照添加順序、不重複、最多 20 個），點了就填進去', (tester) async {
+    final store = await seeded();
+    final repo = LedgerRepository(store);
+    final book0 = await repo.loadBook();
+    for (var i = 0; i < 25; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 3)),
+      );
+      await repo.addTransaction(
+        LedgerTx(
+          id: ledgerId(),
+          type: LedgerTxType.expense,
+          occurredAt: noon,
+          amount: 10 + i,
+          accountId: book0.accounts.first.id,
+          category: '餐飲',
+          merchant: i == 24 ? '鼎泰豐' : '店$i',
+        ),
+      );
+    }
+    await pump(tester, store);
+    await tester.tap(find.byType(FloatingActionButton));
+    await settle(tester);
+    await tester.tap(find.byKey(const ValueKey('merchantRecent')));
+    await tester.pumpAndSettle();
+    // 最新的「鼎泰豐」排最前（舊的那筆同名不重複），店0～店4 擠出 20 個之外。
+    expect(find.text('鼎泰豐'), findsWidgets);
+    expect(find.text('店23'), findsOneWidget);
+    expect(find.text('店0'), findsNothing);
+    await tester.tap(find.text('店23'));
+    await tester.pumpAndSettle();
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is TextField && w.controller?.text == '店23',
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('收入選「平轉」要選來源戶頭（LineBank、富邦）；選別的分類就不用', (tester) async {
+    final store = await seeded();
+    await pump(tester, store);
+    await tester.tap(find.byType(FloatingActionButton));
+    await settle(tester);
+    await tester.tap(find.widgetWithText(ChoiceChip, '收入'));
+    await settle(tester);
+    expect(find.byKey(const ValueKey('fromExt_LineBank')), findsNothing);
+    await tester.ensureVisible(find.widgetWithText(ChoiceChip, '🔁 平轉'));
+    await tester.tap(find.widgetWithText(ChoiceChip, '🔁 平轉'));
+    await settle(tester);
+    expect(find.byKey(const ValueKey('fromExt_LineBank')), findsOneWidget);
+    expect(find.byKey(const ValueKey('fromExt_富邦')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('incomeSource')));
+    await settle(tester);
+    await tester.tap(find.text('其他').last);
+    await settle(tester);
+    await tester.enterText(amountField(), '5000');
+    await tester.pump();
+    // 沒選來源戶頭按新增：不會存。
+    await tester.ensureVisible(find.widgetWithText(FilledButton, '新增'));
+    await tester.tap(find.widgetWithText(FilledButton, '新增'));
+    await settle(tester);
+    var book = (await tester.runAsync(
+      () => LedgerRepository(store).loadBook(),
+    ))!;
+    expect(book.txs.where((t) => t.type == LedgerTxType.income), isEmpty);
+    await tester.tap(find.byKey(const ValueKey('fromExt_富邦')));
+    await tester.pump();
+    await tester.ensureVisible(find.widgetWithText(FilledButton, '新增'));
+    await tester.tap(find.widgetWithText(FilledButton, '新增'));
+    await settle(tester);
+    book = (await tester.runAsync(() => LedgerRepository(store).loadBook()))!;
+    final t = book.txs.firstWhere((t) => t.type == LedgerTxType.income);
+    expect(t.category, ledgerFlatTransfer);
+    expect(t.toName, '富邦');
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('轉帳選「他人戶頭」：還是轉帳、填誰的戶頭、不出現支出分類；本身算一筆支出（轉給他人）', (tester) async {
+    final store = await seeded();
+    await pump(tester, store);
+    await tester.tap(find.byType(FloatingActionButton));
+    await settle(tester);
+    await tester.tap(find.widgetWithText(ChoiceChip, '轉帳'));
+    await settle(tester);
+    await tester.ensureVisible(find.byKey(const ValueKey('toOtherAccount')));
+    await tester.tap(find.byKey(const ValueKey('toOtherAccount')));
+    await settle(tester);
+    expect(find.text('誰的戶頭'), findsOneWidget);
+    expect(find.text('買什麼（分類）'), findsNothing);
+    expect(find.widgetWithText(ChoiceChip, '🍜 餐飲'), findsNothing);
+    await tester.enterText(amountField(), '1200');
+    await tester.enterText(merchantField(), '阿明');
+    await tester.pump();
+    await tester.ensureVisible(find.widgetWithText(FilledButton, '新增'));
+    await tester.tap(find.widgetWithText(FilledButton, '新增'));
+    await settle(tester);
+    final book = (await tester.runAsync(
+      () => LedgerRepository(store).loadBook(),
+    ))!;
+    final t = book.txs.firstWhere((x) => x.merchant == '阿明');
+    expect(t.type, LedgerTxType.transfer, reason: '還是轉帳，不是支出');
+    expect(t.toOther, isTrue);
+    expect(t.toName, '阿明');
+    expect(t.toAccountId, isNull);
+    expect(t.amount, 1200);
+    // 轉帳本身算支出：本月支出多 1200，分類是「轉給他人」。
+    final st = book.statsWhere((x) => x.id == t.id);
+    expect(st.spend, 1200);
+    expect(st.byCategory[ledgerToOtherCat], 1200);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('轉帳：「從哪個帳戶」不列信用卡；「轉到」多富邦、虛擬貨幣（平轉，不算支出）', (tester) async {
+    final store = await seeded(); // 中信信用卡、現金
+    await LedgerRepository(store).addAccount(
+      name: '中信帳戶',
+      type: LedgerAccountType.bank,
+      opening: 10000,
+      openingAt: DateTime(2026, 11, 1),
+    );
+    await pump(tester, store);
+    await tester.tap(find.byType(FloatingActionButton));
+    await settle(tester);
+    await tester.tap(find.widgetWithText(ChoiceChip, '轉帳'));
+    await settle(tester);
+    // 「從哪個帳戶」那一排：沒有信用卡。
+    final fromRow = find
+        .ancestor(of: find.text('從哪個帳戶'), matching: find.byType(Row))
+        .first;
+    expect(
+      find.descendant(of: fromRow, matching: find.textContaining('中信信用卡')),
+      findsNothing,
+    );
+    expect(
+      find.descendant(of: fromRow, matching: find.textContaining('中信帳戶')),
+      findsOneWidget,
+    );
+    for (final k in ['toLineBank', 'toExt_富邦', 'toExt_虛擬貨幣']) {
+      expect(find.byKey(ValueKey(k)), findsOneWidget, reason: k);
+    }
+    await tester.ensureVisible(find.byKey(const ValueKey('toExt_虛擬貨幣')));
+    await tester.tap(find.byKey(const ValueKey('toExt_虛擬貨幣')));
+    await settle(tester);
+    await tester.enterText(amountField(), '3000');
+    await tester.pump();
+    await tester.ensureVisible(find.widgetWithText(FilledButton, '新增'));
+    await tester.tap(find.widgetWithText(FilledButton, '新增'));
+    await settle(tester);
+    final book = (await tester.runAsync(
+      () => LedgerRepository(store).loadBook(),
+    ))!;
+    final t = book.txs.firstWhere((x) => x.amount == 3000);
+    expect(t.type, LedgerTxType.transfer);
+    expect(t.toName, '虛擬貨幣');
+    expect(t.toAccountId, isNull);
+    expect(book.accountName(t.accountId), '中信帳戶');
+    expect(book.statsWhere((x) => x.id == t.id).spend, 0);
+    expect(tester.takeException(), isNull);
+  });
+
+  test('支出分類順序：創業兩個放最底下，最後一個是未分類', () {
+    final keys = ledgerExpenseCats.keys.toList();
+    expect(keys.last, '未分類');
+    expect(keys.sublist(keys.length - 3), ['創業魔物童話', '創業交友APP', '未分類']);
+  });
+
+  testWidgets('首頁「最近記帳」照添加順序：後來補記的舊日期帳排在最上面', (tester) async {
+    final store = await seeded();
+    final repo = LedgerRepository(store);
+    final book0 = await repo.loadBook();
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 20)),
+    );
+    await repo.addTransaction(
+      LedgerTx(
+        id: ledgerId(),
+        type: LedgerTxType.expense,
+        occurredAt: DateTime(2026, 10, 1, 9, 0), // 比鼎泰豐早一個月
+        amount: 77,
+        accountId: book0.accounts.first.id,
+        category: '餐飲',
+        merchant: '補記的舊帳',
+      ),
+    );
+    await pump(tester, store);
+    // 首頁很長：「最近記帳」在下面，畫面拉高才會建出來。
+    tester.view.physicalSize = const Size(360 * 3, 2400 * 3);
+    await tester.pump();
+    final old = tester.getTopLeft(find.textContaining('補記的舊帳').first).dy;
+    final dtf = tester.getTopLeft(find.textContaining('鼎泰豐').first).dy;
+    expect(old, lessThan(dtf), reason: '剛添加的在上面，不是照交易時間排');
+  });
+
+  testWidgets('記支出：分類有「還款」，選了之後商家欄變成下拉選單（中信信貸／台新信貸／當鋪／Jet／JUJI）', (
+    tester,
+  ) async {
+    final store = await seeded();
+    await pump(tester, store);
+    await tester.tap(find.byType(FloatingActionButton));
+    await settle(tester);
+    // 還沒選還款：商家是一般輸入框。
+    expect(find.byKey(const ValueKey('incomeSource')), findsNothing);
+    await tester.ensureVisible(find.widgetWithText(ChoiceChip, '💸 還款'));
+    await tester.tap(find.widgetWithText(ChoiceChip, '💸 還款'));
+    await settle(tester);
+    final dd = find.byKey(const ValueKey('incomeSource'));
+    expect(dd, findsOneWidget);
+    await tester.ensureVisible(dd);
+    await tester.pumpAndSettle();
+    expect(find.text('還給誰'), findsOneWidget);
+    await tester.tap(dd);
+    await settle(tester);
+    for (final n in ledgerRepayTargets) {
+      expect(find.text(n), findsWidgets);
+    }
+    await tester.tap(find.text('台新信貸').last);
+    await settle(tester);
+    await tester.enterText(
+      find.byWidgetPredicate(
+        (w) => w is TextField && w.decoration?.hintText == '0',
+      ),
+      '8000',
+    );
+    await tester.pump();
+    await tester.ensureVisible(find.widgetWithText(FilledButton, '新增'));
+    await tester.tap(find.widgetWithText(FilledButton, '新增'));
+    await settle(tester);
+    final book = (await tester.runAsync(
+      () => LedgerRepository(store).loadBook(),
+    ))!;
+    final t = book.txs.first;
+    expect(t.category, '還款');
+    expect(t.merchant, '台新信貸');
+    expect(t.amount, 8000);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('記收入：來源是下拉選單，分類有「平轉」（不算本月收入）', (tester) async {
     final store = await seeded();
@@ -196,10 +489,16 @@ void main() {
     await tester.ensureVisible(find.widgetWithText(ChoiceChip, '🔁 平轉'));
     await tester.tap(find.widgetWithText(ChoiceChip, '🔁 平轉'));
     await tester.pump();
+    // 平轉要選來源戶頭（2026-11-11）。
+    await tester.ensureVisible(find.byKey(const ValueKey('fromExt_LineBank')));
+    await tester.tap(find.byKey(const ValueKey('fromExt_LineBank')));
+    await tester.pump();
+    await tester.ensureVisible(find.widgetWithText(FilledButton, '新增'));
     await tester.tap(find.widgetWithText(FilledButton, '新增'));
     await settle(tester);
     final book = await LedgerRepository(store).loadBook();
     final t = book.txs.firstWhere((x) => x.amount == 58000);
+    expect(t.toName, 'LineBank');
     expect(t.type, LedgerTxType.income);
     expect(t.merchant, 'ATM存款');
     expect(t.category, '平轉');

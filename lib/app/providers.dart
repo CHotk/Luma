@@ -15,6 +15,7 @@ import '../data/repositories/history_repository.dart';
 import '../data/repositories/home_card_order_store.dart';
 import '../data/repositories/jp_home_ring_store.dart';
 import '../data/repositories/jp_light_style_store.dart';
+import '../data/repositories/yt_video_rating_store.dart';
 import '../data/repositories/yt_video_song_store.dart';
 import '../data/repositories/music_play_mode_store.dart';
 import '../data/repositories/ledger_show_note_store.dart';
@@ -259,6 +260,11 @@ final musicVideoIdsProvider = Provider<Set<String>>(
 
 /// 音樂分類裡標成「歌曲」的影片 id（2026-10-16，見 [YtVideoSongStore]）。
 final ytVideoSongsProvider = StateProvider<Set<String>>((ref) => const {});
+
+/// 幣圈影片的準度評價（2026-11-11，見 [YtVideoRatingStore]）：影片 id → 紀錄。
+final ytVideoRatingsProvider = StateProvider<Map<String, YtVideoRating>>(
+  (ref) => const {},
+);
 
 /// 五十音櫻花樹用哪種畫法（2026-10-16 使用者要求：預設 GPT 圖版，原本那
 /// 版保留可以切回去）。

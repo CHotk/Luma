@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show FilteringTextInputFormatter;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -63,8 +64,21 @@ const ledgerNoFilter = (
 
 final ledgerFilterProvider = StateProvider<LedgerFilter>((_) => ledgerNoFilter);
 
-/// 明細頂部的搜尋字（2026-11-03 使用者）：有字的時候搜全部月份、每個欄位都搜。
-final ledgerSearchProvider = StateProvider<String>((_) => '');
+/// 明細的金額篩選（2026-11-11 使用者：三個階段＋自訂）。min／max 都是 null＝不篩；金額看絕對值。
+typedef LedgerAmountFilter = ({int? min, int? max});
+
+const ledgerNoAmount = (min: null, max: null);
+
+final ledgerAmountProvider = StateProvider<LedgerAmountFilter>(
+  (_) => ledgerNoAmount,
+);
+
+/// 金額的三個階段。
+const ledgerAmountTiers = <({String label, int? min, int? max})>[
+  (label: '小額　＜ \$500', min: null, max: 499),
+  (label: '中額　\$500～3,000', min: 500, max: 3000),
+  (label: '大額　＞ \$3,000', min: 3001, max: null),
+];
 
 /// 明細查看的時間範圍（2026-11-03 使用者：要能選全部，才能看菸酒之類總共花多少）：
 /// 單一個月（用 [ledgerMonthProvider]）、整年、全部時間。
@@ -225,9 +239,7 @@ class LedgerPage extends ConsumerWidget {
   // ── 共用小區塊 ───────────────────────────────────────────
 
   Widget _pinnedMonth(WidgetRef ref) {
-    final wide =
-        ref.watch(ledgerSearchProvider).trim().isNotEmpty ||
-        ref.watch(ledgerRangeProvider) != LedgerRange.month;
+    final wide = ref.watch(ledgerRangeProvider) != LedgerRange.month;
     return wide ? const SizedBox.shrink() : _monthBar(ref, tall: true);
   }
 
@@ -286,11 +298,16 @@ class LedgerPage extends ConsumerWidget {
         children: [
           Row(
             children: [
-              Text(
-                '💰 控制開銷・${m.month} 月・已記錄 ${book.txs.where(LedgerBook.inMonth(m.year, m.month)).length} 筆',
-                style: AppText.note,
+              // 筆數變兩位數時窄螢幕會擠爆（2026-11-11 測試抓到），字太長就省略。
+              Expanded(
+                child: Text(
+                  '💰 控制開銷・${m.month} 月・已記錄 ${book.txs.where(LedgerBook.inMonth(m.year, m.month)).length} 筆',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.note,
+                ),
               ),
-              const Spacer(),
+              const SizedBox(width: 6),
               InkWell(
                 onTap: () => budgetFlow(context, ref, m.year, m.month),
                 child: Text(
@@ -503,7 +520,15 @@ class LedgerPage extends ConsumerWidget {
           child: Text('還沒有紀錄，按右下角 ＋ 新增第一筆', style: AppText.bodyDim),
         )
       else
-        for (final t in book.txs.take(5))
+        // 照「添加順序」（新增的在最上面），不是照交易時間（2026-11-11 使用者）：
+        // 補記以前的帳也看得到剛剛記的。
+        for (final t
+            in ([...book.txs]..sort(
+                  (a, b) => (b.createdAt ?? b.occurredAt).compareTo(
+                    a.createdAt ?? a.occurredAt,
+                  ),
+                ))
+                .take(5))
           TxTile(
             book: book,
             tx: t,
@@ -520,12 +545,11 @@ class LedgerPage extends ConsumerWidget {
     final f = ref.watch(ledgerFilterProvider);
     void set(LedgerFilter v) =>
         ref.read(ledgerFilterProvider.notifier).state = v;
-    final q = ref.watch(ledgerSearchProvider).trim();
     final range = ref.watch(ledgerRangeProvider);
-    final searching = q.isNotEmpty;
-    // 搜尋、或選了「整年／全部時間」時不是只看一個月。
-    final wide = searching || range != LedgerRange.month;
-    final inM = searching || range == LedgerRange.all
+    final amount = ref.watch(ledgerAmountProvider);
+    // 選了「整年／全部時間」時不是只看一個月。搜尋是另外一頁（見 [_FilterCapsule._openSearch]）。
+    final wide = range != LedgerRange.month;
+    final inM = range == LedgerRange.all
         ? book.txs
         : range == LedgerRange.year
         ? book.txs.where((t) => t.occurredAt.year == m.year).toList()
@@ -533,7 +557,8 @@ class LedgerPage extends ConsumerWidget {
     final shown = inM
         .where(
           (t) =>
-              (!searching || book.matches(t, q)) &&
+              (amount.min == null || t.amount.abs() >= amount.min!) &&
+              (amount.max == null || t.amount.abs() <= amount.max!) &&
               (!f.flagged || t.flagged) &&
               (f.type == null || t.type == f.type) &&
               (f.category == null ||
@@ -544,46 +569,33 @@ class LedgerPage extends ConsumerWidget {
         )
         .toList();
     final st = book.statsWhere(shown.contains);
+    final amountOn = amount.min != null || amount.max != null;
     final any =
         f.flagged ||
         f.accountId != null ||
         f.category != null ||
-        f.type != null;
+        f.type != null ||
+        amountOn;
     return [
       // 選月份那一行（左右切換）在搜尋框上面（2026-11-03 使用者），現在釘在頁面頂端、
       // 往下捲也看得到（2026-11-10 使用者），見 build 裡的 [_pinnedMonth]，不在這個會捲的列表裡。
-      const _SearchBox(),
-      // 查看時間在左、篩選在右，同一行（2026-11-04 使用者）；篩選是毛玻璃下拉選單。
-      Row(
-        children: [
-          Flexible(
-            child: _RangeButton(book: book, searching: searching),
-          ),
-          const SizedBox(width: 8),
-          Flexible(
-            child: _FilterButton(book: book, inM: inM),
-          ),
-        ],
-      ),
+      // 時間｜金額｜篩選｜搜尋 合成一條膠囊（2026-11-11 使用者）；有篩選的那格換顏色。
+      _FilterCapsule(book: book, inM: inM),
       // 2026 年 11 月以前的資料不準確（只是記錄下來）：看那些月份，或搜尋結果裡有
       // 那些月份的紀錄時，明細上方標註。
       // 搜尋時不標（2026-11-05 使用者：搜得到的都是有資料的，不用特別提示）。
-      if (!searching &&
-          (wide
-              ? shown.any(
-                  (t) =>
-                      isBeforeAccurate(t.occurredAt.year, t.occurredAt.month),
-                )
-              : isBeforeAccurate(m.year, m.month)))
+      if ((wide
+          ? shown.any(
+              (t) => isBeforeAccurate(t.occurredAt.year, t.occurredAt.month),
+            )
+          : isBeforeAccurate(m.year, m.month)))
         const OldDataBanner(),
       Padding(
         padding: const EdgeInsets.fromLTRB(4, 8, 4, 0),
         child: Text(
           '${shown.length} 筆・${f.category == null ? '消費' : '${f.category}'} ${lMoney(f.category == null ? st.spend : (st.byCategory[f.category] ?? 0))}'
           '${f.category == null ? '・收入 ${lMoney(st.income)}' : ''}'
-          '${searching
-              ? '（搜尋「$q」，全部時間）'
-              : range == LedgerRange.all
+          '${range == LedgerRange.all
               ? '（全部時間）'
               : range == LedgerRange.year
               ? '（${m.year} 年）'
@@ -597,11 +609,16 @@ class LedgerPage extends ConsumerWidget {
         Padding(
           padding: const EdgeInsets.only(top: Gap.md),
           child: InlineEmptyCard(
-            title: any || searching ? '沒有符合的紀錄' : '這個月還沒有紀錄',
-            message: any || searching
-                ? '換個關鍵字或篩選看看'
-                : '按右下角 ＋ 記一筆，或按右上角的貼上圖示匯入刷卡紀錄',
-            actions: [if (any) EmptyAction('看全部', () => set(ledgerNoFilter))],
+            title: any ? '沒有符合的紀錄' : '這個月還沒有紀錄',
+            message: any ? '換個篩選看看' : '按右下角 ＋ 記一筆，或按右上角的貼上圖示匯入刷卡紀錄',
+            actions: [
+              if (any)
+                EmptyAction('看全部', () {
+                  set(ledgerNoFilter);
+                  ref.read(ledgerAmountProvider.notifier).state =
+                      ledgerNoAmount;
+                }),
+            ],
           ),
         )
       else
@@ -610,7 +627,6 @@ class LedgerPage extends ConsumerWidget {
           shown,
           (t) => txDetailFlow(context, ref, t.id),
           partCategory: f.category,
-          query: q,
         ),
     ];
   }
@@ -1344,107 +1360,97 @@ class _SubsEntry extends ConsumerWidget {
   }
 }
 
-/// 明細頂部的搜尋框：輸入後馬上搜，右邊有清除。
-class _SearchBox extends ConsumerStatefulWidget {
-  const _SearchBox();
-
-  @override
-  ConsumerState<_SearchBox> createState() => _SearchBoxState();
-}
-
-class _SearchBoxState extends ConsumerState<_SearchBox> {
-  late final _c = TextEditingController(text: ref.read(ledgerSearchProvider));
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 8),
-    child: TextField(
-      controller: _c,
-      inputFormatters: halfWidthFormatters,
-      onChanged: (v) {
-        ref.read(ledgerSearchProvider.notifier).state = v;
-        setState(() {}); // 清除鈕跟著有沒有字出現或消失
-      },
-      textInputAction: TextInputAction.search,
-      decoration: InputDecoration(
-        hintText: '多詞以空白間格',
-        hintStyle: const TextStyle(fontSize: 12.5),
-        prefixIcon: const Icon(Icons.search_rounded, size: 20),
-        suffixIcon: _c.text.isEmpty
-            ? null
-            : IconButton(
-                tooltip: '清除搜尋',
-                icon: const Icon(Icons.close_rounded, size: 18),
-                onPressed: () {
-                  _c.clear();
-                  ref.read(ledgerSearchProvider.notifier).state = '';
-                  setState(() {});
-                },
-              ),
-        isDense: true,
-        filled: true,
-        fillColor: AppColors.glassFill,
-        contentPadding: const EdgeInsets.symmetric(vertical: 11),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: AppColors.glassEdge),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: AppColors.glassEdge),
-        ),
-      ),
-    ),
-  );
-}
-
-/// 「查看時間」按鈕（明細頂部）：點開選全部時間、今年、本月、上個月，或有紀錄的某個月。
-class _RangeButton extends ConsumerWidget {
-  const _RangeButton({required this.book, required this.searching});
+/// 明細頂部：時間｜金額｜篩選｜🔍 合成一整條毛玻璃膠囊（2026-11-11 使用者）。
+/// 篩選有開（不是預設）的那一格會換顏色，一眼看得出現在看的是篩選過的結果。
+class _FilterCapsule extends ConsumerWidget {
+  const _FilterCapsule({required this.book, required this.inM});
 
   final LedgerBook book;
-  final bool searching;
+
+  /// 目前時間範圍裡的交易（篩選選單只列有出現的分類）。
+  final List<LedgerTx> inM;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final range = ref.watch(ledgerRangeProvider);
-    final m = ref.watch(ledgerMonthProvider);
-    final label = searching
-        ? '全部時間（搜尋中）'
-        : switch (range) {
-            LedgerRange.all => '全部時間',
-            LedgerRange.year => '${m.year} 年',
-            LedgerRange.month => '${m.year} 年 ${m.month} 月',
-          };
+    final amount = ref.watch(ledgerAmountProvider);
+    final f = ref.watch(ledgerFilterProvider);
+    final filterOn =
+        f.flagged ||
+        f.accountId != null ||
+        f.category != null ||
+        f.type != null;
+    Widget divider() => Container(
+      width: 1,
+      height: 20,
+      color: Colors.white.withValues(alpha: .14),
+    );
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: OutlinedButton.icon(
-          onPressed: searching ? null : () => _open(context, ref),
-          icon: const Icon(Icons.calendar_month_rounded, size: 18),
-          label: Text(
-            '查看時間：$label  ▾',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: AppColors.ink,
-            side: const BorderSide(color: AppColors.glassEdge),
-            visualDensity: VisualDensity.compact,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(999),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(999),
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.white.withValues(alpha: .14),
+                  Colors.white.withValues(alpha: .05),
+                ],
+              ),
+              border: Border.all(color: Colors.white.withValues(alpha: .20)),
+            ),
+            child: SizedBox(
+              height: 44,
+              child: Row(
+                children: [
+                  _CapSeg(
+                    key: const ValueKey('rangeBtn'),
+                    icon: Icons.calendar_month_rounded,
+                    label: '時間',
+                    active: range != LedgerRange.month,
+                    onTap: (_) => _openRange(context, ref),
+                  ),
+                  divider(),
+                  _CapSeg(
+                    key: const ValueKey('amountBtn'),
+                    icon: Icons.payments_outlined,
+                    label: '金額',
+                    active: amount.min != null || amount.max != null,
+                    onTap: (btn) => _openAmount(context, ref, btn),
+                  ),
+                  divider(),
+                  _CapSeg(
+                    key: const ValueKey('filterBtn'),
+                    icon: Icons.filter_list_rounded,
+                    label: '篩選',
+                    active: filterOn,
+                    onTap: (btn) => _openFilter(context, ref, btn),
+                  ),
+                  divider(),
+                  _CapSeg(
+                    key: const ValueKey('searchBtn'),
+                    icon: Icons.search_rounded,
+                    label: null,
+                    width: 54,
+                    active: false,
+                    onTap: (_) => _openSearch(context),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
     );
   }
 
-  Future<void> _open(BuildContext context, WidgetRef ref) async {
+  // ── 時間 ──
+  Future<void> _openRange(BuildContext context, WidgetRef ref) async {
     final now = DateTime.now();
     // 有紀錄的月份（新的在前）跟每個月幾筆。
     final counts = <DateTime, int>{};
@@ -1477,7 +1483,7 @@ class _RangeButton extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                '查看時間',
+                '時間',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
@@ -1543,24 +1549,129 @@ class _RangeButton extends ConsumerWidget {
       ),
     );
   }
-}
 
-/// 明細的篩選：一顆按鈕，點開是 iOS 風格的毛玻璃下拉選單，裡面分段列出「全部／注意」、
-/// 各個帳戶、目前範圍裡有出現的分類；可以同時選好幾個（例如注意＋現金＋菸酒）。
-class _FilterButton extends ConsumerWidget {
-  const _FilterButton({required this.book, required this.inM});
+  // ── 金額 ──
+  Future<void> _openAmount(
+    BuildContext context,
+    WidgetRef ref,
+    BuildContext btn,
+  ) async {
+    final cur = ref.read(ledgerAmountProvider);
+    final tierIdx = ledgerAmountTiers.indexWhere(
+      (t) => t.min == cur.min && t.max == cur.max,
+    );
+    final on = cur.min != null || cur.max != null;
+    final picked = await showGlassMenu<String>(
+      btn,
+      width: 210,
+      selectedValues: {
+        if (!on) 'all',
+        if (tierIdx >= 0) 'tier:$tierIdx',
+        if (on && tierIdx < 0) 'custom',
+      },
+      items: [
+        const GlassMenuItem(
+          value: 'all',
+          label: '全部金額',
+          icon: Icons.all_inclusive_rounded,
+        ),
+        for (final (i, t) in ledgerAmountTiers.indexed)
+          GlassMenuItem(value: 'tier:$i', label: t.label),
+        const GlassMenuItem(
+          value: 'custom',
+          label: '自訂…',
+          icon: Icons.tune_rounded,
+        ),
+      ],
+    );
+    if (picked == null || !context.mounted) return;
+    final notifier = ref.read(ledgerAmountProvider.notifier);
+    if (picked == 'all') {
+      notifier.state = ledgerNoAmount;
+    } else if (picked.startsWith('tier:')) {
+      final t = ledgerAmountTiers[int.parse(picked.substring(5))];
+      notifier.state = (min: t.min, max: t.max);
+    } else {
+      final v = await _customAmount(context, cur);
+      if (v != null) notifier.state = v;
+    }
+  }
 
-  final LedgerBook book;
+  /// 自訂金額範圍：最低、最高都可以空著（只設一邊）。
+  Future<LedgerAmountFilter?> _customAmount(
+    BuildContext context,
+    LedgerAmountFilter cur,
+  ) {
+    final lo = TextEditingController(text: cur.min?.toString() ?? '');
+    final hi = TextEditingController(text: cur.max?.toString() ?? '');
+    InputDecoration dec(String hint) => InputDecoration(
+      hintText: hint,
+      prefixText: '\$ ',
+      isDense: true,
+      filled: true,
+      fillColor: AppColors.glassFill,
+    );
+    return showDialog<LedgerAmountFilter>(
+      context: context,
+      builder: (c) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A27),
+        title: const Text('自訂金額', style: TextStyle(color: AppColors.ink)),
+        content: Row(
+          children: [
+            Expanded(
+              child: TextField(
+                key: const ValueKey('amountMin'),
+                controller: lo,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                decoration: dec('最低'),
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 8),
+              child: Text('～'),
+            ),
+            Expanded(
+              child: TextField(
+                key: const ValueKey('amountMax'),
+                controller: hi,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                decoration: dec('最高'),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            key: const ValueKey('amountOk'),
+            onPressed: () {
+              var a = int.tryParse(lo.text);
+              var b = int.tryParse(hi.text);
+              if (a != null && b != null && a > b) (a, b) = (b, a);
+              Navigator.pop(c, (min: a, max: b));
+            },
+            child: const Text('套用'),
+          ),
+        ],
+      ),
+    );
+  }
 
-  /// 目前時間範圍裡的交易（只列有出現的分類、算注意幾筆）。
-  final List<LedgerTx> inM;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final f = ref.watch(ledgerFilterProvider);
+  // ── 篩選（類型／注意／帳戶／分類） ──
+  Future<void> _openFilter(
+    BuildContext context,
+    WidgetRef ref,
+    BuildContext btn,
+  ) async {
+    final f = ref.read(ledgerFilterProvider);
     void set(LedgerFilter v) =>
         ref.read(ledgerFilterProvider.notifier).state = v;
-    // 分類：選了類型就只列那種類型有出現的分類（只看收入就只列收入的分類）。
+    // 分類：選了類型就只列那種類型有出現的分類（收入就只列收入的分類）。
     final cats =
         {
           for (final t in inM)
@@ -1571,142 +1682,318 @@ class _FilterButton extends ConsumerWidget {
               .indexOf(a)
               .compareTo(ledgerExpenseCats.keys.toList().indexOf(b)),
         );
-    int countOf(LedgerTxType ty) => inM.where((t) => t.type == ty).length;
-    final accName = f.accountId == null
-        ? null
-        : book.account(f.accountId)?.name;
-    final parts = [
-      if (f.type != null) f.type!.label,
-      if (f.flagged) '注意',
-      ?accName,
-      if (f.category != null) f.category!,
-    ];
-    final any = parts.isNotEmpty;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Align(
-        alignment: Alignment.centerRight,
-        child: Builder(
-          builder: (btn) => OutlinedButton.icon(
-            onPressed: () async {
-              final picked = await showGlassMenu<String>(
-                btn,
-                width: 230,
-                maxHeight: MediaQuery.sizeOf(context).height * 0.6,
-                selectedValues: {
-                  if (!any) 'all',
-                  if (f.type != null) 'type:${f.type!.name}',
-                  if (f.flagged) 'flag',
-                  if (f.accountId != null) 'acct:${f.accountId}',
-                  if (f.category != null) 'cat:${f.category}',
-                },
-                items: [
-                  const GlassMenuItem(
-                    value: 'h:filter',
-                    label: '篩選',
-                    header: true,
-                  ),
-                  const GlassMenuItem(
-                    value: 'all',
-                    label: '全部',
-                    icon: Icons.all_inclusive_rounded,
-                  ),
-                  GlassMenuItem(
-                    value: 'type:expense',
-                    label: '只看支出 ${countOf(LedgerTxType.expense)}',
-                    icon: Icons.arrow_upward_rounded,
-                  ),
-                  GlassMenuItem(
-                    value: 'type:income',
-                    label: '只看收入 ${countOf(LedgerTxType.income)}',
-                    icon: Icons.arrow_downward_rounded,
-                  ),
-                  GlassMenuItem(
-                    value: 'type:transfer',
-                    label: '只看轉帳 ${countOf(LedgerTxType.transfer)}',
-                    icon: Icons.swap_horiz_rounded,
-                  ),
-                  GlassMenuItem(
-                    value: 'flag',
-                    label: '注意 ${inM.where((t) => t.flagged).length}',
-                    icon: Icons.flag_outlined,
-                  ),
-                  const GlassMenuItem(
-                    value: 'h:acct',
-                    label: '帳戶',
-                    header: true,
-                  ),
-                  for (final a in book.accounts)
-                    GlassMenuItem(
-                      value: 'acct:${a.id}',
-                      label: '${a.type.emoji} ${a.name}',
-                    ),
-                  if (cats.isNotEmpty)
-                    const GlassMenuItem(
-                      value: 'h:cat',
-                      label: '分類',
-                      header: true,
-                    ),
-                  for (final c in cats)
-                    GlassMenuItem(
-                      value: 'cat:$c',
-                      label: '${catLook(c).$1} $c',
-                    ),
-                ],
-              );
-              if (picked == null) return;
-              if (picked == 'all') {
-                set(ledgerNoFilter);
-              } else if (picked == 'flag') {
-                set((
-                  flagged: !f.flagged,
-                  accountId: f.accountId,
-                  category: f.category,
-                  type: f.type,
-                ));
-              } else if (picked.startsWith('type:')) {
-                final ty = LedgerTxType.parse(picked.substring(5));
-                set((
-                  flagged: f.flagged,
-                  accountId: f.accountId,
-                  // 換了類型，原本選的分類可能不屬於這種類型，清掉免得變成空的。
-                  category: null,
-                  type: f.type == ty ? null : ty,
-                ));
-              } else if (picked.startsWith('acct:')) {
-                final id = picked.substring(5);
-                set((
-                  flagged: f.flagged,
-                  accountId: f.accountId == id ? null : id,
-                  category: f.category,
-                  type: f.type,
-                ));
-              } else if (picked.startsWith('cat:')) {
-                final c = picked.substring(4);
-                set((
-                  flagged: f.flagged,
-                  accountId: f.accountId,
-                  category: f.category == c ? null : c,
-                  type: f.type,
-                ));
-              }
-            },
-            icon: const Icon(Icons.filter_list_rounded, size: 18),
-            label: Text(
-              '篩選：${any ? parts.join('・') : '全部'}  ▾',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.ink,
-              side: const BorderSide(color: AppColors.glassEdge),
-              backgroundColor: AppColors.glassFill,
-              visualDensity: VisualDensity.compact,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+    final any =
+        f.flagged ||
+        f.accountId != null ||
+        f.category != null ||
+        f.type != null;
+    final picked = await showGlassMenu<String>(
+      btn,
+      width: 230,
+      maxHeight: MediaQuery.sizeOf(context).height * 0.6,
+      selectedValues: {
+        if (!any) 'all',
+        if (f.type != null) 'type:${f.type!.name}',
+        if (f.flagged) 'flag',
+        if (f.accountId != null) 'acct:${f.accountId}',
+        if (f.category != null) 'cat:${f.category}',
+      },
+      items: [
+        const GlassMenuItem(
+          value: 'all',
+          label: '全部',
+          icon: Icons.all_inclusive_rounded,
+        ),
+        const GlassMenuItem(
+          value: 'type:expense',
+          label: '支出',
+          icon: Icons.arrow_upward_rounded,
+        ),
+        const GlassMenuItem(
+          value: 'type:income',
+          label: '收入',
+          icon: Icons.arrow_downward_rounded,
+        ),
+        const GlassMenuItem(
+          value: 'type:transfer',
+          label: '轉帳',
+          icon: Icons.swap_horiz_rounded,
+        ),
+        GlassMenuItem(
+          value: 'flag',
+          label: '注意 ${inM.where((t) => t.flagged).length}',
+          icon: Icons.flag_outlined,
+        ),
+        const GlassMenuItem(value: 'h:acct', label: '帳戶', header: true),
+        for (final a in book.accounts)
+          GlassMenuItem(
+            value: 'acct:${a.id}',
+            label: '${a.type.emoji} ${a.name}',
+          ),
+        if (cats.isNotEmpty)
+          const GlassMenuItem(value: 'h:cat', label: '分類', header: true),
+        for (final c in cats)
+          GlassMenuItem(value: 'cat:$c', label: '${catLook(c).$1} $c'),
+      ],
+    );
+    if (picked == null) return;
+    if (picked == 'all') {
+      set(ledgerNoFilter);
+    } else if (picked == 'flag') {
+      set((
+        flagged: !f.flagged,
+        accountId: f.accountId,
+        category: f.category,
+        type: f.type,
+      ));
+    } else if (picked.startsWith('type:')) {
+      final ty = LedgerTxType.parse(picked.substring(5));
+      set((
+        flagged: f.flagged,
+        accountId: f.accountId,
+        // 換了類型，原本選的分類可能不屬於這種類型，清掉免得變成空的。
+        category: null,
+        type: f.type == ty ? null : ty,
+      ));
+    } else if (picked.startsWith('acct:')) {
+      final id = picked.substring(5);
+      set((
+        flagged: f.flagged,
+        accountId: f.accountId == id ? null : id,
+        category: f.category,
+        type: f.type,
+      ));
+    } else if (picked.startsWith('cat:')) {
+      final c = picked.substring(4);
+      set((
+        flagged: f.flagged,
+        accountId: f.accountId,
+        category: f.category == c ? null : c,
+        type: f.type,
+      ));
+    }
+  }
+
+  // ── 搜尋：像電商網站，打開是另外懸浮的一整頁空白，搜到什麼在下面列，不跟明細混在一起 ──
+  void _openSearch(BuildContext context) {
+    showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      barrierLabel: '搜尋',
+      transitionDuration: const Duration(milliseconds: 200),
+      pageBuilder: (_, _, _) => const _SearchOverlay(),
+      transitionBuilder: (_, anim, _, child) => FadeTransition(
+        opacity: CurvedAnimation(parent: anim, curve: Curves.easeOut),
+        child: SlideTransition(
+          position: Tween(
+            begin: const Offset(0, .04),
+            end: Offset.zero,
+          ).animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
+/// 膠囊裡的一格。[active]＝這個篩選有開：換成帶顏色的小膠囊底。
+class _CapSeg extends StatelessWidget {
+  const _CapSeg({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.active,
+    required this.onTap,
+    this.width,
+  });
+
+  final IconData icon;
+  final String? label;
+  final bool active;
+  final double? width;
+  final void Function(BuildContext anchor) onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = active ? ledgerAccent : AppColors.ink2;
+    final seg = Builder(
+      builder: (anchor) => InkWell(
+        onTap: () => onTap(anchor),
+        child: Padding(
+          padding: const EdgeInsets.all(4),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 160),
+            decoration: BoxDecoration(
+              color: active
+                  ? ledgerAccent.withValues(alpha: .20)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(
+                color: active
+                    ? ledgerAccent.withValues(alpha: .55)
+                    : Colors.transparent,
               ),
             ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 18, color: color),
+                if (label != null) ...[
+                  const SizedBox(width: 5),
+                  Text(
+                    label!,
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                      color: active ? ledgerAccent : AppColors.ink,
+                    ),
+                  ),
+                  Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    size: 16,
+                    color: color,
+                  ),
+                ],
+              ],
+            ),
           ),
+        ),
+      ),
+    );
+    return width != null
+        ? SizedBox(width: width, child: seg)
+        : Expanded(child: seg);
+  }
+}
+
+/// 搜尋頁（全螢幕、另外懸浮）：上面一條搜尋框、下面是搜到的結果；搜每個欄位、不管月份。
+class _SearchOverlay extends ConsumerStatefulWidget {
+  const _SearchOverlay();
+
+  @override
+  ConsumerState<_SearchOverlay> createState() => _SearchOverlayState();
+}
+
+class _SearchOverlayState extends ConsumerState<_SearchOverlay> {
+  final _c = TextEditingController();
+  String _q = '';
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final book = ref.watch(ledgerBookProvider).valueOrNull;
+    final q = _q.trim();
+    final hits = book == null || q.isEmpty
+        ? const <LedgerTx>[]
+        : book.txs.where((t) => book.matches(t, q)).toList();
+    final st = book?.statsWhere(hits.contains);
+    return Scaffold(
+      backgroundColor: const Color(0xFF12121C),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(6, 8, 14, 6),
+              child: Row(
+                children: [
+                  IconButton(
+                    key: const ValueKey('searchBack'),
+                    tooltip: '關閉搜尋',
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.arrow_back_rounded),
+                    color: AppColors.ink2,
+                  ),
+                  Expanded(
+                    child: TextField(
+                      key: const ValueKey('searchField'),
+                      controller: _c,
+                      autofocus: true,
+                      inputFormatters: halfWidthFormatters,
+                      onChanged: (v) => setState(() => _q = v),
+                      textInputAction: TextInputAction.search,
+                      decoration: InputDecoration(
+                        hintText: '搜尋（多詞以空白間格）',
+                        hintStyle: const TextStyle(fontSize: 13),
+                        prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                        suffixIcon: _c.text.isEmpty
+                            ? null
+                            : IconButton(
+                                tooltip: '清除搜尋',
+                                icon: const Icon(Icons.close_rounded, size: 18),
+                                onPressed: () {
+                                  _c.clear();
+                                  setState(() => _q = '');
+                                },
+                              ),
+                        isDense: true,
+                        filled: true,
+                        fillColor: AppColors.glassFill,
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 11,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(999),
+                          borderSide: const BorderSide(
+                            color: AppColors.glassEdge,
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(999),
+                          borderSide: const BorderSide(
+                            color: AppColors.glassEdge,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: book == null || q.isEmpty
+                  ? Center(
+                      child: Text(
+                        '打字就會搜全部時間、每個欄位',
+                        style: AppText.note.copyWith(color: AppColors.ink3),
+                      ),
+                    )
+                  : hits.isEmpty
+                  ? Center(
+                      child: Text(
+                        '找不到「$q」',
+                        style: AppText.note.copyWith(color: AppColors.ink3),
+                      ),
+                    )
+                  : ListView(
+                      padding: const EdgeInsets.fromLTRB(
+                        Gap.screenSide,
+                        0,
+                        Gap.screenSide,
+                        24,
+                      ),
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
+                          child: Text(
+                            '${hits.length} 筆・消費 ${lMoney(st!.spend)}・收入 ${lMoney(st.income)}（搜尋「$q」，全部時間）',
+                            style: AppText.note.copyWith(color: AppColors.ink3),
+                          ),
+                        ),
+                        ...groupedTxList(
+                          book,
+                          hits,
+                          (t) => txDetailFlow(context, ref, t.id),
+                          query: q,
+                        ),
+                      ],
+                    ),
+            ),
+          ],
         ),
       ),
     );

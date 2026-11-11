@@ -6,6 +6,7 @@ import 'package:lume/data/repositories/ledger_repository.dart';
 import 'package:lume/data/storage/key_value_store.dart';
 import 'package:lume/domain/ledger_calc.dart';
 import 'package:lume/domain/models/ledger.dart';
+import 'package:lume/features/ledger/ledger_glass_button.dart';
 import 'package:lume/features/ledger/ledger_page.dart';
 
 /// 2026-11-10 使用者：記一筆每個欄位都是「左邊標題｜右邊輸入」同一行、規格統一
@@ -207,7 +208,7 @@ void timeUnknownTests() {
     expect(find.textContaining(RegExp(r'\d\d:\d\d')), findsWidgets);
     await tester.tap(chip);
     await settle();
-    expect(tester.widget<FilterChip>(chip).selected, isTrue);
+    expect(tester.widget<LedgerGlassButton>(chip).selected, isTrue);
     // 時間欄只剩日期，不寫「不確定幾點」，也沒有時分。
     expect(find.textContaining('不確定幾點'), findsNothing);
     // 排序欄在時間同一行的右邊，不用說明文字。
@@ -215,7 +216,7 @@ void timeUnknownTests() {
     expect(order, findsOneWidget);
     expect(find.text('同天排序'), findsNothing);
     expect(
-      (tester.getCenter(order).dy - tester.getCenter(find.text('時間')).dy).abs(),
+      (tester.getCenter(order).dy - tester.getCenter(find.text('時間').last).dy).abs(),
       lessThan(14),
       reason: '排序欄跟「時間」同一行',
     );
@@ -303,7 +304,7 @@ void timeUnknownTests() {
     await settle();
     final chip = find.byKey(const ValueKey('timeUnknown'));
     expect(chip, findsOneWidget);
-    expect(tester.widget<FilterChip>(chip).selected, isTrue);
+    expect(tester.widget<LedgerGlassButton>(chip).selected, isTrue);
     // 編輯也能設排序：填 25（超過 20＝排在有時分的前面）後儲存。
     final order = find.byKey(const ValueKey('timeOrder'));
     expect(order, findsOneWidget);
@@ -329,7 +330,7 @@ void timeUnknownTests() {
     );
     await tester.tap(chip);
     await settle();
-    expect(tester.widget<FilterChip>(chip).selected, isFalse);
+    expect(tester.widget<LedgerGlassButton>(chip).selected, isFalse);
     expect(find.byKey(const ValueKey('timeOrder')), findsNothing);
     expect(tester.takeException(), isNull);
   });

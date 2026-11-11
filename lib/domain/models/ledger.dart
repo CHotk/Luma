@@ -239,6 +239,8 @@ class LedgerTx {
     required this.accountId,
     this.toAccountId,
     this.toName = '',
+    this.toOther = false,
+    this.extAmount,
     this.category,
     this.merchant = '',
     this.item = '',
@@ -279,6 +281,13 @@ class LedgerTx {
   /// 轉帳轉到「沒記在 App 裡」的自己的戶頭（例如 LineBank，2026-11-10 使用者）：[toAccountId]
   /// 是 null、這裡放名稱；只扣轉出那個帳戶的錢，不算支出（平轉）。
   final String toName;
+
+  /// 轉給別人的戶頭（2026-11-11 使用者）：還是「轉帳」，錢從這個帳戶扣掉、對方的戶頭不追蹤；
+  /// [toName] 放誰的戶頭。轉帳本身就算一種支出（分類固定「轉給他人」），不用選支出分類。
+  final bool toOther;
+
+  /// 轉到「虛擬貨幣」時實際換到多少 USDT（2026-11-11 使用者：虛擬貨幣那邊用 USDT 當幣種）。
+  final double? extAmount;
   final String? category;
   final String merchant;
 
@@ -356,6 +365,8 @@ class LedgerTx {
     String? accountId,
     String? Function()? toAccountId,
     String? toName,
+    bool? toOther,
+    double? Function()? extAmount,
     String? Function()? category,
     String? merchant,
     String? item,
@@ -376,6 +387,8 @@ class LedgerTx {
     accountId: accountId ?? this.accountId,
     toAccountId: toAccountId == null ? this.toAccountId : toAccountId(),
     toName: toName ?? this.toName,
+    toOther: toOther ?? this.toOther,
+    extAmount: extAmount == null ? this.extAmount : extAmount(),
     category: category == null ? this.category : category(),
     merchant: merchant ?? this.merchant,
     item: item ?? this.item,
@@ -403,6 +416,8 @@ class LedgerTx {
     'accountId': accountId,
     'toAccountId': toAccountId,
     if (toName.isNotEmpty) 'toName': toName,
+    if (toOther) 'toOther': true,
+    if (extAmount != null) 'extAmt': extAmount,
     'category': category,
     'merchant': merchant,
     if (item.isNotEmpty) 'item': item,
@@ -430,6 +445,8 @@ class LedgerTx {
     accountId: j['accountId'] as String,
     toAccountId: j['toAccountId'] as String?,
     toName: j['toName'] as String? ?? '',
+    toOther: j['toOther'] as bool? ?? false,
+    extAmount: (j['extAmt'] as num?)?.toDouble(),
     category: j['category'] as String?,
     merchant: j['merchant'] as String? ?? '',
     item: j['item'] as String? ?? '',

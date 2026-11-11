@@ -11,6 +11,7 @@ import '../../data/external_link.dart';
 import '../../data/repositories/yt_embed_player_style_store.dart';
 import '../../data/repositories/yt_playlist_store.dart';
 import '../../data/repositories/yt_video_hidden_store.dart';
+import '../../data/repositories/yt_video_rating_store.dart';
 import '../../data/repositories/yt_video_song_store.dart';
 import '../music/add_to_music_sheet.dart';
 import '../../data/repositories/yt_video_open_mode_store.dart';
@@ -23,6 +24,7 @@ import '../../shared/widgets/app_notice.dart';
 import 'yt_embedded_player.dart';
 import 'yt_floating_player.dart';
 import 'yt_playlist_actions.dart';
+import 'yt_rating_ui.dart';
 
 /// 開外部連結，失敗就退回複製到剪貼簿——跟匯出檔案失敗退回複製剪貼簿
 /// 同一個處理哲學。
@@ -231,7 +233,12 @@ class YtVideoRow extends ConsumerStatefulWidget {
     this.playlistId,
     this.background = AppColors.bg,
     this.songMode = false,
+    this.cryptoMode = false,
   });
+
+  /// 頻道在幣圈分類裡（2026-11-11）：往左滑多 對／不對／沒方向／預測、縮圖多
+  /// 評價小標籤、⋮ 選單（居中視窗）多評價；不放「加到音樂功能」。
+  final bool cryptoMode;
 
   /// 頻道在音樂分類裡（2026-10-16）：往左滑多一顆「歌曲」、⋮ 選單多「標成
   /// 歌曲」、標了的縮圖多一個 ♪。不在音樂分類就都不出現，資料照樣留著。
@@ -293,7 +300,30 @@ class YtVideoRow extends ConsumerStatefulWidget {
 
 class _YtVideoRowState extends ConsumerState<YtVideoRow> {
   /// 往左滑露出的動作區寬度（兩顆鈕＋間距；音樂分類三顆）。
-  double get _actionsWidth => widget.songMode ? 234.0 : 156.0;
+  double get _actionsWidth => widget.cryptoMode
+      ? 316.0
+      : widget.songMode
+      ? 234.0
+      : 156.0;
+
+  /// 評價（幣圈）。
+  Future<void> _rate(YtVerdict v) async {
+    await YtRatingActions(
+      ref,
+    ).rate(widget.video, widget.channelId ?? '', widget.channelName ?? '', v);
+    if (mounted) setState(() => _dragOffset = 0);
+  }
+
+  Future<void> _predict() async {
+    _closeSwipe();
+    await showYtPredictDialog(
+      context,
+      ref,
+      video: widget.video,
+      channelId: widget.channelId ?? '',
+      channelName: widget.channelName ?? '',
+    );
+  }
 
   bool get _isSong =>
       ref.read(ytVideoSongsProvider).contains(widget.video.videoId);
@@ -554,69 +584,141 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
     final playlist = playlistId == null
         ? null
         : YtPlaylistActions(ref).byId(playlistId);
-    final choice = await showModalBottomSheet<String>(
-      context: context,
-      backgroundColor: const Color(0xFF1C1C29),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
-      ),
-      builder: (context) {
-        Widget item(String value, IconData icon, String label) => ListTile(
-          leading: Icon(icon, color: AppColors.ink2),
-          title: Text(label, style: const TextStyle(color: AppColors.ink)),
-          onTap: () => Navigator.of(context).pop(value),
-        );
-        return SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
+    Widget menuBody(BuildContext context) {
+      Widget item(String value, IconData icon, String label) => ListTile(
+        leading: Icon(icon, color: AppColors.ink2),
+        title: Text(label, style: const TextStyle(color: AppColors.ink)),
+        onTap: () => Navigator.of(context).pop(value),
+      );
+      return SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
+                child: Text(
+                  widget.video.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.note,
+                ),
+              ),
+              // 2026-10-14 使用者要求：拿掉「存到稍後觀看」（添加到播放清單
+              // 裡就能勾），改名「添加到播放清單」、圖示跟 YouTube 一樣。
+              // 幣圈分類（2026-11-11）：四種評價一排＋記預測＋清除。
+              if (widget.cryptoMode) ...[
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
-                  child: Text(
-                    widget.video.title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppText.note,
+                  child: Row(
+                    children: [
+                      for (final v in YtVerdict.values)
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 3),
+                            child: _MenuVerdict(
+                              verdict: v,
+                              selected:
+                                  ref
+                                      .read(
+                                        ytVideoRatingsProvider,
+                                      )[widget.video.videoId]
+                                      ?.verdict ==
+                                  v,
+                              onTap: () =>
+                                  Navigator.of(context).pop('rate:${v.name}'),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
-                // 2026-10-14 使用者要求：拿掉「存到稍後觀看」（添加到播放清單
-                // 裡就能勾），改名「添加到播放清單」、圖示跟 YouTube 一樣。
-                // 標歌曲放第一個（2026-10-16 使用者要求）。
-                if (widget.songMode)
-                  _isSong
-                      ? item('song', Icons.music_off_rounded, '取消歌曲')
-                      : item('song', Icons.music_note_rounded, '標成歌曲'),
-                // 加到音樂功能（2026-10-19 使用者要求：任何分類都能加，抄一份
-                // 給音樂；已經加過的就是編輯）。
+                item('predict', Icons.my_location_rounded, '記預測（等行情走完再驗證）'),
+                item('rateNote', Icons.edit_note_rounded, '評價備註…'),
+                if (ref.read(ytVideoRatingsProvider)[widget.video.videoId] !=
+                    null)
+                  item('rateClear', Icons.layers_clear_rounded, '清除評價'),
+              ],
+              // 標歌曲放第一個（2026-10-16 使用者要求）。
+              if (widget.songMode)
+                _isSong
+                    ? item('song', Icons.music_off_rounded, '取消歌曲')
+                    : item('song', Icons.music_note_rounded, '標成歌曲'),
+              // 加到音樂功能（2026-10-19 使用者要求：任何分類都能加，抄一份
+              // 給音樂；已經加過的就是編輯）。
+              // 幣圈分類不放（2026-11-11 使用者要求）。
+              if (!widget.cryptoMode)
                 ref.read(musicVideoIdsProvider).contains(widget.video.videoId)
                     ? item('music', Icons.queue_music_rounded, '在音樂功能裡・編輯')
                     : item('music', Icons.queue_music_rounded, '加到音樂功能'),
-                item('save', Icons.playlist_add_rounded, '添加到播放清單'),
-                if (playlist != null) ...[
-                  item('top', Icons.vertical_align_top_rounded, '移到最上面'),
-                  item(
-                    'remove',
-                    Icons.playlist_remove_rounded,
-                    '從「${playlist.name}」移除',
-                  ),
-                ],
-                // 往左滑那兩顆（紀錄、隱藏）選單裡也都有（2026-10-14 使用者要求）。
-                item('history', Icons.history_rounded, '開啟紀錄'),
-                _hidden
-                    ? item('unhide', Icons.visibility_rounded, '取消隱藏')
-                    : item('hide', Icons.visibility_off_rounded, '隱藏這部'),
-                item('youtube', Icons.open_in_new_rounded, '在 YouTube 開啟'),
+              item('save', Icons.playlist_add_rounded, '添加到播放清單'),
+              if (playlist != null) ...[
+                item('top', Icons.vertical_align_top_rounded, '移到最上面'),
+                item(
+                  'remove',
+                  Icons.playlist_remove_rounded,
+                  '從「${playlist.name}」移除',
+                ),
               ],
-            ),
+              // 往左滑那兩顆（紀錄、隱藏）選單裡也都有（2026-10-14 使用者要求）。
+              item('history', Icons.history_rounded, '開啟紀錄'),
+              _hidden
+                  ? item('unhide', Icons.visibility_rounded, '取消隱藏')
+                  : item('hide', Icons.visibility_off_rounded, '隱藏這部'),
+              item('youtube', Icons.open_in_new_rounded, '在 YouTube 開啟'),
+            ],
           ),
-        );
-      },
-    );
+        ),
+      );
+    }
+
+    // 幣圈分類的選單用居中視窗（使用者不要底部視窗），其他分類照舊。
+    final choice = widget.cryptoMode
+        ? await showDialog<String>(
+            context: context,
+            builder: (context) => Dialog(
+              backgroundColor: const Color(0xFF1C1C29),
+              insetPadding: const EdgeInsets.symmetric(
+                horizontal: 24,
+                vertical: 24,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(22),
+              ),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 360),
+                child: SingleChildScrollView(child: menuBody(context)),
+              ),
+            ),
+          )
+        : await showModalBottomSheet<String>(
+            context: context,
+            backgroundColor: const Color(0xFF1C1C29),
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+            ),
+            builder: menuBody,
+          );
     if (!mounted || choice == null) return;
+    if (choice.startsWith('rate:')) {
+      await _rate(YtVerdict.parse(choice.substring(5))!);
+      return;
+    }
     switch (choice) {
+      case 'predict':
+        await _predict();
+      case 'rateNote':
+        await showYtRatingDialog(
+          context,
+          ref,
+          video: widget.video,
+          channelId: widget.channelId ?? '',
+          channelName: widget.channelName ?? '',
+        );
+      case 'rateClear':
+        await YtRatingActions(ref).clear(widget.video);
       case 'history':
         await _showHistory();
       case 'save':
@@ -779,12 +881,40 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
                               onTap: _toggleSong,
                             ),
                     ),
-                  _SwipeActionButton(
-                    icon: Icons.history_rounded,
-                    label: '紀錄',
-                    color: _iosBlue,
-                    onTap: _showHistory,
-                  ),
+                  // 幣圈分類（2026-11-11）：對／不對／沒方向／預測，取代「紀錄」
+                  // （開啟紀錄在 ⋮ 選單裡）。
+                  if (widget.cryptoMode) ...[
+                    _SwipeActionButton(
+                      icon: ytVerdictIcon(YtVerdict.ok),
+                      label: '對',
+                      color: _iosGreen,
+                      onTap: () => _rate(YtVerdict.ok),
+                    ),
+                    _SwipeActionButton(
+                      icon: ytVerdictIcon(YtVerdict.bad),
+                      label: '不對',
+                      color: const Color(0xFFFF453A),
+                      onTap: () => _rate(YtVerdict.bad),
+                    ),
+                    _SwipeActionButton(
+                      icon: ytVerdictIcon(YtVerdict.none),
+                      label: '沒方向',
+                      color: _iosGray,
+                      onTap: () => _rate(YtVerdict.none),
+                    ),
+                    _SwipeActionButton(
+                      icon: Icons.my_location_rounded,
+                      label: '預測',
+                      color: _iosBlue,
+                      onTap: _predict,
+                    ),
+                  ] else
+                    _SwipeActionButton(
+                      icon: Icons.history_rounded,
+                      label: '紀錄',
+                      color: _iosBlue,
+                      onTap: _showHistory,
+                    ),
                   _hidden
                       ? _SwipeActionButton(
                           icon: Icons.visibility_rounded,
@@ -952,12 +1082,30 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
                                         ref
                                             .watch(ytVideoSongsProvider)
                                             .contains(video.videoId);
-                                    if (label == null && !song) {
+                                    final rating = widget.cryptoMode
+                                        ? ref.watch(
+                                            ytVideoRatingsProvider,
+                                          )[video.videoId]
+                                        : null;
+                                    final showRate =
+                                        rating != null &&
+                                        (rating.verdict != null ||
+                                            rating.pending);
+                                    if (label == null && !song && !showRate) {
                                       return const SizedBox.shrink();
                                     }
                                     return Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
+                                        // 評價標籤（幣圈，2026-11-11）：跟 ♪ 歌曲
+                                        // 同一個位置。
+                                        if (showRate)
+                                          Padding(
+                                            padding: EdgeInsets.only(
+                                              right: label == null ? 0 : 3,
+                                            ),
+                                            child: YtRatingPill(rating: rating),
+                                          ),
                                         if (song)
                                           Container(
                                             margin: EdgeInsets.only(
@@ -1160,6 +1308,35 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
                                     style: AppText.note,
                                   ),
                                 ),
+                                if (widget.cryptoMode)
+                                  Consumer(
+                                    builder: (context, ref, _) {
+                                      final r = ref.watch(
+                                        ytVideoRatingsProvider,
+                                      )[video.videoId];
+                                      if (r == null) {
+                                        return const SizedBox.shrink();
+                                      }
+                                      if (r.pending) {
+                                        return YtVerifyStrip(
+                                          rating: r,
+                                          onVerdict: _rate,
+                                        );
+                                      }
+                                      if (r.note.isEmpty) {
+                                        return const SizedBox.shrink();
+                                      }
+                                      return Padding(
+                                        padding: const EdgeInsets.only(top: 4),
+                                        child: Text(
+                                          '備註：${r.note}',
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: AppText.note,
+                                        ),
+                                      );
+                                    },
+                                  ),
                               ],
                             ),
                           ),
@@ -1196,6 +1373,52 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// ⋮ 選單裡的評價鈕（幣圈，2026-11-11）。
+class _MenuVerdict extends StatelessWidget {
+  const _MenuVerdict({
+    required this.verdict,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final YtVerdict verdict;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = ytVerdictColor(verdict);
+    return InkWell(
+      key: ValueKey('menu_verdict_${verdict.name}'),
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? c.withValues(alpha: 0.22) : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: c.withValues(alpha: selected ? 1 : 0.5)),
+        ),
+        child: Column(
+          children: [
+            Icon(ytVerdictIcon(verdict), color: c, size: 22),
+            const SizedBox(height: 3),
+            Text(
+              verdict.label,
+              maxLines: 1,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: c,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

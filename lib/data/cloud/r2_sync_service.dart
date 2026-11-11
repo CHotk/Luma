@@ -44,6 +44,7 @@ import '../repositories/nav_bar_prefs_store.dart';
 import '../repositories/stamped_setting_store.dart';
 import '../repositories/yt_display_prefs_store.dart';
 import '../repositories/yt_playlist_store.dart';
+import '../repositories/yt_video_rating_store.dart';
 import '../repositories/yt_video_song_store.dart';
 import '../repositories/music_store.dart';
 import '../repositories/music_play_log_store.dart';
@@ -1073,6 +1074,35 @@ class R2SyncService {
     final uploaded = changedFrom(cloud);
     if (downloaded > 0) await store.saveRecords(merged);
     final body = utf8.encode(YtVideoSongStore.encode(merged));
+    var etag = fetched.etag;
+    if (uploaded > 0) {
+      etag = await _client.putObject(key, Uint8List.fromList(body));
+    }
+    await _writeMeta(key, body, etag);
+    return (downloaded: downloaded, uploaded: uploaded);
+  }
+
+  /// 幣圈影片的準度評價（2026-11-11）：一部一部比改的時間，後改的贏
+  /// （清掉的留墓碑，見 [YtVideoRatingStore]）。
+  Future<({int downloaded, int uploaded})> syncYtVideoRatings(
+    YtVideoRatingStore store,
+  ) async {
+    const key = YtVideoRatingStore.cloudKey;
+    final local = await store.loadAll();
+    final localBytes = utf8.encode(YtVideoRatingStore.encode(local));
+    if (await _canSkip(key, localBytes)) return (downloaded: 0, uploaded: 0);
+
+    final fetched = await _client.getObjectWithEtag(key);
+    final cloud = fetched.bytes == null
+        ? <String, YtVideoRating>{}
+        : YtVideoRatingStore.decode(utf8.decode(fetched.bytes!));
+    final merged = YtVideoRatingStore.merge(local, cloud);
+    int changedFrom(Map<String, YtVideoRating> side) =>
+        merged.entries.where((e) => side[e.key]?.at != e.value.at).length;
+    final downloaded = changedFrom(local);
+    final uploaded = changedFrom(cloud);
+    if (downloaded > 0) await store.saveAll(merged);
+    final body = utf8.encode(YtVideoRatingStore.encode(merged));
     var etag = fetched.etag;
     if (uploaded > 0) {
       etag = await _client.putObject(key, Uint8List.fromList(body));

@@ -19,13 +19,43 @@ const ledgerExpenseCats = <String, (String, int)>{
   '帳單': ('🧾', 0xFF7EA6FF),
   '醫療': ('💊', 0xFFFF7A9A),
   '雲端服務': ('☁️', 0xFF9ADBFF),
-  '創業魔物童話': ('🐉', 0xFFE08FD0),
-  '創業交友APP': ('💘', 0xFFFF8FB1),
   '寵物': ('🐾', 0xFFF0B27A),
   '生活': ('🏡', 0xFF8FD1A8),
   '菸酒': ('🍺', 0xFFD9A066),
+  // 還款（2026-11-11 使用者）：還給誰用下拉選單選，見 [ledgerRepayTargets]。
+  '還款': ('💸', 0xFFFF8A65),
+  // 創業兩個放最底下，最後一個一定是「未分類」（2026-11-11 使用者）。
+  '創業魔物童話': ('🐉', 0xFFE08FD0),
+  '創業交友APP': ('💘', 0xFFFF8FB1),
   '未分類': ('❔', 0xFF8A8A9A),
 };
+
+/// 轉帳給別人的戶頭（[LedgerTx.toOther]）算的分類：轉帳本身就是一種支出，不用選支出分類。
+const ledgerToOtherCat = '轉給他人';
+
+/// 支出分類「還款」。
+const ledgerRepayCat = '還款';
+
+/// 轉帳「轉到」沒記在 App 裡的自己的地方（平轉：只扣轉出帳戶、不算支出）。2026-11-10 LineBank，
+/// 2026-11-11 使用者加富邦、虛擬貨幣。
+const ledgerTransferExts = <(String, String)>[
+  ('LineBank', '🏦'),
+  ('富邦', '🏦'),
+  ('虛擬貨幣', '🪙'),
+];
+
+/// 虛擬貨幣（USDT）粗估換算台幣用的匯率（2026-11-11 使用者：填 USDT 順便顯示 ×32 的粗估台幣）。
+const ledgerUsdtRoughRate = 32;
+
+/// 轉到虛擬貨幣的那個名稱（[ledgerTransferExts] 裡的）。
+const ledgerCryptoExt = '虛擬貨幣';
+
+/// 收入分類「平轉」的來源戶頭（沒記在 App 裡的）：選項只有這兩個（2026-11-11 使用者）。
+const ledgerFlatSources = <String>['LineBank', '富邦'];
+
+/// 「還款」的對象只有這幾個，用下拉選單選（2026-11-11 使用者）。舊資料、貼上匯入帶進來的
+/// 其他名稱編輯時會自動多出一個選項，不會被洗掉。
+const ledgerRepayTargets = <String>['中信信貸', '台新信貸', '當鋪', 'Jet', 'JUJI'];
 
 const ledgerIncomeCats = <String, (String, int)>{
   '薪資': ('💰', 0xFF5FE08D),
@@ -348,6 +378,41 @@ class LedgerBook {
 
   String accountName(String? id) => account(id)?.name ?? '（已刪除的帳戶）';
 
+  /// 沒記在 App 裡的地方（LineBank／富邦）照轉入轉出推算有多少台幣：轉進去的轉帳加、
+  /// 收入「平轉」從那邊轉回來的減。[skipId] 是正在編輯的那筆（算「這筆之後」時先拿掉）。
+  int extBalance(String name, {String? skipId}) {
+    var sum = 0;
+    for (final t in txs) {
+      if (t.id == skipId) continue;
+      if (t.type == LedgerTxType.transfer &&
+          !t.toOther &&
+          t.toAccountId == null &&
+          t.toName == name) {
+        sum += t.amount;
+      } else if (t.type == LedgerTxType.income &&
+          t.category == ledgerFlatTransfer &&
+          t.toName == name) {
+        sum -= t.amount;
+      }
+    }
+    return sum;
+  }
+
+  /// 轉到虛擬貨幣累計換到多少 USDT（沒填 USDT 的舊資料用 ÷32 粗估）。
+  double usdtBalance({String? skipId}) {
+    var sum = 0.0;
+    for (final t in txs) {
+      if (t.id == skipId) continue;
+      if (t.type == LedgerTxType.transfer &&
+          !t.toOther &&
+          t.toAccountId == null &&
+          t.toName == ledgerCryptoExt) {
+        sum += t.extAmount ?? t.amount / ledgerUsdtRoughRate;
+      }
+    }
+    return sum;
+  }
+
   /// 轉帳「轉到」那邊的名稱：記在 App 裡的帳戶用它的名字，沒記的（LineBank）用 [LedgerTx.toName]。
   String toLabel(LedgerTx t) => t.toAccountId == null && t.toName.isNotEmpty
       ? t.toName
@@ -572,6 +637,9 @@ class LedgerBook {
 
   /// 這筆（或它原本的支出，退款時）算哪些分類。
   List<String> categoriesOf(LedgerTx t) {
+    if (t.type == LedgerTxType.transfer && t.toOther) {
+      return const [ledgerToOtherCat];
+    }
     final src = t.type == LedgerTxType.refund ? tx(t.linkedId) : t;
     if (src == null) return const [];
     if (src.isSplit) return [for (final s in src.splits) s.category];
@@ -604,6 +672,8 @@ class LedgerBook {
         case LedgerTxType.income:
           if (t.category != ledgerFlatTransfer) income += t.amount;
         case LedgerTxType.transfer:
+          // 轉給別人的戶頭：錢離開了，算一筆支出（2026-11-11 使用者）；轉給自己的帳戶不算。
+          if (t.toOther) addShares({ledgerToOtherCat: t.amount});
         case LedgerTxType.repayment:
           break;
       }
@@ -707,7 +777,7 @@ class LedgerBook {
       accountName(t.accountId),
       if (t.toAccountId != null) accountName(t.toAccountId),
       t.toName,
-      if (t.toName.isNotEmpty) '平轉',
+      if (t.toOther) '轉給他人' else if (t.toName.isNotEmpty) '平轉',
       t.paidFor?.people ?? '',
       if (t.paidFor != null) t.paidFor!.settled ? '已給 給了' : '還沒給 要給',
       if (t.flagged) '旗幟 標記 旗 要注意',
