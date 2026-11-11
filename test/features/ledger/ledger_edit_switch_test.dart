@@ -539,6 +539,32 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('編輯一筆轉給他人的轉帳也有「拆分」', (tester) async {
+    final store = _MemoryStore();
+    final (repo, bank, _) = await setup(tester, store);
+    final now = DateTime.now();
+    await repo.addTransaction(
+      LedgerTx(
+        id: 'o',
+        type: LedgerTxType.transfer,
+        occurredAt: DateTime(now.year, now.month, now.day, 9),
+        amount: 1000,
+        accountId: bank.id,
+        toOther: true,
+        toName: '小美',
+        merchant: '小美',
+      ),
+    );
+    await open(tester, store);
+    await tester.tap(find.text('小美').first);
+    await settle(tester);
+    await tester.tap(find.widgetWithText(OutlinedButton, '編輯'));
+    await settle(tester);
+    await tester.ensureVisible(find.byKey(const ValueKey('transferSplit')));
+    expect(find.byKey(const ValueKey('transferSplit')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('商家下拉不列刷卡（信用卡）的商家', (tester) async {
     final store = _MemoryStore();
     final (repo, bank, card) = await setup(tester, store);

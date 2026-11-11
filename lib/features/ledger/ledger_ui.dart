@@ -169,75 +169,30 @@ LedgerBrand? ledgerAccountBrand(LedgerAccount a) => a.isCard
     ? (a.name.contains('中信') ? _brandCtbcCard : null)
     : (_isCtbcBank(a) ? _brandCtbc : null);
 
-/// 現金那筆的小圖示：一張綠色鈔票、中間一個 $（2026-11-11 使用者：不用照金額分面額，
-/// 畫一張現金就夠）。
+/// 現金那筆的小圖示：一張綠色鈔票（2026-11-11 使用者：自己畫的太醜，找現成的 icon）。
+/// 圖是微軟 Fluent Emoji「Dollar banknote」3D 版（MIT 授權），放在 assets/ledger/icons/cash.png。
 class LedgerCashIcon extends StatelessWidget {
   const LedgerCashIcon({super.key, this.size = 36});
 
   final double size;
 
   @override
-  Widget build(BuildContext context) {
-    final w = size * 0.86, h = size * 0.54;
-    const green = Color(0xFF2FA866);
-    return Container(
-      key: const ValueKey('cashNote'),
-      width: size,
-      height: size,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: green.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(size * 0.3),
-      ),
-      child: Container(
-        width: w,
-        height: h,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(size * 0.07),
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF5FD08F), green],
-          ),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.45),
-            width: 1,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.3),
-              blurRadius: 3,
-              offset: const Offset(0, 1.5),
-            ),
-          ],
-        ),
-        // 中間一個圓、圓裡一個 $，像鈔票上的圖案。
-        child: Container(
-          width: h * 0.72,
-          height: h * 0.72,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Colors.white.withValues(alpha: 0.22),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.55),
-              width: 1,
-            ),
-          ),
-          child: Text(
-            '\$',
-            style: TextStyle(
-              fontSize: h * 0.5,
-              fontWeight: FontWeight.w900,
-              height: 1,
-              color: Colors.white,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => Container(
+    key: const ValueKey('cashNote'),
+    width: size,
+    height: size,
+    padding: EdgeInsets.all(size * 0.12),
+    decoration: BoxDecoration(
+      color: const Color(0xFF2FA866).withValues(alpha: 0.15),
+      borderRadius: BorderRadius.circular(size * 0.3),
+    ),
+    child: Image.asset(
+      'assets/ledger/icons/cash.png',
+      filterQuality: FilterQuality.medium,
+      errorBuilder: (_, _, _) =>
+          Text('💵', style: TextStyle(fontSize: size * 0.47)),
+    ),
+  );
 }
 
 class LedgerIcon extends StatelessWidget {
