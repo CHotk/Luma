@@ -64,6 +64,7 @@ List<String> logDiffTx(LedgerTx a, LedgerTx b, String Function(String?) acct) {
   d('品項', a.item, b.item);
   d('備註', a.note, b.note);
   d('標記旗幟', a.flagged ? '是' : '否', b.flagged ? '是' : '否');
+  d('已確認', a.confirmed ? '是' : '否', b.confirmed ? '是' : '否');
   d('跟別人一起', _pf(a.paidFor), _pf(b.paidFor));
   d('連到', a.linkedId ?? '無', b.linkedId ?? '無');
   return out;

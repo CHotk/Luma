@@ -50,6 +50,7 @@ final ledgerMonthProvider = StateProvider<DateTime>(
 /// 明細的篩選：只看 🚩、只看某個帳戶、只看某個分類、只看某種類型（支出／收入／轉帳，2026-11-10 使用者）。
 typedef LedgerFilter = ({
   bool flagged,
+  bool unconfirmed,
   String? accountId,
   String? category,
   LedgerTxType? type,
@@ -57,6 +58,7 @@ typedef LedgerFilter = ({
 
 const ledgerNoFilter = (
   flagged: false,
+  unconfirmed: false,
   accountId: null,
   category: null,
   type: null,
@@ -569,6 +571,7 @@ class LedgerPage extends ConsumerWidget {
               (amount.min == null || t.amount.abs() >= amount.min!) &&
               (amount.max == null || t.amount.abs() <= amount.max!) &&
               (!f.flagged || t.flagged) &&
+              (!f.unconfirmed || !t.confirmed) &&
               (f.type == null || t.type == f.type) &&
               (f.category == null ||
                   book.categoriesOf(t).contains(f.category)) &&
@@ -581,6 +584,7 @@ class LedgerPage extends ConsumerWidget {
     final amountOn = amount.min != null || amount.max != null;
     final any =
         f.flagged ||
+        f.unconfirmed ||
         f.accountId != null ||
         f.category != null ||
         f.type != null ||
@@ -1397,6 +1401,7 @@ class _FilterCapsule extends ConsumerWidget {
     final f = ref.watch(ledgerFilterProvider);
     final filterOn =
         f.flagged ||
+        f.unconfirmed ||
         f.accountId != null ||
         f.category != null ||
         f.type != null;
@@ -1722,6 +1727,7 @@ class _FilterCapsule extends ConsumerWidget {
         );
     final any =
         f.flagged ||
+        f.unconfirmed ||
         f.accountId != null ||
         f.category != null ||
         f.type != null;
@@ -1733,6 +1739,7 @@ class _FilterCapsule extends ConsumerWidget {
         if (!any) 'all',
         if (f.type != null) 'type:${f.type!.name}',
         if (f.flagged) 'flag',
+        if (f.unconfirmed) 'unconf',
         if (f.accountId != null) 'acct:${f.accountId}',
         if (f.category != null) 'cat:${f.category}',
       },
@@ -1762,6 +1769,12 @@ class _FilterCapsule extends ConsumerWidget {
           label: '注意 ${inM.where((t) => t.flagged).length}',
           icon: Icons.flag_outlined,
         ),
+        // 還沒確認過的（2026-11-11 使用者）。
+        GlassMenuItem(
+          value: 'unconf',
+          label: '未確認 ${inM.where((t) => !t.confirmed).length}',
+          icon: Icons.radio_button_unchecked_rounded,
+        ),
         const GlassMenuItem(value: 'h:acct', label: '帳戶', header: true),
         for (final a in book.accounts)
           GlassMenuItem(
@@ -1780,6 +1793,15 @@ class _FilterCapsule extends ConsumerWidget {
     } else if (picked == 'flag') {
       set((
         flagged: !f.flagged,
+        unconfirmed: f.unconfirmed,
+        accountId: f.accountId,
+        category: f.category,
+        type: f.type,
+      ));
+    } else if (picked == 'unconf') {
+      set((
+        flagged: f.flagged,
+        unconfirmed: !f.unconfirmed,
         accountId: f.accountId,
         category: f.category,
         type: f.type,
@@ -1788,6 +1810,7 @@ class _FilterCapsule extends ConsumerWidget {
       final ty = LedgerTxType.parse(picked.substring(5));
       set((
         flagged: f.flagged,
+        unconfirmed: f.unconfirmed,
         accountId: f.accountId,
         // 換了類型，原本選的分類可能不屬於這種類型，清掉免得變成空的。
         category: null,
@@ -1797,6 +1820,7 @@ class _FilterCapsule extends ConsumerWidget {
       final id = picked.substring(5);
       set((
         flagged: f.flagged,
+        unconfirmed: f.unconfirmed,
         accountId: f.accountId == id ? null : id,
         category: f.category,
         type: f.type,
@@ -1805,6 +1829,7 @@ class _FilterCapsule extends ConsumerWidget {
       final c = picked.substring(4);
       set((
         flagged: f.flagged,
+        unconfirmed: f.unconfirmed,
         accountId: f.accountId,
         category: f.category == c ? null : c,
         type: f.type,

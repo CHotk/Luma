@@ -250,6 +250,7 @@ class LedgerTx {
     this.note = '',
     this.linkedId,
     this.flagged = false,
+    this.confirmed = false,
     this.paidFor,
     this.splits = const [],
     this.source = 'manual',
@@ -314,6 +315,10 @@ class LedgerTx {
 
   /// 標記旗幟：單純標註、不影響任何計算。
   final bool flagged;
+
+  /// 已確認（2026-11-11 使用者）：這筆人工特別確認過、不用再改、沒爭議。純註記，不影響計算。
+  /// 中信卡貼文字匯入的預設就是已確認（貼上出錯機率很低）。
+  final bool confirmed;
   final PaidFor? paidFor;
 
   /// 拆分（空＝沒拆）。有拆的話統計、報表照這裡的分類算，不看 [category]；
@@ -389,6 +394,7 @@ class LedgerTx {
     String? note,
     String? Function()? linkedId,
     bool? flagged,
+    bool? confirmed,
     PaidFor? Function()? paidFor,
     List<LedgerSplit>? splits,
     bool? timeUnknown,
@@ -414,6 +420,7 @@ class LedgerTx {
     note: note ?? this.note,
     linkedId: linkedId == null ? this.linkedId : linkedId(),
     flagged: flagged ?? this.flagged,
+    confirmed: confirmed ?? this.confirmed,
     paidFor: paidFor == null ? this.paidFor : paidFor(),
     splits: splits ?? this.splits,
     source: source,
@@ -446,6 +453,7 @@ class LedgerTx {
     'note': note,
     'linkedId': linkedId,
     'flagged': flagged,
+    if (confirmed) 'confirmed': true,
     'paidFor': paidFor?.toJson(),
     if (splits.isNotEmpty) 'splits': [for (final x in splits) x.toJson()],
     'source': source,
@@ -478,6 +486,7 @@ class LedgerTx {
     note: j['note'] as String? ?? '',
     linkedId: j['linkedId'] as String?,
     flagged: j['flagged'] as bool? ?? false,
+    confirmed: j['confirmed'] as bool? ?? false,
     paidFor: j['paidFor'] == null
         ? null
         : PaidFor.fromJson((j['paidFor'] as Map).cast<String, dynamic>()),

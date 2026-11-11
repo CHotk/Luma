@@ -393,6 +393,10 @@ class LedgerBook {
 
   LedgerTx? tx(String? id) => txs.where((t) => t.id == id).firstOrNull;
 
+  /// 中信的信用卡（名稱有「中信」的信用卡）。
+  bool isCtbcCard(LedgerAccount? a) =>
+      a != null && a.isCard && a.name.contains('中信');
+
   String accountName(String? id) => account(id)?.name ?? '（已刪除的帳戶）';
 
   /// 沒記在 App 裡的地方（LineBank／富邦）照轉入轉出推算有多少台幣：轉進去的轉帳加、
@@ -831,6 +835,7 @@ class LedgerBook {
       t.paidFor?.people ?? '',
       if (t.paidFor != null) t.paidFor!.settled ? '已給 給了' : '還沒給 要給',
       if (t.flagged) '旗幟 標記 旗 要注意',
+      t.confirmed ? '已確認 確認過' : '未確認',
       amount,
       LedgerBook.describe(t),
       '${d.month}/${d.day}',
@@ -1081,6 +1086,7 @@ class LedgerBook {
           toAccountId: target?.id,
           category: target == null ? ledgerUncategorized : null,
           merchant: target == null ? '轉給 ${p[3]}' : '轉到 ${p[3]}',
+          confirmed: isCtbcCard(from),
           // 轉給別人（算支出）才有品項名稱；自己帳戶之間轉帳沒有。
           item: target == null ? itemV : '',
           note: p.length >= 10 ? p[9] : '',
@@ -1208,6 +1214,8 @@ class LedgerBook {
         item: withdraw ? '' : itemV,
         note: noteV,
         paidFor: paidFor,
+        // 中信卡貼文字的預設已確認（2026-11-11 使用者：貼上出錯機率很低）。
+        confirmed: isCtbcCard(from),
         source: 'paste',
         raw: line,
       );

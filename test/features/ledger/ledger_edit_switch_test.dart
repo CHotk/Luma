@@ -299,6 +299,52 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('每一條右邊有已確認鈕：按了存起來、進操作紀錄；篩選「未確認」只看還沒確認的', (tester) async {
+    final store = _MemoryStore();
+    final (repo, bank, _) = await setup(tester, store);
+    final now = DateTime.now();
+    for (final (id, m) in [('a', '早餐店'), ('b', '全家')]) {
+      await repo.addTransaction(
+        LedgerTx(
+          id: id,
+          type: LedgerTxType.expense,
+          occurredAt: DateTime(now.year, now.month, now.day, 9),
+          amount: id == 'a' ? 80 : 50,
+          accountId: bank.id,
+          category: '餐飲',
+          merchant: m,
+        ),
+      );
+    }
+    await open(tester, store);
+    await tester.tap(find.byKey(const ValueKey('confirm_a')));
+    await settle(tester);
+    final book = (await tester.runAsync(() => repo.loadBook()))!;
+    expect(book.tx('a')!.confirmed, isTrue);
+    expect(book.tx('b')!.confirmed, isFalse);
+    final log = (await tester.runAsync(() => repo.loadLog()))!;
+    expect(log.any((e) => e.action == '已確認'), isTrue);
+    // 篩選「未確認」：早餐店（已確認）不見、全家還在。
+    await tester.tap(find.byKey(const ValueKey('filterBtn')));
+    await settle(tester);
+    await tester.tap(find.textContaining('未確認'));
+    await settle(tester);
+    expect(find.text('早餐店'), findsNothing);
+    expect(find.text('全家'), findsOneWidget);
+    // ✕ 取消篩選。
+    await tester.tap(find.byKey(const ValueKey('filterClear')));
+    await settle(tester);
+    expect(find.text('早餐店'), findsOneWidget);
+    // 再按一次取消確認。
+    await tester.tap(find.byKey(const ValueKey('confirm_a')));
+    await settle(tester);
+    expect(
+      (await tester.runAsync(() => repo.loadBook()))!.tx('a')!.confirmed,
+      isFalse,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('商家下拉不列刷卡（信用卡）的商家', (tester) async {
     final store = _MemoryStore();
     final (repo, bank, card) = await setup(tester, store);

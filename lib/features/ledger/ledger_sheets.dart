@@ -816,6 +816,7 @@ class _TxFormState extends State<_TxForm> {
   /// 存起來是信用卡 → 帳戶的轉帳（金額一樣是正的），畫面上寫「−$」。
   bool _negative = false;
   late bool _flagged;
+  late bool _confirmed;
   late bool _pf;
   bool _pfSettled = false;
 
@@ -1029,6 +1030,7 @@ class _TxFormState extends State<_TxForm> {
     _at = e?.occurredAt ?? p.at ?? DateTime.now();
     _timeUnknown = e?.timeUnknown ?? false;
     _flagged = e?.flagged ?? false;
+    _confirmed = e?.confirmed ?? false;
     _pf = e?.paidFor != null || p.paidFor;
     _pfSettled = e?.paidFor?.settled ?? false;
     if (e != null && e.isSplit) {
@@ -1252,6 +1254,7 @@ class _TxFormState extends State<_TxForm> {
       _memo.text = t.note;
       _at = t.occurredAt;
       _timeUnknown = t.timeUnknown;
+      _confirmed = t.confirmed;
       _order.text = t.timeOrder == 0 ? '' : '${t.timeOrder}';
       final pf = t.paidFor;
       _pf = pf != null;
@@ -1581,6 +1584,7 @@ class _TxFormState extends State<_TxForm> {
         note: _memo.text.trim(),
         linkedId: () => linked ? _linked : null,
         flagged: _flagged,
+        confirmed: _confirmed,
         paidFor: () => pf,
         splits: splits,
       );
@@ -1612,6 +1616,7 @@ class _TxFormState extends State<_TxForm> {
       note: _memo.text.trim(),
       linkedId: linked ? _linked : null,
       flagged: _flagged,
+      confirmed: _confirmed,
       paidFor: pf,
       splits: splits,
       cpId: widget.prefill.cpId,
@@ -1705,13 +1710,12 @@ class _TxFormState extends State<_TxForm> {
         Padding(
           padding: const EdgeInsets.only(top: 6, left: 88),
           child: Text(
-            typed == null
-                ? (crypto
-                      ? '推算 ${lUsdt(guess)} USDT（≈ ${lMoney((guess * ledgerUsdtRoughRate).round())}）；有填就用填的'
-                      : '推算約 ${lMoney(guess.round())}；有填就用填的')
-                : crypto
-                ? '≈ ${lMoney((shown * ledgerUsdtRoughRate).round())}（×$ledgerUsdtRoughRate 粗估台幣）'
-                : '之後照這個數字往下推算',
+            // 旁邊只寫小小的推算結果（2026-11-11 使用者：「有填就用填的」那句不用）。
+            !crypto
+                ? '推算約 ${lMoney(guess.round())}'
+                : typed == null
+                ? '推算 ${lUsdt(guess)} USDT（≈ ${lMoney((guess * ledgerUsdtRoughRate).round())}）'
+                : '≈ ${lMoney((shown * ledgerUsdtRoughRate).round())}（×$ledgerUsdtRoughRate 粗估台幣）・推算 ${lUsdt(guess)} USDT',
             key: ValueKey(out ? 'srcExtAfterNote' : 'extAfterNote'),
             style: AppText.note.copyWith(fontSize: 11),
           ),
@@ -2783,6 +2787,12 @@ class _TxFormState extends State<_TxForm> {
         _flagged,
         (v) => setState(() => _flagged = v),
       ),
+      _toggle(
+        '✓ 已確認',
+        '人工確認過、不用再改、沒爭議',
+        _confirmed,
+        (v) => setState(() => _confirmed = v),
+      ),
     ]);
     if (t == LedgerTxType.expense) {
       // 2026-11-03 使用者：標一筆是跟別人一起的、對方要給多少（不一定是一半，
@@ -3076,6 +3086,7 @@ class _TxDetail extends StatelessWidget {
           children: [
             LedgerPill(t.type.label, color: ledgerAccent),
             if (t.flagged) const LedgerPill('🚩 旗幟', color: ledgerBad),
+            if (t.confirmed) const LedgerPill('✓ 已確認', color: AppColors.ok),
           ],
         ),
         _box([

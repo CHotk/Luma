@@ -450,12 +450,59 @@ class TxTile extends ConsumerWidget {
                               ),
                           ],
                         ),
+                        // 已確認（2026-11-11 使用者：每一條都有，按一下＝這筆人工確認過、沒爭議）。
+                        LedgerConfirmButton(tx: t),
                       ],
                     ),
                   ),
                 ),
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 每一條記帳右邊的「已確認」圓鈕：空心＝還沒確認，綠底 ✓＝確認過；按一下切換、存檔、同步、
+/// 進操作紀錄。
+class LedgerConfirmButton extends ConsumerWidget {
+  const LedgerConfirmButton({super.key, required this.tx});
+
+  final LedgerTx tx;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final on = tx.confirmed;
+    return Tooltip(
+      message: on ? '已確認（再按取消）' : '標成已確認',
+      child: InkResponse(
+        key: ValueKey('confirm_${tx.id}'),
+        radius: 22,
+        onTap: () async {
+          await ref
+              .read(ledgerRepositoryProvider)
+              .updateTransaction(tx.copyWith(confirmed: !on));
+          ref.read(dataRevisionProvider.notifier).state++;
+        },
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(10, 6, 0, 6),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 160),
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: on ? AppColors.ok : Colors.transparent,
+              border: Border.all(
+                color: on ? AppColors.ok : Colors.white.withValues(alpha: .28),
+                width: 1.6,
+              ),
+            ),
+            child: on
+                ? const Icon(Icons.check_rounded, size: 16, color: Colors.white)
+                : null,
           ),
         ),
       ),

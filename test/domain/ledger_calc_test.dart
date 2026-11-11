@@ -1092,4 +1092,16 @@ void main() {
     expect(st.out, 600 + 400 + 8000 + 1200);
     expect(st.income, 50000);
   });
+
+  test('中信卡貼文字匯入預設已確認（2026-11-11 使用者），現金、銀行的不會', () {
+    final lines = book([]).parseImport(
+      '中信銀行｜2026/11/01 20:00｜餐飲｜火鍋｜900\n'
+      '現金｜2026/11/01 21:00｜餐飲｜便當｜100',
+    );
+    expect(lines[0].tx!.accountId, 'card');
+    expect(lines[0].tx!.confirmed, isTrue);
+    expect(lines[1].tx!.confirmed, isFalse);
+    final j = LedgerTx.fromJson(lines[0].tx!.toJson());
+    expect(j.confirmed, isTrue);
+  });
 }

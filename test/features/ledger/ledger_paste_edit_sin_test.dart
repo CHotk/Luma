@@ -277,6 +277,7 @@ void main() {
     await settle(tester);
     expect(find.byKey(const ValueKey('fromExt_LineBank')), findsOneWidget);
     expect(find.byKey(const ValueKey('fromExt_富邦')), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const ValueKey('incomeSource')));
     await tester.tap(find.byKey(const ValueKey('incomeSource')));
     await settle(tester);
     await tester.tap(find.text('其他').last);

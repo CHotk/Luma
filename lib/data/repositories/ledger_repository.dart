@@ -311,6 +311,7 @@ class LedgerRepository {
     if (diff.isEmpty) return;
     // 只動標記、或只動「他給了」的，用比較白話的動作名稱。
     final onlyFlag = diff.length == 1 && diff.first.startsWith('標記旗幟');
+    final onlyConfirm = diff.length == 1 && diff.first.startsWith('已確認');
     final onlySettle =
         diff.length == 1 &&
         diff.first.startsWith('跟別人一起') &&
@@ -320,6 +321,8 @@ class LedgerRepository {
     await _log(
       onlyFlag
           ? (t.flagged ? '標記旗幟' : '取消標記')
+          : onlyConfirm
+          ? (t.confirmed ? '已確認' : '取消確認')
           : onlySettle
           ? (t.paidFor!.settled ? '他給了' : '改回還沒給')
           : '編輯',
