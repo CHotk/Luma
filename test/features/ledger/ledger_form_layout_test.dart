@@ -302,7 +302,7 @@ void timeUnknownTests() {
     }
 
     await settle();
-    await tester.tap(find.text('早餐店'));
+    await tester.tap(find.textContaining('早餐店').first);
     await settle();
     await tester.tap(find.widgetWithText(OutlinedButton, '編輯'));
     await settle();
@@ -596,7 +596,7 @@ void cardReturnTests() {
     await tester.tapAt(const Offset(10, 60));
     await settle();
     // 編輯：把「退刷記成消費」那筆按成「＋」，變成退款、金額不動、帳戶還是那張卡。
-    await tester.tap(find.text('退刷記成消費'));
+    await tester.tap(find.textContaining('退刷記成消費').first);
     await settle();
     await tester.tap(find.widgetWithText(OutlinedButton, '編輯'));
     await settle();

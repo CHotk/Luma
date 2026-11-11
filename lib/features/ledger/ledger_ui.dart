@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
+import '../../data/repositories/ledger_row_title_store.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/typography.dart';
 import '../../domain/ledger_calc.dart';
@@ -122,10 +123,17 @@ const _brandCtbcCard = (
   pad: false,
   card: true,
 );
-// 中信 logo 用簡單版（綠色標誌、中間紅色），正常顏色（2026-11-11 使用者：不用追求黑白）。
+// 中信 logo：用中國信託品牌標準字「中國信託」四個字排成 2×2、配它的綠底（2026-11-11 使用者
+// 給的 ypdesigngroup 品牌簽名圖；一顆紅球太難看，要有中國信託的字）。
 const _brandCtbc = (
   asset: 'assets/ledger/icons/ctbc.png',
-  pad: true,
+  pad: false,
+  card: false,
+);
+// ATM 提款：微軟 Fluent Emoji 3D「ATM sign」（MIT，2026-11-11 使用者：ATM 標誌找好一點）。
+const _brandAtm = (
+  asset: 'assets/ledger/icons/atm.png',
+  pad: false,
   card: false,
 );
 
@@ -134,7 +142,7 @@ bool _isCtbcBank(LedgerAccount? a) =>
 
 /// 一筆記帳要不要用品牌圖示（null＝照原本的 emoji）。2026-11-11 使用者：
 /// - icon 由「錢從哪裡出去」決定：轉帳看轉出那邊、支出看付的帳戶；轉出那邊沒有品牌就用
-///   原本的圖示，不看轉入那邊。ATM 提款維持 🏧。
+///   原本的圖示，不看轉入那邊。ATM 提款用 ATM 圖。
 /// - 純收款（薪水、其他收入、未分類收入…，不是平轉）看哪個帳戶收錢；退款、還錢也是錢進那個帳戶。
 /// - 收入平轉看錢從哪個戶頭來（LineBank＝LINE Bank）。
 /// 品牌：中信卡＝熊大卡、中信帳戶＝中信 logo、LineBank＝LINE Bank。
@@ -144,7 +152,7 @@ LedgerBrand? ledgerBrandOf(LedgerBook book, LedgerTx t) {
   if (t.type == LedgerTxType.transfer) {
     if (from?.type == LedgerAccountType.bank &&
         to?.type == LedgerAccountType.cash) {
-      return null;
+      return _brandAtm;
     }
     if (t.fromName.isNotEmpty) {
       return t.fromName == 'LineBank' ? _brandLineBank : null;
@@ -169,6 +177,26 @@ LedgerBrand? _brandOfAccount(LedgerBook book, LedgerAccount? a) =>
 LedgerBrand? ledgerAccountBrand(LedgerAccount a) => a.isCard
     ? (a.name.contains('中信') ? _brandCtbcCard : null)
     : (_isCtbcBank(a) ? _brandCtbc : null);
+
+/// 列表大字顯示分類時那一筆的「分類」（2026-11-11 使用者）：支出、收入照分類（拆分的寫
+/// 「餐飲＋生活」）；轉給他人的拆分寫拆的分類；其他轉帳沒有分類，照名稱（平轉、繳卡費、
+/// ATM提款…）；退款、還錢、對帳調整寫類型。
+String ledgerRowTitle(LedgerTx t) {
+  String cats(List<LedgerSplit> s) => {for (final x in s) x.category}.join('＋');
+  switch (t.type) {
+    case LedgerTxType.expense:
+    case LedgerTxType.income:
+      if (t.isSplit) return cats(t.splits);
+      return t.category ?? ledgerUncategorized;
+    case LedgerTxType.transfer:
+      if (t.toOther) return t.isSplit ? cats(t.splits) : ledgerToOtherCat;
+      return t.merchant.isEmpty ? t.type.label : t.merchant;
+    case LedgerTxType.refund:
+    case LedgerTxType.repayment:
+    case LedgerTxType.adjustment:
+      return t.type.label;
+  }
+}
 
 /// 現金那筆的小圖示：一張綠色鈔票（2026-11-11 使用者：自己畫的太醜，找現成的 icon）。
 /// 圖是微軟 Fluent Emoji「Dollar banknote」3D 版（MIT 授權），放在 assets/ledger/icons/cash.png。
@@ -354,6 +382,16 @@ class TxTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // 設定→記帳可以選不顯示備註。
     final showNote = ref.watch(ledgerShowNoteProvider);
+    // 大字顯示分類（預設）還是商家（2026-11-11 使用者，設定可改）；顯示分類時旁邊小字是商家、
+    // 不顯示品項細項。
+    final byCat =
+        ref.watch(ledgerRowTitleProvider) == LedgerRowTitleStore.category;
+    final title = byCat
+        ? ledgerRowTitle(tx)
+        : (tx.merchant.isEmpty ? tx.type.label : tx.merchant);
+    final second = byCat
+        ? (tx.merchant.trim() == title ? '' : tx.merchant.trim())
+        : tx.item;
     final t = tx;
     // 圖示看付款方式（2026-11-03 使用者）：現金＝鈔票、刷卡＝信用卡、銀行＝銀行；
     // 轉帳、退款、還錢、調整照原本的符號。
@@ -377,7 +415,10 @@ class TxTile extends ConsumerWidget {
       if (t.extAmount != null) sub.write(' ${lUsdt(t.extAmount!)} USDT');
     } else {
       sub.write(book.accountName(t.accountId));
-      if (t.category != null && t.type != LedgerTxType.adjustment) {
+      // 大字已經是分類就不重複寫分類（拆分的明細照寫）。
+      if (t.category != null &&
+          t.type != LedgerTxType.adjustment &&
+          (!byCat || t.isSplit)) {
         sub.write(
           t.isSplit && query.trim().isNotEmpty
               ? '・拆分 ${t.splits.length} 份'
@@ -487,9 +528,7 @@ class TxTile extends ConsumerWidget {
                                     children: [
                                       Flexible(
                                         child: Text(
-                                          t.merchant.isEmpty
-                                              ? t.type.label
-                                              : t.merchant,
+                                          title,
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                           style: const TextStyle(
@@ -499,81 +538,85 @@ class TxTile extends ConsumerWidget {
                                           ),
                                         ),
                                       ),
+                                      // 單筆的品項名稱（2026-11-09 使用者）：跟商家同一行，
+                                      // 每一條才會一樣高（2026-11-11 使用者）。
+                                      if (second.isNotEmpty)
+                                        Flexible(
+                                          child: Text(
+                                            '・$second',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: AppText.note.copyWith(
+                                              fontSize: 11.5,
+                                              color: AppColors.ink2,
+                                            ),
+                                          ),
+                                        ),
                                       if (t.flagged) const Text(' 🚩'),
                                     ],
                                   ),
-                                  // 單筆的品項名稱（2026-11-09 使用者）。
-                                  if (t.item.isNotEmpty)
-                                    Text(
-                                      t.item,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: AppText.note.copyWith(
-                                        fontSize: 11.5,
-                                        color: AppColors.ink2,
+                                  // 標籤那一行每一條都留一樣的高度（沒有標籤就空著；太多就在
+                                  // 這一行左右滑，不換行），每一條才會一樣高（2026-11-11 使用者）。
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 3),
+                                    child: SizedBox(
+                                      height: 17,
+                                      child: SingleChildScrollView(
+                                        scrollDirection: Axis.horizontal,
+                                        child: Row(
+                                          spacing: 5,
+                                          children: [
+                                            if (pf != null)
+                                              LedgerPill(
+                                                // 他給了之後標籤保留「誰要給多少」，只是變綠、
+                                                // 後面多一個 ✓（2026-11-03 使用者）。
+                                                '${pf.people} 要給 ${lMoney(pf.amount)}'
+                                                '${pf.settled ? ' ✓已給' : ''}',
+                                                color: pf.settled
+                                                    ? AppColors.ok
+                                                    : ledgerPaidFor,
+                                              ),
+                                            // 轉帳（繳卡費）兩邊都填了，哪一邊對不上就寫哪一邊。
+                                            for (final g in gaps)
+                                              LedgerPill(
+                                                '⚠ ${t.type == LedgerTxType.transfer ? g.account.name : ''}'
+                                                '${g.miss > 0 ? '漏記' : '多出'} '
+                                                '${lMoney(g.miss.abs())}',
+                                                color: AppColors.mid,
+                                              ),
+                                            if (gaps.isEmpty && cp != null)
+                                              LedgerPill(
+                                                cp.available != null
+                                                    ? '可用 ${lMoney(cp.available!)}'
+                                                    : '餘額 ${lMoney(cp.balance ?? 0)}',
+                                              ),
+                                            if (t.isSplit)
+                                              LedgerPill(
+                                                part != null
+                                                    ? '拆分・$partCategory'
+                                                    : '已拆 ${t.splits.length} 份',
+                                                color: const Color(0xFFB79CFF),
+                                              ),
+                                            if (t.source == 'paste')
+                                              const LedgerPill('匯入'),
+                                            // 虛擬貨幣餘額跟推算有差：確認是盈虧的寫盈虧，還沒確認的提醒。
+                                            if (book.usdtDiffOf(t)
+                                                case final d?)
+                                              LedgerPill(
+                                                t.extPnlOk
+                                                    ? '${d > 0 ? '盈利 +' : '虧損 −'}${lUsdt(d.abs())} USDT'
+                                                    : '⚠ 虛擬貨幣差 ${d > 0 ? '+' : '−'}${lUsdt(d.abs())} USDT',
+                                                color: t.extPnlOk
+                                                    ? (d > 0
+                                                          ? AppColors.ok
+                                                          : ledgerBad)
+                                                    : AppColors.mid,
+                                              ),
+                                          ],
+                                        ),
                                       ),
                                     ),
-                                  // 標籤排在名稱下一行，名字長也不會擠爆。
-                                  if (pf != null ||
-                                      t.isSplit ||
-                                      t.source == 'paste' ||
-                                      gaps.isNotEmpty ||
-                                      cp != null ||
-                                      book.usdtDiffOf(t) != null)
-                                    Padding(
-                                      padding: const EdgeInsets.only(top: 3),
-                                      child: Wrap(
-                                        spacing: 5,
-                                        runSpacing: 3,
-                                        children: [
-                                          if (pf != null)
-                                            LedgerPill(
-                                              // 他給了之後標籤保留「誰要給多少」，只是變綠、
-                                              // 後面多一個 ✓（2026-11-03 使用者）。
-                                              '${pf.people} 要給 ${lMoney(pf.amount)}'
-                                              '${pf.settled ? ' ✓已給' : ''}',
-                                              color: pf.settled
-                                                  ? AppColors.ok
-                                                  : ledgerPaidFor,
-                                            ),
-                                          // 轉帳（繳卡費）兩邊都填了，哪一邊對不上就寫哪一邊。
-                                          for (final g in gaps)
-                                            LedgerPill(
-                                              '⚠ ${t.type == LedgerTxType.transfer ? g.account.name : ''}'
-                                              '${g.miss > 0 ? '漏記' : '多出'} '
-                                              '${lMoney(g.miss.abs())}',
-                                              color: AppColors.mid,
-                                            ),
-                                          if (gaps.isEmpty && cp != null)
-                                            LedgerPill(
-                                              cp.available != null
-                                                  ? '可用 ${lMoney(cp.available!)}'
-                                                  : '餘額 ${lMoney(cp.balance ?? 0)}',
-                                            ),
-                                          if (t.isSplit)
-                                            LedgerPill(
-                                              part != null
-                                                  ? '拆分・$partCategory'
-                                                  : '已拆 ${t.splits.length} 份',
-                                              color: const Color(0xFFB79CFF),
-                                            ),
-                                          if (t.source == 'paste')
-                                            const LedgerPill('匯入'),
-                                          // 虛擬貨幣餘額跟推算有差：確認是盈虧的寫盈虧，還沒確認的提醒。
-                                          if (book.usdtDiffOf(t) case final d?)
-                                            LedgerPill(
-                                              t.extPnlOk
-                                                  ? '${d > 0 ? '盈利 +' : '虧損 −'}${lUsdt(d.abs())} USDT'
-                                                  : '⚠ 虛擬貨幣差 ${d > 0 ? '+' : '−'}${lUsdt(d.abs())} USDT',
-                                              color: t.extPnlOk
-                                                  ? (d > 0
-                                                        ? AppColors.ok
-                                                        : ledgerBad)
-                                                  : AppColors.mid,
-                                            ),
-                                        ],
-                                      ),
-                                    ),
+                                  ),
                                   const SizedBox(height: 2),
                                   Text(
                                     sub.toString(),

@@ -22,6 +22,7 @@ import '../data/repositories/ledger_show_note_store.dart';
 import '../data/repositories/ledger_sin_ask_store.dart';
 import '../data/repositories/ledger_confirm_store.dart';
 import '../data/repositories/ledger_usdt_rate_store.dart';
+import '../data/repositories/ledger_row_title_store.dart';
 import '../data/repositories/music_event_log_store.dart';
 import '../data/repositories/music_play_log_store.dart';
 import '../domain/models/music.dart';
@@ -238,6 +239,11 @@ final ledgerShowNoteProvider = StateProvider<bool>(
 /// 記帳：要不要用「已確認」功能（2026-11-11，預設開），見 [LedgerConfirmStore]。
 final ledgerConfirmOnProvider = StateProvider<bool>(
   (ref) => LedgerConfirmStore.defaultValue,
+);
+
+/// 記帳：列表每一條大字顯示分類還是商家（2026-11-11，預設分類），見 [LedgerRowTitleStore]。
+final ledgerRowTitleProvider = StateProvider<String>(
+  (ref) => LedgerRowTitleStore.defaultValue,
 );
 
 /// 記帳：USDT 粗估匯率（2026-11-11，預設 32.6），見 [LedgerUsdtRateStore]。

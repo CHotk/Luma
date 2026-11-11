@@ -22,6 +22,7 @@ import '../../data/repositories/ledger_show_note_store.dart';
 import '../../data/repositories/ledger_sin_ask_store.dart';
 import '../../data/repositories/ledger_confirm_store.dart';
 import '../../data/repositories/ledger_usdt_rate_store.dart';
+import '../../data/repositories/ledger_row_title_store.dart';
 import '../../domain/ledger_calc.dart' show ledgerUsdtRoughRate;
 import '../../data/repositories/yt_embed_player_style_store.dart';
 import '../../data/repositories/yt_search_recents_store.dart';
@@ -702,19 +703,29 @@ class _R2SyncSectionState extends ConsumerState<R2SyncSection> {
             ledgerUsdtRoughRate = rate;
             container.read(ledgerUsdtRateProvider.notifier).state = rate;
           }
+          // 列表大字顯示分類／商家（2026-11-11）也跟著同步。
+          final s5 = await service.syncStampedSetting(
+            LedgerRowTitleStore(kv).record,
+          );
+          if (s5.downloaded > 0) {
+            container.read(ledgerRowTitleProvider.notifier).state =
+                await LedgerRowTitleStore(kv).load();
+          }
           return (
             downloaded:
                 r.downloaded +
                 s.downloaded +
                 s2.downloaded +
                 s3.downloaded +
-                s4.downloaded,
+                s4.downloaded +
+                s5.downloaded,
             uploaded:
                 r.uploaded +
                 s.uploaded +
                 s2.uploaded +
                 s3.uploaded +
-                s4.uploaded,
+                s4.uploaded +
+                s5.uploaded,
           );
         }),
       ]);

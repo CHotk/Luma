@@ -141,6 +141,12 @@ const settingIndex = [
   SettingEntry(SettingsSection.ledger, 'ledger.log', '記帳操作紀錄', '操作 紀錄 log 記帳'),
   SettingEntry(
     SettingsSection.ledger,
+    'ledger.rowTitle',
+    '列表大字（分類／商家）',
+    '列表 大字 分類 商家 標題 記帳',
+  ),
+  SettingEntry(
+    SettingsSection.ledger,
     'ledger.confirm',
     '已確認功能',
     '確認 已確認 未確認 藍點 記帳',

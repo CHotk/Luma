@@ -73,7 +73,7 @@ void main() {
       ),
     );
     await open(tester, store);
-    await tester.tap(find.text('早餐店'));
+    await tester.tap(find.textContaining('早餐店').first);
     await settle(tester);
     await tester.tap(find.widgetWithText(OutlinedButton, '編輯'));
     await settle(tester);
@@ -293,7 +293,7 @@ void main() {
       ),
     );
     await open(tester, store);
-    await tester.tap(find.text('全聯'));
+    await tester.tap(find.textContaining('全聯').first);
     await settle(tester);
     await tester.tap(find.widgetWithText(OutlinedButton, '編輯'));
     await settle(tester);
@@ -341,7 +341,7 @@ void main() {
     await open(tester, store);
     expect(find.byKey(const ValueKey('unconfirmed_a')), findsOneWidget);
     expect(find.byKey(const ValueKey('unconfirmed_b')), findsOneWidget);
-    await tester.tap(find.text('早餐店'));
+    await tester.tap(find.textContaining('早餐店').first);
     await settle(tester);
     await tester.tap(find.byKey(const ValueKey('confirmToggle')));
     await settle(tester);
@@ -357,14 +357,14 @@ void main() {
     await settle(tester);
     await tester.tap(find.textContaining('未確認'));
     await settle(tester);
-    expect(find.text('早餐店'), findsNothing);
-    expect(find.text('全家'), findsOneWidget);
+    expect(find.textContaining('早餐店'), findsNothing);
+    expect(find.textContaining('全家'), findsOneWidget);
     // ✕ 取消篩選。
     await tester.tap(find.byKey(const ValueKey('filterClear')));
     await settle(tester);
-    expect(find.text('早餐店'), findsOneWidget);
+    expect(find.textContaining('早餐店'), findsOneWidget);
     // 再點進去「取消確認」。
-    await tester.tap(find.text('早餐店'));
+    await tester.tap(find.textContaining('早餐店').first);
     await settle(tester);
     await tester.tap(find.byKey(const ValueKey('confirmToggle')));
     await settle(tester);
@@ -415,7 +415,7 @@ void main() {
       txs: const [],
     );
     String? a(LedgerTx t) => ledgerBrandOf(b, t)?.asset.split('/').last;
-    expect(a(tx(LedgerTxType.transfer, to: 'cash')), isNull, reason: 'ATM');
+    expect(a(tx(LedgerTxType.transfer, to: 'cash')), 'atm.png', reason: 'ATM');
     // icon 由錢從哪裡出去決定：中信帳戶平轉到 LineBank＝中信；從 LineBank 轉出＝LINE Bank。
     expect(a(tx(LedgerTxType.transfer, toName: 'LineBank')), 'ctbc.png');
     expect(
@@ -450,7 +450,8 @@ void main() {
     );
     expect(
       ledgerBrandOf(b, tx(LedgerTxType.transfer, toName: '虛擬貨幣'))!.pad,
-      isTrue,
+      isFalse,
+      reason: '中信官方 logo 是一顆圓球，整個填滿',
     );
     expect(a(tx(LedgerTxType.expense, acc: 'cash')), isNull);
     expect(ledgerAccountBrand(card)!.asset, endsWith('ctbc_linepay.png'));
@@ -528,7 +529,7 @@ void main() {
       );
     }
     await open(tester, store);
-    await tester.tap(find.text('早餐店'));
+    await tester.tap(find.textContaining('早餐店').first);
     await settle(tester);
     await tester.tap(find.widgetWithText(OutlinedButton, '編輯'));
     await settle(tester);
@@ -556,7 +557,7 @@ void main() {
       ),
     );
     await open(tester, store);
-    await tester.tap(find.text('小美').first);
+    await tester.tap(find.textContaining('小美').first);
     await settle(tester);
     await tester.tap(find.widgetWithText(OutlinedButton, '編輯'));
     await settle(tester);
@@ -707,6 +708,44 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('列表大字預設是分類、旁邊小字是商家、不顯示品項', (tester) async {
+    final store = _MemoryStore();
+    final (repo, bank, _) = await setup(tester, store);
+    final now = DateTime.now();
+    await repo.addTransaction(
+      LedgerTx(
+        id: 'x',
+        type: LedgerTxType.expense,
+        occurredAt: DateTime(now.year, now.month, now.day, 9),
+        amount: 80,
+        accountId: bank.id,
+        category: '餐飲',
+        merchant: '早餐店',
+        item: '蛋餅加奶茶',
+      ),
+    );
+    await open(tester, store);
+    expect(find.text('餐飲'), findsWidgets);
+    expect(find.text('・早餐店'), findsOneWidget);
+    expect(find.textContaining('蛋餅加奶茶'), findsNothing);
+    expect(
+      ledgerRowTitle(
+        LedgerTx(
+          id: 's',
+          type: LedgerTxType.expense,
+          occurredAt: now,
+          amount: 100,
+          accountId: bank.id,
+          splits: const [
+            LedgerSplit(category: '餐飲', amount: 60),
+            LedgerSplit(category: '生活', amount: 40),
+          ],
+        ),
+      ),
+      '餐飲＋生活',
+    );
+  });
+
   testWidgets('商家下拉不列刷卡（信用卡）的商家', (tester) async {
     final store = _MemoryStore();
     final (repo, bank, card) = await setup(tester, store);
@@ -736,8 +775,12 @@ void main() {
     await settle(tester);
     await tester.tap(find.byKey(const ValueKey('merchantRecent')));
     await settle(tester);
-    expect(find.text('全家'), findsWidgets);
-    expect(find.text('PCHOME*刷卡'), findsOneWidget, reason: '只在列表裡、下拉沒有');
+    expect(find.textContaining('全家'), findsWidgets);
+    expect(
+      find.textContaining('PCHOME*刷卡'),
+      findsOneWidget,
+      reason: '只在列表裡、下拉沒有',
+    );
   });
 }
 

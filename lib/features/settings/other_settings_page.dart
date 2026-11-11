@@ -14,6 +14,7 @@ import '../../data/repositories/ledger_show_note_store.dart';
 import '../../data/repositories/ledger_sin_ask_store.dart';
 import '../../data/repositories/ledger_confirm_store.dart';
 import '../../data/repositories/ledger_usdt_rate_store.dart';
+import '../../data/repositories/ledger_row_title_store.dart';
 import '../../domain/ledger_calc.dart' show ledgerUsdtRoughRate;
 import '../../data/repositories/music_play_mode_store.dart';
 import '../../data/repositories/usdt_twd_rate_store.dart';
@@ -1586,6 +1587,43 @@ class LedgerSettingsSection extends ConsumerWidget {
                       ref.read(keyValueStoreProvider),
                     ).save(v);
                   },
+                ),
+              ),
+            ),
+            // 列表每一條的大字（2026-11-11 使用者：預設分類，可改回商家）。
+            SettingAnchor(
+              id: 'ledger.rowTitle',
+              child: _LedgerRow(
+                icon: Icons.title_rounded,
+                color: const Color(0xFFFF9F7A),
+                title: '列表大字',
+                subtitle:
+                    ref.watch(ledgerRowTitleProvider) ==
+                        LedgerRowTitleStore.category
+                    ? '分類；旁邊小字是商家'
+                    : '商家；旁邊小字是品項',
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  spacing: 6,
+                  children: [
+                    for (final (v, label) in const [
+                      (LedgerRowTitleStore.category, '分類'),
+                      (LedgerRowTitleStore.merchant, '商家'),
+                    ])
+                      ChoiceChip(
+                        key: ValueKey('rowTitle_$v'),
+                        label: Text(label),
+                        selected: ref.watch(ledgerRowTitleProvider) == v,
+                        showCheckmark: false,
+                        visualDensity: VisualDensity.compact,
+                        onSelected: (_) async {
+                          ref.read(ledgerRowTitleProvider.notifier).state = v;
+                          await LedgerRowTitleStore(
+                            ref.read(keyValueStoreProvider),
+                          ).save(v);
+                        },
+                      ),
+                  ],
                 ),
               ),
             ),
