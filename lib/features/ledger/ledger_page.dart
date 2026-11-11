@@ -393,6 +393,15 @@ class LedgerPage extends ConsumerWidget {
             '繳卡費、提款請用「轉帳」記（不算消費）；幫別人付的只算自己那份',
             style: AppText.note.copyWith(color: AppColors.ink3),
           ),
+          // 總支出：消費＋幫別人付＋還款＋轉給他人（2026-11-11 使用者）。
+          if (st.out != st.spend) ...[
+            const SizedBox(height: 7),
+            Text(
+              '總支出 ${lMoney(st.out)}（含${ledgerOutDetail(st)}）',
+              key: const ValueKey('homeOut'),
+              style: AppText.note.copyWith(color: AppColors.ink2),
+            ),
+          ],
         ],
       ),
     );
@@ -593,7 +602,8 @@ class LedgerPage extends ConsumerWidget {
       Padding(
         padding: const EdgeInsets.fromLTRB(4, 8, 4, 0),
         child: Text(
-          '${shown.length} 筆・${f.category == null ? '消費' : '${f.category}'} ${lMoney(f.category == null ? st.spend : (st.byCategory[f.category] ?? 0))}'
+          '${shown.length} 筆・${f.category == null ? '消費' : '${f.category}'} ${lMoney(f.category == null ? st.spend : (st.byCategory[f.category] ?? st.extra[f.category] ?? 0))}'
+          '${f.category == null && st.out != st.spend ? '・總支出 ${lMoney(st.out)}' : ''}'
           '${f.category == null ? '・收入 ${lMoney(st.income)}' : ''}'
           '${range == LedgerRange.all
               ? '（全部時間）'
@@ -873,6 +883,16 @@ class LedgerPage extends ConsumerWidget {
           else
             kpi(lMoney((st.spend / months).round()), '月平均（$months 個月）'),
         ],
+      ),
+      // 總支出（2026-11-11 使用者）：消費只算自己；總支出連幫別人付、還款、轉給他人都算。
+      Padding(
+        padding: const EdgeInsets.only(top: 6),
+        child: Text(
+          '${single ? '本月' : '區間'}總支出 ${lMoney(st.out)}'
+          '${st.out != st.spend ? '＝消費 ${lMoney(st.spend)}＋${ledgerOutDetail(st)}' : ''}',
+          key: const ValueKey('statsOut'),
+          style: AppText.note.copyWith(color: AppColors.ink2),
+        ),
       ),
       const SizedBox(height: Gap.md),
       GlassCard(

@@ -38,6 +38,12 @@ String lTxHm(LedgerTx t) => t.timeUnknown
 String lHm(DateTime d) =>
     '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
 
+/// 總支出裡不是消費的那幾項，例如「幫別人付 \$500＋還款 \$8,000」。
+String ledgerOutDetail(SpendStats st) => [
+  for (final e in st.extra.entries)
+    if (e.value != 0) '${e.key} ${lMoney(e.value)}',
+].join('＋');
+
 /// USDT 數量：最多兩位小數，去掉多餘的 0。
 String lUsdt(double v) {
   final s = v.toStringAsFixed(2);
@@ -686,3 +692,60 @@ class OldDataBanner extends StatelessWidget {
     ),
   );
 }
+
+/// 記帳設定裡「消費、總支出、收入怎麼算」的說明（2026-11-11 使用者）。
+Future<void> showLedgerTermsDialog(BuildContext context) => showDialog<void>(
+  context: context,
+  builder: (c) {
+    Widget h(String t) => Padding(
+      padding: const EdgeInsets.only(top: 12, bottom: 4),
+      child: Text(
+        t,
+        style: const TextStyle(
+          fontSize: 14.5,
+          fontWeight: FontWeight.w800,
+          color: AppColors.ink,
+        ),
+      ),
+    );
+    Widget p(String t) => Padding(
+      padding: const EdgeInsets.only(bottom: 3),
+      child: Text(
+        t,
+        style: const TextStyle(fontSize: 13, color: AppColors.ink2),
+      ),
+    );
+    return AlertDialog(
+      backgroundColor: const Color(0xFF1A1A27),
+      title: const Text('消費、總支出、收入怎麼算', style: TextStyle(color: AppColors.ink)),
+      content: SizedBox(
+        width: 360,
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              h('💸 消費（自己花掉的）'),
+              p('・支出只算自己那份：跟別人一起付、拆分裡幫人付的那份不算。'),
+              p('・對帳調整「少了錢」算進「未分類」。'),
+              p('・退款會扣回去（算回原本那筆的分類）。'),
+              p('・不算：「還款」分類、轉帳（含轉給他人）、繳卡費、提款。'),
+              p('・預算、剩餘可花、平均每天花、分類佔比都看消費。'),
+              h('📤 總支出（錢實際離開的全部）'),
+              p('・總支出＝消費＋幫別人付（對方那份）＋還款＋轉給他人。'),
+              p('・轉給他人：轉帳「轉到」選「他人戶頭」。'),
+              p('・不算：轉到自己的帳戶（平轉：LineBank、富邦、虛擬貨幣、ATM 提款）、繳卡費（刷卡時已經算過）。'),
+              h('💰 收入'),
+              p('・收入分類的薪資、獎金、其他收入、未分類都算。'),
+              p('・不算：收入分類「平轉」（自己的戶頭轉來轉去）、別人還你錢（收到欠款）。'),
+              h('🔁 不算任何一種'),
+              p('・繳卡費、ATM 提款、轉到自己的帳戶：只是錢換個地方放，帳戶餘額照樣會動。'),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(c), child: const Text('關閉')),
+      ],
+    );
+  },
+);

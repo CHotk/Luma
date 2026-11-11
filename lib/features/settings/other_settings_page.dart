@@ -27,6 +27,7 @@ import 'settings_anchor.dart';
 import '../crypto_watch/trade_ui.dart' show oneDecimalInput, round1;
 import '../i88/i88_log_page.dart' show i88LogProvider;
 import '../ledger/ledger_log_page.dart' show ledgerLogProvider;
+import '../ledger/ledger_ui.dart' show showLedgerTermsDialog;
 import '../yt_tracker/yt_api_key_dialog.dart';
 import '../yt_tracker/yt_playlist_actions.dart';
 import '../yt_tracker/yt_tracker_browse_page.dart'
@@ -1629,6 +1630,41 @@ class LedgerSettingsSection extends ConsumerWidget {
                   },
                 ),
               ],
+            ),
+          ),
+        ),
+        const SizedBox(height: Gap.sm),
+        // 消費／總支出／收入的詳細說明（2026-11-11 使用者：設定裡要有地方可以打開看）。
+        SettingAnchor(
+          id: 'ledger.terms',
+          child: SettingsRowCard(
+            child: InkWell(
+              key: const ValueKey('ledgerTermsBtn'),
+              onTap: () => showLedgerTermsDialog(context),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          '消費、總支出、收入怎麼算',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.ink,
+                          ),
+                        ),
+                        Text('打開看每一種怎麼算、哪些算哪些不算', style: AppText.note),
+                      ],
+                    ),
+                  ),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: AppColors.ink3,
+                  ),
+                ],
+              ),
             ),
           ),
         ),

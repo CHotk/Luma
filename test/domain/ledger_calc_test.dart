@@ -1040,4 +1040,56 @@ void main() {
     expect(back.ownSpend, 1200);
     expect(ledgerId(), matches(RegExp(r'^[0-9a-f]{32}$')));
   });
+
+  test('總支出＝消費＋幫別人付（對方那份）＋還款＋轉給他人；消費只算自己', () {
+    final at = DateTime(2026, 11, 5, 12);
+    LedgerTx tx(
+      LedgerTxType type,
+      int amount, {
+      String? cat,
+      PaidFor? pf,
+      bool toOther = false,
+    }) => LedgerTx(
+      id: ledgerId(),
+      type: type,
+      occurredAt: at,
+      amount: amount,
+      accountId: 'a',
+      category: cat,
+      paidFor: pf,
+      toOther: toOther,
+      toName: toOther ? '阿明' : '',
+    );
+    final book = LedgerBook(
+      accounts: [
+        const LedgerAccount(
+          id: 'a',
+          name: '中信帳戶',
+          type: LedgerAccountType.bank,
+          order: 1,
+        ),
+      ],
+      txs: [
+        tx(
+          LedgerTxType.expense,
+          1000,
+          cat: '餐飲',
+          pf: const PaidFor(amount: 400, people: 'Cen'),
+        ),
+        tx(LedgerTxType.expense, 8000, cat: '還款'),
+        tx(LedgerTxType.transfer, 1200, toOther: true),
+        tx(LedgerTxType.income, 50000, cat: '薪資'),
+      ],
+      checkpoints: const [],
+      budgets: const [],
+    );
+    final st = book.statsWhere((_) => true);
+    expect(st.spend, 600, reason: '消費只算自己那份，不含還款、轉給他人');
+    expect(st.byCategory.containsKey('還款'), isFalse);
+    expect(st.extra[ledgerPaidForOut], 400);
+    expect(st.extra['還款'], 8000);
+    expect(st.extra[ledgerToOtherCat], 1200);
+    expect(st.out, 600 + 400 + 8000 + 1200);
+    expect(st.income, 50000);
+  });
 }

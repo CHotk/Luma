@@ -8,6 +8,7 @@ import 'package:lume/domain/ledger_calc.dart';
 import 'package:lume/domain/models/ledger.dart';
 import 'package:lume/features/ledger/ledger_glass_button.dart';
 import 'package:lume/features/ledger/ledger_page.dart';
+import 'package:lume/features/ledger/ledger_ui.dart' show showLedgerTermsDialog;
 
 /// 2026-11-10 使用者：
 /// 1. 記一筆時貼文字，偵測到已經記過同一筆，直接變成編輯那一筆（不用再看「按記下來也不會加」）。
@@ -330,10 +331,11 @@ void main() {
     expect(t.toName, '阿明');
     expect(t.toAccountId, isNull);
     expect(t.amount, 1200);
-    // 轉帳本身算支出：本月支出多 1200，分類是「轉給他人」。
+    // 轉帳本身算支出：不算消費、算總支出（轉給他人）。
     final st = book.statsWhere((x) => x.id == t.id);
-    expect(st.spend, 1200);
-    expect(st.byCategory[ledgerToOtherCat], 1200);
+    expect(st.spend, 0);
+    expect(st.out, 1200);
+    expect(st.extra[ledgerToOtherCat], 1200);
     expect(tester.takeException(), isNull);
   });
 
@@ -370,6 +372,18 @@ void main() {
     await settle(tester);
     await tester.enterText(amountField(), '3000');
     await tester.pump();
+    // 虛擬貨幣那邊用 USDT：填 USDT，旁邊寫 ×32 粗估台幣；「這筆之後」也是 USDT。
+    expect(find.byKey(const ValueKey('usdtField')), findsOneWidget);
+    await tester.enterText(find.byKey(const ValueKey('usdtField')), '93.75');
+    await tester.pump();
+    expect(
+      tester.widget<Text>(find.byKey(const ValueKey('usdtTwd'))).data,
+      contains('\$3,000'),
+    );
+    expect(
+      tester.widget<Text>(find.byKey(const ValueKey('extAfter'))).data,
+      contains('93.75 USDT'),
+    );
     await tester.ensureVisible(find.widgetWithText(FilledButton, '新增'));
     await tester.tap(find.widgetWithText(FilledButton, '新增'));
     await settle(tester);
@@ -379,6 +393,7 @@ void main() {
     final t = book.txs.firstWhere((x) => x.amount == 3000);
     expect(t.type, LedgerTxType.transfer);
     expect(t.toName, '虛擬貨幣');
+    expect(t.extAmount, 93.75);
     expect(t.toAccountId, isNull);
     expect(book.accountName(t.accountId), '中信帳戶');
     expect(book.statsWhere((x) => x.id == t.id).spend, 0);
@@ -675,5 +690,25 @@ void incomeTests() {
     // 「轉帳」還是轉出去：轉到自己的同一個帳戶是錯的。
     expect(lines[4].error, isNotNull);
     expect(lines.take(4).every((l) => l.willImport), isTrue);
+  });
+
+  testWidgets('設定裡「消費、總支出、收入怎麼算」說明打得開', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (c) => TextButton(
+            onPressed: () => showLedgerTermsDialog(c),
+            child: const Text('開'),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('開'));
+    await tester.pumpAndSettle();
+    expect(find.text('消費、總支出、收入怎麼算'), findsOneWidget);
+    expect(find.textContaining('總支出＝消費＋幫別人付'), findsOneWidget);
+    await tester.tap(find.text('關閉'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('總支出＝'), findsNothing);
   });
 }

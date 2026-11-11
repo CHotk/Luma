@@ -216,7 +216,8 @@ void timeUnknownTests() {
     expect(order, findsOneWidget);
     expect(find.text('同天排序'), findsNothing);
     expect(
-      (tester.getCenter(order).dy - tester.getCenter(find.text('時間').last).dy).abs(),
+      (tester.getCenter(order).dy - tester.getCenter(find.text('時間').last).dy)
+          .abs(),
       lessThan(14),
       reason: '排序欄跟「時間」同一行',
     );

@@ -175,13 +175,30 @@ class AccountState {
 
 /// 某段期間的消費統計。
 class SpendStats {
-  const SpendStats(this.spend, this.income, this.byCategory);
+  const SpendStats(
+    this.spend,
+    this.income,
+    this.byCategory, {
+    this.extra = const {},
+  });
 
-  /// 本月消費：支出（扣掉幫別人付的）＋少了錢的對帳調整 − 退款。
+  /// 消費：自己花掉的（支出扣掉幫別人付的）＋少了錢的對帳調整 − 退款。不含「還款」分類、
+  /// 轉給他人（2026-11-11 使用者：消費當然是算自己）。
   final int spend;
   final int income;
+
+  /// 消費的分類細項。
   final Map<String, int> byCategory;
+
+  /// 不算消費、但算進總支出的（2026-11-11 使用者）：幫別人付（對方那份）、還款、轉給他人。
+  final Map<String, int> extra;
+
+  /// 總支出＝消費＋[extra]：錢實際離開的全部。
+  int get out => spend + extra.values.fold(0, (a, b) => a + b);
 }
+
+/// 總支出裡「幫別人付」那一項的名稱。
+const ledgerPaidForOut = '幫別人付';
 
 class MonthBudget {
   const MonthBudget({
@@ -648,9 +665,16 @@ class LedgerBook {
 
   SpendStats statsWhere(bool Function(LedgerTx) test) {
     final cat = <String, int>{};
+    final extra = <String, int>{};
     var spend = 0, income = 0;
+    void addExtra(String k, int v) {
+      if (v != 0) extra[k] = (extra[k] ?? 0) + v;
+    }
+
     void addShares(Map<String, int> shares) {
       shares.forEach((c, v) {
+        // 還款不是消費，算總支出（2026-11-11 使用者）。
+        if (c == ledgerRepayCat) return addExtra(ledgerRepayCat, v);
         cat[c] = (cat[c] ?? 0) + v;
         spend += v;
       });
@@ -660,6 +684,7 @@ class LedgerBook {
       switch (t.type) {
         case LedgerTxType.expense:
           addShares(categoryShares(t, t.ownSpend));
+          addExtra(ledgerPaidForOut, t.amount - t.ownSpend);
         case LedgerTxType.adjustment:
           if (t.isAdjustOut) addShares({ledgerUncategorized: t.amount});
         case LedgerTxType.refund:
@@ -673,12 +698,12 @@ class LedgerBook {
           if (t.category != ledgerFlatTransfer) income += t.amount;
         case LedgerTxType.transfer:
           // 轉給別人的戶頭：錢離開了，算一筆支出（2026-11-11 使用者）；轉給自己的帳戶不算。
-          if (t.toOther) addShares({ledgerToOtherCat: t.amount});
+          if (t.toOther) addExtra(ledgerToOtherCat, t.amount);
         case LedgerTxType.repayment:
           break;
       }
     }
-    return SpendStats(spend, income, cat);
+    return SpendStats(spend, income, cat, extra: extra);
   }
 
   static bool Function(LedgerTx) inMonth(int year, int month) =>
