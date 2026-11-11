@@ -833,8 +833,8 @@ class _TxFormState extends State<_TxForm> {
     String other = '',
   }) {
     final r = _SplitRow(
-      // 沒選分類（現在不預選）就先放「未分類」，下拉選單一定要有值。
-      ledgerExpenseCats.containsKey(category) ? category : ledgerUncategorized,
+      // 沒選分類（現在不預選）就先放「未分類」；舊資料的分類不在清單裡也保留，不偷改。
+      category.isEmpty ? ledgerUncategorized : category,
       TextEditingController(text: amount),
       TextEditingController(text: name),
       TextEditingController(text: people),
@@ -1348,6 +1348,29 @@ class _TxFormState extends State<_TxForm> {
       if (out.length >= 20) break;
     }
     return out;
+  }
+
+  /// 拆分某一份選分類：毛玻璃選單（舊資料的分類不在清單裡也照列）。
+  Future<void> _pickSplitCategory(BuildContext btn, _SplitRow r) async {
+    final box = btn.findRenderObject()! as RenderBox;
+    final below =
+        MediaQuery.sizeOf(context).height -
+        box.localToGlobal(Offset(0, box.size.height)).dy -
+        24;
+    final v = await showGlassMenu<String>(
+      btn,
+      width: box.size.width < 180 ? 180 : box.size.width,
+      alignLeft: true,
+      maxHeight: below < 200 ? 200 : below,
+      selected: r.category,
+      items: [
+        for (final c in ledgerExpenseCats.entries)
+          GlassMenuItem(value: c.key, label: '${c.value.$1} ${c.key}'),
+        if (!ledgerExpenseCats.containsKey(r.category))
+          GlassMenuItem(value: r.category, label: r.category),
+      ],
+    );
+    if (v != null && mounted) setState(() => r.category = v);
   }
 
   Future<void> _pickRecentMerchant(BuildContext btn) async {
@@ -2402,25 +2425,26 @@ class _TxFormState extends State<_TxForm> {
                       children: [
                         Expanded(
                           flex: 5,
-                          child: DropdownButtonFormField<String>(
-                            initialValue: r.category,
-                            isExpanded: true,
-                            decoration: _input(''),
-                            items: [
-                              for (final c in ledgerExpenseCats.entries)
-                                DropdownMenuItem(
-                                  value: c.key,
-                                  child: Text('${c.value.$1} ${c.key}'),
-                                ),
-                              // 舊資料的分類已經不在清單裡（例如購物）：照列，不然下拉會壞掉。
-                              if (!ledgerExpenseCats.containsKey(r.category))
-                                DropdownMenuItem(
-                                  value: r.category,
-                                  child: Text(r.category),
-                                ),
-                            ],
-                            onChanged: (v) =>
-                                setState(() => r.category = v ?? r.category),
+                          // 拆分的分類也用毛玻璃按鈕＋毛玻璃選單（2026-11-11 使用者：跟其他欄位右邊的按鈕一樣 iOS 26 風格）。
+                          child: Builder(
+                            builder: (btn) => LedgerGlassButton(
+                              key: ValueKey('splitCat_$i'),
+                              onTap: () => _pickSplitCategory(btn, r),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      ledgerExpenseCats.containsKey(r.category)
+                                          ? '${ledgerExpenseCats[r.category]!.$1} ${r.category}'
+                                          : r.category,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  const Icon(Icons.keyboard_arrow_down_rounded),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
                         const SizedBox(width: 8),

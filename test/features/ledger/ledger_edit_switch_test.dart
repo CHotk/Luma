@@ -183,6 +183,54 @@ void main() {
     expect(b.fromLabel(b.txs.firstWhere((t) => t.id == 'b')), '虛擬貨幣');
   });
 
+  testWidgets('編輯拆分：每一份的分類是毛玻璃按鈕，點了用毛玻璃選單換分類', (tester) async {
+    final store = _MemoryStore();
+    final (repo, bank, _) = await setup(tester, store);
+    final now = DateTime.now();
+    await repo.addTransaction(
+      LedgerTx(
+        id: 's1',
+        type: LedgerTxType.expense,
+        occurredAt: DateTime(now.year, now.month, now.day, 9),
+        amount: 300,
+        accountId: bank.id,
+        category: '餐飲',
+        merchant: '全聯',
+        splits: const [
+          LedgerSplit(category: '餐飲', amount: 200),
+          LedgerSplit(category: '旅遊', amount: 100),
+        ],
+      ),
+    );
+    await open(tester, store);
+    await tester.tap(find.text('全聯'));
+    await settle(tester);
+    await tester.tap(find.widgetWithText(OutlinedButton, '編輯'));
+    await settle(tester);
+    expect(find.byType(DropdownButtonFormField<String>), findsNothing);
+    final second = find.byKey(const ValueKey('splitCat_1'));
+    await tester.ensureVisible(second);
+    expect(
+      find.descendant(of: second, matching: find.text('旅遊')),
+      findsOneWidget,
+      reason: '舊分類照顯示',
+    );
+    await tester.tap(second);
+    await settle(tester);
+    await tester.tap(find.text('🚕 交通').last);
+    await settle(tester);
+    expect(
+      find.descendant(of: second, matching: find.text('🚕 交通')),
+      findsOneWidget,
+    );
+    await tester.ensureVisible(find.widgetWithText(FilledButton, '儲存'));
+    await tester.tap(find.widgetWithText(FilledButton, '儲存'));
+    await settle(tester);
+    final tx = (await tester.runAsync(() => repo.loadBook()))!.txs.single;
+    expect(tx.splits.map((s) => s.category), ['餐飲', '交通']);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('商家下拉不列刷卡（信用卡）的商家', (tester) async {
     final store = _MemoryStore();
     final (repo, bank, card) = await setup(tester, store);
