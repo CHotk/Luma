@@ -1851,7 +1851,16 @@ class _TxFormState extends State<_TxForm> {
                     _at = DateTime(_at.year, _at.month, _at.day, 12);
                   }
                 }),
-                child: const Text('不確定'),
+                // 跟下面金額的「＋／−」、商家的下拉一樣大（2026-11-11 使用者：UI 一致）。
+                width: 56,
+                child: const FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    '不確定',
+                    maxLines: 1,
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                  ),
+                ),
               ),
             ),
             // 時間不確定的同一天有好幾筆時，右邊填排序數字決定先後（像圖層，2026-11-10 使用者）：
@@ -2402,6 +2411,12 @@ class _TxFormState extends State<_TxForm> {
                                 DropdownMenuItem(
                                   value: c.key,
                                   child: Text('${c.value.$1} ${c.key}'),
+                                ),
+                              // 舊資料的分類已經不在清單裡（例如購物）：照列，不然下拉會壞掉。
+                              if (!ledgerExpenseCats.containsKey(r.category))
+                                DropdownMenuItem(
+                                  value: r.category,
+                                  child: Text(r.category),
                                 ),
                             ],
                             onChanged: (v) =>
