@@ -1839,43 +1839,50 @@ class _CapSeg extends StatelessWidget {
     final seg = Builder(
       builder: (anchor) => InkWell(
         onTap: () => onTap(anchor),
-        child: Padding(
-          padding: const EdgeInsets.all(4),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 160),
-            decoration: BoxDecoration(
-              color: active
-                  ? ledgerAccent.withValues(alpha: .20)
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(
-                color: active
-                    ? ledgerAccent.withValues(alpha: .55)
-                    : Colors.transparent,
-              ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(icon, size: 18, color: color),
-                if (label != null) ...[
-                  const SizedBox(width: 5),
-                  Text(
-                    label!,
-                    style: TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w700,
-                      color: active ? ledgerAccent : AppColors.ink,
+        // 篩選中（2026-11-11 使用者：之前是在格子中間再框一個小膠囊，位置對不上）：
+        // 整格從分隔線到分隔線鋪滿淡淡的顏色、字變色、圖示右上角一個小點。
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          height: double.infinity,
+          color: active
+              ? ledgerAccent.withValues(alpha: .16)
+              : Colors.transparent,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Icon(icon, size: 18, color: color),
+                  if (active)
+                    Positioned(
+                      right: -3,
+                      top: -2,
+                      child: Container(
+                        key: const ValueKey('capActiveDot'),
+                        width: 7,
+                        height: 7,
+                        decoration: const BoxDecoration(
+                          color: ledgerAccent,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
                     ),
-                  ),
-                  Icon(
-                    Icons.keyboard_arrow_down_rounded,
-                    size: 16,
-                    color: color,
-                  ),
                 ],
+              ),
+              if (label != null) ...[
+                const SizedBox(width: 5),
+                Text(
+                  label!,
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                    color: active ? ledgerAccent : AppColors.ink,
+                  ),
+                ),
+                Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: color),
               ],
-            ),
+            ],
           ),
         ),
       ),
