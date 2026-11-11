@@ -95,3 +95,5 @@ flutter:
     # 五十音櫻花樹 GPT 圖版（ChatGPT 產的圖縮小過；原圖跟設計稿在
     # design-history/已選擇完成/點亮/，不打包）。
     - assets/images/jp_light/
+    # 記帳的品牌小圖示（2026-11-11 使用者，自用）：中信 logo、中信 LINE Pay 熊大卡、LINE Bank。
+    - assets/ledger/icons/

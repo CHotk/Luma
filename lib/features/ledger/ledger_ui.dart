@@ -108,24 +108,118 @@ Color accountColor(LedgerAccountType t) => switch (t) {
 };
 
 /// 圓角方塊圖示（emoji）。
+/// 品牌小圖示（2026-11-11 使用者，自用）：圖檔、要不要轉素色、是不是卡片（橫的）。
+typedef LedgerBrand = ({String asset, bool mono, bool card});
+
+const _brandLineBank = (
+  asset: 'assets/ledger/icons/linebank.png',
+  mono: false,
+  card: false,
+);
+const _brandCtbcCard = (
+  asset: 'assets/ledger/icons/ctbc_linepay.png',
+  mono: false,
+  card: true,
+);
+// 中信 logo 用素色（2026-11-11 使用者）。
+const _brandCtbc = (
+  asset: 'assets/ledger/icons/ctbc.png',
+  mono: true,
+  card: false,
+);
+
+bool _isCtbcBank(LedgerAccount? a) =>
+    a != null && !a.isCard && a.name.contains('中信');
+
+/// 一筆記帳要不要用品牌圖示（null＝照原本的 emoji）。先後：ATM 提款維持 🏧 →
+/// LineBank 相關 → 中信卡相關（熊大那張卡）→ 中信帳戶轉出（中信 logo 素色）。
+LedgerBrand? ledgerBrandOf(LedgerBook book, LedgerTx t) {
+  final from = book.account(t.accountId);
+  final to = book.account(t.toAccountId);
+  final transfer = t.type == LedgerTxType.transfer;
+  if (transfer &&
+      from?.type == LedgerAccountType.bank &&
+      to?.type == LedgerAccountType.cash) {
+    return null;
+  }
+  if (t.fromName == 'LineBank' || (!t.toOther && t.toName == 'LineBank')) {
+    return _brandLineBank;
+  }
+  if (book.isCtbcCard(from) || book.isCtbcCard(to)) return _brandCtbcCard;
+  if (transfer && _isCtbcBank(from)) return _brandCtbc;
+  return null;
+}
+
+/// 帳戶的品牌圖示：中信卡＝熊大那張卡、中信的銀行帳戶＝中信 logo 素色。
+LedgerBrand? ledgerAccountBrand(LedgerAccount a) => a.isCard
+    ? (a.name.contains('中信') ? _brandCtbcCard : null)
+    : (_isCtbcBank(a) ? _brandCtbc : null);
+
+const _grey = ColorFilter.matrix(<double>[
+  0.2126, 0.7152, 0.0722, 0, 0, //
+  0.2126, 0.7152, 0.0722, 0, 0, //
+  0.2126, 0.7152, 0.0722, 0, 0, //
+  0, 0, 0, 0.92, 0,
+]);
+
 class LedgerIcon extends StatelessWidget {
-  const LedgerIcon(this.emoji, this.color, {super.key, this.size = 36});
+  const LedgerIcon(
+    this.emoji,
+    this.color, {
+    super.key,
+    this.size = 36,
+    this.brand,
+  });
 
   final String emoji;
   final Color color;
   final double size;
 
+  /// 有的話用品牌圖代替 emoji。
+  final LedgerBrand? brand;
+
   @override
-  Widget build(BuildContext context) => Container(
-    width: size,
-    height: size,
-    decoration: BoxDecoration(
-      color: color.withValues(alpha: 0.15),
-      borderRadius: BorderRadius.circular(size * 0.3),
-    ),
-    alignment: Alignment.center,
-    child: Text(emoji, style: TextStyle(fontSize: size * 0.47)),
-  );
+  Widget build(BuildContext context) {
+    final b = brand;
+    if (b != null) {
+      Widget img = Image.asset(
+        b.asset,
+        fit: b.card ? BoxFit.contain : BoxFit.cover,
+        filterQuality: FilterQuality.medium,
+        errorBuilder: (_, _, _) =>
+            Text(emoji, style: TextStyle(fontSize: size * 0.47)),
+      );
+      if (b.mono) img = ColorFiltered(colorFilter: _grey, child: img);
+      return Container(
+        key: ValueKey('brand_${b.asset.split('/').last}'),
+        width: size,
+        height: size,
+        padding: b.card ? EdgeInsets.all(size * 0.06) : null,
+        decoration: BoxDecoration(
+          color: b.card ? Colors.white.withValues(alpha: 0.08) : null,
+          borderRadius: BorderRadius.circular(size * 0.3),
+        ),
+        clipBehavior: Clip.antiAlias,
+        alignment: Alignment.center,
+        child: b.card
+            ? ClipRRect(
+                borderRadius: BorderRadius.circular(size * 0.08),
+                child: img,
+              )
+            : img,
+      );
+    }
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(size * 0.3),
+      ),
+      alignment: Alignment.center,
+      child: Text(emoji, style: TextStyle(fontSize: size * 0.47)),
+    );
+  }
 }
 
 class LedgerPill extends StatelessWidget {
@@ -296,215 +390,200 @@ class TxTile extends ConsumerWidget {
     final shape = BorderRadius.circular(16);
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: ClipRRect(
-        borderRadius: shape,
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              borderRadius: shape,
-              gradient: const LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Color(0x1FFFFFFF), Color(0x0DFFFFFF)],
-              ),
-              border: Border.all(
-                color: t.type == LedgerTxType.adjustment
-                    ? AppColors.mid.withValues(alpha: 0.45)
-                    : AppColors.glassEdge,
-              ),
-            ),
-            child: Material(
-              type: MaterialType.transparency,
-              child: InkWell(
-                child: InkWell(
-                  onTap: onTap,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    child: Row(
-                      children: [
-                        LedgerIcon(emoji, color),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
+      child: Stack(
+        children: [
+          ClipRRect(
+            borderRadius: shape,
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: shape,
+                  gradient: const LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Color(0x1FFFFFFF), Color(0x0DFFFFFF)],
+                  ),
+                  border: Border.all(
+                    color: t.type == LedgerTxType.adjustment
+                        ? AppColors.mid.withValues(alpha: 0.45)
+                        : AppColors.glassEdge,
+                  ),
+                ),
+                child: Material(
+                  type: MaterialType.transparency,
+                  child: InkWell(
+                    child: InkWell(
+                      onTap: onTap,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        child: Row(
+                          children: [
+                            LedgerIcon(
+                              emoji,
+                              color,
+                              brand: ledgerBrandOf(book, t),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Flexible(
-                                    child: Text(
-                                      t.merchant.isEmpty
-                                          ? t.type.label
-                                          : t.merchant,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w700,
-                                        color: AppColors.ink,
-                                      ),
-                                    ),
-                                  ),
-                                  if (t.flagged) const Text(' 🚩'),
-                                ],
-                              ),
-                              // 單筆的品項名稱（2026-11-09 使用者）。
-                              if (t.item.isNotEmpty)
-                                Text(
-                                  t.item,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: AppText.note.copyWith(
-                                    fontSize: 11.5,
-                                    color: AppColors.ink2,
-                                  ),
-                                ),
-                              // 標籤排在名稱下一行，名字長也不會擠爆。
-                              if (pf != null ||
-                                  t.isSplit ||
-                                  t.source == 'paste' ||
-                                  gaps.isNotEmpty ||
-                                  cp != null)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 3),
-                                  child: Wrap(
-                                    spacing: 5,
-                                    runSpacing: 3,
+                                  Row(
                                     children: [
-                                      if (pf != null)
-                                        LedgerPill(
-                                          // 他給了之後標籤保留「誰要給多少」，只是變綠、
-                                          // 後面多一個 ✓（2026-11-03 使用者）。
-                                          '${pf.people} 要給 ${lMoney(pf.amount)}'
-                                          '${pf.settled ? ' ✓已給' : ''}',
-                                          color: pf.settled
-                                              ? AppColors.ok
-                                              : ledgerPaidFor,
+                                      Flexible(
+                                        child: Text(
+                                          t.merchant.isEmpty
+                                              ? t.type.label
+                                              : t.merchant,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w700,
+                                            color: AppColors.ink,
+                                          ),
                                         ),
-                                      // 轉帳（繳卡費）兩邊都填了，哪一邊對不上就寫哪一邊。
-                                      for (final g in gaps)
-                                        LedgerPill(
-                                          '⚠ ${t.type == LedgerTxType.transfer ? g.account.name : ''}'
-                                          '${g.miss > 0 ? '漏記' : '多出'} '
-                                          '${lMoney(g.miss.abs())}',
-                                          color: AppColors.mid,
-                                        ),
-                                      if (gaps.isEmpty && cp != null)
-                                        LedgerPill(
-                                          cp.available != null
-                                              ? '可用 ${lMoney(cp.available!)}'
-                                              : '餘額 ${lMoney(cp.balance ?? 0)}',
-                                        ),
-                                      if (t.isSplit)
-                                        LedgerPill(
-                                          part != null
-                                              ? '拆分・$partCategory'
-                                              : '已拆 ${t.splits.length} 份',
-                                          color: const Color(0xFFB79CFF),
-                                        ),
-                                      if (t.source == 'paste')
-                                        const LedgerPill('匯入'),
+                                      ),
+                                      if (t.flagged) const Text(' 🚩'),
                                     ],
                                   ),
-                                ),
-                              const SizedBox(height: 2),
-                              Text(
-                                sub.toString(),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: AppText.note.copyWith(
-                                  fontSize: 10.5,
-                                  color: AppColors.ink3,
-                                ),
-                              ),
-                              if (t.isSplit && query.trim().isNotEmpty)
-                                for (final s in t.splits)
-                                  _partLine(s, _terms(query)),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              amt,
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w800,
-                                color: amtColor,
-                                fontFeatures: lTabular,
+                                  // 單筆的品項名稱（2026-11-09 使用者）。
+                                  if (t.item.isNotEmpty)
+                                    Text(
+                                      t.item,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: AppText.note.copyWith(
+                                        fontSize: 11.5,
+                                        color: AppColors.ink2,
+                                      ),
+                                    ),
+                                  // 標籤排在名稱下一行，名字長也不會擠爆。
+                                  if (pf != null ||
+                                      t.isSplit ||
+                                      t.source == 'paste' ||
+                                      gaps.isNotEmpty ||
+                                      cp != null)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 3),
+                                      child: Wrap(
+                                        spacing: 5,
+                                        runSpacing: 3,
+                                        children: [
+                                          if (pf != null)
+                                            LedgerPill(
+                                              // 他給了之後標籤保留「誰要給多少」，只是變綠、
+                                              // 後面多一個 ✓（2026-11-03 使用者）。
+                                              '${pf.people} 要給 ${lMoney(pf.amount)}'
+                                              '${pf.settled ? ' ✓已給' : ''}',
+                                              color: pf.settled
+                                                  ? AppColors.ok
+                                                  : ledgerPaidFor,
+                                            ),
+                                          // 轉帳（繳卡費）兩邊都填了，哪一邊對不上就寫哪一邊。
+                                          for (final g in gaps)
+                                            LedgerPill(
+                                              '⚠ ${t.type == LedgerTxType.transfer ? g.account.name : ''}'
+                                              '${g.miss > 0 ? '漏記' : '多出'} '
+                                              '${lMoney(g.miss.abs())}',
+                                              color: AppColors.mid,
+                                            ),
+                                          if (gaps.isEmpty && cp != null)
+                                            LedgerPill(
+                                              cp.available != null
+                                                  ? '可用 ${lMoney(cp.available!)}'
+                                                  : '餘額 ${lMoney(cp.balance ?? 0)}',
+                                            ),
+                                          if (t.isSplit)
+                                            LedgerPill(
+                                              part != null
+                                                  ? '拆分・$partCategory'
+                                                  : '已拆 ${t.splits.length} 份',
+                                              color: const Color(0xFFB79CFF),
+                                            ),
+                                          if (t.source == 'paste')
+                                            const LedgerPill('匯入'),
+                                        ],
+                                      ),
+                                    ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    sub.toString(),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: AppText.note.copyWith(
+                                      fontSize: 10.5,
+                                      color: AppColors.ink3,
+                                    ),
+                                  ),
+                                  if (t.isSplit && query.trim().isNotEmpty)
+                                    for (final s in t.splits)
+                                      _partLine(s, _terms(query)),
+                                ],
                               ),
                             ),
-                            if (small != null)
-                              Text(
-                                small,
-                                style: const TextStyle(
-                                  fontSize: 10,
-                                  color: AppColors.ink3,
-                                  fontWeight: FontWeight.w600,
+                            const SizedBox(width: 8),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  amt,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w800,
+                                    color: amtColor,
+                                    fontFeatures: lTabular,
+                                  ),
                                 ),
-                              ),
+                                if (small != null)
+                                  Text(
+                                    small,
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      color: AppColors.ink3,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                              ],
+                            ),
                           ],
                         ),
-                        // 已確認（2026-11-11 使用者：每一條都有，按一下＝這筆人工確認過、沒爭議）。
-                        LedgerConfirmButton(tx: t),
-                      ],
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-/// 每一條記帳右邊的「已確認」圓鈕：空心＝還沒確認，綠底 ✓＝確認過；按一下切換、存檔、同步、
-/// 進操作紀錄。
-class LedgerConfirmButton extends ConsumerWidget {
-  const LedgerConfirmButton({super.key, required this.tx});
-
-  final LedgerTx tx;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final on = tx.confirmed;
-    return Tooltip(
-      message: on ? '已確認（再按取消）' : '標成已確認',
-      child: InkResponse(
-        key: ValueKey('confirm_${tx.id}'),
-        radius: 22,
-        onTap: () async {
-          await ref
-              .read(ledgerRepositoryProvider)
-              .updateTransaction(tx.copyWith(confirmed: !on));
-          ref.read(dataRevisionProvider.notifier).state++;
-        },
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(10, 6, 0, 6),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 160),
-            width: 24,
-            height: 24,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: on ? AppColors.ok : Colors.transparent,
-              border: Border.all(
-                color: on ? AppColors.ok : Colors.white.withValues(alpha: .28),
-                width: 1.6,
+          // 還沒確認的右上角一個小藍點（2026-11-11 使用者：沒確認的才要特別標，
+          // 確認過的就乾淨；要確認點進明細按「標成已確認」）。
+          if (!t.confirmed)
+            Positioned(
+              top: 7,
+              right: 7,
+              child: IgnorePointer(
+                child: Container(
+                  key: ValueKey('unconfirmed_${t.id}'),
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF4DA3FF),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF4DA3FF).withValues(alpha: .6),
+                        blurRadius: 6,
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
-            child: on
-                ? const Icon(Icons.check_rounded, size: 16, color: Colors.white)
-                : null,
-          ),
-        ),
+        ],
       ),
     );
   }
@@ -545,7 +624,11 @@ class AccountStatusRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 8),
         child: Row(
           children: [
-            LedgerIcon(a.type.emoji, accountColor(a.type)),
+            LedgerIcon(
+              a.type.emoji,
+              accountColor(a.type),
+              brand: ledgerAccountBrand(a),
+            ),
             const SizedBox(width: 10),
             Expanded(
               child: Column(

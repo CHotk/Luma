@@ -1961,8 +1961,14 @@ void main() {
     );
     await pump(tester, const LedgerPage(tab: LedgerTab.list), store);
     expect(find.text('🪙'), findsOneWidget, reason: '現金那筆');
-    expect(find.text('💳'), findsOneWidget, reason: '刷卡那筆（鼎泰豐）');
-    expect(find.text('⇄'), findsOneWidget, reason: '轉帳照原本的符號');
+    // 中信卡刷的用熊大那張卡的圖（2026-11-11 使用者）。
+    expect(
+      find.byKey(const ValueKey('brand_ctbc_linepay.png')),
+      findsWidgets,
+      reason: '刷卡那筆（鼎泰豐）',
+    );
+    // 繳卡費（轉到中信卡）也算中信卡相關，一樣用卡片圖，不是 ⇄。
+    expect(find.text('⇄'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 

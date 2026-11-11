@@ -251,6 +251,12 @@ Future<void> txDetailFlow(
       if (context.mounted) {
         showAppNotice(context, t.flagged ? '已取消標記' : '🚩 已標記旗幟');
       }
+    case 'confirm':
+      await repo.updateTransaction(t.copyWith(confirmed: !t.confirmed));
+      _bump(ref);
+      if (context.mounted) {
+        showAppNotice(context, t.confirmed ? '已取消確認' : '✓ 已確認');
+      }
     case 'edit':
       await txFormFlow(context, ref, edit: t);
     case 'refund':

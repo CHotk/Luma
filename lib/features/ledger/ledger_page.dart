@@ -1162,7 +1162,11 @@ class LedgerPage extends ConsumerWidget {
           onTap: () => accountFlow(context, ref, a),
           child: Row(
             children: [
-              LedgerIcon(a.type.emoji, accountColor(a.type)),
+              LedgerIcon(
+                a.type.emoji,
+                accountColor(a.type),
+                brand: ledgerAccountBrand(a),
+              ),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
@@ -1214,7 +1218,7 @@ class LedgerPage extends ConsumerWidget {
           children: [
             Row(
               children: [
-                LedgerIcon(a.type.emoji, color),
+                LedgerIcon(a.type.emoji, color, brand: ledgerAccountBrand(a)),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(

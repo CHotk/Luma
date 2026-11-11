@@ -7,6 +7,7 @@ import 'package:lume/data/storage/key_value_store.dart';
 import 'package:lume/domain/ledger_calc.dart';
 import 'package:lume/domain/models/ledger.dart';
 import 'package:lume/features/ledger/ledger_page.dart';
+import 'package:lume/features/ledger/ledger_ui.dart';
 
 /// 2026-11-11 使用者：編輯也能在上面切支出／收入／轉帳、編輯支出要看得到分類；
 /// 轉帳「從哪個帳戶」也能選 LineBank／富邦／虛擬貨幣；商家下拉不列刷卡的。
@@ -299,7 +300,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('每一條右邊有已確認鈕：按了存起來、進操作紀錄；篩選「未確認」只看還沒確認的', (tester) async {
+  testWidgets('沒確認的右上角有小藍點；點進明細「標成已確認」存起來、進操作紀錄、藍點消失；篩選「未確認」', (tester) async {
     final store = _MemoryStore();
     final (repo, bank, _) = await setup(tester, store);
     final now = DateTime.now();
@@ -317,8 +318,14 @@ void main() {
       );
     }
     await open(tester, store);
-    await tester.tap(find.byKey(const ValueKey('confirm_a')));
+    expect(find.byKey(const ValueKey('unconfirmed_a')), findsOneWidget);
+    expect(find.byKey(const ValueKey('unconfirmed_b')), findsOneWidget);
+    await tester.tap(find.text('早餐店'));
     await settle(tester);
+    await tester.tap(find.byKey(const ValueKey('confirmToggle')));
+    await settle(tester);
+    expect(find.byKey(const ValueKey('unconfirmed_a')), findsNothing);
+    expect(find.byKey(const ValueKey('unconfirmed_b')), findsOneWidget);
     final book = (await tester.runAsync(() => repo.loadBook()))!;
     expect(book.tx('a')!.confirmed, isTrue);
     expect(book.tx('b')!.confirmed, isFalse);
@@ -335,14 +342,78 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('filterClear')));
     await settle(tester);
     expect(find.text('早餐店'), findsOneWidget);
-    // 再按一次取消確認。
-    await tester.tap(find.byKey(const ValueKey('confirm_a')));
+    // 再點進去「取消確認」。
+    await tester.tap(find.text('早餐店'));
     await settle(tester);
+    await tester.tap(find.byKey(const ValueKey('confirmToggle')));
+    await settle(tester);
+    expect(find.byKey(const ValueKey('unconfirmed_a')), findsOneWidget);
     expect(
       (await tester.runAsync(() => repo.loadBook()))!.tx('a')!.confirmed,
       isFalse,
     );
     expect(tester.takeException(), isNull);
+  });
+
+  test('品牌圖示：ATM 維持 🏧、LineBank、中信卡、中信帳戶轉出', () {
+    const bank = LedgerAccount(
+      id: 'bank',
+      name: '中信活存',
+      type: LedgerAccountType.bank,
+    );
+    const card = LedgerAccount(
+      id: 'card',
+      name: '中信卡',
+      type: LedgerAccountType.creditCard,
+    );
+    const cash = LedgerAccount(
+      id: 'cash',
+      name: '現金',
+      type: LedgerAccountType.cash,
+    );
+    LedgerTx tx(
+      LedgerTxType ty, {
+      String acc = 'bank',
+      String? to,
+      String toName = '',
+      String fromName = '',
+    }) => LedgerTx(
+      id: 'x',
+      type: ty,
+      occurredAt: DateTime(2026, 11, 1),
+      amount: 100,
+      accountId: acc,
+      toAccountId: to,
+      toName: toName,
+      fromName: fromName,
+    );
+    final b = LedgerBook(
+      accounts: const [bank, card, cash],
+      checkpoints: const [],
+      budgets: const [],
+      txs: const [],
+    );
+    String? a(LedgerTx t) => ledgerBrandOf(b, t)?.asset.split('/').last;
+    expect(a(tx(LedgerTxType.transfer, to: 'cash')), isNull, reason: 'ATM');
+    expect(a(tx(LedgerTxType.transfer, toName: 'LineBank')), 'linebank.png');
+    expect(
+      a(tx(LedgerTxType.transfer, acc: '', fromName: 'LineBank', to: 'bank')),
+      'linebank.png',
+    );
+    expect(a(tx(LedgerTxType.expense, acc: 'card')), 'ctbc_linepay.png');
+    expect(a(tx(LedgerTxType.transfer, to: 'card')), 'ctbc_linepay.png');
+    expect(
+      a(tx(LedgerTxType.transfer, toName: '虛擬貨幣')),
+      'ctbc.png',
+      reason: '中信帳戶轉出',
+    );
+    expect(
+      ledgerBrandOf(b, tx(LedgerTxType.transfer, toName: '虛擬貨幣'))!.mono,
+      isTrue,
+    );
+    expect(a(tx(LedgerTxType.expense, acc: 'cash')), isNull);
+    expect(ledgerAccountBrand(card)!.asset, endsWith('ctbc_linepay.png'));
+    expect(ledgerAccountBrand(cash), isNull);
   });
 
   testWidgets('商家下拉不列刷卡（信用卡）的商家', (tester) async {

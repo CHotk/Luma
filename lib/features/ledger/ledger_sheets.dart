@@ -3067,7 +3067,14 @@ class _TxDetail extends StatelessWidget {
         ],
       ),
       children: [
-        Center(child: LedgerIcon(emoji, color, size: 52)),
+        Center(
+          child: LedgerIcon(
+            emoji,
+            color,
+            size: 52,
+            brand: ledgerBrandOf(book, t),
+          ),
+        ),
         const SizedBox(height: 8),
         Text(
           '$sign${lMoney(t.amount)}',
@@ -3088,6 +3095,23 @@ class _TxDetail extends StatelessWidget {
             if (t.flagged) const LedgerPill('🚩 旗幟', color: ledgerBad),
             if (t.confirmed) const LedgerPill('✓ 已確認', color: AppColors.ok),
           ],
+        ),
+        // 已確認（2026-11-11 使用者）：沒確認的在列表右上角有小藍點，點進來按這裡確認。
+        const SizedBox(height: 10),
+        Center(
+          child: t.confirmed
+              ? TextButton.icon(
+                  key: const ValueKey('confirmToggle'),
+                  onPressed: () => pop('confirm'),
+                  icon: const Icon(Icons.undo_rounded, size: 18),
+                  label: const Text('取消確認'),
+                )
+              : FilledButton.tonalIcon(
+                  key: const ValueKey('confirmToggle'),
+                  onPressed: () => pop('confirm'),
+                  icon: const Icon(Icons.check_circle_rounded, size: 18),
+                  label: const Text('標成已確認'),
+                ),
         ),
         _box([
           _kv(
@@ -3673,7 +3697,11 @@ class _AccountDetail extends StatelessWidget {
       children: [
         Row(
           children: [
-            LedgerIcon(a.type.emoji, accountColor(a.type)),
+            LedgerIcon(
+              a.type.emoji,
+              accountColor(a.type),
+              brand: ledgerAccountBrand(a),
+            ),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
@@ -4111,7 +4139,7 @@ class _ImportState extends State<_Import> {
           borderRadius: BorderRadius.circular(10),
           child: Row(
             children: [
-              LedgerIcon(emoji, color, size: 30),
+              LedgerIcon(emoji, color, size: 30, brand: ledgerBrandOf(book, t)),
               const SizedBox(width: 8),
               Expanded(
                 child: Column(
