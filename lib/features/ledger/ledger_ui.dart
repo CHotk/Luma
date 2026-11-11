@@ -667,30 +667,33 @@ final ledgerAccurateFrom = DateTime(2026, 11, 1);
 bool isBeforeAccurate(int year, int month) =>
     DateTime(year, month).isBefore(ledgerAccurateFrom);
 
-/// 「資料不準確，只是記錄下來」的提示條。
+/// 「2026年11月以前資料不完整，僅紀錄」的提示條。
+/// 2026-11-11 使用者：文案改這樣；顏色從黃色改成淡淡偏灰（只是提醒，不要太搶眼）。
+const _oldDataTone = Color(0xFFB4B0A2);
+
 class OldDataBanner extends StatelessWidget {
   const OldDataBanner({super.key});
 
   @override
   Widget build(BuildContext context) => Container(
     margin: const EdgeInsets.only(bottom: 10),
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
     decoration: BoxDecoration(
-      color: AppColors.mid.withValues(alpha: 0.10),
+      color: _oldDataTone.withValues(alpha: 0.07),
       borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: AppColors.mid.withValues(alpha: 0.4)),
+      border: Border.all(color: _oldDataTone.withValues(alpha: 0.22)),
     ),
     child: const Row(
       children: [
-        Text('⚠️', style: TextStyle(fontSize: 14)),
+        Icon(Icons.info_outline_rounded, size: 15, color: _oldDataTone),
         SizedBox(width: 8),
         Expanded(
           child: Text(
-            '2026 年 11 月以前的資料不準確，只是記錄下來',
+            '2026年11月以前資料不完整，僅紀錄',
             style: TextStyle(
               fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: AppColors.mid,
+              fontWeight: FontWeight.w600,
+              color: _oldDataTone,
             ),
           ),
         ),

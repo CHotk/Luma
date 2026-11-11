@@ -1434,6 +1434,16 @@ class _FilterCapsule extends ConsumerWidget {
                     label: '時間',
                     active: range != LedgerRange.month,
                     onTap: (_) => _openRange(context, ref),
+                    clearKey: const ValueKey('rangeClear'),
+                    onClear: () {
+                      final now = DateTime.now();
+                      ref.read(ledgerRangeProvider.notifier).state =
+                          LedgerRange.month;
+                      ref.read(ledgerMonthProvider.notifier).state = DateTime(
+                        now.year,
+                        now.month,
+                      );
+                    },
                   ),
                   divider(),
                   _CapSeg(
@@ -1442,6 +1452,10 @@ class _FilterCapsule extends ConsumerWidget {
                     label: '金額',
                     active: amount.min != null || amount.max != null,
                     onTap: (btn) => _openAmount(context, ref, btn),
+                    clearKey: const ValueKey('amountClear'),
+                    onClear: () =>
+                        ref.read(ledgerAmountProvider.notifier).state =
+                            ledgerNoAmount,
                   ),
                   divider(),
                   _CapSeg(
@@ -1450,6 +1464,10 @@ class _FilterCapsule extends ConsumerWidget {
                     label: '篩選',
                     active: filterOn,
                     onTap: (btn) => _openFilter(context, ref, btn),
+                    clearKey: const ValueKey('filterClear'),
+                    onClear: () =>
+                        ref.read(ledgerFilterProvider.notifier).state =
+                            ledgerNoFilter,
                   ),
                   divider(),
                   _CapSeg(
@@ -1825,7 +1843,13 @@ class _CapSeg extends StatelessWidget {
     required this.active,
     required this.onTap,
     this.width,
+    this.onClear,
+    this.clearKey,
   });
+
+  /// 篩選中右邊的 ✕：取消這一項。
+  final VoidCallback? onClear;
+  final Key? clearKey;
 
   final IconData icon;
   final String? label;
@@ -1880,7 +1904,35 @@ class _CapSeg extends StatelessWidget {
                     color: active ? ledgerAccent : AppColors.ink,
                   ),
                 ),
-                Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: color),
+                // 篩選中：箭頭換成 ✕，按 ✕ 直接取消這一項（2026-11-11 使用者）。
+                if (active && onClear != null)
+                  GestureDetector(
+                    key: clearKey,
+                    behavior: HitTestBehavior.opaque,
+                    onTap: onClear,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(4, 8, 2, 8),
+                      child: Container(
+                        width: 17,
+                        height: 17,
+                        decoration: BoxDecoration(
+                          color: ledgerAccent.withValues(alpha: .28),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.close_rounded,
+                          size: 12,
+                          color: ledgerAccent,
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    size: 16,
+                    color: color,
+                  ),
               ],
             ],
           ),

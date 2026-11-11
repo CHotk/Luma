@@ -1466,7 +1466,19 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('鼎泰豐'), findsNothing);
     expect(find.textContaining('（篩選中）'), findsOneWidget);
-    // 選「全部金額」就清掉。
+    // 篩選中那格右邊有 ✕，按了直接取消這一項（其他格沒篩選就沒有 ✕）。
+    expect(find.byKey(const ValueKey('rangeClear')), findsNothing);
+    expect(find.byKey(const ValueKey('filterClear')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('amountClear')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('（篩選中）'), findsNothing);
+    expect(find.textContaining('鼎泰豐'), findsWidgets);
+    expect(find.byKey(const ValueKey('amountClear')), findsNothing);
+    // 選「全部金額」也會清掉。
+    await tester.tap(find.byKey(const ValueKey('amountBtn')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('中額'));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('amountBtn')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('全部金額'));
@@ -1489,10 +1501,10 @@ void main() {
       // 切到 2026/10：有提示；切到 2026/11：沒有。
       container.read(ledgerMonthProvider.notifier).state = DateTime(2026, 10);
       await tester.pump();
-      expect(find.textContaining('資料不準確'), findsOneWidget, reason: tab.title);
+      expect(find.textContaining('資料不完整'), findsOneWidget, reason: tab.title);
       container.read(ledgerMonthProvider.notifier).state = DateTime(2026, 11);
       await tester.pump();
-      expect(find.textContaining('資料不準確'), findsNothing, reason: tab.title);
+      expect(find.textContaining('資料不完整'), findsNothing, reason: tab.title);
     }
     expect(tester.takeException(), isNull);
   });
