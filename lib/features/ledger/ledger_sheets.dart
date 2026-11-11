@@ -429,6 +429,7 @@ Widget _accountChips(
   ValueChanged<String> onPick, {
   bool Function(LedgerAccount)? only,
   String? disabled,
+  bool disableAll = false,
   List<Widget> extra = const [],
 }) => Wrap(
   spacing: 6,
@@ -440,7 +441,9 @@ Widget _accountChips(
           label: Text('${a.type.emoji} ${a.name}'),
           selected: selected == a.id,
           showCheckmark: false,
-          onSelected: a.id == disabled ? null : (_) => onPick(a.id),
+          onSelected: disableAll || a.id == disabled
+              ? null
+              : (_) => onPick(a.id),
         ),
     ...extra,
   ],
@@ -957,6 +960,9 @@ class _TxFormState extends State<_TxForm> {
   /// 轉到虛擬貨幣時換到多少 USDT。
   late final TextEditingController _usdt;
 
+  /// 轉給他人戶頭時「誰的戶頭」（2026-11-11 使用者：轉帳一律有「原因」欄，轉給他人另外填誰的戶頭）。
+  late final TextEditingController _toWho;
+
   /// 轉到「沒記在 App 裡」的自己的戶頭（目前只有 LineBank，2026-11-10 使用者）：空字串＝沒選。
   String _toExt = '';
 
@@ -1034,6 +1040,11 @@ class _TxFormState extends State<_TxForm> {
       ..addListener(() => setState(() {}));
     _category = e?.category ?? p.category ?? '';
     _merchant = TextEditingController(text: e?.merchant ?? '');
+    _toWho = TextEditingController(
+      text: e?.type == LedgerTxType.transfer && (e?.toOther ?? false)
+          ? e!.toName
+          : '',
+    )..addListener(() => setState(() {}));
     _usdt = TextEditingController(
       text: e?.extAmount == null ? '' : lUsdt(e!.extAmount!),
     )..addListener(() => setState(() {}));
@@ -1124,6 +1135,7 @@ class _TxFormState extends State<_TxForm> {
   @override
   void dispose() {
     _usdt.dispose();
+    _toWho.dispose();
     _extFromAfter.dispose();
     _extToAfter.dispose();
     for (final c in [
@@ -1499,9 +1511,14 @@ class _TxFormState extends State<_TxForm> {
           ? '來源要選'
           : _repay
           ? '要選還給誰'
-          : _effType == LedgerTxType.transfer && _toOther
-          ? '要填誰的戶頭'
+          : _effType == LedgerTxType.transfer
+          ? '原因要填'
           : '商家名稱要填';
+    }
+    if (_effType == LedgerTxType.transfer &&
+        _toOther &&
+        _toWho.text.trim().isEmpty) {
+      return '要填誰的戶頭';
     }
     if (!_fromOutside && book.account(_account) == null) return '要選帳戶';
     // 只擋新記的；以前記的平轉沒有來源戶頭，編輯時不擋。
@@ -1517,6 +1534,10 @@ class _TxFormState extends State<_TxForm> {
       }
       if (!_fromOutside && _to == _account) return '轉出跟轉入不能是同一個帳戶';
       if (_srcExt.isNotEmpty && _srcExt == _toExt) return '轉出跟轉入不能是同一個地方';
+      if ((_toExt == ledgerCryptoExt && _srcExt != 'LineBank') ||
+          (_srcExt == ledgerCryptoExt && _toExt != 'LineBank')) {
+        return '虛擬貨幣只能跟 LineBank 互轉';
+      }
       // 跟虛擬貨幣有關的都要填換了多少 USDT（2026-11-11 使用者）；以前記的不擋。
       if ((_cryptoIn || _cryptoOut) &&
           _usdtValue == null &&
@@ -1621,7 +1642,7 @@ class _TxFormState extends State<_TxForm> {
             ? (_neg ? _account : (_toExt.isEmpty ? _to : null))
             : null,
         toName: ty == LedgerTxType.transfer
-            ? (_toOther ? merchant : _toExt)
+            ? (_toOther ? _toWho.text.trim() : _toExt)
             : (ty == LedgerTxType.income && _category == ledgerFlatTransfer
                   ? _fromExt
                   : ''),
@@ -1658,7 +1679,7 @@ class _TxFormState extends State<_TxForm> {
           ? (_neg ? _account : (_toExt.isEmpty ? _to : null))
           : null,
       toName: ty == LedgerTxType.transfer
-          ? (_toOther ? merchant : _toExt)
+          ? (_toOther ? _toWho.text.trim() : _toExt)
           : (ty == LedgerTxType.income && _category == ledgerFlatTransfer
                 ? _fromExt
                 : ''),
@@ -2419,8 +2440,9 @@ class _TxFormState extends State<_TxForm> {
               ? '來源'
               : _repay
               ? '還給誰'
+              // 轉帳一律叫「原因」（2026-11-11 使用者），轉給他人也是；誰的戶頭另外一欄。
               : t == LedgerTxType.transfer
-              ? (_toOther ? '誰的戶頭' : '名稱')
+              ? '原因'
               : '商家／名稱',
           hint: _cardPayment
               ? '自動帶入'
@@ -2542,13 +2564,22 @@ class _TxFormState extends State<_TxForm> {
       case LedgerTxType.transfer:
         children.addAll([
           // 快捷只是「幫你填好下面的欄位」，不是要選的選項，所以不用選項的膠囊樣子
-          // （2026-11-03 使用者）：閃電圖示的按鈕＋一行說明。
-          Text('快捷：點一下幫你填好帳戶跟名稱', style: AppText.note),
-          const SizedBox(height: 6),
+          // （2026-11-03 使用者）：閃電圖示的按鈕。「快捷」兩個字跟按鈕差不多大、放同一行
+          // （2026-11-11 使用者：這樣簡單一點）。
           Wrap(
             spacing: 8,
             runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
+              const Text(
+                '快捷',
+                key: ValueKey('shortcutLabel'),
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.ink2,
+                ),
+              ),
               if (_firstOf(LedgerAccountType.bank) case final bank?)
                 if (_firstOf(LedgerAccountType.cash) case final cash?)
                   OutlinedButton.icon(
@@ -2608,6 +2639,8 @@ class _TxFormState extends State<_TxForm> {
               }),
               // 信用卡不能轉帳出去，這一排不列信用卡（2026-11-11 使用者）；舊資料選著的照列。
               only: (a) => !a.isCard || (a.id == _account && _srcExt.isEmpty),
+              // 只有 LineBank 能跟虛擬貨幣互轉（2026-11-11 使用者）：轉到虛擬貨幣時其他帳戶變灰。
+              disableAll: _toExt == ledgerCryptoExt,
               // 也能從沒記在 App 裡的自己的地方轉出來（2026-11-11 使用者：LineBank、富邦、虛擬貨幣）。
               // 轉進來（＋）時不顯示。
               extra: _neg
@@ -2619,11 +2652,19 @@ class _TxFormState extends State<_TxForm> {
                           label: Text('$emoji $n'),
                           selected: _srcExt == n,
                           showCheckmark: false,
-                          onSelected: _toExt == n
+                          onSelected:
+                              _toExt == n ||
+                                  (_toExt == ledgerCryptoExt && n != 'LineBank')
                               ? null
                               : (_) => setState(() {
                                   _srcExt = n;
                                   _negative = false;
+                                  // 從虛擬貨幣轉出：只能轉回 LineBank，自動選好。
+                                  if (n == ledgerCryptoExt) {
+                                    _toExt = 'LineBank';
+                                    _to = null;
+                                    _toOther = false;
+                                  }
                                   _autoTransferName();
                                 }),
                         ),
@@ -2641,6 +2682,8 @@ class _TxFormState extends State<_TxForm> {
                 _toOther = false;
               }),
               disabled: _srcExt.isEmpty ? _account : null,
+              // 從虛擬貨幣轉出只能轉回 LineBank：其他帳戶變灰。
+              disableAll: _srcExt == ledgerCryptoExt,
               // 轉到沒記在 App 裡的地方（2026-11-10 使用者）：自己的 LineBank（平轉，只扣這邊的錢、
               // 不算支出）、別人的戶頭（等於「轉給別人」，算支出）。轉進來（＋）時不顯示。
               extra: _neg
@@ -2655,12 +2698,20 @@ class _TxFormState extends State<_TxForm> {
                           label: Text('$emoji $n'),
                           selected: _toExt == n,
                           showCheckmark: false,
-                          onSelected: _srcExt == n
+                          onSelected:
+                              _srcExt == n ||
+                                  (_srcExt == ledgerCryptoExt &&
+                                      n != 'LineBank')
                               ? null
                               : (_) => setState(() {
                                   _toExt = n;
                                   _to = null;
                                   _toOther = false;
+                                  // 轉到虛擬貨幣：只能從 LineBank 轉，自動選好。
+                                  if (n == ledgerCryptoExt) {
+                                    _srcExt = 'LineBank';
+                                    _negative = false;
+                                  }
                                   _autoTransferName();
                                 }),
                         ),
@@ -2669,15 +2720,28 @@ class _TxFormState extends State<_TxForm> {
                         label: const Text('👤 他人戶頭'),
                         selected: _toOther,
                         showCheckmark: false,
-                        onSelected: (_) => setState(() {
-                          _toOther = true;
-                          _to = null;
-                          _toExt = '';
-                        }),
+                        onSelected: _srcExt == ledgerCryptoExt
+                            ? null
+                            : (_) => setState(() {
+                                _toOther = true;
+                                _to = null;
+                                _toExt = '';
+                              }),
                       ),
                     ],
             ),
           ),
+          if (_toOther)
+            _row(
+              '誰的戶頭',
+              hint: '必填',
+              TextField(
+                key: const ValueKey('toWhoField'),
+                controller: _toWho,
+                inputFormatters: halfWidthFormatters,
+                decoration: _input(''),
+              ),
+            ),
           // 轉到虛擬貨幣：填換到多少 USDT，下面寫 ×32 的粗估台幣（2026-11-11 使用者）。
           if ((_toExt == ledgerCryptoExt || _srcExt == ledgerCryptoExt) &&
               !_neg) ...[
@@ -3338,7 +3402,12 @@ class _TxDetail extends StatelessWidget {
             )
           else if (t.category != null && t.type != LedgerTxType.transfer)
             _kv('分類', t.category!),
-          _kv('名稱', t.merchant.isEmpty ? '—' : t.merchant),
+          _kv(
+            t.type == LedgerTxType.transfer ? '原因' : '名稱',
+            t.merchant.isEmpty ? '—' : t.merchant,
+          ),
+          if (t.type == LedgerTxType.transfer && t.toOther)
+            _kv('誰的戶頭', t.toName.isEmpty ? '—' : t.toName),
           if (t.item.isNotEmpty) _kv('品項', t.item),
           if (t.note.isNotEmpty) _kv('備註', t.note),
           _kv('帳戶變化', effects.isEmpty ? '—' : effects),

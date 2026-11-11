@@ -402,9 +402,8 @@ class TxTile extends ConsumerWidget {
         ? (acct.type.emoji, accountColor(acct.type))
         : txLook(t, book);
     final sub = StringBuffer();
-    if (showDate) sub.write('${lMd(t.occurredAt)} ');
-    sub.write(lTxHm(t));
-    sub.write('・');
+    // 時間放到標籤那一行最前面（2026-11-11 使用者：沒標籤時中間空一行太空），標籤接在時間後面。
+    final when = '${showDate ? '${lMd(t.occurredAt)} ' : ''}${lTxHm(t)}';
     if (t.type == LedgerTxType.transfer) {
       sub.write('${book.fromLabel(t)} → ${book.toLabel(t)}');
       if (t.splits.isNotEmpty) {
@@ -566,6 +565,14 @@ class TxTile extends ConsumerWidget {
                                         child: Row(
                                           spacing: 5,
                                           children: [
+                                            Text(
+                                              when,
+                                              style: AppText.note.copyWith(
+                                                fontSize: 10.5,
+                                                color: AppColors.ink2,
+                                                fontFeatures: lTabular,
+                                              ),
+                                            ),
                                             if (pf != null)
                                               LedgerPill(
                                                 // 他給了之後標籤保留「誰要給多少」，只是變綠、
@@ -590,7 +597,9 @@ class TxTile extends ConsumerWidget {
                                                     ? '可用 ${lMoney(cp.available!)}'
                                                     : '餘額 ${lMoney(cp.balance ?? 0)}',
                                               ),
-                                            if (t.isSplit)
+                                            // 轉帳的拆分（轉給他人、花掉的部分，只有一份也算）也有標籤，跟支出一樣。
+                                            if (t.isSplit ||
+                                                t.spentParts.isNotEmpty)
                                               LedgerPill(
                                                 part != null
                                                     ? '拆分・$partCategory'

@@ -323,7 +323,10 @@ void main() {
     expect(find.text('買什麼（分類）'), findsNothing);
     expect(find.widgetWithText(ChoiceChip, '🍜 餐飲'), findsNothing);
     await tester.enterText(amountField(), '1200');
-    await tester.enterText(merchantField(), '阿明');
+    // 2026-11-11 起：「原因」一律要填，誰的戶頭另外一欄。
+    await tester.enterText(merchantField(), '還他飯錢');
+    await tester.ensureVisible(find.byKey(const ValueKey('toWhoField')));
+    await tester.enterText(find.byKey(const ValueKey('toWhoField')), '阿明');
     await tester.pump();
     await pickDefaultAccount(tester);
     await tester.ensureVisible(find.widgetWithText(FilledButton, '新增'));
@@ -332,7 +335,7 @@ void main() {
     final book = (await tester.runAsync(
       () => LedgerRepository(store).loadBook(),
     ))!;
-    final t = book.txs.firstWhere((x) => x.merchant == '阿明');
+    final t = book.txs.firstWhere((x) => x.merchant == '還他飯錢');
     expect(t.type, LedgerTxType.transfer, reason: '還是轉帳，不是支出');
     expect(t.toOther, isTrue);
     expect(t.toName, '阿明');
@@ -403,7 +406,9 @@ void main() {
     expect(t.toName, '虛擬貨幣');
     expect(t.extAmount, 93.75);
     expect(t.toAccountId, isNull);
-    expect(book.accountName(t.accountId), '中信帳戶');
+    // 只有 LineBank 能跟虛擬貨幣互轉：選了轉到虛擬貨幣，從哪個帳戶自動換成 LineBank。
+    expect(t.fromName, 'LineBank');
+    expect(t.accountId, '');
     expect(book.statsWhere((x) => x.id == t.id).spend, 0);
     expect(tester.takeException(), isNull);
   });

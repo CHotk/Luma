@@ -1268,8 +1268,11 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('toOtherAccount')));
     await tester.pump();
     expect(find.text('誰的戶頭'), findsOneWidget);
+    expect(find.text('原因'), findsOneWidget);
     expect(find.text('買什麼（分類）'), findsNothing);
-    await tester.enterText(find.byType(TextField).at(2), '小美');
+    await tester.enterText(find.byType(TextField).at(2), '生日紅包');
+    await tester.ensureVisible(find.byKey(const ValueKey('toWhoField')));
+    await tester.enterText(find.byKey(const ValueKey('toWhoField')), '小美');
     await tester.pump();
     await pickDefaultAccount(tester);
     await tester.ensureVisible(find.widgetWithText(FilledButton, '新增'));
