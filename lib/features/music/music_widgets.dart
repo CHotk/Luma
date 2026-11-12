@@ -274,11 +274,32 @@ Future<List<double>?> showMusicAvatarCropper(
                     children: [
                       // 圓框外面變暗，看得出最後顯示的範圍
                       ClipRect(
-                        child: musicCroppedImage(url, [
-                          dx / box,
-                          dy / box,
-                          z,
-                        ], box),
+                        // 網址壞掉：顯示載不到，不要整塊空白還噴錯（2026-11-12 補測試時發現）。
+                        child: musicCroppedImage(
+                          url,
+                          [dx / box, dy / box, z],
+                          box,
+                          errorBuilder: (_, _, _) => const Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.broken_image_outlined,
+                                  color: AppColors.ink3,
+                                  size: 40,
+                                ),
+                                SizedBox(height: 6),
+                                Text(
+                                  '圖片載不到，檢查網址',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.ink3,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                       ),
                       IgnorePointer(
                         child: CustomPaint(
