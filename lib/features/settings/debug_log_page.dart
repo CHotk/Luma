@@ -117,7 +117,8 @@ class _DebugLogPageState extends ConsumerState<DebugLogPage> {
                 const SizedBox(height: Gap.sm),
                 AppTopBar(
                   title: _history ? '除錯訊息・歷史' : '除錯訊息',
-                  titleIcon: Icons.bug_report_outlined,
+                  // 標題前不放蟲子圖示：跟右邊「新增測試訊息」同一個，而且七顆按鈕在手機寬度
+                  // 已經很擠，放了會超出畫面（2026-11-12）。
                   showBack: false,
                   actions: [
                     IconButton(
@@ -125,6 +126,15 @@ class _DebugLogPageState extends ConsumerState<DebugLogPage> {
                       icon: const Icon(Icons.bug_report_outlined, size: 20),
                       color: AppColors.ink2,
                       tooltip: '新增測試訊息',
+                      // 七顆擠在一列，比頂列其他按鈕再窄一點（2026-11-12：原本 390 寬超出 26px、360 寬超出 56px）。
+                      padding: EdgeInsets.zero,
+                      style: const ButtonStyle(
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 32,
+                        minHeight: 36,
+                      ),
                     ),
                     IconButton(
                       onPressed: () => testNotification(context),
@@ -134,6 +144,15 @@ class _DebugLogPageState extends ConsumerState<DebugLogPage> {
                       ),
                       color: AppColors.ink2,
                       tooltip: '測試通知',
+                      // 七顆擠在一列，比頂列其他按鈕再窄一點（2026-11-12：原本 390 寬超出 26px、360 寬超出 56px）。
+                      padding: EdgeInsets.zero,
+                      style: const ButtonStyle(
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 32,
+                        minHeight: 36,
+                      ),
                     ),
                     IconButton(
                       onPressed: _clearScreen,
@@ -143,12 +162,30 @@ class _DebugLogPageState extends ConsumerState<DebugLogPage> {
                       ),
                       color: AppColors.ink2,
                       tooltip: '清空畫面（紀錄不會刪）',
+                      // 七顆擠在一列，比頂列其他按鈕再窄一點（2026-11-12：原本 390 寬超出 26px、360 寬超出 56px）。
+                      padding: EdgeInsets.zero,
+                      style: const ButtonStyle(
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 32,
+                        minHeight: 36,
+                      ),
                     ),
                     IconButton(
                       onPressed: () => setState(() => _history = !_history),
                       icon: const Icon(Icons.history_rounded, size: 20),
                       color: _history ? AppColors.accent : AppColors.ink2,
                       tooltip: _history ? '回到目前畫面' : '歷史（全部紀錄）',
+                      // 七顆擠在一列，比頂列其他按鈕再窄一點（2026-11-12：原本 390 寬超出 26px、360 寬超出 56px）。
+                      padding: EdgeInsets.zero,
+                      style: const ButtonStyle(
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 32,
+                        minHeight: 36,
+                      ),
                     ),
                     ValueListenableBuilder<List<AppLogEntry>>(
                       valueListenable: AppLog.entries,
@@ -166,6 +203,15 @@ class _DebugLogPageState extends ConsumerState<DebugLogPage> {
                           icon: const Icon(Icons.copy_all_outlined, size: 20),
                           color: AppColors.ink2,
                           tooltip: '複製全部',
+                          // 七顆擠在一列，比頂列其他按鈕再窄一點（2026-11-12：原本 390 寬超出 26px、360 寬超出 56px）。
+                          padding: EdgeInsets.zero,
+                          style: const ButtonStyle(
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          constraints: const BoxConstraints(
+                            minWidth: 32,
+                            minHeight: 36,
+                          ),
                         );
                       },
                     ),
