@@ -257,12 +257,19 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
                 tooltip: '上一個有紀錄的月份',
                 visualDensity: VisualDensity.compact,
               ),
-              Text(
-                '${_month.year} 年 ${_month.month} 月',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.ink,
+              // 兩位數月份＋「回本月」在 360 寬的手機會超出 9px（2026-11-12 補測試時發現）：
+              // 太擠就把月份字縮小一點，不切字。
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    '${_month.year} 年 ${_month.month} 月',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.ink,
+                    ),
+                  ),
                 ),
               ),
               IconButton(
@@ -285,6 +292,10 @@ class _CryptoWatchPageState extends ConsumerState<CryptoWatchPage> {
                     _month = DateTime(now.year, now.month);
                     _ganttSel = null;
                   }),
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                  ),
                   child: const Text('回本月'),
                 ),
             ],
