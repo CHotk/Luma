@@ -762,7 +762,9 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
       _cachedVideoIds.clear();
       _cachePreview = const [];
       _cachedChannelVideos = const [];
-      _videosFuture = _fetchVideos(channel);
+      // 切到簡介／觀看紀錄分頁時沒有畫面在等它；抓失敗（例如配額用完）不要變成沒人處理的
+      // 例外（2026-11-12 補測試時發現）。顯示的 FutureBuilder 照樣收得到錯誤。
+      _videosFuture = _fetchVideos(channel)..ignore();
     });
     // 背景把整個頻道抓完（2026-10-14 使用者要求）：先讀快取的狀態（有幾部、
     // 抓完了沒），第一頁出來後再開始，不跟第一頁搶。
@@ -1306,7 +1308,8 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
     _historyLoadedForChannelId = channel.id;
     setState(() {
       _historyPreview = null;
-      _historyFuture = _fetchHistory(channel);
+      // 上傳頻率圖只在「簡介」分頁才畫，其他分頁沒人在等；同上，失敗不要變成沒人處理的例外。
+      _historyFuture = _fetchHistory(channel)..ignore();
     });
   }
 

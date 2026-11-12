@@ -68,7 +68,9 @@ class YtPlaylistsPage extends ConsumerWidget {
                           maxCrossAxisExtent: 260,
                           mainAxisSpacing: 14,
                           crossAxisSpacing: 12,
-                          childAspectRatio: 1.15,
+                          // 封面 16:10 加兩行字，1.15 在 390 寬的手機塞不下（差 0.2px，
+                          // 2026-11-12 補測試時發現），留一點空間。
+                          childAspectRatio: 1.05,
                         ),
                     itemCount: playlists.length,
                     itemBuilder: (context, i) {

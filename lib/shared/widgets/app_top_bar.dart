@@ -103,25 +103,32 @@ class AppTopBar extends StatelessWidget {
           ),
         const SizedBox(width: Gap.sm),
         Expanded(
-          child: Row(
-            children: [
-              if (titleLeading != null) ...[
-                titleLeading!,
-                const SizedBox(width: 6),
-              ] else if (titleIcon != null) ...[
-                Icon(titleIcon, size: 19, color: titleIconColor),
-                const SizedBox(width: 6),
-              ],
-              Flexible(
-                child: marqueeTitle
-                    ? MarqueeText(title, style: AppText.title)
-                    : Text(
-                        title,
-                        style: AppText.title,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-              ),
-            ],
+          // 右邊按鈕多的頁面，留給標題的空間可能比標題前的小圖示還窄（YT 分類頁在 390 寬
+          // 超出 1px，2026-11-12 補測試時發現）：太窄就不放圖示，只留標題。
+          child: LayoutBuilder(
+            builder: (context, box) {
+              final roomForLead = box.maxWidth >= 56;
+              return Row(
+                children: [
+                  if (roomForLead && titleLeading != null) ...[
+                    titleLeading!,
+                    const SizedBox(width: 6),
+                  ] else if (roomForLead && titleIcon != null) ...[
+                    Icon(titleIcon, size: 19, color: titleIconColor),
+                    const SizedBox(width: 6),
+                  ],
+                  Flexible(
+                    child: marqueeTitle
+                        ? MarqueeText(title, style: AppText.title)
+                        : Text(
+                            title,
+                            style: AppText.title,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                  ),
+                ],
+              );
+            },
           ),
         ),
         // 右上角按鈕之間固定留 6 的空隙，全 App 一致（2026-10-08 使用者

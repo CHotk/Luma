@@ -115,7 +115,10 @@ class _YtTrackerHomePageState extends ConsumerState<YtTrackerHomePage> {
     return (categories: categories, channels: channels, trashCount: trashCount);
   }
 
-  void _reload() => setState(() => _future = _load());
+  // 大括號：箭頭會把 Future 當 setState 的回傳值，Flutter 會報錯（2026-11-12 補測試時發現）。
+  void _reload() => setState(() {
+    _future = _load();
+  });
 
   /// 選單裡「新增頻道」那一下讀的剪貼簿（Safari 要在使用者點的那一下讀）。
   Future<String?>? _addClipboard;

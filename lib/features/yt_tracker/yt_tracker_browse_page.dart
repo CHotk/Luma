@@ -462,14 +462,18 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
       });
       return;
     }
+    final fetch = _fetchVideos(channels, apiKey, gen).then((v) {
+      _recent[key] = (at: DateTime.now(), videos: v);
+      return v;
+    });
+    // 很快又換篩選時，這次的已經沒有畫面在等；抓失敗（例如配額用完）不要變成沒人處理的
+    // 例外（2026-11-12 補測試時發現）。畫面上的 FutureBuilder 照樣收得到錯誤。
+    fetch.ignore();
     setState(() {
       _liveVideos = const [];
       _liveDoneChannels = const {};
       _liveTotal = channels.length;
-      _videosFuture = _fetchVideos(channels, apiKey, gen).then((v) {
-        _recent[key] = (at: DateTime.now(), videos: v);
-        return v;
-      });
+      _videosFuture = fetch;
       _videoPreview = const [];
     });
     _loadVideoPreview(channels, ids);

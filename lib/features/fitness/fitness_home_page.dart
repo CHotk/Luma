@@ -83,7 +83,10 @@ class _FitnessHomePageState extends ConsumerState<FitnessHomePage> {
     return repo.loadEntries();
   }
 
-  void _reload() => setState(() => _future = _load());
+  // 大括號：箭頭會把 Future 當 setState 的回傳值，Flutter 會報錯（2026-11-12 補測試時發現）。
+  void _reload() => setState(() {
+    _future = _load();
+  });
 
   Future<void> _pickTime() async {
     var draft = _pickedTime;
