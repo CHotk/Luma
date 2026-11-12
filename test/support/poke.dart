@@ -81,12 +81,13 @@ Future<void> closeOverlays(WidgetTester tester) async {
 
 /// 畫面上每個控制項（開關、勾選、選項、滑桿、按鈕、可點的列）依序點一次；
 /// 跳出來的東西關掉、跑去別頁就回來。回傳點了幾個。[skip] 回 true 的不點
-/// （例如會真的打網路、或測試另外測的）。
+/// （例如會真的打網路、或測試另外測的）。[deep]＝跳出來的表單裡也填字、點按鈕，選單逐項點。
 Future<int> pokeAll(
   WidgetTester tester,
   GoRouter router, {
   bool Function(Widget w)? skip,
   int max = 400,
+  bool deep = false,
 }) async {
   Finder controls() => find.byWidgetPredicate(
     (w) =>
@@ -125,10 +126,108 @@ Future<int> pokeAll(
     }
     tapped++;
     await settle(tester, 3);
+    if (deep) await pokeOverlay(tester);
     await closeOverlays(tester);
     if (find.textContaining('route:').evaluate().isNotEmpty) {
       router.go('/');
       await settle(tester, 2);
+    }
+  }
+  if (deep) tapped += await pokeMenus(tester, router, max: max);
+  return tapped;
+}
+
+bool _isControl(Widget w) =>
+    w is Switch ||
+    w is Checkbox ||
+    w is ChoiceChip ||
+    w is FilterChip ||
+    w is TextButton ||
+    w is OutlinedButton ||
+    w is FilledButton ||
+    w is IconButton ||
+    w is ListTile ||
+    w is InkWell;
+
+/// 有對話框或底部表單開著：每個輸入框打 [text]、裡面的控制項依序點一次（點了關掉就停）。
+Future<void> pokeOverlay(
+  WidgetTester tester, {
+  String text = '12',
+  int max = 25,
+}) async {
+  Finder host() => find.byWidgetPredicate(
+    (w) => w is Dialog || w is AlertDialog || w is BottomSheet,
+  );
+  if (host().evaluate().isEmpty) return;
+  final fields = find.descendant(
+    of: host().last,
+    matching: find.byType(TextField),
+  );
+  for (var i = 0; i < fields.evaluate().length && i < 8; i++) {
+    try {
+      await tester.enterText(fields.at(i), text);
+      await tester.pump();
+    } catch (_) {}
+  }
+  for (var j = 0; j < max; j++) {
+    if (host().evaluate().isEmpty) return;
+    final inner = find.descendant(
+      of: host().last,
+      matching: find.byWidgetPredicate(_isControl),
+    );
+    if (j >= inner.evaluate().length) return;
+    try {
+      await tester.ensureVisible(inner.at(j));
+      await tester.pump();
+      await tester.tap(inner.at(j), warnIfMissed: false);
+    } catch (_) {
+      continue;
+    }
+    await settle(tester, 2);
+  }
+}
+
+/// 每個選單（PopupMenuButton）打開、逐項點一次；點完跳出來的表單也照 [pokeOverlay] 點過。
+Future<int> pokeMenus(
+  WidgetTester tester,
+  GoRouter router, {
+  int max = 400,
+}) async {
+  Finder menus() => find.byWidgetPredicate(
+    (w) => w.runtimeType.toString().startsWith('PopupMenuButton'),
+  );
+  var tapped = 0;
+  final total = menus().evaluate().length;
+  for (var i = 0; i < total && tapped < max; i++) {
+    for (var k = 0; k < 20 && tapped < max; k++) {
+      final m = menus();
+      if (i >= m.evaluate().length) break;
+      try {
+        await tester.ensureVisible(m.at(i));
+        await tester.pump();
+        await tester.tap(m.at(i), warnIfMissed: false);
+      } catch (_) {
+        break;
+      }
+      await settle(tester, 2);
+      final items = find.byWidgetPredicate(
+        (w) =>
+            w.runtimeType.toString().startsWith('PopupMenuItem') ||
+            w.runtimeType.toString().startsWith('CheckedPopupMenuItem'),
+      );
+      if (k >= items.evaluate().length) {
+        await closeOverlays(tester);
+        break;
+      }
+      await tester.tap(items.at(k), warnIfMissed: false);
+      tapped++;
+      await settle(tester, 3);
+      await pokeOverlay(tester);
+      await closeOverlays(tester);
+      if (find.textContaining('route:').evaluate().isNotEmpty) {
+        router.go('/');
+        await settle(tester, 2);
+      }
     }
   }
   return tapped;

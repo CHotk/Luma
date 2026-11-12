@@ -69,7 +69,7 @@ void main() {
         );
         await http.runWithClient(() => settle(tester, 6), yt.client);
         final n = await http.runWithClient(
-          () => pokeAll(tester, router, max: 160),
+          () => pokeAll(tester, router, max: 160, deep: true),
           yt.client,
         );
         expect(n, greaterThanOrEqualTo(0));
