@@ -126,6 +126,39 @@ Future<int> pokeAll(
     }
     tapped++;
     await settle(tester, 3);
+    if (deep && _customMenuItems().evaluate().isNotEmpty) {
+      // 自己畫的選單（泡泡選單、毛玻璃選單）：每一項都點一次，點完再打開同一顆。
+      for (var k = 0; k < 12; k++) {
+        if (k > 0) {
+          final again = controls();
+          if (i >= again.evaluate().length) break;
+          try {
+            await tester.ensureVisible(again.at(i));
+            await tester.pump();
+          } catch (_) {
+            break;
+          }
+          await tester.tap(again.at(i), warnIfMissed: false);
+          await settle(tester, 3);
+        }
+        final items = _customMenuItems();
+        if (k >= items.evaluate().length) {
+          await closeOverlays(tester);
+          break;
+        }
+        await tester.tap(items.at(k), warnIfMissed: false);
+        tapped++;
+        await settle(tester, 3);
+        await pokeOverlay(tester);
+        await closeOverlays(tester);
+        if (find.textContaining('route:').evaluate().isNotEmpty) {
+          router.go('/');
+          await settle(tester, 2);
+        }
+      }
+      await _closeBubble(tester);
+      continue;
+    }
     if (deep) await pokeOverlay(tester);
     await closeOverlays(tester);
     if (find.textContaining('route:').evaluate().isNotEmpty) {
@@ -136,6 +169,39 @@ Future<int> pokeAll(
   if (deep) tapped += await pokeMenus(tester, router, max: max);
   return tapped;
 }
+
+/// 目前開著的自己畫的選單裡可以點的項目：泡泡選單（插在 Overlay），或是遮罩標籤
+/// 是「關閉…」的 showGeneralDialog 選單（毛玻璃選單、時長選單）。沒有就是空的。
+Finder _customMenuItems() {
+  final bubble = find.byWidgetPredicate(
+    (w) => w.runtimeType.toString().startsWith('_BubbleMenuHost'),
+  );
+  if (bubble.evaluate().isNotEmpty) {
+    return find.descendant(of: bubble.last, matching: find.byType(InkWell));
+  }
+  final barrier = find.byWidgetPredicate(
+    (w) => w is ModalBarrier && (w.semanticsLabel ?? '').startsWith('關閉'),
+  );
+  if (barrier.evaluate().isEmpty) return find.byKey(const ValueKey('_none_'));
+  final scopes = find.byWidgetPredicate(
+    (w) => w.runtimeType.toString().startsWith('_ModalScope'),
+  );
+  return find.descendant(of: scopes.last, matching: find.byType(InkWell));
+}
+
+/// 泡泡選單還開著（沒選就關）：點外面的遮罩收掉。
+Future<void> _closeBubble(WidgetTester tester) async {
+  final bubble = find.byWidgetPredicate(
+    (w) => w.runtimeType.toString().startsWith('_BubbleMenuHost'),
+  );
+  if (bubble.evaluate().isEmpty) return;
+  await tester.tapAt(const Offset(4, 4));
+  await settle(tester, 2);
+}
+
+/// 表單裡的按鈕輪流從前面點、從後面點：從後面點通常先按到「確定／刪除」，
+/// 從前面點通常是「取消」，兩條路都會走到。
+var _overlayFromEnd = false;
 
 bool _isControl(Widget w) =>
     w is Switch ||
@@ -169,17 +235,21 @@ Future<void> pokeOverlay(
       await tester.pump();
     } catch (_) {}
   }
+  _overlayFromEnd = !_overlayFromEnd;
+  final fromEnd = _overlayFromEnd;
   for (var j = 0; j < max; j++) {
     if (host().evaluate().isEmpty) return;
     final inner = find.descendant(
       of: host().last,
       matching: find.byWidgetPredicate(_isControl),
     );
-    if (j >= inner.evaluate().length) return;
+    final count = inner.evaluate().length;
+    if (j >= count) return;
+    final at = inner.at(fromEnd ? count - 1 - j : j);
     try {
-      await tester.ensureVisible(inner.at(j));
+      await tester.ensureVisible(at);
       await tester.pump();
-      await tester.tap(inner.at(j), warnIfMissed: false);
+      await tester.tap(at, warnIfMissed: false);
     } catch (_) {
       continue;
     }
