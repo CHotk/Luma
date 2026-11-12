@@ -129,7 +129,7 @@ class FakeYoutube {
   );
 }
 
-/// 塞一份完整的 YT 資料：兩個分類、三個頻道（一個釘選、一個冷凍）、垃圾桶一個、
+/// 塞一份完整的 YT 資料：兩個分類、五個頻道（釘選、冷凍、歌手、未分類、待評鑑）、垃圾桶一個、
 /// 永久刪除一個、每個頻道的影片快取、看過、評價、歌曲、播放清單、頻道紀錄、API 金鑰。
 Future<void> seedYt(
   WidgetTester tester,
@@ -152,6 +152,7 @@ Future<void> seedYt(
       DateTime? pinned,
       DateTime? cold,
       DateTime? artist,
+      DateTime? reviewed,
     }) => YtChannel(
       id: id,
       name: '頻道$id',
@@ -165,12 +166,15 @@ Future<void> seedYt(
       pinnedAt: pinned,
       coldAt: cold,
       artistAt: artist,
+      reviewedAt: reviewed,
       description: '這是頻道 $id 的介紹',
     );
     await repo.addChannel(ch('a', 'c1', pinned: now));
     await repo.addChannel(ch('b', 'c1', cold: now));
-    await repo.addChannel(ch('m', 'c2', artist: now));
-    await repo.addChannel(ch('n', null));
+    await repo.addChannel(ch('m', 'c2', artist: now, reviewed: now));
+    await repo.addChannel(ch('n', null, reviewed: now));
+    // 挖掘找到、還沒評鑑的。
+    await repo.addChannel(ch('r', 'c1'));
     await repo.addChannel(ch('t', 'c1'));
     await repo.deleteChannel('t');
     await repo.addChannel(ch('p', 'c2'));
