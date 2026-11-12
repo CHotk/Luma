@@ -239,9 +239,14 @@ class _FitnessHomePageState extends ConsumerState<FitnessHomePage> {
                 children: [
                   Text(entry.type.emoji, style: const TextStyle(fontSize: 22)),
                   const SizedBox(width: Gap.sm),
-                  Text(
-                    '${entry.type.label} ・ ${_entryDateLabel(entry.loggedAt)}',
-                    style: AppText.body,
+                  // 類型名字長、日期長時在手機上超出畫面（2026-11-12 補測試時發現）。
+                  Expanded(
+                    child: Text(
+                      '${entry.type.label} ・ ${_entryDateLabel(entry.loggedAt)}',
+                      style: AppText.body,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ],
               ),
@@ -1097,9 +1102,19 @@ class _HistoryRow extends StatelessWidget {
                     ? entry.type.label
                     : '${entry.type.label}・${entry.durationMinutes} 分鐘',
                 style: const TextStyle(fontSize: 12.5, color: AppColors.ink),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-            Text(_entryDateLabel(entry.loggedAt), style: AppText.note),
+            // 窄的時候日期也要能縮（2026-11-12 補測試時發現超出畫面）。
+            Flexible(
+              child: Text(
+                _entryDateLabel(entry.loggedAt),
+                style: AppText.note,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
             const SizedBox(width: 4),
             const Icon(Icons.chevron_right, size: 16, color: AppColors.ink3),
           ],
