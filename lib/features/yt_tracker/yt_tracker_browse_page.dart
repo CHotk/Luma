@@ -41,6 +41,10 @@ import 'yt_crypto_stats_page.dart';
 import 'yt_rating_ui.dart';
 import 'yt_video_row.dart';
 
+/// 頂列右邊的按鈕大小，跟同步、設定那兩顆一樣（幣圈分類多一顆「準度統計」，
+/// 原本 48 寬的按鈕在 390 寬手機擠不下、超出 26px，2026-11-12 補測試時發現）。
+const _topActionSize = BoxConstraints(minWidth: 36, minHeight: 36);
+
 enum _ViewMode { channel, video }
 
 /// 「依影片顯示」的類型篩選——API 本身沒有標「這是 Shorts」的欄位，
@@ -1458,6 +1462,9 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                                         ),
                                         color: AppColors.ink2,
                                         tooltip: '準度統計',
+                                        padding: EdgeInsets.zero,
+                                        visualDensity: VisualDensity.compact,
+                                        constraints: _topActionSize,
                                       ),
                                     IconButton(
                                       onPressed: _openSearch,
@@ -1467,6 +1474,9 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                                       ),
                                       color: AppColors.ink2,
                                       tooltip: '搜尋這些頻道的影片',
+                                      padding: EdgeInsets.zero,
+                                      visualDensity: VisualDensity.compact,
+                                      constraints: _topActionSize,
                                     ),
                                     // 垃圾桶模式不給新增頻道、挖掘、刪除分類。
                                     if (!widget.trash) ...[
@@ -1491,6 +1501,9 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                                           ),
                                           color: AppColors.ink2,
                                           tooltip: '挖掘新頻道',
+                                          padding: EdgeInsets.zero,
+                                          visualDensity: VisualDensity.compact,
+                                          constraints: _topActionSize,
                                         )
                                       else
                                         IconButton(
@@ -1502,6 +1515,9 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                                           ),
                                           color: AppColors.ink2,
                                           tooltip: '新增頻道',
+                                          padding: EdgeInsets.zero,
+                                          visualDensity: VisualDensity.compact,
+                                          constraints: _topActionSize,
                                         ),
                                     ],
                                     // 這個分類（或選的幾個分類）的頻道紀錄（2026-10-06
@@ -1518,6 +1534,9 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                                       ),
                                       color: AppColors.ink2,
                                       tooltip: '頻道紀錄',
+                                      padding: EdgeInsets.zero,
+                                      visualDensity: VisualDensity.compact,
+                                      constraints: _topActionSize,
                                     ),
                                     if (!widget.trash) ...[
                                       if (selectedCategory != null)
@@ -1531,8 +1550,17 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                                                 );
                                             // 分類本身沒了，留在這頁沒意義，刪完
                                             // 直接退回分類格子那頁。
+                                            // 直接開這頁的網址（重新整理）時底下沒有上一頁，
+                                            // pop 會把最後一頁也拿掉、畫面壞掉（2026-11-12
+                                            // 補測試時發現），改回 YT 首頁。
                                             if (deleted && context.mounted) {
-                                              Navigator.of(context).pop();
+                                              if (Navigator.of(
+                                                context,
+                                              ).canPop()) {
+                                                Navigator.of(context).pop();
+                                              } else {
+                                                context.go('/yt-tracker');
+                                              }
                                             }
                                           },
                                           icon: const Icon(
@@ -1541,6 +1569,9 @@ class _YtTrackerBrowsePageState extends ConsumerState<YtTrackerBrowsePage> {
                                           ),
                                           color: AppColors.ink2,
                                           tooltip: '刪除分類',
+                                          padding: EdgeInsets.zero,
+                                          visualDensity: VisualDensity.compact,
+                                          constraints: _topActionSize,
                                         ),
                                     ],
                                   ],
