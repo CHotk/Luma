@@ -405,12 +405,15 @@ void _showRow(BuildContext context, JpRowLight l, List<JpRowLight> lights) {
   final kana = gojuonRows[l.row]!.map((k) => k.$1).join(' ');
   showModalBottomSheet<void>(
     context: context,
+    // 開過花的行有紀錄卡，內容比預設的面板高度（畫面 9/16）高，390×860 超出
+    // 36px（2026-11-13 測試抓到）→ 面板可以長高，再不夠就捲。
+    isScrollControlled: true,
     backgroundColor: const Color(0xFF1C1C29),
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
     ),
     builder: (sheet) => SafeArea(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
