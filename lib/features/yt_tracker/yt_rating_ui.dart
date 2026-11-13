@@ -178,6 +178,20 @@ int _daysLeft(YtVideoRating r) {
   ).difference(DateTime(today.year, today.month, today.day)).inDays;
 }
 
+/// 預測文字上方那條細分隔線（2026-11-13 使用者要求：跟 Notion 的 /divider 一樣，
+/// 滿寬、1 像素、淡淡的灰）。影片列、評價視窗、預測統計頁都用這一條，看起來一致。
+class YtClaimDivider extends StatelessWidget {
+  const YtClaimDivider({super.key});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    key: const ValueKey('claimDivider'),
+    height: 1,
+    margin: const EdgeInsets.symmetric(vertical: 6),
+    color: const Color(0x21FFFFFF),
+  );
+}
+
 /// 影片列下面的「預測」說明＋直接驗證的四顆鈕（待驗證才有）。
 class YtVerifyStrip extends StatelessWidget {
   const YtVerifyStrip({
@@ -195,12 +209,14 @@ class YtVerifyStrip extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (rating.claim.isNotEmpty)
+          if (rating.claim.isNotEmpty) ...[
+            const YtClaimDivider(),
             // 完整顯示，不截斷（2026-11-13 使用者要求）。
             Text(
               '預測：${rating.claim}',
               style: const TextStyle(fontSize: 11.5, color: AppColors.ink2),
             ),
+          ],
           const SizedBox(height: 4),
           Wrap(
             spacing: 5,
@@ -277,7 +293,7 @@ Future<void> showYtRatingDialog(
                 style: AppText.note,
               ),
               if (old != null && old.claim.isNotEmpty) ...[
-                const SizedBox(height: 6),
+                const YtClaimDivider(),
                 Text(
                   '預測：${old.claim}',
                   style: const TextStyle(fontSize: 12, color: AppColors.ink2),

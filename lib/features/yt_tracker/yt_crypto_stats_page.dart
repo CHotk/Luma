@@ -475,11 +475,13 @@ class _YtCryptoStatsPageState extends ConsumerState<YtCryptoStatsPage> {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontSize: 13, color: AppColors.ink),
                 ),
-                if (r.claim.isNotEmpty)
+                if (r.claim.isNotEmpty) ...[
+                  const YtClaimDivider(),
                   Text(
                     '預測：${r.claim}',
                     style: AppText.note.copyWith(color: AppColors.ink2),
                   ),
+                ],
                 if (r.note.isNotEmpty)
                   Text('備註：${r.note}', style: AppText.note),
                 Text(

@@ -1333,7 +1333,8 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
                                           children: [
-                                            if (r.claim.isNotEmpty)
+                                            if (r.claim.isNotEmpty) ...[
+                                              const YtClaimDivider(),
                                               Text(
                                                 '預測：${r.claim}',
                                                 style: const TextStyle(
@@ -1341,6 +1342,7 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
                                                   color: AppColors.ink2,
                                                 ),
                                               ),
+                                            ],
                                             if (r.note.isNotEmpty)
                                               Text(
                                                 '備註：${r.note}',

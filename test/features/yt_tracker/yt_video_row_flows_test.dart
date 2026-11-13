@@ -325,6 +325,14 @@ void main() {
     await settle(tester, 2);
     Text claim() => tester.widget<Text>(find.text('預測：$long'));
     expect(claim().maxLines, isNull);
+    // 預測上方有 Notion 那種細分隔線，而且在預測文字的上面。
+    final line = find.byKey(const ValueKey('claimDivider'));
+    expect(line, findsOneWidget);
+    expect(
+      tester.getRect(line).bottom,
+      lessThanOrEqualTo(tester.getRect(find.text('預測：$long')).top),
+    );
+    expect(tester.widget<Container>(line).constraints!.maxHeight, 1); // 線本身 1 像素
     expect(claim().overflow, isNull);
     container.read(ytVideoRatingsProvider.notifier).state = {
       'v1': YtVideoRating(
@@ -338,6 +346,18 @@ void main() {
     await settle(tester, 2);
     expect(claim().maxLines, isNull);
     expect(find.text('備註：準'), findsOneWidget);
+    expect(find.byKey(const ValueKey('claimDivider')), findsOneWidget);
+    // 沒有預測就沒有線。
+    container.read(ytVideoRatingsProvider.notifier).state = {
+      'v1': YtVideoRating(
+        at: DateTime.now(),
+        verdict: YtVerdict.ok,
+        ratedAt: DateTime.now(),
+        note: '只有備註',
+      ),
+    };
+    await settle(tester, 2);
+    expect(find.byKey(const ValueKey('claimDivider')), findsNothing);
   });
 
   Future<void> swipeOpen(WidgetTester tester) async {
