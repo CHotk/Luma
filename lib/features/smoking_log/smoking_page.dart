@@ -336,6 +336,8 @@ class _SmokingPageState extends ConsumerState<SmokingPage> {
                 icon: const Icon(Icons.chevron_left_rounded),
                 color: AppColors.ink2,
                 visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
               ),
               Text(
                 '${_month.year} 年 ${_month.month} 月',
@@ -352,9 +354,21 @@ class _SmokingPageState extends ConsumerState<SmokingPage> {
                 icon: const Icon(Icons.chevron_right_rounded),
                 color: AppColors.ink2,
                 visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
               ),
-              const Spacer(),
-              Text('平均每天 ${avg.toStringAsFixed(1)} 次', style: AppText.note),
+              // 390 寬放不下時字縮小，不要超出畫面（2026-11-13 路由測試抓到超出 30px）。
+              const SizedBox(width: 6),
+              Expanded(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    '平均每天 ${avg.toStringAsFixed(1)} 次',
+                    style: AppText.note,
+                  ),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: Gap.sm),

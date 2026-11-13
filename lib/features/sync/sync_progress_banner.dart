@@ -41,7 +41,7 @@ class SyncProgressBanner extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final progress = ref.watch(syncProgressProvider);
     return ListenableBuilder(
-      listenable: appRouter.routerDelegate,
+      listenable: appRouteChanges,
       builder: (context, _) {
         final show = visible(progress);
         return AnimatedSwitcher(
@@ -72,7 +72,7 @@ class SyncProgressFrame extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final progress = ref.watch(syncProgressProvider);
     return ListenableBuilder(
-      listenable: appRouter.routerDelegate,
+      listenable: appRouteChanges,
       builder: (context, _) {
         final show = SyncProgressBanner.visible(progress);
         return ColoredBox(

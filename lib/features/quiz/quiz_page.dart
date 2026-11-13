@@ -454,12 +454,16 @@ class _TapCard extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             children: state.revealed
                 ? [
-                    Text(word.zh, style: AppText.hero.copyWith(fontSize: 30)),
+                    Text(
+                      word.zh,
+                      style: AppText.hero.copyWith(fontSize: 30),
+                      textAlign: TextAlign.center,
+                    ),
                     const SizedBox(height: Gap.xs),
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(word.pos, style: AppText.note),
+                        Flexible(child: Text(word.pos, style: AppText.note)),
                         SpeakerButton(text: word.word, size: 17),
                       ],
                     ),
@@ -468,7 +472,15 @@ class _TapCard extends ConsumerWidget {
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(word.word, style: AppText.hero),
+                        // 長的字／句子自己換行，不要把發音鍵擠出畫面
+                        // （2026-11-13 路由測試抓到超出 265px）。
+                        Flexible(
+                          child: Text(
+                            word.word,
+                            style: AppText.hero,
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
                         SpeakerButton(text: word.word, size: 22),
                       ],
                     ),

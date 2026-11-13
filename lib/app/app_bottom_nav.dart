@@ -343,7 +343,7 @@ class _AppBottomNavFrameState extends ConsumerState<AppBottomNavFrame> {
     );
     return ListenableBuilder(
       listenable: Listenable.merge([
-        appRouter.routerDelegate,
+        appRouteChanges,
         navBarRouteObserver.popups,
         navBarHiders,
       ]),

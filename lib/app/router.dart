@@ -1,3 +1,4 @@
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'app_bottom_nav.dart';
 import 'package:go_router/go_router.dart';
@@ -74,6 +75,27 @@ String currentAppPath() {
   final cfg = appRouter.routerDelegate.currentConfiguration;
   if (cfg.isEmpty) return cfg.uri.path;
   return Uri.parse(cfg.last.matchedLocation).path;
+}
+
+/// 換頁通知：畫面要跟著路徑變的（底部分頁列、同步進度條）聽這個，不要直接聽
+/// `appRouter.routerDelegate`——go_router 第一次開 App 時是在畫面建到一半的時候
+/// 通知換頁的，直接重畫會噴「build 期間 setState」（2026-11-13 路由測試抓到），
+/// 這種時候延到這一格畫完再通知。
+final Listenable appRouteChanges = _RouteChanges();
+
+class _RouteChanges extends ChangeNotifier {
+  _RouteChanges() {
+    appRouter.routerDelegate.addListener(_onRoute);
+  }
+
+  void _onRoute() {
+    final binding = SchedulerBinding.instance;
+    if (binding.schedulerPhase == SchedulerPhase.persistentCallbacks) {
+      binding.addPostFrameCallback((_) => notifyListeners());
+    } else {
+      notifyListeners();
+    }
+  }
 }
 
 /// 全 App 的路徑只在這裡定義，畫面裡不准自己組路徑字串。
@@ -196,13 +218,8 @@ final appRouter = GoRouter(
       // 一輪已經沒有編號了，路由參數是那一輪共用的 at 時戳（ISO8601，
       // 用 Uri.encodeComponent 編碼過，因為冒號跟點在路徑片段裡不安全）
       // ——見 history_repository.dart／history_page.dart 的說明。
-      builder: (_, state) => RoundDetailPage(
-        at:
-            DateTime.tryParse(
-              Uri.decodeComponent(state.pathParameters['at'] ?? ''),
-            ) ??
-            DateTime(0),
-      ),
+      builder: (_, state) =>
+          RoundDetailPage(at: _parseRoundAt(state.pathParameters['at'])),
     ),
     GoRoute(path: '/library', builder: (_, _) => const LibraryPage()),
     GoRoute(
@@ -375,6 +392,18 @@ DateTime? _parseMonth(String? s) {
   final p = s?.split('-').map(int.tryParse).toList();
   if (p == null || p.length != 2 || p.contains(null)) return null;
   return DateTime(p[0]!, p[1]!);
+}
+
+/// 一輪的時間（編碼過的 ISO8601）。亂打的網址解不開、讀不懂就當 DateTime(0)，
+/// 不要整頁噴錯（2026-11-13 路由測試抓到 `/round/壞掉` 直接丟例外）。
+DateTime _parseRoundAt(String? raw) {
+  var s = raw ?? '';
+  try {
+    s = Uri.decodeComponent(s);
+  } on ArgumentError {
+    // 已經是解開的、或 % 後面不是編碼，就用原本的字。
+  }
+  return DateTime.tryParse(s) ?? DateTime(0);
 }
 
 DateTime? _parseDay(String? s) {
