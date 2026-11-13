@@ -1323,16 +1323,32 @@ class _YtVideoRowState extends ConsumerState<YtVideoRow> {
                                           onVerdict: _rate,
                                         );
                                       }
-                                      if (r.note.isEmpty) {
+                                      if (r.note.isEmpty && r.claim.isEmpty) {
                                         return const SizedBox.shrink();
                                       }
+                                      // 驗證完也照樣顯示完整的預測（2026-11-13 使用者要求）。
                                       return Padding(
                                         padding: const EdgeInsets.only(top: 4),
-                                        child: Text(
-                                          '備註：${r.note}',
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: AppText.note,
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            if (r.claim.isNotEmpty)
+                                              Text(
+                                                '預測：${r.claim}',
+                                                style: const TextStyle(
+                                                  fontSize: 11.5,
+                                                  color: AppColors.ink2,
+                                                ),
+                                              ),
+                                            if (r.note.isNotEmpty)
+                                              Text(
+                                                '備註：${r.note}',
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: AppText.note,
+                                              ),
+                                          ],
                                         ),
                                       );
                                     },

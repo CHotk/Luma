@@ -312,6 +312,34 @@ void main() {
     expect(r(), isNull);
   });
 
+  testWidgets('幣圈：預測完整顯示，驗證前後都看得到（2026-11-13）', (tester) async {
+    await pump(tester, crypto: true);
+    final long = List.filled(8, '比特幣兩週內站上八萬然後回測').join('，');
+    container.read(ytVideoRatingsProvider.notifier).state = {
+      'v1': YtVideoRating(
+        at: DateTime.now(),
+        claim: long,
+        dueAt: DateTime.now().add(const Duration(days: 3)),
+      ),
+    };
+    await settle(tester, 2);
+    Text claim() => tester.widget<Text>(find.text('預測：$long'));
+    expect(claim().maxLines, isNull);
+    expect(claim().overflow, isNull);
+    container.read(ytVideoRatingsProvider.notifier).state = {
+      'v1': YtVideoRating(
+        at: DateTime.now(),
+        claim: long,
+        verdict: YtVerdict.ok,
+        ratedAt: DateTime.now(),
+        note: '準',
+      ),
+    };
+    await settle(tester, 2);
+    expect(claim().maxLines, isNull);
+    expect(find.text('備註：準'), findsOneWidget);
+  });
+
   Future<void> swipeOpen(WidgetTester tester) async {
     await tester.drag(find.text('測試影片'), const Offset(-260, 0));
     await settle(tester, 3);

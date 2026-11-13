@@ -196,10 +196,9 @@ class YtVerifyStrip extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (rating.claim.isNotEmpty)
+            // 完整顯示，不截斷（2026-11-13 使用者要求）。
             Text(
               '預測：${rating.claim}',
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
               style: const TextStyle(fontSize: 11.5, color: AppColors.ink2),
             ),
           const SizedBox(height: 4),
@@ -437,7 +436,10 @@ Future<void> showYtPredictDialog(
                   key: const ValueKey('predict_claim'),
                   controller: ctrl,
                   autofocus: true,
-                  maxLines: 2,
+                  // 跟著字數長高，最多一次顯示五行，再多就在框裡捲（2026-11-13 使用者要求）。
+                  minLines: 1,
+                  maxLines: 5,
+                  keyboardType: TextInputType.multiline,
                   style: const TextStyle(fontSize: 13, color: AppColors.ink),
                   decoration: const InputDecoration(
                     isDense: true,

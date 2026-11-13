@@ -183,7 +183,7 @@ class _YtApiKeyDialogState extends ConsumerState<_YtApiKeyDialog> {
           ),
           const SizedBox(height: Gap.xs),
           Text(
-            '會存在這台裝置的瀏覽器裡，只留一週——過了就自動清掉，\n不會無限期留著，也不會進 Git。',
+            '會存在這台裝置的瀏覽器裡，只留三個月——過了就自動清掉，\n不會無限期留著，也不會進 Git。',
             style: AppText.note,
           ),
         ],

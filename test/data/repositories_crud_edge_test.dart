@@ -368,8 +368,9 @@ void main() {
       expect(await r.load(), 'KEY');
       s.data['yt_tracker.api_key.v1'] = jsonEncode({
         'key': 'OLD',
-        'expiresAt': DateTime.now()
-            .subtract(const Duration(seconds: 1))
+        // 效期改成三個月（2026-11-13）：存了超過 90 天才過期。
+        'savedAt': DateTime.now()
+            .subtract(const Duration(days: 90, seconds: 1))
             .toIso8601String(),
       });
       expect(await r.load(), isNull);

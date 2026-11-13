@@ -148,6 +148,41 @@ void main() {
     expect(now()?.verdict, isNull);
   });
 
+  testWidgets('記預測：輸入框跟著長高，最多一次顯示五行（2026-11-13）', (tester) async {
+    await host(tester);
+    showYtPredictDialog(
+      hostCtx,
+      hostRef,
+      video: video,
+      channelId: 'a',
+      channelName: '頻道a',
+    );
+    await settle(tester, 3);
+    final field = tester.widget<TextField>(
+      find.byKey(const ValueKey('predict_claim')),
+    );
+    expect(field.minLines, 1);
+    expect(field.maxLines, 5);
+    final box = find.byKey(const ValueKey('predict_claim'));
+    final h1 = tester.getSize(box).height;
+    await tester.enterText(
+      box,
+      List.filled(12, '很長的預測內容').join(String.fromCharCode(10)),
+    );
+    await tester.pump();
+    final h5 = tester.getSize(box).height;
+    expect(h5, greaterThan(h1 + 40)); // 長了四行
+    await tester.enterText(
+      box,
+      List.filled(30, '更多').join(String.fromCharCode(10)),
+    );
+    await tester.pump();
+    // 超過五行不再長高，在框裡捲。
+    expect(tester.getSize(box).height, h5);
+    await tester.tap(find.text('取消'));
+    await settle(tester, 3);
+  });
+
   test('篩選比對、顏色、圖示、幣圈分類名', () {
     final r = YtVideoRating(at: DateTime(2026), verdict: YtVerdict.half);
     expect(ytRatingMatches(null, 'half'), isFalse);

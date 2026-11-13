@@ -2876,6 +2876,28 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
               // 一次只亮一格（2026-10-16 使用者要求）：沒看過是平常的樣子，
               // 點別格切過去、再點亮著的那格回到沒看過。每點一次都重讀看過／
               // 隱藏名單（看了幾部回來，名單才會是新的）。
+              for (final view in _VideoView.values.take(3))
+                if ((view != _VideoView.songs || _music) &&
+                    (!view.crypto || _crypto))
+                  _Pick(
+                    label: withCount(
+                      view.label,
+                      loaded.where((v) => _inView(v, view)).length,
+                    ),
+                    color: view == _VideoView.songs
+                        ? const Color(0xFFFF375F)
+                        : AppColors.accentSolid,
+                    selected: _view == view,
+                    onTap: () {
+                      setState(
+                        () => _view =
+                            _view == view && view != _VideoView.unwatched
+                            ? _VideoView.unwatched
+                            : view,
+                      );
+                      _loadVideoFilters();
+                    },
+                  ),
               // 幣圈：🎯 準度 → 這個頻道的命中率、依評價看影片（2026-11-11）。
               if (_crypto)
                 Consumer(
@@ -2900,7 +2922,7 @@ class _YtTrackerChannelPageState extends ConsumerState<YtTrackerChannelPage> {
                     );
                   },
                 ),
-              for (final view in _VideoView.values)
+              for (final view in _VideoView.values.skip(3))
                 if ((view != _VideoView.songs || _music) &&
                     (!view.crypto || _crypto))
                   _Pick(
@@ -3935,10 +3957,12 @@ class _AboutBars extends StatelessWidget {
 }
 
 /// 頻道詳情頁影片分頁「列哪些」（2026-10-16）。
+/// 順序就是篩選列的順序：沒看過 > 全部 > 已隱藏 > （幣圈的🎯準度）> 其他
+/// （2026-11-13 使用者要求）。
 enum _VideoView {
   unwatched('沒看過'),
-  hidden('已隱藏'),
   all('全部'),
+  hidden('已隱藏'),
   songs('♪ 歌曲'),
   // 幣圈分類才有（2026-11-11）。
   pending('🎯 待驗證', crypto: true),

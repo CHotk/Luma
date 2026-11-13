@@ -6,7 +6,7 @@ import '../storage/key_value_store.dart';
 /// ——不是永久留著（2026-09-23 使用者決定：原本堅持只存記憶體、關分頁
 /// 就消失，後來覺得每次重整都要重貼太麻煩，改成存本機但會自動失效，
 /// 兩邊各退一步）。效期一開始是「隔天 00:00」，2026-09-24 使用者要求
-/// 改成存一週。
+/// 改成存一週，2026-11-13 使用者要求改成預設存三個月（90 天）。
 ///
 /// 跟其他 repository 一樣包一層，不要讓畫面層直接戳 [KeyValueStore]。
 class YtApiKeyStore {
@@ -15,7 +15,10 @@ class YtApiKeyStore {
   static const _key = 'yt_tracker.api_key.v1';
 
   /// 從存進去那一刻起算的有效時間。
-  static const validFor = Duration(days: 7);
+  static const validFor = Duration(days: 90);
+
+  /// 舊版（只存 expiresAt）當初的效期，用來推回存進去的時間。
+  static const _oldValidFor = Duration(days: 7);
 
   final KeyValueStore _store;
 
@@ -25,7 +28,12 @@ class YtApiKeyStore {
     final raw = await _store.read(_key);
     if (raw == null) return null;
     final json = jsonDecode(raw) as Map<String, dynamic>;
-    final expiresAt = DateTime.parse(json['expiresAt'] as String);
+    // 效期一律從「存進去的時間」＋現在的 [validFor] 算：效期改長之後，之前存的
+    // 金鑰也跟著延長，不用重貼。舊格式沒有 savedAt，用當時一週的效期推回去。
+    final savedAt = json['savedAt'] is String
+        ? DateTime.parse(json['savedAt'] as String)
+        : DateTime.parse(json['expiresAt'] as String).subtract(_oldValidFor);
+    final expiresAt = savedAt.add(validFor);
     if (!DateTime.now().isBefore(expiresAt)) {
       await _store.remove(_key);
       return null;
@@ -33,12 +41,16 @@ class YtApiKeyStore {
     return json['key'] as String;
   }
 
-  /// 存金鑰，從現在起算 [validFor]（一週）後失效。
+  /// 存金鑰，從現在起算 [validFor]（三個月）後失效。
   Future<void> save(String key) async {
-    final expiresAt = DateTime.now().add(validFor);
+    final now = DateTime.now();
     await _store.write(
       _key,
-      jsonEncode({'key': key, 'expiresAt': expiresAt.toIso8601String()}),
+      jsonEncode({
+        'key': key,
+        'savedAt': now.toIso8601String(),
+        'expiresAt': now.add(validFor).toIso8601String(),
+      }),
     );
   }
 
