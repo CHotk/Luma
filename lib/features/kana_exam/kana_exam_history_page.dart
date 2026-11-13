@@ -255,7 +255,10 @@ class _KanaExamHistoryPageState extends ConsumerState<KanaExamHistoryPage> {
                                 ],
                               ),
                             ),
-                          Row(
+                          // 四顆在 390 寬放不下（超出 15px，2026-11-13 測試抓到），放不下就換行。
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
                             children: [
                               _FilterChip(
                                 label: '全部',
@@ -263,7 +266,6 @@ class _KanaExamHistoryPageState extends ConsumerState<KanaExamHistoryPage> {
                                 selected: _typeFilter == null,
                                 onTap: () => setState(() => _typeFilter = null),
                               ),
-                              const SizedBox(width: 6),
                               _FilterChip(
                                 label: '50 音',
                                 count: kanaCount,
@@ -271,7 +273,6 @@ class _KanaExamHistoryPageState extends ConsumerState<KanaExamHistoryPage> {
                                 onTap: () =>
                                     setState(() => _typeFilter = 'kana'),
                               ),
-                              const SizedBox(width: 6),
                               _FilterChip(
                                 label: '🌸 點亮',
                                 count: lightCount,
@@ -279,7 +280,6 @@ class _KanaExamHistoryPageState extends ConsumerState<KanaExamHistoryPage> {
                                 onTap: () =>
                                     setState(() => _typeFilter = 'light'),
                               ),
-                              const SizedBox(width: 6),
                               _FilterChip(
                                 label: '詞彙',
                                 count: vocabCount,

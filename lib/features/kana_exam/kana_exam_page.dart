@@ -457,7 +457,9 @@ class _KanaExamPageState extends ConsumerState<KanaExamPage> {
                         Row(
                           children: [
                             TextButton.icon(
-                              onPressed: _clearInk,
+                              // 要重畫：只清陣列的話筆畫跟「提交」鍵都還在
+                              // （2026-11-13 測試抓到）。
+                              onPressed: () => setState(_clearInk),
                               icon: const Icon(Icons.refresh, size: 16),
                               label: const Text('清除'),
                               style: TextButton.styleFrom(
