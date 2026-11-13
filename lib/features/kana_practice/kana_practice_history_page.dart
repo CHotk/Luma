@@ -38,6 +38,29 @@ import 'kana_paper.dart';
 /// 點一筆紀錄可以重播（有 `strokes` 才有得播），也可以匯出成真正的
 /// 檔案——用 `file_saver`，Web 上是觸發瀏覽器下載，App 上是存到裝置，
 /// 同一份 API 全平台通用，跟 `image_picker` 選型理由一樣。
+/// 把重播的圖片／動畫存成檔案。平常走 `file_saver`；測試換掉——在 Windows 上
+/// 跑測試時 `file_saver` 會真的寫進使用者的「下載」資料夾（2026-11-13 補測試時踩到）。
+@visibleForTesting
+Future<void> Function({
+  required String name,
+  required Uint8List bytes,
+  required String ext,
+  required MimeType mimeType,
+})
+kanaSaveFile = _saveWithFileSaver;
+
+Future<void> _saveWithFileSaver({
+  required String name,
+  required Uint8List bytes,
+  required String ext,
+  required MimeType mimeType,
+}) => FileSaver.instance.saveFile(
+  name: name,
+  bytes: bytes,
+  ext: ext,
+  mimeType: mimeType,
+);
+
 class KanaPracticeHistoryPage extends ConsumerStatefulWidget {
   const KanaPracticeHistoryPage({super.key});
 
@@ -785,7 +808,7 @@ class _ReplayDialogState extends State<_ReplayDialog>
     final stamp =
         '${d.year}${two(d.month)}${two(d.day)}_${two(d.hour)}${two(d.minute)}';
 
-    await FileSaver.instance.saveFile(
+    await kanaSaveFile(
       name: '${stamp}_${entry.kana}_${entry.romaji}',
       bytes: bytes,
       ext: 'png',
@@ -815,7 +838,7 @@ class _ReplayDialogState extends State<_ReplayDialog>
       final stamp =
           '${d.year}${two(d.month)}${two(d.day)}_${two(d.hour)}${two(d.minute)}';
 
-      await FileSaver.instance.saveFile(
+      await kanaSaveFile(
         name: '${stamp}_${entry.kana}_${entry.romaji}',
         bytes: bytes,
         ext: 'gif',
