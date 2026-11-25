@@ -337,6 +337,20 @@ class MusicActions {
     );
   }
 
+  /// 精選／備選切換（歌手頁預設只顯示精選，見 [MusicVersion.backupAt]）。
+  Future<void> toggleBackup(String id) async {
+    final v = data.version(id);
+    if (v == null) return;
+    final to = !v.backup;
+    await _set(
+      data.putVersion(v.copyWith(backup: to, updatedAt: DateTime.now())),
+    );
+    await _log(
+      '《${_title(v)}》（${_names(v.artistIds)}）${to ? '移到備選' : '放回精選'}',
+      versionId: id,
+    );
+  }
+
   bool isLiked(String versionId) => data.liked.versionIds.contains(versionId);
 
   Future<void> toggleLike(String versionId) =>

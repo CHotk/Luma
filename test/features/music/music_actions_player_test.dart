@@ -232,6 +232,18 @@ void main() {
       await a.toggleDislike('v2');
       await a.toggleDislike('沒有');
 
+      // 備選：切過去、放回、JSON 來回；不存在的不動。
+      expect(d().version('v2')!.backup, isFalse);
+      await a.toggleBackup('v2');
+      expect(d().version('v2')!.backup, isTrue);
+      expect(log().last, contains('移到備選'));
+      final back = MusicVersion.fromJson(d().version('v2')!.toJson());
+      expect(back.backup, isTrue);
+      await a.toggleBackup('v2');
+      expect(d().version('v2')!.backup, isFalse);
+      expect(log().last, contains('放回精選'));
+      await a.toggleBackup('沒有');
+
       await a.toggleLike('v2');
       expect(log().last, contains('標成喜歡'));
       await a.toggleLike('v2');

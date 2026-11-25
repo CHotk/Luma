@@ -986,8 +986,13 @@ class MusicArtistPage extends ConsumerStatefulWidget {
   ConsumerState<MusicArtistPage> createState() => _MusicArtistPageState();
 }
 
+enum _ArtistScope { pick, backup, disliked }
+
 class _MusicArtistPageState extends ConsumerState<MusicArtistPage> {
   MusicVersionType? _type;
+
+  /// 歌手頁看哪一區：精選（預設）／備選／不喜歡。
+  _ArtistScope _scope = _ArtistScope.pick;
   final _q = TextEditingController();
 
   @override
@@ -1014,9 +1019,17 @@ class _MusicArtistPageState extends ConsumerState<MusicArtistPage> {
     final everything = data.versionsOfArtist(a.id);
     // 不喜歡的放最下面那一區，不排進播放（2026-10-19）。
     // 照年份排，新的在上面（2026-10-21 使用者要求）
-    final vs = everything.where((v) => !v.disliked).toList()
+    // 2026-11-25 使用者要求：預設只看精選，備選／不喜歡切過去才看。
+    final vsAll = everything.where((v) => !v.disliked).toList()
       ..sort((a, b) => b.year.compareTo(a.year));
     final bad = everything.where((v) => v.disliked).toList();
+    final picks = vsAll.where((v) => !v.backup).toList();
+    final backups = vsAll.where((v) => v.backup).toList();
+    final vs = switch (_scope) {
+      _ArtistScope.pick => picks,
+      _ArtistScope.backup => backups,
+      _ArtistScope.disliked => bad,
+    };
     final ids = [for (final v in vs) v.id];
     // 熱門：照播放次數（播放紀錄），一樣多的話按過喜歡的先、再來新加的
     // （2026-10-21 使用者：熱門沒照播放次數排——原本只是照加進來的順序取前五）。
@@ -1045,7 +1058,7 @@ class _MusicArtistPageState extends ConsumerState<MusicArtistPage> {
         (data.work(v.workId)?.title ?? '').toLowerCase().contains(q) ||
         v.videoTitle.toLowerCase().contains(q) ||
         v.note.toLowerCase().contains(q);
-    final mine = q.isEmpty ? <MusicVersion>[] : vs.where(hit).toList();
+    final mine = q.isEmpty ? <MusicVersion>[] : vsAll.where(hit).toList();
     final others = <MusicArtist, List<MusicVersion>>{};
     if (q.isNotEmpty) {
       for (final o in data.artists) {
@@ -1119,7 +1132,7 @@ class _MusicArtistPageState extends ConsumerState<MusicArtistPage> {
                                   ),
                                 ),
                                 Text(
-                                  '${vs.length} 首・原唱 ${own.length} 首',
+                                  '精選 ${picks.length}・備選 ${backups.length}・原唱 ${own.length} 首',
                                   style: AppText.note,
                                 ),
                               ],
@@ -1249,25 +1262,59 @@ class _MusicArtistPageState extends ConsumerState<MusicArtistPage> {
                         ),
                       ],
                     ),
+                    _chips([
+                      _chip(
+                        '精選 ${picks.length}',
+                        _scope == _ArtistScope.pick,
+                        () => setState(() {
+                          _scope = _ArtistScope.pick;
+                          _type = null;
+                        }),
+                      ),
+                      _chip(
+                        '備選 ${backups.length}',
+                        _scope == _ArtistScope.backup,
+                        () => setState(() {
+                          _scope = _ArtistScope.backup;
+                          _type = null;
+                        }),
+                      ),
+                      if (bad.isNotEmpty)
+                        _chip(
+                          '不喜歡 ${bad.length}',
+                          _scope == _ArtistScope.disliked,
+                          () => setState(() {
+                            _scope = _ArtistScope.disliked;
+                            _type = null;
+                          }),
+                        ),
+                    ]),
+                    if (_scope == _ArtistScope.disliked)
+                      Text('記著他有這些歌，但不會被排進播放；⋮ 可以取消', style: AppText.note),
+                    if (_scope == _ArtistScope.backup)
+                      Text('可以聽、但不是精選；⋮ 可以放回精選', style: AppText.note),
                     if (vs.isNotEmpty) ...[
-                      _h2('熱門'),
-                      // 左右滑（2026-10-21 使用者：一整排往下太長，看不到下面）
-                      SizedBox(
-                        height: 168,
-                        child: ListView.separated(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: math.min(10, hot.length),
-                          separatorBuilder: (_, _) => const SizedBox(width: 12),
-                          itemBuilder: (_, i) => MusicHotCard(
-                            version: hot[i],
-                            rank: i + 1,
-                            plays: plays[hot[i].id]?.length ?? 0,
-                            queue: [for (final v in hot) v.id],
-                            from: '歌手頁「${a.name}」・熱門',
+                      if (_scope == _ArtistScope.pick) ...[
+                        _h2('熱門'),
+                        // 左右滑（2026-10-21 使用者：一整排往下太長，看不到下面）
+                        SizedBox(
+                          height: 168,
+                          child: ListView.separated(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: math.min(10, hot.length),
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(width: 12),
+                            itemBuilder: (_, i) => MusicHotCard(
+                              version: hot[i],
+                              rank: i + 1,
+                              plays: plays[hot[i].id]?.length ?? 0,
+                              queue: [for (final v in hot) v.id],
+                              from: '歌手頁「${a.name}」・熱門',
+                            ),
                           ),
                         ),
-                      ),
-                      _h2('他唱的・全部 ${vs.length}'),
+                      ],
+                      _h2('他唱的・${vs.length}'),
                       _chips([
                         _chip(
                           '全部 ${vs.length}',
@@ -1294,7 +1341,9 @@ class _MusicArtistPageState extends ConsumerState<MusicArtistPage> {
                       Padding(
                         padding: const EdgeInsets.all(24),
                         child: Text(
-                          '還沒有歌：到 YT 管理按 ⋮ →「加到音樂功能」',
+                          _scope == _ArtistScope.pick && everything.isEmpty
+                              ? '還沒有歌：到 YT 管理按 ⋮ →「加到音樂功能」'
+                              : '這一區沒有歌',
                           style: AppText.note,
                           textAlign: TextAlign.center,
                         ),
@@ -1303,16 +1352,6 @@ class _MusicArtistPageState extends ConsumerState<MusicArtistPage> {
                       _h2('他原唱的歌'),
                       Text('點進去看還有誰唱過', style: AppText.note),
                       for (final w in own) MusicWorkTile(work: w),
-                    ],
-                    if (bad.isNotEmpty) ...[
-                      _h2('不喜歡 ${bad.length}'),
-                      Text('記著他有這些歌，但不會被排進播放；⋮ 可以取消', style: AppText.note),
-                      for (final v in bad)
-                        MusicVersionTile(
-                          version: v,
-                          queue: [v.id],
-                          from: '歌手頁「${a.name}」・不喜歡',
-                        ),
                     ],
                   ],
                 ),

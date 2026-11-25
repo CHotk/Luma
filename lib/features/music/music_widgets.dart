@@ -1199,6 +1199,12 @@ Future<void> showMusicVersionMenu(
             Navigator.pop(ctx, 'yt');
           },
         ),
+        if (!v.disliked)
+          _menuItem(
+            v.backup ? Icons.star_rounded : Icons.star_border_rounded,
+            v.backup ? '放回精選' : '移到備選（歌手頁預設不顯示，還是能聽）',
+            () => Navigator.pop(ctx, 'backup'),
+          ),
         // 音樂不做刪除（2026-10-19 使用者要求：本意是記這個歌手有哪些歌），
         // 不想聽的放「不喜歡」。
         _menuItem(
@@ -1231,6 +1237,11 @@ Future<void> showMusicVersionMenu(
       appRouter.push('/music/work/${v.workId}');
     case 'yt':
       break;
+    case 'backup':
+      await MusicActions(ref).toggleBackup(id);
+      if (context.mounted) {
+        showAppNotice(context, v.backup ? '已放回精選' : '已移到備選（歌手頁切到「備選」才看得到）');
+      }
     case 'dislike':
       await MusicActions(ref).toggleDislike(id);
       if (context.mounted) {

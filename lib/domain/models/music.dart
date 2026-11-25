@@ -235,6 +235,7 @@ class MusicVersion implements MusicRecord {
     required this.updatedAt,
     this.deletedAt,
     this.dislikedAt,
+    this.backupAt,
   });
 
   /// YouTube 影片 id。
@@ -275,6 +276,13 @@ class MusicVersion implements MusicRecord {
 
   bool get disliked => dislikedAt != null;
 
+  /// 標成「備選」的時間：不討厭、可以聽，但不是精選。歌手頁預設只顯示精選
+  /// （2026-11-25 使用者要求），備選要切過去才看得到。還是會出現在首頁、
+  /// 搜尋、播放全部。null＝精選。
+  final DateTime? backupAt;
+
+  bool get backup => backupAt != null;
+
   String get videoId => id;
 
   MusicVersion copyWith({
@@ -285,6 +293,7 @@ class MusicVersion implements MusicRecord {
     int? releaseYear,
     bool clearReleaseYear = false,
     bool? disliked,
+    bool? backup,
     DateTime? updatedAt,
     DateTime? deletedAt,
   }) => MusicVersion(
@@ -305,6 +314,9 @@ class MusicVersion implements MusicRecord {
     dislikedAt: disliked == null
         ? dislikedAt
         : (disliked ? (dislikedAt ?? DateTime.now()) : null),
+    backupAt: backup == null
+        ? backupAt
+        : (backup ? (backupAt ?? DateTime.now()) : null),
   );
 
   @override
@@ -324,6 +336,7 @@ class MusicVersion implements MusicRecord {
     'updatedAt': updatedAt.toUtc().toIso8601String(),
     if (deletedAt != null) 'deletedAt': deletedAt!.toUtc().toIso8601String(),
     if (dislikedAt != null) 'dislikedAt': dislikedAt!.toUtc().toIso8601String(),
+    if (backupAt != null) 'backupAt': backupAt!.toUtc().toIso8601String(),
   };
 
   factory MusicVersion.fromJson(Map<String, dynamic> j) => MusicVersion(
@@ -344,6 +357,7 @@ class MusicVersion implements MusicRecord {
     updatedAt: _date(j['updatedAt']),
     deletedAt: _dateOrNull(j['deletedAt']),
     dislikedAt: _dateOrNull(j['dislikedAt']),
+    backupAt: _dateOrNull(j['backupAt']),
   );
 }
 
